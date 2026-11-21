@@ -32,6 +32,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+import uuid
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MICROPOD = os.environ.get("MICROPOD", f"{ROOT}/.build/debug/micropod")
@@ -42,7 +43,7 @@ API_NEW = os.environ.get("MICROPOD_API_NEW")
 N_BOOT = int(os.environ.get("N_BOOT", 10))
 N_JOB = int(os.environ.get("N_JOB", 3))
 PAR = int(os.environ.get("PAR", 4))
-MACHINE = "bench-go"
+MACHINE = "mp-bench-go-" + uuid.uuid4().hex[:12]
 # A second CLI build benchmarked alongside MICROPOD (regression check).
 MICROPOD_NEW = os.environ.get("MICROPOD_NEW")
 # `go mod download` fills GOMOD once; later runs find it complete and stay
@@ -65,7 +66,7 @@ class Option:
 
 
 def run(cmd):
-    r = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    r = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=610)
     if r.returncode != 0:
         raise RuntimeError(f"exit {r.returncode}: {' '.join(cmd)}\n{r.stdout[-1500:]}")
 
@@ -86,7 +87,9 @@ def api_run(runtime, image, args, volumes=(), api=API):
         cid = connect("RunContainer", body, api=api)["id"]
         try:
             waited = connect("WaitContainer", {"id": cid, "timeoutSeconds": 600}, api=api)
-            if waited.get("exitCode", 0) not in (0, None) and waited.get("known"):
+            if waited.get("exited") is not True or waited.get("known") is not True:
+                raise RuntimeError(f"{runtime} {image} has no authoritative exit: {waited}")
+            if waited.get("exitCode", 0) != 0:
                 raise RuntimeError(f"{runtime} {image} exited {waited.get('exitCode')}")
         finally:
             connect("DeleteContainer", {"id": cid, "force": True}, api=api)
@@ -152,39 +155,45 @@ def options(work, only, skip):
     return [o for o in opts if (not only or o.name in only) and o.name not in (skip or [])]
 
 
-def timed(fn):
-    t = time.perf_counter()
+def timed(fn, attempts, **dimensions):
+    start = time.perf_counter()
+    record = dict(dimensions)
     try:
         fn()
-    except Exception:  # one retry absorbs a transient runtime hiccup
-        t = time.perf_counter()
-        fn()
-    return time.perf_counter() - t
+        record["outcome"] = "pass"
+    except Exception as error:
+        record.update(outcome="fail", error=str(error))
+        raise
+    finally:
+        record["seconds"] = time.perf_counter() - start
+        attempts.append(record)
+    return record["seconds"]
 
 
-def interleaved(opts, pick, n):
-    """n rounds; each round runs every option once, in rotating order."""
-    for o in opts:
-        pick(o)()  # warm-up: first-run unpack / page cache, not counted
+def interleaved(opts, kind, n, attempts):
+    """Every option gets one warm-up followed by rotating, paired first attempts."""
     samples = {o.name: [] for o in opts}
-    for i in range(n):
-        order = opts[i % len(opts):] + opts[:i % len(opts)]
-        for o in order:
-            samples[o.name].append(timed(pick(o)))
+    for block in range(n + 1):
+        shift = block % len(opts)
+        for o in opts[shift:] + opts[:shift]:
+            seconds = timed(getattr(o, kind), attempts, option=o.name, phase=kind, block=block, warmup=block == 0)
+            if block:
+                samples[o.name].append(seconds)
     return samples
 
 
-def fanout(opts, k, rounds=3):
+def fanout(opts, k, attempts, rounds=3):
     samples = {}
     for o in opts:
         if not o.fanout:
             continue
         walls = []
-        for _ in range(rounds):
-            t = time.perf_counter()
+        for block in range(rounds):
+            start = time.perf_counter()
             with cf.ThreadPoolExecutor(k) as ex:
-                list(ex.map(lambda _: timed(o.job), range(k)))
-            walls.append(time.perf_counter() - t)
+                list(ex.map(lambda client: timed(o.job, attempts, option=o.name, phase="fanout", block=block,
+                                                 client=client, clients=k), range(k)))
+            walls.append(time.perf_counter() - start)
         samples[o.name] = walls
     return samples
 
@@ -208,58 +217,68 @@ def main():
     args = ap.parse_args()
     rows = args.rows.split(",")
 
-    # Under $HOME: machines see the host home through their home mount, and
-    # shuru only mounts paths under CWD.
-    work = os.path.expanduser(f"~/.micropod/bench/runtimes-{os.getpid()}")
+    if not set(rows) <= {"boot", "job", "fanout"}:
+        ap.error("rows must be boot, job or fanout")
+    if min(N_BOOT, N_JOB, PAR) < 1:
+        ap.error("sample and concurrency counts must be positive")
+    output = os.path.abspath(args.json) if args.json else None
+    work = os.path.expanduser(f"~/.micropod/bench/runtimes-{uuid.uuid4().hex}")
     os.makedirs(work)
+    previous_dir = os.getcwd()
     os.chdir(work)
-    shutil.copytree(f"{ROOT}/ci/samples/go-app", "go-app")
-    opts = options(work, args.only, args.skip)
-    print(f"workdir {work}\noptions: {', '.join(o.name for o in opts)}\nload: {os.getloadavg()}")
-    dns = ["--dns-resolver", SETUP_DNS] if SETUP_DNS else []
-    os.makedirs(GOMOD, exist_ok=True)
-    setup = [SETUP_MICROPOD, "sandbox", "run", "--net", *dns, "-v", f"{work}/go-app:/src:ro", "-v",
-             f"{GOMOD}:/gomod", "-e", "GOMODCACHE=/gomod", "-e", "GOFLAGS=-modcacherw",
-             "-w", "/src", "golang:1", "--", "go", "mod", "download"]
-    if subprocess.run(setup).returncode != 0:  # idempotent: one retry for a VM lost at boot
-        subprocess.run(setup, check=True)
-    subprocess.run(["cp", "-c", "-R", GOMOD, "gomod"], check=True)  # APFS clone: ~1 s
-    if any(o.name == "machine" for o in opts):
-        # Machines boot the image's /sbin/init: golang:1 (Debian, no
-        # systemd) has none, the alpine variant has busybox's.
-        subprocess.run(["container", "machine", "delete", MACHINE], capture_output=True)
-        subprocess.run(["container", "machine", "create", "golang:1-alpine", "--name", MACHINE,
-                        "--cpus", "2", "--memory", "2G", "--progress", "none"], check=True)
-    if SHURU and any(o.name == "shuru" for o in opts):
-        if "go127" not in subprocess.run([SHURU, "checkpoint", "list"], capture_output=True, text=True).stdout:
-            subprocess.run([SHURU, "checkpoint", "create", "go127", "--allow-net", "--disk-size", "8192",
-                            "--", "sh", "-c",
-                            "curl -fsSL https://go.dev/dl/go1.27.1.linux-arm64.tar.gz | tar -C /usr/local -xz"
-                            " && ln -sf /usr/local/go/bin/go /usr/local/bin/go"], check=True)
-
-    results = {"load_start": os.getloadavg(), "rows": {}}
+    attempts = []
+    results = {"schema": 2, "load_start": os.getloadavg(), "rows": {}, "attempts": attempts}
+    machine_started = False
     try:
+        opts = options(work, args.only, args.skip)
+        if not opts:
+            ap.error("at least one engine is required")
+        print(f"workdir {work}\noptions: {', '.join(o.name for o in opts)}\nload: {os.getloadavg()}")
+        if set(rows) & {"job", "fanout"}:
+            shutil.copytree(f"{ROOT}/ci/samples/go-app", "go-app")
+            dns = ["--dns-resolver", SETUP_DNS] if SETUP_DNS else []
+            os.makedirs(GOMOD, exist_ok=True)
+            setup = [SETUP_MICROPOD, "sandbox", "run", "--net", *dns, "-v", f"{work}/go-app:/src:ro", "-v",
+                     f"{GOMOD}:/gomod", "-e", "GOMODCACHE=/gomod", "-e", "GOFLAGS=-modcacherw",
+                     "-w", "/src", "golang:1", "--", "go", "mod", "download"]
+            timed(lambda: run(setup), attempts, phase="module-cache-setup")
+            run(["cp", "-c", "-R", GOMOD, "gomod"])
+        if any(o.name == "machine" for o in opts):
+            run(["container", "machine", "create", "golang:1-alpine", "--name", MACHINE,
+                 "--cpus", "2", "--memory", "2G", "--progress", "none"])
+            machine_started = True
+        if SHURU and set(rows) & {"job", "fanout"} and any(o.name == "shuru" for o in opts):
+            inventory = subprocess.run([SHURU, "checkpoint", "list"], capture_output=True, text=True,
+                                       timeout=30, check=True)
+            if "go127" not in inventory.stdout:
+                run([SHURU, "checkpoint", "create", "go127", "--allow-net", "--disk-size", "8192", "--", "sh", "-c",
+                     "curl -fsSL https://go.dev/dl/go1.27.1.linux-arm64.tar.gz | tar -C /usr/local -xz"
+                     " && ln -sf /usr/local/go/bin/go /usr/local/bin/go"])
+
         if "boot" in rows:
-            s = interleaved(opts, lambda o: o.boot, N_BOOT)
+            s = interleaved(opts, "boot", N_BOOT, attempts)
             report(f"boot → `true` → teardown (n={N_BOOT}, interleaved)", s)
             results["rows"]["boot"] = s
         if "job" in rows:
-            s = interleaved(opts, lambda o: o.job, N_JOB)
+            s = interleaved(opts, "job", N_JOB, attempts)
             report(f"go vet + go test, cold GOCACHE (n={N_JOB}, interleaved)", s)
             results["rows"]["job"] = s
         if "fanout" in rows:
-            s = fanout(opts, PAR)
+            s = fanout(opts, PAR, attempts)
             report(f"fan-out: {PAR} concurrent go jobs, wall (3 rounds)", s)
             results["rows"]["fanout"] = s
     finally:
         results["load_end"] = os.getloadavg()
         print(f"\nload: start {results['load_start']} end {results['load_end']}")
-        if any(o.name == "machine" for o in opts):
-            subprocess.run(["container", "machine", "delete", MACHINE], capture_output=True)
-        shutil.rmtree(work, ignore_errors=True)
-        if args.json:
-            with open(args.json, "w") as f:
-                json.dump(results, f, indent=2)
+        os.chdir(previous_dir)
+        try:
+            if machine_started:
+                timed(lambda: run(["container", "machine", "delete", MACHINE]), attempts, phase="machine-cleanup")
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+            if output:
+                with open(output, "w") as f:
+                    json.dump(results, f, indent=2)
 
 
 if __name__ == "__main__":

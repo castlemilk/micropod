@@ -22,11 +22,13 @@ public actor SharedFSDaemon: SharedFSClient {
     private let gracePeriod: TimeInterval = 300  // 5m grace
     private var sweepTask: Task<Void, Never>?
     private var views: [ViewID: SharedView] = [:]
-    // Live shared mounts: one view per src, bidirectional sync for live writes.
-    private var sharedViews: [String: SharedView] = [:]
-    private var sharedWatchers: [String: (srcWatcher: FSEventsWatcher, viewWatcher: FSEventsWatcher)] =
-        [:]
-    private var sharedRefCounts: [String: Int] = [:]
+    // A read-only view can follow its source but must never publish writes to it.
+    private struct SharedKey: Hashable {
+        let path: String
+        let readonly: Bool
+    }
+    private var sharedViews: [SharedKey: ViewID] = [:]
+    private var sharedRefCounts: [ViewID: Int] = [:]
     // Per-container live sync via host hub
     private var viewsBySrc: [String: Set<ViewID>] = [:]
     private var viewWatchers: [ViewID: FSEventsWatcher] = [:]
@@ -38,13 +40,7 @@ public actor SharedFSDaemon: SharedFSClient {
     private var cacheRetentionWarning: String? = nil
     private var cleanupReviews: [String: (createdAt: Date, hashes: [ChunkHash])] = [:]
 
-    /// Shared mounts are also registered in `views` for inspect/refresh.
-    /// Merge by identity so metrics and inventories count each view once.
-    private var activeViews: [SharedView] {
-        var unique = views
-        for view in sharedViews.values { unique[view.id] = view }
-        return Array(unique.values)
-    }
+    private var activeViews: Dictionary<ViewID, SharedView>.Values { views.values }
 
     public init(cacheRoot: URL, cacheMaxBytes: UInt64? = nil) throws {
         self.cacheRoot = cacheRoot
@@ -266,8 +262,13 @@ public actor SharedFSDaemon: SharedFSClient {
         let id = ViewID.generate()
         let viewRoot = viewsRoot.appendingPathComponent(id.value, isDirectory: true)
         try SharedView.build(source: normalized, root: viewRoot)
-        let view = SharedView(id: id, source: normalized, root: viewRoot)
-        liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
+        let view = SharedView(id: id, source: normalized, root: viewRoot, readonly: readonly)
+        do {
+            liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
+        } catch {
+            try? view.destroy()
+            throw error
+        }
         views[id] = view
         viewsBySrc[normalized.path, default: []].insert(id)
         ensureWatchers(for: normalized, view: view)
@@ -281,34 +282,45 @@ public actor SharedFSDaemon: SharedFSClient {
         // Enforce storage cap before next mount (synchronous, no du)
         _ = await enforceStorageCapIfNeeded()
         let normalized = src.resolvingSymlinksInPath().standardizedFileURL
-        let key = normalized.path
-        if let existing = sharedViews[key] {
-            sharedRefCounts[key, default: 1] += 1
-            fputs("[sharedfs] mountShared reuse \(key) -> \(existing.root.path)\n", stderr)
+        let key = SharedKey(path: normalized.path, readonly: readonly)
+        if let id = sharedViews[key], let existing = views[id] {
+            sharedRefCounts[id, default: 1] += 1
+            fputs("[sharedfs] mountShared reuse \(key.path) -> \(existing.root.path)\n", stderr)
             return MountInfo(
-                id: existing.id, src: key, viewPath: existing.root.path,
+                id: existing.id, src: key.path, viewPath: existing.root.path,
                 sizeBytes: existing.size(), readonly: readonly,
                 createdAt: existing.createdAt)
         }
         // Deterministic ID for shared view (so restarts can re-derive).
-        let hash = (try? ChunkHash.compute(Data(key.utf8)))?.value.prefix(12) ?? Substring(UUID().uuidString.prefix(12))
-        let id = ViewID(String(hash))
-        let viewRoot = viewsRoot.appendingPathComponent("shared-\(id.value)", isDirectory: true)
-        // Clean stale view dir if any.
-        if FileManager.default.fileExists(atPath: viewRoot.path) {
-            try? FileManager.default.removeItem(at: viewRoot)
+        let identity = key.path + (readonly ? "\0ro" : "")
+        let hash =
+            (try? ChunkHash.compute(Data(identity.utf8)))?.value.prefix(12) ?? Substring(UUID().uuidString.prefix(12))
+        var id = ViewID(String(hash))
+        var viewRoot = viewsRoot.appendingPathComponent("shared-\(id.value)", isDirectory: true)
+        do {
+            try SharedView.build(source: normalized, root: viewRoot)
+        } catch let error as POSIXError where error.code == .EEXIST {
+            // A retained directory may still be mounted by an earlier daemon.
+            id = ViewID.generate()
+            viewRoot = viewsRoot.appendingPathComponent("shared-\(id.value)", isDirectory: true)
+            try SharedView.build(source: normalized, root: viewRoot)
         }
-        try SharedView.build(source: normalized, root: viewRoot)
-        let view = SharedView(id: id, source: normalized, root: viewRoot)
-        liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
-        sharedViews[key] = view
-        sharedRefCounts[key] = 1
+        let view = SharedView(id: id, source: normalized, root: viewRoot, readonly: readonly)
+        do {
+            liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
+        } catch {
+            try? view.destroy()
+            throw error
+        }
+        sharedViews[key] = id
+        sharedRefCounts[id] = 1
         // Also register in views for list/inspect visibility.
         views[id] = view
-        startSharedWatchers(src: normalized, view: view)
-        fputs("[sharedfs] mountShared \(key) -> \(viewRoot.path)\n", stderr)
+        viewsBySrc[key.path, default: []].insert(id)
+        ensureWatchers(for: normalized, view: view)
+        fputs("[sharedfs] mountShared \(key.path) -> \(viewRoot.path)\n", stderr)
         return MountInfo(
-            id: id, src: key, viewPath: viewRoot.path,
+            id: id, src: key.path, viewPath: viewRoot.path,
             sizeBytes: view.size(), readonly: readonly, createdAt: view.createdAt)
     }
 
@@ -319,34 +331,23 @@ public actor SharedFSDaemon: SharedFSClient {
         guard let view = views[id] else {
             throw SharedFSError.daemonUnavailable
         }
-        try SharedView.build(source: view.source, root: view.root)
+        try SharedView.build(source: view.source, root: view.root, files: .native, replacing: true)
         liveSync[id] = try SharedViewSync(source: view.source, view: view.root)
         return MountInfo(
             id: id, src: view.source.path, viewPath: view.root.path,
-            sizeBytes: view.size(), readonly: false, createdAt: view.createdAt)
+            sizeBytes: view.size(), readonly: view.readonly, createdAt: view.createdAt)
     }
 
     public func unmount(id: ViewID) async throws {
-        // Shared view path: ref-counted, only destroyed when last user leaves.
-        if let sharedKey = sharedViews.first(where: { $0.value.id == id })?.key {
-            let remaining = (sharedRefCounts[sharedKey] ?? 1) - 1
-            if remaining <= 0 {
-                sharedWatchers[sharedKey]?.srcWatcher.stop()
-                sharedWatchers[sharedKey]?.viewWatcher.stop()
-                sharedWatchers.removeValue(forKey: sharedKey)
-                if let sharedView = sharedViews[sharedKey] { try? sharedView.destroy() }
-                sharedViews.removeValue(forKey: sharedKey)
-                sharedRefCounts.removeValue(forKey: sharedKey)
-                views.removeValue(forKey: id)
-                liveSync.removeValue(forKey: id)
-            } else {
-                sharedRefCounts[sharedKey] = remaining
-                // Keep the view alive for other containers; just forget the
-                // per-container mapping (viewsBySrc not used for shared).
-            }
+        guard let view = views[id] else { return }
+        if let count = sharedRefCounts[id], count > 1 {
+            sharedRefCounts[id] = count - 1
             return
         }
-        guard let view = views[id] else { return }
+        try view.destroy()
+        if sharedRefCounts.removeValue(forKey: id) != nil {
+            sharedViews.removeValue(forKey: SharedKey(path: view.source.path, readonly: view.readonly))
+        }
         viewWatchers[view.id]?.stop()
         viewWatchers.removeValue(forKey: view.id)
         if let srcKey = viewsBySrc.first(where: { $0.value.contains(view.id) })?.key {
@@ -357,7 +358,6 @@ public actor SharedFSDaemon: SharedFSClient {
                 viewsBySrc.removeValue(forKey: srcKey)
             }
         }
-        try view.destroy()
         views.removeValue(forKey: id)
         liveSync.removeValue(forKey: id)
     }
@@ -368,13 +368,14 @@ public actor SharedFSDaemon: SharedFSClient {
         }
         return MountInfo(
             id: id, src: view.source.path, viewPath: view.root.path,
-            sizeBytes: view.size(), readonly: false, createdAt: view.createdAt)
+            sizeBytes: view.size(), readonly: view.readonly, createdAt: view.createdAt)
     }
 
     public func sync(id: ViewID) async throws -> SyncResult {
         guard let view = views[id] else {
             throw SharedFSError.daemonUnavailable
         }
+        if view.readonly { return SyncResult(id: id, synced: [], bytesWritten: 0) }
         let changed = try SharedView.syncToSource(view: view.root, source: view.source)
         liveSync[id] = try SharedViewSync(source: view.source, view: view.root)
         let bytes = changed.reduce(0) { acc, url in
@@ -387,7 +388,7 @@ public actor SharedFSDaemon: SharedFSClient {
         activeViews.map { view in
             MountInfo(
                 id: view.id, src: view.source.path, viewPath: view.root.path,
-                sizeBytes: view.size(), readonly: false, createdAt: view.createdAt)
+                sizeBytes: view.size(), readonly: view.readonly, createdAt: view.createdAt)
         }
     }
 
@@ -437,7 +438,7 @@ public actor SharedFSDaemon: SharedFSClient {
         let mounts = activeViews.map { view in
             MountInfo(
                 id: view.id, src: view.source.path, viewPath: view.root.path,
-                sizeBytes: 0, readonly: false, createdAt: view.createdAt)
+                sizeBytes: 0, readonly: view.readonly, createdAt: view.createdAt)
         }.sorted { $0.src < $1.src }
         return SharedCacheSnapshot(
             cacheRoot: cacheRoot.path, measuredAt: Date(), storedBytes: store.indexedSize,
@@ -530,28 +531,13 @@ public actor SharedFSDaemon: SharedFSClient {
             srcWatchers[key] = watcher
             fputs("[sharedfs] watching src \(key)\n", stderr)
         }
+        guard !view.readonly else { return }
         let viewWatcher = FSEventsWatcher(path: realView) { [weak self] paths in
             Task { [weak self] in await self?.handleViewChange(paths: paths, view: view) }
         }
         viewWatcher.start()
         viewWatchers[view.id] = viewWatcher
         fputs("[sharedfs] watching view \(view.id.value) at \(realView.path)\n", stderr)
-    }
-
-    private func startSharedWatchers(src: URL, view: SharedView) {
-        let realSrc = src.resolvingSymlinksInPath()
-        let realView = view.root.resolvingSymlinksInPath()
-        let key = realSrc.path
-        let srcWatcher = FSEventsWatcher(path: realSrc) { [weak self] paths in
-            Task { [weak self] in await self?.handleSrcChange(paths: paths, src: realSrc) }
-        }
-        srcWatcher.start()
-        let viewWatcher = FSEventsWatcher(path: realView) { [weak self] paths in
-            Task { [weak self] in await self?.handleViewChange(paths: paths, view: view) }
-        }
-        viewWatcher.start()
-        sharedWatchers[key] = (srcWatcher, viewWatcher)
-        fputs("[sharedfs] watching shared \(key) <-> \(realView.path)\n", stderr)
     }
 
     private func handleSrcChange(paths: [String], src: URL) async {
@@ -563,13 +549,9 @@ public actor SharedFSDaemon: SharedFSClient {
         }
         let effective = filtered.isEmpty ? paths.filter { !$0.contains(".sb-") } : filtered
         fputs("[sharedfs] src change \(effective.first ?? "?") (\(effective.count) paths)\n", stderr)
-        var targetIDs = viewsBySrc[key] ?? []
-        if let shared = sharedViews[key] { targetIDs.insert(shared.id) }
-        guard !targetIDs.isEmpty else { return }
-        for viewID in targetIDs {
-            guard let view = views[viewID] ?? sharedViews[key] else { continue }
+        for id in viewsBySrc[key] ?? [] {
             for changed in effective {
-                synchronize(changed, viewID: view.id, fromView: false)
+                synchronize(changed, viewID: id, fromView: false)
             }
         }
     }
@@ -578,7 +560,7 @@ public actor SharedFSDaemon: SharedFSClient {
         guard views[view.id] != nil else { return }
         let effective = paths.filter { !$0.contains(".sb-") }
         let key = view.source.resolvingSymlinksInPath().path
-        let siblings = (viewsBySrc[key] ?? []).union(sharedViews[key].map { Set([$0.id]) } ?? [])
+        let siblings = viewsBySrc[key] ?? []
         for changed in effective {
             let propagated = synchronize(changed, viewID: view.id, fromView: true)
             // The host remains the hub. Each sibling has its own baseline;

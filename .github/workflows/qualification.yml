@@ -1,0 +1,100 @@
+name: Engine qualification
+on:
+  pull_request:
+    paths:
+      - .github/workflows/qualification.yml
+      - scripts/qualification/engine.py
+      - scripts/qualification/guest.go
+      - scripts/qualification/receipt.py
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: Run repeated engine bursts and the larger macOS storage matrix
+        type: boolean
+        default: true
+      extended_storage:
+        description: Also measure the 50,000-file and 1 GiB fixtures
+        type: boolean
+        default: false
+      product_mac:
+        description: Run all three product endpoints on a registered, dedicated Apple Silicon qualification runner
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-reference:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate Buildx, Docker, Compose and native runc
+        env:
+          SCALE: ${{ github.event_name == 'workflow_dispatch' && inputs.scale }}
+        run: |
+          rounds=3
+          if [[ "$SCALE" == true ]]; then rounds=10; fi
+          python3 scripts/qualification/engine.py --context default --oci --podman-reference \
+            --clients 1 4 8 --rounds "$rounds" --json "$RUNNER_TEMP/engine.json"
+      - name: Publish first-attempt receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-engine-receipt
+          path: ${{ runner.temp }}/engine.json
+          if-no-files-found: error
+
+  storage-scale:
+    if: github.event_name == 'workflow_dispatch' && (inputs.scale || inputs.extended_storage)
+    runs-on: macos-26
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare APFS clones, copy fallback, rsync and chunk encodings
+        run: python3 scripts/qualification/storage.py --json "$RUNNER_TEMP/storage.json"
+      - name: Compare extended storage sizes
+        if: always() && inputs.extended_storage
+        run: python3 scripts/qualification/storage.py --profile extended --rounds 3 --json "$RUNNER_TEMP/storage-extended.json"
+      - name: Publish first-attempt receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-storage-receipt
+          path: ${{ runner.temp }}/storage*.json
+          if-no-files-found: error
+
+  product-macos:
+    if: github.event_name == 'workflow_dispatch' && inputs.product_mac
+    runs-on: [self-hosted, macOS, ARM64, micropod-qualification]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Exercise installed engines on this Mac
+        run: |
+          failed=0
+          for product in micropod orbstack desktop-linux; do
+            endpoint=(--context "$product")
+            if [[ "$product" == micropod ]]; then
+              endpoint=(--name micropod --host "unix://$HOME/.micropod/docker.sock"
+                        --peer-context orbstack --peer-context desktop-linux)
+            fi
+            python3 scripts/qualification/engine.py "${endpoint[@]}" --clients 1 4 8 --rounds 5 \
+              --json "$RUNNER_TEMP/$product.json" || failed=1
+          done
+          exit "$failed"
+      - name: Publish first-attempt receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installed-product-receipts
+          path: |
+            ${{ runner.temp }}/micropod.json
+            ${{ runner.temp }}/orbstack.json
+            ${{ runner.temp }}/desktop-linux.json
+          if-no-files-found: error

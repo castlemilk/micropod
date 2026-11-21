@@ -1,0 +1,97 @@
+"""First-attempt qualification receipts. Timings use a monotonic clock in milliseconds."""
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+import platform
+import signal
+import statistics
+import subprocess
+import time
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def run(argv, *, timeout=60, cwd=None, env=None, expected=0):
+    cmd = [str(arg) for arg in argv]
+    with subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True, stdin=subprocess.DEVNULL, start_new_session=True) as child:
+        try:
+            stdout, stderr = child.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Local rsync and CLI plugins can have children holding the output pipes.
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.communicate(timeout=5)
+            raise
+        proc = subprocess.CompletedProcess(cmd, child.returncode, stdout, stderr)
+    if proc.returncode != expected:
+        raise RuntimeError(f"{Path(argv[0]).name} returned {proc.returncode}, expected {expected}: "
+                           f"{(proc.stderr or proc.stdout).strip()[-1200:]}")
+    return proc
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with path.open('rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def require(value, message):
+    if not value:
+        raise ValueError(message)
+
+
+class Receipt:
+    def __init__(self, path, lane):
+        self.path = Path(path)
+        self.data = {'schema': 1, 'lane': lane, 'started_at': datetime.now(timezone.utc).isoformat(),
+                     'host_os': platform.system(),
+                     'host_release': platform.release(), 'host_arch': platform.machine(),
+                     'checkout': os.environ.get('GITHUB_SHA') or run(['git', 'rev-parse', 'HEAD'], cwd=ROOT).stdout.strip(),
+                     'samples': []}
+
+    def record(self, name, fn, **dimensions):
+        sample = dict(case=name, load_start=os.getloadavg(), **dimensions)
+        start = time.perf_counter()
+        try:
+            result = fn()
+            sample.update(result or {})
+            sample['outcome'] = 'pass'
+        except subprocess.TimeoutExpired as error:
+            sample.update(outcome='timeout', deadline_seconds=error.timeout,
+                          error=f'{Path(error.cmd[0]).name} exceeded {error.timeout} seconds')
+        except Exception as error:
+            sample.update(outcome='fail', error=str(error))
+        sample['validated_ms'] = round(1000 * (time.perf_counter() - start), 3)
+        self.data['samples'].append(sample)
+        self.save()
+        if sample['outcome'] != 'pass':
+            print(f"FAIL {name} {dimensions}: {sample['error']}", flush=True)
+        return sample
+
+    def save(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(self.path.suffix + '.tmp')
+        tmp.write_text(json.dumps(self.data, indent=2, sort_keys=True) + '\n')
+        tmp.replace(self.path)
+
+    def finish(self):
+        rows = self.data['samples']
+        groups = {}
+        for row in rows:
+            if row.get('warmup') or row['outcome'] != 'pass':
+                continue
+            key = (row['case'], row.get('solution', ''), row.get('shape', ''), row.get('clients', 1))
+            groups.setdefault(key, []).append(row['validated_ms'])
+        for key, values in groups.items():
+            print(f"{key}: n={len(values)} validated median={statistics.median(values):.1f} ms "
+                  f"range={min(values):.1f}..{max(values):.1f}")
+        self.save()
+        return 0 if rows and all(row['outcome'] == 'pass' for row in rows) else 1
