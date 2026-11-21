@@ -27,35 +27,68 @@ terminal; cuttle never reads it.
 
 What rig mode does differently:
 
-- **The account is never changed.** `harden` does not run: no password, ssh or
-  sudo change. Neither do `prepare-legacy` or `g4-before`, which plants code
-  that runs as root at boot.
-- **The marker.** Every step requires the root-owned marker
-  `/var/db/micropod-gate-rig` that `rig-begin` writes. Every step also refuses
-  while the Cuttlefish agent, a GitHub runner or Docker Desktop runs.
+- **The account is never changed.** `harden` does not run, so nothing touches
+  the password, ssh or sudo. `prepare-legacy` and `g4-before` don't run
+  either: `g4-before` plants code that runs as root at boot.
+- **Guards.**
+  - Every test step requires the root-owned marker `/var/db/micropod-gate-rig`
+    that `rig-begin` writes.
+  - Every test step refuses while the Cuttlefish agent, a GitHub runner or
+    pool, or Docker Desktop runs. It also refuses as root.
+  - The working folder `/Users/Shared/micropod-gate` must be the user's own,
+    mode 0700.
+  - Each release is used only once `codesign` accepts it as the team's signed
+    build.
+  - The R2 check runs an admin-owned but immutable (`schg`) copy of A's CLI
+    from a root-owned folder.
+- **Track detection.** `rig-begin` takes:
+  - the **fresh** track only on a Mac with no Micropod runtime files at all;
+  - the **legacy** track only on an untouched 0.13.3 rig, where the
+    0.13.3-signed helper serves and nothing is sealed or disabled yet.
 - **The fresh track returns to A after each B test.** One rig plays every
-  clone. After each test that moved it to B (whose security floor is B),
-  `rig-reset` does three things:
-  1. puts root's saved high-water marks for A back (`rig-save`, right after
-     `g1`);
-  2. reinstalls A's app;
-  3. rolls the runtime back to A.
-
-  A failed `rig-reset` ends the run, because later results would not be
-  about A.
-- **The legacy track has one kill, not twelve.** A rig has one 0.13.3 install,
-  so G3 is a single real kill at `neutralized`, followed by a reboot (`g3-kill`,
-  then `g3-check neutralized rebooted`). RuntimeAuthorityMigrationTests covers
-  the other eleven cases. `g9` and `g4-after` share one reboot.
+  clone:
+  - `rig-save`, run once right after `g1`, keeps root's high-water marks for A.
+  - Each test that moves the rig to B sets a root-owned "dirty" flag first.
+    B's security floor is B.
+  - `rig-reset` then puts A's marks back, reinstalls A's app and rolls the
+    runtime back to A.
+  - Only a passing `rig-reset` clears the flag. A B test refuses while it is
+    set, or unless A serves.
+- **The legacy track has one kill, not twelve.**
+  - A rig has one 0.13.3 install, so G3 is a single real kill at `retired`,
+    after the live 0.13.3 helper has handed over. A reboot follows:
+    `g3-kill retired`, then `g3-check retired rebooted`.
+  - RuntimeAuthorityMigrationTests covers the other eleven cases.
+  - `g9` and `g4-after` share one reboot.
+  - A step that follows a reboot refuses unless the boot time changed since
+    the root-owned stamp the reboot request wrote.
+  - If an attack gets through, the rig puts back what it moved and is not
+    rebooted.
+- **FileVault.** On a FileVault Mac each reboot stops at the unlock screen, so
+  someone has to be at the rig.
 - **It ends on A.** `rig-end` removes the gate's own files and leaves the
-  installed release in place.
+  installed release in place. On the fresh track it refuses while the dirty
+  flag is set, because the saved marks are then the only way back to A.
+
+When a run stops partway:
+
+- **Fresh rig left on B.** Run `cuttle micropod gate run --resume`, or the
+  runner's `rig-reset`. Both put A back from the saved marks.
+  - Never delete `/var/db/micropod-gate-rig.d` while the dirty flag is set.
+  - Without those marks, B's floor stops A from installing (`install-authority`
+    refuses it) and from launching.
+- **Legacy rig whose re-run of `install-authority` failed.** No helper serves
+  until a fixed A exists. The 0.13.3 bundle is kept under `RuntimeHost/components/legacy-*`.
+- **One run per rig.** Rig mode qualifies a rig's first authority install
+  only; a rig already on the authority is refused. Later releases need an
+  update track (not written yet) or the VM.
 
 `cuttle micropod release publish` takes both rigs' verdicts (`--evidence`
 twice): together they must pass G1 to G9.
 
 Ground rules:
 
-- Only the VM is changed. Don't run `cuttle`, `micropod`, `launchctl` or
+- (VM mode.) Only the VM is changed. Don't run `cuttle`, `micropod`, `launchctl` or
   Docker commands on the host. The host's Cuttlefish agent stays paused and
   idle for the whole run. The one exception is `cuttle micropod gate`
   ([With cuttle](#with-cuttle)), which runs this procedure itself. After its

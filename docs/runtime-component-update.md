@@ -464,8 +464,8 @@ the production Developer ID build (a draft qualification candidate), either
 on real rigs or on a throwaway macOS 26 VM.
 
 - **On rigs (the default).** A rig without Micropod runs G1, G2, G5, G6, G7
-  and G8. A 0.13.3 rig runs G3, with one real kill at `neutralized`, plus G9
-  and G4. `MICROPOD_GATE_RIG=1`; RuntimeAuthorityMigrationTests covers the
+  and G8. A 0.13.3 rig runs G3, with one real kill at `retired` (after the
+  live 0.13.3 helper has handed over), plus G9 and G4. `MICROPOD_GATE_RIG=1`; RuntimeAuthorityMigrationTests covers the
   rest of the kill matrix.
 - **On a VM.** `scripts/vm/gate-host.sh` creates the VM with tart and runs the
   kill matrix on clones.
@@ -473,7 +473,7 @@ on real rigs or on a throwaway macOS 26 VM.
 `scripts/vm/runtime-authority-gate.sh` runs the tests and prints PASS/FAIL per
 check. docs/vm-release-gate.md has the exact commands.
 
-0. **Harden** (`harden`, `harden matrix`). Every step refuses outside a
+0. **Harden** (`harden`, `harden matrix`). In a VM, every step refuses outside a
    hypervisor guest carrying the gate's root-owned marker, or next to any
    Cuttlefish process, state or install, or a Micropod runtime the gate did
    not create. `harden` sets a random password, key-only ssh, and no

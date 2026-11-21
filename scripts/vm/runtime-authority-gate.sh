@@ -75,8 +75,13 @@ case "${MICROPOD_GATE_RIG:-}" in
   *) die "MICROPOD_GATE_RIG must be 1 or unset" ;;
 esac
 RIG_MARKER=/var/db/micropod-gate-rig
-# Root's copies the rig track restores from (A's high-water marks).
+# Root's own rig-mode state: A's saved high-water marks, the "dirty" flag (a
+# B test not yet undone by rig-reset), the boot stamp a reboot request writes.
 RIG_DIR=/var/db/micropod-gate-rig.d
+# Root-only copies: the program g2 swaps out, and the admin-owned but
+# immutable CLI the R2 check runs as root.
+SAVE_DIR=/var/root/micropod-gate-save
+R2_DIR=/var/root/micropod-gate-r2
 if [ -n "$RIG" ]; then
   [ "$(id -u)" != 0 ] || die "rig mode runs as the rig's admin user (it uses sudo itself), not as root"
   RC=${MICROPOD_GATE_RC:-"$HOME/micropod-rc"}
@@ -128,7 +133,7 @@ vm_guard() {
 # the agent and its runtime, a supervised GitHub runner, a runner pool. The
 # cuttle CLI driving the gate is none of them.
 rig_busy() {
-  pgrep -fl '/CuttlefishAgent\.app/Contents/|/\.cuttlefish/github-runners/|/\.cuttlefish/bin/cuttle-gha-pool-' 2>/dev/null |
+  pgrep -fl '/CuttlefishAgent\.app/Contents/|/Cuttlefish Agent\.app/Contents/|/\.cuttlefish/github-runners/|/\.cuttlefish/bin/cuttle-gha-pool-' 2>/dev/null |
     head -3 | tr '\n' ' '
 }
 
@@ -156,6 +161,56 @@ rig_guard() {
 rig_needs() {
   [ -z "$RIG" ] || [ "$(rig_track)" = "$1" ] ||
     die "$STEP is a $1-track step; this rig is on the $(rig_track) track"
+}
+
+# rig_stamp: before a reboot, root records this boot; rig_rebooted: the
+# machine booted again since. Only root can write the stamp.
+rig_stamp() { sysctl -n kern.boottime | sudo tee "$RIG_DIR/boot" >/dev/null; }
+rig_rebooted() {
+  sudo test -s "$RIG_DIR/boot" && [ "$(sysctl -n kern.boottime)" != "$(sudo cat "$RIG_DIR/boot")" ]
+}
+rig_after_reboot() {
+  [ -z "$RIG" ] || rig_rebooted || die "this Mac has not rebooted since the step that asked for it: reboot first (sudo shutdown -r now)"
+}
+
+# rig_on_a [to-b]: a fresh-track test starts from A, as each VM test starts
+# from a clone of the A base: rig-save ran, no B test is left un-reset, and
+# A serves. "to-b" (the tests that move the rig to B) then sets the dirty
+# flag that only a passing rig-reset clears.
+rig_on_a() {
+  [ -n "$RIG" ] || return 0
+  rig_needs fresh
+  sudo test -f "$RIG_DIR/component-state.json" || die "rig-save has not run: run it after g1"
+  ! sudo test -e "$RIG_DIR/dirty" || die "the rig is not back on A since $(sudo cat "$RIG_DIR/dirty"): run rig-reset"
+  wait_serving "$(version_of "$(unpack A)/Micropod.app")" 30 || die "A does not serve: run rig-reset"
+  if [ "${1:-}" = to-b ]; then printf '%s\n' "$STEP" | sudo tee "$RIG_DIR/dirty" >/dev/null; fi
+}
+
+# marks_field <file> <key>: one high-water mark, or nothing (root reads it).
+marks_field() { sudo plutil -extract "$2" raw -o - "$1" 2>/dev/null; }
+# marks_match: the marks are the saved ones, field by field (the file's key
+# order changes each time root rewrites it).
+marks_match() {
+  local saved="$RIG_DIR/component-state.json" live="$RH/component-state.json" key
+  for key in highestVersion securityFloor; do
+    [ "$(marks_field "$saved" "$key")" = "$(marks_field "$live" "$key")" ] || return 1
+  done
+}
+
+# rig_undo_attack: what an attack that should have failed moved, back where
+# it was (a rig has no clone to throw away). Only what is really gone is put
+# back, so nothing an admin process left in $GATE can replace a root file.
+rig_undo_attack() {
+  [ -n "$RIG" ] || return 0
+  local moved="$GATE/attack-moved" support="/Library/Application Support/Micropod"
+  if present "$moved/p" && ! present "$PLIST"; then sudo mv "$moved/p" "$PLIST"; fi
+  if present "$moved/m" && ! present "$support"; then sudo mv "$moved/m" "$support"; fi
+  if present "$moved/l.app" && ! present "$LEGACY_APP"; then sudo mv "$moved/l.app" "$LEGACY_APP"; fi
+  if present "$GATE/moved.app" && ! legacy_immutable; then
+    sudo rm -rf "$LEGACY_APP"
+    sudo mv "$GATE/moved.app" "$LEGACY_APP"
+  fi
+  sudo rm -rf "$moved" "$GATE/moved.app"
 }
 
 # allow_identity: the runtime the gate just installed may exist from now on.
@@ -195,6 +250,16 @@ else
   OUT=${MICROPOD_GATE_OUT:-"/Volumes/My Shared Files/out"}
   [ -d "$OUT" ] && [ -w "$OUT" ] || OUT=$GATE
 fi
+if [ -n "$RIG" ] && { [ -e "$GATE" ] || [ -L "$GATE" ]; }; then
+  # The gate's working folder is this user's, mode 0700: /Users/Shared lets
+  # any local account create it first.
+  if [ -L "$GATE" ] || [ ! -d "$GATE" ] || [ "$(stat -f %u "$GATE")" != "$(id -u)" ] ||
+    [ "$(stat -f %Lp "$GATE")" != 700 ]; then
+    [ "$STEP" = rig-begin ] || die "$GATE is not this user's private folder: run rig-begin again"
+    sudo rm -rf "$GATE" || die "cannot remove $GATE"
+  fi
+fi
+[ -z "$RIG" ] || [ -d "$GATE" ] || mkdir -m 0700 "$GATE" || die "cannot create $GATE"
 mkdir -p "$GATE/unpack" "$OUT/logs"
 FAILED=0
 # INCOMPLETE: a reason the step could not test what it should (an input is
@@ -254,6 +319,7 @@ human() {
 # needs_reboot <step>: record the checks made so far (the step after the
 # reboot starts with none), then ask for the reboot.
 needs_reboot() {
+  [ -z "$RIG" ] || rig_stamp
   record "$(verdict)"
   printf '%s\n' "$1" >"$GATE/next"
   say ""
@@ -264,12 +330,26 @@ needs_reboot() {
 
 # unpack <name>: $GATE/unpack/<name>/{Micropod.app,micropod}
 unpack() {
-  local dir="$GATE/unpack/$1" tgz
-  tgz=$(find "$RC/$1" -maxdepth 1 -name 'Micropod.*.tgz' | head -1)
-  [ -n "$tgz" ] || { say "missing $RC/$1/Micropod.*.tgz" >&2; exit 1; }
+  local dir="$GATE/unpack/$1" tgz n ver
+  n=$(find "$RC/$1" -maxdepth 1 -name 'Micropod.*.tgz' 2>/dev/null | grep -c .)
+  [ "$n" -eq 1 ] || { say "need exactly one $RC/$1/Micropod.*.tgz (found $n)" >&2; exit 1; }
+  tgz=$(find "$RC/$1" -maxdepth 1 -name 'Micropod.*.tgz')
+  ver=${tgz##*/Micropod.}
+  ver=${ver%.tgz}
+  [[ "$ver" =~ ^[0-9]+(\.[0-9]+){2}$ ]] || { say "$tgz: not a Micropod.<version>.tgz" >&2; exit 1; }
+  if [ -d "$dir/Micropod.app" ] && [ "$(version_of "$dir/Micropod.app" 2>/dev/null)" != "$ver" ]; then
+    rm -rf "$dir"
+  fi
   if [ ! -d "$dir/Micropod.app" ]; then
     mkdir -p "$dir"
     tar -xzf "$tgz" -C "$dir" || exit 1
+    if [ -n "$RIG" ]; then
+      # Root later installs from here: only the signed release is used.
+      codesign --verify --strict --deep -R="$REQ" "$dir/Micropod.app" >&2 &&
+        codesign --verify --strict -R="$REQ" "$dir/micropod" >&2 &&
+        [ "$(version_of "$dir/Micropod.app")" = "$ver" ] ||
+        { rm -rf "$dir"; say "$tgz is not the signed Micropod $ver" >&2; exit 1; }
+    fi
   fi
   printf '%s\n' "$dir"
 }
@@ -282,8 +362,9 @@ version_of() {
 # signature check on that copy. Prints the copy's path.
 root_cli() {
   local src ver dst
-  src=$(unpack "$1")
+  src=$(unpack "$1") || return 1
   ver=$(version_of "$src/Micropod.app")
+  [[ "$ver" =~ ^[0-9]+(\.[0-9]+){2}$ ]] || return 1
   dst=/var/root/micropod-install/$ver
   sudo install -d -o root -g wheel -m 0700 /var/root/micropod-install
   sudo rm -rf "$dst"
@@ -293,6 +374,22 @@ root_cli() {
   sudo chmod 0755 "$dst/micropod"
   sudo codesign --verify --strict -R="$REQ" "$dst/micropod" >&2 || return 1
   printf '%s\n' "$dst/micropod"
+}
+
+# r2_cli: A's CLI owned by the admin user, for the R2 check (install-authority
+# refuses a CLI the invoking administrator owns). It is immutable (schg) in a
+# root-owned folder, so root runs exactly the signed CLI. Prints its path.
+r2_cli() {
+  local src
+  src=$(unpack A) || return 1
+  sudo chflags -R noschg "$R2_DIR" 2>/dev/null
+  sudo rm -rf "$R2_DIR"
+  sudo install -d -o root -g wheel -m 0755 "$R2_DIR" || return 1
+  sudo ditto --noextattr --noacl "$src/micropod" "$R2_DIR/micropod" || return 1
+  sudo codesign --verify --strict -R="$REQ" "$R2_DIR/micropod" >&2 || return 1
+  sudo chown "$GATE_USER" "$R2_DIR/micropod" && sudo chmod 0755 "$R2_DIR/micropod" &&
+    sudo chflags schg "$R2_DIR/micropod" || return 1
+  printf '%s\n' "$R2_DIR/micropod"
 }
 
 cdhash12() {
@@ -431,8 +528,10 @@ poll_component() {
 }
 
 desktop() {
+  local src
+  src=$(unpack "$1") || return 1
   sudo rm -rf /Applications/Micropod.app
-  sudo ditto "$(unpack "$1")/Micropod.app" /Applications/Micropod.app
+  sudo ditto "$src/Micropod.app" /Applications/Micropod.app
 }
 
 # gate_fault <name> <crash|hang> | gate_fault off: arm a fault for exactly
@@ -548,6 +647,8 @@ attacker_script() {
   # Each attempt appends "<name> ok" if it succeeded (it must not). The child
   # creates attack.out itself, so a stale one cannot stand in for it.
   rm -f "$GATE/attack.out"
+  rm -rf "$GATE/attack-moved"
+  mkdir -p "$GATE/attack-moved"
   {
     printf '%s\n' '#!/bin/bash'
     child_prologue
@@ -555,16 +656,16 @@ attacker_script() {
     printf ': >"$out"\n'
     printf 'try() { n=$1; shift; "$@" 2>/dev/null && echo "$n ok" >>"$out"; }\n'
     printf 'try plist-write sh -c %q\n' "echo x >>'$PLIST'"
-    printf 'try plist-move mv %q /tmp/p\n' "$PLIST"
+    printf 'try plist-move mv %q %q\n' "$PLIST" "$GATE/attack-moved/p"
     printf 'try plist-remove rm -f %q\n' "$PLIST"
     printf 'try program-write sh -c %q\n' "echo x >>'$PROGRAM'"
     printf 'try runtimehost-create touch %q\n' "$RH/authority/x"
     printf 'try runtimehost-acl chmod +a "everyone allow write" %q\n' "$RH"
-    printf 'try support-move mv %q /tmp/m\n' "/Library/Application Support/Micropod"
+    printf 'try support-move mv %q %q\n' "/Library/Application Support/Micropod" "$GATE/attack-moved/m"
     printf 'try bootout launchctl bootout system/%s\n' "$AUTH_LABEL"
     printf 'try disable launchctl disable system/%s\n' "$AUTH_LABEL"
     printf 'try kickstart launchctl kickstart -k system/%s\n' "$AUTH_LABEL"
-    printf 'try legacy-move mv %q /tmp/l.app\n' "$LEGACY_APP"
+    printf 'try legacy-move mv %q %q\n' "$LEGACY_APP" "$GATE/attack-moved/l.app"
     printf 'try legacy-write sh -c %q\n' \
       "echo x >>'$LEGACY_APP/Contents/MacOS/MicropodRuntimeHost'"
     printf 'try legacy-flags chflags -R noschg %q\n' "$LEGACY_APP"
@@ -609,10 +710,11 @@ plant_residual() {
 # variant <name> <binary>: launchd must refuse to spawn the authority job
 # with <binary> as its program, and the original must serve again after.
 variant() {
-  local name=$1 bin=$2 saved="$GATE/program.saved" ver pid_before
+  local name=$1 bin=$2 saved="$SAVE_DIR/program.saved" ver pid_before
   ver=$(serving_field version)
   pid_before=$(serving_field pid)
   # Renamed into place, never written over the running executable.
+  sudo install -d -o root -g wheel -m 0700 "$SAVE_DIR"
   sudo cp "$PROGRAM" "$saved"
   sudo cp "$bin" "$PROGRAM.gate"
   sudo mv -f "$PROGRAM.gate" "$PROGRAM"
@@ -650,8 +752,10 @@ case "$STEP" in
     app="$(unpack A)/Micropod.app"
     check "Gatekeeper accepts Micropod.app (notarized Developer ID)" \
       spctl -a -t exec "$app"
+    r2=$(r2_cli) || r2=/nonexistent/micropod
+    check "the R2 copy is A's signed CLI, owned by $GATE_USER and immutable" test "$r2" = "$R2_DIR/micropod"
     check "a user-owned CLI is refused as root (R2)" refuse sudo \
-      "$(unpack A)/micropod" runtime install-authority --app "$app" --confirm x
+      "$r2" runtime install-authority --app "$app" --confirm x
     check "nothing was installed by the refused run" test ! -e "$PLIST"
     check "install-authority from the root-only copy" install_authority A
     finished A
@@ -670,6 +774,7 @@ case "$STEP" in
   g2)
     # Constraint enforcement: launchd refuses every program but the
     # Developer ID one with the authority identifier.
+    rig_on_a
     legacy="$(unpack legacy)/Micropod.app/Contents/Helpers"
     legacy="$legacy/Micropod Runtime Setup.app/Contents/MacOS/MicropodRuntimeHost"
     adhoc="$GATE/adhoc-helper"
@@ -694,6 +799,8 @@ case "$STEP" in
     # clones of the legacy VM): install-authority dies at $2.
     point=${2:?checkpoint: $CHECKPOINTS}
     rig_needs legacy
+    # On a rig the one kill comes after the live 0.13.3 helper handed over.
+    [ -z "$RIG" ] || [ "$point" = retired ] || die "on a rig the one kill is at retired"
     install_authority A "$point"
     status=$?
     sudo rm -f "$RH/gate-kill.json"
@@ -704,8 +811,9 @@ case "$STEP" in
       check "install-authority died at $point (status $status)" test "$status" -eq 137
     fi
     check "at most one helper process" at_most_one_helper
-    # On a rig there is one 0.13.3 install, so its one kill reboots too.
-    [ -z "$RIG" ] || needs_reboot "g3-check $point rebooted"
+    # On a rig there is one 0.13.3 install, so its one kill reboots too;
+    # a kill that failed does not reboot the rig for nothing.
+    [ -z "$RIG" ] || [ "$FAILED" -ne 0 ] || needs_reboot "g3-check $point rebooted"
     result
     ;;
 
@@ -714,6 +822,7 @@ case "$STEP" in
     # then a re-run finishes the migration.
     point=${2:?checkpoint}
     rig_needs legacy
+    [ "${3:-}" != rebooted ] || rig_after_reboot
     sudo rm -f "$RH/gate-kill.json"
     check "at most one helper process" at_most_one_helper
     if [ "${3:-}" = rebooted ] && [ "$point" != staged ]; then
@@ -775,10 +884,17 @@ case "$STEP" in
     user_cli legacy --json runtime operation >/dev/null 2>&1
     sleep 5
     check "a legacy-service lookup starts no legacy job" refuse legacy_loaded
+    if [ -n "$RIG" ] && [ "$FAILED" -ne 0 ]; then
+      # Something got through: undo it, and keep the rig up for a look.
+      rig_undo_attack
+      result
+    fi
+    rig_undo_attack
     needs_reboot g4-after-reboot
     ;;
   g4-after-reboot)
     rig_needs legacy
+    rig_after_reboot
     check "nothing planted ran as root" refuse present "$GATE/residual"
     finished A
     check "the legacy bundle is still immutable" legacy_immutable
@@ -787,6 +903,7 @@ case "$STEP" in
 
   g5)
     # Authority files under admin-group attack, from an agent-spawned process.
+    rig_on_a
     before=$(sudo shasum -a 256 "$PLIST" "$PROGRAM")
     as_agent_child "$(attacker_script)"
     ran=$?
@@ -800,12 +917,15 @@ case "$STEP" in
     fi
     check "plist and program bytes are unchanged" \
       test "$(sudo shasum -a 256 "$PLIST" "$PROGRAM")" = "$before"
+    rig_undo_attack
     finished A
     result
     ;;
 
   g6)
     # Self-update A -> B under the drain: no Login Items or BTM prompt.
+    rig_on_a to-b
+    va=$(version_of "$(unpack A)/Micropod.app")
     vb=$(version_of "$(unpack B)/Micropod.app")
     btm() { sudo sfltool dumpbtm 2>/dev/null | grep -ciE 'skunkworq|micropod'; }
     nb=$(btm)
@@ -813,6 +933,7 @@ case "$STEP" in
     desktop B
     check "micropod runtime update starts" user_cli B runtime update --detach
     check "the update completes" poll_component B 'completed|helperUpdated'
+    check "the update went from $va" test "$(status_field B componentUpdate.sourceVersion)" = "$va"
     check "the authority serves $vb" wait_serving "$vb"
     check "the LaunchDaemon plist is unchanged" \
       test "$(shasum -a 256 "$PLIST")" = "$plist_before"
@@ -828,6 +949,7 @@ case "$STEP" in
     # B crashes (or hangs) after its launch is counted: the helper rolls back
     # to A after three launches (a hang ends at the 120-second watchdog).
     fault=${STEP#g7-}
+    rig_on_a to-b
     va=$(version_of "$(unpack A)/Micropod.app")
     vb=$(version_of "$(unpack B)/Micropod.app")
     gate_fault B "$fault"
@@ -846,6 +968,8 @@ case "$STEP" in
 
   g7-floor)
     # B carries a signed security floor of B: nothing goes below it.
+    rig_on_a to-b
+    va=$(version_of "$(unpack A)/Micropod.app")
     manifest="$(unpack B)/Micropod.app/Contents/Resources/runtime-components.json"
     floor=$(plutil -extract securityFloor raw -o - "$manifest" 2>/dev/null)
     vb=$(version_of "$(unpack B)/Micropod.app")
@@ -856,6 +980,7 @@ case "$STEP" in
     desktop B
     check "update to B" user_cli B runtime update --detach
     check "the update completes" poll_component B 'completed|helperUpdated'
+    check "the update went from $va" test "$(status_field B componentUpdate.sourceVersion)" = "$va"
     check "rollback below the floor is refused" rollback_refused B
     check "install-authority with A is refused" refuse install_authority A
     check "the authority still serves $vb" wait_serving "$vb"
@@ -865,6 +990,8 @@ case "$STEP" in
   g8)
     # Sealed copies: what root installs carries no ACL, xattr, flag or
     # setuid bit, even when the source app was tampered with.
+    rig_on_a to-b
+    va=$(version_of "$(unpack A)/Micropod.app")
     vb=$(version_of "$(unpack B)/Micropod.app")
     desktop B
     setup="/Applications/Micropod.app/Contents/Helpers/Micropod Runtime Setup.app"
@@ -874,6 +1001,8 @@ case "$STEP" in
     check "micropod runtime update starts" user_cli B runtime update --detach
     check "the update from the tampered app completes" \
       poll_component B 'completed|helperUpdated'
+    check "the update went from $va (B was copied from the tampered app)" \
+      test "$(status_field B componentUpdate.sourceVersion)" = "$va"
     cur="$RH/authority/current"
     acl() { sudo ls -leR "$cur" | grep -q '^ [0-9]*: '; }
     xattrs() { [ -n "$(sudo xattr -lr "$cur")" ]; }
@@ -979,8 +1108,10 @@ case "$STEP" in
     # The administrator procedure on the legacy VM, exactly as documented.
     rig_needs legacy
     app="$(unpack A)/Micropod.app"
+    r2=$(r2_cli) || r2=/nonexistent/micropod
+    check "the R2 copy is A's signed CLI, owned by $GATE_USER and immutable" test "$r2" = "$R2_DIR/micropod"
     check "a user-owned CLI is refused as root (R2)" refuse sudo \
-      "$(unpack A)/micropod" runtime install-authority --app "$app" --confirm x
+      "$r2" runtime install-authority --app "$app" --confirm x
     check "install-authority from the root-only copy" install_authority A
     finished A
     check "the legacy bundle is a sealed immutable copy" legacy_immutable
@@ -992,10 +1123,18 @@ case "$STEP" in
     human "Open Micropod Runtime Setup: 'Retire the Old Background Item...' must be offered. Click it and confirm."
     check "the old Login Items entry is gone" sh -c \
       "! sudo sfltool dumpbtm 2>/dev/null | grep -q '$LEGACY_LABEL'"
+    if [ -n "$RIG" ]; then
+      # g4-after runs next on the same boot and asks for the one reboot
+      # g9-reboot checks after.
+      rig_stamp
+      printf '%s\n' g4-after >"$GATE/next"
+      result
+    fi
     needs_reboot g9-reboot
     ;;
   g9-reboot)
     rig_needs legacy
+    rig_after_reboot
     finished A
     check "no 0.13.3 code runs as root after the reboot" no_identifier "$LEGACY_LABEL"
     result
@@ -1016,12 +1155,20 @@ case "$STEP" in
       track=$(rig_track)
     else
       if [ -e "$PLIST" ]; then
-        die "the runtime authority is already installed here ($PLIST): this rig has no upgrade left to qualify"
+        die "the runtime authority is already installed here ($PLIST): rig mode qualifies a rig's first authority install only"
       elif legacy_loaded; then
-        track=legacy
+        # Exactly the 0.13.3 starting point: its helper serving, nothing
+        # neutralized yet, and the legacy release's app installed.
+        vl=$(version_of "$(unpack legacy)/Micropod.app") || die "no legacy release in $RC/legacy"
         [ -d "$LEGACY_APP" ] || die "the legacy job is loaded but $LEGACY_APP is missing"
-      elif sudo test -e "$RH/identity.json"; then
-        die "a RuntimeHost identity exists but neither the authority nor the legacy helper is installed: repair the runtime first"
+        ! legacy_immutable || die "$LEGACY_APP is already sealed (schg): an earlier install-authority ran here"
+        ! legacy_disabled || die "the legacy job is disabled: an earlier install-authority ran here"
+        ! no_identifier "$LEGACY_LABEL" || die "no helper signed as $LEGACY_LABEL serves: start the 0.13.3 runtime first"
+        [ "$(version_of /Applications/Micropod.app 2>/dev/null)" = "$vl" ] ||
+          die "/Applications/Micropod.app is not $vl, the legacy release this track migrates from"
+        track=legacy
+      elif sudo test -e "$RH" || [ -e "$LEGACY_APP" ]; then
+        die "Micropod runtime files exist ($RH or $LEGACY_APP) but no helper is installed: repair or remove them first"
       else
         track=fresh
       fi
@@ -1038,25 +1185,43 @@ case "$STEP" in
       } >"$marker"
       sudo install -o root -g wheel -m 0644 "$marker" "$RIG_MARKER"
       rm -f "$marker"
-      sudo rm -rf "$RIG_DIR"
+      sudo rm -rf "$RIG_DIR" "$SAVE_DIR"
+      sudo chflags -R noschg "$R2_DIR" 2>/dev/null
+      sudo rm -rf "$R2_DIR"
       sudo install -d -o root -g wheel -m 0700 "$RIG_DIR"
+      # A new run starts with nothing of an old one: its results and its
+      # extractions.
+      if [ -e "$OUT/results.tsv" ] || [ -n "$(ls -A "$OUT/logs" 2>/dev/null)" ]; then
+        old="$OUT/previous-$(date +%Y%m%d-%H%M%S)"
+        mkdir -p "$old"
+        mv "$OUT/results.tsv" "$old/" 2>/dev/null
+        mv "$OUT/logs" "$old/" 2>/dev/null
+        mkdir -p "$OUT/logs"
+      fi
+      rm -rf "$GATE"
+      mkdir -m 0700 "$GATE" || die "cannot create $GATE"
+      mkdir "$GATE/unpack" || die "cannot create $GATE/unpack"
     fi
     say "track $track"
+    if fdesetup isactive >/dev/null 2>&1; then
+      say "  INFO  FileVault is on: after each reboot, unlock this Mac at its own screen"
+    fi
     check "the rig is marked for this run" grep -qx "micropod-gate-rig $id" "$RIG_MARKER"
     result
     ;;
 
   rig-save)
-    # Fresh track, right after g1: root keeps A's high-water marks, which
-    # rig-reset puts back after each test that moves the rig to B.
+    # Fresh track, once, right after g1: root keeps A's high-water marks,
+    # which rig-reset puts back after each test that moves the rig to B.
     rig_needs fresh
+    ! sudo test -e "$RIG_DIR/component-state.json" || die "rig-save already ran for this run"
+    va=$(version_of "$(unpack A)/Micropod.app")
+    wait_serving "$va" 30 || die "A does not serve: g1 did not finish"
     state="$RH/component-state.json"
-    if sudo test -f "$state"; then
+    check "the marks are A's (highest $va)" test "$(marks_field "$state" highestVersion)" = "$va"
+    if [ "$FAILED" -eq 0 ]; then
       check "A's high-water marks are saved" sudo ditto --noextattr --noacl "$state" "$RIG_DIR/component-state.json"
-    else
-      check "no high-water marks yet: rig-reset removes any" sudo touch "$RIG_DIR/component-state.absent"
     fi
-    check "A serves" wait_serving "$(version_of "$(unpack A)/Micropod.app")"
     result
     ;;
 
@@ -1069,34 +1234,37 @@ case "$STEP" in
     gate_fault off
     sudo rm -f "$RH/gate-kill.json"
     state="$RH/component-state.json"
-    if sudo test -f "$RIG_DIR/component-state.json"; then
-      # shellcheck disable=SC2016 # $1 and $2 expand in root's shell
-      check "A's high-water marks are put back" sudo sh -c \
-        'ditto --noextattr --noacl "$1" "$2.gate" && mv -f "$2.gate" "$2"' _ "$RIG_DIR/component-state.json" "$state"
-    elif sudo test -f "$RIG_DIR/component-state.absent"; then
-      check "the high-water marks are removed (none were saved)" sudo rm -f "$state"
-    else
+    if ! sudo test -f "$RIG_DIR/component-state.json"; then
       check "rig-save ran" false
+      result
     fi
-    desktop A
+    # shellcheck disable=SC2016 # $1 and $2 expand in root's shell
+    check "A's high-water marks are put back" sudo sh -c \
+      'ditto --noextattr --noacl "$1" "$2.gate" && mv -f "$2.gate" "$2"' _ "$RIG_DIR/component-state.json" "$state"
+    check "A's app is installed again" desktop A
     if [ "$(serving_field version)" != "$va" ]; then
       check "micropod runtime update --rollback starts" user_cli A runtime update --rollback --detach
-      check "the rollback settles" poll_component A 'completed|helperUpdated|rolledBack'
+      check "the rollback settles as rolled back" poll_component A rolledBack
     fi
     check "the authority serves $va" wait_serving "$va" 180
-    # shellcheck disable=SC2016 # $1 and $2 expand in root's shell
-    check "the marks are A's again" sudo sh -c \
-      'if [ -f "$1" ]; then cmp -s "$1" "$2"; else [ ! -e "$2" ]; fi' _ "$RIG_DIR/component-state.json" "$state"
+    check "the marks are A's again" marks_match
     finished A
+    # Only a reset that passed puts the rig back on A for the next test.
+    if [ "$FAILED" -eq 0 ]; then sudo rm -f "$RIG_DIR/dirty"; fi
     result
     ;;
 
   rig-end)
     # The end of a rig run: the gate's own files go; the installed release
-    # stays. Safe to run again, and without a marker.
+    # stays. Safe to run again, and without a marker. It refuses while a B
+    # test is not undone: the saved marks are the only way back to A.
+    if sudo test -e "$RIG_DIR/dirty"; then
+      die "the rig is not back on A since $(sudo cat "$RIG_DIR/dirty"): run rig-reset first (A's saved marks are kept)"
+    fi
     gate_fault off
     sudo rm -f "$RH/gate-kill.json"
-    sudo rm -rf "$CHILD_BIN" "$RIG_DIR" /var/root/micropod-install
+    sudo chflags -R noschg "$R2_DIR" 2>/dev/null
+    sudo rm -rf "$CHILD_BIN" "$RIG_DIR" "$SAVE_DIR" "$R2_DIR" /var/root/micropod-install
     sudo rm -f "$RIG_MARKER"
     rm -rf "$GATE"
     check "the rig marker is gone" refuse sudo test -e "$RIG_MARKER"
@@ -1114,7 +1282,7 @@ case "$STEP" in
     say "rig mode (MICROPOD_GATE_RIG=1): rig-begin <run-id>, rig-save, rig-reset, rig-end"
     say "       fresh track: g1 rig-save g2 g5 g7-crash rig-reset g7-hang rig-reset"
     say "                    g6 rig-reset g8 rig-reset g7-floor rig-reset"
-    say "       legacy track: g3-kill neutralized (reboot) g3-check neutralized rebooted"
+    say "       legacy track: g3-kill retired (reboot) g3-check retired rebooted"
     say "                    g9 g4-after (reboot) g9-reboot g4-after-reboot"
     say "checkpoints: $CHECKPOINTS"
     ;;
