@@ -52,9 +52,20 @@ def quantile95(values):
     return sorted(values)[math.ceil(len(values) * .95) - 1]
 
 
-def measure(exe, seconds, ports, workers, buffer_kib, profile, legacy):
+def measure(exe, seconds, ports, workers, buffer_kib, profile, legacy, fixed_128_progress=None):
     cmd = [exe, str(seconds), str(buffer_kib), str(int(profile)), str(workers), str(ports)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=seconds + 40)
+    if fixed_128_progress is not None:
+        cmd.append(fixed_128_progress)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=seconds + 40)
+    except subprocess.TimeoutExpired as exc:
+        if fixed_128_progress is not None:
+            fixed_128_progress.with_suffix(".stdout").write_bytes(exc.stdout or b"")
+            fixed_128_progress.with_suffix(".stderr").write_bytes(exc.stderr or b"")
+        raise
+    if fixed_128_progress is not None:
+        fixed_128_progress.with_suffix(".stdout").write_text(proc.stdout)
+        fixed_128_progress.with_suffix(".stderr").write_text(proc.stderr)
     if proc.returncode:
         raise RuntimeError(f"relay exit {proc.returncode}, {proc.stderr[-4000:]}")
     sample = json.loads(proc.stdout)

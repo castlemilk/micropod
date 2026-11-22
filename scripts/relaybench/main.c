@@ -1,8 +1,11 @@
 // Darwin relay component benchmark. Insert already-connected endpoints at the
 // end of handshake setup so both revisions run the production kqueue data path.
 #include <dispatch/dispatch.h>
+#include <libproc.h>
+#include <mach/mach_time.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/mman.h>
 #include <sys/resource.h>
 
 #ifndef RELAY_SOURCE
@@ -15,9 +18,15 @@
 #define BLOCK (256 * 1024)
 #define PERIOD_NS 25000000ULL
 
-static int profile, client_capacity, owner_count, port_count;
+static int profile, client_capacity, owner_count, port_count, drain_owners;
 static atomic_bool stopping;
 static unsigned char payload[STREAMS][BLOCK];
+
+// A paired pilot keeps the callback budget fixed and leaves counts behind
+// even if the watchdog fires while a client is waiting for its final reply.
+struct progress { _Atomic uint32_t submitted, completed; };
+_Static_assert(sizeof(struct progress) == 8, "pilot progress file layout");
+static struct progress *progress;
 
 struct owner {
     mp_tcp_relay *relay;
@@ -57,6 +66,12 @@ static uint64_t process_cpu_us(void) {
            usage.ru_utime.tv_usec + usage.ru_stime.tv_usec;
 }
 
+static struct rusage_info_v6 host_usage(void) {
+    struct rusage_info_v6 value = {0};
+    check(proc_pid_rusage(getpid(), RUSAGE_INFO_V6, (rusage_info_t *)&value) == 0, "host runnable time");
+    return value;
+}
+
 static void until(uint64_t target) {
     for (;;) {
         uint64_t now = now_ns();
@@ -76,7 +91,7 @@ static void start_owner(struct owner *o) {
     o->source = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ,
                                        (uintptr_t)mp_tcp_relay_descriptor(o->relay), 0, o->queue);
     o->cancelled = dispatch_semaphore_create(0);
-    dispatch_source_set_event_handler(o->source, ^{ mp_tcp_relay_drain(o->relay, owner_count); });
+    dispatch_source_set_event_handler(o->source, ^{ mp_tcp_relay_drain(o->relay, drain_owners); });
     dispatch_source_set_cancel_handler(o->source, ^{ dispatch_semaphore_signal(o->cancelled); });
     dispatch_activate(o->source);
 }
@@ -236,6 +251,7 @@ static void *fresh_client(void *arg) {
     a->dispatch_delay = now_ns() - a->target;
     probe(a->lease, a->id);
     a->elapsed = now_ns() - a->target;
+    if (progress) atomic_fetch_add_explicit(&progress->completed, 1, memory_order_relaxed);
     return NULL;
 }
 
@@ -271,8 +287,8 @@ static void check_revocation(mp_tcp_relay *accept_relay) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 6) {
-        fprintf(stderr, "usage: relay SECONDS CLIENT_BUFFER_KiB PROFILE_0_OR_1 OWNERS PORTS\n");
+    if (argc != 6 && argc != 7) {
+        fprintf(stderr, "usage: relay SECONDS CLIENT_BUFFER_KiB PROFILE_0_OR_1 OWNERS PORTS [FIXED_128_PROGRESS_FILE]\n");
         return 2;
     }
     int seconds = atoi(argv[1]), kib = atoi(argv[2]);
@@ -281,6 +297,19 @@ int main(int argc, char **argv) {
     port_count = atoi(argv[5]);
     check(seconds >= 1 && seconds <= 60 && kib >= 8 && kib <= 1024 && (profile == 0 || profile == 1) &&
           owner_count >= 1 && owner_count <= MAX_OWNERS && port_count >= 1 && port_count <= STREAMS, "arguments");
+    drain_owners = owner_count;
+    if (argc == 7) {
+        int fd = open(argv[6], O_RDWR);
+        check(fd >= 0 && lseek(fd, 0, SEEK_END) == sizeof(*progress), "open pilot progress file");
+        progress = mmap(NULL, sizeof(*progress), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        check(progress != MAP_FAILED, "map pilot progress file");
+        close(fd);
+        atomic_init(&progress->submitted, 0);
+        atomic_init(&progress->completed, 0);
+        // The production drain selects the 128-event branch for two owners.
+        // Actual handoff and queue counts continue to use owner_count.
+        drain_owners = 2;
+    }
     client_capacity = kib * 1024;
     signal(SIGPIPE, SIG_IGN);
     alarm((unsigned)seconds + 35);
@@ -319,6 +348,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "scoring loaded requests\n");
     for (int i = 0; i < STREAMS; ++i) bytes[i] = atomic_load(&flows[i].received);
     uint64_t cpu_start = process_cpu_us();
+    struct rusage_info_v6 host_start = {0}, host_end = {0};
+    if (progress) host_start = host_usage();
     uint64_t begin = now_ns();
     for (int i = 0; i < arrivals; ++i) {
         uint64_t target = begin + i * PERIOD_NS;
@@ -329,10 +360,12 @@ int main(int argc, char **argv) {
         a->target = target;
         // A blocked client must never occupy a libdispatch thread needed by
         // the relay to complete that client's read. The real client is external.
+        if (progress) atomic_store_explicit(&progress->submitted, (uint32_t)i + 1, memory_order_relaxed);
         check(pthread_create(&a->thread, NULL, fresh_client, a) == 0, "start fresh client");
     }
     until(begin + arrivals * PERIOD_NS);
     uint64_t elapsed = now_ns() - begin;
+    if (progress) host_end = host_usage();
     uint64_t cpu_us = process_cpu_us() - cpu_start;
     for (int i = 0; i < STREAMS; ++i) {
         bytes[i] = atomic_load(&flows[i].received) - bytes[i];
@@ -366,7 +399,17 @@ int main(int argc, char **argv) {
     for (int i = 0; i < owner_count; ++i) stop_owner(&owners[i]);
     mp_tcp_relay_destroy(accept_relay);
     dispatch_release(accept_queue);
-    printf("{\"bytes\":%llu,\"elapsed_ns\":%llu,\"process_cpu_us\":%llu,\"profile\":%d,\"client_buffer_kib\":%d,"
+    printf("{");
+    if (progress) {
+        mach_timebase_info_data_t tb;
+        check(mach_timebase_info(&tb) == KERN_SUCCESS, "Mach timebase");
+        printf("\"callback_events\":128,\"runnable_ticks\":%llu,\"cpu_ticks\":%llu,\"tick_numer\":%u,\"tick_denom\":%u,",
+               host_end.ri_runnable_time - host_start.ri_runnable_time,
+               host_end.ri_user_time - host_start.ri_user_time + host_end.ri_system_time - host_start.ri_system_time,
+               tb.numer, tb.denom);
+        munmap(progress, sizeof(*progress));
+    }
+    printf("\"bytes\":%llu,\"elapsed_ns\":%llu,\"process_cpu_us\":%llu,\"profile\":%d,\"client_buffer_kib\":%d,"
            "\"ports\":%d,\"relay_reads\":%llu,\"relay_writes\":%llu,\"blocked_writes\":%llu,\"bulk_flows_per_owner\":[",
            total, elapsed, cpu_us, profile, kib, port_count, reads, writes, blocked);
     for (int i = 0; i < owner_count; ++i) printf("%s%u", i ? "," : "", distribution[i]);
