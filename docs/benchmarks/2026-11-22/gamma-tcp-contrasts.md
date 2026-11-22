@@ -4,6 +4,8 @@ Staggering the first connection on each of 32 logical ports raised median paired
 
 ## Host relay
 
+The subsequent [fixed-work filter-batching check](gamma-filter-work.md) measured kernel calls during connection completion and backpressure. It also records how the 32 downloads shared bandwidth in the original VM holdout.
+
 ![Median paired relay throughput gains by listener layout, worker count and number of logical ports](gamma-host-relay-gains.png)
 
 The fixture ran the Darwin kqueue relay between connected local stream sockets on Gamma-128GB. CPU measurements cover the entire process including clients and payload verification. Port count, workers and callbacks refer to this host process. It runs without a VM or container image.
