@@ -1,0 +1,14 @@
+{
+  "run": "ccba2f37ebaa4afa91eb8d04fe771c25",
+  "started_utc": "2026-11-22T00:24:40+00:00",
+  "passed": false,
+  "requested_clients": [
+    1,
+    4,
+    16
+  ],
+  "rounds": 20,
+  "ci_queue_s": null,
+  "error": "Dedicated Micropod worker socket is absent",
+  "first_attempt_job_failures": 0
+}

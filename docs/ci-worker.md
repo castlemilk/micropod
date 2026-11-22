@@ -289,6 +289,8 @@ Run `task bench-ci-apple` locally, or pass a results directory with `task bench-
 
 The tuned worker in [PR #224](https://github.com/castlemilk/micropod/pull/224) ran against OrbStack 2.2.5 on Gamma, the physical 18-core M5 Max with 128 GB. Each engine had four vCPUs and approximately 4 GiB. The complete application pipeline took 13.020 s on Micropod and 21.656 s on OrbStack, medians of three warm passes on that Mac. The five-round launch and package runs use the requesting Mac's monotonic clock.
 
+The dedicated-worker PostgreSQL profiler times fixture materialization, final TCP readiness, SQL and teardown on an existing kernel. Its receipt includes all first attempts, Docker exit events and per-job cgroup counters. [Saved Gamma results and local reproduction](benchmarks/2026-11-22/postgres-fixture.md)
+
 The same Mac ran the package commands directly across 145 fresh workspaces per tool. The median batch at 1/4/8/16 checkouts took 172/199/241/400 ms for npm and 110/119/147/246 ms for Go. Its native Node 24.22.2 and Go 1.27.2 differ from the Linux toolchain. All warm Go builds reused compiled packages. The npm content store and Go module store each retained one copy of their fixture payload. [Native Mac samples](benchmarks/2026-11-20/gamma-native-package-processes.json)
 
 Manual runs upload the exported ARM64 toolchain and native Docker measurements together as the `arm64-warm-ubuntu` artifact. The Apple job loads that image on both engines and verifies its OCI configuration digest before reporting package comparisons. To repeat it locally, download the artifact and run `task bench-ci-apple -- /tmp/micropod-apple --ubuntu-bundle /path/to/artifact`.

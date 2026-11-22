@@ -35,12 +35,19 @@ func TestPostgresReady(t *testing.T) {
 		WaitingFor: wait.ForExec([]string{"pg_isready", "-q", "-h", "127.0.0.1", "-U", "ci", "-d", "ci"}).
 			WithStartupTimeout(2 * time.Minute),
 	}
+	profile := configurePGProfile(t, &req)
+	endStart := profile.span("create_to_ready")
 	pg, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
+	endStart()
 	if pg != nil {
+		if profile != nil {
+			profile.Container = pg.GetContainerID()
+		}
 		t.Cleanup(func() {
+			defer profile.span("teardown")()
 			cleanup, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			if err := pg.Terminate(cleanup); err != nil {
@@ -53,14 +60,22 @@ func TestPostgresReady(t *testing.T) {
 	}
 
 	const sql = "CREATE TABLE ci_probe (value integer NOT NULL); INSERT INTO ci_probe VALUES (42); SELECT value FROM ci_probe;"
+	endSQL := profile.span("sql")
 	code, outReader, err := pg.Exec(ctx, []string{"psql", "-XqAt", "-w", "-h", "127.0.0.1", "-U", "ci", "-d", "ci",
-		"-v", "ON_ERROR_STOP=1", "-c", sql}, tcexec.WithEnv([]string{"PGPASSWORD=ci"}), tcexec.Multiplexed())
+		"-v", "ON_ERROR_STOP=1", "-c", sql}, tcexec.WithEnv([]string{"PGPASSWORD=" + req.Env["POSTGRES_PASSWORD"]}), tcexec.Multiplexed())
 	if err != nil {
+		endSQL()
 		t.Fatalf("exec SQL check: %v", err)
 	}
 	out, err := io.ReadAll(outReader)
+	endSQL()
 	if err != nil || code != 0 || strings.TrimSpace(string(out)) != "42" {
 		t.Fatalf("SQL check: exit %d, output %q, read error %v", code, out, err)
+	}
+	if profile != nil {
+		if err := profile.observe(ctx, pg); err != nil {
+			t.Fatalf("observe postgres: %v", err)
+		}
 	}
 	t.Logf("verified SQL round trip on the final TCP server %s", pg.GetContainerID())
 }

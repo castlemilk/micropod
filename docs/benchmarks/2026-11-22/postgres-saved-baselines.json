@@ -1,0 +1,792 @@
+{
+  "schema": 1,
+  "percentiles": "median and nearest-rank p95; success samples only",
+  "ci_queue_s": null,
+  "queue_source": "direct local submissions; no scheduler timestamps",
+  "engine_resources": {
+    "micropod-worker": {
+      "NCPU": 4,
+      "MemTotal": 4118708224
+    },
+    "orbstack": {
+      "NCPU": 4,
+      "MemTotal": 4180480000
+    }
+  },
+  "sources_sha256": {
+    "gamma-worker-pipelines.json": "7a9afb09d9143e865beb099afd8305950c796881e1b15ae789040d2f5619333f",
+    "full-ci/pipelines.json.gz": "287bf73374c2d19b2021d02746ea63c8f48d5f57f3319d80e30db0cc3422ab8b",
+    "full-ci/rig.json": "5e40c5b6027cbcc40728749336fd23a739158a9db8c2526ae5a01f2668fd7d52",
+    "gamma-worker-orbstack-ubuntu.json": "5f1534550ff70132520fdd95325c3ea6b842288e453c1405e668364da424aa9b",
+    "full-ci/prepare.json": "e1858e77cbf952cfb87708d94a918cf6d8bd0d433b28073466fa00a72a2f5eb0",
+    "full-ci/cache-controls.json": "ced8938b898eca03a5549a725a4af8dac8a9f6e92f491cb9d6827152252c3061",
+    "full-ci/go-jobs.json.gz": "48a5d14a9f738644cc2f73f601e9bdaa80e1f150172aab2f03d4f8484d7cc660",
+    "go-suite-layers.json.gz": "08c112259a436d547d09d63c8c75f6484170457bb7ae81802ea8b65eb7a0000d",
+    "worker-profile/adaptive-buildkit.json.gz": "99b4459af2a24af8d717485ae5d42e8b71c407d58c2024991073cd22692fdece"
+  },
+  "original_warm": {
+    "micropod": {
+      "pipeline_s": {
+        "n": 3,
+        "p50": 13.02,
+        "p95": 13.484
+      },
+      "postgres_s": {
+        "n": 3,
+        "p50": 10.785,
+        "p95": 11.049
+      },
+      "readiness_s": null,
+      "fixture_restore_s": null,
+      "sql_s": null,
+      "teardown_s": null
+    },
+    "orbstack": {
+      "pipeline_s": {
+        "n": 3,
+        "p50": 21.656,
+        "p95": 33.769
+      },
+      "postgres_s": {
+        "n": 3,
+        "p50": 12.943,
+        "p95": 23.825
+      },
+      "readiness_s": null,
+      "fixture_restore_s": null,
+      "sql_s": null,
+      "teardown_s": null
+    }
+  },
+  "matched_pipeline": [
+    {
+      "engine": "micropod",
+      "revision": "baseline",
+      "repeat_s": {
+        "n": 3,
+        "p50": 11.813022,
+        "p95": 11.923772
+      },
+      "edit_s": {
+        "n": 3,
+        "p50": 27.16841,
+        "p95": 45.452347
+      },
+      "postgres_s": {
+        "n": 6,
+        "p50": 11.055,
+        "p95": 11.853
+      },
+      "db_start_to_stop_request_s": {
+        "n": 6,
+        "p50": 0.473577,
+        "p95": 0.862084
+      },
+      "db_stop_request_to_destroy_s": {
+        "n": 6,
+        "p50": 10.108543,
+        "p95": 10.127675
+      },
+      "db_start_to_destroy_s": {
+        "n": 6,
+        "p50": 10.581516,
+        "p95": 10.981411
+      },
+      "exit_codes": {
+        "137": 6
+      },
+      "first_attempt_failures": 0,
+      "readiness_s": null,
+      "fixture_restore_s": null,
+      "sql_s": null
+    },
+    {
+      "engine": "micropod",
+      "revision": "candidate",
+      "repeat_s": {
+        "n": 3,
+        "p50": 3.276398,
+        "p95": 3.809206
+      },
+      "edit_s": {
+        "n": 3,
+        "p50": 5.651086,
+        "p95": 6.095209
+      },
+      "postgres_s": {
+        "n": 6,
+        "p50": 1.3425,
+        "p95": 2.141
+      },
+      "db_start_to_stop_request_s": {
+        "n": 6,
+        "p50": 0.878015,
+        "p95": 1.4272
+      },
+      "db_stop_request_to_destroy_s": {
+        "n": 6,
+        "p50": 0.114414,
+        "p95": 0.182815
+      },
+      "db_start_to_destroy_s": {
+        "n": 6,
+        "p50": 0.989337,
+        "p95": 1.610015
+      },
+      "exit_codes": {
+        "0": 6
+      },
+      "first_attempt_failures": 0,
+      "readiness_s": null,
+      "fixture_restore_s": null,
+      "sql_s": null
+    },
+    {
+      "engine": "orbstack",
+      "revision": "baseline",
+      "repeat_s": {
+        "n": 3,
+        "p50": 17.524989,
+        "p95": 33.493222
+      },
+      "edit_s": {
+        "n": 3,
+        "p50": 36.687845,
+        "p95": 39.976842
+      },
+      "postgres_s": {
+        "n": 6,
+        "p50": 13.969,
+        "p95": 19.633
+      },
+      "db_start_to_stop_request_s": {
+        "n": 6,
+        "p50": 1.253258,
+        "p95": 1.730288
+      },
+      "db_stop_request_to_destroy_s": {
+        "n": 6,
+        "p50": 10.361913,
+        "p95": 11.639781
+      },
+      "db_start_to_destroy_s": {
+        "n": 6,
+        "p50": 11.733189,
+        "p95": 12.862006
+      },
+      "exit_codes": {
+        "137": 6
+      },
+      "first_attempt_failures": 0,
+      "readiness_s": null,
+      "fixture_restore_s": null,
+      "sql_s": null
+    },
+    {
+      "engine": "orbstack",
+      "revision": "candidate",
+      "repeat_s": {
+        "n": 3,
+        "p50": 8.73049,
+        "p95": 33.206588
+      },
+      "edit_s": {
+        "n": 3,
+        "p50": 22.551205,
+        "p95": 41.612945
+      },
+      "postgres_s": {
+        "n": 6,
+        "p50": 10.857,
+        "p95": 16.759
+      },
+      "db_start_to_stop_request_s": {
+        "n": 6,
+        "p50": 6.251131,
+        "p95": 9.294082
+      },
+      "db_stop_request_to_destroy_s": {
+        "n": 6,
+        "p50": 0.709949,
+        "p95": 3.034007
+      },
+      "db_start_to_destroy_s": {
+        "n": 6,
+        "p50": 7.97626,
+        "p95": 11.345149
+      },
+      "exit_codes": {
+        "0": 6
+      },
+      "first_attempt_failures": 0,
+      "readiness_s": null,
+      "fixture_restore_s": null,
+      "sql_s": null
+    }
+  ],
+  "caches": {
+    "micropod": {
+      "cold_seed": {
+        "npm_cache_add_seconds": {
+          "n": 5,
+          "p50": 0.15727,
+          "p95": 0.207499
+        },
+        "go_download_seconds": {
+          "n": 5,
+          "p50": 0.001984,
+          "p95": 0.005616
+        },
+        "go_cold_build_seconds": {
+          "n": 5,
+          "p50": 4.453838,
+          "p95": 6.782155
+        },
+        "go_cold_compiler_or_assembler_invocations": {
+          "n": 5,
+          "p50": 107,
+          "p95": 107
+        }
+      },
+      "warm_fresh_containers": {
+        "npm": {
+          "1": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.391284,
+              "p95": 0.640221
+            },
+            "verified_payload_reuses": 5,
+            "first_attempt_failures": 0
+          },
+          "4": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.488068,
+              "p95": 0.683969
+            },
+            "verified_payload_reuses": 20,
+            "first_attempt_failures": 0
+          },
+          "8": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.917477,
+              "p95": 1.36747
+            },
+            "verified_payload_reuses": 40,
+            "first_attempt_failures": 0
+          },
+          "16": {
+            "seconds": {
+              "n": 5,
+              "p50": 1.895907,
+              "p95": 2.484665
+            },
+            "verified_payload_reuses": 80,
+            "first_attempt_failures": 0
+          }
+        },
+        "go": {
+          "1": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.290672,
+              "p95": 0.549675
+            },
+            "verified_payload_reuses": 5,
+            "first_attempt_failures": 0
+          },
+          "4": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.379571,
+              "p95": 0.616868
+            },
+            "verified_payload_reuses": 20,
+            "first_attempt_failures": 0
+          },
+          "8": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.687614,
+              "p95": 1.096411
+            },
+            "verified_payload_reuses": 40,
+            "first_attempt_failures": 0
+          },
+          "16": {
+            "seconds": {
+              "n": 5,
+              "p50": 1.44167,
+              "p95": 2.886507
+            },
+            "verified_payload_reuses": 80,
+            "first_attempt_failures": 0
+          }
+        }
+      },
+      "logical_bytes": {
+        "npm_content": {
+          "files": 1,
+          "logical_bytes": 221
+        },
+        "go_modules": {
+          "files": 9,
+          "logical_bytes": 626
+        },
+        "go_build": {
+          "files": 438,
+          "logical_bytes": 33085592
+        }
+      },
+      "buildkit_image_steps": {
+        "ci/samples/go-app": {
+          "steps": {
+            "cached": 48,
+            "executed": 0,
+            "failed": 0,
+            "pending": 0
+          },
+          "solve_s": {
+            "n": 8,
+            "p50": 1.387453,
+            "p95": 2.400577
+          }
+        },
+        "node": {
+          "steps": {
+            "cached": 40,
+            "executed": 0,
+            "failed": 0,
+            "pending": 0
+          },
+          "solve_s": {
+            "n": 8,
+            "p50": 0.070684,
+            "p95": 0.131149
+          }
+        }
+      }
+    },
+    "orbstack": {
+      "cold_seed": {
+        "npm_cache_add_seconds": {
+          "n": 5,
+          "p50": 0.168993,
+          "p95": 0.222529
+        },
+        "go_download_seconds": {
+          "n": 5,
+          "p50": 0.00692,
+          "p95": 0.009761
+        },
+        "go_cold_build_seconds": {
+          "n": 5,
+          "p50": 4.207893,
+          "p95": 4.72897
+        },
+        "go_cold_compiler_or_assembler_invocations": {
+          "n": 5,
+          "p50": 107,
+          "p95": 107
+        }
+      },
+      "warm_fresh_containers": {
+        "npm": {
+          "1": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.581015,
+              "p95": 0.926623
+            },
+            "verified_payload_reuses": 5,
+            "first_attempt_failures": 0
+          },
+          "4": {
+            "seconds": {
+              "n": 5,
+              "p50": 1.033619,
+              "p95": 1.106437
+            },
+            "verified_payload_reuses": 20,
+            "first_attempt_failures": 0
+          },
+          "8": {
+            "seconds": {
+              "n": 5,
+              "p50": 1.588955,
+              "p95": 7.700953
+            },
+            "verified_payload_reuses": 40,
+            "first_attempt_failures": 0
+          },
+          "16": {
+            "seconds": {
+              "n": 5,
+              "p50": 3.870073,
+              "p95": 4.299226
+            },
+            "verified_payload_reuses": 80,
+            "first_attempt_failures": 0
+          }
+        },
+        "go": {
+          "1": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.551778,
+              "p95": 0.61236
+            },
+            "verified_payload_reuses": 5,
+            "first_attempt_failures": 0
+          },
+          "4": {
+            "seconds": {
+              "n": 5,
+              "p50": 0.873493,
+              "p95": 1.097812
+            },
+            "verified_payload_reuses": 20,
+            "first_attempt_failures": 0
+          },
+          "8": {
+            "seconds": {
+              "n": 5,
+              "p50": 1.4628,
+              "p95": 1.739353
+            },
+            "verified_payload_reuses": 40,
+            "first_attempt_failures": 0
+          },
+          "16": {
+            "seconds": {
+              "n": 5,
+              "p50": 3.025392,
+              "p95": 4.901623
+            },
+            "verified_payload_reuses": 80,
+            "first_attempt_failures": 0
+          }
+        }
+      },
+      "logical_bytes": {
+        "npm_content": {
+          "files": 1,
+          "logical_bytes": 221
+        },
+        "go_modules": {
+          "files": 9,
+          "logical_bytes": 626
+        },
+        "go_build": {
+          "files": 438,
+          "logical_bytes": 33085592
+        }
+      },
+      "buildkit_image_steps": {
+        "ci/samples/go-app": {
+          "steps": {
+            "cached": 60,
+            "executed": 0,
+            "failed": 0,
+            "pending": 0
+          },
+          "solve_s": {
+            "n": 10,
+            "p50": 8.304691,
+            "p95": 33.535594
+          }
+        },
+        "node": {
+          "steps": {
+            "cached": 50,
+            "executed": 0,
+            "failed": 0,
+            "pending": 0
+          },
+          "solve_s": {
+            "n": 10,
+            "p50": 4.381254,
+            "p95": 17.567025
+          }
+        }
+      }
+    }
+  },
+  "preliminary_failure": {
+    "run": "3eb2e73ab82f4a6a9b1011f0815db218",
+    "completed_batches": 16,
+    "engine": "micropod",
+    "variant": "baseline",
+    "phase": "round 2, edited source",
+    "cause": "DNS: transient error fetching Alpine APKINDEX",
+    "dns_after": "dl-cdn.alpinelinux.org resolved via 192.168.69.1"
+  },
+  "prepared_go_image": {
+    "cold_publish_s": 3.98403104202589,
+    "warm_lookup_s": 0.075750749965664,
+    "concurrent": {
+      "hit": 3,
+      "miss": 1
+    },
+    "buildkit_inventory_before": {
+      "inUseRecords": 0,
+      "privateRecordBytes": 20096411,
+      "records": 17,
+      "sharedRecordBytes": 1137590798,
+      "useCount": 51
+    },
+    "buildkit_inventory_after": {
+      "inUseRecords": 0,
+      "privateRecordBytes": 937388647,
+      "records": 139,
+      "sharedRecordBytes": 1338085650,
+      "useCount": 853
+    }
+  },
+  "matched_go_image_cache": {
+    "miss_s": {
+      "n": 6,
+      "p50": 1.456481,
+      "p95": 1.84165
+    },
+    "hit_s": {
+      "n": 6,
+      "p50": 0.085233,
+      "p95": 0.093665
+    },
+    "publications": [
+      {
+        "layer": "sha256:67e403a7492e036ee458f263813daefca6ad16adb44717effae1b6543e2feab1",
+        "layer_bytes": 7546326,
+        "blob_bytes_sent": 7546326,
+        "import_bytes": 7560704,
+        "layer_reused": false
+      },
+      {
+        "layer": "sha256:67e403a7492e036ee458f263813daefca6ad16adb44717effae1b6543e2feab1",
+        "layer_bytes": 7546326,
+        "blob_bytes_sent": 0,
+        "import_bytes": 13824,
+        "layer_reused": true
+      },
+      {
+        "layer": "sha256:67e403a7492e036ee458f263813daefca6ad16adb44717effae1b6543e2feab1",
+        "layer_bytes": 7546326,
+        "blob_bytes_sent": 0,
+        "import_bytes": 13824,
+        "layer_reused": true
+      },
+      {
+        "layer": "sha256:67e403a7492e036ee458f263813daefca6ad16adb44717effae1b6543e2feab1",
+        "layer_bytes": 7546326,
+        "blob_bytes_sent": 0,
+        "import_bytes": 13824,
+        "layer_reused": true
+      },
+      {
+        "layer": "sha256:67e403a7492e036ee458f263813daefca6ad16adb44717effae1b6543e2feab1",
+        "layer_bytes": 7546326,
+        "blob_bytes_sent": 0,
+        "import_bytes": 13824,
+        "layer_reused": true
+      },
+      {
+        "layer": "sha256:67e403a7492e036ee458f263813daefca6ad16adb44717effae1b6543e2feab1",
+        "layer_bytes": 7546326,
+        "blob_bytes_sent": 0,
+        "import_bytes": 13824,
+        "layer_reused": true
+      }
+    ],
+    "concurrent": {
+      "hit": 19,
+      "miss": 1
+    },
+    "concurrent_batch_s": 3.065577083034441
+  },
+  "matched_go_batches": [
+    {
+      "engine": "micropod",
+      "mode": "source",
+      "clients": 1,
+      "seconds": {
+        "n": 3,
+        "p50": 0.651796,
+        "p95": 0.692294
+      }
+    },
+    {
+      "engine": "micropod",
+      "mode": "source",
+      "clients": 16,
+      "seconds": {
+        "n": 3,
+        "p50": 3.225467,
+        "p95": 3.569758
+      }
+    },
+    {
+      "engine": "micropod",
+      "mode": "source",
+      "clients": 32,
+      "seconds": {
+        "n": 3,
+        "p50": 6.168307,
+        "p95": 6.942103
+      }
+    },
+    {
+      "engine": "micropod",
+      "mode": "suite",
+      "clients": 1,
+      "seconds": {
+        "n": 3,
+        "p50": 0.051465,
+        "p95": 0.06378
+      }
+    },
+    {
+      "engine": "micropod",
+      "mode": "suite",
+      "clients": 16,
+      "seconds": {
+        "n": 3,
+        "p50": 0.255002,
+        "p95": 0.291834
+      }
+    },
+    {
+      "engine": "micropod",
+      "mode": "suite",
+      "clients": 32,
+      "seconds": {
+        "n": 3,
+        "p50": 0.585988,
+        "p95": 0.679038
+      }
+    },
+    {
+      "engine": "orbstack",
+      "mode": "source",
+      "clients": 1,
+      "seconds": {
+        "n": 3,
+        "p50": 0.875774,
+        "p95": 0.982006
+      }
+    },
+    {
+      "engine": "orbstack",
+      "mode": "source",
+      "clients": 16,
+      "seconds": {
+        "n": 3,
+        "p50": 6.639225,
+        "p95": 7.238145
+      }
+    },
+    {
+      "engine": "orbstack",
+      "mode": "source",
+      "clients": 32,
+      "seconds": {
+        "n": 3,
+        "p50": 12.971816,
+        "p95": 13.584631
+      }
+    },
+    {
+      "engine": "orbstack",
+      "mode": "suite",
+      "clients": 1,
+      "seconds": {
+        "n": 3,
+        "p50": 0.283095,
+        "p95": 0.313067
+      }
+    },
+    {
+      "engine": "orbstack",
+      "mode": "suite",
+      "clients": 16,
+      "seconds": {
+        "n": 3,
+        "p50": 2.972737,
+        "p95": 3.088642
+      }
+    },
+    {
+      "engine": "orbstack",
+      "mode": "suite",
+      "clients": 32,
+      "seconds": {
+        "n": 3,
+        "p50": 4.171857,
+        "p95": 4.28318
+      }
+    },
+    {
+      "engine": "ubuntu",
+      "mode": "source",
+      "clients": 1,
+      "seconds": {
+        "n": 3,
+        "p50": 0.421734,
+        "p95": 0.449632
+      }
+    },
+    {
+      "engine": "ubuntu",
+      "mode": "source",
+      "clients": 16,
+      "seconds": {
+        "n": 3,
+        "p50": 2.589288,
+        "p95": 3.01004
+      }
+    },
+    {
+      "engine": "ubuntu",
+      "mode": "source",
+      "clients": 32,
+      "seconds": {
+        "n": 3,
+        "p50": 5.773382,
+        "p95": 6.271982
+      }
+    },
+    {
+      "engine": "ubuntu",
+      "mode": "suite",
+      "clients": 1,
+      "seconds": {
+        "n": 3,
+        "p50": 0.033394,
+        "p95": 0.035416
+      }
+    },
+    {
+      "engine": "ubuntu",
+      "mode": "suite",
+      "clients": 16,
+      "seconds": {
+        "n": 3,
+        "p50": 0.120077,
+        "p95": 0.289273
+      }
+    },
+    {
+      "engine": "ubuntu",
+      "mode": "suite",
+      "clients": 32,
+      "seconds": {
+        "n": 3,
+        "p50": 0.196805,
+        "p95": 0.210893
+      }
+    }
+  ],
+  "run": "f24adfcd61ff35dd53d8cfcbd9f0ae0aa63e2bcbfa4e818aad3d9644c80ba0dc"
+}

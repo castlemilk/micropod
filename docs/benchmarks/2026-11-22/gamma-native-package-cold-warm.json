@@ -1,0 +1,765 @@
+{
+  "run": "b23622188b9a45238b4100df9bb30cea",
+  "started_utc": "2026-11-22T00:18:15+00:00",
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "profile": "local-package-command",
+  "ci_queue_s": null,
+  "clients": 1,
+  "requested_rounds": 7,
+  "results": [
+    {
+      "round": 1,
+      "passed": true,
+      "cold": {
+        "before": {
+          "npm_content": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_modules": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_build": {
+            "files": 0,
+            "logical_bytes": 0
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.18168450001394376,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.011759665969293565,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 5.441514667007141,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 106,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "e75766a7e7797ac32cf4877f344cb0dc2dd4ab9a99fa9d9e822abfd0d9e7c02f"
+      },
+      "warm": {
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.21223766601178795,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.009552458999678493,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 0.13988554198294878,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 0,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "e75766a7e7797ac32cf4877f344cb0dc2dd4ab9a99fa9d9e822abfd0d9e7c02f"
+      },
+      "verified_warm_reuses": {
+        "npm": 1,
+        "go_module": 1,
+        "go_build_without_compile": 1
+      }
+    },
+    {
+      "round": 2,
+      "passed": true,
+      "cold": {
+        "before": {
+          "npm_content": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_modules": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_build": {
+            "files": 0,
+            "logical_bytes": 0
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.1766062500537373,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.011640582990366966,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 5.025229874998331,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 106,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "5e73bad63cff5339812555d515e780ad38a7522824382f7667748cd350306ad8"
+      },
+      "warm": {
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.19155891600530595,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.010181082994677126,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 0.12919154204428196,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 0,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "5e73bad63cff5339812555d515e780ad38a7522824382f7667748cd350306ad8"
+      },
+      "verified_warm_reuses": {
+        "npm": 1,
+        "go_module": 1,
+        "go_build_without_compile": 1
+      }
+    },
+    {
+      "round": 3,
+      "passed": true,
+      "cold": {
+        "before": {
+          "npm_content": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_modules": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_build": {
+            "files": 0,
+            "logical_bytes": 0
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.17457612499129027,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.010655124962795526,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 5.19028999999864,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 106,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "a61767c8157e7fc9cf60f85505ffba34330f3a4274f2f569bb751cf9fe39b4bf"
+      },
+      "warm": {
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.18038408301072195,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.009704166033770889,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 0.14585025003179908,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 0,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "a61767c8157e7fc9cf60f85505ffba34330f3a4274f2f569bb751cf9fe39b4bf"
+      },
+      "verified_warm_reuses": {
+        "npm": 1,
+        "go_module": 1,
+        "go_build_without_compile": 1
+      }
+    },
+    {
+      "round": 4,
+      "passed": true,
+      "cold": {
+        "before": {
+          "npm_content": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_modules": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_build": {
+            "files": 0,
+            "logical_bytes": 0
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.21909249998861924,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.015109375002793968,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 5.3898264589952305,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 106,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "e708b59437031d992de55b8d8fd4b4adfb3efc1e5af4b1bde0432733c0951a7f"
+      },
+      "warm": {
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.16306925000390038,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.00927866599522531,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 0.12681591702857986,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 0,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "e708b59437031d992de55b8d8fd4b4adfb3efc1e5af4b1bde0432733c0951a7f"
+      },
+      "verified_warm_reuses": {
+        "npm": 1,
+        "go_module": 1,
+        "go_build_without_compile": 1
+      }
+    },
+    {
+      "round": 5,
+      "passed": true,
+      "cold": {
+        "before": {
+          "npm_content": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_modules": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_build": {
+            "files": 0,
+            "logical_bytes": 0
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.16479329200228676,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.008598415995948017,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 5.777301458991133,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 106,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "d66d329ea71706004cb8608673decf31f6c2e91d6662aa78fb3b106359f1006b"
+      },
+      "warm": {
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.20993254199856892,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.011062332952860743,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 0.14890808297786862,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 0,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "d66d329ea71706004cb8608673decf31f6c2e91d6662aa78fb3b106359f1006b"
+      },
+      "verified_warm_reuses": {
+        "npm": 1,
+        "go_module": 1,
+        "go_build_without_compile": 1
+      }
+    },
+    {
+      "round": 6,
+      "passed": true,
+      "cold": {
+        "before": {
+          "npm_content": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_modules": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_build": {
+            "files": 0,
+            "logical_bytes": 0
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.26642358396202326,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.013640916964504868,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 6.258590542012826,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 106,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "62035669cd2238d7214495d35952d1805c3e0875137f443f0258fa5737509f6e"
+      },
+      "warm": {
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.2089733340544626,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.009732917009387165,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 0.14477104099933058,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 0,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "62035669cd2238d7214495d35952d1805c3e0875137f443f0258fa5737509f6e"
+      },
+      "verified_warm_reuses": {
+        "npm": 1,
+        "go_module": 1,
+        "go_build_without_compile": 1
+      }
+    },
+    {
+      "round": 7,
+      "passed": true,
+      "cold": {
+        "before": {
+          "npm_content": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_modules": {
+            "files": 0,
+            "logical_bytes": 0
+          },
+          "go_build": {
+            "files": 0,
+            "logical_bytes": 0
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.22739879100117832,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.013103874982334673,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 5.755490041978192,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 106,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "8aba9ffb717ff6705d073888cacd3b0fd6d84f0669eb7b3d1f5ebf036e30c2a2"
+      },
+      "warm": {
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "commands": {
+          "npm_ci": {
+            "seconds": 0.2246202909736894,
+            "exit": 0
+          },
+          "go_mod_download": {
+            "seconds": 0.010841333016287535,
+            "exit": 0
+          },
+          "go_build": {
+            "seconds": 0.1536179999820888,
+            "exit": 0
+          }
+        },
+        "compiler_or_assembler_calls": 0,
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 229
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 410,
+            "logical_bytes": 36805525
+          }
+        },
+        "lock_sha256": "8aba9ffb717ff6705d073888cacd3b0fd6d84f0669eb7b3d1f5ebf036e30c2a2"
+      },
+      "verified_warm_reuses": {
+        "npm": 1,
+        "go_module": 1,
+        "go_build_without_compile": 1
+      }
+    }
+  ],
+  "limits": {
+    "GOMAXPROCS": 1,
+    "go_build_parallelism": 1
+  },
+  "first_attempt_failures": 0,
+  "passed": true,
+  "summary": {
+    "cold": {
+      "npm_ci": {
+        "n": 7,
+        "p50": 0.181685,
+        "p95": 0.266424
+      },
+      "go_mod_download": {
+        "n": 7,
+        "p50": 0.01176,
+        "p95": 0.015109
+      },
+      "go_build": {
+        "n": 7,
+        "p50": 5.441515,
+        "p95": 6.258591
+      }
+    },
+    "warm": {
+      "npm_ci": {
+        "n": 7,
+        "p50": 0.208973,
+        "p95": 0.22462
+      },
+      "go_mod_download": {
+        "n": 7,
+        "p50": 0.009733,
+        "p95": 0.011062
+      },
+      "go_build": {
+        "n": 7,
+        "p50": 0.144771,
+        "p95": 0.153618
+      }
+    }
+  },
+  "versions": {
+    "go": "go version go1.27.2 darwin/arm64",
+    "node": "v24.22.2",
+    "npm": "11.19.1"
+  }
+}

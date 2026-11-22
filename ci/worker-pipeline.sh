@@ -60,8 +60,16 @@ parallel_jobs() {
 # Unique job tags keep concurrent revisions usable. These four shared tags keep
 # the most recent exports unpacked across jobs, with one copy of each layer.
 cache_image="${MICROPOD_CI_SAMPLE_IMAGE:-micropod-internal/ci-samples}"
+docker_run=(docker run)
+if [[ -n "${MICROPOD_PG_PROFILE_IMAGE:-}" ]]; then
+    docker_run+=(--label "io.micropod.postgres-profile=${MICROPOD_PG_PROFILE_RUN:?expected a PostgreSQL profile run ID}")
+fi
 go_postgres() {
-    stage postgres docker run --rm --network host \
+    local -a args=(--rm --network host)
+    if [[ -n "${MICROPOD_PG_PROFILE_IMAGE:-}" ]]; then
+        args+=(-e MICROPOD_PG_PROFILE_IMAGE -e MICROPOD_PG_PROFILE_RUN)
+    fi
+    stage postgres "${docker_run[@]}" "${args[@]}" \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -e TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
         -e TESTCONTAINERS_HOST_OVERRIDE=127.0.0.1 \
@@ -69,7 +77,7 @@ go_postgres() {
 }
 go_service() {
     stage go-image docker build -t "$id:go" -t "$cache_image:go" "$root/ci/samples/go-app"
-    docker run -d --name "$id-go" "$id:go" >/dev/null
+    "${docker_run[@]}" -d --name "$id-go" "$id:go" >/dev/null
     # shellcheck disable=SC2016
     docker exec "$id-go" sh -ec '
         for attempt in 1 2 3 4 5; do
@@ -84,7 +92,7 @@ go_service() {
     '
 }
 go_unit() {
-    stage go-unit docker run --rm --network none --entrypoint /bin/sh "$id:checks" ci-suite.sh test /out
+    stage go-unit "${docker_run[@]}" --rm --network none --entrypoint /bin/sh "$id:checks" ci-suite.sh test /out
 }
 go_checks() {
     local app="$root/ci/samples/go-app"
@@ -102,14 +110,14 @@ npm_job() {
     stage node-image docker build -t "$id:node" -t "$cache_image:node" "$app"
     # Check the guest's output and execute the suite even when BuildKit reuses the image.
     # shellcheck disable=SC2016
-    stage node-unit docker run --rm --network none --entrypoint sh "$id:node" -ec '
+    stage node-unit "${docker_run[@]}" --rm --network none --entrypoint sh "$id:node" -ec '
         npm test
         greeting=$(node src/index.js ada)
         [ "$greeting" = "hello, ada" ]
     '
     echo "console.log('source edit reached the guest')" >> "$app/src/index.js"
     stage node-edit docker build -t "$id:node" -t "$cache_image:node-edited" "$app"
-    docker run --rm "$id:node" ada | grep -Fx 'source edit reached the guest'
+    "${docker_run[@]}" --rm "$id:node" ada | grep -Fx 'source edit reached the guest'
 }
 case "$profile" in
     go) go_job ;;

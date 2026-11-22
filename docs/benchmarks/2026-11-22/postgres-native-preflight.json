@@ -1,0 +1,15 @@
+{
+  "run": "e0aec9781e95a3d1fea1827a08e5b73bc367d83688183c1bc133804e1e5a507a",
+  "tool": "initdb (PostgreSQL) 18.6",
+  "platform": "darwin/arm64",
+  "clock_local": "2026-11-22 11:07:00.701 AEDT",
+  "operation": "private initdb",
+  "passed": false,
+  "database_ready": false,
+  "jobs_started": 0,
+  "ci_queue_s": null,
+  "error": "could not create shared memory segment: Operation not permitted",
+  "detail": "Failed system call was shmget(key=1139855587, size=56, 03600).",
+  "child_exit": 1,
+  "database_time_s": null
+}

@@ -200,6 +200,40 @@ def store(path, run, kind, record):
                        j.value->>'$.cgroup.nr_throttled' AS quota_throttles
                 FROM measurements, json_each(receipt,'$.traces') b, json_each(b.value,'$.jobs') j
                 WHERE kind='go-ci-first-revision' AND receipt->>'passed';
+            CREATE VIEW IF NOT EXISTS postgres_saved_pipeline AS
+                SELECT run, r.value->>'engine' AS engine, r.value->>'revision' AS revision,
+                       r.value->>'$.postgres_s.n' AS n, r.value->>'$.postgres_s.p50' AS pg_p50_s,
+                       r.value->>'$.postgres_s.p95' AS pg_p95_s, r.value->>'$.repeat_s.p50' AS pipeline_p50_s,
+                       r.value->>'$.repeat_s.p95' AS pipeline_p95_s, r.value->>'$.db_stop_request_to_destroy_s.p50' AS stop_p50_s,
+                       r.value->>'$.db_stop_request_to_destroy_s.p95' AS stop_p95_s, r.value->'exit_codes' AS exit_codes
+                FROM measurements, json_each(receipt, '$.matched_pipeline') r WHERE kind='postgres-saved-baselines';
+            CREATE VIEW IF NOT EXISTS postgres_fixture_images AS
+                SELECT run, b.value->>'mode' AS mode, b.value->>'state' AS state, b.value->>'seconds' AS seconds,
+                       b.value->>'image_id' AS image, b.value->>'image_bytes' AS image_bytes,
+                       b.value->>'base_delta_bytes' AS base_delta_bytes,
+                       b.value->>'$.outcomes.cached' AS hits, b.value->>'$.outcomes.executed' AS executed
+                FROM measurements, json_each(receipt, '$.image_builds') b WHERE kind='postgres-fixture-profile';
+            CREATE VIEW IF NOT EXISTS postgres_fixture_jobs AS
+                SELECT run, j.value->>'workload' AS workload, j.value->>'mode' AS mode, j.value->>'round' AS round,
+                       j.value->>'clients' AS clients, j.value->>'job' AS job, j.value->>'passed' AS passed,
+                       j.value->>'wall_s' AS wall_s, j.value->>'ci_queue_s' AS ci_queue_s,
+                       j.value->>'dispatch_wait_s' AS dispatch_wait_s, j.value->>'$.pg.container' AS container,
+                       (j.value->>'$.pg.fixture_restore_us')/1e6 AS fixture_restore_s,
+                       (j.value->>'$.pg.materialized_to_tcp_ready_us')/1e6 AS materialized_to_tcp_ready_s,
+                       j.value->>'stop_request_to_destroy_s' AS stop_to_destroy_s,
+                       j.value->'$.pg.spans_us' AS spans, j.value->>'$.pg.job_cgroup' AS kernel
+                FROM measurements, json_each(receipt, '$.jobs') j WHERE kind='postgres-fixture-profile';
+            CREATE VIEW IF NOT EXISTS postgres_fixture_phases AS
+                SELECT run, workload, mode, round, clients, job, passed, container, phase.key AS phase,
+                       ((phase.value->>1) - (phase.value->>0))/1e6 AS seconds
+                FROM postgres_fixture_jobs, json_each(spans) phase;
+            CREATE VIEW IF NOT EXISTS package_cache_commands AS
+                SELECT run, r.value->>'round' AS round, r.value->>'passed' AS passed, s.key AS state,
+                       c.key AS command, c.value->>'seconds' AS seconds, c.value->>'exit' AS exit,
+                       s.value->>'compiler_or_assembler_calls' AS compiler_calls, s.value->'after' AS cache_after
+                FROM measurements, json_each(receipt, '$.results') r, json_each(r.value) s,
+                     json_each(s.value, '$.commands') c
+                WHERE kind='package-command-profile' AND s.key IN ('cold','warm');
             CREATE VIEW IF NOT EXISTS pipeline_stages AS
                 SELECT run, engine.key AS engine, phase.key AS phase, stage.key AS stage, stage.value AS seconds
                 FROM measurements, json_each(receipt, '$.pipeline_stages_seconds') engine,
