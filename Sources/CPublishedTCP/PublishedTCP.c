@@ -80,26 +80,53 @@ struct pair {
     uint64_t accepted_at, connected_at, first_request_write_at;
 };
 
-static int change_watch(int kq, struct watch *w, int16_t filter, uint16_t flags) {
+static struct kevent filter_change(struct watch *w, int16_t filter, uint16_t flags) {
     struct kevent change;
     EV_SET(&change, w->fd, filter, flags, 0, 0, w);
+    return change;
+}
+
+static int submit_changes(int kq, const struct kevent *changes, int count) {
     int status;
-    do { status = kevent(kq, &change, 1, NULL, 0, NULL); } while (status < 0 && errno == EINTR);
+    do { status = kevent(kq, changes, count, NULL, 0, NULL); } while (status < 0 && errno == EINTR);
     return status;
+}
+
+static int change_watch(int kq, struct watch *w, int16_t filter, uint16_t flags) {
+    struct kevent change = filter_change(w, filter, flags);
+    return submit_changes(kq, &change, 1);
 }
 
 static struct endpoint *opposite(struct endpoint *e) {
     return e == &e->pair->client ? &e->pair->guest : &e->pair->client;
 }
 
-static int watch_fd(mp_tcp_relay *r, struct watch *w, int16_t filter, uint16_t flags) {
+static int watch_queue(mp_tcp_relay *r, struct watch *w, int16_t filter) {
     int q = r->kq;
     if (r->bulk.fd >= 0 && w->kind == STREAM) {
         struct endpoint *e = (struct endpoint *)w;
         // READ consumes this direction; WRITE flushes its peer's pending bytes.
         if ((filter == EVFILT_READ ? e : opposite(e))->bulk_read) q = r->bulk.fd;
     }
-    return change_watch(q, w, filter, flags);
+    return q;
+}
+
+static int watch_fd(mp_tcp_relay *r, struct watch *w, int16_t filter, uint16_t flags) {
+    return change_watch(watch_queue(r, w, filter), w, filter, flags);
+}
+
+static int update_stream_filters(mp_tcp_relay *r, const struct kevent *changes, int count) {
+#if defined(MICROPOD_BATCH_STREAM_FILTERS) && MICROPOD_BATCH_STREAM_FILTERS
+    // Dedicated data owners use one kqueue. These ADD/ENABLE/DISABLE
+    // operations are idempotent on EINTR. The caller closes both descriptors
+    // on error, which also removes any prefix the kernel already installed.
+    if (r->bulk.fd < 0) return submit_changes(r->kq, changes, count);
+#endif
+    for (int i = 0; i < count; ++i) {
+        int q = watch_queue(r, changes[i].udata, changes[i].filter);
+        if (submit_changes(q, &changes[i], 1) < 0) return -1;
+    }
+    return 0;
 }
 
 static int prepare(int fd) {
@@ -610,8 +637,9 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
             if (!dst->pending) { retire(p); return; }
             memcpy(dst->pending, r->scratch + sent, remaining);
             dst->length = remaining;
-            if (watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0 ||
-                watch_fd(r, &dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) < 0) retire(p);
+            struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
+                                        filter_change(&dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) };
+            if (update_stream_filters(r, changes, 2) < 0) retire(p);
         } else {
             dst->offset += (size_t)sent;
             dst->length = remaining;
@@ -622,8 +650,9 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         free(dst->pending);
         dst->pending = NULL;
         dst->offset = dst->length = 0;
-        if (watch_fd(r, &dst->watch, EVFILT_WRITE, EV_DISABLE) < 0 ||
-            watch_fd(r, &src->watch, EVFILT_READ, EV_ENABLE) < 0) { retire(p); return; }
+        struct kevent changes[] = { filter_change(&dst->watch, EVFILT_WRITE, EV_DISABLE),
+                                    filter_change(&src->watch, EVFILT_READ, EV_ENABLE) };
+        if (update_stream_filters(r, changes, 2) < 0) retire(p);
     }
 }
 
@@ -639,9 +668,10 @@ static void finish_connect(struct pair *p) {
         return;
     }
     p->guest.connecting = false;
-    if (watch_fd(r, &p->guest.watch, EVFILT_WRITE, EV_DISABLE) < 0 ||
-        watch_fd(r, &p->guest.watch, EVFILT_READ, EV_ENABLE) < 0 ||
-        watch_fd(r, &p->client.watch, EVFILT_READ, EV_ENABLE) < 0) { retire(p); return; }
+    struct kevent changes[] = { filter_change(&p->guest.watch, EVFILT_WRITE, EV_DISABLE),
+                                filter_change(&p->guest.watch, EVFILT_READ, EV_ENABLE),
+                                filter_change(&p->client.watch, EVFILT_READ, EV_ENABLE) };
+    if (update_stream_filters(r, changes, 3) < 0) { retire(p); return; }
     connected(p);
     // The Mac client can already have sent its first request during connect.
     pump(&p->client, &p->guest);

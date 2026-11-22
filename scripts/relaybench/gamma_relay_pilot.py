@@ -1,4 +1,4 @@
-"""Isolate listener distribution or worker count on Gamma's host-only relay fixture."""
+"""Isolate listener distribution, worker count or kqueue filter batching on Gamma's host relay."""
 import argparse
 import json
 import platform
@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from compare import FIXTURE, build, measure, sha
+from compare import FIXTURE, build, git, measure, sha
 from gamma_contrasts import percentile
 from gamma_pilot import plan, require, save
 
@@ -22,16 +22,25 @@ def configurations(factor):
 
 def run(args, orders):
     args.out.mkdir()
-    receipt = dict(host=platform.node(), macos=platform.mac_ver()[0], revision=REVISION,
+    revision = git("rev-parse", "HEAD").decode().strip() if args.factor == "filters" else REVISION
+    receipt = dict(host=platform.node(), macos=platform.mac_ver()[0], revision=revision,
                    factor=args.factor, ports=args.ports, seed=args.seed, order=orders,
                    callback_events=128, seconds=6, fixture_sha256=sha(FIXTURE.read_bytes()))
     save(args.out / "plan.json", receipt)
     require(platform.node().split(".")[0] == "Gamma-128GB", "run only on the original Gamma Mac")
     arms = configurations(args.factor)
     with tempfile.TemporaryDirectory() as temp:
-        policies = {legacy for _, legacy in arms.values()}
-        binaries = {legacy: build(Path(temp) / str(int(legacy)), REVISION, legacy, False) for legacy in policies}
-        receipt["binaries"] = {str(k): b[1] for k, b in binaries.items()}
+        binaries = {}
+        arm_binaries = {}
+        for arm, (_, legacy) in arms.items():
+            batched = args.factor == "filters" and arm == "B"
+            key = "batched" if batched else str(legacy)
+            if key not in binaries:
+                binaries[key] = build(Path(temp) / arm, revision, legacy, False, batch_filters=batched,
+                                      stage_connect=args.factor == "filters")
+            arm_binaries[arm] = key
+        receipt["arm_binaries"] = arm_binaries
+        receipt["binaries"] = {key: binary[1] for key, binary in binaries.items()}
         save(args.out / "plan.json", receipt)
         scored = {}
         for phase, pairs in orders.items():
@@ -42,7 +51,8 @@ def run(args, orders):
                     path.write_bytes(bytes(8))
                     row = dict(phase=phase, pair=n, arm=arm, workers=workers, clean=False, fresh_offered=240)
                     try:
-                        result = measure(binaries[legacy][0], 6, args.ports, workers, 512, False, legacy, path)
+                        exe = binaries[arm_binaries[arm]][0]
+                        result = measure(exe, 6, args.ports, workers, 512, False, legacy, path)
                         s = result["sample"]
                         require(s["callback_events"] == 128, "callback budget changed")
                         per_tick = s["tick_numer"] / s["tick_denom"] / s["elapsed_ns"]
@@ -69,7 +79,7 @@ def run(args, orders):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("factor", choices=("distribution", "workers"))
+    parser.add_argument("factor", choices=("distribution", "workers", "filters"))
     parser.add_argument("--ports", type=int, choices=(1, 32), required=True)
     parser.add_argument("--seed", type=int, default=34199)
     parser.add_argument("--out", type=Path, help="a new output directory")

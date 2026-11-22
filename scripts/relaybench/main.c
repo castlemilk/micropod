@@ -161,9 +161,18 @@ static unsigned attach(struct lease *lease, int *client_fd, int *guest_fd) {
         l->head = p;
         ++l->active;
         if (l->profile) atomic_fetch_add(&l->parent->group_active, 1);
+#ifdef RELAYBENCH_STAGE_CONNECT
+        // Both filter-pilot arms start at writable guest-handshake completion.
+        // The connected local descriptors exercise finish_connect on the owner.
+        p->guest.connecting = true;
+        check(watch_fd(o->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) == 0 &&
+              watch_fd(o->relay, &p->guest.watch, EVFILT_READ, EV_ADD | EV_DISABLE) == 0 &&
+              watch_fd(o->relay, &p->guest.watch, EVFILT_WRITE, EV_ADD) == 0, "register connecting stream");
+#else
         connected(p);
         check(watch_fd(o->relay, &p->client.watch, EVFILT_READ, EV_ADD) == 0 &&
               watch_fd(o->relay, &p->guest.watch, EVFILT_READ, EV_ADD) == 0, "register stream");
+#endif
     });
     return index;
 }
@@ -286,16 +295,23 @@ static void check_revocation(mp_tcp_relay *accept_relay) {
     release_lease(&replacement);
 }
 
+static void stop_relays(mp_tcp_relay *accept_relay) {
+    for (int i = 0; i < owner_count; ++i) stop_owner(&owners[i]);
+    mp_tcp_relay_destroy(accept_relay);
+    dispatch_release(accept_queue);
+}
+
 int main(int argc, char **argv) {
     if (argc != 6 && argc != 7) {
-        fprintf(stderr, "usage: relay SECONDS CLIENT_BUFFER_KiB PROFILE_0_OR_1 OWNERS PORTS [FIXED_128_PROGRESS_FILE]\n");
+        fprintf(stderr, "usage: relay SECONDS|check CLIENT_BUFFER_KiB PROFILE_0_OR_1 OWNERS PORTS [FIXED_128_PROGRESS_FILE]\n");
         return 2;
     }
     int seconds = atoi(argv[1]), kib = atoi(argv[2]);
+    bool check_only = strcmp(argv[1], "check") == 0 && argc == 6;
     profile = atoi(argv[3]);
     owner_count = atoi(argv[4]);
     port_count = atoi(argv[5]);
-    check(seconds >= 1 && seconds <= 60 && kib >= 8 && kib <= 1024 && (profile == 0 || profile == 1) &&
+    check((check_only || (seconds >= 1 && seconds <= 60)) && kib >= 8 && kib <= 1024 && (profile == 0 || profile == 1) &&
           owner_count >= 1 && owner_count <= MAX_OWNERS && port_count >= 1 && port_count <= STREAMS, "arguments");
     drain_owners = owner_count;
     if (argc == 7) {
@@ -321,6 +337,12 @@ int main(int argc, char **argv) {
     check(accept_relay != NULL, "accept relay");
     accept_queue = dispatch_queue_create("dev.micropod.bench.accept",
         dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
+    if (check_only) {
+        check_revocation(accept_relay);
+        stop_relays(accept_relay);
+        puts("{\"live_revocation\":true,\"sibling_and_reuse\":true,\"timed_rounds\":0}");
+        return 0;
+    }
     for (int i = 0; i < port_count; ++i) open_lease(&leases[i], accept_relay, (uint16_t)(8080 + i));
     fprintf(stderr, "attaching bulk streams\n");
     for (int i = 0; i < STREAMS; ++i) {
@@ -396,9 +418,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "checking live revocation\n");
     check_revocation(accept_relay);
     fprintf(stderr, "stopping data owners\n");
-    for (int i = 0; i < owner_count; ++i) stop_owner(&owners[i]);
-    mp_tcp_relay_destroy(accept_relay);
-    dispatch_release(accept_queue);
+    stop_relays(accept_relay);
     printf("{");
     if (progress) {
         mach_timebase_info_data_t tb;

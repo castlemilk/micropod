@@ -30,18 +30,24 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def build(directory, revision, legacy, sanitize):
+def build(directory, revision, legacy, sanitize, *, batch_filters=False, stage_connect=False, fixture=FIXTURE):
     directory.mkdir()
     for name in (C_SOURCE, HEADER):
         content = git("show", f"{revision}:{name}") if revision else (ROOT / name).read_bytes()
         (directory / Path(name).name).write_bytes(content)
     exe = directory / "relay"
     flags = ["-O3", "-Wall", "-Wextra", "-Werror", "-fblocks"]
+    if stage_connect:
+        flags.append("-DRELAYBENCH_STAGE_CONNECT")
+    if batch_filters:
+        if b"MICROPOD_BATCH_STREAM_FILTERS" not in (directory / "PublishedTCP.c").read_bytes():
+            raise ValueError("source revision does not support batched stream filters")
+        flags.append("-DMICROPOD_BATCH_STREAM_FILTERS=1")
     if legacy:
         flags.append("-DLEGACY_HANDOFF")
     if sanitize:
         flags.extend(["-O1", "-g", "-fsanitize=address,undefined", "-fno-sanitize-recover=all"])
-    subprocess.run(["clang", *flags, '-DRELAY_SOURCE="PublishedTCP.c"', "-I", directory, FIXTURE, "-o", exe],
+    subprocess.run(["clang", *flags, '-DRELAY_SOURCE="PublishedTCP.c"', "-I", directory, fixture, "-o", exe],
                    check=True)
     return exe, dict(binary=sha(exe.read_bytes()), flags=flags,
                      c=sha((directory / "PublishedTCP.c").read_bytes()),

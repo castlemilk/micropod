@@ -190,9 +190,8 @@ def run(args, orders):
     for key in ("engine", "id", "address", "name"):
         require(a[key] and b[key] and a[key] != b[key], f"arms share {key}")
     require(set(a["pids"].values()).isdisjoint(b["pids"].values()), "arms share a host process")
-    if peer:
-        require(a["cpuset"] == b["cpuset"], "unequal effective cpusets for peer comparison")
-    else:
+    require(a["cpuset"] == b["cpuset"] == "0-3", "both service containers must be pinned to CPUs 0-3")
+    if not peer:
         require(a["instance"] != b["instance"] and a["worker"] != b["worker"], "need separate Micropod VMs")
         for key in ("kernel", "release", "engine_version", "cli_sha256", "route", "service_env_sha256"):
             require(a[key] == b[key], f"Micropod arms differ in {key}")

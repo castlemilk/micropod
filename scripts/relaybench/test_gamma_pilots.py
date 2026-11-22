@@ -24,6 +24,7 @@ class GammaPilots(unittest.TestCase):
         self.assertEqual({tuple(vm.plan(seed)["scored"]) for seed in range(16)}, {("AB", "BA"), ("BA", "AB")})
         self.assertEqual(relay.configurations("distribution"), {"A": (2, True), "B": (2, False)})
         self.assertEqual(relay.configurations("workers"), {"A": (2, False), "B": (4, False)})
+        self.assertEqual(relay.configurations("filters"), {"A": (2, False), "B": (2, False)})
 
     def test_replay_preserves_dirty_rounds_and_separates_callback_change(self):
         c = evidence.replay()["contrasts"]
@@ -139,6 +140,48 @@ class GammaPilots(unittest.TestCase):
             self.assertFalse(row["clean"])
             self.assertEqual((row["submitted_without_reply"], row["never_submitted"]), (3, 0))
             self.assertEqual(json.loads((args.out / "complete.json").read_text())["candidate_over_control"], {"2": 2.0})
+
+    def test_size_rejects_a_six_cpu_service_cpuset_before_timing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            a, b = root / "four", root / "six"
+            a.mkdir()
+            b.mkdir()
+            def fixture(path, cpus, orb):
+                return dict(engine=path.name, id=path.name, address=path.name, name=path.name,
+                            cpuset=f"0-{cpus - 1}", pids={"vmm": cpus})
+            args = Namespace(a=a, b=b, out=root / "out", seed=34199, mode="size", tools=root, check=False)
+            with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
+                 patch.object(vm, "digest", side_effect=lambda path: vm.HASHES[path.name]), \
+                 patch.object(vm, "inspect", side_effect=fixture), patch.object(vm, "attempt") as timed:
+                with self.assertRaisesRegex(ValueError, "pinned to CPUs 0-3"):
+                    vm.run(args, vm.plan(args.seed))
+                timed.assert_not_called()
+
+    def test_filter_pilot_changes_only_the_build_flag(self):
+        def fake_build(directory, revision, legacy, sanitize, *, batch_filters, stage_connect):
+            self.assertTrue(stage_connect)
+            return directory / "relay", {"batched": batch_filters}
+
+        def measure(exe, seconds, ports, workers, kib, profile, legacy, progress):
+            self.assertEqual((seconds, ports, workers, kib, profile, legacy), (6, 1, 2, 512, False, False))
+            self.assertEqual(exe.parent.name, progress.stem.rsplit("-", 1)[1])
+            progress.write_bytes(struct.pack("=II", 240, 240))
+            return dict(mib_s=100, p95_ms=1, cpu_seconds_per_gib=.5,
+                        sample=dict(fresh_ns=[1_000_000] * 240, callback_events=128, tick_numer=1,
+                                    tick_denom=1, elapsed_ns=6_000_000_000, cpu_ticks=9, runnable_ticks=12))
+
+        with tempfile.TemporaryDirectory() as temp, patch.object(relay.platform, "node", return_value="Gamma-128GB"), \
+             patch.object(relay, "git", return_value=b"same-commit\n"), \
+             patch.object(relay, "build", side_effect=fake_build) as build, patch.object(relay, "measure", side_effect=measure):
+            args = Namespace(out=Path(temp) / "out", factor="filters", ports=1, seed=34201)
+            relay.run(args, vm.plan(args.seed))
+            self.assertEqual([(call.args[1:], call.kwargs) for call in build.call_args_list],
+                             [(("same-commit", False, False), {"batch_filters": b, "stage_connect": True})
+                              for b in (False, True)])
+            receipt = json.loads((args.out / "plan.json").read_text())
+            self.assertEqual(receipt["arm_binaries"], {"A": "False", "B": "batched"})
+            self.assertEqual(receipt["binaries"], {"False": {"batched": False}, "batched": {"batched": True}})
 
 
 if __name__ == "__main__":
