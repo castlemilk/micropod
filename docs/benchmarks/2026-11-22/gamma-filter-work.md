@@ -56,6 +56,8 @@ PY
 
 ## Next reserved run
 
+The 23 November follow-up adds the four-vCPU VM test that isolates two versus four host relay workers. It uses the same 128-event callback on both arms after the shared stock baseline. [Commands, Gamma availability and peer holdout criteria](../2026-11-23/gamma-throughput-gap.md)
+
 At 23:53 AEDT on 22 November the Mac had 6/6 leases and the isolated Linux runner had 1/1. At 00:11 AEDT on 23 November the Mac had 1/6 and Linux still had 1/1. The warm-CI reply gives the four-vCPU TCP baseline priority in the first released window. All four complete fixture records in the handoff directory, including the old peer pair, carry retirement markers. The owner had yet to designate a live fixture and an exclusive window. This pass ran the fixed-work socket checks without contacting either VM.
 
 The smallest shared VM baseline uses the already-prepared driver on an owner-designated four-vCPU, 4 GiB direct-Reno Micropod worker with the stock two-worker relay. It uses one six-second warmup and one six-second scored interval. The paired VM sizing pilot now requires effective CPUs **0–3** inside both service containers, including on the six-vCPU VM. The four-CPU quota alone would have allowed a second variable to change. Reuse the existing listener and worker pilots independently. [VM baseline command and inputs in the sibling study checkout](../../../../kernel-path-20261122/docs/benchmarks/2026-11-22/kernel-path/README.md#run-in-a-released-slot) · [VM and relay pilot commands](gamma-tcp-contrasts.md#smallest-owner-run-tests)
