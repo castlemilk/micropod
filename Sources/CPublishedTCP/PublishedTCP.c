@@ -764,11 +764,21 @@ static void drain_data(mp_tcp_relay *r, int budget) {
     }
 }
 
+int mp_tcp_data_callback_events(int data_workers) {
+#if defined(MICROPOD_BENCH_FIXED_RELAY_BUDGET) && MICROPOD_BENCH_FIXED_RELAY_BUDGET
+    // Benchmark both worker counts with one binary and the two-worker callback limit.
+    (void)data_workers;
+    return EVENTS_PER_TURN;
+#else
+    return data_workers > 2 ? DATA_READY_BATCH : EVENTS_PER_TURN;
+#endif
+}
+
 void mp_tcp_relay_drain(mp_tcp_relay *r, int data_workers) {
     if (r->bulk.fd < 0) {
         // Handoffs and revocations share this dispatch queue with the drain.
         // Wider groups can copy concurrently, so yield each owner sooner.
-        drain_data(r, data_workers > 2 ? DATA_READY_BATCH : EVENTS_PER_TURN);
+        drain_data(r, mp_tcp_data_callback_events(data_workers));
         reap(r);
         return;
     }

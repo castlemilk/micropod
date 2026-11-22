@@ -123,17 +123,23 @@ def arm_summary(rows):
             "rounds_missing_request_count": [r["round"] for r in rows if r["fresh_failed"] is None]}
 
 
+def paired_median_interval(ratios):
+    if len(ratios) < 5:
+        return None
+    rng = random.Random(7317)
+    draws = sorted(median(rng.choices(ratios, k=len(ratios))) for _ in range(10000))
+    return [draws[250], draws[9749]]
+
+
 def contrast(rows, left, right, ports=None):
     arms = {key: [r for r in rows if r["arm"] == key and (ports is None or r["ports"] == ports)]
             for key in (left, right)}
     clean = {key: {r["round"]: r for r in values if r["clean"]} for key, values in arms.items()}
     common = sorted(clean[left].keys() & clean[right].keys())
     ratios = [clean[right][n]["mib_s"] / clean[left][n]["mib_s"] for n in common]
-    rng = random.Random(7317)
-    draws = sorted(median(rng.choices(ratios, k=len(ratios))) for _ in range(10000)) if len(ratios) >= 5 else []
     return dict(left=left, right=right, ports=ports, arms={k: arm_summary(v) for k, v in arms.items()},
                 paired_rounds=common, paired_ratios=ratios, median_ratio=median(ratios),
-                bootstrap_ci95=[draws[250], draws[9749]] if draws else None, wins=sum(r > 1 for r in ratios))
+                bootstrap_ci95=paired_median_interval(ratios), wins=sum(r > 1 for r in ratios))
 
 
 def replay():

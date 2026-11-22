@@ -11,12 +11,15 @@ import subprocess
 import tarfile
 import tempfile
 from pathlib import Path
+from statistics import median
 
-from gamma_contrasts import IMAGE, clean_client, host_units, process_delta
+from gamma_contrasts import IMAGE, clean_client, host_units, paired_median_interval, process_delta
 
 TOOLS = Path("/tmp/mp-priority.b3sbI7ym")
 HASHES = {"fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
           "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"}
+STOCK_KERNEL = "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+DIRECT_ROUTE = dict(RtoMin=20, RtoMinLock=True, QuickACK=0, Congctl="reno", MTU=0)
 
 
 def require(condition, message):
@@ -24,12 +27,28 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def plan(seed):
+def plan(seed, scored_pairs=2):
+    require(scored_pairs >= 2 and scored_pairs % 2 == 0, "use balanced AB/BA pairs")
     rng = random.Random(seed)
-    phases = {"warmup": ["AB", "BA", rng.choice(("AB", "BA"))], "scored": ["AB", "BA"]}
-    for orders in phases.values():
-        rng.shuffle(orders)
-    return phases
+    warmup = ["AB", "BA", rng.choice(("AB", "BA"))]
+    rng.shuffle(warmup)
+    scored = []
+    for _ in range(scored_pairs // 2):
+        block = ["AB", "BA"]
+        rng.shuffle(block)
+        scored.extend(block)
+    return {"warmup": warmup, "scored": scored}
+
+
+def arm_settings(mode, workers=2, peer_vcpus=4):
+    require(mode in ("size", "peer", "workers") and workers in (2, 4) and peer_vcpus in (4, 6), "invalid arms")
+    require(mode == "peer" or peer_vcpus == 4, "--peer-vcpus applies only to the OrbStack comparison")
+    require(mode != "workers" or workers == 2, "the workers comparison always uses two and four workers")
+    a_cpus = peer_vcpus if mode == "peer" else 4
+    b_workers = {"workers": 4, "size": workers, "peer": None}[mode]
+    return {"A": dict(engine="Micropod", vcpus=a_cpus, relay_workers=workers, callback_events=128),
+            "B": dict(engine="OrbStack" if mode == "peer" else "Micropod", vcpus=6 if mode == "size" else a_cpus,
+                      relay_workers=b_workers, callback_events=None if mode == "peer" else 128)}
 
 
 def command(*args):
@@ -38,6 +57,18 @@ def command(*args):
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def mapped_digest(path, pid):
+    # Hash the same vnode lsof observes as executable text in the live supervisor.
+    with path.open("rb") as binary:
+        st = os.fstat(binary.fileno())
+        text = command("lsof", "-nP", "-a", "-p", str(pid), "-d", "txt", "-FfDi", "--", str(path))
+        mappings = [dict((s[0], s[1:]) for s in block.splitlines() if s)
+                    for block in re.split(r"(?m)^f[^\n]*\n", text)[1:]]
+        require(any("D" in m and "i" in m and (int(m["D"], 0), int(m["i"])) == (st.st_dev, st.st_ino)
+                    for m in mappings), "running supervisor does not map the recorded binary")
+        return hashlib.sha256(binary.read()).hexdigest()
 
 
 def value(directory, name):
@@ -108,8 +139,9 @@ def inspect(scope, cpus, orb):
             and sock_id["worker"] == config["worker"] and attested.st_ino == sock_id["inode"]
             and attested.st_dev == sock_id["device"], "stale worker socket")
     pids["relay"] = int(value(scope, "relay"))
-    require(session["started"] and session["owner"]["pid"] == pids["relay"] and session["publishedRelayWorkers"] == 2,
-            "need an already-running two-worker relayer")
+    workers = session["publishedRelayWorkers"]
+    require(session["started"] and session["owner"]["pid"] == pids["relay"] and workers in (2, 4),
+            "need a live two- or four-worker relay")
     require(command("lsof", "-t", str(home / "worker.ext4")) == str(pids["vmm"]), "wrong Micropod VMM process")
     owner = scope.parent / base
     job = plistlib.loads((owner / "job.plist").read_bytes())
@@ -124,9 +156,18 @@ def inspect(scope, cpus, orb):
             and "mppub0" in state["interfaces"] and len(reno_routes) == 1,
             "different network or memory")
     service_env = json.dumps(sorted(c["Config"].get("Env") or [])).encode()
+    executable = Path(job["ProgramArguments"][0])
+    callback = session.get("publishedRelayCallbackEvents")
+    if callback is not None:
+        require(env.get("MICROPOD_CI_PORT_PROFILE") != "1" and not re.search(
+            r"(?m)^\s*MICROPOD_CI_PORT_PROFILE\s*=>\s*1\s*$", role), "relay profiling must be off")
+        require(isinstance(config.get("kernel"), str) and config["kernel"], "missing kernel image path")
+        fixture["kernel_image_sha256"] = digest(Path(config["kernel"]))
+        require(fixture["kernel_image_sha256"] == STOCK_KERNEL, "different kernel image")
     fixture.update(instance=session["instance"], worker=config["worker"], kernel=config["kernel"],
-                   cli_sha256=digest(Path(job["ProgramArguments"][0])), relay_workers=2,
-                   route={k: reno_routes[0][k] for k in ("RtoMin", "RtoMinLock", "QuickACK", "Congctl", "MTU")},
+                   cli_sha256=mapped_digest(executable, pids["relay"]) if callback is not None else digest(executable),
+                   relay_workers=workers, callback_events=callback,
+                   route={k: reno_routes[0][k] for k in DIRECT_ROUTE},
                    service_env_sha256=hashlib.sha256(service_env).hexdigest())
     return fixture
 
@@ -174,15 +215,16 @@ def save(path, obj):
     path.write_text(json.dumps(obj, indent=2, allow_nan=False) + "\n")
 
 
-def run(args, orders):
+def run(args, orders, *, workers=2, peer_vcpus=4):
+    settings = arm_settings(args.mode, workers, peer_vcpus)
     args.out.mkdir()  # Refuse to overwrite a previous attempt.
-    save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, order=orders, tools=HASHES,
+    save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=HASHES,
                                      host=platform.node(), macos=platform.mac_ver()[0]))
     require(platform.node().split(".")[0] == "Gamma-128GB", "run only on the original Gamma Mac")
     for tool, expected in HASHES.items():
         require(digest(args.tools / tool) == expected, f"unrecognized {tool} binary")
     peer = args.mode == "peer"
-    scopes = {"A": (args.a, 4, False), "B": (args.b, 4 if peer else 6, peer)}
+    scopes = {"A": (args.a, settings["A"]["vcpus"], False), "B": (args.b, settings["B"]["vcpus"], peer)}
     for path, _, _ in scopes.values():
         require(path.is_dir() and not (path / "removed").exists(), f"missing or retired fixture: {path}")
     fixtures = {arm: inspect(*scopes[arm]) for arm in ("BA" if peer else "AB")}
@@ -191,9 +233,21 @@ def run(args, orders):
         require(a[key] and b[key] and a[key] != b[key], f"arms share {key}")
     require(set(a["pids"].values()).isdisjoint(b["pids"].values()), "arms share a host process")
     require(a["cpuset"] == b["cpuset"] == "0-3", "both service containers must be pinned to CPUs 0-3")
+    for arm, settings_arm in settings.items():
+        expected = settings_arm["relay_workers"]
+        if expected is None:
+            continue
+        fixture = fixtures[arm]
+        require(fixture["relay_workers"] == expected, f"arm {arm} needs {expected} relay workers")
+        if (args.mode == "workers" or expected == 4 or len(orders["scored"]) >= 16
+                or fixture.get("callback_events") is not None):
+            require(fixture.get("callback_events") == settings_arm["callback_events"],
+                    f"arm {arm} needs a verified 128-event callback")
+            require(fixture.get("route") == DIRECT_ROUTE, f"arm {arm} needs the qualified direct Reno route")
     if not peer:
         require(a["instance"] != b["instance"] and a["worker"] != b["worker"], "need separate Micropod VMs")
-        for key in ("kernel", "release", "engine_version", "cli_sha256", "route", "service_env_sha256"):
+        kernel_field = "kernel_image_sha256" if all("kernel_image_sha256" in f for f in (a, b)) else "kernel"
+        for key in (kernel_field, "release", "engine_version", "cli_sha256", "route", "service_env_sha256"):
             require(a[key] == b[key], f"Micropod arms differ in {key}")
     birth = {arm: identities(snapshot(args.tools, f)) for arm, f in fixtures.items()}
     save(args.out / "fixtures.json", fixtures)
@@ -205,6 +259,8 @@ def run(args, orders):
             for arm in order:
                 row = dict(phase=phase, pair=number, arm=arm, clean=False, fresh_failed=None)
                 try:
+                    require(all(path.is_dir() and not (path / "removed").exists() for path, _, _ in scopes.values()),
+                            "fixture retired during the pilot")
                     attempt(args.tools, fixtures[arm], birth[arm], row)
                 except (OSError, ValueError, KeyError, StopIteration, subprocess.SubprocessError) as exc:
                     row.update(clean=False, error=str(exc))
@@ -218,30 +274,45 @@ def run(args, orders):
     numerator, denominator = ("A", "B") if peer else ("B", "A")
     ratios = {n: scored[n, numerator] / scored[n, denominator] for n in range(1, len(orders["scored"]) + 1)
               if (n, "A") in scored and (n, "B") in scored}
-    direction = "Micropod/OrbStack" if peer else "Micropod 6 vCPUs/Micropod 4 vCPUs"
-    save(args.out / "complete.json", dict(identity_rechecked=True, ratio_direction=direction, paired_ratios=ratios))
+    deltas = {n: scored[n, numerator] - scored[n, denominator] for n in ratios}
+    direction = {"peer": "Micropod/OrbStack", "size": "Micropod 6 vCPUs/Micropod 4 vCPUs",
+                 "workers": "Micropod 4 relay workers/Micropod 2 relay workers"}[args.mode]
+    values = list(ratios.values())
+    save(args.out / "complete.json", dict(identity_rechecked=True, ratio_direction=direction, paired_ratios=ratios,
+                                         paired_mib_s_differences=deltas,
+                                         median_paired_mib_s_difference=median(deltas.values()) if deltas else None,
+                                         median_ratio=median(values) if values else None,
+                                         bootstrap_ci95=paired_median_interval(values),
+                                         clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings}))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("size", "peer"), default="size",
-                        help="Micropod 4/6 vCPU, or Micropod/OrbStack 4/4")
+    parser.add_argument("--mode", choices=("size", "peer", "workers"), default="size",
+                        help="VM size, matched OrbStack peer, or two/four relay workers on four-vCPU VMs")
+    parser.add_argument("--relay-workers", type=int, choices=(2, 4), default=2, help="fixed Micropod count for size/peer")
+    parser.add_argument("--peer-vcpus", type=int, choices=(4, 6), default=4, help="equal VM size for a peer test")
+    parser.add_argument("--holdout", action="store_true", help="16 scored pairs, balanced in blocks of two")
     parser.add_argument("--seed", type=int, default=34199)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--run", action="store_true")
     action.add_argument("--check", action="store_true", help="verify both live fixtures and counters with zero timed load")
     parser.add_argument("--tools", type=Path, default=TOOLS)
-    parser.add_argument("--a", type=Path, help="owner's already-running four-vCPU Micropod fixture scope")
+    parser.add_argument("--a", type=Path, help="owner's already-running Micropod control fixture scope")
     parser.add_argument("--b", type=Path, help="owner's already-running candidate or peer fixture scope")
     parser.add_argument("--out", type=Path, help="new output directory")
     args = parser.parse_args()
-    orders = plan(args.seed)
+    try:
+        settings = arm_settings(args.mode, args.relay_workers, args.peer_vcpus)
+    except ValueError as exc:
+        parser.error(str(exc))
+    orders = plan(args.seed, 16 if args.holdout else 2)
     if args.run or args.check:
         if not all((args.a, args.b, args.out)):
             parser.error("fixture checks and runs need --a, --b and --out")
         try:
-            run(args, orders)
+            run(args, orders, workers=args.relay_workers, peer_vcpus=args.peer_vcpus)
         except (OSError, ValueError, KeyError, StopIteration, subprocess.SubprocessError, tarfile.TarError) as exc:
             parser.exit(1, f"Stopped: {exc}\n")
     else:
-        print(json.dumps(dict(mode=args.mode, seed=args.seed, order=orders), indent=2))
+        print(json.dumps(dict(mode=args.mode, seed=args.seed, arms=settings, order=orders), indent=2))

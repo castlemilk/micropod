@@ -80,6 +80,7 @@ public struct CIWorker: Sendable {
         var nativeOCI: Bool?
         var cpuAllocation: CIWorkerCPUCount.Allocation?
         var publishedRelayWorkers: Int?
+        var publishedRelayCallbackEvents: Int?
     }
 
     struct ReadySocket: Codable, Equatable {
@@ -109,6 +110,7 @@ public struct CIWorker: Sendable {
         public let guestAddress: String?
         public var publishedAddress: String? = nil
         public var publishedRelayWorkers: Int? = nil
+        public var publishedRelayCallbackEvents: Int? = nil
         public let cpus: Int
         public var cpuSizingSource: String? = nil
         public let memoryBytes: UInt64
@@ -377,7 +379,8 @@ public struct CIWorker: Sendable {
                 endpoint: endpoint, worker: config.worker, boot: identity.boot, instance: active.instance,
                 engine: "containerd", daemon: identity.engine, engineVersion: identity.version,
                 guestAddress: active.guestAddress, publishedAddress: active.publishedAddress,
-                publishedRelayWorkers: active.publishedRelayWorkers, cpus: count,
+                publishedRelayWorkers: active.publishedRelayWorkers,
+                publishedRelayCallbackEvents: active.publishedRelayCallbackEvents, cpus: count,
                 cpuSizingSource: active.cpuAllocation?.source.rawValue,
                 memoryBytes: identity.memory_bytes,
                 storageDriver: "overlayfs", kataPrerequisitesPresent: identity.kata_prerequisites_present,
@@ -407,7 +410,7 @@ public struct CIWorker: Sendable {
             engine: config.engine.rawValue,
             daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress,
             publishedAddress: active.publishedAddress, publishedRelayWorkers: active.publishedRelayWorkers,
-            cpus: info.NCPU,
+            publishedRelayCallbackEvents: active.publishedRelayCallbackEvents, cpus: info.NCPU,
             cpuSizingSource: active.cpuAllocation?.source.rawValue,
             memoryBytes: info.MemTotal, storageDriver: info.Driver,
             cgroupDriver: info.CgroupDriver)
@@ -820,6 +823,7 @@ public struct CIWorker: Sendable {
                     relayConfig: portRelay,
                     profile: resourceEnvironment["MICROPOD_CI_PORT_PROFILE"] == "1")
                 active.publishedRelayWorkers = nativeRelay?.dataWorkerCount
+                active.publishedRelayCallbackEvents = nativeRelay?.dataCallbackEvents
             } else {
                 nativeRelay = nil
             }

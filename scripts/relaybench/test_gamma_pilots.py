@@ -89,7 +89,7 @@ class GammaPilots(unittest.TestCase):
     def test_peer_preflight_checks_orbstack_first_and_timing_preserves_ratio_direction(self):
         def inspect(scope, cpus, orb):
             key = scope.name
-            return dict(engine=key, id=key, address=key, name=key, cpus=cpus, cpuset="0-3",
+            return dict(engine=key, id=key, address=key, name=key, cpus=cpus, cpuset="0-3", relay_workers=2,
                         pids={"vmm": 2 if orb else 1})
 
         def attempt(tools, fixture, birth, row):
@@ -157,6 +157,98 @@ class GammaPilots(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "pinned to CPUs 0-3"):
                     vm.run(args, vm.plan(args.seed))
                 timed.assert_not_called()
+
+    def test_worker_vm_pair_requires_the_observed_fixed_budget_and_same_build(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            a, b = root / "two", root / "four"
+            a.mkdir()
+            b.mkdir()
+            args = Namespace(a=a, b=b, out=root / "out", seed=34202, mode="workers", tools=root, check=False)
+            common = dict(cpuset="0-3", kernel_image_sha256=vm.STOCK_KERNEL, release="7.3.5-micropod", engine_version="same",
+                          cli_sha256="same-digest", route=vm.DIRECT_ROUTE, service_env_sha256="same-env")
+            fixtures = {p: dict(common, engine=p.name, id=p.name, address=p.name, name=p.name, instance=p.name,
+                                kernel=str(p / "Image"), worker=p.name, pids={"vmm": n}, relay_workers=n, callback_events=128)
+                        for p, n in ((a, 2), (b, 4))}
+            def inspect(path, cpus, orb):
+                self.assertEqual((cpus, orb), (4, False))
+                return fixtures[path]
+            def measure(tools, f, birth, row):
+                row.update(clean=True, mib_s=2700 if row["arm"] == "A" else 3000)
+            with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
+                 patch.object(vm, "digest", side_effect=lambda path: vm.HASHES[path.name]), \
+                 patch.object(vm, "inspect", side_effect=inspect), patch.object(vm, "snapshot", return_value={"tasks": []}), \
+                 patch.object(vm, "attempt", side_effect=measure) as timed:
+                for i, (arm, key, wrong, message) in enumerate((
+                    (a, "callback_events", None, "verified 128-event"),
+                    (b, "callback_events", 24, "verified 128-event"),
+                    (b, "relay_workers", 2, "needs 4 relay workers"),
+                    (b, "cli_sha256", "other", "differ in cli_sha256"),
+                    (b, "kernel_image_sha256", "other", "differ in kernel_image_sha256"),
+                )):
+                    args.out = root / str(i)
+                    with patch.dict(fixtures[arm], {key: wrong}), self.assertRaisesRegex(ValueError, message):
+                        vm.run(args, vm.plan(args.seed))
+                    timed.assert_not_called()
+                args.out = root / "paired"
+                vm.run(args, vm.plan(args.seed))
+                result = json.loads((args.out / "complete.json").read_text())
+                self.assertEqual(timed.call_count, 10)
+                self.assertEqual(result["median_paired_mib_s_difference"], 300)
+                self.assertEqual(result["clean_scored"], {"A": 2, "B": 2})
+                self.assertIsNone(result["bootstrap_ci95"])
+
+    def test_peer_holdout_preserves_resource_parity_and_balanced_blocks(self):
+        arms = vm.arm_settings("peer", workers=4, peer_vcpus=6)
+        self.assertEqual(arms["A"], dict(engine="Micropod", vcpus=6, relay_workers=4, callback_events=128))
+        self.assertEqual(arms["B"], dict(engine="OrbStack", vcpus=6, relay_workers=None, callback_events=None))
+        holdout = vm.plan(34203, 16)
+        self.assertEqual(len(holdout["warmup"]), 3)
+        self.assertEqual(len(holdout["scored"]), 16)
+        for i in range(0, 16, 2):
+            self.assertEqual(set(holdout["scored"][i:i+2]), {"AB", "BA"})
+        with self.assertRaisesRegex(ValueError, "only to the OrbStack"):
+            vm.arm_settings("workers", peer_vcpus=6)
+
+    def test_six_vcpu_holdout_reports_dirty_candidate_round(self):
+        def inspect(scope, cpus, orb):
+            self.assertEqual(cpus, 6)
+            return dict(engine=scope.name, id=scope.name, address=scope.name, name=scope.name, cpuset="0-3",
+                        relay_workers=None if orb else 4, callback_events=None if orb else 128,
+                        route=vm.DIRECT_ROUTE, pids={"vmm": 2 if orb else 1})
+
+        def measure(tools, fixture, birth, row):
+            dirty = row["phase"] == "scored" and row["pair"] == 1 and row["arm"] == "A"
+            row.update(clean=not dirty, mib_s=3000 if row["arm"] == "A" else 2700, fresh_failed=int(dirty))
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            a, b = root / "micro", root / "orb"
+            a.mkdir()
+            b.mkdir()
+            args = Namespace(a=a, b=b, out=root / "out", seed=34203, mode="peer", tools=root, check=False)
+            with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
+                 patch.object(vm, "digest", side_effect=lambda path: vm.HASHES[path.name]), \
+                 patch.object(vm, "inspect", side_effect=inspect), patch.object(vm, "snapshot", return_value={"tasks": []}), \
+                 patch.object(vm, "attempt", side_effect=measure) as timed:
+                vm.run(args, vm.plan(args.seed, 16), workers=4, peer_vcpus=6)
+            result = json.loads((args.out / "complete.json").read_text())
+            self.assertEqual(timed.call_count, 38)
+            self.assertEqual(result["clean_scored"], {"A": 15, "B": 16})
+            self.assertEqual(result["bootstrap_ci95"], [3000 / 2700] * 2)
+            self.assertNotIn("1", result["paired_ratios"])
+            self.assertEqual(json.loads((args.out / "scored-1-A.json").read_text())["fresh_failed"], 1)
+
+    def test_replaced_relay_executable_cannot_supply_a_matching_hash(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "micropod"
+            path.write_bytes(b"candidate")
+            st = path.stat()
+            with patch.object(vm, "command", return_value=f"p77\nftxt\nD{hex(st.st_dev)}\ni{st.st_ino}"):
+                self.assertEqual(vm.mapped_digest(path, 77), hashlib.sha256(b"candidate").hexdigest())
+            with patch.object(vm, "command", return_value=f"p77\nftxt\nD{hex(st.st_dev)}\ni{st.st_ino + 1}"):
+                with self.assertRaisesRegex(ValueError, "does not map"):
+                    vm.mapped_digest(path, 77)
 
     def test_filter_pilot_changes_only_the_build_flag(self):
         def fake_build(directory, revision, legacy, sanitize, *, batch_filters, stage_connect):

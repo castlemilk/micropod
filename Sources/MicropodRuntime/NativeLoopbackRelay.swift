@@ -92,6 +92,9 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     private let accept: Owner
     private let workers: [Owner]
     var dataWorkerCount: Int { workers.count }
+    var dataCallbackEvents: Int? {
+        workers.isEmpty ? nil : Int(mp_tcp_data_callback_events(Int32(workers.count)))
+    }
     private let profile: Bool
     private var listeners: [UInt16: Lease] = [:]
     private var pending = Set<UInt16>()

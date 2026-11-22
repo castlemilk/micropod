@@ -38,6 +38,8 @@ int mp_tcp_take_path_failure(mp_tcp_relay *accept_relay);
 // Reports newly received guest payload since the previous observation on this I/O owner.
 int mp_tcp_take_guest_data(mp_tcp_relay *relay);
 int mp_tcp_relay_descriptor(const mp_tcp_relay *relay);
+// Maximum events per dispatch callback on a dedicated data worker.
+int mp_tcp_data_callback_events(int data_workers);
 // Pass the size of the dedicated data group, or zero for the accept owner.
 void mp_tcp_relay_drain(mp_tcp_relay *relay, int data_workers);
 void mp_tcp_relay_destroy(mp_tcp_relay *relay);
