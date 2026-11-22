@@ -53,47 +53,75 @@ A separate warm Ubuntu **24.04.4 ARM64 VM on the same Mac** had four vCPUs and 4
 
 In a separate saved 32-job Go trace, preparing the suite reduced median CPU pressure per job from 2,035 ms to 55 ms and CPU consumption from 620 ms to 36 ms. Per-job stall durations overlap. PostgreSQL-specific kernel pressure, throttling and I/O still need the instrumented fixture run. [Kernel trace and sampling boundaries](../2026-11-20/full-ci.md)
 
-## Prepared PostgreSQL experiment
+## Three PostgreSQL fixture cases
 
-The experiment builds two opt-in images from the same local upstream PostgreSQL 16 digest. The control runs the upstream initializer per job. The candidate runs `initdb` once and stores the stock cluster and empty `ci` database in an immutable layer outside the upstream data volume. The image build checks for any public relations or stored role passwords and verifies a clean cluster shutdown. Each job gets a new container writable layer and generated credential. The runner uses the normal TCP readiness probe, creates the same table, inserts and reads 42, and runs the existing Go race, HTTP, Node and source-edit checks. Kernel settings, runtime defaults and the relay are outside this experiment. [Fixture](../../../ci/fixtures/postgres-profile/fixture.sh) · [Canonical application SQL](../../../ci/samples/go-app/integration/postgres_test.go)
+The earlier two-case experiment varied the data mount and initialization together. The corrected harness uses three cases on one already-running worker. It resolves the locally provisioned official PostgreSQL 16 ARM64 image to one repository digest, verifies its local image ID and rootfs layers, then runs each derived case by immutable image ID. Startup selects its action from the explicit fixture mode. [Dockerfile](../../../ci/fixtures/postgres-profile/Dockerfile) · [Entrypoint](../../../ci/fixtures/postgres-profile/fixture.sh)
 
-The live harness records each of the following with its clock and boundary.
+| Case | Effective `PGDATA` expected on the worker | Startup |
+| --- | --- | --- |
+| `fresh` (practical baseline) | `/var/lib/postgresql/data`, a new Docker volume | Upstream `initdb` for every job |
+| `fresh-overlay` (storage control) | `/var/lib/micropod-fixture/data`, private writable root overlay | The same upstream `initdb` for every job |
+| `prepared` | `/var/lib/micropod-fixture/data`, private writable root overlay | Open the pristine, prebuilt cluster and set a new job credential |
 
-| Measurement | Boundary |
+Compare **fresh → fresh-overlay** for the storage change at fixed initialization. Compare **fresh-overlay → prepared** for the effect of reusing the fixture on the same storage. Fresh → prepared answers the practical end-to-end question. Each case uses the same final-TCP gate, SQL, Go, HTTP, Node and source-edit assertions. All cases must exit zero on normal teardown and pass the same recovery check. An intentionally killed database must exit 137, and its successor must reject the old password, have no previous table, and successfully create, write and read its own `ci_probe` table. [SQL and readiness](../../../ci/samples/go-app/integration/postgres_test.go) · [Recovery and storage probes](../../../scripts/postgres_fixture_storage.py)
+
+**The measured SQL connection is loopback.** Docker exec launches `psql` inside the database container. Both `pg_isready` and `psql` use TCP to `127.0.0.1`. A bridge comparison requires a separate run with a prestarted sibling client on a private bridge, a fixed database mode and pinned client image, and the identical create/insert/select assertion returning 42 on a fresh database per attempt. It needs its own timing series and client-start boundary.
+
+### Clocks and storage accounting
+
+The timed application and DB-only runs record create-to-ready, inclusive final readiness, fixture materialization, materialized-to-ready, SQL and teardown. Fixture events and the successful readiness probe share the guest's 10 ms uptime clock. The probe returns the mode, `PGDATA` and timestamps in its existing Docker exec response. The client clock closes at process exit, before the harness parses the output or audits the lifecycle. Docker mount and exit events establish timed container and volume identities. Every measured batch checks for leaked volumes outside its timer. External scheduler queue time stays null for local submissions. [Benchmark harness](../../../scripts/bench_postgres_fixture.py)
+
+Storage diagnostics use separate disposable databases on the pinned worker. Single-client diagnostics precede the timing series. Widths 4 and 16 run after all timed samples. Within each diagnostic cohort every database reaches final TCP readiness before any job executes the canonical SQL assertion. The harness checks `SHOW data_directory`, Docker mount type/name/destination, the deepest covering Linux mount in `/proc/self/mountinfo`, and the worker's Docker storage driver. Both overlay cases still have the upstream anonymous volume at the stock path. Only the stock case stores its database there.
+
+| Quantity | Measurement and boundary |
 | --- | --- |
-| Create to ready | Testcontainers call through final readiness, including engine/container setup. |
-| Fixture materialization | Container entry to last initialization hook (control), or credential installation in the private writable layer (candidate). Guest uptime, 10 ms resolution. |
-| Final readiness | Two intervals are reported. The guest interval starts at materialization and ends at the first successful final TCP probe. The test process also records the inclusive readiness wait. |
-| SQL / observation / teardown | Separate monotonic spans for the identical SQL round trip, collection of evidence and `Terminate`. Docker events independently require exit zero, destruction and a graceful stop. |
-| Job and batch wall | Client monotonic time. Local executor dispatch wait is recorded separately. External queue time stays null without scheduler submission/start timestamps. |
-| Image and kernel | Per-build cached/executed steps, rootfs layer IDs, image and base-delta bytes. Per-DB cgroup CPU, throttling, pressure, block I/O and memory events where exported. Perfetto JSON places each test on its own lane. |
+| Image layers | Digest-pinned common parent, rootfs diff IDs and exact integer bytes reported by Docker history for the added rows. The receipt keeps Docker's whole-image size and base delta in separate fields. |
+| Fresh data volume | A read-only helper measures allocated and apparent bytes with `du` before server start and after clean stop. Overlay jobs report null for the data volume. |
+| Writable container layer | Docker `container inspect --size` reports each diagnostic job's `SizeRw` at create, after all jobs are ready, and after clean stop. This includes changes anywhere in that container's writable root. |
+| Database cgroup writes | Linux cgroup-v2 `io.stat` write bytes per device at readiness and after SQL. Missing or empty accounting is marked explicitly. The receipt also includes available CPU, memory and pressure counters. |
+| Guest device writes | A read-only observer samples whole guest block devices. The receipt separates startup through all-ready, the ready-state inventory, and SQL through all-stopped. Sector deltas use 512 bytes. These counters include background guest I/O and writeback. |
 
-The harness alternates modes within each round and excludes round zero from timing summaries. It runs one full application per mode and the same PostgreSQL check at the requested widths. Every attempt is retained. The recovery control kills only a disposable database belonging to this run, checks the next database rejects its predecessor's credential and has no previous table, then checks clean shutdown. The harness checks unique containers, private volume identities and volume cleanup. The fixture's startup, recovery and isolation remain unverified on a VM in this session.
+At 16 simultaneous jobs, installing a fresh credential and starting a prepared cluster **could** copy lower-layer files into each job's upper layer. Ready-state `SizeRw` growth and guest writes can quantify costs. Attributing those costs specifically to copy-up would also require file- or operation-level evidence, such as observing the relevant upper files or a scoped copy-up trace. Image bytes alone cannot establish that attribution.
 
 ### Reproduce locally
 
-Use an **already-running, idle, dedicated Micropod worker** with the stock Linux ARM64 Debian `postgres:16` image locally available by upstream digest. The normal application fixture needs its Go, Node, Alpine and Testcontainers Ryuk images and build dependencies. The package image argument names the local image from `scripts/bench_cache_image/Dockerfile`. The recorded Gamma toolchain image config ID is shown below. Change the ID only if using another provisioned toolchain and keep its recorded identity with the result. Run from this branch's repository root.
+From the repository root, first run the local contracts. They exercise entrypoint dispatch, incorrect case/path rejection, digest matching, mount resolution, byte accounting and the single-client gate without opening a Docker socket.
 
 ```sh
-worker_dir=${MICROPOD_CI_HOME:?set this to the dedicated existing worker directory}
-worker_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["worker"])' "$worker_dir/worker.json")
-results=$(mktemp -d "${TMPDIR:-/tmp}/micropod-sql.XXXXXXXX")
-package_image=sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350
-python3 -B scripts/bench_postgres_fixture.py \
-  --endpoint "unix://$worker_dir/docker.sock" --worker-id "$worker_id" \
-  --postgres postgres:16 --package-image "$package_image" --clients 1 4 16 --rounds 20 \
-  --out "$results/postgres.json" --database "$results/measurements.sqlite3"
+python3 -B scripts/test_postgres_fixture_storage.py -v
 ```
 
-The harness checks Docker worker and boot identities before the experiment and after each batch. Its private fixture build key forces execution of the fixture step while keeping the base available. Cold registry pull time and APFS physical allocation require separate evidence. The optional package probe uses a new disposable container with one CPU, 1 GiB, no network, and private empty stores on each round. It runs after the database measurements. Compare full application and DB-only batches by workload, mode and width. A short installation check can use `--rounds 1 --clients 1`.
+For a live smoke, use the already-authorized, idle dedicated worker. Its stock ARM64 Debian `postgres:16` image needs an upstream repo digest. The application needs its usual Go, Node, Alpine, Testcontainers Ryuk images and build inputs. The harness checks the worker UUID, boot, daemon, CPU/RAM and storage driver. The following commands use one result directory and stop on a failed smoke.
 
-### Captured and missing evidence
+```sh
+set -eu
+worker_dir=${MICROPOD_CI_HOME:?set this to the existing dedicated worker directory}
+endpoint="unix://$worker_dir/docker.sock"
+worker_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["worker"])' "$worker_dir/worker.json")
+results=$(mktemp -d "${TMPDIR:-/tmp}/micropod-pg-storage.XXXXXXXX")
+python3 -B scripts/bench_postgres_fixture.py \
+  --endpoint "$endpoint" --worker-id "$worker_id" --postgres postgres:16 \
+  --smoke-only --clients 1 --out "$results/smoke.json" --database "$results/measurements.sqlite3"
+pg_pin=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["passed"] and d["smoke"]["passed"]; print(d["postgres_base"]["reference"])' "$results/smoke.json")
+python3 -B scripts/bench_postgres_fixture.py \
+  --endpoint "$endpoint" --worker-id "$worker_id" --postgres "$pg_pin" \
+  --clients 1 4 16 --rounds 20 --out "$results/profile.json" --database "$results/measurements.sqlite3"
+```
 
-On 22 November 2026 the dedicated worker socket was absent. The preflight failed before launching a job. A private native PostgreSQL 18.6 fallback also failed at `initdb` because macOS denied `shmget`; it produced no database timings. The application Go and Node unit suites passed locally, and the integration executable cross-compiled for Linux ARM64. The first cross-compile attempt lacked two Go dependencies in the read-only cache; the successful build used the pinned versions with the repository's `go.sum`. Host-native package commands above are new measurements. The original Gamma comparisons and traces are archival. [Worker preflight](postgres-live-preflight.json) · [Local PostgreSQL failure](postgres-native-preflight.json)
+The scale invocation also runs all three modes at one client before any measured rounds. Each measured round includes the full application at one client and the DB-only check at each requested width. A six-round cycle balances the three case positions. The optional `--package-image` accepts the existing Linux ARM64 package fixture for a separate post-run cache measurement. Query the result directly or open the sibling `.trace.json` for the test phases.
 
-Still missing are live control/candidate first-attempt results, p50/p95 for the split phases and concurrent batches, the candidate's image size and hit counts, database cgroup counters at 1/4/16 clients, and observed crash recovery on the shared VM. A CI queue distribution requires submission and lease timestamps from the scheduler. The host relay, rig processes, CI workflows and deployment settings were untouched.
+```sh
+sqlite3 -header -column "$results/measurements.sqlite3" \
+  'SELECT mode,clients,mount_kind,driver,rw_created_bytes,rw_ready_bytes,rw_stopped_bytes,volume_stopped_bytes FROM postgres_storage_jobs;'
+sqlite3 -header -column "$results/measurements.sqlite3" \
+  'SELECT mode,clients,phase,guest_device,write_bytes FROM postgres_storage_guest_writes;'
+```
 
-[SQLite data](postgres-profile.sqlite3) includes the matched baselines, all seven local package rounds and the failed preflights. The command below rebuilds the baseline and event trace from the checked-in inputs. The second command repeats the host-native package measurement into a fresh database.
+### Evidence available on 22 November 2026
+
+The dedicated Gamma worker socket was absent at the new smoke preflight. Zero SQL jobs started. The raw preflight preserves the unattempted smoke and the missing worker measurements. The three-mode fixture has local contract coverage and a Linux ARM64 integration build. Its phase p50/p95, recovery outcomes, effective mounts, image and writable-layer bytes, volume sizes, cgroup/device writes at 1/4/16 clients and the 16-job copy-up hypothesis still need live evidence. No bridge measurement was taken. [Current smoke preflight](postgres-storage-preflight.json) · [Earlier worker preflight](postgres-live-preflight.json) · [Earlier native PostgreSQL shared-memory failure](postgres-native-preflight.json)
+
+[SQLite data](postgres-profile.sqlite3) contains the matched historical baselines, all seven local package rounds and the failed preflights. The command below rebuilds the baseline and event trace from the checked-in inputs. The second command repeats the host-native package measurement into a fresh database.
 
 ```sh
 results=$(mktemp -d "${TMPDIR:-/tmp}/micropod-evidence.XXXXXXXX")

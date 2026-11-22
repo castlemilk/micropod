@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Compare fresh initdb with a pristine PostgreSQL 16 image on an existing, dedicated Micropod worker."""
+"""Compare stock-volume initdb, overlay initdb and a prepared overlay on one dedicated PostgreSQL 16 worker."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
+from functools import partial
 import io
 import json
 import math
@@ -21,15 +22,10 @@ import time
 import uuid
 
 from ci_benchmark_store import read_buildkit_trace, store
+from postgres_fixture_storage import CASES, LABEL, STOCK, StorageProbe, added_image_history, image_history, pinned_base, require
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = "MP_PG_RESULT "
-LABEL = "io.micropod.postgres-profile"
-
-
-def require(test, message):
-    if not test:
-        raise ValueError(message)
 
 
 def distribution(values):
@@ -80,10 +76,14 @@ def verify_shutdown(events):
 @contextmanager
 def docker_events(docker, env, token):
     """Follow this run's events; historical events can be evicted under load."""
-    argv = [*docker, "events", "--since", str(int(time.time()) - 1), "--filter", "type=container",
-            "--filter", f"label={LABEL}={token}", "--format", "{{json .}}"]
+    # Volume mount events carry the container ID and destination, but do not inherit
+    # container labels. Correlate after the test using only its owned database IDs.
+    argv = [*docker, "events", "--since", str(int(time.time()) - 1), "--filter", "type=container", "--filter", "type=volume"]
+    for action in ("create", "start", "kill", "die", "destroy", "mount"):
+        argv.extend(("--filter", "event=" + action))
+    argv.extend(("--format", "{{json .}}"))
     proc = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, text=True)
-    events, errors = {}, []
+    events, volumes, errors = {}, {}, []
     changed = threading.Condition()
 
     def read():
@@ -91,10 +91,15 @@ def docker_events(docker, env, token):
             for line in proc.stdout:
                 raw = json.loads(line)
                 action = raw["Action"]
-                if action not in {"create", "start", "kill", "die", "destroy"}:
-                    continue
                 actor = raw["Actor"]
                 attrs = actor["Attributes"]
+                if raw["Type"] == "volume" and action == "mount" and attrs.get("container"):
+                    with changed:
+                        volumes.setdefault(attrs["container"], []).append(
+                            dict(name=actor["ID"], destination=attrs["destination"], writable=attrs.get("read/write")))
+                    continue
+                if action not in {"create", "start", "kill", "die", "destroy"}:
+                    continue
                 if attrs.get(LABEL) != token:
                     continue
                 e = dict(action=action, ns=raw["timeNano"], exit=attrs.get("exitCode"), signal=attrs.get("signal"))
@@ -129,6 +134,13 @@ def docker_events(docker, env, token):
                     creates = [e["ns"] for e in lifecycle if e["action"] == "create"]
                     require(len(creates) == 1 and creates[0] <= next(e["ns"] for e in lifecycle if e["action"] == "start"),
                             "Missing or unordered PostgreSQL create event")
+                    mounts = job["volume_mount_events"] = volumes.pop(cid, [])
+                    stock = {m["name"] for m in mounts if m["destination"] == STOCK and m["writable"] == "true"}
+                    require(len(stock) == 1, "Missing or ambiguous stock PostgreSQL volume mount event")
+                    if job["mode"] != "fresh":
+                        require(not any(Path(CASES[job["mode"]]).is_relative_to(m["destination"]) for m in mounts),
+                                "A timed overlay job mounted a volume over PGDATA")
+                    job["pg"]["volumes"] = sorted({m["name"] for m in mounts})
                 except ValueError as exc:
                     job.update(passed=False, shutdown_error=str(exc))
     try:
@@ -146,17 +158,22 @@ def docker_events(docker, env, token):
 
 def timed_result(argv, env, job, queued):
     start = time.monotonic_ns()
-    job.update(dispatch_wait_s=(start - queued) / 1e9, ci_queue_s=None)
+    finished = None
     output = ""
     try:
-        if job["workload"] == "application":
-            with tempfile.TemporaryDirectory(prefix="mp-pg-stages-") as directory:
-                stages_file = Path(directory) / "stages.jsonl"
-                r = command(argv, dict(env, MICROPOD_CI_STAGE_TIMINGS=str(stages_file)), timeout=600)
+        app = job["workload"] == "application"
+        with tempfile.TemporaryDirectory(prefix="mp-pg-stages-") if app else nullcontext() as directory:
+            stages_file = Path(directory) / "stages.jsonl" if app else None
+            job_env = dict(env, MICROPOD_CI_STAGE_TIMINGS=str(stages_file)) if app else env
+            start = time.monotonic_ns()
+            job.update(dispatch_wait_s=(start - queued) / 1e9, ci_queue_s=None)
+            try:
+                r = command(argv, job_env, timeout=600)
+            finally:
+                finished = time.monotonic_ns()
+            if app:
                 records = [json.loads(line) for line in stages_file.read_text().splitlines()] if stages_file.exists() else []
                 job["application_stages"] = {k: {"seconds": s, "exit": rc} for k, s, rc in records}
-        else:
-            r = command(argv, env, timeout=600)
         output = r.stdout + "\n" + r.stderr
         markers = [json.loads(line.split(MARKER, 1)[1]) for line in output.splitlines() if MARKER in line]
         if markers:
@@ -164,8 +181,10 @@ def timed_result(argv, env, job, queued):
         require(r.returncode == 0 and len(markers) == 1 and markers[0]["passed"], f"PostgreSQL test exit {r.returncode}")
         data = job["pg"]
         require("verified SQL round trip on the final TCP server " + data["container"] in output, "Missing canonical SQL assertion")
-        require(set(data["spans_us"]) == {"create_to_ready", "readiness", "sql", "observation", "teardown"}
+        require(set(data["spans_us"]) == {"create_to_ready", "readiness", "sql", "teardown"}
                 and all(data.get(k) is not None for k in ("fixture_restore_us", "materialized_to_tcp_ready_us")), "Incomplete PostgreSQL phases")
+        require(data["fixture_mode"] == job["mode"] and data["pgdata"] == CASES[job["mode"]],
+                "Timed database reported the wrong fixture mode or PGDATA")
         if job["workload"] == "application":
             expected = {"postgres", "go-image", "go-checks", "go-unit", "node-image", "node-unit", "node-edit"}
             require(set(job["application_stages"]) == expected and len(records) == len(expected)
@@ -176,7 +195,9 @@ def timed_result(argv, env, job, queued):
     except (KeyError, TypeError, ValueError, OSError, subprocess.TimeoutExpired) as exc:
         job.update(passed=False, error=str(exc), output_tail=output[-1200:])
     finally:
-        job["wall_s"] = (time.monotonic_ns() - start) / 1e9
+        job["client_exit_ns"] = finished or time.monotonic_ns()
+        job["wall_s"] = (job["client_exit_ns"] - start) / 1e9
+        job.setdefault("dispatch_wait_s", (start - queued) / 1e9)
     return job
 
 
@@ -191,7 +212,7 @@ def summarize(jobs):
     for (work, mode, clients), trials in groups.items():
         good = [j for j in trials if j["passed"]]
         phases = {}
-        for key in ("create_to_ready", "readiness", "sql", "teardown", "observation"):
+        for key in ("create_to_ready", "readiness", "sql", "teardown"):
             phases[key] = distribution([(j["pg"]["spans_us"][key][1] - j["pg"]["spans_us"][key][0]) / 1e6 for j in good])
         phases["fixture_restore"] = distribution([j["pg"]["fixture_restore_us"] / 1e6 for j in good])
         phases["materialized_to_tcp_ready"] = distribution([j["pg"]["materialized_to_tcp_ready_us"] / 1e6 for j in good])
@@ -206,7 +227,7 @@ def summarize(jobs):
     return summary
 
 
-def trace(jobs):
+def trace(jobs, diagnostics=()):
     events = []
     for tid, job in enumerate(jobs, 1):
         data = job.get("pg", {})
@@ -243,12 +264,26 @@ def trace(jobs):
         if counters and "observation" in data["spans_us"]:
             events.append(dict(name="PostgreSQL cgroup", cat="kernel", ph="C", pid=1, tid=tid, id=tid,
                                ts=origin+data["spans_us"]["observation"][1], args=counters))
+    tid = 0
+    for cohort in diagnostics:
+        for job in cohort.get("jobs", []):
+            tid += 1
+            lane = dict(pid=2, tid=tid)
+            events.append(dict(**lane, ph="M", name="thread_name", args={"name":
+                               f"untimed {cohort['mode']} x{cohort['clients']} {job['container'][:12]}"}))
+            for stage in ("cgroup_at_ready", "cgroup_after_sql"):
+                sample = job.get(stage, {})
+                writes = sample.get("write_bytes_by_device")
+                if writes:
+                    events.append(dict(**lane, ph="C", id=tid, name="DB cgroup write bytes", cat="untimed storage",
+                                       ts=sample["sample_unix_us"], args=writes))
     return {"traceEvents": events, "displayTimeUnit": "ms"}
 
 
 def measure_guest_packages(docker, env, image_id, token, rounds):
     # Send scripts over stdin. No host-path bind mounts or changes to shared caches.
-    files = ("profile_ci_package_commands.py", "bench_package_caches.py", "bench_postgres_fixture.py", "ci_benchmark_store.py")
+    files = ("profile_ci_package_commands.py", "bench_package_caches.py", "bench_postgres_fixture.py", "ci_benchmark_store.py",
+             "postgres_fixture_storage.py")
     bundle = io.BytesIO()
     with tarfile.open(fileobj=bundle, mode="w") as tar:
         for name in files:
@@ -266,6 +301,38 @@ exit "$rc" """
     data = json.loads(result.stdout)
     data["container_exit"] = result.returncode
     return data
+
+
+def mode_order(round_number):
+    # Three rotations followed by their reversals balance positions and transitions.
+    modes = list(CASES)
+    offset = (round_number - 1) % len(modes)
+    ordered = modes[offset:] + modes[:offset]
+    return ordered if (round_number - 1) // len(modes) % 2 == 0 else ordered[::-1]
+
+
+def job_isolation(jobs, remaining):
+    ids = [j["pg"]["container"] for j in jobs]
+    volumes = [v for j in jobs for v in j["pg"]["volumes"]]
+    require(len(ids) == len(set(ids)), "Timed jobs reused a PostgreSQL container")
+    require(len(volumes) == len(set(volumes)), "Timed jobs shared a writable volume")
+    require(not set(volumes).intersection(remaining), "A timed volume survived removal")
+    return dict(unique_containers=len(ids), unique_volumes=len(volumes), remaining_volumes=0)
+
+
+def measure_matrix(batch, widths, rounds, smoke, inspect_isolation):
+    for mode in CASES:
+        batch(mode, 1, 0, "application")
+        batch(mode, 1, 0, "postgres")
+    smoke["isolation"] = inspect_isolation()
+    smoke["passed"] = True
+    for rnd in range(1, rounds + 1):
+        modes = mode_order(rnd)
+        for mode in modes:
+            batch(mode, 1, rnd, "application")
+        for n in widths:
+            for mode in modes:
+                batch(mode, n, rnd, "postgres")
 
 
 def run(args, rec):
@@ -300,14 +367,19 @@ def run(args, rec):
     pg = json.loads(dk("image", "inspect", args.postgres))[0]
     require(re.search(r"^PG_MAJOR=16$", "\n".join(pg["Config"]["Env"]), re.M), "Expected PostgreSQL major 16")
     require(pg["Os"] == "linux" and pg["Architecture"] == "arm64", "Expected the ARM64 Linux PostgreSQL image")
-    base = next((v for v in pg.get("RepoDigests") or [] if re.fullmatch(
-        r"(?:(?:index[.])?docker[.]io/)?(?:library/)?postgres@sha256:[0-9a-f]{64}", v)), None)
-    require(base, "The locally provisioned postgres:16 image must have an upstream repo digest")
-    rec["postgres_base"] = dict(reference=base, local_id=pg["Id"], bytes=pg["Size"])
+    base = pinned_base(args.postgres, pg.get("RepoDigests"))
+    resolved, = json.loads(dk("image", "inspect", base))
+    require(resolved["Id"] == pg["Id"] and resolved["RootFS"]["Layers"] == pg["RootFS"]["Layers"],
+            "The pinned PostgreSQL digest resolves to a different local image")
+    base_history = image_history(dk, base)
+    rec["postgres_base"] = dict(reference=base, local_id=pg["Id"], bytes=pg["Size"],
+                                architecture=pg["Architecture"], declared_volumes=sorted(pg["Config"].get("Volumes") or {}),
+                                diff_ids=pg["RootFS"]["Layers"])
+    require(STOCK in rec["postgres_base"]["declared_volumes"], "The pinned base lacks its stock PostgreSQL data volume")
     rec["revision"] = checked(command(["git", "-C", str(ROOT), "rev-parse", "HEAD"], env)).strip()
     token = rec["run"]
     prefix = "micropod-internal/pg-profile-" + token
-    cases = {v: prefix + ":" + v for v in ("fresh", "prepared")}
+    cases = {v: prefix + ":" + v for v in CASES}
     samples = prefix + "-samples"
     jobs = rec["jobs"] = []
     builds = rec["image_builds"] = []
@@ -316,27 +388,11 @@ def run(args, rec):
     rec["ci_queue_s"] = None
     rec["queue_source"] = "local dispatch, no CI scheduler"
 
-    @contextmanager
-    def owned_db(image, name, password):
-        pg_env = ["-e", "POSTGRES_USER=ci", "-e", "POSTGRES_DB=ci", "-e", "POSTGRES_PASSWORD=" + password]
-        cid = dk("create", "--pull=never", "--name", name, "--network", "none", "--label", LABEL + "=" + token,
-                 *pg_env, image).strip()
-        require(re.fullmatch(r"[0-9a-f]{64}", cid) and dk("inspect", "--format",
-                '{{index .Config.Labels "' + LABEL + '"}}', cid).strip() == token, "Unexpected container ownership")
-        try:
-            dk("start", cid)
-            # Readiness polling is part of one attempt, and always uses the final TCP listener.
-            deadline = time.monotonic() + 40
-            while command([*docker, "exec", cid, "pg_isready", "-q", "-h", "127.0.0.1", "-U", "ci", "-d", "ci"], env).returncode:
-                require(time.monotonic() < deadline, "Recovery probe did not become ready")
-                time.sleep(.1)
-            yield cid
-        finally:
-            dk("rm", "-f", "-v", cid)
-
-    def sql(cid, password, statement):
-        return command([*docker, "exec", "-e", "PGPASSWORD=" + password, cid, "psql", "-XqAtw", "-h", "127.0.0.1",
-                        "-U", "ci", "-d", "ci", "-v", "ON_ERROR_STOP=1", "-c", statement], env)
+    images = {}
+    diagnostics = rec["storage_diagnostics"] = []
+    rec["sql_transport"] = "docker exec psql in database container over TCP 127.0.0.1:5432"
+    rec["comparisons"] = {"fresh_storage": ["fresh", "fresh-overlay"], "preparation_on_overlay": ["fresh-overlay", "prepared"],
+                          "practical_end_to_end": ["fresh", "prepared"]}
 
     try:
         for mode, tag in cases.items():
@@ -359,30 +415,43 @@ def run(args, rec):
                 info = json.loads(dk("image", "inspect", tag))[0]
                 base_layers = pg["RootFS"]["Layers"]
                 require(info["RootFS"]["Layers"][:len(base_layers)] == base_layers, "Fixture lost its pinned base layers")
-                row.update(image_id=info["Id"], image_bytes=info["Size"], base_delta_bytes=info["Size"] - pg["Size"],
-                           layers=info["RootFS"]["Layers"])
+                extra_layers = info["RootFS"]["Layers"][len(base_layers):]
+                settings = dict(e.split("=", 1) for e in info["Config"]["Env"])
+                require(settings.get("PGDATA") == CASES[mode] and settings.get("MICROPOD_PG_FIXTURE_MODE") == mode,
+                        "Built image has the wrong mode or PGDATA")
+                metrics = added_image_history(base_history, image_history(dk, info["Id"]))
+                row.update(image_id=info["Id"], base_reference=base, base_image_id=pg["Id"],
+                           image_bytes=info["Size"], base_delta_bytes=info["Size"] - pg["Size"],
+                           layers=info["RootFS"]["Layers"], added_diff_ids=extra_layers, **metrics)
                 if state == "warm":
                     require(row["image_id"] == builds[-2]["image_id"], "Repeat build changed the image")
+                    images[mode] = info["Id"]
 
-        # A killed job's committed table must be absent from the next, independently writable cluster.
-        previous, current = uuid.uuid4().hex, uuid.uuid4().hex
-        with owned_db(cases["prepared"], "pg-fault-" + token, previous) as cid:
-            require(checked(sql(cid, previous, "CREATE TABLE ci_probe(value integer NOT NULL); INSERT INTO ci_probe VALUES(42); SELECT value FROM ci_probe;")).strip() == "42",
-                    "Dirty fixture setup failed")
-            dk("kill", "--signal=KILL", cid)
-            require(dk("wait", cid).strip() == "137", "Fault injection did not terminate the owned container")
-        with owned_db(cases["prepared"], "pg-recovered-" + token, current) as cid:
-            require(checked(sql(cid, current, "SELECT to_regclass('public.ci_probe') IS NULL;")).strip() == "t",
-                    "Prior job state leaked")
-            denied = sql(cid, previous, "SELECT 1;")
-            require(denied.returncode != 0 and "password authentication failed" in denied.stderr, "Prior job password accepted or unverified")
-            dk("stop", cid)
-            require(dk("wait", cid).strip() == "0", "Recovered job shutdown failed")
+        require(len(set(images.values())) == len(CASES), "Fixture images are not distinct")
+        probe = StorageProbe(dk, lambda *a: command([*docker, *a], env), first, pg["Id"], images, token)
+        rec["smoke"]["attempted"] = True
+        recovery = rec["recovery_by_mode"] = {}
+        for mode in CASES:
+            require(identity() == first, "Worker changed before recovery")
+            recovery[mode] = {"passed": False}
+            probe.recovery(mode, recovery[mode])
         rec["dirty_job_recovery"] = True
 
+        def diagnose(widths):
+            if not widths:
+                return
+            require(identity() == first, "Worker changed before storage diagnostics")
+            with probe.disk_observer() as observer:
+                for width in widths:
+                    for mode in CASES:
+                        record = {}
+                        diagnostics.append(record)
+                        probe.cohort(mode, width, record, observer)
+                        require(identity() == first, "Worker changed during storage diagnostics")
+
         def batch(mode, count, rnd, work, audit):
-            tag = cases[mode]
-            jobenv = dict(env, MICROPOD_PG_PROFILE_IMAGE=tag, MICROPOD_PG_PROFILE_RUN=token, MICROPOD_CI_SAMPLE_IMAGE=samples)
+            require(identity() == first, "Worker changed before a measured batch")
+            jobenv = dict(env, MICROPOD_PG_PROFILE_IMAGE=images[mode], MICROPOD_PG_PROFILE_RUN=token, MICROPOD_CI_SAMPLE_IMAGE=samples)
             if work == "application":
                 argv = ["bash", str(ROOT / "ci/worker-pipeline.sh"), "all", args.endpoint]
             else:
@@ -390,36 +459,33 @@ def run(args, rec):
                         "-v", "/var/run/docker.sock:/var/run/docker.sock", "-e", "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock",
                         "-e", "TESTCONTAINERS_HOST_OVERRIDE=127.0.0.1", "-e", "MICROPOD_PG_PROFILE_IMAGE",
                         "-e", "MICROPOD_PG_PROFILE_RUN", "--entrypoint", "/out/postgres-test", samples + ":checks", "-test.v"]
+            existing_volumes = set(dk("volume", "ls", "-q").split())
             start = time.monotonic_ns()
             with ThreadPoolExecutor(max_workers=count) as pool:
                 futures = [pool.submit(timed_result, argv, jobenv, dict(workload=work, mode=mode, clients=count,
                                        round=rnd, job=i+1), time.monotonic_ns()) for i in range(count)]
                 result = [f.result() for f in futures]
-            wall = (time.monotonic_ns() - start)/1e9
+            wall = (max(job["client_exit_ns"] for job in result) - start) / 1e9
             jobs.extend(result)
             audit(result)
-            batches.append(dict(workload=work, mode=mode, clients=count, round=rnd, seconds=wall, passed=all(j["passed"] for j in result)))
+            leaked = sorted(set(dk("volume", "ls", "-q").split()) - existing_volumes)
+            batches.append(dict(workload=work, mode=mode, clients=count, round=rnd, seconds=wall,
+                                surviving_new_volumes=leaked, passed=all(j["passed"] for j in result) and not leaked))
             require(identity() == first, "The worker changed during a measured batch")
+            require(not leaked, "New volumes survived a timed job batch")
             require(all(j["passed"] for j in result), "First attempt failed; results retained without retry")
 
+        diagnose([1])
+        def inspect_isolation():
+            return job_isolation(jobs, dk("volume", "ls", "-q").split())
+
         with docker_events(docker, env, token) as audit:
-            for rnd in range(args.rounds + 1):
-                modes = list(cases) if rnd % 2 == 0 else list(reversed(cases))
-                for mode in modes:
-                    batch(mode, 1, rnd, "application", audit)
-                if rnd:
-                    for n in args.clients:
-                        for mode in modes:
-                            batch(mode, n, rnd, "postgres", audit)
-        ids = [j["pg"]["container"] for j in jobs]
-        require(len(ids) == len(set(ids)), "A job reused a PostgreSQL container")
-        volumes = [v for j in jobs for v in j["pg"].get("volumes") or []]
-        require(len(volumes) == len(set(volumes)), "Jobs shared a writable PostgreSQL volume")
-        remaining = set(dk("volume", "ls", "-q").split()).intersection(volumes)
-        rec["database_isolation"] = dict(unique_containers=len(set(ids)), unique_volumes=len(set(volumes)),
-                                         remaining_volumes=len(remaining))
-        require(not remaining, "Anonymous PostgreSQL volumes survived job cleanup")
-        if package_id:
+            measure_matrix(partial(batch, audit=audit), args.clients, 0 if args.smoke_only else args.rounds,
+                           rec["smoke"], inspect_isolation)
+        rec["database_isolation"] = dict(inspect_isolation(), batches_without_new_volumes=len(batches))
+        if not args.smoke_only:
+            diagnose([width for width in args.clients if width != 1])
+        if package_id and not args.smoke_only:
             require(identity() == first, "Worker changed before package profiling")
             data = rec["package_commands"] = measure_guest_packages(docker, env, package_id, token, args.rounds)
             data.update(runtime="micropod", worker=first, image_id=package_id)
@@ -432,6 +498,7 @@ def run(args, rec):
                 and all(b[key] == group[key] for key in ("mode", "clients", "workload"))])
         # Clean only objects tagged by this invocation. Leave worker state and unrelated caches alone.
         try:
+            require(identity() == first, "Worker changed before experiment cleanup")
             leftovers = dk("ps", "-aq", "--filter", "label=" + LABEL + "=" + token).split()
             if leftovers:
                 rec["leftover_containers"] = len(leftovers)
@@ -449,6 +516,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--endpoint", required=True)
     p.add_argument("--worker-id", required=True, help="Expected ID of an already running, dedicated Micropod worker")
+    p.add_argument("--smoke-only", action="store_true", help="Stop after every case passes the single-client smoke and storage/recovery controls")
     p.add_argument("--postgres", default="postgres:16", help="Locally available official image")
     p.add_argument("--package-image", help="Local Linux ARM64 bench_cache_image for direct cold/warm Go and npm commands")
     p.add_argument("--clients", nargs="+", type=int, default=[1, 4])
@@ -459,7 +527,8 @@ def main():
     if not 1 <= args.rounds <= 50 or len(set(args.clients)) != len(args.clients) or not all(1 <= n <= 32 for n in args.clients):
         p.error("Use 1..50 rounds and distinct concurrency levels from 1..32")
     rec = dict(run=uuid.uuid4().hex, started_utc=datetime.now(timezone.utc).isoformat(timespec="seconds"), passed=False,
-               requested_clients=args.clients, rounds=args.rounds, ci_queue_s=None)
+               schema=2, worker_id=args.worker_id, smoke_only=args.smoke_only, requested_clients=args.clients,
+               rounds=0 if args.smoke_only else args.rounds, smoke={"clients": 1, "attempted": False, "passed": False}, ci_queue_s=None)
     try:
         run(args, rec)
         rec["passed"] = True
@@ -467,9 +536,9 @@ def main():
         rec["error"] = str(exc)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     rec["first_attempt_job_failures"] = sum(not j["passed"] for j in rec.get("jobs", []))
-    if rec.get("jobs"):
+    if rec.get("jobs") or rec.get("storage_diagnostics"):
         dest = args.out.with_suffix(".trace.json")
-        dest.write_text(json.dumps(trace(rec["jobs"])) + "\n")
+        dest.write_text(json.dumps(trace(rec.get("jobs", []), rec.get("storage_diagnostics", []))) + "\n")
         rec["trace_file"] = dest.name
     args.out.write_text(json.dumps(rec, indent=2) + "\n")
     database = args.database or args.out.with_suffix(".sqlite3")

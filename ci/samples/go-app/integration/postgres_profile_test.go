@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -27,10 +26,10 @@ type pgProfile struct {
 	start              time.Time
 	Spans              map[string][2]int64 `json:"spans_us"`
 	Container          string              `json:"container,omitempty"`
-	Volumes            []string            `json:"volumes"`
+	Mode               string              `json:"fixture_mode"`
+	PGData             string              `json:"pgdata"`
 	RestoreMicros      *int64              `json:"fixture_restore_us,omitempty"`
 	AfterRestoreMicros *int64              `json:"materialized_to_tcp_ready_us,omitempty"`
-	Kernel             string              `json:"job_cgroup,omitempty"`
 	Passed             bool                `json:"passed"`
 }
 
@@ -41,17 +40,36 @@ type pgProfileWait struct {
 
 // Stamp the first successful, unchanged pg_isready command on the same guest
 // clock as the fixture. This adds no Docker RPC or extra readiness poll.
-type pgReadyTarget struct{ wait.StrategyTarget }
+type pgReadyTarget struct {
+	wait.StrategyTarget
+	profile *pgProfile
+}
 
 func (t pgReadyTarget) Exec(ctx context.Context, cmd []string, opts ...tcexec.ProcessOption) (int, io.Reader, error) {
-	const probe = `"$@" || exit $?; read -r stamp _ < /proc/uptime && printf '%s\n' "$stamp" > /tmp/micropod-tcp-ready`
+	const probe = `"$@" || exit $?
+read -r ready _ </proc/uptime
+read -r begin </dev/shm/micropod-pg-begin
+read -r materialized </dev/shm/micropod-pg-materialized
+printf '%s %s %s %s %s\n' "$MICROPOD_PG_FIXTURE_MODE" "$PGDATA" "$begin" "$materialized" "$ready"`
 	wrapped := append([]string{"sh", "-c", probe, "pg-readiness"}, cmd...)
-	return t.StrategyTarget.Exec(ctx, wrapped, opts...)
+	code, r, err := t.StrategyTarget.Exec(ctx, wrapped, opts...)
+	if err != nil || code != 0 {
+		return code, r, err
+	}
+	var begin, materialized, ready float64
+	_, err = fmt.Fscan(io.LimitReader(r, 1024), &t.profile.Mode, &t.profile.PGData, &begin, &materialized, &ready)
+	if err != nil || !(0 < begin && begin <= materialized && materialized <= ready) {
+		return code, nil, fmt.Errorf("invalid PostgreSQL fixture timestamps (%v, %v, %v): %v", begin, materialized, ready, err)
+	}
+	restore := int64((materialized-begin)*1e6 + .5)
+	after := int64((ready-materialized)*1e6 + .5)
+	t.profile.RestoreMicros, t.profile.AfterRestoreMicros = &restore, &after
+	return code, strings.NewReader(""), nil
 }
 
 func (w pgProfileWait) WaitUntilReady(ctx context.Context, target wait.StrategyTarget) error {
 	defer w.profile.span("readiness")()
-	return w.Strategy.WaitUntilReady(ctx, pgReadyTarget{target})
+	return w.Strategy.WaitUntilReady(ctx, pgReadyTarget{target, w.profile})
 }
 
 func (p *pgProfile) span(name string) func() {
@@ -100,72 +118,4 @@ func randomBytes(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return b
-}
-
-func (p *pgProfile) observe(ctx context.Context, pg tc.Container) error {
-	defer p.span("observation")()
-	inspection, err := pg.Inspect(ctx)
-	if err != nil {
-		return err
-	}
-	for _, mount := range inspection.Mounts {
-		if mount.Type == "volume" {
-			p.Volumes = append(p.Volumes, mount.Name)
-		}
-	}
-	logs, err := pg.Logs(ctx)
-	if err != nil {
-		return err
-	}
-	defer logs.Close()
-	body, err := io.ReadAll(io.LimitReader(logs, 1<<20))
-	if err != nil {
-		return err
-	}
-	marks := map[string]float64{}
-	for _, line := range strings.Split(string(body), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 3 || fields[0] != "MP_PG_FIXTURE" {
-			continue
-		}
-		if _, exists := marks[fields[1]]; exists {
-			return fmt.Errorf("duplicate PostgreSQL marker %s", fields[1])
-		}
-		value, err := strconv.ParseFloat(fields[2], 64)
-		if err != nil {
-			return err
-		}
-		marks[fields[1]] = value
-	}
-	start, ok1 := marks["begin"]
-	end, ok2 := marks["materialized"]
-	if !ok1 || !ok2 || end < start {
-		return fmt.Errorf("incomplete PostgreSQL fixture markers %v", marks)
-	}
-	us := int64((end-start)*1e6 + .5)
-	p.RestoreMicros = &us
-	code, r, err := pg.Exec(ctx, []string{"sh", "-ec", `cat /tmp/micropod-tcp-ready
-    for f in cpu.stat io.stat cpu.pressure io.pressure memory.events; do
-        test -r "/sys/fs/cgroup/$f" || continue
-        echo "[$f]"; cat "/sys/fs/cgroup/$f"
-    done`}, tcexec.Multiplexed())
-	if err != nil {
-		return err
-	}
-	if code != 0 {
-		return fmt.Errorf("read PostgreSQL cgroup counters: exit %d", code)
-	}
-	raw, err := io.ReadAll(io.LimitReader(r, 32<<10))
-	if err != nil {
-		return err
-	}
-	stamp, counters, ok := strings.Cut(string(raw), "\n")
-	ready, err := strconv.ParseFloat(stamp, 64)
-	if !ok || err != nil || ready < end {
-		return fmt.Errorf("invalid final TCP readiness timestamp %q", stamp)
-	}
-	after := int64((ready-end)*1e6 + .5)
-	p.AfterRestoreMicros = &after
-	p.Kernel = counters
-	return nil
 }

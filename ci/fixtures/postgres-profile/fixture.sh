@@ -5,6 +5,7 @@ set -eu
 # share the guest clock and can be correlated with the in-test spans.
 mark() {
     read -r uptime _ < /proc/uptime
+    printf '%s\n' "$uptime" > "/dev/shm/micropod-pg-$1"
     printf 'MP_PG_FIXTURE %s %s\n' "$1" "$uptime"
 }
 
@@ -15,6 +16,7 @@ fi
 
 case "${1:-}" in
     prepare)
+        test "$MICROPOD_PG_FIXTURE_MODE" = prepared
         test "$(id -u)" != 0
         test "$PGDATA" = /var/lib/micropod-fixture/data
         test "$(postgres -V | cut -d' ' -f3 | cut -d. -f1)" = 16
@@ -31,6 +33,7 @@ case "${1:-}" in
         test ! -e "$PGDATA/postmaster.pid"
         ;;
     open)
+        test "$MICROPOD_PG_FIXTURE_MODE" = prepared
         test "$(id -u)" != 0
         test "$(cat "$PGDATA/PG_VERSION")" = 16
         # Only the benchmark's fixed synthetic account is supported. A unique
@@ -43,10 +46,16 @@ case "${1:-}" in
         exec /usr/local/bin/docker-entrypoint.sh postgres
         ;;
     postgres)
+        case "$MICROPOD_PG_FIXTURE_MODE" in
+            fresh) test "$PGDATA" = /var/lib/postgresql/data ;;
+            fresh-overlay|prepared) test "$PGDATA" = /var/lib/micropod-fixture/data ;;
+            *) echo "Unknown PostgreSQL fixture mode" >&2; exit 2 ;;
+        esac
         mark begin
-        if [ "$PGDATA" = /var/lib/micropod-fixture/data ]; then
+        if [ "$MICROPOD_PG_FIXTURE_MODE" = prepared ]; then
             exec gosu postgres micropod-pg-fixture open
         fi
+        test ! -e "$PGDATA/PG_VERSION"
         exec /usr/local/bin/docker-entrypoint.sh "$@"
         ;;
     *) exit 2 ;;

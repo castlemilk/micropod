@@ -223,6 +223,30 @@ def store(path, run, kind, record):
                        j.value->>'stop_request_to_destroy_s' AS stop_to_destroy_s,
                        j.value->'$.pg.spans_us' AS spans, j.value->>'$.pg.job_cgroup' AS kernel
                 FROM measurements, json_each(receipt, '$.jobs') j WHERE kind='postgres-fixture-profile';
+            CREATE VIEW IF NOT EXISTS postgres_storage_jobs AS
+                SELECT run, d.value->>'mode' AS mode, d.value->>'clients' AS clients, j.value->>'container' AS container,
+                       j.value->>'passed' AS passed, j.value->>'$.effective_mount.pgdata' AS pgdata,
+                       j.value->>'$.effective_mount.kind' AS mount_kind, j.value->>'$.effective_mount.driver' AS driver,
+                       j.value->>'$.effective_mount.linux_mount.fs' AS mount_fs, j.value->>'pgdata_volume' AS volume,
+                       j.value->>'$.size_rw_bytes.created' AS rw_created_bytes, j.value->>'$.size_rw_bytes.ready' AS rw_ready_bytes,
+                       j.value->>'$.size_rw_bytes.stopped' AS rw_stopped_bytes,
+                       j.value->>'$.pgdata_volume_bytes.created.allocated' AS volume_created_bytes,
+                       j.value->>'$.pgdata_volume_bytes.stopped.allocated' AS volume_stopped_bytes,
+                       j.value->'$.cgroup_at_ready.write_bytes_by_device' AS ready_guest_writes_by_device,
+                       j.value->'$.cgroup_after_sql.write_bytes_by_device' AS after_sql_guest_writes_by_device
+                FROM measurements, json_each(receipt,'$.storage_diagnostics') d, json_each(d.value,'$.jobs') j
+                WHERE kind='postgres-fixture-profile';
+            CREATE VIEW IF NOT EXISTS postgres_storage_guest_writes AS
+                SELECT run, d.value->>'mode' AS mode, d.value->>'clients' AS clients, p.key AS phase,
+                       device.key AS guest_device, device.value AS write_bytes
+                FROM measurements, json_each(receipt,'$.storage_diagnostics') d,
+                     json_each(d.value,'$.guest_device_write_bytes') p, json_each(p.value) device
+                WHERE kind='postgres-fixture-profile';
+            CREATE VIEW IF NOT EXISTS postgres_storage_images AS
+                SELECT run, b.value->>'mode' AS mode, b.value->>'state' AS cache_state,
+                       b.value->>'base_reference' AS pinned_base, b.value->>'image_id' AS image_id,
+                       b.value->>'added_layer_bytes' AS added_layer_bytes, b.value->'added_diff_ids' AS added_diff_ids
+                FROM measurements, json_each(receipt, '$.image_builds') b WHERE kind='postgres-fixture-profile';
             CREATE VIEW IF NOT EXISTS postgres_fixture_phases AS
                 SELECT run, workload, mode, round, clients, job, passed, container, phase.key AS phase,
                        ((phase.value->>1) - (phase.value->>0))/1e6 AS seconds

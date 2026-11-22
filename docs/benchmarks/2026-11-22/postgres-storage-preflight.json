@@ -1,0 +1,20 @@
+{
+  "run": "1ca85c7df2704df7bebe73e78887b9da",
+  "started_utc": "2026-11-22T01:10:07+00:00",
+  "passed": false,
+  "schema": 2,
+  "worker_id": "52A19168-0202-4593-A1DC-E4FB227CAFC3",
+  "smoke_only": true,
+  "requested_clients": [
+    1
+  ],
+  "rounds": 0,
+  "smoke": {
+    "clients": 1,
+    "attempted": false,
+    "passed": false
+  },
+  "ci_queue_s": null,
+  "error": "Dedicated Micropod worker socket is absent",
+  "first_attempt_job_failures": 0
+}

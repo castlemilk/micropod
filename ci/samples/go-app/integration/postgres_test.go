@@ -72,10 +72,5 @@ func TestPostgresReady(t *testing.T) {
 	if err != nil || code != 0 || strings.TrimSpace(string(out)) != "42" {
 		t.Fatalf("SQL check: exit %d, output %q, read error %v", code, out, err)
 	}
-	if profile != nil {
-		if err := profile.observe(ctx, pg); err != nil {
-			t.Fatalf("observe postgres: %v", err)
-		}
-	}
 	t.Logf("verified SQL round trip on the final TCP server %s", pg.GetContainerID())
 }
