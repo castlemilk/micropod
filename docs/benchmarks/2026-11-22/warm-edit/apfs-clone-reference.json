@@ -1,0 +1,76 @@
+{
+  "primitive": "clonefile",
+  "host_os": "26.5.1",
+  "base_bytes": 536870912,
+  "base_payload_bytes": 33554432,
+  "private_write_bytes": 4096,
+  "rounds": [
+    {
+      "clone_us": 221.958,
+      "private_write_fsync_us": 21911.334
+    },
+    {
+      "clone_us": 245.375,
+      "private_write_fsync_us": 31098.167
+    },
+    {
+      "clone_us": 176.334,
+      "private_write_fsync_us": 25743.125
+    },
+    {
+      "clone_us": 177.625,
+      "private_write_fsync_us": 26646.083
+    },
+    {
+      "clone_us": 198.375,
+      "private_write_fsync_us": 37698.125
+    },
+    {
+      "clone_us": 155.5,
+      "private_write_fsync_us": 29436.042
+    },
+    {
+      "clone_us": 168.792,
+      "private_write_fsync_us": 31820.958
+    },
+    {
+      "clone_us": 162.708,
+      "private_write_fsync_us": 32739.834
+    },
+    {
+      "clone_us": 311.375,
+      "private_write_fsync_us": 33270.042
+    },
+    {
+      "clone_us": 180.542,
+      "private_write_fsync_us": 26396.583
+    },
+    {
+      "clone_us": 268.75,
+      "private_write_fsync_us": 28333.584
+    },
+    {
+      "clone_us": 234.167,
+      "private_write_fsync_us": 23908.208
+    },
+    {
+      "clone_us": 147.958,
+      "private_write_fsync_us": 51614.417
+    },
+    {
+      "clone_us": 287.167,
+      "private_write_fsync_us": 32551.25
+    },
+    {
+      "clone_us": 372.958,
+      "private_write_fsync_us": 27664.125
+    },
+    {
+      "clone_us": 148.959,
+      "private_write_fsync_us": 22878.541
+    }
+  ],
+  "median_clone_us": 189.45850000000002,
+  "median_private_write_fsync_us": 28884.813000000002,
+  "base_and_sibling_markers_verified": true
+}

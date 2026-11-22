@@ -1,0 +1,119 @@
+{
+  "kind": "host-functional-only",
+  "source": "06bfc10ba545ed6a276a21e9b1dd371c00925448",
+  "toolchain": {
+    "go": {
+      "CGO_ENABLED": "0",
+      "GOARCH": "arm64",
+      "GOARM64": "v8.0",
+      "GOEXPERIMENT": "",
+      "GOOS": "darwin",
+      "GOVERSION": "go1.27.2"
+    },
+    "go_driver": "516c1fbb53b5f8f4852f0c3c379d45bcff53a1032e5cd1a9ca1738f03ba07cb1",
+    "compiler": "8a3add4030b0f724c535afe946a4fcd27ca235ba869d4d4b91091e0ef8a611e2",
+    "linker": "5dfb0e5cb785cbd930b87c96095117bb7844b13c1dbad13dc6932d9cf0820f35",
+    "node": "v24.22.2",
+    "node_abi": "137",
+    "npm": "11.19.1",
+    "node_binary": "b6fb419f0f43bb2fbca273700294dd2f3b685a64b60e8417c295f47646a70e4a",
+    "npm_cli": "0a6f43cb58b81269aad0d3eff77f68b5d06ea7c241c199a63bee8b0dd337effc"
+  },
+  "seed_build_cache": true,
+  "rows": [
+    {
+      "case": "base",
+      "node_output": "hello, build",
+      "go_sha256": "d15d00ec223ab6eb7683d7d856fc51e6649f18e57caa5d07538b2f6824d22d37",
+      "go_build_tools": {
+        "compile": 0,
+        "asm": 0,
+        "link": 1
+      },
+      "go_preexisting_imports": 220,
+      "go_confirmed_import_bytes": 126667248,
+      "npm_hit_at_seed": false,
+      "npm_payload_bytes": 2625,
+      "executed_go_tests": 3,
+      "executed_node_tests": 3
+    },
+    {
+      "case": "edited",
+      "node_output": "hello, build edit-1-1",
+      "go_sha256": "c31996411ea2aace6a8c4d6d617e247cf5f81dacc8556bf9f9ab127126c84250",
+      "go_build_tools": {
+        "compile": 0,
+        "asm": 0,
+        "link": 1
+      },
+      "go_preexisting_imports": 220,
+      "go_confirmed_import_bytes": 126673108,
+      "npm_hit_at_seed": true,
+      "npm_payload_bytes": 2625,
+      "executed_go_tests": 3,
+      "executed_node_tests": 3
+    },
+    {
+      "case": "fresh-repeat",
+      "node_output": "hello, build edit-1-1",
+      "go_sha256": "c31996411ea2aace6a8c4d6d617e247cf5f81dacc8556bf9f9ab127126c84250",
+      "go_build_tools": {
+        "compile": 0,
+        "asm": 0,
+        "link": 1
+      },
+      "go_preexisting_imports": 220,
+      "go_confirmed_import_bytes": 126673108,
+      "npm_hit_at_seed": true,
+      "npm_payload_bytes": 2625,
+      "executed_go_tests": 3,
+      "executed_node_tests": 3
+    },
+    {
+      "case": "verified-product",
+      "node_output": "hello, build edit-1-1",
+      "go_sha256": "c31996411ea2aace6a8c4d6d617e247cf5f81dacc8556bf9f9ab127126c84250",
+      "go_build_tools": {
+        "compile": 0,
+        "asm": 0,
+        "link": 0
+      },
+      "go_preexisting_imports": 219,
+      "go_confirmed_import_bytes": 126536664,
+      "npm_hit_at_seed": true,
+      "npm_payload_bytes": 2625,
+      "executed_go_tests": 3,
+      "executed_node_tests": 3
+    },
+    {
+      "case": "corruption-fallback",
+      "node_output": "hello, build edit-1-1",
+      "go_sha256": "c31996411ea2aace6a8c4d6d617e247cf5f81dacc8556bf9f9ab127126c84250",
+      "go_build_tools": {
+        "compile": 0,
+        "asm": 0,
+        "link": 1
+      },
+      "go_preexisting_imports": 220,
+      "go_confirmed_import_bytes": 126673108,
+      "npm_hit_at_seed": true,
+      "npm_payload_bytes": 2625,
+      "executed_go_tests": 3,
+      "executed_node_tests": 3
+    }
+  ],
+  "first_attempt_failures": 0,
+  "controls": [
+    "fresh tests every checkout",
+    "source edit",
+    "different target",
+    "different compiler",
+    "different scope",
+    "unpublished staging file",
+    "corrupt bytes rejected and rebuilt"
+  ],
+  "trusted_manifest": {
+    "key": "caaeededa785bfecc676a490679b22990678b066fccbc4e0b7c6f526d8abbebd",
+    "sha256": "c31996411ea2aace6a8c4d6d617e247cf5f81dacc8556bf9f9ab127126c84250"
+  }
+}

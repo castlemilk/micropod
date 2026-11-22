@@ -1,0 +1,167 @@
+{
+  "kind": "historical-reduction",
+  "source_directory": "docs/benchmarks/2026-11-20",
+  "source_file_sha256": {
+    "fresh-go/engines.json.gz": "cfa1c16362876d2c9ec16ed7316506b73b92924eb8fc87dd59a405c6a625e71f",
+    "worker-profile/adaptive-profile.json.gz": "2f768703afd453e11f694470f675838cdf3f73ee46e4b57c81a44a607fbb9138",
+    "full-ci/pipelines.json.gz": "287bf73374c2d19b2021d02746ea63c8f48d5f57f3319d80e30db0cc3422ab8b",
+    "go-cache-fanout/measurements.json.gz": "94f56d9c7dc79d45f68428a8ab144bf926163a073885d0235eca5d9e6677b7b3"
+  },
+  "warm_launch": {
+    "binary": "6fc4584ba6b2218523d849550836bcc0655d76bd67e0b1650ceb389ff1ea3b4c",
+    "fixture": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+    "source_mode": "launch",
+    "clients": 16,
+    "batch_ms": {
+      "n": 5,
+      "p50": 579.8498340300284,
+      "p95_nearest_rank": 733.3529589814134,
+      "min": 369.27004100289196,
+      "max": 733.3529589814134
+    },
+    "tail_client_ms": {
+      "n": 5,
+      "p50": 543.1228330126032,
+      "p95_nearest_rank": 692.201208032202,
+      "min": 341.4876660099253,
+      "max": 692.201208032202
+    },
+    "pooled_client_ms": {
+      "n": 80,
+      "p50": 522.0740619988646,
+      "p95_nearest_rank": 680.8451670221984,
+      "min": 229.1245000087656,
+      "max": 710.2968749823049
+    },
+    "create_to_start_last_ms": {
+      "n": 5,
+      "p50": 232.4,
+      "p95_nearest_rank": 319.241083,
+      "min": 171.471375,
+      "max": 319.241083
+    },
+    "start_to_die_last_ms": {
+      "n": 5,
+      "p50": 31.487584,
+      "p95_nearest_rank": 43.160958,
+      "min": 20.855833,
+      "max": 43.160958
+    },
+    "die_to_destroy_last_ms": {
+      "n": 5,
+      "p50": 11.633,
+      "p95_nearest_rank": 20.919125,
+      "min": 10.049416,
+      "max": 20.919125
+    }
+  },
+  "warm_go_overlay": {
+    "binary": "68c53cb50b0453309cd3db97473a87e393f7bc1b2920a57ca312f98934548d69",
+    "fixture": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+    "clients": 16,
+    "jobs": 48,
+    "batch_s": {
+      "n": 3,
+      "p50": 1.7671815839712508,
+      "p95_nearest_rank": 2.572997209033929,
+      "min": 1.5605762919876724,
+      "max": 2.572997209033929
+    },
+    "guest_sample_s": {
+      "n": 3,
+      "p50": 1.7179118339554407,
+      "p95_nearest_rank": 2.4506524579483084,
+      "min": 1.4611004579928704,
+      "max": 2.4506524579483084
+    },
+    "vdb_write_bytes": {
+      "n": 3,
+      "p50": 112209920,
+      "p95_nearest_rank": 113672192,
+      "min": 99774464,
+      "max": 113672192
+    },
+    "ext4_sync_entries": {
+      "n": 3,
+      "p50": 920,
+      "p95_nearest_rank": 937,
+      "min": 815,
+      "max": 937
+    },
+    "lost_events": 0,
+    "job_throttled_us_per_batch": {
+      "n": 3,
+      "p50": 0,
+      "p95_nearest_rank": 0,
+      "min": 0,
+      "max": 0
+    },
+    "psi_cpu_some_us": {
+      "n": 3,
+      "p50": 1287479,
+      "p95_nearest_rank": 2074859,
+      "min": 1173960,
+      "max": 2074859
+    },
+    "psi_io_some_us": {
+      "n": 3,
+      "p50": 262930,
+      "p95_nearest_rank": 270505,
+      "min": 134994,
+      "max": 270505
+    },
+    "psi_memory_some_us": {
+      "n": 3,
+      "p50": 4,
+      "p95_nearest_rank": 18,
+      "min": 0,
+      "max": 18
+    }
+  },
+  "archived_edit_stages": {
+    "edit": {
+      "rounds": [
+        1,
+        2,
+        3
+      ],
+      "recorded_prior_attempts": 0,
+      "per_stage_median_s": {
+        "go-checks": 3.758,
+        "go-image": 3.571,
+        "go-unit": 1.161,
+        "node-image": 0.42,
+        "node-edit": 0.321,
+        "node-unit": 0.37
+      }
+    },
+    "repeat": {
+      "rounds": [
+        1,
+        2,
+        3
+      ],
+      "recorded_prior_attempts": 0,
+      "per_stage_median_s": {
+        "go-checks": 1.528,
+        "go-image": 1.898,
+        "go-unit": 1.303,
+        "node-image": 0.66,
+        "node-edit": 0.737,
+        "node-unit": 0.531
+      }
+    }
+  },
+  "unprimed_fanout": {
+    "clients": 20,
+    "guest_vcpus": 4,
+    "guest_mib": 4096,
+    "timeout_s": 360,
+    "result": "batch timeout; individual completion count unknown",
+    "docker_ping": "timeout at 4.003 s",
+    "native_status_s": 0.55,
+    "everyday_ping_s": 0.04,
+    "failed_boot": "58BCCA26-448C-43BE-9F93-B2101222BF78",
+    "recovery": "Benchmark supervisor received SIGTERM after its idle-stop health check timed out. Reused same journaled disk. Initial failure had no independent kernel counters."
+  }
+}

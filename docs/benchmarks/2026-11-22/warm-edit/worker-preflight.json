@@ -1,0 +1,472 @@
+{
+  "run": "0302bcb2d43247169bcaf4accaaed0cf",
+  "at": "2026-11-22T04:32:04.396025+00:00",
+  "fixture_source": "06bfc10ba545ed6a276a21e9b1dd371c00925448",
+  "checkout_head_at_capture": "06bfc10ba545ed6a276a21e9b1dd371c00925448",
+  "harness_sha256": "5b39826be5b68750a990465746a93bdf5ef6f0ca5e839aa08d4b06bb725625eb",
+  "control_sha256": "77c3b71e40d2667866c8fd81368d56d39c0fa40109c32ba3f067ff3b1e538791",
+  "schedule": [
+    [
+      1,
+      1,
+      "overlay"
+    ],
+    [
+      1,
+      1,
+      "volume"
+    ],
+    [
+      1,
+      16,
+      "volume"
+    ],
+    [
+      1,
+      16,
+      "overlay"
+    ],
+    [
+      2,
+      16,
+      "overlay"
+    ],
+    [
+      2,
+      16,
+      "volume"
+    ],
+    [
+      2,
+      1,
+      "volume"
+    ],
+    [
+      2,
+      1,
+      "overlay"
+    ],
+    [
+      3,
+      1,
+      "overlay"
+    ],
+    [
+      3,
+      1,
+      "volume"
+    ],
+    [
+      3,
+      16,
+      "volume"
+    ],
+    [
+      3,
+      16,
+      "overlay"
+    ],
+    [
+      4,
+      16,
+      "overlay"
+    ],
+    [
+      4,
+      16,
+      "volume"
+    ],
+    [
+      4,
+      1,
+      "volume"
+    ],
+    [
+      4,
+      1,
+      "overlay"
+    ],
+    [
+      5,
+      1,
+      "overlay"
+    ],
+    [
+      5,
+      1,
+      "volume"
+    ],
+    [
+      5,
+      16,
+      "volume"
+    ],
+    [
+      5,
+      16,
+      "overlay"
+    ],
+    [
+      6,
+      16,
+      "overlay"
+    ],
+    [
+      6,
+      16,
+      "volume"
+    ],
+    [
+      6,
+      1,
+      "volume"
+    ],
+    [
+      6,
+      1,
+      "overlay"
+    ]
+  ],
+  "seed": 20261122,
+  "launches": [],
+  "batches": [],
+  "tcp_released": false,
+  "mode": "inspect",
+  "local": {
+    "micropod_session": false,
+    "stopped_marker": true,
+    "sockets": {
+      "micropod-stock": {
+        "path": "/Users/benebsworth/.micropod/ci/docker.sock",
+        "present": false
+      },
+      "orbstack-stock": {
+        "path": "/Users/benebsworth/.orbstack/run/docker.sock",
+        "present": true
+      }
+    },
+    "micropod_config": {
+      "cpus": 4,
+      "memoryMiB": 4096,
+      "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+    }
+  },
+  "kernel_on_disk": {
+    "file": "vmlinux-6.18.35-197",
+    "sha256": "fb2cfb79eb1ae19447a85d75682d7fa5cfec97e24beb2609a492b806e8072c8d",
+    "bytes": 30423552,
+    "config": {
+      "PSI": "y",
+      "PSI_DEFAULT_DISABLED": "y",
+      "IKCONFIG_PROC": "y",
+      "CGROUPS": "y",
+      "MEMCG": "y",
+      "BLK_CGROUP": "y",
+      "CGROUP_WRITEBACK": "y",
+      "CGROUP_SCHED": "y",
+      "FAIR_GROUP_SCHED": "y",
+      "CFS_BANDWIDTH": "y",
+      "CPUSETS": "y",
+      "CGROUP_CPUACCT": "y",
+      "SCHEDSTATS": "n",
+      "SCHED_CLASS_EXT": "n",
+      "BLK_CGROUP_IOLATENCY": "n",
+      "BLK_CGROUP_IOCOST": "n",
+      "IOSCHED_BFQ": "n",
+      "LRU_GEN": "y",
+      "LRU_GEN_ENABLED": "n",
+      "EXT4_FS": "y",
+      "VIRTIO_FS": "y",
+      "OVERLAY_FS": "y",
+      "OVERLAY_FS_METACOPY": "y",
+      "OVERLAY_FS_REDIRECT_DIR": "y",
+      "TRACEPOINTS": "y",
+      "FTRACE": "y",
+      "IO_URING": "y"
+    },
+    "config_sha256": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21"
+  },
+  "blockers": [
+    "No TCP-owner slot release supplied",
+    "Dedicated worker session absent",
+    "Dedicated Docker socket absent"
+  ],
+  "state": "blocked",
+  "summary": {
+    "pairs": [],
+    "comparison_failures": [],
+    "paired_spread_s": {
+      "1/cold": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "maximum": null
+      },
+      "1/edit": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "maximum": null
+      },
+      "1/repeat": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "maximum": null
+      },
+      "16/cold": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "maximum": null
+      },
+      "16/edit": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "maximum": null
+      },
+      "16/repeat": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "maximum": null
+      }
+    },
+    "attempted": 0,
+    "failed": 0,
+    "unattempted": 612,
+    "arms": {
+      "1/volume/cold": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "1/volume/edit": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "1/volume/repeat": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "1/overlay/cold": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "1/overlay/edit": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "1/overlay/repeat": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "16/volume/cold": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "16/volume/edit": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "16/volume/repeat": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "16/overlay/cold": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "16/overlay/edit": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      },
+      "16/overlay/repeat": {
+        "attempted": 0,
+        "failed": 0,
+        "batch_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "first_attempt_client_s": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "maximum": null
+        },
+        "npm_payload_hits": null,
+        "npm_payload_hit_bytes": null,
+        "go_confirmed_hit_bytes": null
+      }
+    },
+    "alpine_attempted": 0,
+    "alpine_failed": 0
+  }
+}
