@@ -1,18 +1,20 @@
 # Warm CI on Apple Silicon, OrbStack and ARM Ubuntu
 
-Gamma ran Micropod and OrbStack on the same 18-core Apple M5 Max with 128 GB of RAM and macOS 26.5.1. The two Mac VMs each had four vCPUs and 4 GiB configured. Docker reported 4,118,708,224 usable bytes for Micropod and 4,180,480,000 for OrbStack. Both used the same macOS Docker client, version 29.7.2. Micropod ran Docker 29.9.3 and OrbStack 2.2.5 ran Docker 29.8.2. Each reused one Linux kernel. The matched Ubuntu control used Docker 28.0.4 on a separate four-vCPU GitHub-hosted ARM64 Ubuntu runner with 15.57 GiB of usable memory. Per-container limits matched across machines. [Mac samples](gamma-worker-orbstack-ubuntu.json) · [Ubuntu samples](ubuntu-arm64-worker-reference.json)
+Gamma ran Micropod and OrbStack on the same 18-core Apple M5 Max with 128 GB of RAM and macOS 26.5.1. The two Mac VMs each had four vCPUs and 4 GiB configured. Docker reported 4,118,708,224 usable bytes for Micropod and 4,180,480,000 for OrbStack. The installed macOS Docker client was 29.7.2. Micropod launches entered through `micropod ci run` and OrbStack launches entered through stock `docker run --rm`. Micropod ran Docker 29.9.3 and OrbStack 2.2.5 ran Docker 29.8.2. Each reused one Linux kernel. The matched Ubuntu control used Docker 28.0.4 on a separate four-vCPU GitHub-hosted ARM64 Ubuntu runner with 15.57 GiB of usable memory. Per-container limits matched across machines. [Mac samples](gamma-worker-orbstack-ubuntu.json) · [Ubuntu samples](ubuntu-arm64-worker-reference.json)
 
-## Warm launch and exit
+## Native-path CI performance for warm launch and exit
 
 Median elapsed milliseconds for the entire batch over five rounds. The Mac clock starts before invoking `micropod ci run` or `docker run --rm` and stops after the clients exit. Every container ran the same pinned ARM64 Alpine image with one CPU, 256 MiB and networking disabled. The harness checked the kernel ID, both output streams, and the expected nonzero exit code. Engine order alternated and the order of concurrency levels rotated.
 
 | Runtime | 1 job | 4 jobs | 8 jobs | 16 jobs |
 | --- | ---: | ---: | ---: | ---: |
-| Micropod on Gamma | 67 | 114 | 167 | 322 |
-| OrbStack on Gamma | 236 | 659 | 1878 | 2746 |
+| Micropod on Gamma, `micropod ci run` | 67 | 114 | 167 | 322 |
+| OrbStack on Gamma, stock Docker | 236 | 659 | 1878 | 2746 |
 | Docker on ARM Ubuntu | 112 | 163 | 289 | 561 |
 
 The first independent Mac series recorded 0.661 s for 16 Micropod launches and 30.408 s for OrbStack. Across the five rounds in that series, OrbStack's 16-job batches ranged from 2.74–33.02 s. In the matched Ubuntu series, they ranged from 1.96–17.08 s. Gamma was a shared runner. Each Mac series validated 145 timed launches per engine on distinct kernels and Docker daemons. [First Mac series](gamma-worker-orbstack.json) · [Matched repeat](gamma-worker-orbstack-ubuntu.json)
+
+These historical ratios include client entry-point costs. Five batches per width describe the observed spread and give little support for a tail estimate. The [stock-Docker launch control](../2026-11-22/docker-launch-control.md) measures both endpoints with one executable.
 
 ## Offline npm and Go
 

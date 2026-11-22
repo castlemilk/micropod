@@ -123,12 +123,16 @@ def in_allocation(args, receipt):
 
 @lru_cache(maxsize=32)
 def image_config_digest(socket_path, image_id, architecture):
+    return exported_config_digest(["docker", "--host", "unix://" + socket_path], image_id, architecture)
+
+
+def exported_config_digest(docker, image_id, architecture, env=None):
     # Classic dockerd returns the config digest as Id. The containerd store can return an
     # index digest there instead. Hash the actual native config from each local image once.
     with tempfile.TemporaryDirectory(prefix="micropod-image-") as temp:
         archive = str(Path(temp) / "image.tar")
-        subprocess.run(["docker", "--host", "unix://" + socket_path, "image", "save", "-o", archive, image_id],
-                       capture_output=True, check=True, timeout=180)
+        subprocess.run([*docker, "image", "save", "-o", archive, image_id],
+                       env=env, capture_output=True, check=True, timeout=180)
         with tarfile.open(archive) as tar:
             candidates = set()
             for entry in json.load(tar.extractfile("manifest.json")):

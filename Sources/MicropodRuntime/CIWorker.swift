@@ -319,7 +319,10 @@ public struct CIWorker: Sendable {
     static func hostname(_ instance: UUID) -> String { "mp-" + instance.uuidString.lowercased() }
 
     /// The client checks liveness when it submits the job. Its endpoint is attested once per boot.
-    public func runEndpoint(executable: URL) async throws -> String {
+    public func runEndpoint(executable: URL, existingOnly: Bool = false) async throws -> String {
+        if existingOnly && !FileManager.default.fileExists(atPath: directory.path) {
+            throw MicropodError.message("No ready CI worker at " + endpoint)
+        }
         try prepareDirectory()
         if let active = try? liveSession(), active.started, let verified = active.readySocket,
             !FileManager.default.fileExists(atPath: stopFile(active).path),
@@ -327,6 +330,7 @@ public struct CIWorker: Sendable {
         {
             return endpoint
         }
+        guard !existingOnly else { throw MicropodError.message("No ready CI worker at " + endpoint) }
         return try await start(executable: executable).endpoint
     }
 

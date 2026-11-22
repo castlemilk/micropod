@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Append local CI benchmark receipts to SQLite and query all measured batches with SQL."""
 import argparse
-from contextlib import nullcontext
+from contextlib import closing, nullcontext
 from datetime import datetime, timezone
 import gzip
 import hashlib
@@ -16,7 +16,7 @@ DEFAULT_DB = Path.home() / ".micropod" / "benchmarks" / "measurements.sqlite3"
 
 def store(path, run, kind, record):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path, timeout=30) as db:
+    with closing(sqlite3.connect(path, timeout=30)) as db, db:
         db.executescript("""
             CREATE TABLE IF NOT EXISTS measurements (
                 run TEXT NOT NULL, kind TEXT NOT NULL, captured_utc TEXT NOT NULL,
@@ -104,6 +104,15 @@ def store(path, run, kind, record):
                        batch->>'$.kernel_delta.pressure_us.cpu.some' AS cpu_stall_us,
                        batch->>'$.kernel_delta.pressure_us.io.some' AS io_stall_us
                 FROM go_batches;
+            CREATE VIEW IF NOT EXISTS docker_launch_pairs AS
+                SELECT run, receipt->>'state' AS run_state, CAST(w.key AS INTEGER) AS clients,
+                       c.key AS comparison, p.value->>'block' AS block, p.value->>'reference_ms' AS micropod_stock_ms,
+                       p.value->>'candidate_ms' AS candidate_ms, p.value->>'delta_ms' AS delta_ms,
+                       p.value->>'ratio' AS ratio
+                FROM measurements, json_each(receipt, '$.summary.widths') w, json_each(w.value) c,
+                     json_each(c.value, '$.pairs') p
+                WHERE kind='apple-stock-docker-launch' AND c.key IN ('stock_docker','native_ci')
+                  AND receipt->>'state' IN ('complete','complete-with-exclusions');
             CREATE VIEW IF NOT EXISTS kernel_samples AS
                 SELECT run, s.value->>'client_s' AS elapsed_s, s.value AS counters
                 FROM measurements, json_each(receipt, '$.samples') s WHERE kind='go-kernel-profile';

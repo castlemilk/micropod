@@ -1,10 +1,12 @@
 import Darwin
 import Foundation
+import MicropodBuildInfo
 import MicropodCore
 import MicropodRuntime
 
 enum CICommands {
     static let help = """
+        micropod \(MicropodBuildInfo.version) (\(MicropodBuildInfo.sourceRevision))
         micropod ci job TRUST IMAGE COMMAND [ARG ...]   submit a trusted crun or VM-isolated job
         micropod ci runner-prime COUNT   prepare up to 32 single-use pods for trusted jobs
         micropod ci runner-start | runner-status | runner-stop | runner-endpoint
@@ -17,7 +19,7 @@ enum CICommands {
                                           put a checkout in a reusable job image and print its local ID
         micropod ci warm-go --cache-scope NAME [--offline] [--trace-tools] SOURCE_IMAGE_ID [PACKAGE ...]
                                           warm shared Go compile and vet caches before concurrent jobs
-        micropod ci run [--scratch-mib N] [--cache npm|go|python] [--cache-scope NAME] [docker options] IMAGE [command...]
+        micropod ci run [--existing-worker-only] [--scratch-mib N] [--cache npm|go|python] [--cache-scope NAME] [docker options] IMAGE [command...]
                                           run a container with persistent package caches
         micropod ci create [options]      prepare a fresh job with the same cache options and Docker create flags
         micropod ci metrics [--usage]     print active cache mounts, optional sizes and BuildKit usage as JSON
@@ -130,9 +132,11 @@ enum CICommands {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
                 if ["run", "create", "docker", "snapshot", "warm-go"].contains(command) {
+                    let existingOnly = command == "run" && args.dropFirst().first == "--existing-worker-only"
                     let options: [String]
                     switch command {
-                    case "run", "create": options = try [command, "--rm"] + runArguments(args.dropFirst())
+                    case "run", "create":
+                        options = try [command, "--rm"] + runArguments(args.dropFirst(existingOnly ? 2 : 1))
                     case "snapshot": options = try snapshotArguments(args.dropFirst())
                     case "warm-go": options = try warmGoArguments(args.dropFirst())
                     default: options = Array(args.dropFirst())
@@ -140,7 +144,7 @@ enum CICommands {
                     guard !worker.isNativeRunner else {
                         throw MicropodError.message("Use ci job to submit work to the native runner")
                     }
-                    let endpoint = try await worker.runEndpoint(executable: executable)
+                    let endpoint = try await worker.runEndpoint(executable: executable, existingOnly: existingOnly)
                     let recipe = command == "snapshot" ? Pipe() : nil
                     if let recipe {
                         try recipe.fileHandleForWriting.write(contentsOf: Data(snapshotDockerfile.utf8))

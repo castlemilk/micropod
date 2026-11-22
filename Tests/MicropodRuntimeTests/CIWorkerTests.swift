@@ -5,6 +5,26 @@ import XCTest
 @testable import MicropodRuntime
 
 final class CIWorkerTests: XCTestCase {
+    func testExistingOnlyRunOnStoppedWorkerNeverStartsOrCreatesState() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ci-" + UUID().uuidString.prefix(8))
+        let worker = CIWorker(environment: ["MICROPOD_CI_HOME": root.path])
+        defer { try? FileManager.default.removeItem(at: root) }
+        for exists in [false, true] {
+            if exists { try worker.prepareDirectory() }
+            do {
+                _ = try await worker.runEndpoint(executable: root.appendingPathComponent("unused"), existingOnly: true)
+                XCTFail("Existing-only run accepted a stopped worker")
+            } catch {
+                XCTAssertEqual(error.localizedDescription, "No ready CI worker at " + worker.endpoint)
+            }
+            if exists {
+                XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), [])
+            } else {
+                XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
+            }
+        }
+    }
+
     func testDiscoveryUsesOnlyTheOwnedEndpointAndDoesNotStartAWorker() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let registry = EngineRegistry(environment: [

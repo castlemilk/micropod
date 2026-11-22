@@ -1,0 +1,345 @@
+{
+  "workload": "apple-stock-docker-launch-v1",
+  "run": "6154084ed57540489e699bae8ecec8c9",
+  "mode": "check",
+  "at": "2026-11-22T03:20:06.165833+00:00",
+  "image": "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "arm64_config": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+  "harness_sha256": "77c3b71e40d2667866c8fd81368d56d39c0fa40109c32ba3f067ff3b1e538791",
+  "fixture_sha256": "ea7ca9b9978d18fb5b62cce26a43de788aec8d6309c11084ba86dd121169f434",
+  "flags": [
+    "--platform",
+    "linux/arm64",
+    "--pull=never",
+    "--network",
+    "none",
+    "--cpus",
+    "1",
+    "--memory",
+    "256m"
+  ],
+  "seed": 20261122,
+  "schedule": [
+    {
+      "block": 1,
+      "clients": 1,
+      "order": [
+        "micropod-stock",
+        "orbstack-stock",
+        "micropod-ci-run"
+      ]
+    },
+    {
+      "block": 1,
+      "clients": 16,
+      "order": [
+        "micropod-ci-run",
+        "orbstack-stock",
+        "micropod-stock"
+      ]
+    },
+    {
+      "block": 2,
+      "clients": 16,
+      "order": [
+        "micropod-stock",
+        "micropod-ci-run",
+        "orbstack-stock"
+      ]
+    },
+    {
+      "block": 2,
+      "clients": 1,
+      "order": [
+        "orbstack-stock",
+        "micropod-ci-run",
+        "micropod-stock"
+      ]
+    },
+    {
+      "block": 3,
+      "clients": 1,
+      "order": [
+        "orbstack-stock",
+        "micropod-stock",
+        "micropod-ci-run"
+      ]
+    },
+    {
+      "block": 3,
+      "clients": 16,
+      "order": [
+        "micropod-ci-run",
+        "micropod-stock",
+        "orbstack-stock"
+      ]
+    },
+    {
+      "block": 4,
+      "clients": 16,
+      "order": [
+        "orbstack-stock",
+        "micropod-ci-run",
+        "micropod-stock"
+      ]
+    },
+    {
+      "block": 4,
+      "clients": 1,
+      "order": [
+        "micropod-stock",
+        "micropod-ci-run",
+        "orbstack-stock"
+      ]
+    },
+    {
+      "block": 5,
+      "clients": 1,
+      "order": [
+        "micropod-ci-run",
+        "orbstack-stock",
+        "micropod-stock"
+      ]
+    },
+    {
+      "block": 5,
+      "clients": 16,
+      "order": [
+        "micropod-stock",
+        "orbstack-stock",
+        "micropod-ci-run"
+      ]
+    },
+    {
+      "block": 6,
+      "clients": 16,
+      "order": [
+        "orbstack-stock",
+        "micropod-stock",
+        "micropod-ci-run"
+      ]
+    },
+    {
+      "block": 6,
+      "clients": 1,
+      "order": [
+        "micropod-ci-run",
+        "micropod-stock",
+        "orbstack-stock"
+      ]
+    }
+  ],
+  "groups": [],
+  "warmups": [],
+  "probes": [],
+  "idle_floor_pct": 90.0,
+  "max_idle_gap_pp": 5.0,
+  "slot_released": false,
+  "state": "blocked",
+  "local": {
+    "micropod_session": false,
+    "stopped_marker": true,
+    "sockets": {
+      "micropod-stock": {
+        "path": "/Users/benebsworth/.micropod/ci/docker.sock",
+        "present": false
+      },
+      "orbstack-stock": {
+        "path": "/Users/benebsworth/.orbstack/run/docker.sock",
+        "present": true
+      }
+    },
+    "micropod_config": {
+      "cpus": 4,
+      "memoryMiB": 4096,
+      "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+    },
+    "stock_docker": {
+      "path": "/opt/homebrew/Cellar/docker/29.7.2/bin/docker",
+      "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8",
+      "version": "Docker version 29.7.2, build a7dcaa6fdb"
+    }
+  },
+  "error": "Dedicated session and both documented sockets must already exist",
+  "summary": {
+    "widths": {
+      "1": {
+        "planned_pairs": 6,
+        "stock_docker": {
+          "reference": "micropod-stock",
+          "candidate": "orbstack-stock",
+          "pairs": [],
+          "spread": {
+            "reference_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "candidate_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "delta_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "ratio": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            }
+          }
+        },
+        "native_ci": {
+          "reference": "micropod-stock",
+          "candidate": "micropod-ci-run",
+          "pairs": [],
+          "spread": {
+            "reference_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "candidate_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "delta_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "ratio": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            }
+          }
+        }
+      },
+      "16": {
+        "planned_pairs": 6,
+        "stock_docker": {
+          "reference": "micropod-stock",
+          "candidate": "orbstack-stock",
+          "pairs": [],
+          "spread": {
+            "reference_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "candidate_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "delta_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "ratio": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            }
+          }
+        },
+        "native_ci": {
+          "reference": "micropod-stock",
+          "candidate": "micropod-ci-run",
+          "pairs": [],
+          "spread": {
+            "reference_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "candidate_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "delta_ms": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            },
+            "ratio": {
+              "n": 0,
+              "median": null,
+              "min": null,
+              "max": null
+            }
+          }
+        }
+      }
+    },
+    "counts": {
+      "timed": {
+        "planned": 306,
+        "attempted": 0,
+        "failed": 0,
+        "unattempted": 306,
+        "by_arm": {
+          "micropod-stock": {
+            "attempted": 0,
+            "failed": 0
+          },
+          "orbstack-stock": {
+            "attempted": 0,
+            "failed": 0
+          },
+          "micropod-ci-run": {
+            "attempted": 0,
+            "failed": 0
+          }
+        }
+      },
+      "warmup": {
+        "planned": 34,
+        "attempted": 0,
+        "failed": 0,
+        "unattempted": 34,
+        "by_arm": {
+          "micropod-stock": {
+            "attempted": 0,
+            "failed": 0
+          },
+          "orbstack-stock": {
+            "attempted": 0,
+            "failed": 0
+          },
+          "micropod-ci-run": {
+            "attempted": 0,
+            "failed": 0
+          }
+        }
+      },
+      "boot_probes": {
+        "planned": 2,
+        "attempted": 0,
+        "failed": 0
+      }
+    }
+  }
+}
