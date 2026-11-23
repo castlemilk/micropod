@@ -13,7 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from bench_package_caches import MODULE, VERSION, Fixture, command, stores
+from bench_package_caches import MODULE, VERSION, Fixture, cache_root, cold_build_input, command, empty_go_stores, stores
 from ci_profile_guest import go_tools
 
 
@@ -29,15 +29,18 @@ def run(out, levels, rounds, modes):
         root = Path(root)
         fixture = Fixture(root)
         caches = stores(root / "shared")
+        roots = empty_go_stores(caches)
         seed = fixture.workspace("seed")
-        command(
-            ["go", "mod", "download", MODULE + "@" + VERSION], seed, fixture.environment(caches, seed=True)
-        )
+        download_env = dict(fixture.environment(caches, seed=True), GOCACHE=str(seed / ".download-cache"))
+        command(["go", "mod", "download", MODULE + "@" + VERSION], seed, download_env)
         fixture.go_sum = (seed / "go.sum").read_bytes()
         env = fixture.environment(caches)
         env["GOFLAGS"] = "-trimpath -p=2"
         build = fixture.argv("go")
+        cold_input = cold_build_input(env, roots, seed, fixture.zip_digest)
         response, cold = command(build, seed, env)
+        if not all(cache_root(caches[key]) == root for key, root in roots.items()):
+            raise ValueError("Go cache root changed during build")
         fixture.verify_output("go", seed, env)
         output_hash = sha(seed / "app")
         archive = caches["go-mod-cache"] / "cache/download" / MODULE / "@v" / (VERSION + ".zip")
@@ -61,6 +64,7 @@ def run(out, levels, rounds, modes):
             rounds=rounds,
             clients=levels,
             cold_seconds=cold,
+            cold_input=cold_input,
             cold_tools=go_tools(response.stderr),
             batches=[],
         )

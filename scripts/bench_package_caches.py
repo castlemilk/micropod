@@ -47,6 +47,39 @@ def stores(root):
     return {name: root / name for name in CACHE_NAMES}
 
 
+def cache_root(path, *, empty=False):
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        identity = os.fstat(fd)
+        if empty:
+            with os.scandir(fd) as entries:
+                need(next(entries, None) is None, f"Expected an empty first-build cache: {path}")
+        return {"device": identity.st_dev, "inode": identity.st_ino}
+    finally:
+        os.close(fd)
+
+
+def empty_go_stores(cache):
+    for name in ("go-mod-cache", "go-build-cache"):
+        cache[name].mkdir(parents=True, exist_ok=True)
+    roots = {name: cache_root(cache[name], empty=True) for name in ("go-mod-cache", "go-build-cache")}
+    need(roots["go-mod-cache"] != roots["go-build-cache"], "Go module and build stores share a directory")
+    return roots
+
+
+def cold_build_input(env, roots, work, expected_zip):
+    need(env.get("GOPROXY") == "off" and not env.get("GOCACHEPROG"), "Expected offline Go with its local cache")
+    build, module = Path(env["GOCACHE"]), Path(env["GOMODCACHE"])
+    need(cache_root(build, empty=True) == roots["go-build-cache"], "Build cache root changed")
+    need(cache_root(module) == roots["go-mod-cache"], "Module cache root changed")
+    need(not os.path.lexists(work / "app"), "First build already has an output")
+    archive = module / "cache/download" / MODULE / "@v" / (VERSION + ".zip")
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    need(digest == expected_zip, "First-build module archive differs from the fixture")
+    return {"initial_empty_roots": roots, "prebuild_cache_empty": True, "prebuild_output_absent": True,
+            "prebuild_module_sha256": digest, "build_goproxy": env["GOPROXY"]}
+
+
 def jsonfile(path, obj):
     path.write_text(json.dumps(obj, sort_keys=True) + "\n")
 
@@ -114,18 +147,25 @@ class Fixture:
                     npm_config_globalconfig=str(self.root / "empty-npmrc"), npm_config_update_notifier="false")
 
     def prime(self, cache, name):
+        roots = empty_go_stores(cache)
         w = self.workspace(name)
         env = self.environment(cache, seed=True)
         _, npm = command(["npm", "cache", "add", str(self.source)], w, env)
-        _, download = command(["go", "mod", "download", MODULE + "@" + VERSION], w, env)
+        # Keep any preparation-only Go actions out of the timed build cache.
+        _, download = command(["go", "mod", "download", MODULE + "@" + VERSION], w,
+                              dict(env, GOCACHE=str(w / ".download-cache")))
         sums = (w / "go.sum").read_bytes()
         need(b" h1:" in sums and (self.go_sum is None or self.go_sum == sums), "Go module integrity changed")
         self.go_sum = sums
+        env = self.environment(cache)
+        cold_input = cold_build_input(env, roots, w, self.zip_digest)
         response, build = command(self.argv("go"), w, env)
         count = len(COMPILER.findall(response.stderr))
         need(count > 0, "Cold Go build did not invoke a compiler")
         self.verify_output("go", w, env)
+        need(all(cache_root(cache[key]) == root for key, root in roots.items()), "Go cache root changed during build")
         return dict(npm_cache_add_seconds=npm, go_download_seconds=download, go_cold_build_seconds=build,
+                    go_cold_input=cold_input,
                     go_cold_compiler_or_assembler_invocations=count)
 
     def argv(self, tool):
