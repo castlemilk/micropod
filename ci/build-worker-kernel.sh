@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build on ARM64 Linux. Arguments are the upstream archive, the compatible
-# Apple guest's .config, an output directory and optional full|full-16k|full-cubic|full-scx|lazy profile.
+# Apple guest's .config, an output directory and optional full|full-16k|full-no-mlx5|full-cubic|full-scx|lazy profile.
 set -eu
 archive=${1:?Linux 7.3.5 source tar.xz}
 config=${2:?base Apple guest .config}
@@ -8,11 +8,13 @@ out=${3:?output directory}
 profile=${4:-full}
 archive=$(realpath "$archive")
 config=$(realpath "$config")
-if [ "$profile" = full-16k ]; then
+fresh_output=false
+case "$profile" in full-16k|full-no-mlx5) fresh_output=true ;; esac
+if [ "$fresh_output" = true ]; then
     mkdir -p "$(dirname "$out")"
     out="$(realpath "$(dirname "$out")")/$(basename "$out")"
     if [ -e "$out" ] || [ -L "$out" ]; then
-        echo "full-16k requires a new output directory to preserve the control build" >&2
+        echo "$profile requires a new output directory to preserve the control build" >&2
         exit 1
     fi
 else
@@ -36,10 +38,13 @@ tar -xJf "$archive" -C "$work"
 cd "$work/linux-7.3.5"
 cp "$config" .config
 case "$profile" in
-    full|full-16k|full-cubic|full-scx)
+    full|full-16k|full-no-mlx5|full-cubic|full-scx)
         localversion=-micropod
         if [ "$profile" = full-16k ]; then
             scripts/config -d ARM64_4K_PAGES -e ARM64_16K_PAGES -d ARM64_64K_PAGES
+        fi
+        if [ "$profile" = full-no-mlx5 ]; then
+            scripts/config -d MLX5_CORE
         fi
         if [ "$profile" = full-cubic ]; then
             localversion=-micropod-cc
@@ -56,7 +61,7 @@ case "$profile" in
         localversion=-micropod-lazy
         preempt=PREEMPT_LAZY
         scripts/config -d PREEMPT -e PREEMPT_LAZY -d PREEMPT_DYNAMIC ;;
-    *) echo "Select full, full-16k, full-cubic, full-scx or lazy" >&2; exit 1 ;;
+    *) echo "Select full, full-16k, full-no-mlx5, full-cubic, full-scx or lazy" >&2; exit 1 ;;
 esac
 scripts/config --set-str LOCALVERSION "$localversion" -d LOCALVERSION_AUTO \
     -e MACVLAN -e NETKIT -e NET_CLS_ACT -e NET_SCH_INGRESS -e NET_CLS_FLOWER \
@@ -64,6 +69,12 @@ scripts/config --set-str LOCALVERSION "$localversion" -d LOCALVERSION_AUTO \
     -e NETFILTER_INGRESS -e NETFILTER_EGRESS -e NF_TABLES_NETDEV \
     -e BPF_STREAM_PARSER -e NET_SCH_FQ -e CC_OPTIMIZE_FOR_PERFORMANCE
 make olddefconfig
+if [ "$profile" = full-no-mlx5 ]; then
+    grep -qx '# CONFIG_MLX5_CORE is not set' .config || { echo "ConnectX core driver still selected" >&2; exit 1; }
+    for symbol in VIRTIO_PCI VIRTIO_BLK VIRTIO_NET VIRTIO_CONSOLE VIRTIO_VSOCKETS VIRTIO_FS EXT4_FS OVERLAY_FS; do
+        grep -qx "CONFIG_$symbol=y" .config || { echo "Missing worker device or filesystem $symbol" >&2; exit 1; }
+    done
+fi
 if [ "$profile" = full-16k ]; then
     for setting in ARM64_16K_PAGES=y PAGE_SIZE_16KB=y PAGE_SHIFT=14; do
         grep -qx "CONFIG_$setting" .config || { echo "Missing 16 KiB kernel setting $setting" >&2; exit 1; }
@@ -87,7 +98,7 @@ for symbol in "$preempt" NET_NS VIRTIO_NET MACVLAN NETFILTER_INGRESS NETFILTER_E
     grep -qx "CONFIG_$symbol=y" .config || { echo "Missing built-in $symbol" >&2; exit 1; }
 done
 make -j"${JOBS:-4}" Image
-if [ "$profile" = full-16k ]; then
+if [ "$fresh_output" = true ]; then
     # Claim the destination atomically after the build, even if another build raced our preflight.
     mkdir "$out"
     claimed_out=$out
