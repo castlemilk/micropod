@@ -1,5 +1,7 @@
 # Apple Silicon performance experiments
 
+The [optimization register](2026-11-23-optimization-register.md) maps the research to 101 tracked directions, their current evidence and their next measurements.
+
 The 23 November blueprint asks whether host scheduling can improve published TCP throughput while keeping fresh requests under 75 ms at p95. The implementation base is the warm-worker performance branch at `2b7fde8ec336c266fc96a1288953303ac5cd69e7`. Its native relay already has a dedicated accept queue, multiple data workers and an opt-in Interactive launchd job.
 
 ## Source audit

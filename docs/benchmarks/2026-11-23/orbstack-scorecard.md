@@ -43,6 +43,8 @@ DNS used 14 paired rounds at each concurrency. All lookups completed. HTTP and s
 
 ## What remains to win
 
+The [optimization register](../../research/2026-11-23-optimization-register.md) links each research direction to its GitHub row, evidence and next check. Two local Go series measured 48–51% less time packing a single IPv4 service reply and 320 B/op versus 1,072 B/op. The end-to-end DNS rows above still use the earlier guest. [Raw encoder samples and compatibility checks](dns-answer-encoding.txt)
+
 1. **Mixed published throughput.** Run the stock four-vCPU baseline, then change only the relay worker count from two to four. The one-port host-only pilot gained 63.9% at a fixed callback budget over three short pairs. Its VM benefit is unknown. An independent same-budget, 16-pair OrbStack holdout with a lower paired throughput bound above 1, zero Micropod fresh losses or bulk reopens, and fresh p95 at or below 75 ms is the next defensible throughput win. [Benchmark handoff](gamma-throughput-gap.md)
 2. **Quiet service calls.** Profile one-resolver DNS and reused HTTP separately while checking that high-concurrency DNS tails hold. The published mixed-load latency result does not cover these requests.
 3. **Unscored product fronts.** Comparable cold boot and first build, filesystem edit propagation, durable guest I/O, idle host memory and reclaim, energy, amd64 translation, and desktop sleep/wake and update recovery need matched results. Individual Micropod qualification and offline regression passes establish correctness in their test cases. They do not establish a peer lead.
