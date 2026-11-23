@@ -16,6 +16,26 @@ Replaying the six `mixed-reference` rounds from 21 November gives a more specifi
 
 A historical experiment on Linux 6.18.35 recorded 46 successful splice syscalls and 16,777,819 bytes summed over the two pipe legs for an 8 MiB body plus protocol traffic. The archived Go forwarding prototype reached a 110.3 ms median fresh p95 in its mixed-load runs. The research proposal's in-kernel socket splicing implementation remains unmeasured. The historical netkit creation result also belongs to 6.18.35. [Raw experiment and qualification](../benchmarks/2026-11-21/gamma-mixed-scheduler.md)
 
+## What the pinned 7.3.5 worker can test
+
+The archived `full` worker has netkit built in. The same kernel explicitly disables ipvlan and AF_XDP. Its config SHA-256 is `a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c`. The archive records Image SHA-256 `7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd`. Replay the config from the repository root with the command below. The same diagnostic accepts a candidate's resolved config via `--config PATH`. [Archived full config](../benchmarks/2026-11-21/gamma-direct-macvlan.json.gz) · [Diagnostic](../../scripts/relaybench/guest_network_config.py)
+
+```sh
+python3 -B scripts/relaybench/guest_network_config.py --gamma-stock
+```
+
+| Datapath | Stock build | Implication for the experiment |
+| --- | --- | --- |
+| Direct private macvlan | `VETH=y`, `MACVLAN=y` | Direct publication verifies a veth at the original address and creates the private macvlan child. Use this as the published-path control. [Direct endpoint](../../guest/runner/docker_port_direct_linux.go) |
+| ipvlan | `IPVLAN=n` | The Docker network API accepts ipvlan and its Linux link code requests L2. This worker lacks the driver for either L2 or L3. Qualifying L2 requires a kernel with ipvlan enabled. L3 also needs separate link provisioning. [Workload links](../../guest/runner/docker_links_linux.go) |
+| netkit peer redirect | `NETKIT=y`, `BPF_SYSCALL=y` | Linux provides primary and peer program attachments and a redirect action. The released product path above creates a macvlan. A netkit trial requires independently provisioned links, observed attachments and directional traffic on the intended link. |
+| netkit AF_XDP | `XDP_SOCKETS=n` | An AF_XDP candidate needs another kernel configuration. The pinned driver's XSK pool setup also rejects paired devices and requires a leased RX queue, lower-device XSK operations and advertised XSK features. |
+| io_uring zero-copy receive | `IO_URING_ZCRX=y` | For a device-bound registration the kernel resolves a DMA device for the chosen RX queue and opens its page-pool memory provider. Successful registration and delivery into registered buffers on the actual worker remain open. |
+| TCP pipe splice | `NET=y`, `INET=y` | The TCP stream operations include pipe splice. Ordinary `splice(2)` rejects two non-pipe file descriptors. The proposed paired-socket module needs its own ABI and an owner of both established sockets. The userspace forwarder accepts and dials those sockets. [Forwarder](../../guest/runner/docker_ports_linux.go) |
+| SOCKMAP / SOCKHASH | `BPF_SYSCALL=y`, `NET=y`, `INET=y`, `BPF_STREAM_PARSER=y` | The build includes the socket map types and stream-parser infrastructure. A successful attach and verified end-to-end bytes on this kernel remain open. The earlier zero-of-six result used 6.18.35. |
+
+Source locations refer to the worker builder's pinned Linux 7.3.5 archive, SHA-256 `8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990`. See `drivers/net/{Kconfig,Makefile}` and `drivers/net/netkit.c` (`netkit_xmit`, `netkit_xsk`, `netkit_prog_attach`) for the link paths. The RX queue registration checks are in `io_uring/zcrx.c` at lines 902–928. Pipe handling is in `fs/splice.c:1300` and `net/ipv4/af_inet.c:1082`. The map type registrations and stream parser selections are in `include/linux/bpf_types.h:122`, `net/core/Makefile:44` and `net/Kconfig:361`. [Source digest and build options](../../ci/build-worker-kernel.sh)
+
 ## Offline socket-pair check
 
 A capture for a known test flow needs the guest boot ID at `sys/kernel/random/boot_id`, the forwarder's `PID/fd` symlinks, and `PID/stat`, `PID/ns/net` and `PID/net/tcp` for the relevant processes. Preserve raw symlink targets. The accepted socket and the dialed socket can belong to different network namespaces, including when a child inherited its listener. Supply a process that can see each table. All inputs must be from the same guest and observation window.
