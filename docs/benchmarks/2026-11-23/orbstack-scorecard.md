@@ -61,4 +61,4 @@ The [optimization register](../../research/2026-11-23-optimization-register.md) 
 
 Both the host relay scorer and new peer holdouts verify the raw listener count. Peer runs also bind the actual client arguments and service marker. The first-build fixture checks for empty Go caches and a pinned module. A partially warm control took 0.175 s and invoked the compiler once, versus 3.702 s and 106 compiler or assembler invocations from empty stores. [Host scorer](../../../scripts/relaybench/test_compare.py) · [Peer verifier](../../../scripts/relaybench/peer_verdict.py) · [First-build control](first-go-build-local.json)
 
-At 17:16 AEDT on 23 November, Gamma’s isolated Linux worker held its only lease. The isolated owner handoff is pending. [Performance backlog](https://github.com/castlemilk/micropod/issues/227)
+At 18:56 AEDT on 23 November, Gamma’s isolated Linux worker held its only lease. The isolated owner handoff is pending. [Performance backlog](https://github.com/castlemilk/micropod/issues/227)

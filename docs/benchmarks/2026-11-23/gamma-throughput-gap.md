@@ -19,6 +19,37 @@ Both one-port and 32-port fixtures can report a 16/16 flow split across two work
 
 [Host relay graph](../2026-11-22/gamma-host-relay-gains.png) · [Workload and host figures](../2026-11-22/gamma-tcp-contrasts.md) · [Filter call counts](../2026-11-22/gamma-filter-work.md)
 
+## Relay copies when a receiver falls behind
+
+The stock relay attempts one write for each ready endpoint. If that write sends only part of a new read, the relay allocates space for the unsent bytes and copies them. A second short write from the same buffer advances an offset. It needs no new allocation. This distinction matters in the two Gamma profiles below. Both combine uploads and downloads over a complete lease. Their historical counters bound the bytes that could have been copied.
+
+| Archived VM workload | Short or blocked writes / attempts | Maximum bytes copied at 256 KiB per event |
+| --- | ---: | ---: |
+| Bulk-only lease, 8.00 GiB forwarded | 12 / 35,821 | 3 MiB (0.037%) |
+| Uncapped service, 12 rounds of 32 downloads with 240 sequential fresh requests per round, 302.42 GiB forwarded | 153 / 1,476,438 | 38.25 MiB (0.0124%) |
+
+The second lease includes warmup and drain. The four-vCPU, 40-arrivals-per-second OrbStack holdout did not collect these counters. A separate diagnostic run on the revised relay can report actual `pending_allocations` and `pending_copy_bytes` on lease release with `MICROPOD_CI_PORT_PROFILE=1`. Measure uninstrumented throughput separately. [Bulk profile](../2026-11-21/gamma-published-profile.json.gz) · [Mixed profile, record `uncapped-eof/relay`](../2026-11-21/gamma-mixed-path.json.gz) · [Worker profiling fields](../../ci-worker.md)
+
+A local candidate lent the consumed read buffer to one stalled direction per owner when at least 64 KiB remained. A second 256 KiB buffer let the owner keep serving other flows. Four established streams shared the owner with short request/reply exchanges. Each arm verified 3 GiB of bulk data in each condition across 16 paired blocks. The fixture ran on anonymous macOS sockets, with a 32 KiB downstream buffer for the pressure case and 1 MiB for the freely draining control. The timing includes the staged short exchanges and verification. [Source and reproduction driver](../../../scripts/relaybench/check_suffix_loan.py) · [All measurements and sanitizer checks](relay-suffix-loan-offline.json)
+
+| Local result | Stock | Buffer loan | Median paired change (95% interval) |
+| --- | ---: | ---: | ---: |
+| Copied bytes per 96 MiB of pressured bulk data | 90 MiB | 67.5 MiB | −25% in every sample |
+| Verified throughput under pressure | 1,823 MiB/s | 1,801 MiB/s | −0.44% (−3.15% to +1.73%) |
+| Fresh p95 under pressure | 73.3 µs | 72.6 µs | −4.62% (−8.79% to +2.87%) |
+| Owner CPU per GiB under pressure | 0.2140 s | 0.2081 s | −4.25% (−5.63% to −2.62%) |
+| Owner CPU per GiB, freely draining | 0.1311 s | 0.1246 s | −4.23% (−6.35% to −1.76%) |
+
+Both builds copied zero suffix bytes in the freely draining control. Within each block, dividing the pressured candidate/control CPU ratio by the freely draining ratio gives a median change of −0.11% (95% block bootstrap −2.21% to +3.00%). The pressure trial shows fewer copies, with no resolved throughput or pressure-specific CPU gain. In a second set of 16 paired blocks, both arms used the same binary and toggled lending. Under pressure it again copied 25% fewer bytes. Owner CPU per GiB changed −0.65% (95% interval −3.94% to +0.53%), throughput −0.45% (−3.35% to +2.09%) and fresh p95 +6.85% (−3.58% to +11.62%). Keep the prototype in the benchmark fixture. Use the actual copy counters if a slow-consumer workload warrants another trial. [Same-binary confirmation](relay-suffix-loan-attribution.json)
+
+## Relay read size at fixed queue topology
+
+The archived Linux 6.18.35 mixed-load trial contained a 256 KiB control with the same flat relay queue as its 512 KiB candidate. Comparing within seven blocks, 512 KiB won six and gained 11.9% in median paired throughput (95% interval +1.2% to +22.2%). One round at each size exceeded the 75 ms fresh p95 target, reaching 87.2 ms at 512 KiB and 128.9 ms at 256 KiB. In an earlier three-burst workload, 512 KiB won two of six pairs and delivered 0.661× the paired 256 KiB throughput. Queue topology, callback policy and offered work differed between studies. [Archive replay and per-block results](relay-chunk-replay.json) · [Replay source](../../../scripts/relaybench/chunk_replay.py)
+
+After the four-vCPU worker comparison, build stock and `-Xcc -DMICROPOD_BENCH_512K_READS=1` arms from the same revision with the selected worker count and identical callback settings. The switch doubles scratch capacity per relay object from 256 to 512 KiB. It changes the maximum read on both directions for fresh and established streams. With two data owners and an accept owner, the larger setting adds 768 KiB of scratch capacity. A Darwin socketpair check delivered 786,449 queued bytes in four reads at 256 KiB and two at 512 KiB. Both builds served a newly readable 17-byte reply before the next ready bulk read. [Fixed-work regression](../../../scripts/relaybench/test_relay_read_size.py)
+
+Keep socket windows, one-write-per-ready-endpoint service and guest limits fixed. Record throughput and every round’s fresh p95, p99, loss, CPU/GiB and runnable wait. The historical result qualifies this comparison for a new trial on the revised relay.
+
 ## First released window
 
 At 16:11 AEDT on 23 November the project volume showed 173 GiB available. Cuttlefish reported four of six slots leased on the Mac and one of one on the isolated Linux runner, whose displayed state was online. The four earlier scopes were retired. The storage update and request for an existing baseline or a released and provisioned scope were placed in the warm-CI handoff. [Fleet observation](gamma-fleet-1611-aedt.json)

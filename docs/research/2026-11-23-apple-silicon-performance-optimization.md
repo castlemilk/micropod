@@ -1,6 +1,6 @@
 # Apple Silicon performance experiments
 
-The [optimization register](2026-11-23-optimization-register.md) tracks all 101 research directions and four follow-ons across 13 backlog issues. The follow-ons cover desktop stats, first-build caches, relay read filters and Go suite preparation. Each direction has evidence, a next measurement and an experiment group.
+The [optimization register](2026-11-23-optimization-register.md) tracks all 101 research directions and five follow-ons across 13 backlog issues. The follow-ons cover desktop stats, first-build caches, relay read filters, Go suite preparation and relay read size. Each direction has evidence, a next measurement and an experiment group.
 
 The 23 November blueprint asks whether host scheduling can improve published TCP throughput while keeping fresh requests under 75 ms at p95. The implementation base is the warm-worker performance branch at `2b7fde8ec336c266fc96a1288953303ac5cd69e7`. Its native relay already has a dedicated accept queue, multiple data workers and an opt-in Interactive launchd job.
 
