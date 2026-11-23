@@ -11,8 +11,10 @@ and compiler provenance must be established separately.
 import argparse
 import hashlib
 import json
+import mmap
 from pathlib import Path
 import re
+import zlib
 
 
 PAGE_SIZES = (4, 16, 64)
@@ -50,6 +52,31 @@ def config_options(data):
     return options
 
 
+def verify_embedded_config(image, config, configured):
+    # kernel/configs.c places a gzip member between IKCFG_ST and IKCFG_ED.
+    # The gzip prefix distinguishes the payload from marker literals in code.
+    marker = b"IKCFG_ST\x1f\x8b\x08"
+    pos = image.find(marker)
+    if pos < 0:
+        if configured:
+            raise ValueError("Image lacks the kernel config enabled in its sidecar")
+        return False
+    if image.find(marker, pos + len(marker)) >= 0:
+        raise ValueError("multiple embedded kernel configs in Image")
+    begin = pos + len(b"IKCFG_ST")
+    end = image.find(b"IKCFG_ED", begin)
+    if end < 0:
+        raise ValueError("unterminated embedded kernel config in Image")
+    decoder = zlib.decompressobj(16 + zlib.MAX_WBITS)
+    try:
+        embedded = decoder.decompress(image[begin:end], len(config) + 1)
+    except zlib.error as exc:
+        raise ValueError("invalid gzip data in embedded kernel config") from exc
+    if not decoder.eof or decoder.unused_data or embedded != config:
+        raise ValueError("embedded kernel config differs from sidecar")
+    return True
+
+
 def inspect(directory, expected_kib):
     sums = checksums(directory)
     config = (directory / "config").read_bytes()
@@ -66,24 +93,25 @@ def inspect(directory, expected_kib):
 
     # Raw Linux arm64 boot protocol: docs.kernel.org/arch/arm64/booting.html.
     # image_size is the required memory extent and can include uninitialised BSS.
-    with (directory / "Image").open("rb") as image:
-        header = image.read(64)
-        checksum = hashlib.sha256(header)
-        length = len(header)
-        for block in iter(lambda: image.read(1024 * 1024), b""):
-            length += len(block)
-            checksum.update(block)
-    if checksum.hexdigest() != sums["Image"]:
-        raise ValueError("Image digest differs from builder SHA256SUMS")
-    if length <= 64 or header[56:60] != b"ARM\x64":
-        raise ValueError("missing raw arm64 Image header or payload")
+    with (directory / "Image").open("rb") as source:
+        if source.seek(0, 2) <= 64:
+            raise ValueError("missing raw arm64 Image header or payload")
+        with mmap.mmap(source.fileno(), 0, access=mmap.ACCESS_READ) as image:
+            length = len(image)
+            header = image[:64]
+            if hashlib.sha256(image).hexdigest() != sums["Image"]:
+                raise ValueError("Image digest differs from builder SHA256SUMS")
+            if header[56:60] != b"ARM\x64":
+                raise ValueError("missing raw arm64 Image header or payload")
+            embedded = verify_embedded_config(image, config, options.get("CONFIG_IKCONFIG") == "y")
     memory_size = int.from_bytes(header[16:24], "little")
     flags = int.from_bytes(header[24:32], "little")
     granule = (None, *PAGE_SIZES)[(flags >> 1) & 3]
     if memory_size <= 64 or flags & 1 or granule != expected_kib:
         raise ValueError(f"arm64 Image header does not confirm little-endian {expected_kib} KiB pages")
     return {"image_sha256": sums["Image"], "config_sha256": sums["config"],
-            "image_bytes": length, "image_memory_bytes": memory_size, "page_kib": granule}, options
+            "image_bytes": length, "image_memory_bytes": memory_size, "page_kib": granule,
+            "embedded_config_verified": embedded}, options
 
 
 def compare(control, candidate, control_kib, candidate_kib):

@@ -1,3 +1,4 @@
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -72,6 +73,24 @@ class KernelCandidateTests(unittest.TestCase):
         manifest.write_text(manifest.read_text() * 2)
         with self.assertRaisesRegex(ValueError, "unique"):
             kernels.inspect(self.trial, 16)
+
+    def test_embedded_image_config_binds_the_sidecar(self):
+        option = "CONFIG_IKCONFIG=y\n"
+        write_bundle(self.trial, granule=16, config_extra=option)
+        config = (self.trial / "config").read_bytes()
+        payload = b"IKCFG_ST" + gzip.compress(config, mtime=0) + b"IKCFG_ED"
+        write_bundle(self.trial, granule=16, config_extra=option, payload=payload)
+        self.assertTrue(kernels.inspect(self.trial, 16)[0]["embedded_config_verified"])
+        write_bundle(self.trial, granule=16, config_extra=option + "CONFIG_PREEMPT=y\n", payload=payload)
+        with self.assertRaisesRegex(ValueError, "differs from sidecar"):
+            kernels.inspect(self.trial, 16)
+        for broken in (b"absent", payload[:-8], payload + payload, payload[:-9] + b"IKCFG_ED"):
+            with self.subTest(payload=broken):
+                write_bundle(self.trial, granule=16, config_extra=option, payload=broken)
+                with self.assertRaises(ValueError):
+                    kernels.inspect(self.trial, 16)
+        write_bundle(self.trial, granule=16, config_extra="CONFIG_IKCONFIG=m\n")
+        self.assertFalse(kernels.inspect(self.trial, 16)[0]["embedded_config_verified"])
 
     def test_effective_config_drift_reports_page_shift_and_protection_options(self):
         write_bundle(self.control, config_extra="CONFIG_SECURITY=y\nCONFIG_PAGE_SHIFT=12\n")
