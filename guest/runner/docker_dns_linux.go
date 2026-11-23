@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"slices"
 	"strings"
@@ -167,7 +168,8 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 		return nil
 	}
 	host := strings.ToLower(strings.TrimSuffix(q.Name.String(), "."))
-	ips := n.services.lookup(host)
+	var oneAddress [1]netip.Addr
+	ips := n.services.lookup(host, &oneAddress)
 	out := dnsmessage.Message{Header: dnsmessage.Header{ID: h.ID, Response: true, Authoritative: true, RecursionDesired: h.RecursionDesired, RecursionAvailable: !n.Internal}, Questions: []dnsmessage.Question{q}}
 	if len(ips) > 0 {
 		s.metrics.networks.dnsLocal.Add(1)

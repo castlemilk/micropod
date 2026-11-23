@@ -49,7 +49,7 @@ func TestServiceDirectoryIsScopedAndDropsOnlyExitedAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	var restored workerNetwork
-	if err = json.Unmarshal(b, &restored); err != nil || len(restored.services.lookup("backend")) != 0 {
+	if err = json.Unmarshal(b, &restored); err != nil || len(restored.services.lookup("backend", &[1]netip.Addr{})) != 0 {
 		t.Fatal("persisted transient endpoints", err)
 	}
 }
