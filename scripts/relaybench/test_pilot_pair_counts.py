@@ -31,7 +31,9 @@ def worker_row(arm):
     counts = [total // 32] * 32
     counts[0] -= 2**20
     counts[-1] += 2**20
-    raw = dict(streams=32, bytes=total, window_s=window, mib_s=row["mib_s"], per_stream_bytes=counts)
+    raw = dict(published_ports=1, streams=32, arrivals=240, period_us=25000, reopened=0, errors=None,
+               bytes=total, window_s=window, mib_s=row["mib_s"], per_stream_bytes=counts,
+               fresh_p50_us=row["fresh_p50_us"], fresh_p95_us=row["fresh_p95_us"], fresh_p99_us=row["fresh_p99_us"])
     return dict(row, stdout=json.dumps(raw))
 
 
@@ -106,7 +108,7 @@ class PilotPairCountTests(unittest.TestCase):
                 return fixtures[path].copy()
             def attempt(_tools, fixture, _birth, row, check):
                 self.assertEqual(check()["mode"], "read-size")
-                row.update(measured(row["arm"]), stdout=json.dumps({"published_ports": 1, "fresh_p50_us": 5000}),
+                row.update(worker_row(row["arm"]),
                            client_arguments=["http://" + fixture["address"], fixture["name"]])
             with patch.object(pilot.platform, "node", return_value="Gamma-128GB"), patch.object(pilot.time, "time", return_value=now), \
                     patch.object(pilot, "digest", side_effect=lambda p: dict(pilot.HASHES, fixed=pilot.host_role.CLIENT_SHA256)[p.name]), \
@@ -185,14 +187,14 @@ class PilotPairCountTests(unittest.TestCase):
             args = Namespace(mode="workers", seed=34202, scored_pairs=4, tools=root,
                              a=a, b=b, fleet=fleet, release=release, check=False, out=root/"denied")
             def fixture(path, cpus, orb):
-                return dict(engine=path.name, id=path.name, address=path.name, name=path.name,
+                return dict(engine=path.name, id=path.name, address="127.0.0.1:9041" if path == a else "127.0.0.1:9042", name=path.name,
                             cpuset="0-3", instance=path.name, worker=path.name, kernel_image_sha256=pilot.STOCK_KERNEL,
                             release="same", engine_version="same", cli_sha256="same", service_env_sha256="same",
-                            relay_workers=2 if path == a else 4, callback_events=128, read_bytes=262144, route=pilot.DIRECT_ROUTE,
+                            relay_workers=2 if path == a or args.mode == "size" else 4, callback_events=128, read_bytes=262144, route=pilot.DIRECT_ROUTE,
                             pids={"vmm": 1 if path == a else 2})
             def measure(tools, fixture, birth, row, window):
                 self.assertEqual(window()["reservation"], row["admission"]["reservation"])
-                row.update(worker_row(row["arm"]))
+                row.update(worker_row(row["arm"]), client_arguments=["http://" + fixture["address"], fixture["name"]])
 
             orders = pilot.plan(args.seed, args.scored_pairs)
             with patch.object(pilot.platform, "node", return_value="Gamma-128GB"), \
@@ -239,6 +241,35 @@ class PilotPairCountTests(unittest.TestCase):
                 self.assertEqual(failed["verdict"], "reject")
                 self.assertIsNone(failed["median_paired_throughput_change_pct"])
                 self.assertEqual(failed["pairs"][0]["B"]["fresh_failed"], 1)
+
+                def mismatched(tools, fixture, birth, row, window):
+                    measure(tools, fixture, birth, row, window)
+                    if (row["phase"], row["pair"], row["arm"]) != ("scored", 1, "B"):
+                        return
+                    raw = json.loads(row["stdout"])
+                    if case == "multiport":
+                        raw["published_ports"] = 32
+                    elif case == "bytes":
+                        raw["per_stream_bytes"][0] += 0.5
+                        raw["per_stream_bytes"][1] -= 0.5
+                    else:
+                        row["client_arguments"][1] = "other-service"
+                    row["stdout"] = json.dumps(raw)
+                    row["clean"] = pilot.clean_client(raw)
+
+                attempt.side_effect = mismatched
+                for mode in ("workers", "size"):
+                    args.mode = mode
+                    release.write_text(json.dumps(dict(data, modes=[mode])))
+                    for case, error in (("multiport", "one published port"), ("bytes", "integer stream counts"),
+                                        ("marker", "client arguments")):
+                        args.out = root / (mode + "-" + case)
+                        with self.subTest(mode=mode, case=case), self.assertRaisesRegex(ValueError, error):
+                            pilot.run(args, orders)
+                        rejected = json.loads((args.out / "scored-1-B.json").read_text())
+                        self.assertFalse(rejected["clean"])
+                        self.assertIn("stdout", rejected)
+                        self.assertFalse((args.out / "complete.json").exists())
 
 
 if __name__ == "__main__":

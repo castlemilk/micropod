@@ -215,16 +215,16 @@ def identities(snap):
     return {r["pid"]: r["birth_ticks"] for r in snap["tasks"]}
 
 
-def peer_client(fixture, receipt):
+def single_port_client(fixture, receipt):
     """Verify which single published endpoint the pinned client was asked to measure."""
     address = fixture["address"]
     port = re.fullmatch(r"127\.0\.0\.1:([1-9][0-9]{0,4})", address) if isinstance(address, str) else None
-    require(port and int(port[1]) <= 65535, "peer fixture must identify a published loopback port")
+    require(port and int(port[1]) <= 65535, "fixture must identify a published loopback port")
     require(receipt.get("client_arguments") == ["http://" + address, fixture["name"]],
-            "client arguments differ from the peer fixture endpoint or marker")
+            "client arguments differ from the fixture endpoint or marker")
     client = json.loads(receipt["stdout"])
     require(isinstance(client, dict) and type(client.get("published_ports")) is int and client["published_ports"] == 1,
-            "peer holdout needs one published port in the raw client output")
+            "comparison needs one published port in the raw client output")
     return client
 
 
@@ -293,6 +293,17 @@ def save(path, obj):
     path.write_text(json.dumps(obj, indent=2, allow_nan=False) + "\n")
 
 
+def checked_stream_rates(client, pilot_rate):
+    rates = stream_rates(client, client["window_s"], client["mib_s"])
+    require(client["window_s"] >= 6, "measurement window was shorter than six seconds")
+    require("streams" not in client or type(client["streams"]) is int and client["streams"] == 32,
+            "declared stream count differs from the 32 stream counters")
+    if pilot_rate is not None:
+        require(type(pilot_rate) in (float, int) and math.isclose(pilot_rate, rates["mib_s"]),
+                "pilot throughput disagrees with raw counters")
+    return rates
+
+
 def worker_stream_rates(row):
     """Read the original client payload after timing. Old summaries may lack raw counts."""
     if row.get("stdout") is None:
@@ -303,13 +314,7 @@ def worker_stream_rates(row):
         missing = [k for k in ("per_stream_bytes", "bytes", "window_s", "mib_s") if k not in client]
         if missing:
             return {"status": "unavailable", "reason": "missing raw fields: " + ", ".join(missing)}
-        rates = stream_rates(client, client["window_s"], client["mib_s"])
-        require(client["window_s"] >= 6, "worker measurement window was shorter than six seconds")
-        require("streams" not in client or type(client["streams"]) is int and client["streams"] == 32,
-                "declared stream count differs from the 32 stream counters")
-        if row.get("mib_s") is not None:
-            require(type(row["mib_s"]) in (float, int) and math.isclose(row["mib_s"], rates["mib_s"]),
-                    "pilot throughput disagrees with raw counters")
+        rates = checked_stream_rates(client, row.get("mib_s"))
     except (TypeError, ValueError, OverflowError) as exc:
         return {"status": "invalid", "reason": str(exc)}
     if row.get("clean") is not True:
@@ -476,9 +481,11 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     require(host_role.timestamp(final["observed_at"]) < clearance_expiry
                             and latest_start <= opening["valid_until_epoch"],
                             "admission evidence does not cover the whole attempt")
-                    if peer_holdout or read_size:
-                        client = peer_client(fixtures[arm], row)
+                    if peer_holdout or screen:
+                        client = single_port_client(fixtures[arm], row)
                         require(type(client.get("fresh_p50_us")) is int, "missing scheduled-arrival p50 on the single-port comparison")
+                        if screen and row["clean"]:
+                            checked_stream_rates(client, row["mib_s"])
                     if role_test:
                         row["guest_after"] = host_role.guest_sample(command, fixture)
                         row["guest"] = host_role.guest_delta(row["guest_before"], row["guest_after"])

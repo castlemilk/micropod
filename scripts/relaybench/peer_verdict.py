@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 from statistics import median
 
 from gamma_contrasts import IMAGE, VM, clean_client, host_units, paired_median_interval, process_delta, read_receipt
-from gamma_pilot import DIRECT_ROUTE, HASHES, STOCK_KERNEL, arm_settings, peer_client, plan, require
+from gamma_pilot import DIRECT_ROUTE, HASHES, STOCK_KERNEL, arm_settings, plan, require, single_port_client
 from host_role import CLIENT_SHA256, timestamp
 
 ARCHIVE_SHA = "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4"
@@ -213,7 +213,7 @@ def directory(root, candidate_sha, candidate_read_kib=None):
                 and r["after"]["epoch_ns"] / 1e9 <= after < timestamp(r["admission"]["effective_disk_gate"]["expires_at"])
                 and last_start <= first_expiry,
                 "admission observations do not provide continuous coverage around the measured window")
-        client = peer_client(fixtures[arm], r)
+        client = single_port_client(fixtures[arm], r)
         for q in (50, 95, 99):
             value = client.get(f"fresh_p{q}_us")
             require(type(value) is int and value > 0, f"missing or invalid fresh p{q} from selected load client")
