@@ -75,13 +75,21 @@ def measure(exe, seconds, ports, workers, buffer_kib, profile, legacy, fixed_128
     if proc.returncode:
         raise RuntimeError(f"relay exit {proc.returncode}, {proc.stderr[-4000:]}")
     sample = json.loads(proc.stdout)
+    if not isinstance(sample, dict):
+        raise ValueError("relay output must be a sample object")
+    for field, requested in (("ports", ports), ("client_buffer_kib", buffer_kib), ("profile", int(profile))):
+        observed = sample.get(field)
+        if type(observed) is not int or observed != requested:
+            raise ValueError(f"relay reported {field}={observed!r}, expected {requested}")
+    if type(sample.get("elapsed_ns")) is not int or sample["elapsed_ns"] < seconds * 1_000_000_000:
+        raise ValueError("relay elapsed time is shorter than the requested load window")
     expected = [0] * workers
     for i in range(32):
         expected[(i // ports + (0 if legacy else i % ports)) % workers] += 1
     streams, fresh, dispatch = sample["per_stream_bytes"], sample["fresh_ns"], sample["dispatch_ns"]
     if (sample["bulk_flows_per_owner"] != expected or len(streams) != 32 or min(streams) <= 0
             or sum(streams) != sample["bytes"] or len(fresh) != seconds * 40 or len(dispatch) != len(fresh)
-            or any(total < delay or total <= 0 for total, delay in zip(fresh, dispatch))):
+            or any(delay < 0 or total < delay or total <= 0 for total, delay in zip(fresh, dispatch))):
         raise ValueError("invalid placement, byte accounting or probe samples")
     return dict(mib_s=sample["bytes"] * 1e9 / (1 << 20) / sample["elapsed_ns"],
                 p95_ms=quantile95(fresh) / 1e6, dispatch_p95_ms=quantile95(dispatch) / 1e6,
