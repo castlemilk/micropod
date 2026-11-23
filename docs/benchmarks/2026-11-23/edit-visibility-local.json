@@ -1,0 +1,300 @@
+{
+  "capture_utc": {
+    "started": "2026-11-23T04:46:36.161067+00:00",
+    "finished": "2026-11-23T04:46:36.337035+00:00"
+  },
+  "scope": "Two local processes on one Mac. The reader root is a symlink to the writer's local temporary directory. This smoke exercises no VM, synchronized view or power loss.",
+  "environment": {
+    "macos": "26.5.1",
+    "darwin": "25.5.0",
+    "architecture": "arm64",
+    "python": "3.15.0"
+  },
+  "command": [
+    "python3",
+    "-B",
+    "scripts/relaybench/edit_visibility.py",
+    "--writer-root",
+    "writer",
+    "--reader-root",
+    "reader",
+    "--rounds",
+    "8"
+  ],
+  "script_sha256": "adf18857c1c65b41f4ba4cf373faec4f85a7ac58d7f3271019a21ef1a980e4c5",
+  "path_display": "Writer and reader parent paths are stored relative to the private scratch directory.",
+  "remaining_writer_entries": 0,
+  "measurement": {
+    "workload": "micropod-edit-visibility-v1",
+    "writer_pid": 72147,
+    "reader_pid": 72151,
+    "writer_parent": "writer",
+    "reader_parent": "reader",
+    "rounds": 8,
+    "payload_bytes": 4096,
+    "reader_poll_interval_s": 0.001,
+    "observation_timeout_s": 5.0,
+    "timing": "writer monotonic start through reader acknowledgement, including polling, scheduling and IPC",
+    "percentiles": {
+      "method": "nearest rank",
+      "samples_per_action": 8,
+      "one_based_ranks": {
+        "p50": 4,
+        "p95": 8,
+        "p99": 8
+      },
+      "at_sample_maximum": [
+        "p95",
+        "p99"
+      ]
+    },
+    "start_to_reader_ack": {
+      "create": {
+        "p50_ns": 1331375,
+        "p95_ns": 1562167,
+        "p99_ns": 1562167
+      },
+      "atomic_replace": {
+        "p50_ns": 1414542,
+        "p95_ns": 5385708,
+        "p99_ns": 5385708
+      },
+      "rename": {
+        "p50_ns": 1449625,
+        "p95_ns": 1539750,
+        "p99_ns": 1539750
+      },
+      "delete": {
+        "p50_ns": 1505916,
+        "p95_ns": 18929333,
+        "p99_ns": 18929333
+      }
+    },
+    "samples": [
+      {
+        "round": 1,
+        "action": "create",
+        "mutation_ns": 583709,
+        "start_to_reader_ack_ns": 1195334,
+        "mutation_return_to_reader_ack_ns": 611625
+      },
+      {
+        "round": 1,
+        "action": "atomic_replace",
+        "mutation_ns": 268042,
+        "start_to_reader_ack_ns": 1608417,
+        "mutation_return_to_reader_ack_ns": 1340375
+      },
+      {
+        "round": 1,
+        "action": "rename",
+        "mutation_ns": 161125,
+        "start_to_reader_ack_ns": 1468083,
+        "mutation_return_to_reader_ack_ns": 1306958
+      },
+      {
+        "round": 1,
+        "action": "delete",
+        "mutation_ns": 18761542,
+        "start_to_reader_ack_ns": 18929333,
+        "mutation_return_to_reader_ack_ns": 167791
+      },
+      {
+        "round": 2,
+        "action": "create",
+        "mutation_ns": 1254875,
+        "start_to_reader_ack_ns": 1562167,
+        "mutation_return_to_reader_ack_ns": 307292
+      },
+      {
+        "round": 2,
+        "action": "atomic_replace",
+        "mutation_ns": 5351333,
+        "start_to_reader_ack_ns": 5385708,
+        "mutation_return_to_reader_ack_ns": 34375
+      },
+      {
+        "round": 2,
+        "action": "rename",
+        "mutation_ns": 260125,
+        "start_to_reader_ack_ns": 360042,
+        "mutation_return_to_reader_ack_ns": 99917
+      },
+      {
+        "round": 2,
+        "action": "delete",
+        "mutation_ns": 1449041,
+        "start_to_reader_ack_ns": 1505916,
+        "mutation_return_to_reader_ack_ns": 56875
+      },
+      {
+        "round": 3,
+        "action": "create",
+        "mutation_ns": 1357625,
+        "start_to_reader_ack_ns": 1469792,
+        "mutation_return_to_reader_ack_ns": 112167
+      },
+      {
+        "round": 3,
+        "action": "atomic_replace",
+        "mutation_ns": 394583,
+        "start_to_reader_ack_ns": 1414542,
+        "mutation_return_to_reader_ack_ns": 1019959
+      },
+      {
+        "round": 3,
+        "action": "rename",
+        "mutation_ns": 105250,
+        "start_to_reader_ack_ns": 1539750,
+        "mutation_return_to_reader_ack_ns": 1434500
+      },
+      {
+        "round": 3,
+        "action": "delete",
+        "mutation_ns": 1183250,
+        "start_to_reader_ack_ns": 1405292,
+        "mutation_return_to_reader_ack_ns": 222042
+      },
+      {
+        "round": 4,
+        "action": "create",
+        "mutation_ns": 205250,
+        "start_to_reader_ack_ns": 1312292,
+        "mutation_return_to_reader_ack_ns": 1107042
+      },
+      {
+        "round": 4,
+        "action": "atomic_replace",
+        "mutation_ns": 380334,
+        "start_to_reader_ack_ns": 1493709,
+        "mutation_return_to_reader_ack_ns": 1113375
+      },
+      {
+        "round": 4,
+        "action": "rename",
+        "mutation_ns": 100625,
+        "start_to_reader_ack_ns": 1399083,
+        "mutation_return_to_reader_ack_ns": 1298458
+      },
+      {
+        "round": 4,
+        "action": "delete",
+        "mutation_ns": 73792,
+        "start_to_reader_ack_ns": 1512750,
+        "mutation_return_to_reader_ack_ns": 1438958
+      },
+      {
+        "round": 5,
+        "action": "create",
+        "mutation_ns": 146167,
+        "start_to_reader_ack_ns": 1329708,
+        "mutation_return_to_reader_ack_ns": 1183541
+      },
+      {
+        "round": 5,
+        "action": "atomic_replace",
+        "mutation_ns": 308750,
+        "start_to_reader_ack_ns": 1384167,
+        "mutation_return_to_reader_ack_ns": 1075417
+      },
+      {
+        "round": 5,
+        "action": "rename",
+        "mutation_ns": 61125,
+        "start_to_reader_ack_ns": 1449625,
+        "mutation_return_to_reader_ack_ns": 1388500
+      },
+      {
+        "round": 5,
+        "action": "delete",
+        "mutation_ns": 95375,
+        "start_to_reader_ack_ns": 1219333,
+        "mutation_return_to_reader_ack_ns": 1123958
+      },
+      {
+        "round": 6,
+        "action": "create",
+        "mutation_ns": 151167,
+        "start_to_reader_ack_ns": 1331375,
+        "mutation_return_to_reader_ack_ns": 1180208
+      },
+      {
+        "round": 6,
+        "action": "atomic_replace",
+        "mutation_ns": 253750,
+        "start_to_reader_ack_ns": 1381250,
+        "mutation_return_to_reader_ack_ns": 1127500
+      },
+      {
+        "round": 6,
+        "action": "rename",
+        "mutation_ns": 140625,
+        "start_to_reader_ack_ns": 1510667,
+        "mutation_return_to_reader_ack_ns": 1370042
+      },
+      {
+        "round": 6,
+        "action": "delete",
+        "mutation_ns": 181250,
+        "start_to_reader_ack_ns": 206250,
+        "mutation_return_to_reader_ack_ns": 25000
+      },
+      {
+        "round": 7,
+        "action": "create",
+        "mutation_ns": 273542,
+        "start_to_reader_ack_ns": 1445833,
+        "mutation_return_to_reader_ack_ns": 1172291
+      },
+      {
+        "round": 7,
+        "action": "atomic_replace",
+        "mutation_ns": 343041,
+        "start_to_reader_ack_ns": 1411208,
+        "mutation_return_to_reader_ack_ns": 1068167
+      },
+      {
+        "round": 7,
+        "action": "rename",
+        "mutation_ns": 63959,
+        "start_to_reader_ack_ns": 1449250,
+        "mutation_return_to_reader_ack_ns": 1385291
+      },
+      {
+        "round": 7,
+        "action": "delete",
+        "mutation_ns": 111209,
+        "start_to_reader_ack_ns": 1533542,
+        "mutation_return_to_reader_ack_ns": 1422333
+      },
+      {
+        "round": 8,
+        "action": "create",
+        "mutation_ns": 207375,
+        "start_to_reader_ack_ns": 1543834,
+        "mutation_return_to_reader_ack_ns": 1336459
+      },
+      {
+        "round": 8,
+        "action": "atomic_replace",
+        "mutation_ns": 284917,
+        "start_to_reader_ack_ns": 1417000,
+        "mutation_return_to_reader_ack_ns": 1132083
+      },
+      {
+        "round": 8,
+        "action": "rename",
+        "mutation_ns": 58750,
+        "start_to_reader_ack_ns": 1491625,
+        "mutation_return_to_reader_ack_ns": 1432875
+      },
+      {
+        "round": 8,
+        "action": "delete",
+        "mutation_ns": 99500,
+        "start_to_reader_ack_ns": 1523208,
+        "mutation_return_to_reader_ack_ns": 1423708
+      }
+    ]
+  }
+}
