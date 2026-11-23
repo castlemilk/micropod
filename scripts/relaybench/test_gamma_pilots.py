@@ -5,8 +5,10 @@ import io
 import json
 import struct
 import subprocess
+import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -15,6 +17,15 @@ from unittest.mock import patch
 import gamma_contrasts as evidence
 import gamma_pilot as vm
 import gamma_relay_pilot as relay
+from test_host_role import make_window
+
+
+def owner_window(root, scopes, mode):
+    fleet, release = make_window(root, time.time(), scopes)
+    owner = json.loads(release.read_text())
+    owner["modes"] = [mode]
+    release.write_text(json.dumps(owner))
+    return fleet, release
 
 
 class GammaPilots(unittest.TestCase):
@@ -92,7 +103,8 @@ class GammaPilots(unittest.TestCase):
             return dict(engine=key, id=key, address=key, name=key, cpus=cpus, cpuset="0-3", relay_workers=2,
                         pids={"vmm": 2 if orb else 1})
 
-        def attempt(tools, fixture, birth, row):
+        def attempt(tools, fixture, birth, row, check):
+            self.assertEqual(check()["scopes"], row["admission"]["scopes"])
             row.update(clean=True, mib_s=2500 if row["arm"] == "A" else 3000)
             if row["phase"] == "scored" and row["pair"] == 1 and row["arm"] == "B":
                 row.update(clean=False, fresh_failed=1)
@@ -102,7 +114,9 @@ class GammaPilots(unittest.TestCase):
             a, b = root / "micro", root / "orb"
             a.mkdir()
             b.mkdir()
-            args = Namespace(a=a, b=b, out=root / "check", seed=34199, mode="peer", tools=root, check=True)
+            fleet, release = owner_window(root, (a, b), "peer")
+            args = Namespace(a=a, b=b, out=root / "check", seed=34199, mode="peer", tools=root, check=True,
+                             fleet=fleet, release=release)
             with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
                  patch.object(vm, "digest", side_effect=lambda p: vm.HASHES[p.name]), \
                  patch.object(vm, "inspect", side_effect=inspect) as inspected, \
@@ -118,6 +132,63 @@ class GammaPilots(unittest.TestCase):
                 self.assertEqual(summary["ratio_direction"], "Micropod/OrbStack")
                 self.assertEqual(summary["paired_ratios"], {"2": 2500 / 3000})
                 self.assertEqual(json.loads((args.out / "scored-1-B.json").read_text())["fresh_failed"], 1)
+                initial = json.loads((args.out / "handoff.json").read_text())
+                self.assertEqual(initial["mode"], "peer")
+                self.assertEqual(initial["scopes"], [str(a.resolve()), str(b.resolve())])
+                for path in list(args.out.glob("warmup-*.json")) + list(args.out.glob("scored-*.json")):
+                    row = json.loads(path.read_text())
+                    for label in ("admission", "admission_after"):
+                        observation = row[label]
+                        for key in ("mode", "scopes", "owner", "reservation", "fleet_time", "starts_at", "expires_at",
+                                    "effective_disk_gate"):
+                            self.assertEqual(observation[key], initial[key])
+                    self.assertLessEqual(row["admission"]["observed_at"], row["admission_after"]["observed_at"])
+
+                def withdraw(tools, fixture, birth, row, check):
+                    owner = json.loads(release.read_text())
+                    owner["reservation"] = "different-owner-window"
+                    release.write_text(json.dumps(owner))
+                    check()
+
+                args.out = root / "withdrawn"
+                measured.side_effect = withdraw
+                with self.assertRaisesRegex(ValueError, "handoff changed"):
+                    vm.run(args, vm.plan(args.seed))
+                aborted = json.loads(next(args.out.glob("warmup-*.json")).read_text())
+                self.assertFalse(aborted["clean"])
+                self.assertIsNone(aborted["admission_after"])
+                self.assertIn("handoff changed", aborted["error"])
+                self.assertFalse((args.out / "complete.json").exists())
+
+    def test_live_modes_require_exclusive_release_before_any_fixture_probe(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            a, b = root / "micro", root / "orb"
+            a.mkdir()
+            b.mkdir()
+            fleet, release = make_window(root, time.time(), (a, b))  # Only authorizes host-role.
+            for mode, pairs in (("size", 2), ("workers", 2), ("peer", 2), ("peer", 16)):
+                for checking in (True, False):
+                    args = Namespace(a=a, b=b, out=root / f"denied-{mode}-{pairs}-{checking}", seed=34203, mode=mode,
+                                     tools=root, check=checking, fleet=fleet, release=release)
+                    with self.subTest(pairs=pairs, checking=checking), \
+                            patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
+                            patch.object(vm, "digest", side_effect=lambda p: (
+                                vm.host_role.CLIENT_SHA256 if mode == "peer" and pairs == 16 and p.name == "fixed"
+                                else vm.HASHES[p.name])), \
+                            patch.object(vm, "inspect") as inspect, patch.object(vm, "attempt") as attempt:
+                        with self.assertRaisesRegex(ValueError, "owner handoff"):
+                            vm.run(args, vm.plan(args.seed, pairs))
+                        inspect.assert_not_called()
+                        attempt.assert_not_called()
+                    cmd = [sys.executable, "-B", vm.__file__, "--mode", mode, "--a", str(a), "--b", str(b),
+                           "--out", str(root / "cli"), "--check" if checking else "--run"]
+                    if pairs == 16:
+                        cmd.append("--holdout")
+                    cli = subprocess.run(cmd, text=True, capture_output=True)
+                    self.assertEqual(cli.returncode, 2)
+                    self.assertIn("--fleet and --release", cli.stderr)
+                    self.assertFalse((root / "cli").exists())
 
     def test_relay_timeout_retains_its_pair_and_partial_counts(self):
         def measure(exe, seconds, ports, workers, kib, profile, legacy, progress):
@@ -150,7 +221,9 @@ class GammaPilots(unittest.TestCase):
             def fixture(path, cpus, orb):
                 return dict(engine=path.name, id=path.name, address=path.name, name=path.name,
                             cpuset=f"0-{cpus - 1}", pids={"vmm": cpus})
-            args = Namespace(a=a, b=b, out=root / "out", seed=34199, mode="size", tools=root, check=False)
+            fleet, release = owner_window(root, (a, b), "size")
+            args = Namespace(a=a, b=b, out=root / "out", seed=34199, mode="size", tools=root, check=False,
+                             fleet=fleet, release=release)
             with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
                  patch.object(vm, "digest", side_effect=lambda path: vm.HASHES[path.name]), \
                  patch.object(vm, "inspect", side_effect=fixture), patch.object(vm, "attempt") as timed:
@@ -164,7 +237,9 @@ class GammaPilots(unittest.TestCase):
             a, b = root / "two", root / "four"
             a.mkdir()
             b.mkdir()
-            args = Namespace(a=a, b=b, out=root / "out", seed=34202, mode="workers", tools=root, check=False)
+            fleet, release = owner_window(root, (a, b), "workers")
+            args = Namespace(a=a, b=b, out=root / "out", seed=34202, mode="workers", tools=root, check=False,
+                             fleet=fleet, release=release)
             common = dict(cpuset="0-3", kernel_image_sha256=vm.STOCK_KERNEL, release="7.3.5-micropod", engine_version="same",
                           cli_sha256="same-digest", route=vm.DIRECT_ROUTE, service_env_sha256="same-env")
             fixtures = {p: dict(common, engine=p.name, id=p.name, address=p.name, name=p.name, instance=p.name,
@@ -173,7 +248,8 @@ class GammaPilots(unittest.TestCase):
             def inspect(path, cpus, orb):
                 self.assertEqual((cpus, orb), (4, False))
                 return fixtures[path]
-            def measure(tools, f, birth, row):
+            def measure(tools, f, birth, row, check):
+                self.assertEqual(check()["mode"], "workers")
                 row.update(clean=True, mib_s=2700 if row["arm"] == "A" else 3000)
             with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
                  patch.object(vm, "digest", side_effect=lambda path: vm.HASHES[path.name]), \
@@ -217,22 +293,27 @@ class GammaPilots(unittest.TestCase):
                         relay_workers=None if orb else 4, callback_events=None if orb else 128,
                         route=vm.DIRECT_ROUTE, pids={"vmm": 2 if orb else 1})
 
-        def measure(tools, fixture, birth, row):
+        def measure(tools, fixture, birth, row, check):
+            self.assertEqual(check()["mode"], "peer")
             dirty = row["phase"] == "scored" and row["pair"] == 1 and row["arm"] == "A"
-            row.update(clean=not dirty, mib_s=3000 if row["arm"] == "A" else 2700, fresh_failed=int(dirty))
+            row.update(clean=not dirty, mib_s=3000 if row["arm"] == "A" else 2700, fresh_failed=int(dirty),
+                       fresh_p50_us=1200)
 
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             a, b = root / "micro", root / "orb"
             a.mkdir()
             b.mkdir()
-            args = Namespace(a=a, b=b, out=root / "out", seed=34203, mode="peer", tools=root, check=False)
+            fleet, release = owner_window(root, (a, b), "peer")
+            args = Namespace(a=a, b=b, out=root / "out", seed=34203, mode="peer", tools=root, check=False,
+                             fleet=fleet, release=release)
             with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
-                 patch.object(vm, "digest", side_effect=lambda path: vm.HASHES[path.name]), \
+                 patch.object(vm, "digest", side_effect=lambda p: dict(vm.HASHES, fixed=vm.host_role.CLIENT_SHA256)[p.name]), \
                  patch.object(vm, "inspect", side_effect=inspect), patch.object(vm, "snapshot", return_value={"tasks": []}), \
                  patch.object(vm, "attempt", side_effect=measure) as timed:
                 vm.run(args, vm.plan(args.seed, 16), workers=4, peer_vcpus=6)
             result = json.loads((args.out / "complete.json").read_text())
+            self.assertEqual(json.loads((args.out / "plan.json").read_text())["tools"]["fixed"], vm.host_role.CLIENT_SHA256)
             self.assertEqual(timed.call_count, 38)
             self.assertEqual(result["clean_scored"], {"A": 15, "B": 16})
             self.assertEqual(result["bootstrap_ci95"], [3000 / 2700] * 2)

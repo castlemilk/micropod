@@ -29,9 +29,9 @@ Use the isolated benchmark jobs' normal signing and launch procedure for that bi
 ```sh
 python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202
 python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202 \
-  --a "$SCOPE_4V_2W" --b "$SCOPE_4V_4W" --check --out "$NEW_WORKER_CHECK"
+  --a "$SCOPE_4V_2W" --b "$SCOPE_4V_4W" --fleet "$FLEET" --release "$RELEASE" --check --out "$NEW_WORKER_CHECK"
 python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202 \
-  --a "$SCOPE_4V_2W" --b "$SCOPE_4V_4W" --run --out "$NEW_WORKER_RUN"
+  --a "$SCOPE_4V_2W" --b "$SCOPE_4V_4W" --fleet "$FLEET" --release "$RELEASE" --run --out "$NEW_WORKER_RUN"
 ```
 
 The first command prints the schedule offline. The second verifies already-serving endpoints with zero timed load. The last runs three warmup pairs and two scored pairs with opposite orders, 60 seconds of offered load including warmup. Each arm keeps 32 bulk downloads active and schedules 240 fresh requests at 25 ms intervals. Record MiB/s, fresh failures and reopens across all attempts, scheduled-arrival p95/p99, CPU-s/GiB and runnable thread-s/s. Sum Micropod's VMM and supervisor within each round. The corresponding OrbStack process is its helper.
@@ -43,8 +43,19 @@ The first command prints the schedule offline. The second verifies already-servi
 3. For a four- versus six-vCPU comparison use `--mode size --relay-workers "$WORKERS" --seed 34204`. Fix the selected worker count, 128-event callback and effective service CPUs 0–3 on both arms. A six-vCPU candidate needs a six-vCPU OrbStack comparison.
 4. Once the owner confirms restored OrbStack socket and loopback access, run the preflight below against two dedicated scopes. For the independent timed holdout replace `--check` with `--run` and choose a fresh output directory. Use the same Micropod executable digest as the selected candidate. Compare 16 scored pairs with balanced randomized ordering, preceded by three warmup pairs. Retain every dirty attempt. Require clean Micropod rounds, zero fresh losses and bulk reopens, and a lower 95% paired throughput bound above 1 before reporting a throughput win. Compare the tails, cost and runnable time with the contemporaneous control.
 
+The peer holdout uses the fixed-load client that records scheduled-arrival p50, p95 and p99. Build the pinned tools offline into a new directory before preflight. [Build procedure and toolchains](../../research/2026-11-23-apple-silicon-performance-optimization.md#reproduce-offline)
+
 ```sh
-python3 -B scripts/relaybench/gamma_pilot.py --mode peer --holdout --seed 34203 \
+python3 -B scripts/relaybench/build_host_role_tools.py "$NEW_TOOLS"
+python3 -B scripts/relaybench/gamma_pilot.py --mode peer --holdout --seed 34203 --tools "$NEW_TOOLS" \
   --relay-workers "$WORKERS" --peer-vcpus "$VCPUS" \
-  --a "$SCOPE_MICROPOD" --b "$SCOPE_ORBSTACK" --check --out "$NEW_PEER_CHECK"
+  --a "$SCOPE_MICROPOD" --b "$SCOPE_ORBSTACK" --fleet "$FLEET" --release "$RELEASE" \
+  --check --out "$NEW_PEER_CHECK"
+```
+
+After a timed holdout, score the local receipts against the executable digest recorded when the candidate was selected. The scorer requires a complete schedule, at least 15 common clean pairs, every Micropod round clean with fresh p95 ≤75 ms, and a lower paired throughput bound above parity. Its exit status is 0 for a qualifying comparison, 1 for a completed comparison that missed the criteria, and 2 for incomplete or invalid evidence.
+
+```sh
+python3 -B scripts/relaybench/peer_verdict.py --run-directory "$NEW_PEER_RUN" --candidate-sha256 "$SELECTED_CLI_SHA"
+python3 -B scripts/relaybench/peer_verdict.py --archive
 ```

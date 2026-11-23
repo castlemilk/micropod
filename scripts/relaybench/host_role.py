@@ -5,7 +5,7 @@ import math
 import plistlib
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median, quantiles
 from uuid import UUID
@@ -35,28 +35,38 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
     release = json.loads(release_path.read_text())
     mac = "Gamma-128GB.local"
     linux = "Gamma-128GB Linux CI (isolated VM)"
+    scope_paths = [str(path.resolve()) for path in scopes]
     if not (release["owner"].strip() and release["reservation"].strip() and release["host"] == mac
             and release["exclusive"] is True and isinstance(release["modes"], list) and mode in release["modes"]
             and timestamp(release["starts_at"]) <= now < timestamp(release["expires_at"])
-            and {str(path.resolve()) for path in scopes} <= set(release["scopes"])):
+            and len(set(scope_paths)) == len(scope_paths) == 2 and isinstance(release["scopes"], list)
+            and set(scope_paths) <= set(release["scopes"])):
         raise ValueError(f"no current owner handoff for these {mode} fixtures")
     clearance = release.get("effective_disk_gate") or {}
-    if (clearance.get("passed") is not True or not clearance.get("source")
+    if (clearance.get("passed") is not True or not isinstance(clearance.get("source"), str)
+            or not clearance["source"].strip()
             or not timestamp(clearance["checked_at"]) <= now < timestamp(clearance["expires_at"])):
         raise ValueError("missing or expired effective disk clearance from the owner")
     if not 0 <= now - timestamp(fleet["generatedAt"]) <= 90:
         raise ValueError("stale Gamma fleet receipt")
+    expiry = min(timestamp(release["expires_at"]), timestamp(clearance["expires_at"]),
+                 timestamp(fleet["generatedAt"]) + 90)
     for name in (mac, linux):
         matches = [r for r in fleet["runners"] if r["runner"]["displayName"] == name]
         if len(matches) != 1:
             raise ValueError(f"missing or ambiguous Gamma runner: {name}")
         info = matches[0]["runner"]
-        if (matches[0]["connection"] != "online" or not info["active"] or info["activeLeases"] != 0
+        if (matches[0]["connection"] != "online" or info["active"] is not True
+                or type(info["activeLeases"]) is not int or info["activeLeases"] != 0
+                or type(info["capacity"]) is not int or info["capacity"] < 1
                 or not 0 <= now - timestamp(info["lastSeenAt"]) <= 90
                 or (name == linux and info["capacity"] != 1)):
             raise ValueError(f"Gamma runner is unavailable or has a lease: {name}")
-    return {"reservation": release["reservation"], "owner": release["owner"], "fleet_time": fleet["generatedAt"],
-            "effective_disk_gate": clearance}
+        expiry = min(expiry, timestamp(info["lastSeenAt"]) + 90)
+    return {"reservation": release["reservation"], "owner": release["owner"], "mode": mode,
+            "scopes": scope_paths, "starts_at": release["starts_at"], "expires_at": release["expires_at"],
+            "observed_at": datetime.fromtimestamp(now, timezone.utc).isoformat(timespec="microseconds"),
+            "valid_until_epoch": expiry, "fleet_time": fleet["generatedAt"], "effective_disk_gate": clearance}
 
 
 def verify_job(job, live, pid, home, expected):

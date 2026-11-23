@@ -72,5 +72,5 @@ Once the owner confirms restored OrbStack access and supplies two live four-vCPU
 
 ```sh
 python3 -B scripts/relaybench/gamma_pilot.py --mode peer \
-  --a "$SCOPE4" --b "$ORB4" --check --out "$NEW_PREFLIGHT_RESULTS"
+  --a "$SCOPE4" --b "$ORB4" --fleet "$FLEET" --release "$RELEASE" --check --out "$NEW_PREFLIGHT_RESULTS"
 ```

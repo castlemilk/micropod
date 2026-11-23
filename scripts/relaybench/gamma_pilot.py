@@ -124,14 +124,16 @@ def inspect(scope, cpus, orb, process_type=None):
     require(re.fullmatch(r"127\.0\.0\.1:[1-9][0-9]{0,4}", address) and address == value(scope, "addr"),
             "fixture is not published on its recorded loopback port")
     state = json.loads(command(*docker, "exec", cid, "/mpcheck/check", "state"))
-    for key, expected in {"cpu.max": "400000 100000", "memory.max": "1073741824", "pids.max": "512"}.items():
+    limits = {"cpu.max": "400000 100000", "memory.max": "1073741824", "pids.max": "512"}
+    for key, expected in limits.items():
         require(state[key] == expected, f"{name}: wrong {key}")
     require(command("curl", "--noproxy", "*", "-fsS", "--max-time", "3", "http://" + address + "/id") == name,
             "published endpoint returned the wrong marker")
     pids = {"vmm": int(value(scope, "vmm"))}
-    fixture = dict(engine=info["ID"], engine_version=info["ServerVersion"], id=cid, name=name,
+    fixture = dict(scope=str(scope), engine=info["ID"], engine_version=info["ServerVersion"], id=cid, name=name,
                    address=address, cpus=cpus, memory_bytes=info["MemTotal"],
-                   image_config=IMAGE, cpuset=state["cpuset.cpus.effective"], release=state["release"], pids=pids)
+                   image_config=IMAGE, service_limits={key: state[key] for key in limits},
+                   cpuset=state["cpuset.cpus.effective"], release=state["release"], pids=pids)
     if orb:
         require(command("ps", "-p", str(pids["vmm"]), "-o", "comm=").endswith("/Contents/MacOS/OrbStack Helper"),
                 "wrong OrbStack VMM process")
@@ -238,7 +240,7 @@ def attempt(tools, fixture, birth, receipt, check_window=None):
 
 
 def run_in_window(args, check_window, receipt):
-    check_window()
+    window = check_window()
     deadline = time.monotonic() + 75
     with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as client:
         try:
@@ -247,10 +249,13 @@ def run_in_window(args, check_window, receipt):
                 if remaining <= 0:
                     raise subprocess.TimeoutExpired(args, 75)
                 try:
-                    stdout, stderr = client.communicate(timeout=min(1, remaining))
+                    wait = min(1, remaining)
+                    if window is not None:
+                        wait = min(wait, max(0.0, window["valid_until_epoch"] - time.time()))
+                    stdout, stderr = client.communicate(timeout=wait)
                     return subprocess.CompletedProcess(args, client.returncode, stdout, stderr)
                 except subprocess.TimeoutExpired:
-                    check_window()
+                    window = check_window()
         except BaseException:
             if client.poll() is None:
                 client.kill()
@@ -308,34 +313,38 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     settings = arm_settings(args.mode, workers, peer_vcpus)
     role_test = args.mode == "host-role"
     screen = getattr(args, "scored_pairs", None) is not None
-    tools = dict(HASHES, fixed=host_role.CLIENT_SHA256) if role_test or screen else HASHES
+    peer = args.mode == "peer"
+    peer_holdout = peer and len(orders["scored"]) == 16
+    tools = dict(HASHES, fixed=host_role.CLIENT_SHA256) if role_test or screen or peer_holdout else HASHES
     args.out.mkdir()  # Refuse to overwrite a previous attempt.
     save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=tools,
                                      host=platform.node(), macos=platform.mac_ver()[0]))
     require(platform.node().split(".")[0] == "Gamma-128GB", "run only on the original Gamma Mac")
     for tool, expected in tools.items():
         require(digest(args.tools / tool) == expected, f"unrecognized {tool} binary")
-    peer = args.mode == "peer"
     scopes = {"A": (args.a, settings["A"]["vcpus"], False), "B": (args.b, settings["B"]["vcpus"], peer)}
-    for path, _, _ in scopes.values():
-        require(path.is_dir() and not (path / "removed").exists(), f"missing or retired fixture: {path}")
-    check_window = None
     if role_test or screen:
         require(len(orders["scored"]) >= 4, "this comparison needs at least four scored pairs")
-        def read_window():
-            return host_role.check_window(args.fleet, args.release, (args.a, args.b), time.time(), mode=args.mode)
+    require(getattr(args, "fleet", None) and getattr(args, "release", None),
+            f"this live {args.mode} comparison needs --fleet and --release")
 
-        initial_window = read_window()
-        save(args.out / "handoff.json", initial_window)
+    def read_window():
+        return host_role.check_window(args.fleet, args.release, (args.a, args.b), time.time(), mode=args.mode)
 
-        def check_window():
-            live = read_window()
-            require(all(live[k] == initial_window[k] for k in ("owner", "reservation")), "Gamma handoff changed")
-            return live
+    initial_window = read_window()
+    save(args.out / "handoff.json", initial_window)
+
+    def check_window():
+        live = read_window()
+        require(all(live[k] == initial_window[k] for k in ("owner", "reservation", "scopes", "starts_at", "expires_at")),
+                "Gamma handoff changed")
+        return live
+
+    for path, _, _ in scopes.values():
+        require(path.is_dir() and not (path / "removed").exists(), f"missing or retired fixture: {path}")
 
     def inspect_arm(arm):
-        if check_window:
-            check_window()
+        check_window()
         if role_test:
             return inspect(*scopes[arm], process_type=settings[arm]["process_type"])
         return inspect(*scopes[arm])
@@ -370,8 +379,7 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     and fixture["kernel_image_sha256"] == STOCK_KERNEL, "wrong role or stock kernel")
     birth = {arm: identities(snapshot(args.tools, f)) for arm, f in fixtures.items()}
     save(args.out / "fixtures.json", fixtures)
-    if check_window:
-        check_window()
+    check_window()
     if args.check:
         return
     scored, measured_rows = {}, {}
@@ -382,17 +390,24 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                 try:
                     require(all(path.is_dir() and not (path / "removed").exists() for path, _, _ in scopes.values()),
                             "fixture retired during the pilot")
-                    if check_window:
-                        row["admission"] = check_window()
+                    row["admission_after"] = None
+                    row["admission"] = check_window()
                     if role_test:
                         fixture = fixtures[arm]
                         row["guest_before"] = host_role.guest_sample(command, fixture)
                         require(row["guest_before"]["boot"] == fixture["guest_boot"], "guest boot changed before timing")
-                    if check_window:
-                        attempt(args.tools, fixtures[arm], birth[arm], row, check_window)
-                        check_window()
-                    else:
-                        attempt(args.tools, fixtures[arm], birth[arm], row)
+                    attempt(args.tools, fixtures[arm], birth[arm], row, check_window)
+                    final = check_window()
+                    row["admission_after"] = final
+                    opening = row["admission"]
+                    clearance_expiry = host_role.timestamp(opening["effective_disk_gate"]["expires_at"])
+                    latest_start = max(host_role.timestamp(final["fleet_time"]),
+                                       host_role.timestamp(final["effective_disk_gate"]["checked_at"]))
+                    require(host_role.timestamp(final["observed_at"]) < clearance_expiry
+                            and latest_start <= opening["valid_until_epoch"],
+                            "admission evidence does not cover the whole attempt")
+                    if peer_holdout:
+                        require(type(row.get("fresh_p50_us")) is int, "missing scheduled-arrival p50 on the peer holdout")
                     if role_test:
                         row["guest_after"] = host_role.guest_sample(command, fixture)
                         row["guest"] = host_role.guest_delta(row["guest_before"], row["guest_after"])
@@ -430,8 +445,7 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     median_paired_mib_s_difference=median(deltas.values()) if deltas else None,
                     median_ratio=median(values) if values else None, bootstrap_ci95=paired_median_interval(values),
                     clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings})
-    if check_window:
-        check_window()
+    check_window()
     if role_test:
         complete["host_role"] = host_role.decision(measured_rows, len(orders["scored"]))
     save(args.out / "complete.json", complete)
@@ -457,7 +471,7 @@ if __name__ == "__main__":
     parser.add_argument("--tools", type=Path, default=TOOLS)
     parser.add_argument("--a", type=Path, help="owner's already-running Micropod control fixture scope")
     parser.add_argument("--b", type=Path, help="owner's already-running candidate or peer fixture scope")
-    parser.add_argument("--fleet", type=Path, help="refreshed Cuttlefish fleet export for host-role or --scored-pairs")
+    parser.add_argument("--fleet", type=Path, help="refreshed Cuttlefish fleet export for a live check or run")
     parser.add_argument("--release", type=Path, help="owner's exclusive handoff for the chosen mode and both fixtures")
     parser.add_argument("--out", type=Path, help="new output directory")
     args = parser.parse_args()
@@ -474,7 +488,7 @@ if __name__ == "__main__":
     if args.run or args.check:
         if not all((args.a, args.b, args.out)):
             parser.error("fixture checks and runs need --a, --b and --out")
-        if (args.mode == "host-role" or args.scored_pairs is not None) and not (args.fleet and args.release):
+        if not (args.fleet and args.release):
             parser.error(f"this live {args.mode} comparison needs --fleet and --release")
         try:
             run(args, orders, workers=args.relay_workers, peer_vcpus=args.peer_vcpus)

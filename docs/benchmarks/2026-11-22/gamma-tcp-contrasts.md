@@ -69,13 +69,15 @@ python3 scripts/relaybench/gamma_relay_pilot.py workers --ports 32 --seed 34200 
 For the VM pilot, `SCOPE4` and `SCOPE6` identify the owner's **already running, dedicated** Micropod fixture records in the original `WORK/data/<fixture>` format. Each provides `base`, `id`, `name`, `addr`, `vmm` and `relay`. The base worker has a current session and its launchd job record. Both must use the same Micropod build, 7.3.5 kernel, direct macvlan/Reno route, Interactive relay with a 512 KiB guest receive buffer, 4 GiB VM memory, original image and container limits above. The owner designates idle fixtures and confirms the current Gamma window. The pilot checks their live identities, ports, quota, memory and PID limits before load and again afterward. It records the effective cpuset on each VM. The client and counter sampler are checked against the hashes of the original Gamma executables.
 
 ```sh
-python3 scripts/relaybench/gamma_pilot.py --mode size --seed 34199 --a "$SCOPE4" --b "$SCOPE6" --run --out "$NEW_VCPU_RESULTS"
+python3 scripts/relaybench/gamma_pilot.py --mode size --seed 34199 --a "$SCOPE4" --b "$SCOPE6" \
+  --fleet "$FLEET" --release "$RELEASE" --run --out "$NEW_VCPU_RESULTS"
 ```
 
 If the owner reports restored peer access, the smallest check verifies both four-vCPU fixtures and their host counters with zero timed load. It checks the OrbStack side first. A separate reserved timing can use `--run` with a fresh result directory.
 
 ```sh
-python3 scripts/relaybench/gamma_pilot.py --mode peer --a "$SCOPE4" --b "$ORB4" --check --out "$NEW_PREFLIGHT_RESULTS"
+python3 scripts/relaybench/gamma_pilot.py --mode peer --a "$SCOPE4" --b "$ORB4" \
+  --fleet "$FLEET" --release "$RELEASE" --check --out "$NEW_PREFLIGHT_RESULTS"
 ```
 
 Each clean arm must have 32 positive per-stream totals summing to the scored bytes, 240 scheduled arrivals, zero client errors and zero reopens. Retain every dirty attempt, including partial output, with its pair and position. An interrupted client can leave the fresh-failure count unknown. Pair only the rounds both arms completed cleanly. The prior `confirm-micropod` and `confirm-orb` scopes carry retirement records. The pilot rejects them before connecting. [VM pilot](../../../scripts/relaybench/gamma_pilot.py)

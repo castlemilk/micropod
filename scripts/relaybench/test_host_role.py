@@ -167,6 +167,8 @@ class HostRoleTests(unittest.TestCase):
                     patch.object(pilot, "mapped_digest", return_value="same-mapped-executable"), \
                     patch.object(pilot, "digest", return_value=pilot.STOCK_KERNEL):
                 fx = pilot.inspect(scope, 4, False, "Standard")
+                self.assertEqual(fx["service_limits"], {"cpu.max": "400000 100000",
+                                                       "memory.max": "1073741824", "pids.max": "512"})
                 self.assertEqual((fx["process_type"], fx["spawn_type"], fx["pids"]["relay"]),
                                  ("Standard", "daemon (3)", 102))
                 with self.assertRaisesRegex(ValueError, "expected live Interactive"):
