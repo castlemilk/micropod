@@ -1,0 +1,1146 @@
+{
+  "direction": "233.01",
+  "archive": "gamma-direct-macvlan.json.gz",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "base": "816121afd30fba52bda7828418cd963d4216166b",
+  "fixed_client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "image_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "service_sha256": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+  "target_us": 75000,
+  "population": "All 12 attempted paired blocks of each same-kernel crossover. Each arm had 32 bulk streams and 240 scheduled fresh requests spaced 25 ms apart. No pooling across builds.",
+  "interpretation": "Compare the eight slowest streams in each arm by observed MiB/s. Sorted ranks represent distributions, not repeated socket identities. Paired intervals resample 12 blocks 10,000 times with seed 7317. Rates and latency use the same raw round. The all-round 75 ms criterion is retrospective. These shared-host archive contrasts do not measure the revised build or confirm interface attribution at both boundaries.",
+  "series": {
+    "matched": {
+      "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+      "bridge": "new",
+      "direct": "direct",
+      "attempts_per_arm": 12,
+      "common_clean": 12,
+      "bulk_wins": 7,
+      "bulk_median_ratio": 1.0512763828295837,
+      "slowest_eight_median_ratio": 0.9325248824449567,
+      "slowest_eight_paired_ci95": [
+        0.8388237647207044,
+        1.130290110046578
+      ],
+      "slowest_eight_wins": 5,
+      "all_32_ranks_faster": 2,
+      "direct_p95_pass": 2,
+      "bridge_p95_pass": 3,
+      "direct_faster_and_p95_pass": 1,
+      "rows": [
+        {
+          "round": 1,
+          "order": [
+            "direct",
+            "new",
+            "orb",
+            "old"
+          ],
+          "direct": {
+            "mib_s": 2893.352048536008,
+            "slowest_eight_mib_s": 626.2351922099801,
+            "p95_us": 81546,
+            "p99_us": 110786,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 3071.1734991630997,
+            "slowest_eight_mib_s": 695.390821978687,
+            "p95_us": 51021,
+            "p99_us": 90895,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 3,
+          "bulk_ratio": 0.9420998355594211,
+          "slowest_eight_ratio": 0.9005514200317899
+        },
+        {
+          "round": 2,
+          "order": [
+            "new",
+            "old",
+            "direct",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 2268.4397313591567,
+            "slowest_eight_mib_s": 494.4718369726214,
+            "p95_us": 97533,
+            "p99_us": 135250,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2433.93695701073,
+            "slowest_eight_mib_s": 595.8434702937982,
+            "p95_us": 71245,
+            "p99_us": 83695,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 1,
+          "bulk_ratio": 0.9320043088318808,
+          "slowest_eight_ratio": 0.8298686846879558
+        },
+        {
+          "round": 3,
+          "order": [
+            "old",
+            "orb",
+            "new",
+            "direct"
+          ],
+          "direct": {
+            "mib_s": 1629.4615678398093,
+            "slowest_eight_mib_s": 336.6077721122374,
+            "p95_us": 140841,
+            "p99_us": 190995,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1194.329243998858,
+            "slowest_eight_mib_s": 231.73283218960472,
+            "p95_us": 199697,
+            "p99_us": 246043,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.3643319679454884,
+          "slowest_eight_ratio": 1.4525683259108644
+        },
+        {
+          "round": 4,
+          "order": [
+            "orb",
+            "direct",
+            "old",
+            "new"
+          ],
+          "direct": {
+            "mib_s": 1969.8113508554463,
+            "slowest_eight_mib_s": 425.8300488934253,
+            "p95_us": 144062,
+            "p99_us": 254054,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1448.855329862062,
+            "slowest_eight_mib_s": 350.914018297884,
+            "p95_us": 206132,
+            "p99_us": 275629,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 31,
+          "bulk_ratio": 1.359563864145761,
+          "slowest_eight_ratio": 1.213488281143407
+        },
+        {
+          "round": 5,
+          "order": [
+            "orb",
+            "direct",
+            "old",
+            "new"
+          ],
+          "direct": {
+            "mib_s": 1901.21134934399,
+            "slowest_eight_mib_s": 367.1331689442435,
+            "p95_us": 142210,
+            "p99_us": 186201,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2195.527935945773,
+            "slowest_eight_mib_s": 538.7484117530499,
+            "p95_us": 86046,
+            "p99_us": 103377,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 5,
+          "bulk_ratio": 0.8659472367519662,
+          "slowest_eight_ratio": 0.6814556868012245
+        },
+        {
+          "round": 6,
+          "order": [
+            "old",
+            "orb",
+            "new",
+            "direct"
+          ],
+          "direct": {
+            "mib_s": 2095.3174559923045,
+            "slowest_eight_mib_s": 436.8785979096511,
+            "p95_us": 105000,
+            "p99_us": 166170,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2038.8972663373343,
+            "slowest_eight_mib_s": 417.2304089627963,
+            "p95_us": 116212,
+            "p99_us": 164532,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 13,
+          "bulk_ratio": 1.0276719139244928,
+          "slowest_eight_ratio": 1.047091938949749
+        },
+        {
+          "round": 7,
+          "order": [
+            "new",
+            "old",
+            "direct",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 1644.053076309841,
+            "slowest_eight_mib_s": 316.72623961026545,
+            "p95_us": 130062,
+            "p99_us": 239230,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1529.521224288831,
+            "slowest_eight_mib_s": 371.1983332386733,
+            "p95_us": 153706,
+            "p99_us": 182303,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 20,
+          "bulk_ratio": 1.0748808517346746,
+          "slowest_eight_ratio": 0.8532533991918996
+        },
+        {
+          "round": 8,
+          "order": [
+            "direct",
+            "new",
+            "orb",
+            "old"
+          ],
+          "direct": {
+            "mib_s": 1887.0381920612297,
+            "slowest_eight_mib_s": 411.7405670403785,
+            "p95_us": 131988,
+            "p99_us": 188374,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1660.726267880994,
+            "slowest_eight_mib_s": 398.06805812455684,
+            "p95_us": 189490,
+            "p99_us": 251253,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 29,
+          "bulk_ratio": 1.1362728636002117,
+          "slowest_eight_ratio": 1.0343471641011284
+        },
+        {
+          "round": 9,
+          "order": [
+            "old",
+            "orb",
+            "new",
+            "direct"
+          ],
+          "direct": {
+            "mib_s": 2042.1716111774504,
+            "slowest_eight_mib_s": 426.136004385113,
+            "p95_us": 113804,
+            "p99_us": 140274,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1827.954916672722,
+            "slowest_eight_mib_s": 441.8213951915045,
+            "p95_us": 132985,
+            "p99_us": 169553,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 26,
+          "bulk_ratio": 1.1171892657476747,
+          "slowest_eight_ratio": 0.9644983448581235
+        },
+        {
+          "round": 10,
+          "order": [
+            "orb",
+            "direct",
+            "old",
+            "new"
+          ],
+          "direct": {
+            "mib_s": 2032.8860430163568,
+            "slowest_eight_mib_s": 448.87067702483057,
+            "p95_us": 115916,
+            "p99_us": 157954,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2369.112265256143,
+            "slowest_eight_mib_s": 575.2730315538056,
+            "p95_us": 137664,
+            "p99_us": 218263,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 0,
+          "bulk_ratio": 0.8580792361887358,
+          "slowest_eight_ratio": 0.7802741522793728
+        },
+        {
+          "round": 11,
+          "order": [
+            "direct",
+            "new",
+            "orb",
+            "old"
+          ],
+          "direct": {
+            "mib_s": 2787.5396431890754,
+            "slowest_eight_mib_s": 585.8831703249772,
+            "p95_us": 69487,
+            "p99_us": 93670,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 3022.0179323369366,
+            "slowest_eight_mib_s": 691.0801961511094,
+            "p95_us": 83017,
+            "p99_us": 173705,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 7,
+          "bulk_ratio": 0.9224100272077015,
+          "slowest_eight_ratio": 0.847778844753453
+        },
+        {
+          "round": 12,
+          "order": [
+            "new",
+            "old",
+            "direct",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 4116.6775930099775,
+            "slowest_eight_mib_s": 1008.3316403032459,
+            "p95_us": 43116,
+            "p99_us": 72588,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 3527.2120749945157,
+            "slowest_eight_mib_s": 804.4786354429807,
+            "p95_us": 44829,
+            "p99_us": 60701,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.1671193864963105,
+          "slowest_eight_ratio": 1.2533976613909887
+        }
+      ]
+    },
+    "confirmation": {
+      "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+      "bridge": "full-bridge",
+      "direct": "full-reno",
+      "attempts_per_arm": 12,
+      "common_clean": 12,
+      "bulk_wins": 9,
+      "bulk_median_ratio": 1.2516794536857838,
+      "slowest_eight_median_ratio": 1.2352097023303386,
+      "slowest_eight_paired_ci95": [
+        1.0390998244327792,
+        1.4762093622024959
+      ],
+      "slowest_eight_wins": 9,
+      "all_32_ranks_faster": 8,
+      "direct_p95_pass": 6,
+      "bridge_p95_pass": 3,
+      "direct_faster_and_p95_pass": 5,
+      "rows": [
+        {
+          "round": 1,
+          "order": [
+            "full-reno",
+            "full-bridge",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 3837.0069194705006,
+            "slowest_eight_mib_s": 905.7742706294775,
+            "p95_us": 50384,
+            "p99_us": 108108,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 3031.4829143657907,
+            "slowest_eight_mib_s": 751.5452355113305,
+            "p95_us": 119396,
+            "p99_us": 180055,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.2657194606927982,
+          "slowest_eight_ratio": 1.205215904287137
+        },
+        {
+          "round": 2,
+          "order": [
+            "orb",
+            "full-bridge",
+            "full-reno"
+          ],
+          "direct": {
+            "mib_s": 4757.950987563563,
+            "slowest_eight_mib_s": 1170.8461287394414,
+            "p95_us": 34137,
+            "p99_us": 67828,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 4950.170390159823,
+            "slowest_eight_mib_s": 1185.729937095379,
+            "p95_us": 31484,
+            "p99_us": 45216,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 1,
+          "bulk_ratio": 0.9611691341012498,
+          "slowest_eight_ratio": 0.9874475562349402
+        },
+        {
+          "round": 3,
+          "order": [
+            "full-bridge",
+            "orb",
+            "full-reno"
+          ],
+          "direct": {
+            "mib_s": 1967.6829348162933,
+            "slowest_eight_mib_s": 438.7409957669787,
+            "p95_us": 256762,
+            "p99_us": 318437,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 4780.348133902582,
+            "slowest_eight_mib_s": 1091.4465754096768,
+            "p95_us": 37602,
+            "p99_us": 69248,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 0,
+          "bulk_ratio": 0.4116191707589957,
+          "slowest_eight_ratio": 0.40198119234768437
+        },
+        {
+          "round": 4,
+          "order": [
+            "full-reno",
+            "orb",
+            "full-bridge"
+          ],
+          "direct": {
+            "mib_s": 1154.3523415718269,
+            "slowest_eight_mib_s": 243.8272952382953,
+            "p95_us": 280239,
+            "p99_us": 345667,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2349.4037021866375,
+            "slowest_eight_mib_s": 534.0887854173237,
+            "p95_us": 165101,
+            "p99_us": 217186,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 0,
+          "bulk_ratio": 0.491338436428549,
+          "slowest_eight_ratio": 0.45652951699364874
+        },
+        {
+          "round": 5,
+          "order": [
+            "orb",
+            "full-reno",
+            "full-bridge"
+          ],
+          "direct": {
+            "mib_s": 2728.024557833393,
+            "slowest_eight_mib_s": 572.3214067088943,
+            "p95_us": 96018,
+            "p99_us": 152669,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1577.07125709316,
+            "slowest_eight_mib_s": 364.2880325528157,
+            "p95_us": 199109,
+            "p99_us": 265825,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.729804246677894,
+          "slowest_eight_ratio": 1.571068373282115
+        },
+        {
+          "round": 6,
+          "order": [
+            "full-bridge",
+            "full-reno",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 4500.450817294627,
+            "slowest_eight_mib_s": 1095.666780185039,
+            "p95_us": 36309,
+            "p99_us": 54141,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 3237.4376250989894,
+            "slowest_eight_mib_s": 795.658522019355,
+            "p95_us": 74008,
+            "p99_us": 131450,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.390127421267929,
+          "slowest_eight_ratio": 1.3770565510996764
+        },
+        {
+          "round": 7,
+          "order": [
+            "full-reno",
+            "full-bridge",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 4273.345230530148,
+            "slowest_eight_mib_s": 1031.476087381639,
+            "p95_us": 39594,
+            "p99_us": 54643,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 3098.509767732418,
+            "slowest_eight_mib_s": 746.7157673237418,
+            "p95_us": 95142,
+            "p99_us": 117930,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.3791614520736237,
+          "slowest_eight_ratio": 1.3813503511228766
+        },
+        {
+          "round": 8,
+          "order": [
+            "orb",
+            "full-bridge",
+            "full-reno"
+          ],
+          "direct": {
+            "mib_s": 1957.4556979022784,
+            "slowest_eight_mib_s": 442.031606041111,
+            "p95_us": 156997,
+            "p99_us": 234859,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1594.8771068312867,
+            "slowest_eight_mib_s": 353.0785894951134,
+            "p95_us": 136016,
+            "p99_us": 179668,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.2273395169558647,
+          "slowest_eight_ratio": 1.2519354591089662
+        },
+        {
+          "round": 9,
+          "order": [
+            "full-bridge",
+            "orb",
+            "full-reno"
+          ],
+          "direct": {
+            "mib_s": 4313.26908950539,
+            "slowest_eight_mib_s": 1054.7717597664296,
+            "p95_us": 37192,
+            "p99_us": 52803,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2642.438329444262,
+            "slowest_eight_mib_s": 649.8176488380122,
+            "p95_us": 92932,
+            "p99_us": 161157,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.6323064350994807,
+          "slowest_eight_ratio": 1.6231811519009158
+        },
+        {
+          "round": 10,
+          "order": [
+            "full-reno",
+            "orb",
+            "full-bridge"
+          ],
+          "direct": {
+            "mib_s": 3647.3379562355435,
+            "slowest_eight_mib_s": 869.7291791383914,
+            "p95_us": 47584,
+            "p99_us": 69108,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1147.2178214486407,
+            "slowest_eight_mib_s": 272.1063495441924,
+            "p95_us": 205097,
+            "p99_us": 257052,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 3.179289833233147,
+          "slowest_eight_ratio": 3.196284028635428
+        },
+        {
+          "round": 11,
+          "order": [
+            "orb",
+            "full-reno",
+            "full-bridge"
+          ],
+          "direct": {
+            "mib_s": 2828.6177295877787,
+            "slowest_eight_mib_s": 607.4503782132109,
+            "p95_us": 112791,
+            "p99_us": 172604,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2285.494161630378,
+            "slowest_eight_mib_s": 556.9096610653245,
+            "p95_us": 108980,
+            "p99_us": 143799,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 31,
+          "bulk_ratio": 1.2376394466787692,
+          "slowest_eight_ratio": 1.090752092630618
+        },
+        {
+          "round": 12,
+          "order": [
+            "full-bridge",
+            "full-reno",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 1676.8304806837823,
+            "slowest_eight_mib_s": 371.49656385888466,
+            "p95_us": 148199,
+            "p99_us": 196566,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1382.1493318751116,
+            "slowest_eight_mib_s": 304.88424998548226,
+            "p95_us": 264465,
+            "p99_us": 298888,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.2132050003662684,
+          "slowest_eight_ratio": 1.2184839455517111
+        }
+      ]
+    },
+    "kernel-holdout": {
+      "kernel_image_sha256": "3955ba50110de136beed489a4957141442afd2ba565358186b7abd20f5dfabe8",
+      "bridge": "lazy-bridge",
+      "direct": "lazy-reno",
+      "attempts_per_arm": 12,
+      "common_clean": 12,
+      "bulk_wins": 7,
+      "bulk_median_ratio": 1.09969214900158,
+      "slowest_eight_median_ratio": 0.970616328023624,
+      "slowest_eight_paired_ci95": [
+        0.7977144241011136,
+        1.1952343808635817
+      ],
+      "slowest_eight_wins": 5,
+      "all_32_ranks_faster": 4,
+      "direct_p95_pass": 6,
+      "bridge_p95_pass": 3,
+      "direct_faster_and_p95_pass": 5,
+      "rows": [
+        {
+          "round": 1,
+          "order": [
+            "full-reno",
+            "lazy-reno",
+            "orb",
+            "lazy-bridge"
+          ],
+          "direct": {
+            "mib_s": 3483.2985756118887,
+            "slowest_eight_mib_s": 796.9087182370534,
+            "p95_us": 50197,
+            "p99_us": 67370,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 1850.5395764213185,
+            "slowest_eight_mib_s": 452.1114165133455,
+            "p95_us": 146448,
+            "p99_us": 398923,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.8823150933891912,
+          "slowest_eight_ratio": 1.762637901035021
+        },
+        {
+          "round": 2,
+          "order": [
+            "lazy-reno",
+            "lazy-bridge",
+            "full-reno",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 1757.6991247115666,
+            "slowest_eight_mib_s": 378.07336272253366,
+            "p95_us": 157209,
+            "p99_us": 218445,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2440.99555584959,
+            "slowest_eight_mib_s": 553.9062652000978,
+            "p95_us": 80576,
+            "p99_us": 162382,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 1,
+          "bulk_ratio": 0.7200746926799703,
+          "slowest_eight_ratio": 0.6825583794145301
+        },
+        {
+          "round": 3,
+          "order": [
+            "lazy-bridge",
+            "orb",
+            "lazy-reno",
+            "full-reno"
+          ],
+          "direct": {
+            "mib_s": 3783.494801389628,
+            "slowest_eight_mib_s": 814.2320806624306,
+            "p95_us": 54810,
+            "p99_us": 72651,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2717.713417391564,
+            "slowest_eight_mib_s": 670.0239270886698,
+            "p95_us": 186818,
+            "p99_us": 324829,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 31,
+          "bulk_ratio": 1.3921610634799717,
+          "slowest_eight_ratio": 1.2152283638591261
+        },
+        {
+          "round": 4,
+          "order": [
+            "orb",
+            "full-reno",
+            "lazy-bridge",
+            "lazy-reno"
+          ],
+          "direct": {
+            "mib_s": 2451.0181341757243,
+            "slowest_eight_mib_s": 577.0031296731332,
+            "p95_us": 158258,
+            "p99_us": 215955,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 4070.9412391236688,
+            "slowest_eight_mib_s": 929.8644860418161,
+            "p95_us": 43189,
+            "p99_us": 50317,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 1,
+          "bulk_ratio": 0.6020765199507873,
+          "slowest_eight_ratio": 0.620523891743926
+        },
+        {
+          "round": 5,
+          "order": [
+            "lazy-reno",
+            "lazy-bridge",
+            "full-reno",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 4730.371736964291,
+            "slowest_eight_mib_s": 1148.3398263264014,
+            "p95_us": 49398,
+            "p99_us": 117184,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2780.553240951031,
+            "slowest_eight_mib_s": 670.7515094836423,
+            "p95_us": 128766,
+            "p99_us": 213266,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.7012340088644966,
+          "slowest_eight_ratio": 1.712019742170116
+        },
+        {
+          "round": 6,
+          "order": [
+            "lazy-bridge",
+            "orb",
+            "lazy-reno",
+            "full-reno"
+          ],
+          "direct": {
+            "mib_s": 5647.122949014454,
+            "slowest_eight_mib_s": 1400.614000496479,
+            "p95_us": 31626,
+            "p99_us": 46739,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 4914.542033725432,
+            "slowest_eight_mib_s": 1216.5736023990537,
+            "p95_us": 38578,
+            "p99_us": 54852,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.1490639229986797,
+          "slowest_eight_ratio": 1.15127765203396
+        },
+        {
+          "round": 7,
+          "order": [
+            "orb",
+            "full-reno",
+            "lazy-bridge",
+            "lazy-reno"
+          ],
+          "direct": {
+            "mib_s": 2632.2712193050147,
+            "slowest_eight_mib_s": 581.5290029706065,
+            "p95_us": 70234,
+            "p99_us": 125696,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2749.5356125977237,
+            "slowest_eight_mib_s": 658.9844244261182,
+            "p95_us": 114990,
+            "p99_us": 156530,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 10,
+          "bulk_ratio": 0.9573512004152879,
+          "slowest_eight_ratio": 0.8824624398020267
+        },
+        {
+          "round": 8,
+          "order": [
+            "full-reno",
+            "lazy-reno",
+            "orb",
+            "lazy-bridge"
+          ],
+          "direct": {
+            "mib_s": 1056.7383700147334,
+            "slowest_eight_mib_s": 214.48842091202783,
+            "p95_us": 161549,
+            "p99_us": 199809,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 988.722672443453,
+            "slowest_eight_mib_s": 219.31356464008172,
+            "p95_us": 226748,
+            "p99_us": 281493,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 26,
+          "bulk_ratio": 1.0687914816428672,
+          "slowest_eight_ratio": 0.977998881482901
+        },
+        {
+          "round": 9,
+          "order": [
+            "lazy-bridge",
+            "orb",
+            "lazy-reno",
+            "full-reno"
+          ],
+          "direct": {
+            "mib_s": 752.7232466181202,
+            "slowest_eight_mib_s": 149.70327698667091,
+            "p95_us": 272110,
+            "p99_us": 347111,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 912.4747437916762,
+            "slowest_eight_mib_s": 209.97241275726398,
+            "p95_us": 315979,
+            "p99_us": 390873,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 5,
+          "bulk_ratio": 0.824925020379492,
+          "slowest_eight_ratio": 0.7129664084002004
+        },
+        {
+          "round": 10,
+          "order": [
+            "orb",
+            "full-reno",
+            "lazy-bridge",
+            "lazy-reno"
+          ],
+          "direct": {
+            "mib_s": 2520.2130485820717,
+            "slowest_eight_mib_s": 555.6312299561755,
+            "p95_us": 79176,
+            "p99_us": 99313,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2539.058204431624,
+            "slowest_eight_mib_s": 576.8394388033969,
+            "p95_us": 83620,
+            "p99_us": 123250,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 11,
+          "bulk_ratio": 0.9925778952933572,
+          "slowest_eight_ratio": 0.9632337745643468
+        },
+        {
+          "round": 11,
+          "order": [
+            "full-reno",
+            "lazy-reno",
+            "orb",
+            "lazy-bridge"
+          ],
+          "direct": {
+            "mib_s": 2376.8887184826135,
+            "slowest_eight_mib_s": 481.5791326668,
+            "p95_us": 80862,
+            "p99_us": 96253,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 2102.33842289438,
+            "slowest_eight_mib_s": 513.9473453097472,
+            "p95_us": 158844,
+            "p99_us": 200223,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 26,
+          "bulk_ratio": 1.1305928163602927,
+          "slowest_eight_ratio": 0.9370203719537855
+        },
+        {
+          "round": 12,
+          "order": [
+            "lazy-reno",
+            "lazy-bridge",
+            "full-reno",
+            "orb"
+          ],
+          "direct": {
+            "mib_s": 3949.3804311192785,
+            "slowest_eight_mib_s": 958.2740522669515,
+            "p95_us": 53814,
+            "p99_us": 83814,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "bridge": {
+            "mib_s": 3338.533394709127,
+            "slowest_eight_mib_s": 815.3855619712554,
+            "p95_us": 59201,
+            "p99_us": 139969,
+            "arrivals": 240,
+            "errors": 0,
+            "bulk_reopens": 0
+          },
+          "faster_stream_ranks": 32,
+          "bulk_ratio": 1.1829686764188776,
+          "slowest_eight_ratio": 1.1752403978680375
+        }
+      ]
+    }
+  },
+  "replay_sha256": "6dd76022114d4d90602c741adceca12fc1f8e061b9871c19b0d7e550d1f2ddff"
+}
