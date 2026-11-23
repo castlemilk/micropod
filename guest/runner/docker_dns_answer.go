@@ -55,10 +55,11 @@ func serviceAnswerLengths(name *dnsmessage.Name) (question, record int) {
 }
 
 func serviceAnswerLimit(q *dnsmessage.Question, network string, parser *dnsmessage.Parser, hasAdditional bool, count int) int {
-	if network != "udp" {
-		return math.MaxUint16
-	}
 	question, record := serviceAnswerLengths(&q.Name)
+	if network != "udp" {
+		// The two-byte TCP length counts the entire DNS message.
+		return (math.MaxUint16 - question) / record
+	}
 	limit := 512
 	// Beyond the worker's maximum EDNS size, no option can make this answer fit.
 	if hasAdditional && count <= (4096-question)/record {

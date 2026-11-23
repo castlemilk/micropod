@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"net/netip"
 	"os"
@@ -145,6 +146,9 @@ func readDNS(r io.Reader) ([]byte, error) {
 	return b, err
 }
 func sendDNS(w io.Writer, b []byte) error {
+	if len(b) > math.MaxUint16 {
+		return errors.New("DNS message exceeds TCP frame limit")
+	}
 	var h [2]byte
 	binary.BigEndian.PutUint16(h[:], uint16(len(b)))
 	if _, err := w.Write(h[:]); err != nil {
