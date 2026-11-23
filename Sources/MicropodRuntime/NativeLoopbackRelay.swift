@@ -227,6 +227,8 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "eq_256_kib": stats.guest_reads_by_size.2, "gt_256_kib": stats.guest_reads_by_size.3,
             "full_cap_reads": stats.guest_full_cap_reads,
             "full_cap_with_ready_hint_above_cap": stats.guest_full_cap_ready_above_cap,
+            "flat_bulk_full_cap_with_ready_hint_above_cap": stats.guest_flat_bulk_full_cap_ready_above_cap,
+            "sparse_flat_bulk_full_cap_with_ready_hint_above_cap": stats.guest_sparse_flat_bulk_full_cap_ready_above_cap,
         ]
         let event: [String: Any] = [
             "port": port, "accepted": stats.accepted, "connected": stats.connected,

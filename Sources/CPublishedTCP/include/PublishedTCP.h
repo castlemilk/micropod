@@ -28,6 +28,11 @@ typedef struct {
     uint64_t guest_reads_by_size[4], guest_read_bytes, guest_full_cap_reads;
     // Subset of full-cap reads whose EVFILT_READ data hinted at more than the cap.
     uint64_t guest_full_cap_ready_above_cap;
+    // Normal read notifications on already-classified downloads in the flat data queue.
+    // Both counts require a full-cap read and a kevent byte hint strictly above the cap.
+    uint64_t guest_flat_bulk_full_cap_ready_above_cap;
+    // Subset from polls returning <=2 events with room to return at least three.
+    uint64_t guest_sparse_flat_bulk_full_cap_ready_above_cap;
 } mp_tcp_stats;
 
 // A single serial owner must call these functions. The returned kqueue is

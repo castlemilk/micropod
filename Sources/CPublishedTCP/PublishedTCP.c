@@ -445,6 +445,8 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
             sum->guest_read_bytes += one->guest_read_bytes;
             sum->guest_full_cap_reads += one->guest_full_cap_reads;
             sum->guest_full_cap_ready_above_cap += one->guest_full_cap_ready_above_cap;
+            sum->guest_flat_bulk_full_cap_ready_above_cap += one->guest_flat_bulk_full_cap_ready_above_cap;
+            sum->guest_sparse_flat_bulk_full_cap_ready_above_cap += one->guest_sparse_flat_bulk_full_cap_ready_above_cap;
         }
         sum->bulk_directions += one->bulk_directions;
         sum->route_waits += one->route_waits;
@@ -610,21 +612,29 @@ void mp_tcp_adopt_profiled(mp_tcp_listener *l, int client, uint64_t accepted_at,
     mp_tcp_adopt(l, client, accepted_at);
 }
 
-static void observe_guest_read(mp_tcp_stats *stats, size_t count, size_t cap, const struct kevent *event) {
+enum bulk_poll { OTHER_EVENT, FLAT_BULK, SPARSE_FLAT_BULK };
+
+static void observe_guest_read(mp_tcp_stats *stats, size_t count, size_t cap, const struct kevent *event,
+                               enum bulk_poll poll) {
     unsigned bin = (count > 128 * 1024) + (count >= 256 * 1024) + (count > 256 * 1024);
     ++stats->guest_reads_by_size[bin];
     stats->guest_read_bytes += count;
     if (count == cap) {
         ++stats->guest_full_cap_reads;
         // kqueue captured this snapshot before the owner serviced the batch.
-        if (event && event->filter == EVFILT_READ && !(event->flags & EV_ERROR) && event->data > (intptr_t)cap)
+        if (event && event->filter == EVFILT_READ && !(event->flags & EV_ERROR) && event->data > (intptr_t)cap) {
             ++stats->guest_full_cap_ready_above_cap;
+            if (poll != OTHER_EVENT && !(event->flags & EV_EOF)) {
+                ++stats->guest_flat_bulk_full_cap_ready_above_cap;
+                if (poll == SPARSE_FLAT_BULK) ++stats->guest_sparse_flat_bulk_full_cap_ready_above_cap;
+            }
+        }
     }
 }
 
 // Read directly into the worker scratch and immediately write to the peer.
 // On backpressure, keep just the unwritten suffix and pause that reader.
-static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct kevent *read_event) {
+static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct kevent *read_event, enum bulk_poll poll) {
     struct pair *p = src->pair;
     mp_tcp_listener *l = p->listener;
     mp_tcp_relay *r = l->relay;
@@ -665,7 +675,7 @@ static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct 
         count = (size_t)got;
         if (src == &p->guest) {
             p->guest_replied = true;
-            if (l->profile) observe_guest_read(&l->stats, count, cap, read_event);
+            if (l->profile) observe_guest_read(&l->stats, count, cap, read_event, poll);
             // One notification per data owner between watchdog polls. Counting only
             // bytes from the guest excludes accepts, writes and unanswered handshakes.
             if (!atomic_load_explicit(&r->guest_data, memory_order_relaxed))
@@ -736,7 +746,7 @@ static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct 
 }
 
 static void pump(struct endpoint *src, struct endpoint *dst) {
-    pump_ready(src, dst, NULL);
+    pump_ready(src, dst, NULL, OTHER_EVENT);
 }
 
 static void finish_connect(struct pair *p) {
@@ -788,7 +798,7 @@ static void accept_ready(mp_tcp_listener *l, int16_t filter) {
     }
 }
 
-static void service_event(const struct kevent *event) {
+static void service_polled_event(const struct kevent *event, enum bulk_poll poll) {
     struct watch *w = event->udata;
     if (w->kind == ACCEPT) {
         accept_ready((mp_tcp_listener *)w, event->filter);
@@ -818,8 +828,12 @@ static void service_event(const struct kevent *event) {
     } else if (event->filter == EVFILT_WRITE) {
         if (e->length) pump(peer, e);
     } else if (!e->eof && !peer->length) {
-        pump_ready(e, peer, event);
+        pump_ready(e, peer, event, poll);
     }
+}
+
+static void service_event(const struct kevent *event) {
+    service_polled_event(event, OTHER_EVENT);
 }
 
 // A dedicated data owner already has a separate accept queue. Read each
@@ -831,7 +845,8 @@ static void drain_data(mp_tcp_relay *r, int budget) {
     int serviced = 0;
     while (serviced < budget) {
         int limit = budget - serviced;
-        int n = kevent(r->kq, NULL, 0, events, limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH, &now);
+        int capacity = limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH;
+        int n = kevent(r->kq, NULL, 0, events, capacity, &now);
         if (n <= 0) break;
         bool bulk[DATA_READY_BATCH] = {0};
         for (int i = 0; i < n; ++i) {
@@ -842,7 +857,10 @@ static void drain_data(mp_tcp_relay *r, int budget) {
             }
             if (!bulk[i]) service_event(&events[i]);
         }
-        for (int i = 0; i < n; ++i) if (bulk[i]) service_event(&events[i]);
+        // A short return only demonstrates a sparse poll when the caller could
+        // have observed a third event. The last slots of the callback may cap it.
+        enum bulk_poll poll = n <= 2 && capacity > 2 ? SPARSE_FLAT_BULK : FLAT_BULK;
+        for (int i = 0; i < n; ++i) if (bulk[i]) service_polled_event(&events[i], poll);
         serviced += n;
     }
 }
