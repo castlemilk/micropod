@@ -1,0 +1,78 @@
+{
+  "scope": "compile only, without creating a network, device or VM",
+  "host_macos": "26.5.1",
+  "sdk": "26.5",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "results": [
+    {
+      "symbol": "vmnet_network_configuration_set_mtu",
+      "header": "vmnet/vmnet.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "vmnet_network_configuration_add_port_forwarding_rule",
+      "header": "vmnet/vmnet.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "vmnet_interface_remove_ip_port_forwarding_rule",
+      "header": "vmnet/vmnet.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "VZFileHandleNetworkDeviceAttachment",
+      "header": "Virtualization/Virtualization.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "VZLinuxRosettaDirectoryShare",
+      "header": "Virtualization/Virtualization.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "VZNVMExpressControllerDeviceConfiguration",
+      "header": "Virtualization/Virtualization.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "VZVirtioTraditionalMemoryBalloonDevice",
+      "header": "Virtualization/Virtualization.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "customVirtioDevices",
+      "header": "Virtualization/Virtualization.h",
+      "type_checked": false,
+      "errors": [
+        "property 'customVirtioDevices' not found on object of type 'VZVirtualMachineConfiguration *'"
+      ]
+    },
+    {
+      "symbol": "VZGuestMemoryMapping",
+      "header": "Virtualization/Virtualization.h",
+      "type_checked": false,
+      "errors": [
+        "use of undeclared identifier 'VZGuestMemoryMapping'"
+      ]
+    },
+    {
+      "symbol": "hv_vcpu_run",
+      "header": "Hypervisor/Hypervisor.h",
+      "type_checked": true,
+      "errors": []
+    },
+    {
+      "symbol": "hv_gic_create",
+      "header": "Hypervisor/Hypervisor.h",
+      "type_checked": true,
+      "errors": []
+    }
+  ]
+}
