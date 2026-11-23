@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/netip"
-	"slices"
 	"sync"
 )
 
@@ -19,15 +18,14 @@ func (d *serviceDirectory) contains(name string) bool {
 	return len(d.records[name]) != 0
 }
 
-// Copy the aliases before releasing the lock. Each DNS request owns its
-// scratch buffer, so publication can remove an address while a reply is packed.
-func (d *serviceDirectory) lookup(name string, one *[1]netip.Addr) []netip.Addr {
+// Records may change as soon as the lock is released. If the entire answer
+// must truncate, keep just its count. Otherwise copy into request-owned space.
+func (d *serviceDirectory) lookup(name string, scratch []netip.Addr, limit int) ([]netip.Addr, int) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	records := d.records[name]
-	if len(records) == 1 {
-		one[0] = records[0]
-		return one[:]
+	if len(records) == 0 || len(records) > limit {
+		return nil, len(records)
 	}
-	return slices.Clone(records)
+	return append(scratch[:0], records...), len(records)
 }

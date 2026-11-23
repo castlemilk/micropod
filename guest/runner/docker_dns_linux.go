@@ -168,12 +168,23 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 		return nil
 	}
 	host := strings.ToLower(strings.TrimSuffix(q.Name.String(), "."))
-	var oneAddress [1]netip.Addr
+	var addresses [8]netip.Addr
+	var count int
 	var ips []netip.Addr
 	var found bool
 	if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
-		ips = n.services.lookup(host, &oneAddress)
-		found = len(ips) > 0
+		// Eight IPv4 records fit legacy UDP even with the longest question.
+		// Most queries can finish the lookup without parsing any EDNS options.
+		ips, count = n.services.lookup(host, addresses[:], len(addresses))
+		if count > len(addresses) {
+			limit := serviceAnswerLimit(&q, network, &parser, binary.BigEndian.Uint16(packet[10:12]) != 0, count)
+			if count <= limit {
+				// Membership may have changed. Take both the data and count from
+				// this lookup, under the packet's effective limit.
+				ips, count = n.services.lookup(host, addresses[:], limit)
+			}
+		}
+		found = count > 0
 	} else {
 		found = n.services.contains(host)
 	}
@@ -187,8 +198,8 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 			}
 			return wire
 		}
-		if len(ips) > 1 {
-			raw, err := packServiceAddresses(header, q, ips, network, &parser)
+		if count > 1 {
+			raw, err := packServiceAddresses(header, q, ips, count)
 			if err != nil {
 				return nil
 			}

@@ -50,7 +50,7 @@ func TestServiceDirectoryIsScopedAndDropsOnlyExitedAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	var restored workerNetwork
-	if err = json.Unmarshal(b, &restored); err != nil || len(restored.services.lookup("backend", &[1]netip.Addr{})) != 0 {
+	if err = json.Unmarshal(b, &restored); err != nil || restored.services.contains("backend") {
 		t.Fatal("persisted transient endpoints", err)
 	}
 }
@@ -119,6 +119,76 @@ func TestServiceDNSNonAddressQuestionsKeepLocalAuthority(t *testing.T) {
 			metrics := &s.metrics.networks
 			if metrics.dnsLocal.Load() != tc.local || metrics.dnsMissing.Load() != tc.missing || metrics.dnsForwarded.Load() != tc.forwarded {
 				t.Fatalf("incorrect %s DNS counters", typ)
+			}
+		}
+	}
+}
+
+// A membership change between the count check and the bounded copy must
+// yield a complete answer for one state, including forwarding a vanished name.
+func TestServiceDNSMembershipChangesDuringReply(t *testing.T) {
+	q := dnsmessage.Question{Name: dnsmessage.MustNewName("web.svc."), Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET}
+	request := dnsmessage.Message{Questions: []dnsmessage.Question{q}, Additionals: []dnsmessage.Resource{{
+		Header: dnsmessage.ResourceHeader{Name: dnsmessage.MustNewName("."), Type: dnsmessage.TypeOPT, Class: 1232},
+		Body:   &dnsmessage.OPTResource{},
+	}}}
+	wire, err := request.Pack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := &workerNetwork{}
+	n.services.records = make(map[string][]netip.Addr)
+	states := make([][]netip.Addr, 0, 5)
+	for _, count := range []int{0, 1, 9, 60, 80} {
+		var ips []netip.Addr
+		for i := range count {
+			ips = append(ips, netip.AddrFrom4([4]byte{10, 42, byte(count), byte(i + 1)}))
+		}
+		states = append(states, ips)
+	}
+	stop, done := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			for _, ips := range states {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				n.services.mu.Lock()
+				n.services.records["web.svc"] = ips
+				n.services.mu.Unlock()
+			}
+		}
+	}()
+	defer func() { close(stop); <-done }()
+	s := new(dockerEngine)
+	for range 3000 {
+		var reply dnsmessage.Message
+		if err := reply.Unpack(s.dnsReply(context.Background(), n, nil, wire, "udp")); err != nil {
+			t.Fatal(err)
+		}
+		count := len(reply.Answers)
+		switch {
+		case reply.RCode == dnsmessage.RCodeServerFailure:
+			if count != 0 || reply.Authoritative || reply.Truncated {
+				t.Fatal("bad forwarded miss", reply.Header, count)
+			}
+		case reply.RCode != dnsmessage.RCodeSuccess || !reply.Authoritative:
+			t.Fatal("bad local answer", reply.Header)
+		case reply.Truncated:
+			if count != 0 {
+				t.Fatal("partially encoded truncated answer", count)
+			}
+		default:
+			if count != 1 && count != 9 && count != 60 {
+				t.Fatal("inconsistent answer count", count)
+			}
+			for i, a := range reply.Answers {
+				if a.Body.(*dnsmessage.AResource).A != [4]byte{10, 42, byte(count), byte(i + 1)} {
+					t.Fatal("mixed addresses from different directory states", count, i)
+				}
 			}
 		}
 	}

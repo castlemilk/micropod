@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"net/netip"
 	"slices"
 	"sync"
@@ -8,19 +9,28 @@ import (
 )
 
 func TestServiceLookupCopiesWhileLocked(t *testing.T) {
-	for _, count := range []int{1, 8} {
+	for _, count := range []int{1, 8, 9} {
 		stored := make([]netip.Addr, count)
 		for i := range stored {
 			stored[i] = netip.AddrFrom4([4]byte{10, 90, 0, byte(i + 1)})
 		}
 		d := serviceDirectory{records: map[string][]netip.Addr{"db": stored}}
 		want := slices.Clone(stored)
-		var scratch [1]netip.Addr
-		got := d.lookup("db", &scratch)
+		var scratch [8]netip.Addr
+		got, total := d.lookup("db", scratch[:], count)
+		if total != count {
+			t.Fatalf("wrong address count %d", total)
+		}
+		if count <= len(scratch) && &got[0] != &scratch[0] {
+			t.Fatal("small response did not use the caller's buffer")
+		}
+		if truncated, n := d.lookup("db", scratch[:], count-1); len(truncated) != 0 || n != count {
+			t.Fatal("copied records for truncated reply", truncated, n)
+		}
 		if !d.contains("db") || d.contains("missing") {
 			t.Fatal("incorrect directory membership")
 		}
-		if d.lookup("missing", &scratch) != nil {
+		if ips, total := d.lookup("missing", scratch[:], count); ips != nil || total != 0 {
 			t.Fatal("missing record returned an address")
 		}
 		// A subsequent removal may clear or overwrite the stored backing array.
@@ -37,9 +47,9 @@ func TestServiceLookupConcurrentReadersAndWriter(t *testing.T) {
 	var workers sync.WaitGroup
 	for range 3 {
 		workers.Go(func() {
-			var scratch [1]netip.Addr
+			var scratch [8]netip.Addr
 			for range 1000 {
-				ips := d.lookup("db", &scratch)
+				ips, _ := d.lookup("db", scratch[:], math.MaxUint16)
 				if len(ips) != 1 || ips[0] != ip || !d.contains("db") {
 					t.Errorf("invalid lookup during publication: %v", ips)
 					return
@@ -79,8 +89,8 @@ func BenchmarkServiceLookup(b *testing.B) {
 		b.Run(name+"/scratch", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				var scratch [1]netip.Addr
-				if ips := d.lookup(name, &scratch); len(ips) > 0 {
+				var scratch [8]netip.Addr
+				if ips, _ := d.lookup(name, scratch[:], math.MaxUint16); len(ips) > 0 {
 					lastLookup = ips[len(ips)-1]
 				}
 			}

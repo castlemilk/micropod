@@ -62,6 +62,14 @@ func serviceAliasAddresses(count int) []netip.Addr {
 	return ips
 }
 
+func packForTransport(h dnsmessage.Header, q dnsmessage.Question, ips []netip.Addr, network string, parser *dnsmessage.Parser, hasAdditional bool) ([]byte, error) {
+	count := len(ips)
+	if count > serviceAnswerLimit(&q, network, parser, hasAdditional, count) {
+		ips = nil
+	}
+	return packServiceAddresses(h, q, ips, count)
+}
+
 func TestMultiServiceAWireAndTruncation(t *testing.T) {
 	maxName := strings.Repeat(strings.Repeat("x", 63)+".", 3) + strings.Repeat("y", 61) + "."
 	for _, name := range []string{"Db.Svc.", ".", maxName, strings.Repeat("x", 14) + ".", strings.Repeat("x", 15) + "."} {
@@ -82,7 +90,7 @@ func TestMultiServiceAWireAndTruncation(t *testing.T) {
 							t.Fatal(err)
 						}
 						parser := p
-						got, err := packServiceAddresses(h, q, ips, proto, &parser)
+						got, err := packForTransport(h, q, ips, proto, &parser, edns >= 0)
 						if err != nil || !bytes.Equal(got, want) {
 							t.Fatalf("name=%s answers=%d type=%v EDNS=%d proto=%s: wire mismatch, err=%v", name, n, typ, edns, proto, err)
 						}
@@ -94,8 +102,7 @@ func TestMultiServiceAWireAndTruncation(t *testing.T) {
 }
 
 func TestMultiServiceARejectsUnrepresentableCountBeforeTruncation(t *testing.T) {
-	var p dnsmessage.Parser
-	if _, err := packServiceAddresses(dnsmessage.Header{}, dnsmessage.Question{}, make([]netip.Addr, 1<<16), "udp", &p); err == nil {
+	if _, err := packServiceAddresses(dnsmessage.Header{}, dnsmessage.Question{}, nil, 1<<16); err == nil {
 		t.Fatal("unrepresentable count accepted")
 	}
 }
@@ -123,7 +130,7 @@ func BenchmarkPackMultiServiceA(b *testing.B) {
 						dnsAnswerBytes, err = generalServiceAddresses(h, q, ips, limit)
 					} else {
 						p := parser
-						dnsAnswerBytes, err = packServiceAddresses(h, q, ips, c.network, &p)
+						dnsAnswerBytes, err = packForTransport(h, q, ips, c.network, &p, c.edns >= 0)
 					}
 					if err != nil {
 						b.Fatal(err)

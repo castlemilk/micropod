@@ -37,22 +37,38 @@ func packSingleServiceA(header dnsmessage.Header, question dnsmessage.Question, 
 	return reply.AppendPack(make([]byte, 0, capacity))
 }
 
-// All records refer to the question name. Compression uses a two-byte pointer
-// for every answer except a root name, which is already one byte on the wire.
-func packServiceAddresses(header dnsmessage.Header, q dnsmessage.Question, ips []netip.Addr, network string, parser *dnsmessage.Parser) ([]byte, error) {
-	if len(ips) > math.MaxUint16 {
+// Compression makes each answer a pointer to the question plus its IPv4
+// resource, except that the root has a shorter literal encoding.
+func serviceAnswerLengths(name *dnsmessage.Name) (question, record int) {
+	if name.Length == 1 && name.Data[0] == '.' {
+		return 17, 15
+	}
+	return 17 + int(name.Length), 16
+}
+
+func serviceAnswerLimit(q *dnsmessage.Question, network string, parser *dnsmessage.Parser, hasAdditional bool, count int) int {
+	if network != "udp" {
+		return math.MaxUint16
+	}
+	question, record := serviceAnswerLengths(&q.Name)
+	limit := 512
+	// Beyond the worker's maximum EDNS size, no option can make this answer fit.
+	if hasAdditional && count <= (4096-question)/record {
+		limit = serviceUDPLimit(parser)
+	}
+	return (limit - question) / record
+}
+
+func packServiceAddresses(header dnsmessage.Header, q dnsmessage.Question, ips []netip.Addr, count int) ([]byte, error) {
+	if count > math.MaxUint16 {
 		return nil, errors.New("too many DNS answers")
 	}
-	questionSize, recordSize := 12+int(q.Name.Length)+1+4, 16
-	if q.Name.Length == 1 && q.Name.Data[0] == '.' {
-		questionSize, recordSize = 17, 15
-	}
-	size := questionSize + recordSize*len(ips)
-	if network == "udp" && size > 512 && size > serviceUDPLimit(parser) {
+	if len(ips) < count {
 		header.Truncated = true
-		ips = nil
-		size = questionSize
+		return packServiceQuestion(header, q)
 	}
+	question, record := serviceAnswerLengths(&q.Name)
+	size := question + record*len(ips)
 	out := dnsmessage.NewBuilder(make([]byte, 0, size), header)
 	out.EnableCompression()
 	if err := out.StartQuestions(); err != nil {
