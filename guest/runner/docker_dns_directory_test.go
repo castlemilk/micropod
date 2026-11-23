@@ -17,6 +17,9 @@ func TestServiceLookupCopiesWhileLocked(t *testing.T) {
 		want := slices.Clone(stored)
 		var scratch [1]netip.Addr
 		got := d.lookup("db", &scratch)
+		if !d.contains("db") || d.contains("missing") {
+			t.Fatal("incorrect directory membership")
+		}
 		if d.lookup("missing", &scratch) != nil {
 			t.Fatal("missing record returned an address")
 		}
@@ -37,7 +40,7 @@ func TestServiceLookupConcurrentReadersAndWriter(t *testing.T) {
 			var scratch [1]netip.Addr
 			for range 1000 {
 				ips := d.lookup("db", &scratch)
-				if len(ips) != 1 || ips[0] != ip {
+				if len(ips) != 1 || ips[0] != ip || !d.contains("db") {
 					t.Errorf("invalid lookup during publication: %v", ips)
 					return
 				}

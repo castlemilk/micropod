@@ -8,6 +8,24 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
+func TestQuestionOnlyReplyMatchesMessageEncoding(t *testing.T) {
+	for _, name := range []string{".", "Db.", "A.a.a.", strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 61) + "."} {
+		q := dnsmessage.Question{Name: dnsmessage.MustNewName(name), Type: dnsmessage.TypeAAAA, Class: dnsmessage.ClassINET}
+		for _, code := range []dnsmessage.RCode{dnsmessage.RCodeSuccess, dnsmessage.RCodeNameError, dnsmessage.RCodeServerFailure} {
+			h := dnsmessage.Header{ID: 42, Response: true, Authoritative: code != dnsmessage.RCodeServerFailure, RecursionDesired: true, RecursionAvailable: true, RCode: code}
+			ref := dnsmessage.Message{Header: h, Questions: []dnsmessage.Question{q}}
+			want, err := ref.Pack()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := packServiceQuestion(h, q)
+			if err != nil || !bytes.Equal(want, got) {
+				t.Fatalf("question-only %q %s: %x, want %x (%v)", name, code, got, want, err)
+			}
+		}
+	}
+}
+
 // Mirror dnsReply's general packer, with the old append path for local answers.
 func referenceServiceA(h dnsmessage.Header, q dnsmessage.Question, ip [4]byte) ([]byte, error) {
 	reply := dnsmessage.Message{Header: h, Questions: []dnsmessage.Question{q}}

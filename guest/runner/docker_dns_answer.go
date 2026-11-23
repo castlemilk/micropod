@@ -8,6 +8,18 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
+// A question-only response has no later name that could reference the first.
+func packServiceQuestion(header dnsmessage.Header, q dnsmessage.Question) ([]byte, error) {
+	out := dnsmessage.NewBuilder(make([]byte, 0, 12+int(q.Name.Length)+1+4), header)
+	if err := out.StartQuestions(); err != nil {
+		return nil, err
+	}
+	if err := out.Question(q); err != nil {
+		return nil, err
+	}
+	return out.Finish()
+}
+
 // A single compressed IPv4 answer always fits the original 512-byte UDP limit.
 // Size the reply for its actual name and construct the one resource directly.
 func packSingleServiceA(header dnsmessage.Header, question dnsmessage.Question, address [4]byte) ([]byte, error) {

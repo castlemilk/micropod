@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/netip"
+	"strconv"
 	"testing"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -82,5 +83,106 @@ func TestServiceAliasesRespectDNSPayloadSize(t *testing.T) {
 	q.Additionals = []dnsmessage.Resource{{Header: dnsmessage.ResourceHeader{Name: dnsmessage.MustNewName("."), Type: dnsmessage.TypeOPT, Class: 4096}, Body: &dnsmessage.OPTResource{}}}
 	if a := ask("udp"); a.Truncated || len(a.Answers) != 64 {
 		t.Fatal("incorrect EDNS response")
+	}
+}
+
+func TestServiceDNSNonAddressQuestionsKeepLocalAuthority(t *testing.T) {
+	// A replica alias must answer AAAA/TXT locally even when the service only
+	// publishes IPv4 addresses. The same name outside its directory is a miss.
+	for _, typ := range []dnsmessage.Type{dnsmessage.TypeAAAA, dnsmessage.TypeTXT} {
+		for _, tc := range []struct {
+			records                   []netip.Addr
+			internal                  bool
+			code                      dnsmessage.RCode
+			local, missing, forwarded uint64
+		}{
+			{[]netip.Addr{netip.MustParseAddr("10.9.0.2"), netip.MustParseAddr("10.9.0.3")}, false, dnsmessage.RCodeSuccess, 1, 0, 0},
+			{nil, true, dnsmessage.RCodeNameError, 0, 1, 0},
+			{nil, false, dnsmessage.RCodeServerFailure, 0, 0, 1},
+		} {
+			s := new(dockerEngine)
+			n := &workerNetwork{Internal: tc.internal}
+			n.services.records = map[string][]netip.Addr{"db.svc": tc.records}
+			q := dnsmessage.Question{Name: dnsmessage.MustNewName("Db.SvC."), Type: typ, Class: dnsmessage.ClassINET}
+			m := dnsmessage.Message{Header: dnsmessage.Header{ID: 21, RecursionDesired: true}, Questions: []dnsmessage.Question{q}}
+			wire, err := m.Pack()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got dnsmessage.Message
+			if err := got.Unpack(s.dnsReply(context.Background(), n, nil, wire, "udp")); err != nil {
+				t.Fatal(err)
+			}
+			if got.RCode != tc.code || len(got.Answers) != 0 || got.Authoritative != (tc.forwarded == 0) || len(got.Questions) != 1 || got.Questions[0] != q {
+				t.Fatalf("bad %s answer: %+v", typ, got)
+			}
+			metrics := &s.metrics.networks
+			if metrics.dnsLocal.Load() != tc.local || metrics.dnsMissing.Load() != tc.missing || metrics.dnsForwarded.Load() != tc.forwarded {
+				t.Fatalf("incorrect %s DNS counters", typ)
+			}
+		}
+	}
+}
+
+func TestServiceDNSRejectsExtraQuestions(t *testing.T) {
+	n := &workerNetwork{Internal: true}
+	s := new(dockerEngine)
+	q := dnsmessage.Question{Name: dnsmessage.MustNewName("unused."), Type: dnsmessage.TypeAAAA, Class: dnsmessage.ClassINET}
+	m := dnsmessage.Message{Questions: []dnsmessage.Question{q, q}}
+	wire, err := m.Pack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, input := range [][]byte{wire, wire[:len(wire)-1]} {
+		if reply := s.dnsReply(context.Background(), n, nil, input, "udp"); reply != nil {
+			t.Fatalf("unexpected reply to extra question: %x", reply)
+		}
+	}
+	if s.metrics.networks.dnsMissing.Load() != 0 {
+		t.Fatal("invalid question counted as a miss")
+	}
+}
+
+func BenchmarkServiceDNSQuestions(b *testing.B) {
+	for _, count := range []int{0, 1, 8, 256} {
+		n := &workerNetwork{Internal: true}
+		n.services.records = make(map[string][]netip.Addr)
+		for i := range count {
+			ip := netip.AddrFrom4([4]byte{10, 0, byte(i >> 8), byte(i)})
+			n.services.records["alias.svc"] = append(n.services.records["alias.svc"], ip)
+		}
+		for _, pattern := range []struct {
+			name  string
+			types []dnsmessage.Type
+		}{
+			{"A", []dnsmessage.Type{dnsmessage.TypeA}},
+			{"AAAA", []dnsmessage.Type{dnsmessage.TypeAAAA}},
+			{"alternating", []dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}},
+		} {
+			b.Run(strconv.Itoa(count)+"/"+pattern.name, func(b *testing.B) {
+				s := new(dockerEngine)
+				var requests [][]byte
+				for _, typ := range pattern.types {
+					q := dnsmessage.Question{Name: dnsmessage.MustNewName("alias.svc."), Type: typ, Class: dnsmessage.ClassINET}
+					m := dnsmessage.Message{Header: dnsmessage.Header{ID: 42, RecursionDesired: true}, Questions: []dnsmessage.Question{q}}
+					wire, err := m.Pack()
+					if err != nil {
+						b.Fatal(err)
+					}
+					requests = append(requests, wire)
+				}
+				b.ReportAllocs()
+				i := 0
+				for b.Loop() {
+					if s.dnsReply(context.Background(), n, nil, requests[i], "udp") == nil {
+						b.Fatal("missing DNS response")
+					}
+					i++
+					if i == len(requests) {
+						i = 0
+					}
+				}
+			})
+		}
 	}
 }

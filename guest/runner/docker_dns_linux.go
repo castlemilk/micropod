@@ -164,24 +164,31 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 	if err != nil {
 		return nil
 	}
-	if _, err = parser.Question(); err != dnsmessage.ErrSectionDone {
+	if err = parser.SkipQuestion(); err != dnsmessage.ErrSectionDone {
 		return nil
 	}
 	host := strings.ToLower(strings.TrimSuffix(q.Name.String(), "."))
 	var oneAddress [1]netip.Addr
-	ips := n.services.lookup(host, &oneAddress)
-	out := dnsmessage.Message{Header: dnsmessage.Header{ID: h.ID, Response: true, Authoritative: true, RecursionDesired: h.RecursionDesired, RecursionAvailable: !n.Internal}, Questions: []dnsmessage.Question{q}}
-	if len(ips) > 0 {
+	var ips []netip.Addr
+	var found bool
+	if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
+		ips = n.services.lookup(host, &oneAddress)
+		found = len(ips) > 0
+	} else {
+		found = n.services.contains(host)
+	}
+	header := dnsmessage.Header{ID: h.ID, Response: true, Authoritative: true, RecursionDesired: h.RecursionDesired, RecursionAvailable: !n.Internal}
+	if found {
 		s.metrics.networks.dnsLocal.Add(1)
-		if len(ips) == 1 && (q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL) {
-			wire, err := packSingleServiceA(out.Header, q, ips[0].As4())
+		if len(ips) == 1 {
+			wire, err := packSingleServiceA(header, q, ips[0].As4())
 			if err != nil {
 				return nil
 			}
 			return wire
 		}
-		if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
-			raw, err := packServiceAddresses(out.Header, q, ips, network, &parser)
+		if len(ips) > 1 {
+			raw, err := packServiceAddresses(header, q, ips, network, &parser)
 			if err != nil {
 				return nil
 			}
@@ -189,20 +196,20 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 		}
 	} else if n.Internal || !strings.Contains(host, ".") {
 		s.metrics.networks.dnsMissing.Add(1)
-		out.RCode = dnsmessage.RCodeNameError
+		header.RCode = dnsmessage.RCodeNameError
 	} else {
 		s.metrics.networks.dnsForwarded.Add(1)
-		out.Authoritative = false
+		header.Authoritative = false
 		for _, addr := range upstream {
 			if raw := forwardDNS(ctx, addr, network, packet, h.ID); raw != nil {
 				return raw
 			}
 		}
 		s.metrics.networks.dnsFailures.Add(1)
-		out.RCode = dnsmessage.RCodeServerFailure
+		header.RCode = dnsmessage.RCodeServerFailure
 	}
 	// Local NODATA, NXDOMAIN and upstream failures contain only the original question.
-	raw, err := out.AppendPack(make([]byte, 0, 12+int(q.Name.Length)+1+4))
+	raw, err := packServiceQuestion(header, q)
 	if err != nil {
 		return nil
 	}

@@ -11,6 +11,14 @@ type serviceDirectory struct {
 	records map[string][]netip.Addr
 }
 
+// IPv4 service aliases still exist for other question types. Only their
+// presence is needed to distinguish a local NODATA response from a missing name.
+func (d *serviceDirectory) contains(name string) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.records[name]) != 0
+}
+
 // Copy the aliases before releasing the lock. Each DNS request owns its
 // scratch buffer, so publication can remove an address while a reply is packed.
 func (d *serviceDirectory) lookup(name string, one *[1]netip.Addr) []netip.Addr {
