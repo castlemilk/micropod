@@ -1,0 +1,377 @@
+{
+  "source_sha256": {
+    "gamma-vcpu-priority.json.gz": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+    "gamma-relay-workers.json.gz": "82ceb6976075b8054e61524777d2da8302f19cce2552a1c07515668686c6c969"
+  },
+  "scope": "Whole-window per-stream rates. The sensitivity fixes window duration and fastest observed stream rate, then assigns that rate to all 32 streams. Within-window timing and service attribution are unavailable.",
+  "product": {
+    "clean_rounds": {
+      "confirm-micropod": {
+        "1": {
+          "mib_s": 4069.2930543354164,
+          "slowest_mib_s": 126.09937675190206,
+          "fastest_mib_s": 128.88539831809456,
+          "equalized_mib_s": 4124.332746179026,
+          "extra_mib_s": 55.039691843609255,
+          "extra_pct": 1.3525615164277758
+        },
+        "2": {
+          "mib_s": 3433.9523440331063,
+          "slowest_mib_s": 105.54754360744879,
+          "fastest_mib_s": 108.68314067325873,
+          "equalized_mib_s": 3477.8605015442795,
+          "extra_mib_s": 43.90815751117288,
+          "extra_pct": 1.2786478410939055
+        },
+        "3": {
+          "mib_s": 3811.0250961640354,
+          "slowest_mib_s": 118.16306804265619,
+          "fastest_mib_s": 120.65819254174258,
+          "equalized_mib_s": 3861.0621613357625,
+          "extra_mib_s": 50.03706517172677,
+          "extra_pct": 1.3129555410719096
+        },
+        "4": {
+          "mib_s": 2556.2174080743953,
+          "slowest_mib_s": 77.8488884692856,
+          "fastest_mib_s": 82.78568724077257,
+          "equalized_mib_s": 2649.1419917047224,
+          "extra_mib_s": 92.92458363032722,
+          "extra_pct": 3.63523788457131
+        },
+        "5": {
+          "mib_s": 2500.378450314961,
+          "slowest_mib_s": 76.61542895403574,
+          "fastest_mib_s": 79.58472015246254,
+          "equalized_mib_s": 2546.711044878801,
+          "extra_mib_s": 46.33259456384031,
+          "extra_pct": 1.853023271657297
+        },
+        "6": {
+          "mib_s": 2455.041846296845,
+          "slowest_mib_s": 75.33391111282378,
+          "fastest_mib_s": 77.93397709111629,
+          "equalized_mib_s": 2493.8872669157213,
+          "extra_mib_s": 38.84542061887646,
+          "extra_pct": 1.5822712218722634
+        },
+        "7": {
+          "mib_s": 3118.8546527245653,
+          "slowest_mib_s": 96.30298828304365,
+          "fastest_mib_s": 98.306958293671,
+          "equalized_mib_s": 3145.822665397472,
+          "extra_mib_s": 26.968012672906525,
+          "extra_pct": 0.8646768020865556
+        },
+        "8": {
+          "mib_s": 1561.921229438398,
+          "slowest_mib_s": 47.50149389405558,
+          "fastest_mib_s": 50.46767724690086,
+          "equalized_mib_s": 1614.9656719008276,
+          "extra_mib_s": 53.044442462429465,
+          "extra_pct": 3.396102278570222
+        },
+        "9": {
+          "mib_s": 1759.3318610989331,
+          "slowest_mib_s": 54.01871095582302,
+          "fastest_mib_s": 56.17945476836564,
+          "equalized_mib_s": 1797.7425525877004,
+          "extra_mib_s": 38.41069148876719,
+          "extra_pct": 2.183254469385593
+        },
+        "10": {
+          "mib_s": 2854.0611513491435,
+          "slowest_mib_s": 87.32872057372042,
+          "fastest_mib_s": 91.1028045470499,
+          "equalized_mib_s": 2915.289745505597,
+          "extra_mib_s": 61.22859415645313,
+          "extra_pct": 2.145314725562546
+        },
+        "11": {
+          "mib_s": 2352.5679547807304,
+          "slowest_mib_s": 70.17311120725675,
+          "fastest_mib_s": 77.27892397063508,
+          "equalized_mib_s": 2472.9255670603225,
+          "extra_mib_s": 120.35761227959202,
+          "extra_pct": 5.116010019392188
+        },
+        "12": {
+          "mib_s": 2428.0905633132024,
+          "slowest_mib_s": 73.99895759507132,
+          "fastest_mib_s": 77.16952673042172,
+          "equalized_mib_s": 2469.424855373495,
+          "extra_mib_s": 41.3342920602927,
+          "extra_pct": 1.7023373297860362
+        },
+        "13": {
+          "mib_s": 3789.0475767591847,
+          "slowest_mib_s": 115.49209450116476,
+          "fastest_mib_s": 120.77069685773499,
+          "equalized_mib_s": 3864.6622994475197,
+          "extra_mib_s": 75.61472268833504,
+          "extra_pct": 1.9956129121241906
+        },
+        "14": {
+          "mib_s": 3593.862795953447,
+          "slowest_mib_s": 110.64556640962492,
+          "fastest_mib_s": 114.64480374973185,
+          "equalized_mib_s": 3668.633719991419,
+          "extra_mib_s": 74.77092403797225,
+          "extra_pct": 2.080516933539073
+        },
+        "15": {
+          "mib_s": 3193.1309856249977,
+          "slowest_mib_s": 98.18773948723661,
+          "fastest_mib_s": 101.13553715570168,
+          "equalized_mib_s": 3236.337188982454,
+          "extra_mib_s": 43.20620335745612,
+          "extra_pct": 1.3530983712213511
+        },
+        "16": {
+          "mib_s": 2565.598868197887,
+          "slowest_mib_s": 79.61666034070116,
+          "fastest_mib_s": 81.43165559478759,
+          "equalized_mib_s": 2605.8129790332027,
+          "extra_mib_s": 40.21411083531555,
+          "extra_pct": 1.5674356320387102
+        }
+      },
+      "confirm-orb": {
+        "1": {
+          "mib_s": 5739.440005310204,
+          "slowest_mib_s": 123.2134504048575,
+          "fastest_mib_s": 238.06378135688652,
+          "equalized_mib_s": 7618.041003420369,
+          "extra_mib_s": 1878.6009981101654,
+          "extra_pct": 32.731433665515446
+        },
+        "2": {
+          "mib_s": 5944.513160179245,
+          "slowest_mib_s": 143.10852605265242,
+          "fastest_mib_s": 236.53612814342344,
+          "equalized_mib_s": 7569.15610058955,
+          "extra_mib_s": 1624.6429404103055,
+          "extra_pct": 27.330126061346252
+        },
+        "3": {
+          "mib_s": 2919.2778837909373,
+          "slowest_mib_s": 60.990455534339624,
+          "fastest_mib_s": 114.57694588623421,
+          "equalized_mib_s": 3666.462268359495,
+          "extra_mib_s": 747.1843845685576,
+          "extra_pct": 25.59483592559792
+        },
+        "4": {
+          "mib_s": 2026.7883738265282,
+          "slowest_mib_s": 43.58414491043516,
+          "fastest_mib_s": 75.09139849855804,
+          "equalized_mib_s": 2402.924751953857,
+          "extra_mib_s": 376.13637812732867,
+          "extra_pct": 18.5582462868184
+        },
+        "5": {
+          "mib_s": 3704.568410689416,
+          "slowest_mib_s": 83.83743083405744,
+          "fastest_mib_s": 149.19552817205522,
+          "equalized_mib_s": 4774.256901505767,
+          "extra_mib_s": 1069.6884908163508,
+          "extra_pct": 28.874847815734704
+        },
+        "6": {
+          "mib_s": 3145.831464160591,
+          "slowest_mib_s": 71.73287661116898,
+          "fastest_mib_s": 118.81688129072366,
+          "equalized_mib_s": 3802.140201303157,
+          "extra_mib_s": 656.3087371425661,
+          "extra_pct": 20.862806689413365
+        },
+        "7": {
+          "mib_s": 1524.8351465996805,
+          "slowest_mib_s": 31.158063747317964,
+          "fastest_mib_s": 69.82409784874889,
+          "equalized_mib_s": 2234.3711311599645,
+          "extra_mib_s": 709.5359845602842,
+          "extra_pct": 46.5319799417347
+        },
+        "8": {
+          "mib_s": 1828.8521047653226,
+          "slowest_mib_s": 44.953559912588666,
+          "fastest_mib_s": 72.91785120341267,
+          "equalized_mib_s": 2333.3712385092053,
+          "extra_mib_s": 504.51913374388306,
+          "extra_pct": 27.586655718594738
+        },
+        "9": {
+          "mib_s": 2408.4591124171934,
+          "slowest_mib_s": 58.61467788965678,
+          "fastest_mib_s": 87.50852135934909,
+          "equalized_mib_s": 2800.272683499171,
+          "extra_mib_s": 391.8135710819773,
+          "extra_pct": 16.268225981579683
+        },
+        "10": {
+          "mib_s": 2554.2411903171883,
+          "slowest_mib_s": 54.41225034301795,
+          "fastest_mib_s": 93.82487872692678,
+          "equalized_mib_s": 3002.396119261657,
+          "extra_mib_s": 448.15492894446874,
+          "extra_pct": 17.545521176440523
+        },
+        "11": {
+          "mib_s": 1911.296190038026,
+          "slowest_mib_s": 45.91523144310792,
+          "fastest_mib_s": 84.66789126243853,
+          "equalized_mib_s": 2709.372520398033,
+          "extra_mib_s": 798.0763303600069,
+          "extra_pct": 41.7557642044025
+        },
+        "13": {
+          "mib_s": 3010.383519887246,
+          "slowest_mib_s": 45.33327194452758,
+          "fastest_mib_s": 115.64863693088229,
+          "equalized_mib_s": 3700.7563817882333,
+          "extra_mib_s": 690.372861900987,
+          "extra_pct": 22.933053457814733
+        },
+        "14": {
+          "mib_s": 3133.9056668455537,
+          "slowest_mib_s": 45.33263588630521,
+          "fastest_mib_s": 123.00075799586116,
+          "equalized_mib_s": 3936.0242558675573,
+          "extra_mib_s": 802.1185890220033,
+          "extra_pct": 25.59485429021797
+        },
+        "15": {
+          "mib_s": 4663.222442703642,
+          "slowest_mib_s": 109.18121008063947,
+          "fastest_mib_s": 191.72285982011937,
+          "equalized_mib_s": 6135.13151424382,
+          "extra_mib_s": 1471.909071540178,
+          "extra_pct": 31.564204573668057
+        },
+        "16": {
+          "mib_s": 3940.0715473029277,
+          "slowest_mib_s": 95.9991286799084,
+          "fastest_mib_s": 147.49820921546112,
+          "equalized_mib_s": 4719.942694894756,
+          "extra_mib_s": 779.8711475918284,
+          "extra_pct": 19.793324517816657
+        }
+      }
+    },
+    "rejected_rounds": [
+      {
+        "arm": "confirm-orb",
+        "round": 12,
+        "errors": [
+          "Get \"http://127.0.0.1:32844/id\": EOF"
+        ],
+        "reopened": 0
+      }
+    ],
+    "extra_mib_s_min_median_max": [
+      26.968012672906525,
+      48.18482986778354,
+      120.35761227959202
+    ],
+    "extra_pct_min_median_max": [
+      0.8646768020865556,
+      1.7776803007216666,
+      5.116010019392188
+    ],
+    "orb_minus_micropod_clean_arm_medians_mib_s": 300.5535101137307,
+    "paired": {
+      "rounds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16
+      ],
+      "median_ratio": 0.8540445809525004,
+      "median_equalized_ratio": 0.8830488084262337,
+      "equalized_ratio_bootstrap_ci95": [
+        0.7185949748343289,
+        1.293847379568691
+      ],
+      "wins": 7,
+      "wins_if_equalized": 7,
+      "newly_won_rounds": []
+    }
+  },
+  "component": {
+    "protocol": "Two-second component trials with dispatch clients, two original or two/four staggered owners, 128-event callbacks and one or 32 logical published ports.",
+    "selected_ports": 1,
+    "rounds": {
+      "1": {
+        "balanced2": {
+          "mib_s": 9396.909334328784,
+          "slowest_mib_s": 292.5650052200214,
+          "fastest_mib_s": 294.6796332339417,
+          "equalized_mib_s": 9429.748263486134,
+          "extra_mib_s": 32.83892915734935,
+          "extra_pct": 0.3494652123265911
+        },
+        "balanced4": {
+          "mib_s": 15403.095136845008,
+          "slowest_mib_s": 457.24850171232816,
+          "fastest_mib_s": 500.8034012685891,
+          "equalized_mib_s": 16025.70884059485,
+          "extra_mib_s": 622.6137037498428,
+          "extra_pct": 4.042133728438243
+        }
+      },
+      "2": {
+        "balanced4": {
+          "mib_s": 19241.479223604107,
+          "slowest_mib_s": 594.4900013871833,
+          "fastest_mib_s": 608.8356824298702,
+          "equalized_mib_s": 19482.741837755846,
+          "extra_mib_s": 241.2626141517395,
+          "extra_pct": 1.253867290284914
+        },
+        "balanced2": {
+          "mib_s": 10640.656854441315,
+          "slowest_mib_s": 332.0881202946574,
+          "fastest_mib_s": 333.207518452954,
+          "equalized_mib_s": 10662.640590494528,
+          "extra_mib_s": 21.983736053213743,
+          "extra_pct": 0.206601306234567
+        }
+      },
+      "3": {
+        "balanced2": {
+          "mib_s": 10860.774611701885,
+          "slowest_mib_s": 337.44753944191683,
+          "fastest_mib_s": 340.6886314350789,
+          "equalized_mib_s": 10902.036205922524,
+          "extra_mib_s": 41.26159422064073,
+          "extra_pct": 0.3799139167862267
+        },
+        "balanced4": {
+          "mib_s": 16205.36095680269,
+          "slowest_mib_s": 503.57017420711503,
+          "fastest_mib_s": 509.1595002555477,
+          "equalized_mib_s": 16293.104008177526,
+          "extra_mib_s": 87.74305137483681,
+          "extra_pct": 0.5414445973078065
+        }
+      }
+    },
+    "four_worker_slowest_exceeds_two_worker_fastest": [
+      1,
+      2,
+      3
+    ]
+  }
+}
