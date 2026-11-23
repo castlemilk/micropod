@@ -24,6 +24,10 @@ typedef struct {
     mp_tcp_handoff_stats handoff;
     // Count each newly allocated unwritten suffix once, across both directions.
     uint64_t pending_allocations, pending_copy_bytes;
+    // Positive guest reads only. Disjoint counts: <=128, (128,256), =256, >256 KiB.
+    uint64_t guest_reads_by_size[4], guest_read_bytes, guest_full_cap_reads;
+    // Subset of full-cap reads whose EVFILT_READ data hinted at more than the cap.
+    uint64_t guest_full_cap_ready_above_cap;
 } mp_tcp_stats;
 
 // A single serial owner must call these functions. The returned kqueue is

@@ -440,6 +440,12 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
         sum->blocked_writes += one->blocked_writes;
         sum->pending_allocations += one->pending_allocations;
         sum->pending_copy_bytes += one->pending_copy_bytes;
+        if (l->profile) {
+            for (unsigned i = 0; i < 4; ++i) sum->guest_reads_by_size[i] += one->guest_reads_by_size[i];
+            sum->guest_read_bytes += one->guest_read_bytes;
+            sum->guest_full_cap_reads += one->guest_full_cap_reads;
+            sum->guest_full_cap_ready_above_cap += one->guest_full_cap_ready_above_cap;
+        }
         sum->bulk_directions += one->bulk_directions;
         sum->route_waits += one->route_waits;
         sum->handshake_timeouts += one->handshake_timeouts;
@@ -604,9 +610,21 @@ void mp_tcp_adopt_profiled(mp_tcp_listener *l, int client, uint64_t accepted_at,
     mp_tcp_adopt(l, client, accepted_at);
 }
 
+static void observe_guest_read(mp_tcp_stats *stats, size_t count, size_t cap, const struct kevent *event) {
+    unsigned bin = (count > 128 * 1024) + (count >= 256 * 1024) + (count > 256 * 1024);
+    ++stats->guest_reads_by_size[bin];
+    stats->guest_read_bytes += count;
+    if (count == cap) {
+        ++stats->guest_full_cap_reads;
+        // kqueue captured this snapshot before the owner serviced the batch.
+        if (event && event->filter == EVFILT_READ && !(event->flags & EV_ERROR) && event->data > (intptr_t)cap)
+            ++stats->guest_full_cap_ready_above_cap;
+    }
+}
+
 // Read directly into the worker scratch and immediately write to the peer.
 // On backpressure, keep just the unwritten suffix and pause that reader.
-static void pump(struct endpoint *src, struct endpoint *dst) {
+static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct kevent *read_event) {
     struct pair *p = src->pair;
     mp_tcp_listener *l = p->listener;
     mp_tcp_relay *r = l->relay;
@@ -618,7 +636,8 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         data = dst->pending + dst->offset;
     } else {
         if (src->eof) return;
-        ssize_t got = read(src->watch.fd, data, mp_tcp_relay_read_bytes(r));
+        size_t cap = mp_tcp_relay_read_bytes(r);
+        ssize_t got = read(src->watch.fd, data, cap);
         if (l->profile) ++l->stats.reads;
         if (got < 0) {
             if (errno != EAGAIN && errno != EINTR) {
@@ -646,6 +665,7 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         count = (size_t)got;
         if (src == &p->guest) {
             p->guest_replied = true;
+            if (l->profile) observe_guest_read(&l->stats, count, cap, read_event);
             // One notification per data owner between watchdog polls. Counting only
             // bytes from the guest excludes accepts, writes and unanswered handshakes.
             if (!atomic_load_explicit(&r->guest_data, memory_order_relaxed))
@@ -713,6 +733,10 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
                                     filter_change(&src->watch, EVFILT_READ, EV_ENABLE) };
         if (update_stream_filters(r, changes, 2) < 0) retire(p);
     }
+}
+
+static void pump(struct endpoint *src, struct endpoint *dst) {
+    pump_ready(src, dst, NULL);
 }
 
 static void finish_connect(struct pair *p) {
@@ -794,7 +818,7 @@ static void service_event(const struct kevent *event) {
     } else if (event->filter == EVFILT_WRITE) {
         if (e->length) pump(peer, e);
     } else if (!e->eof && !peer->length) {
-        pump(e, peer);
+        pump_ready(e, peer, event);
     }
 }
 

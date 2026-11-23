@@ -221,6 +221,13 @@ final class NativeLoopbackRelay: @unchecked Sendable {
              "enqueue_to_adopt_us": buckets(sample.enqueue_to_adopt_us),
              "accept_to_adopt_us": buckets(sample.accept_to_adopt_us)]
         }
+        let guestReadSupply: [String: Any] = [
+            "read_cap_bytes": readBytes as Any, "bytes": stats.guest_read_bytes,
+            "le_128_kib": stats.guest_reads_by_size.0, "gt_128_lt_256_kib": stats.guest_reads_by_size.1,
+            "eq_256_kib": stats.guest_reads_by_size.2, "gt_256_kib": stats.guest_reads_by_size.3,
+            "full_cap_reads": stats.guest_full_cap_reads,
+            "full_cap_with_ready_hint_above_cap": stats.guest_full_cap_ready_above_cap,
+        ]
         let event: [String: Any] = [
             "port": port, "accepted": stats.accepted, "connected": stats.connected,
             "connect_errors": stats.connect_errors, "connect_retries": stats.connect_retries,
@@ -233,7 +240,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "upload_bytes": stats.upload_bytes, "download_bytes": stats.download_bytes,
             "reads": stats.reads, "writes": stats.writes, "blocked_writes": stats.blocked_writes,
             "pending_allocations": stats.pending_allocations, "pending_copy_bytes": stats.pending_copy_bytes,
-            "bulk_directions": stats.bulk_directions,
+            "bulk_directions": stats.bulk_directions, "guest_read_supply": guestReadSupply,
             "handoff": handoffBuckets(stats.handoff),
             // Array indices match the data owner indices used at accept.
             "handoff_by_worker": owners.map(handoffBuckets),
