@@ -37,6 +37,8 @@ def main():
     queued, inline = profiles
     if any(p['accepted'] != 8 or p['connect_errors'] != 8 or p['connected'] != 0 for p in profiles):
         raise ValueError('missing early-failed adoptions')
+    if any(p['pending_allocations'] != 0 or p['pending_copy_bytes'] != 0 for p in profiles):
+        raise ValueError('handshakes without payload reported pending copies')
     if inline['handoff_by_worker'] or any(any(bins) for bins in inline['handoff'].values()):
         raise ValueError('inline adoption incorrectly counted as a handoff')
     owners = queued['handoff_by_worker']

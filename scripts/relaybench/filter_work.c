@@ -2,6 +2,7 @@
 // driving readiness with two connected local socket pairs and no VM or listener.
 #include <sys/event.h>
 #include <signal.h>
+#include <sys/ioctl.h>
 
 static unsigned calls, filters;
 static int counted_kevent(int q, const struct kevent *changes, int n, struct kevent *events,
@@ -186,6 +187,66 @@ static void exercise(bool dedicated, size_t room) {
     printf(",\"verified_payload_bytes\":%u}\n", 4 * PAYLOAD + 3);
 }
 
+#ifdef CHECK_PENDING_COPY_PROFILE
+// Built against the current stats struct. The historical filter controls use
+// this fixture without the define, including versions that predate these fields.
+static void exercise_pending_copies(bool profile) {
+    mp_tcp_relay *accept = mp_tcp_relay_create("127.0.0.1");
+    check(accept != NULL, "create accept owner");
+    mp_tcp_listener *parent = new_listener(accept, 8080, profile);
+    check(parent != NULL, "create parent listener");
+    size_t expected_total = 0;
+    for (unsigned i = 0; i < 2; ++i) {
+        mp_tcp_relay *owner = mp_tcp_relay_create_data("127.0.0.1");
+        check(owner != NULL, "create data owner");
+        mp_tcp_listener *target = mp_tcp_target(owner, parent);
+        check(target != NULL, "create target");
+        int client[2], guest[2];
+        struct pair *p = stage(target, client, guest);
+        if (profile) atomic_fetch_add(&parent->group_active, 1); // normally done by adopt
+        drain(owner);
+
+        check(write(guest[0], payload, PAYLOAD) == PAYLOAD, "unpressured payload");
+        drain(owner);
+        expect_bytes(client[0], payload, PAYLOAD);
+        check(!target->stats.pending_allocations && !target->stats.pending_copy_bytes, "full write copied");
+
+        size_t filled = fill(client[1]), room = i ? PAYLOAD / 2 : 0;
+        consume_padding(client[0], room);
+        check(write(guest[0], payload, PAYLOAD) == PAYLOAD, "pressured payload");
+        drain(owner);
+        check(target->head == p && p->client.pending, "expected pending data");
+        uint64_t blocked = target->stats.blocked_writes;
+        pump(&p->guest, &p->client); // retry while the destination is still full
+        check(!profile || target->stats.blocked_writes == blocked + 1, "expected blocked retry");
+
+        consume_padding(client[0], filled - room);
+        int prefix = -1;
+        check(ioctl(client[0], FIONREAD, &prefix) == 0, "read delivered prefix length");
+        check(room ? prefix > 0 && prefix < PAYLOAD : prefix == 0, "partial or blocked write");
+        expect_bytes(client[0], payload, (size_t)prefix);
+        size_t suffix = PAYLOAD - (size_t)prefix;
+        drain(owner);
+        expect_bytes(client[0], payload + prefix, suffix);
+        mp_tcp_stats stats;
+        mp_tcp_release(target, &stats);
+        check(stats.pending_allocations == (unsigned)profile &&
+              stats.pending_copy_bytes == (profile ? suffix : 0), "target pending-copy totals");
+        expected_total += suffix;
+        close(client[0]);
+        close(guest[0]);
+        mp_tcp_relay_destroy(owner);
+    }
+    mp_tcp_stats stats;
+    mp_tcp_release(parent, &stats);
+    check(stats.pending_allocations == (profile ? 2U : 0U) &&
+          stats.pending_copy_bytes == (profile ? expected_total : 0), "merged pending-copy totals");
+    printf("{\"profile\":%d,\"pending_allocations\":%llu,\"pending_copy_bytes\":%llu}\n",
+           profile, stats.pending_allocations, stats.pending_copy_bytes);
+    mp_tcp_relay_destroy(accept);
+}
+#endif
+
 int main(void) {
     signal(SIGPIPE, SIG_IGN);
     alarm(5);
@@ -194,5 +255,9 @@ int main(void) {
         exercise(dedicated, 0);
         exercise(dedicated, PAYLOAD / 2);
     }
+#ifdef CHECK_PENDING_COPY_PROFILE
+    exercise_pending_copies(false);
+    exercise_pending_copies(true);
+#endif
     return 0;
 }

@@ -18,7 +18,11 @@
 #include <unistd.h>
 
 // One scratch buffer per worker. Only a short write needs per-stream storage.
+#if defined(MICROPOD_BENCH_512K_READS) && MICROPOD_BENCH_512K_READS
+#define CHUNK (512 * 1024)
+#else
 #define CHUNK (256 * 1024)
+#endif
 #define EVENTS_PER_TURN 128
 #define INTERACTIVE_BULK_BATCH 2
 #define THROUGHPUT_BULK_BATCH 12
@@ -413,6 +417,8 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
         sum->reads += one->reads;
         sum->writes += one->writes;
         sum->blocked_writes += one->blocked_writes;
+        sum->pending_allocations += one->pending_allocations;
+        sum->pending_copy_bytes += one->pending_copy_bytes;
         sum->bulk_directions += one->bulk_directions;
         sum->route_waits += one->route_waits;
         sum->handshake_timeouts += one->handshake_timeouts;
@@ -664,6 +670,10 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
             dst->pending = malloc(remaining);
             if (!dst->pending) { retire(p); return; }
             memcpy(dst->pending, r->scratch + sent, remaining);
+            if (l->profile) {
+                ++l->stats.pending_allocations;
+                l->stats.pending_copy_bytes += remaining;
+            }
             dst->length = remaining;
             struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
                                         filter_change(&dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) };

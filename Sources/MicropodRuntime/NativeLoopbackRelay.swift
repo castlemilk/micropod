@@ -227,6 +227,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "peak_active": stats.peak_active,
             "upload_bytes": stats.upload_bytes, "download_bytes": stats.download_bytes,
             "reads": stats.reads, "writes": stats.writes, "blocked_writes": stats.blocked_writes,
+            "pending_allocations": stats.pending_allocations, "pending_copy_bytes": stats.pending_copy_bytes,
             "bulk_directions": stats.bulk_directions,
             "handoff": handoffBuckets(stats.handoff),
             // Array indices match the data owner indices used at accept.

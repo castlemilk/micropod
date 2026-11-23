@@ -22,6 +22,8 @@ typedef struct {
     uint64_t first_request_write_us[12], request_to_first_guest_byte_us[12];
     uint64_t setup_closes, closes_before_response, idle_guest_closes, stream_errors, resets_forwarded;
     mp_tcp_handoff_stats handoff;
+    // Count each newly allocated unwritten suffix once, across both directions.
+    uint64_t pending_allocations, pending_copy_bytes;
 } mp_tcp_stats;
 
 // A single serial owner must call these functions. The returned kqueue is
