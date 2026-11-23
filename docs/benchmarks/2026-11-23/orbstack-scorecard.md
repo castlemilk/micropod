@@ -51,4 +51,8 @@ The [optimization register](../../research/2026-11-23-optimization-register.md) 
 
 The desktop sampler now retains its timestamp formatter and deduplicates long container lists in order. Selecting 1,024 distinct IDs fell from 2.724 to 0.183 ms in a local Swift benchmark. A 16-ID selection rose from 1.108 to 1.138 µs. Full desktop polling and XPC cost still need measurement. [Native Swift samples](native-stats-selection.json)
 
-At 16:47 AEDT on 23 November, the isolated Gamma Linux CI worker held its only lease and the Mac worker showed zero of six leases. The isolated owner handoff is pending. [Performance backlog](https://github.com/castlemilk/micropod/issues/227)
+Two further changes improved local workloads. In the full in-process DNS reply method, eight-address responses fell from 1.93 to 0.66 µs and truncated 256-address responses from 40.07 to 2.06 µs. The single-address control went from 396 to 407 ns. In the shared-view edit handler, scanning an affected subtree took 1.05 ms versus 18.13 ms for the whole tree with 256 unrelated files. The automatic event-to-guest path and matched guest DNS queries still need timing. [DNS measurements](dns-multi-address.json) · [Shared-view measurements](shared-view-directory-local.json)
+
+New published-port holdouts verify the actual client arguments, service marker and single-port count before scoring. The first-build fixture now verifies empty Go caches and a pinned module. In a local control, a partially warm build invoked a compiler once and took 0.175 s, compared with 106 compiler or assembler invocations and 3.702 s from empty stores. [Peer verifier](../../../scripts/relaybench/peer_verdict.py) · [First-build control](first-go-build-local.json)
+
+At 17:01 AEDT on 23 November, the isolated Gamma Linux CI worker held its only lease and the Mac worker had four of six slots leased. The isolated owner handoff is pending. [Performance backlog](https://github.com/castlemilk/micropod/issues/227)
