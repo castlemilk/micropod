@@ -171,6 +171,13 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 	out := dnsmessage.Message{Header: dnsmessage.Header{ID: h.ID, Response: true, Authoritative: true, RecursionDesired: h.RecursionDesired, RecursionAvailable: !n.Internal}, Questions: []dnsmessage.Question{q}}
 	if len(ips) > 0 {
 		s.metrics.networks.dnsLocal.Add(1)
+		if len(ips) == 1 && (q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL) {
+			wire, err := packSingleServiceA(out.Header, q, ips[0].As4())
+			if err != nil {
+				return nil
+			}
+			return wire
+		}
 		for _, ip := range ips {
 			if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
 				out.Answers = append(out.Answers, dnsmessage.Resource{Header: dnsmessage.ResourceHeader{Name: q.Name, Class: dnsmessage.ClassINET, TTL: 1}, Body: &dnsmessage.AResource{A: ip.As4()}})
