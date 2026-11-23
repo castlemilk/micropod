@@ -1,0 +1,117 @@
+// Generated with the pinned service mux in place of the indicated line.
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"sync"
+	"time"
+)
+
+const count = 200
+const marker = "micropod-quiet-service"
+
+var payload = []byte("unused /data response")
+
+type oneConnection struct {
+	conn      net.Conn
+	done      chan struct{}
+	closeOnce sync.Once
+}
+
+func (l *oneConnection) Accept() (net.Conn, error) {
+	if l.conn != nil {
+		first := l.conn
+		l.conn = nil
+		return first, nil
+	}
+	<-l.done
+	return nil, net.ErrClosed
+}
+func (l *oneConnection) Close() error {
+	l.closeOnce.Do(func() { close(l.done) })
+	return nil
+}
+
+type address string
+
+func (a address) Network() string       { return "pipe" }
+func (a address) String() string        { return string(a) }
+func (l *oneConnection) Addr() net.Addr { return address("pipe") }
+
+type observation struct {
+	AfterWarmupNS []int64 `json:"after_warmup_ns"`
+	ElapsedNS     int64   `json:"elapsed_ns"`
+	WarmupNS      int64   `json:"warmup_ns"`
+	Attempted     int     `json:"attempted"`
+	Complete      int     `json:"complete"`
+	Error         string  `json:"error,omitempty"`
+}
+
+func run(row *observation) error {
+	id := marker
+	// INSERT_PINNED_MUX
+	client, serverSide := net.Pipe()
+	listener := &oneConnection{conn: serverSide, done: make(chan struct{})}
+	server := http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	defer server.Close()
+	defer client.Close()
+	go server.Serve(listener)
+	buf := bufio.NewReader(client)
+	header := []byte("GET /id HTTP/1.1\r\nHost: backend\r\n\r\n")
+	start := time.Now()
+	for i := 0; i <= count; i++ {
+		if i == 1 {
+			start = time.Now()
+		}
+		if i > 0 {
+			row.Attempted++
+		}
+		if err := client.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+			return err
+		}
+		begin := time.Now()
+		if _, err := client.Write(header); err != nil {
+			return err
+		}
+		resp, err := http.ReadResponse(buf, nil)
+		if err != nil {
+			return err
+		}
+		body, err := io.ReadAll(resp.Body)
+		if closeErr := resp.Body.Close(); err == nil {
+			err = closeErr
+		}
+		ns := time.Since(begin).Nanoseconds()
+		if err != nil {
+			return err
+		}
+		if resp.Close || resp.Proto != "HTTP/1.1" || resp.StatusCode != 200 || resp.ContentLength != int64(len(id)) || resp.Header.Get("Content-Type") != "text/plain; charset=utf-8" || !bytes.Equal(body, []byte(id)) {
+			return fmt.Errorf("invalid marker, status, version, headers or connection close")
+		}
+		if i == 0 {
+			row.WarmupNS = ns
+		} else {
+			row.AfterWarmupNS = append(row.AfterWarmupNS, ns)
+			row.Complete++
+		}
+	}
+	row.ElapsedNS = time.Since(start).Nanoseconds()
+	return nil
+}
+
+func main() {
+	row := observation{AfterWarmupNS: make([]int64, 0, count)}
+	if err := run(&row); err != nil {
+		row.Error = err.Error()
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(row); err != nil || row.Error != "" {
+		os.Exit(1)
+	}
+}

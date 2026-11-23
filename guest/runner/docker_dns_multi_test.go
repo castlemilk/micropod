@@ -107,6 +107,18 @@ func TestMultiServiceARejectsUnrepresentableCountBeforeTruncation(t *testing.T) 
 	}
 }
 
+func TestMultiServiceAInvalidQuestions(t *testing.T) {
+	ips := serviceAliasAddresses(2)
+	for _, name := range []string{"", "missing-root", "two..dots.", strings.Repeat("x", 64) + "."} {
+		q := dnsmessage.Question{Name: dnsmessage.MustNewName(name), Type: dnsmessage.TypeALL, Class: dnsmessage.ClassCHAOS}
+		want, wantErr := generalServiceAddresses(dnsmessage.Header{}, q, ips, 0)
+		got, err := packServiceAddresses(dnsmessage.Header{}, q, ips, len(ips))
+		if (err != nil) != (wantErr != nil) || !bytes.Equal(got, want) {
+			t.Fatalf("invalid question %q: got %x (%v), want %x (%v)", name, got, err, want, wantErr)
+		}
+	}
+}
+
 func BenchmarkPackMultiServiceA(b *testing.B) {
 	q := dnsmessage.Question{Name: dnsmessage.MustNewName("replicas.svc."), Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET}
 	h := dnsmessage.Header{ID: 123, Response: true, Authoritative: true}

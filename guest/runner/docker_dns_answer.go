@@ -33,6 +33,11 @@ func packSingleServiceA(header dnsmessage.Header, q dnsmessage.Question, address
 		return nil, err
 	}
 	binary.BigEndian.PutUint16(wire[6:8], 1) // ANCOUNT
+	return appendServiceA(wire, address), nil
+}
+
+// Every answer has the same owner as the question at offset 12.
+func appendServiceA(wire []byte, address [4]byte) []byte {
 	if wire[12] == 0 {
 		wire = append(wire, 0)
 	} else {
@@ -42,7 +47,7 @@ func packSingleServiceA(header dnsmessage.Header, q dnsmessage.Question, address
 	wire = binary.BigEndian.AppendUint16(wire, uint16(dnsmessage.ClassINET))
 	wire = binary.BigEndian.AppendUint32(wire, 1) // TTL
 	wire = binary.BigEndian.AppendUint16(wire, uint16(len(address)))
-	return append(wire, address[:]...), nil
+	return append(wire, address[:]...)
 }
 
 // Compression makes each answer a pointer to the question plus its IPv4
@@ -69,33 +74,23 @@ func serviceAnswerLimit(q *dnsmessage.Question, network string, parser *dnsmessa
 }
 
 func packServiceAddresses(header dnsmessage.Header, q dnsmessage.Question, ips []netip.Addr, count int) ([]byte, error) {
-	if count > math.MaxUint16 {
+	if count > math.MaxUint16 || len(ips) > math.MaxUint16 {
 		return nil, errors.New("too many DNS answers")
 	}
 	if len(ips) < count {
 		header.Truncated = true
 		return packServiceQuestion(header, q)
 	}
-	question, record := serviceAnswerLengths(&q.Name)
-	size := question + record*len(ips)
-	out := dnsmessage.NewBuilder(make([]byte, 0, size), header)
-	out.EnableCompression()
-	if err := out.StartQuestions(); err != nil {
+	_, record := serviceAnswerLengths(&q.Name)
+	wire, err := packServiceQuestionWithRoom(header, q, record*len(ips))
+	if err != nil {
 		return nil, err
 	}
-	if err := out.Question(q); err != nil {
-		return nil, err
-	}
-	if err := out.StartAnswers(); err != nil {
-		return nil, err
-	}
-	rr := dnsmessage.ResourceHeader{Name: q.Name, Class: dnsmessage.ClassINET, TTL: 1}
+	binary.BigEndian.PutUint16(wire[6:8], uint16(len(ips)))
 	for _, ip := range ips {
-		if err := out.AResource(rr, dnsmessage.AResource{A: ip.As4()}); err != nil {
-			return nil, err
-		}
+		wire = appendServiceA(wire, ip.As4())
 	}
-	return out.Finish()
+	return wire, nil
 }
 
 func serviceUDPLimit(parser *dnsmessage.Parser) int {
