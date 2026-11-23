@@ -1,0 +1,132 @@
+{
+  "archive": "gamma-mixed-scheduler.json.gz",
+  "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "recorded_at": "2026-11-21T07:34:45.041905+00:00",
+  "guest_kernel": "6.18.35",
+  "captures": {
+    "eof/headers.jsonl": {
+      "jsonl_sha256": "a687991ea9b80c7b7328e8481b2d311c1319b924300b5ed5278a9900915346d5",
+      "capture_counters": {
+        "mpci0": {
+          "packets": 35992,
+          "drops": 0
+        },
+        "eth1": {
+          "packets": 35995,
+          "drops": 0
+        }
+      },
+      "guest_initial_syn_packets": 8838,
+      "guest_initial_syn_flags": {
+        "0x02": 5878,
+        "0xc2": 2960
+      },
+      "guest_initial_syns_with_payload": 0,
+      "guest_initial_syn_payload_bytes": 0,
+      "guest_out_syn_ack_flags": {
+        "0x12": 5810,
+        "0x52": 2991
+      },
+      "distinct_empty_syn_tuple_isns": 8704,
+      "empty_syn_tuple_isns_with_matching_syn_ack": 8704,
+      "empty_syn_tuple_isns_without_matching_syn_ack": 0,
+      "first_observed_flag_pairs": {
+        "0x02 -> 0x12": 5744,
+        "0xc2 -> 0x52": 2960
+      }
+    },
+    "inprocess-eof/headers.jsonl": {
+      "jsonl_sha256": "818a7390844fbe5ccdaf371af161068500df38858a1e0f18cbd757fceb3c34db",
+      "capture_counters": {
+        "mpci0": {
+          "packets": 43216,
+          "drops": 0
+        },
+        "eth1": {
+          "packets": 43218,
+          "drops": 0
+        }
+      },
+      "guest_initial_syn_packets": 10488,
+      "guest_initial_syn_flags": {
+        "0x02": 312,
+        "0xc2": 10176
+      },
+      "guest_initial_syns_with_payload": 0,
+      "guest_initial_syn_payload_bytes": 0,
+      "guest_out_syn_ack_flags": {
+        "0x52": 10395
+      },
+      "distinct_empty_syn_tuple_isns": 10176,
+      "empty_syn_tuple_isns_with_matching_syn_ack": 10176,
+      "empty_syn_tuple_isns_without_matching_syn_ack": 0,
+      "first_observed_flag_pairs": {
+        "0xc2 -> 0x52": 10176
+      }
+    },
+    "uncapped-wire/headers.jsonl": {
+      "jsonl_sha256": "030758d2bb56b66038862a5b71e4d0a1b4c4d17e58f8ecbc5b72a48d1ae0531e",
+      "capture_counters": {
+        "mpci0": {
+          "packets": 39697,
+          "drops": 8274
+        },
+        "eth1": {
+          "packets": 39729,
+          "drops": 8419
+        }
+      },
+      "guest_initial_syn_packets": 15370,
+      "guest_initial_syn_flags": {
+        "0x02": 11729,
+        "0xc2": 3641
+      },
+      "guest_initial_syns_with_payload": 0,
+      "guest_initial_syn_payload_bytes": 0,
+      "guest_out_syn_ack_flags": {
+        "0x12": 1561,
+        "0x52": 4975
+      },
+      "distinct_empty_syn_tuple_isns": 4767,
+      "empty_syn_tuple_isns_with_matching_syn_ack": 4758,
+      "empty_syn_tuple_isns_without_matching_syn_ack": 9,
+      "first_observed_flag_pairs": {
+        "0x02 -> 0x12": 1126,
+        "0x02 -> 0x52": 2,
+        "0xc2 -> 0x52": 3630
+      }
+    },
+    "reset-origin/1/syn.jsonl": {
+      "jsonl_sha256": "e5f80d124f4d1cd63ff67843d66b10b73494f58abf833fdb00c2b6471c3ba7c8",
+      "capture_counters": {
+        "eth1": {
+          "packets": 21698,
+          "drops": 0
+        },
+        "mpci0": {
+          "packets": 21693,
+          "drops": 0
+        }
+      },
+      "guest_initial_syn_packets": 14530,
+      "guest_initial_syn_flags": {
+        "0x02": 12133,
+        "0xc2": 2397
+      },
+      "guest_initial_syns_with_payload": 0,
+      "guest_initial_syn_payload_bytes": 0,
+      "guest_out_syn_ack_flags": {
+        "0x12": 920,
+        "0x52": 3869
+      },
+      "distinct_empty_syn_tuple_isns": 3168,
+      "empty_syn_tuple_isns_with_matching_syn_ack": 3168,
+      "empty_syn_tuple_isns_without_matching_syn_ack": 0,
+      "first_observed_flag_pairs": {
+        "0x02 -> 0x12": 771,
+        "0x02 -> 0x52": 21,
+        "0xc2 -> 0x52": 2376
+      }
+    }
+  }
+}
