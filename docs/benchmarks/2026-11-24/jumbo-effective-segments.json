@@ -1,0 +1,240 @@
+{
+  "date": "2026-11-24",
+  "evidence_tier": "offline replay of archived VM observations",
+  "archive": "gamma-vnic.json.gz",
+  "archive_sha256": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f",
+  "paired_interval": "Median within-block change. Nearest-rank 2.5th and 97.5th percentiles of every ordered paired bootstrap resample of the complete blocks.",
+  "stable_id": "229.01",
+  "recording_source_base": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "archive_revision": "4f887ba5d28f47fa37d4bd0a2d89cd0914d74754",
+  "probe_sha256": "9f3d5547d241bbeaf872130d0d34410ef9c4b82844f011b12926cce142bf3e25",
+  "image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "profiled_6gib": {
+    "stock": {
+      "mtu_before_and_after": {
+        "eth0": 1500,
+        "mpci0": 1500,
+        "veth": 1500
+      },
+      "eth0_xmit_calls": 106895,
+      "eth0_gso_segments_or_one": 4454453,
+      "eth0_skb_bytes": 6454204250,
+      "skb_bytes_per_reported_segment": 1448.9330676516286,
+      "reported_segments_per_tx_call": 41.67129426072314,
+      "skb_bytes_per_tx_call": 60378.916226203284,
+      "per_cpu_gso_segments_or_one": {
+        "1": 450557,
+        "3": 470105,
+        "2": 508404,
+        "0": 3025387
+      },
+      "per_cpu_tx_bytes": {
+        "1": 652751172,
+        "3": 681037296,
+        "2": 736603322,
+        "0": 4383812460
+      },
+      "per_cpu_tx_calls": {
+        "1": 10734,
+        "3": 11650,
+        "2": 12259,
+        "0": 72252
+      },
+      "service_retransmit_events": 436,
+      "client": {
+        "bytes": 6442450944,
+        "elapsed_s": 7.750639583,
+        "iterations": 24,
+        "mib_s": 792.708773799268,
+        "mode": "bulk",
+        "reopened_connections": 0,
+        "streams": 32
+      }
+    },
+    "jumbo": {
+      "mtu_before_and_after": {
+        "eth0": 9000,
+        "mpci0": 9000,
+        "veth": 9000
+      },
+      "eth0_xmit_calls": 106417,
+      "eth0_gso_segments_or_one": 4454530,
+      "eth0_skb_bytes": 6454287818,
+      "skb_bytes_per_reported_segment": 1448.9267819500599,
+      "reported_segments_per_tx_call": 41.85919542930171,
+      "skb_bytes_per_tx_call": 60650.90932839678,
+      "per_cpu_gso_segments_or_one": {
+        "1": 329529,
+        "3": 347448,
+        "2": 370259,
+        "0": 3407294
+      },
+      "per_cpu_tx_bytes": {
+        "1": 477304406,
+        "3": 503313746,
+        "2": 536322163,
+        "0": 4937347503
+      },
+      "per_cpu_tx_calls": {
+        "1": 8124,
+        "3": 8714,
+        "2": 8928,
+        "0": 80651
+      },
+      "service_retransmit_events": 460,
+      "client": {
+        "bytes": 6442450944,
+        "elapsed_s": 9.931724458,
+        "iterations": 24,
+        "mib_s": 618.6236867506942,
+        "mode": "bulk",
+        "reopened_connections": 0,
+        "streams": 32
+      }
+    }
+  },
+  "burst_screen_separate": [
+    {
+      "control": {
+        "parallel_bursts_mib_s": [
+          3148.0505936491745,
+          3221.3599519675095,
+          3222.1742783946997
+        ],
+        "parallel_mib_s": 3221.3599519675095,
+        "fresh_p95_us": 1039,
+        "fresh_p99_us": 1215
+      },
+      "trial": {
+        "parallel_bursts_mib_s": [
+          3452.5679006481505,
+          3487.87703184335,
+          3634.7243963127426
+        ],
+        "parallel_mib_s": 3487.87703184335,
+        "fresh_p95_us": 756,
+        "fresh_p99_us": 953
+      }
+    },
+    {
+      "control": {
+        "parallel_bursts_mib_s": [
+          3605.4243327412314,
+          3751.841095108483,
+          3814.1875051299703
+        ],
+        "parallel_mib_s": 3751.841095108483,
+        "fresh_p95_us": 782,
+        "fresh_p99_us": 968
+      },
+      "trial": {
+        "parallel_bursts_mib_s": [
+          2803.192078039028,
+          3347.134466537958,
+          3674.434588842181
+        ],
+        "parallel_mib_s": 3347.134466537958,
+        "fresh_p95_us": 789,
+        "fresh_p99_us": 838
+      }
+    },
+    {
+      "control": {
+        "parallel_bursts_mib_s": [
+          3401.827626577023,
+          3519.8094947108602,
+          3528.199756747165
+        ],
+        "parallel_mib_s": 3519.8094947108602,
+        "fresh_p95_us": 775,
+        "fresh_p99_us": 828
+      },
+      "trial": {
+        "parallel_bursts_mib_s": [
+          3460.542796411103,
+          3611.789105376769,
+          3350.9991638864394
+        ],
+        "parallel_mib_s": 3460.542796411103,
+        "fresh_p95_us": 901,
+        "fresh_p99_us": 1000
+      }
+    },
+    {
+      "control": {
+        "parallel_bursts_mib_s": [
+          3181.495981913494,
+          3459.8139968856535,
+          3186.2972490231446
+        ],
+        "parallel_mib_s": 3186.2972490231446,
+        "fresh_p95_us": 1189,
+        "fresh_p99_us": 1426
+      },
+      "trial": {
+        "parallel_bursts_mib_s": [
+          1978.7930430676342,
+          3058.394718859574,
+          3209.2667577630405
+        ],
+        "parallel_mib_s": 3058.394718859574,
+        "fresh_p95_us": 1501,
+        "fresh_p99_us": 1724
+      }
+    },
+    {
+      "control": {
+        "parallel_bursts_mib_s": [
+          3377.6373360864595,
+          3138.833589084922,
+          3530.364930788988
+        ],
+        "parallel_mib_s": 3377.6373360864595,
+        "fresh_p95_us": 1318,
+        "fresh_p99_us": 1642
+      },
+      "trial": {
+        "parallel_bursts_mib_s": [
+          3707.3823366634506,
+          3744.3368550527857,
+          3657.5064655356236
+        ],
+        "parallel_mib_s": 3707.3823366634506,
+        "fresh_p95_us": 1324,
+        "fresh_p99_us": 1791
+      }
+    },
+    {
+      "control": {
+        "parallel_bursts_mib_s": [
+          3823.577733634042,
+          4248.674732963739,
+          3854.882235455846
+        ],
+        "parallel_mib_s": 3854.882235455846,
+        "fresh_p95_us": 658,
+        "fresh_p99_us": 777
+      },
+      "trial": {
+        "parallel_bursts_mib_s": [
+          3938.0071530208056,
+          3800.8347731840713,
+          3957.7632453658607
+        ],
+        "parallel_mib_s": 3938.0071530208056,
+        "fresh_p95_us": 890,
+        "fresh_p99_us": 1517
+      }
+    }
+  ],
+  "paired_burst_mib_s": {
+    "n": 6,
+    "median_pct": 0.2362750590366669,
+    "increases": 3,
+    "bootstrap_95_pct": [
+      -7.400511958716366,
+      9.018013563919357
+    ]
+  },
+  "interpretation": "Bytes per reported TX segment barely changed. The driver trace counts sk_buff length at guest eth0 divided by sum(max(gso_segs,1)); it is device-wide and does not establish MSS, on-wire frame size, or the distribution of individual segment sizes. Separate private workers and one profiled transfer per arm leave causal attribution open. The six-block burst screen is distinct from the profiled transfers; idle fresh tails are not loaded tails."
+}
