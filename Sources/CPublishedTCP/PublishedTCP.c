@@ -414,6 +414,11 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
             sum->last_connect_error = one->last_connect_error;
         }
         for (unsigned i = 0; i < 12; ++i) {
+            if (l->profile) {
+                sum->handoff.accept_to_enqueue_us[i] += one->handoff.accept_to_enqueue_us[i];
+                sum->handoff.enqueue_to_adopt_us[i] += one->handoff.enqueue_to_adopt_us[i];
+                sum->handoff.accept_to_adopt_us[i] += one->handoff.accept_to_adopt_us[i];
+            }
             sum->connect_us[i] += one->connect_us[i];
             sum->first_byte_us[i] += one->first_byte_us[i];
             sum->first_request_write_us[i] += one->first_request_write_us[i];
@@ -547,6 +552,20 @@ void mp_tcp_adopt(mp_tcp_listener *l, int client, uint64_t accepted_at) {
         return;
     }
     attempt_guest(p);
+}
+
+void mp_tcp_adopt_profiled(mp_tcp_listener *l, int client, uint64_t accepted_at, uint64_t enqueued_at) {
+    // Count every handoff at owner entry, even if client setup or the guest dial fails.
+    // The ordinary accept and inline-adopt paths do not read a clock here.
+    if (l->profile && l->parent) {
+        uint64_t adopted_at = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+        if (accepted_at <= enqueued_at && enqueued_at <= adopted_at) {
+            observe(l->stats.handoff.accept_to_enqueue_us, enqueued_at - accepted_at);
+            observe(l->stats.handoff.enqueue_to_adopt_us, adopted_at - enqueued_at);
+            observe(l->stats.handoff.accept_to_adopt_us, adopted_at - accepted_at);
+        }
+    }
+    mp_tcp_adopt(l, client, accepted_at);
 }
 
 // Read directly into the worker scratch and immediately write to the peer.

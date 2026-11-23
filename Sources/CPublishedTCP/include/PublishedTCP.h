@@ -6,6 +6,12 @@
 typedef struct mp_tcp_relay mp_tcp_relay;
 typedef struct mp_tcp_listener mp_tcp_listener;
 
+// Each sample is a handoff to a separate data owner. All three histograms
+// use the same disjoint microsecond buckets as the connection stats below.
+typedef struct {
+    uint64_t accept_to_enqueue_us[12], enqueue_to_adopt_us[12], accept_to_adopt_us[12];
+} mp_tcp_handoff_stats;
+
 typedef struct {
     uint64_t accepted, connected, connect_errors, connect_retries, recovered, peak_active;
     uint64_t route_waits, handshake_timeouts, last_connect_error;
@@ -15,6 +21,7 @@ typedef struct {
     uint64_t connect_us[12], first_byte_us[12];
     uint64_t first_request_write_us[12], request_to_first_guest_byte_us[12];
     uint64_t setup_closes, closes_before_response, idle_guest_closes, stream_errors, resets_forwarded;
+    mp_tcp_handoff_stats handoff;
 } mp_tcp_stats;
 
 // A single serial owner must call these functions. The returned kqueue is
@@ -33,6 +40,9 @@ void mp_tcp_set_handoff(mp_tcp_listener *listener, mp_tcp_handoff handler, void 
 unsigned mp_tcp_next_worker(mp_tcp_listener *listener, unsigned workers);
 // Takes ownership of the client descriptor, including on failure.
 void mp_tcp_adopt(mp_tcp_listener *target, int client, uint64_t accepted_at);
+// Profiled handoff only. Timestamps are CLOCK_UPTIME_RAW nanoseconds taken
+// immediately after accept and immediately before submission to the owner queue.
+void mp_tcp_adopt_profiled(mp_tcp_listener *target, int client, uint64_t accepted_at, uint64_t enqueued_at);
 // Thread-safe, coalescing signal for a new handshake that lost the worker path.
 int mp_tcp_take_path_failure(mp_tcp_relay *accept_relay);
 // Reports newly received guest payload since the previous observation on this I/O owner.

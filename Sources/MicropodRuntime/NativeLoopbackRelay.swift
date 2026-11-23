@@ -1,6 +1,5 @@
 import CPublishedTCP
 import Foundation
-import MicropodCore
 
 /// Accept once on loopback. Each established stream stays with a single I/O owner.
 final class NativeLoopbackRelay: @unchecked Sendable {
@@ -60,7 +59,22 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             owner.queue.async { mp_tcp_adopt(self.handle, fd, accepted) }
         }
 
-        func release() { owner.queue.sync { mp_tcp_release(handle, nil) } }
+        func adoptProfiled(_ fd: Int32, accepted: UInt64) {
+            let enqueued = clock_gettime_nsec_np(CLOCK_UPTIME_RAW)
+            owner.queue.async { mp_tcp_adopt_profiled(self.handle, fd, accepted, enqueued) }
+        }
+
+        func release(profile: Bool) -> mp_tcp_handoff_stats? {
+            owner.queue.sync {
+                guard profile else {
+                    mp_tcp_release(handle, nil)
+                    return nil
+                }
+                var stats = mp_tcp_stats()
+                mp_tcp_release(handle, &stats)
+                return stats.handoff
+            }
+        }
     }
 
     // The accept queue owns the port and issues every handoff in order.
@@ -74,18 +88,19 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             self.guestPort = guestPort
         }
 
-        func adopt(_ fd: Int32, accepted: UInt64) {
-            let index = mp_tcp_next_worker(listener, UInt32(targets.count))
-            targets[Int(index)].adopt(fd, accepted: accepted)
+        static func nextTarget(_ context: UnsafeMutableRawPointer?) -> Target {
+            let lease = Unmanaged<Lease>.fromOpaque(context!).takeUnretainedValue()
+            let index = mp_tcp_next_worker(lease.listener, UInt32(lease.targets.count))
+            return lease.targets[Int(index)]
         }
 
-        func release() -> mp_tcp_stats {
+        func release(profile: Bool = false) -> (mp_tcp_stats, [mp_tcp_handoff_stats]) {
             // Accept cannot race this function. Each queue drains its previous
             // handoffs before its target closes. Only then can the port be reused.
-            for target in targets { target.release() }
+            let owners = targets.compactMap { $0.release(profile: profile) }
             var stats = mp_tcp_stats()
             mp_tcp_release(listener, &stats)
-            return stats
+            return (stats, owners)
         }
     }
 
@@ -143,11 +158,13 @@ final class NativeLoopbackRelay: @unchecked Sendable {
                 throw error
             }
             if !workers.isEmpty {
-                mp_tcp_set_handoff(
-                    listener,
-                    { owner, fd, timestamp in
-                        Unmanaged<Lease>.fromOpaque(owner!).takeUnretainedValue().adopt(fd, accepted: timestamp)
-                    }, Unmanaged.passUnretained(lease).toOpaque())
+                let handler: mp_tcp_handoff
+                if profile {
+                    handler = { owner, fd, accepted in Lease.nextTarget(owner).adoptProfiled(fd, accepted: accepted) }
+                } else {
+                    handler = { owner, fd, accepted in Lease.nextTarget(owner).adopt(fd, accepted: accepted) }
+                }
+                mp_tcp_set_handoff(listener, handler, Unmanaged.passUnretained(lease).toOpaque())
             }
             listeners[selected] = lease
             return selected
@@ -182,7 +199,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
 
     private func releaseOnQueue(_ port: UInt16) {
         guard let lease = listeners.removeValue(forKey: port) else { return }
-        let stats = lease.release()
+        let (stats, owners) = lease.release(profile: profile)
         guard profile else {
             if stats.connect_retries > 0 {
                 SecretSource.stderrLog(
@@ -193,6 +210,11 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         }
         func buckets<T>(_ tuple: T) -> [UInt64] {
             withUnsafeBytes(of: tuple) { Array($0.bindMemory(to: UInt64.self)) }
+        }
+        func handoffBuckets(_ sample: mp_tcp_handoff_stats) -> [String: [UInt64]] {
+            ["accept_to_enqueue_us": buckets(sample.accept_to_enqueue_us),
+             "enqueue_to_adopt_us": buckets(sample.enqueue_to_adopt_us),
+             "accept_to_adopt_us": buckets(sample.accept_to_adopt_us)]
         }
         let event: [String: Any] = [
             "port": port, "accepted": stats.accepted, "connected": stats.connected,
@@ -206,6 +228,9 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "upload_bytes": stats.upload_bytes, "download_bytes": stats.download_bytes,
             "reads": stats.reads, "writes": stats.writes, "blocked_writes": stats.blocked_writes,
             "bulk_directions": stats.bulk_directions,
+            "handoff": handoffBuckets(stats.handoff),
+            // Array indices match the data owner indices used at accept.
+            "handoff_by_worker": owners.map(handoffBuckets),
             "accept_to_connect_us": buckets(stats.connect_us),
             "connect_to_first_guest_byte_us": buckets(stats.first_byte_us),
             "connect_to_first_request_write_us": buckets(stats.first_request_write_us),
