@@ -33,7 +33,7 @@ struct SharedViewSync {
         let names: Set<String>
         if relative.isEmpty || directory.boolValue {
             let prefix = relative.isEmpty ? "" : relative + "/"
-            names = Set(try Self.files(in: origin).filter { $0.hasPrefix(prefix) })
+            names = try Self.files(in: origin, below: URL(fileURLWithPath: changed, isDirectory: true))
                 .union(exchanged.keys.filter { $0.hasPrefix(prefix) })
         } else if !exists {
             names = Set(exchanged.keys.filter { $0 == relative || $0.hasPrefix(relative + "/") })
@@ -71,16 +71,17 @@ struct SharedViewSync {
         }
     }
 
-    private static func files(in root: URL) throws -> Set<String> {
+    private static func files(in root: URL, below directory: URL? = nil) throws -> Set<String> {
+        let subtree = directory ?? root
         var failure: Error?
         guard
             let enumerator = FileManager.default.enumerator(
-                at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
+                at: subtree, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
                 errorHandler: { _, error in
                     failure = error
                     return false
                 })
-        else { throw SharedFSError.sourceUnreadable(root) }
+        else { throw SharedFSError.sourceUnreadable(subtree) }
         var names = Set<String>()
         for case let file as URL in enumerator {
             let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])

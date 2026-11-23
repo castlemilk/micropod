@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import XCTest
 
@@ -67,5 +68,38 @@ final class SharedViewSyncTests: XCTestCase {
         XCTAssertEqual(try sync.synchronize(changedPath: view.path, fromView: true), ["a.txt", "new.txt"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: source.appendingPathComponent("a.txt").path))
         XCTAssertEqual(try String(contentsOf: source.appendingPathComponent("new.txt"), encoding: .utf8), "new")
+    }
+
+    func testNestedDirectoryEventIgnoresUnreadableSiblingAndPropagatesRenameInBothDirections() throws {
+        try XCTSkipIf(geteuid() == 0, "Root can traverse mode-000 directories")
+        let (source, view, initial) = try fixture()
+        var sync = initial
+        let fm = FileManager.default
+        for (origin, destination, fromView) in [(source, view, false), (view, source, true)] {
+            let folder = origin.appendingPathComponent("work")
+            let peer = destination.appendingPathComponent("work")
+            let sibling = fromView ? "work-view-only" : "work-source-only"
+            let blocked = origin.appendingPathComponent(sibling)
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+            try fm.createDirectory(at: blocked, withIntermediateDirectories: true)
+            try "outside this event".write(
+                to: blocked.appendingPathComponent("external"), atomically: true, encoding: .utf8)
+            try fm.setAttributes([.posixPermissions: 0], ofItemAtPath: blocked.path)
+            defer { try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: blocked.path) }
+            let first = fromView ? "two" : "one"
+            let last = fromView ? "three" : "two"
+            let old = folder.appendingPathComponent(first)
+            let new = folder.appendingPathComponent(last)
+            try "edited \(first)".write(to: old, atomically: true, encoding: .utf8)
+            XCTAssertEqual(try sync.synchronize(changedPath: folder.path, fromView: fromView), ["work/" + first])
+            try fm.moveItem(at: old, to: new)
+            XCTAssertEqual(
+                try sync.synchronize(changedPath: folder.path, fromView: fromView),
+                ["work/" + first, "work/" + last].sorted())
+            XCTAssertEqual(
+                try String(contentsOf: peer.appendingPathComponent(last), encoding: .utf8), "edited \(first)")
+            XCTAssertFalse(fm.fileExists(atPath: peer.appendingPathComponent(first).path))
+            XCTAssertFalse(fm.fileExists(atPath: destination.appendingPathComponent(sibling + "/external").path))
+        }
     }
 }
