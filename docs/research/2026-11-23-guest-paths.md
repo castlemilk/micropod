@@ -36,6 +36,20 @@ python3 -B scripts/relaybench/guest_network_config.py --gamma-stock
 
 Source locations refer to the worker builder's pinned Linux 7.3.5 archive, SHA-256 `8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990`. See `drivers/net/{Kconfig,Makefile}` and `drivers/net/netkit.c` (`netkit_xmit`, `netkit_xsk`, `netkit_prog_attach`) for the link paths. The RX queue registration checks are in `io_uring/zcrx.c` at lines 902–928. Pipe handling is in `fs/splice.c:1300` and `net/ipv4/af_inet.c:1082`. The map type registrations and stream parser selections are in `include/linux/bpf_types.h:122`, `net/core/Makefile:44` and `net/Kconfig:361`. [Source digest and build options](../../ci/build-worker-kernel.sh)
 
+## Fair scheduling on the same worker
+
+With debugfs mounted at its usual location, Linux 7.3.5 exposes `/sys/kernel/debug/sched/cgroup_mode`. Reading it lists all five settings and puts parentheses around the selected one. The source default is `up smp (concur) max tasks`. The selection changes fair group weighting for the whole guest. Stock enables `CGROUP_SCHED`, `FAIR_GROUP_SCHED`, `DEBUG_FS` and `DEBUG_FS_ALLOW_ALL`. These controls work independently of sched_ext. The separate `CFS_BANDWIDTH=y` option supports the CPU quota. A comparison needs a readback on the disposable boot, the same quota and weights, and a competing cgroup. See `kernel/sched/debug.c:636`, `kernel/sched/fair.c:5224` and `init/Kconfig:1172`. [Archived stock config](../benchmarks/2026-11-21/gamma-direct-macvlan.json.gz)
+
+| Mode | How the fair scheduler apportions group weight |
+| --- | --- |
+| `up` | Uses the full group shares on each participating CPU. |
+| `smp` | Distributes the configured shares according to each CPU's estimated fraction of group load. |
+| `concur` | Scales shares by the smaller of estimated runnable task count and available CPUs before distributing them. |
+| `max` | Scales by available CPUs, then caps per-CPU shares at the weight for nice −20. |
+| `tasks` | Scales by estimated runnable task count before distributing the shares. |
+
+The fair class already calls `pick_eevdf()`. The kernel exposes its global base request size as `sched/base_slice_ns` under debugfs. For a fair task, a nonzero `sched_runtime` can request a slice from 0.1 to 100 ms. Stock also enables `SCHED_CACHE`. Reading `sched/llc_balancing/enabled` gives the user's requested setting. Activation additionally requires multiple last-level-cache domains in the guest's scheduler topology. The stock config alone establishes neither their presence nor a latency benefit. See `kernel/sched/fair.c:1187`, `fair.c:6369`, `kernel/sched/debug.c:234` and `kernel/sched/topology.c:947` in the same source archive. [Pinned builder inputs](../../ci/build-worker-kernel.sh)
+
 ## Offline socket-pair check
 
 A capture for a known test flow needs the guest boot ID at `sys/kernel/random/boot_id`, the forwarder's `PID/fd` symlinks, and `PID/stat`, `PID/ns/net` and `PID/net/tcp` for the relevant processes. Preserve raw symlink targets. The accepted socket and the dialed socket can belong to different network namespaces, including when a child inherited its listener. Supply a process that can see each table. All inputs must be from the same guest and observation window.

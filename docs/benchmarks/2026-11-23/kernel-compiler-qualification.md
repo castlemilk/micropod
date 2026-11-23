@@ -45,3 +45,38 @@ The trial measures the contents of these two objects. Differences in alignment, 
 The archived source SHA-256 is `8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990`. The Apple config SHA-256 is `a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21`. The base checkout was `ea0989d6`. The host ran macOS 26.5.1 on arm64 with Apple Clang 21.0.0 (clang-2100.1.1.101), the integrated assembler, Xcode LLVM nm and Rust 1.99.1’s GNU-flavor LLD 23.1.1 and LLVM objcopy 23.1.1. The target compiler selected `aarch64-linux-gnu` even in probes that invoke CC without forwarding the target flags. The ELF objcopy was invoked with its local Rust runtime library path. Pahole was unavailable. These settings differ from the historical Alpine GCC worker toolchain.
 
 The compressed evidence includes the three complete unique resolved configs, the six requested arms and their differences, the five base64-encoded linked ELF files and their SHA-256 values, individual input object hashes, source and Kconfig hashes, section sizes and the object compilation commands. It records a compile and link check, independent of the live benchmark fixtures. [Raw evidence](kernel-compiler-evidence.json.gz)
+
+## Allocation policy and exec paths in the archived worker
+
+This read-only inspection used the same pinned 7.3.5 source archive, the archived stock Image (`7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd`) and its accompanying config (`a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c`). It adds three checks to [#235](https://github.com/castlemilk/micropod/issues/235).
+
+| Direction | Verified evidence | Remaining qualification |
+| --- | --- | --- |
+| 235.07 Allocation initialization | Stock explicitly disables both `CONFIG_INIT_ON_ALLOC_DEFAULT_ON` and `CONFIG_INIT_ON_FREE_DEFAULT_ON`. The early parameter handlers for both policies are compiled into the stock Image. `include/linux/mm.h:4944` still honors per-allocation zeroing requests through `__GFP_ZERO`. | Effective boot policy, process isolation and allocation cost require evidence from the measured guest. Micropod appends optional `MICROPOD_SANDBOX_KERNEL_ARGS` at boot. A run claiming a gain from switching off the build default would duplicate the existing config. |
+| 235.08 FD-anchored failfs and fchroot | The arm64 native syscall table is a symlink to `scripts/syscall.tbl`, whose entry 472 dispatches `fchroot` to `sys_fchroot`. `fs/open.c:621` implements it. `fs/Makefile:19` includes `failfs.o` unconditionally and `fs/namespace.c:6503` initializes it. Typed function records in the stock Image corroborate both implementations. | Direct searches of Micropod’s runtime, guest and CI code found no explicit adoption. Its OCI config selects a packaged crun 1.31 binary, whose internal runtime path remains unverified. Failfs deliberately rejects absolute lookups, including dynamic interpreter lookup, so compatibility with worker startup must be demonstrated. |
+| 235.09 BPF-backed binary format handlers | Stock builds conventional `CONFIG_BINFMT_ELF`, `CONFIG_BINFMT_SCRIPT` and `CONFIG_BINFMT_MISC`. Ordinary `load_misc_binary` is present in Image BTF. `fs/Kconfig.binfmt:171` defines a separate `BINFMT_MISC_BPF` with dependencies on built-in misc, BPF syscall, JIT and debug BTF. The stock config satisfies those dependencies but explicitly disables this option. `fs/Makefile:36` consequently excludes `binfmt_misc_bpf.o` from that build. | A different kernel config and an actual handler/translator in the workload’s namespace are prerequisites. Native ELF and ordinary registration cannot establish BPF dispatch, translation correctness or lower exec latency. |
+
+Pinned implementation details are independently inspectable. `mm/mm_init.c:2428` defines allocation and free static keys from their compile defaults and registers the early boot parameters. `Documentation/filesystems/failfs.rst` describes the kernel-internal filesystem’s lookup semantics. `fs/binfmt_misc_bpf.c:459` registers the `binfmt_misc_ops` struct_ops type. Micropod’s [VM argument handling](../../../Sources/MicropodRuntime/SandboxVM.swift) and [OCI backend selection](../../../ci/runner/containerd.toml) identify the local integration points. The inspection did not execute any syscalls inside a guest or attach any BPF programs.
+
+**Binary identity.** The stock raw Image contains a validated BTF block at byte offset 19,550,208, length 5,670,041, SHA-256 `8902c848bb997484d17005ccea010f548c73411fd85f6d64adc608a3e8f8c034`. Parsing its type records to their declared lengths produced 124,713 records. The following are BTF function IDs, qualified to this exact Image.
+
+| Stock function | BTF type ID |
+| --- | ---: |
+| `__arm64_sys_fchroot` | 56208 |
+| `early_init_on_alloc` | 78724 |
+| `early_init_on_free` | 78725 |
+| `failfs_get_root` | 80518 |
+| `failfs_init` | 80521 |
+| `load_misc_binary` | 91287 |
+
+| Pinned source member | SHA-256 |
+| --- | --- |
+| `security/Kconfig.hardening` | `42b1300f0a4d01932a584dbc8e2ae31f6746c41a3f8a88dcaba841567edfa2fb` |
+| `mm/mm_init.c` | `6e92c75c09fddae79d152dd156dbc938f386a95aacefaab2ce14ba0981ceac65` |
+| `scripts/syscall.tbl` | `f09f4c97a0c72c7cc73cc17f21844dee062693ddce3d08f9213d80d6803f3b81` |
+| `fs/Makefile` | `5e8462335c1749e142a7ee484cf4fbca9cc88ff4a6e3a3face705b885dbde074` |
+| `fs/open.c` | `d77a31fcf5328bc79f5ca4884e81e38df49cb90ba422dbdd5c41ee0ca71fad5f` |
+| `fs/failfs.c` | `9495c0740531f35a0e756db841bc063e93f2c7f10b15b2955743ccc1b4c0b373` |
+| `fs/Kconfig.binfmt` | `94e922c13950645542c0a8e442a1aff83e0125907f204e0aff15842794e044ca` |
+| `fs/binfmt_misc.c` | `3b02a588711092fd8c163f7d691a761a11fcd149c0e12ad56852022967a9410f` |
+| `fs/binfmt_misc_bpf.c` | `d35351b91b4027191b5844174d12dee9261985aa61badba28d875fe54106c0df` |
