@@ -1,0 +1,886 @@
+{
+  "method": "Each arm runs the native event loop on established AF_UNIX stream pairs. Counts are real kqueue filter-change submissions from the reverse payload through retirement. Each row also checks byte order, both zero-length reads and explicit write shutdowns. The error control marks an observed empty EOF event with ECONNRESET.",
+  "scope": "Fixed-work call counts on Darwin. The stock and candidate perform the final empty read. Live TCP, VM throughput and request latency were not measured.",
+  "base": "97323524e714dc00528faee5cc4bee443a9ae627",
+  "completed_utc": "2026-11-23T12:34:05.326448+00:00",
+  "arch": "arm64",
+  "darwin": "25.5.0",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O1",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-fno-sanitize-recover=all"
+  ],
+  "sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/retiring_read_filter.patch": "5a5379f3e4f2ab9b54a560b0f6203eaa4be4ef39aaf447c1245a1b4452fe1913",
+    "scripts/relaybench/retiring_read_filter.c": "14e1e5a8608e1941c6a035903f8a0b4c9b4a90b1399fe1fe3bcc9e041b284a2d",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "scripts/relaybench/test_final_read_fin.py": "d991688ea2802d06e0f7d7247039f8a25d0f667d43123f164e50a8fbb1767e72",
+    "scripts/relaybench/check_handshake_reads.py": "aa26709768821d121aeabbfdadded23a46bc7c11fd3c233272d8a84f54d7aaa2",
+    "scripts/relaybench/gamma_contrasts.py": "16e344e07b782957f6c9e935c42d16956946fe488d876efe28396d0385a58f09",
+    "scripts/relaybench/handshake_reads.c": "5e71c51ea01ebba93f82b85d5bfbfceed4cdeabb9f74e9f2a3232a4a4e6b165f",
+    "scripts/relaybench/test_retiring_read_filter.py": "77365fcc48d9018c8cbd8cff7607e847bdbc0f1770b42e797e7dc8efb06c0f63"
+  },
+  "binary_sha256": {
+    "stock": "a5b3d4c14d00aaf05dd8c55cc2b1682380d54271378de1a947ee37a040d283d6",
+    "candidate": "d46f3fce24042f8b662f0240314dfd476144e2fe5b86f7bd0c8adcbfd4d75e6f"
+  },
+  "cases_per_arm": 12,
+  "rows": [
+    {
+      "owner": "flat",
+      "first_fin": "client",
+      "scenario": "flagged_error",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 0,
+      "stock_last_filter_calls": 0,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "flat",
+      "first_fin": "client",
+      "scenario": "ordinary",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 1,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "flat",
+      "first_fin": "client",
+      "scenario": "partial_write",
+      "bytes": 32769,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 5,
+      "candidate_last_filter_calls": 4
+    },
+    {
+      "owner": "flat",
+      "first_fin": "guest",
+      "scenario": "flagged_error",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 0,
+      "stock_last_filter_calls": 0,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "flat",
+      "first_fin": "guest",
+      "scenario": "ordinary",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 1,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "flat",
+      "first_fin": "guest",
+      "scenario": "partial_write",
+      "bytes": 32769,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 5,
+      "candidate_last_filter_calls": 4
+    },
+    {
+      "owner": "split",
+      "first_fin": "client",
+      "scenario": "flagged_error",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 0,
+      "stock_last_filter_calls": 0,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "split",
+      "first_fin": "client",
+      "scenario": "ordinary",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 1,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "split",
+      "first_fin": "client",
+      "scenario": "partial_write",
+      "bytes": 32769,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 7,
+      "candidate_last_filter_calls": 6
+    },
+    {
+      "owner": "split",
+      "first_fin": "guest",
+      "scenario": "flagged_error",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 0,
+      "stock_last_filter_calls": 0,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "split",
+      "first_fin": "guest",
+      "scenario": "ordinary",
+      "bytes": 149,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 1,
+      "candidate_last_filter_calls": 0
+    },
+    {
+      "owner": "split",
+      "first_fin": "guest",
+      "scenario": "partial_write",
+      "bytes": 32769,
+      "first_filter_calls": 1,
+      "last_zero_reads": 1,
+      "last_write_shutdowns": 1,
+      "stock_last_filter_calls": 7,
+      "candidate_last_filter_calls": 6
+    }
+  ],
+  "lifecycle_cpu": {
+    "primary": "Asynchronous full-flow relay thread CPU nanoseconds per flow.",
+    "method": "Dedicated flat owner on one background QoS thread. Each arm has one unscored warmup then sixteen randomized, order-balanced pairs. Every arm forwards and checks 512 immediate and 512 asynchronous 98-byte requests and 148-byte replies. CPU time includes adoption, data and close drains. The identical flow fixture counts filter calls, substitutes a connected anonymous socket for guest TCP, and verifies responses and both FINs outside the clocks.",
+    "seed": 231126,
+    "flags": [
+      "-std=gnu11",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror"
+    ],
+    "binary_sha256": {
+      "stock": "6be30bfc96306108b2f8693e309d98bf76820c1727556dbb20a4fbd6beb8cffb",
+      "candidate": "2dbf310552865da266c493bdb5e03115d8c06cb5333c550c147b5e07c9bcb011"
+    },
+    "summary": {
+      "immediate": {
+        "median_cpu_ns_per_flow": {
+          "stock": 20177.5751953125,
+          "candidate": 19982.255859375
+        },
+        "paired_median_change_pct": 0.8883916167421679,
+        "paired_bootstrap_95_pct": [
+          -5.96736363597673,
+          2.9842604386278726
+        ],
+        "candidate_lower_pairs": 7
+      },
+      "async": {
+        "median_cpu_ns_per_flow": {
+          "stock": 21929.0205078125,
+          "candidate": 21382.7978515625
+        },
+        "paired_median_change_pct": -2.465848525179859,
+        "paired_bootstrap_95_pct": [
+          -4.60710404641087,
+          2.1339054606712704
+        ],
+        "candidate_lower_pairs": 10
+      }
+    },
+    "blocks": [
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4114211,
+            "relay_cpu_ns": 10903727
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4752836,
+            "relay_cpu_ns": 11474196
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3976992,
+            "relay_cpu_ns": 10701971
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4424829,
+            "relay_cpu_ns": 10808402
+          }
+        ]
+      },
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3706422,
+            "relay_cpu_ns": 9934795
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 5095370,
+            "relay_cpu_ns": 11965157
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4200996,
+            "relay_cpu_ns": 11140582
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 5142028,
+            "relay_cpu_ns": 12387069
+          }
+        ]
+      },
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3934748,
+            "relay_cpu_ns": 10349492
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 5508538,
+            "relay_cpu_ns": 13165708
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4140204,
+            "relay_cpu_ns": 11116479
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4642080,
+            "relay_cpu_ns": 11252109
+          }
+        ]
+      },
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4085257,
+            "relay_cpu_ns": 10846665
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4452677,
+            "relay_cpu_ns": 10627212
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3704555,
+            "relay_cpu_ns": 9912423
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4745950,
+            "relay_cpu_ns": 11774930
+          }
+        ]
+      },
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4152244,
+            "relay_cpu_ns": 11003827
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4530287,
+            "relay_cpu_ns": 10913691
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4102033,
+            "relay_cpu_ns": 10939563
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 5146574,
+            "relay_cpu_ns": 11985670
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3960595,
+            "relay_cpu_ns": 10367402
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4747966,
+            "relay_cpu_ns": 11186311
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3736254,
+            "relay_cpu_ns": 9744757
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4635847,
+            "relay_cpu_ns": 10861916
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3808834,
+            "relay_cpu_ns": 10033752
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4641775,
+            "relay_cpu_ns": 11042958
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4140790,
+            "relay_cpu_ns": 10443460
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4917048,
+            "relay_cpu_ns": 11297802
+          }
+        ]
+      },
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3804449,
+            "relay_cpu_ns": 9721361
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4628670,
+            "relay_cpu_ns": 10707952
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3898404,
+            "relay_cpu_ns": 10338284
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4774991,
+            "relay_cpu_ns": 11352389
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3859239,
+            "relay_cpu_ns": 10249362
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4638838,
+            "relay_cpu_ns": 10974713
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4000794,
+            "relay_cpu_ns": 10500193
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4901697,
+            "relay_cpu_ns": 11208903
+          }
+        ]
+      },
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3785831,
+            "relay_cpu_ns": 9999077
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4720029,
+            "relay_cpu_ns": 11089154
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3731912,
+            "relay_cpu_ns": 9881552
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4645427,
+            "relay_cpu_ns": 10992893
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3885495,
+            "relay_cpu_ns": 10263658
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4806984,
+            "relay_cpu_ns": 11203208
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3786584,
+            "relay_cpu_ns": 9930809
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4678786,
+            "relay_cpu_ns": 10931037
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4017241,
+            "relay_cpu_ns": 10474037
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4885659,
+            "relay_cpu_ns": 11382161
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4374843,
+            "relay_cpu_ns": 11493479
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4666724,
+            "relay_cpu_ns": 10857773
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3930242,
+            "relay_cpu_ns": 10435094
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4986163,
+            "relay_cpu_ns": 11684906
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 4296885,
+            "relay_cpu_ns": 11095268
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 5059704,
+            "relay_cpu_ns": 11593685
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3886801,
+            "relay_cpu_ns": 10323553
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4417567,
+            "relay_cpu_ns": 10687022
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3644037,
+            "relay_cpu_ns": 9593970
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4693496,
+            "relay_cpu_ns": 10964948
+          }
+        ]
+      },
+      {
+        "order": [
+          "candidate",
+          "stock"
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3893663,
+            "relay_cpu_ns": 10112338
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4552725,
+            "relay_cpu_ns": 10806973
+          }
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3681581,
+            "relay_cpu_ns": 9895265
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4684590,
+            "relay_cpu_ns": 11436897
+          }
+        ]
+      },
+      {
+        "order": [
+          "stock",
+          "candidate"
+        ],
+        "stock": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3780260,
+            "relay_cpu_ns": 10207159
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4502427,
+            "relay_cpu_ns": 10905630
+          }
+        ],
+        "candidate": [
+          {
+            "async": false,
+            "flows": 512,
+            "setup_change_syscalls": 1536,
+            "setup_filters": 1536,
+            "setup_cpu_ns": 3812930,
+            "relay_cpu_ns": 10011834
+          },
+          {
+            "async": true,
+            "flows": 512,
+            "setup_change_syscalls": 3072,
+            "setup_filters": 3072,
+            "setup_cpu_ns": 4457623,
+            "relay_cpu_ns": 10632739
+          }
+        ]
+      }
+    ]
+  }
+}

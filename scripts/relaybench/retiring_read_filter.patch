@@ -1,0 +1,13 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -666,7 +666,9 @@
+             }
+             src->eof = true;
+             if (src == &p->guest) observe_close(p, "guest_fin", 0, false);
+-            if (watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0) { retire(p); return; }
++            // The final half-close retires both descriptors on this serial owner.
++            // Closing them removes their read filters from either kqueue.
++            if (!dst->eof && watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0) { retire(p); return; }
+             // A disconnected write half may still have received bytes queued.
+             if (shutdown(dst->watch.fd, SHUT_WR) < 0 && errno != ENOTCONN && errno != EPIPE) {
+                 stream_failed(p, dst, "shutdown_write", errno);
