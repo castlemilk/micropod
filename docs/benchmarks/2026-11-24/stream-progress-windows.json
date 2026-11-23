@@ -1,0 +1,2939 @@
+{
+  "id": "230.02-stream-progress-windows",
+  "archives": {
+    "gamma-mixed-path.json.gz": "09ebe5510401244cd6d299c1d0cf6dd8f88b256bf14b8c2c14f6db3eff61b74a",
+    "gamma-mixed-scheduler.json.gz": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8"
+  },
+  "method": "Fully contained intervals only; time-weight sample spans. For each span, count streams whose cumulative application body bytes increased. Rate equals the fraction of time with progress times the mean progressing stream count during that time times delivered MiB per progressing stream-second. Grouping 2 or 4 consecutive native spans also counts streams which advanced in different parts of that longer span. Retain the last partial group; bytes and endpoints are identical at each resolution.",
+  "population": "All 3 release diagnostic sets across all 4 arms with 160 sequential fresh requests per arm. Candidate is the published release path; direct is guest DNAT. The third OrbStack context run retains one reopened bulk stream. All 4 fixed-duration diagnostic sets retain bulk and mixed runs. The fourth mixed run overlapped profiler attachment and is outside the three clean-set interpretation.",
+  "limitations": "Observed application delivery does not identify kqueue readiness, worker assignment, simultaneous CPU service, network packet timing or cause. Replacing idle spans at observed nonidle rate is a conditional arithmetic comparison. The paths are sequential observations and have different achieved fresh arrival rates. Older 6.18.35 guest path traces cannot establish throughput on the current four-vCPU holdout.",
+  "release_path_factors": [
+    {
+      "set": 1,
+      "group": 1,
+      "direct_over_published_mib_s": 1.0957217951828246,
+      "direct_over_published_duty": 1.0210625838102736,
+      "direct_over_published_breadth": 1.2082823116482957,
+      "direct_over_published_active_stream_rate": 0.888136094644358,
+      "direct_minus_published_nonidle_mib_s": 38.91762536290253
+    },
+    {
+      "set": 1,
+      "group": 2,
+      "direct_over_published_mib_s": 1.0957217951828246,
+      "direct_over_published_duty": 1.0092149207490777,
+      "direct_over_published_breadth": 1.1657041312187777,
+      "direct_over_published_active_stream_rate": 0.931382989906044,
+      "direct_minus_published_nonidle_mib_s": 159.29117843870608
+    },
+    {
+      "set": 1,
+      "group": 4,
+      "direct_over_published_mib_s": 1.0957217951828246,
+      "direct_over_published_duty": 1.004945271828887,
+      "direct_over_published_breadth": 1.094168719928469,
+      "direct_over_published_active_stream_rate": 0.9964914898332076,
+      "direct_minus_published_nonidle_mib_s": 217.36582232614455
+    },
+    {
+      "set": 2,
+      "group": 1,
+      "direct_over_published_mib_s": 2.119122184569239,
+      "direct_over_published_duty": 1.2867306655486779,
+      "direct_over_published_breadth": 1.5158920238359637,
+      "direct_over_published_active_stream_rate": 1.086425821095815,
+      "direct_minus_published_nonidle_mib_s": 618.8939592040952
+    },
+    {
+      "set": 2,
+      "group": 2,
+      "direct_over_published_mib_s": 2.119122184569239,
+      "direct_over_published_duty": 1.2283445819804135,
+      "direct_over_published_breadth": 1.4008476270152466,
+      "direct_over_published_active_stream_rate": 1.2315296851896085,
+      "direct_minus_published_nonidle_mib_s": 826.9392173489482
+    },
+    {
+      "set": 2,
+      "group": 4,
+      "direct_over_published_mib_s": 2.119122184569239,
+      "direct_over_published_duty": 1.1841687131823844,
+      "direct_over_published_breadth": 1.2506833329735074,
+      "direct_over_published_active_stream_rate": 1.4308531148185224,
+      "direct_minus_published_nonidle_mib_s": 955.7660861876129
+    },
+    {
+      "set": 3,
+      "group": 1,
+      "direct_over_published_mib_s": 1.0296716084968964,
+      "direct_over_published_duty": 0.9778906841237367,
+      "direct_over_published_breadth": 1.1647188922001466,
+      "direct_over_published_active_stream_rate": 0.9040392975170785,
+      "direct_minus_published_nonidle_mib_s": -96.17540443324515
+    },
+    {
+      "set": 3,
+      "group": 2,
+      "direct_over_published_mib_s": 1.0296716084968964,
+      "direct_over_published_duty": 1.0050644143504381,
+      "direct_over_published_breadth": 1.101763923424293,
+      "direct_over_published_active_stream_rate": 0.9298572764004674,
+      "direct_minus_published_nonidle_mib_s": 12.626684853861661
+    },
+    {
+      "set": 3,
+      "group": 4,
+      "direct_over_published_mib_s": 1.0296716084968964,
+      "direct_over_published_duty": 1.0019615271756679,
+      "direct_over_published_breadth": 1.0423864609342437,
+      "direct_over_published_active_stream_rate": 0.9858683628055885,
+      "direct_minus_published_nonidle_mib_s": 60.251311005657044
+    }
+  ],
+  "windows": {
+    "final-trace/1-baseline.json": {
+      "reported_mib_s": 1894.949598022465,
+      "scored_us": 8931289,
+      "scored_bytes": 17746458700,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 6002,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9993533400553881,
+      "median_native_sample_us": 4998.0,
+      "max_native_sample_us": 16308,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1742,
+          "sampled_us": 8925287,
+          "bytes": 17734982776,
+          "mib_s": 1894.9976146849303,
+          "progress_fraction": 0.8950791162233774,
+          "moving_streams_during_progress": 17.749305718804163,
+          "mib_s_per_moving_stream": 119.27951741725228,
+          "mib_s_during_progress": 2117.1286206302366,
+          "longest_consecutive_idle_us": 60150,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 192,
+              "us": 936449,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 129,
+              "us": 616041,
+              "bytes": 147558684,
+              "stream_us": 1376293
+            },
+            "5-16": {
+              "intervals": 569,
+              "us": 2817781,
+              "bytes": 4174075948,
+              "stream_us": 32542766
+            },
+            "17-31": {
+              "intervals": 841,
+              "us": 4487773,
+              "bytes": 13161059192,
+              "stream_us": 105725493
+            },
+            "32-32": {
+              "intervals": 11,
+              "us": 67243,
+              "bytes": 252288952,
+              "stream_us": 2151776
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 871,
+          "sampled_us": 8925287,
+          "bytes": 17734982776,
+          "mib_s": 1894.9976146849303,
+          "progress_fraction": 0.9484427783666789,
+          "moving_streams_during_progress": 22.563467823979895,
+          "mib_s_per_moving_stream": 88.55063615499641,
+          "mib_s_during_progress": 1998.0094296762122,
+          "longest_consecutive_idle_us": 54196,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 48,
+              "us": 460163,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 27,
+              "us": 273659,
+              "bytes": 28870488,
+              "stream_us": 647642
+            },
+            "5-16": {
+              "intervals": 167,
+              "us": 1688272,
+              "bytes": 1935019876,
+              "stream_us": 20509009
+            },
+            "17-31": {
+              "intervals": 589,
+              "us": 6068150,
+              "bytes": 14062027292,
+              "stream_us": 155924526
+            },
+            "32-32": {
+              "intervals": 40,
+              "us": 435043,
+              "bytes": 1709065120,
+              "stream_us": 13921376
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 436,
+          "sampled_us": 8925287,
+          "bytes": 17734982776,
+          "mib_s": 1894.9976146849303,
+          "progress_fraction": 0.9813194802587301,
+          "moving_streams_during_progress": 26.76045120669407,
+          "mib_s_per_moving_stream": 72.16137763057907,
+          "mib_s_during_progress": 1931.071025090936,
+          "longest_consecutive_idle_us": 44589,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 8,
+              "us": 166729,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 4,
+              "us": 81366,
+              "bytes": 4337064,
+              "stream_us": 141984
+            },
+            "5-16": {
+              "intervals": 59,
+              "us": 1181895,
+              "bytes": 969145040,
+              "stream_us": 15016149
+            },
+            "17-31": {
+              "intervals": 222,
+              "us": 4535983,
+              "bytes": 7798839420,
+              "stream_us": 124526783
+            },
+            "32-32": {
+              "intervals": 143,
+              "us": 2959314,
+              "bytes": 8962661252,
+              "stream_us": 94698048
+            }
+          }
+        }
+      }
+    },
+    "final-trace/1-candidate.json": {
+      "reported_mib_s": 2532.0157329546387,
+      "scored_us": 6086848,
+      "scored_bytes": 16160648960,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 12169,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9986413931733593,
+      "median_native_sample_us": 5005.0,
+      "max_native_sample_us": 13189,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1202,
+          "sampled_us": 6074679,
+          "bytes": 16138692992,
+          "mib_s": 2533.6412025781015,
+          "progress_fraction": 0.9256161518987258,
+          "moving_streams_during_progress": 22.629749373134946,
+          "mib_s_per_moving_stream": 120.9579574365365,
+          "mib_s_during_progress": 2737.2482614751457,
+          "longest_consecutive_idle_us": 39487,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 91,
+              "us": 451858,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 64,
+              "us": 270454,
+              "bytes": 38698680,
+              "stream_us": 568562
+            },
+            "5-16": {
+              "intervals": 264,
+              "us": 1313954,
+              "bytes": 2089770344,
+              "stream_us": 16681299
+            },
+            "17-31": {
+              "intervals": 685,
+              "us": 3509400,
+              "bytes": 11739893976,
+              "stream_us": 93064753
+            },
+            "32-32": {
+              "intervals": 98,
+              "us": 529013,
+              "bytes": 2270329992,
+              "stream_us": 16928416
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 601,
+          "sampled_us": 6074679,
+          "bytes": 16138692992,
+          "mib_s": 2533.6412025781015,
+          "progress_fraction": 0.9681935457001103,
+          "moving_streams_during_progress": 26.063218092771105,
+          "mib_s_per_moving_stream": 100.40489624438047,
+          "mib_s_during_progress": 2616.874708399342,
+          "longest_consecutive_idle_us": 30090,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 19,
+              "us": 193214,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 18,
+              "us": 173202,
+              "bytes": 13525288,
+              "stream_us": 466895
+            },
+            "5-16": {
+              "intervals": 78,
+              "us": 778801,
+              "bytes": 1061490072,
+              "stream_us": 10333266
+            },
+            "17-31": {
+              "intervals": 317,
+              "us": 3202370,
+              "bytes": 8335715800,
+              "stream_us": 87222800
+            },
+            "32-32": {
+              "intervals": 169,
+              "us": 1727092,
+              "bytes": 6727961832,
+              "stream_us": 55266944
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 301,
+          "sampled_us": 6074679,
+          "bytes": 16138692992,
+          "mib_s": 2533.6412025781015,
+          "progress_fraction": 0.9901677109193753,
+          "moving_streams_during_progress": 28.852557901136684,
+          "mib_s_per_moving_stream": 88.68538010666624,
+          "mib_s_during_progress": 2558.8000645119037,
+          "longest_consecutive_idle_us": 20421,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 3,
+              "us": 59728,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 5,
+              "us": 105297,
+              "bytes": 5621712,
+              "stream_us": 315635
+            },
+            "5-16": {
+              "intervals": 24,
+              "us": 482358,
+              "bytes": 594763440,
+              "stream_us": 6934200
+            },
+            "17-31": {
+              "intervals": 81,
+              "us": 1625818,
+              "bytes": 2943195520,
+              "stream_us": 44649591
+            },
+            "32-32": {
+              "intervals": 188,
+              "us": 3801478,
+              "bytes": 12595112320,
+              "stream_us": 121647296
+            }
+          }
+        }
+      }
+    },
+    "final-trace/1-direct.json": {
+      "reported_mib_s": 2776.961626023859,
+      "scored_us": 4169387,
+      "scored_bytes": 12140650600,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 12885,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9966240425368966,
+      "median_native_sample_us": 5010,
+      "max_native_sample_us": 15088,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 809,
+          "sampled_us": 4156502,
+          "bytes": 12099664280,
+          "mib_s": 2776.165886838048,
+          "progress_fraction": 0.9451120196742356,
+          "moving_streams_during_progress": 27.34312588459306,
+          "mib_s_per_moving_stream": 107.42712793384402,
+          "mib_s_during_progress": 2937.393482515381,
+          "longest_consecutive_idle_us": 25589,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 52,
+              "us": 228142,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 41,
+              "us": 143844,
+              "bytes": 14884384,
+              "stream_us": 267967
+            },
+            "5-16": {
+              "intervals": 30,
+              "us": 143557,
+              "bytes": 136246776,
+              "stream_us": 1690929
+            },
+            "17-31": {
+              "intervals": 535,
+              "us": 2839690,
+              "bytes": 8627638784,
+              "stream_us": 79814138
+            },
+            "32-32": {
+              "intervals": 151,
+              "us": 801269,
+              "bytes": 3320894336,
+              "stream_us": 25640608
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 405,
+          "sampled_us": 4156502,
+          "bytes": 12099664280,
+          "mib_s": 2776.165886838048,
+          "progress_fraction": 0.9771153724935053,
+          "moving_streams_during_progress": 30.382001003599267,
+          "mib_s_per_moving_stream": 93.5154124652972,
+          "mib_s_during_progress": 2841.185355372659,
+          "longest_consecutive_idle_us": 20515,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 10,
+              "us": 95120,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 1,
+              "us": 9366,
+              "bytes": 914872,
+              "stream_us": 140490
+            },
+            "17-31": {
+              "intervals": 199,
+              "us": 2014612,
+              "bytes": 4923098032,
+              "stream_us": 58055494
+            },
+            "32-32": {
+              "intervals": 195,
+              "us": 2037404,
+              "bytes": 7175651376,
+              "stream_us": 65196928
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 203,
+          "sampled_us": 4156502,
+          "bytes": 12099664280,
+          "mib_s": 2776.165886838048,
+          "progress_fraction": 0.9950643594060583,
+          "moving_streams_during_progress": 31.569566345348765,
+          "mib_s_per_moving_stream": 88.37422654891616,
+          "mib_s_during_progress": 2789.9360082548906,
+          "longest_consecutive_idle_us": 20515,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 1,
+              "us": 20515,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "17-31": {
+              "intervals": 28,
+              "us": 569630,
+              "bytes": 999070200,
+              "stream_us": 16447892
+            },
+            "32-32": {
+              "intervals": 174,
+              "us": 3566357,
+              "bytes": 11100594080,
+              "stream_us": 114123424
+            }
+          }
+        }
+      }
+    },
+    "final-trace/1-orb.json": {
+      "reported_mib_s": 3895.4366411191922,
+      "scored_us": 24328186,
+      "scored_bytes": 99372402440,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 7675,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9996780882497098,
+      "median_native_sample_us": 5004.0,
+      "max_native_sample_us": 29780,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 4736,
+          "sampled_us": 24320511,
+          "bytes": 99340413296,
+          "mib_s": 3895.41160305296,
+          "progress_fraction": 0.9859638228818465,
+          "moving_streams_during_progress": 22.091382744938684,
+          "mib_s_per_moving_stream": 178.84198164424535,
+          "mib_s_during_progress": 3950.8666673663224,
+          "longest_consecutive_idle_us": 46523,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 72,
+              "us": 341367,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 113,
+              "us": 445878,
+              "bytes": 152993512,
+              "stream_us": 987686
+            },
+            "5-16": {
+              "intervals": 609,
+              "us": 2892512,
+              "bytes": 11520482102,
+              "stream_us": 38641483
+            },
+            "17-31": {
+              "intervals": 3923,
+              "us": 20534849,
+              "bytes": 87222631250,
+              "stream_us": 486714319
+            },
+            "32-32": {
+              "intervals": 19,
+              "us": 105905,
+              "bytes": 444306432,
+              "stream_us": 3388960
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 2368,
+          "sampled_us": 24320511,
+          "bytes": 99340413296,
+          "mib_s": 3895.41160305296,
+          "progress_fraction": 0.9974342233187452,
+          "moving_streams_during_progress": 23.57222706138277,
+          "mib_s_per_moving_stream": 165.67938444753108,
+          "mib_s_during_progress": 3905.4320695873316,
+          "longest_consecutive_idle_us": 41561,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 6,
+              "us": 62401,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 4,
+              "us": 39601,
+              "bytes": 7414896,
+              "stream_us": 78940
+            },
+            "5-16": {
+              "intervals": 167,
+              "us": 1652619,
+              "bytes": 7555343082,
+              "stream_us": 23252259
+            },
+            "17-31": {
+              "intervals": 2172,
+              "us": 22376888,
+              "bytes": 91125173030,
+              "stream_us": 542438414
+            },
+            "32-32": {
+              "intervals": 19,
+              "us": 189002,
+              "bytes": 652482288,
+              "stream_us": 6048064
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 1184,
+          "sampled_us": 24320511,
+          "bytes": 99340413296,
+          "mib_s": 3895.41160305296,
+          "progress_fraction": 0.9992222614072541,
+          "moving_streams_during_progress": 24.283830452946383,
+          "mib_s_per_moving_stream": 160.53659988382836,
+          "mib_s_during_progress": 3898.4435730713794,
+          "longest_consecutive_idle_us": 18915,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 1,
+              "us": 18915,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 62,
+              "us": 1245982,
+              "bytes": 6342607846,
+              "stream_us": 17896657
+            },
+            "17-31": {
+              "intervals": 1108,
+              "us": 22795576,
+              "bytes": 92107629282,
+              "stream_us": 563917964
+            },
+            "32-32": {
+              "intervals": 13,
+              "us": 260038,
+              "bytes": 890176168,
+              "stream_us": 8321216
+            }
+          }
+        }
+      }
+    },
+    "final-trace/2-baseline.json": {
+      "reported_mib_s": 1633.419357119792,
+      "scored_us": 9525653,
+      "scored_bytes": 16315199376,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 7068,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9983347356428898,
+      "median_native_sample_us": 5008,
+      "max_native_sample_us": 25951,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1819,
+          "sampled_us": 9518585,
+          "bytes": 16288030256,
+          "mib_s": 1631.910217747188,
+          "progress_fraction": 0.8658252250728443,
+          "moving_streams_during_progress": 16.50168738899834,
+          "mib_s_per_moving_stream": 114.2188206699119,
+          "mib_s_during_progress": 1884.8032726349486,
+          "longest_consecutive_idle_us": 106089,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 268,
+              "us": 1277154,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 173,
+              "us": 859034,
+              "bytes": 178278224,
+              "stream_us": 1965262
+            },
+            "5-16": {
+              "intervals": 645,
+              "us": 3270763,
+              "bytes": 4993730132,
+              "stream_us": 38124327
+            },
+            "17-31": {
+              "intervals": 725,
+              "us": 4070023,
+              "bytes": 10910844652,
+              "stream_us": 94576377
+            },
+            "32-32": {
+              "intervals": 8,
+              "us": 41611,
+              "bytes": 205177248,
+              "stream_us": 1331552
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 910,
+          "sampled_us": 9518585,
+          "bytes": 16288030256,
+          "mib_s": 1631.910217747188,
+          "progress_fraction": 0.9186375916168212,
+          "moving_streams_during_progress": 21.555546635285616,
+          "mib_s_per_moving_stream": 82.41248460839033,
+          "mib_s_during_progress": 1776.4461553059157,
+          "longest_consecutive_idle_us": 100665,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 76,
+              "us": 774455,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 41,
+              "us": 412138,
+              "bytes": 54815872,
+              "stream_us": 1078085
+            },
+            "5-16": {
+              "intervals": 215,
+              "us": 2203272,
+              "bytes": 2422505804,
+              "stream_us": 27342736
+            },
+            "17-31": {
+              "intervals": 524,
+              "us": 5556744,
+              "bytes": 11838735420,
+              "stream_us": 141760449
+            },
+            "32-32": {
+              "intervals": 54,
+              "us": 571976,
+              "bytes": 1971973160,
+              "stream_us": 18303232
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 455,
+          "sampled_us": 9518585,
+          "bytes": 16288030256,
+          "mib_s": 1631.910217747188,
+          "progress_fraction": 0.9558521565968051,
+          "moving_streams_during_progress": 26.31527484074053,
+          "mib_s_per_moving_stream": 64.87802594942556,
+          "mib_s_during_progress": 1707.2830839838298,
+          "longest_consecutive_idle_us": 90512,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 21,
+              "us": 420225,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 9,
+              "us": 184425,
+              "bytes": 10708568,
+              "stream_us": 361956
+            },
+            "5-16": {
+              "intervals": 67,
+              "us": 1377230,
+              "bytes": 1353581096,
+              "stream_us": 18638093
+            },
+            "17-31": {
+              "intervals": 199,
+              "us": 4266357,
+              "bytes": 6003675288,
+              "stream_us": 115774659
+            },
+            "32-32": {
+              "intervals": 159,
+              "us": 3270348,
+              "bytes": 8920065304,
+              "stream_us": 104651136
+            }
+          }
+        }
+      }
+    },
+    "final-trace/2-candidate.json": {
+      "reported_mib_s": 1062.1074929039528,
+      "scored_us": 14943517,
+      "scored_bytes": 16642601256,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 5703,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9989873693576643,
+      "median_native_sample_us": 5025,
+      "max_native_sample_us": 53012,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 2717,
+          "sampled_us": 14937814,
+          "bytes": 16625748448,
+          "mib_s": 1061.4370540353946,
+          "progress_fraction": 0.6510202898496393,
+          "moving_streams_during_progress": 17.06219600979761,
+          "mib_s_per_moving_stream": 95.55750318364014,
+          "mib_s_during_progress": 1630.4208495261273,
+          "longest_consecutive_idle_us": 277640,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 1015,
+              "us": 5212994,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 244,
+              "us": 1224689,
+              "bytes": 187032252,
+              "stream_us": 2534971
+            },
+            "5-16": {
+              "intervals": 760,
+              "us": 4139510,
+              "bytes": 5596568792,
+              "stream_us": 51466751
+            },
+            "17-31": {
+              "intervals": 640,
+              "us": 3942386,
+              "bytes": 9514442700,
+              "stream_us": 98541543
+            },
+            "32-32": {
+              "intervals": 58,
+              "us": 418235,
+              "bytes": 1327704704,
+              "stream_us": 13383520
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 1359,
+          "sampled_us": 14937814,
+          "bytes": 16625748448,
+          "mib_s": 1061.4370540353946,
+          "progress_fraction": 0.7462424555560807,
+          "moving_streams_during_progress": 20.48005374608277,
+          "mib_s_per_moving_stream": 69.45175090926372,
+          "mib_s_during_progress": 1422.3755913812743,
+          "longest_consecutive_idle_us": 272427,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 367,
+              "us": 3790583,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 68,
+              "us": 748909,
+              "bytes": 68347908,
+              "stream_us": 1728958
+            },
+            "5-16": {
+              "intervals": 353,
+              "us": 3789437,
+              "bytes": 3974273432,
+              "stream_us": 49111184
+            },
+            "17-31": {
+              "intervals": 474,
+              "us": 5416051,
+              "bytes": 9492424992,
+              "stream_us": 139285060
+            },
+            "32-32": {
+              "intervals": 97,
+              "us": 1192834,
+              "bytes": 3090702116,
+              "stream_us": 38170688
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 680,
+          "sampled_us": 14937814,
+          "bytes": 16625748448,
+          "mib_s": 1061.4370540353946,
+          "progress_fraction": 0.8205620983096992,
+          "moving_streams_during_progress": 24.39227841392843,
+          "mib_s_per_moving_stream": 53.03107403874047,
+          "mib_s_during_progress": 1293.5487225426095,
+          "longest_consecutive_idle_us": 250095,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 130,
+              "us": 2680410,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 16,
+              "us": 358336,
+              "bytes": 14627612,
+              "stream_us": 768801
+            },
+            "5-16": {
+              "intervals": 136,
+              "us": 2881688,
+              "bytes": 2314341140,
+              "stream_us": 38091852
+            },
+            "17-31": {
+              "intervals": 235,
+              "us": 5182166,
+              "bytes": 6450761056,
+              "stream_us": 137398510
+            },
+            "32-32": {
+              "intervals": 163,
+              "us": 3835214,
+              "bytes": 7846018640,
+              "stream_us": 122726848
+            }
+          }
+        }
+      }
+    },
+    "final-trace/2-direct.json": {
+      "reported_mib_s": 2252.308995869637,
+      "scored_us": 5613879,
+      "scored_bytes": 13258392584,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 9175,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9970385779609978,
+      "median_native_sample_us": 5040,
+      "max_native_sample_us": 38888,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1029,
+          "sampled_us": 5604704,
+          "bytes": 13219128888,
+          "mib_s": 2249.3148087302225,
+          "progress_fraction": 0.8376877708439197,
+          "moving_streams_during_progress": 25.864446840378,
+          "mib_s_per_moving_stream": 103.8161388581522,
+          "mib_s_during_progress": 2685.1470046699787,
+          "longest_consecutive_idle_us": 59514,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 175,
+              "us": 909712,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 59,
+              "us": 263919,
+              "bytes": 47234248,
+              "stream_us": 572413
+            },
+            "5-16": {
+              "intervals": 65,
+              "us": 299047,
+              "bytes": 456909448,
+              "stream_us": 3267965
+            },
+            "17-31": {
+              "intervals": 592,
+              "us": 3297573,
+              "bytes": 9568613208,
+              "stream_us": 90890497
+            },
+            "32-32": {
+              "intervals": 138,
+              "us": 834453,
+              "bytes": 3146371984,
+              "stream_us": 26702496
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 515,
+          "sampled_us": 5604704,
+          "bytes": 13219128888,
+          "mib_s": 2249.3148087302225,
+          "progress_fraction": 0.9166428771260713,
+          "moving_streams_during_progress": 28.68943469134476,
+          "mib_s_per_moving_stream": 85.53189293315266,
+          "mib_s_during_progress": 2453.861656332776,
+          "longest_consecutive_idle_us": 54901,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 45,
+              "us": 467192,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 5,
+              "us": 51259,
+              "bytes": 1860768,
+              "stream_us": 61231
+            },
+            "5-16": {
+              "intervals": 17,
+              "us": 189512,
+              "bytes": 132392040,
+              "stream_us": 1933694
+            },
+            "17-31": {
+              "intervals": 264,
+              "us": 2819601,
+              "bytes": 6042551832,
+              "stream_us": 78928910
+            },
+            "32-32": {
+              "intervals": 184,
+              "us": 2077140,
+              "bytes": 7042324248,
+              "stream_us": 66468480
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 258,
+          "sampled_us": 5604704,
+          "bytes": 13219128888,
+          "mib_s": 2249.3148087302225,
+          "progress_fraction": 0.9716839640416336,
+          "moving_streams_during_progress": 30.50701606554975,
+          "mib_s_per_moving_stream": 75.87967747050348,
+          "mib_s_during_progress": 2314.862539641383,
+          "longest_consecutive_idle_us": 45119,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 8,
+              "us": 158703,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 2,
+              "us": 47255,
+              "bytes": 1313112,
+              "stream_us": 66853
+            },
+            "5-16": {
+              "intervals": 4,
+              "us": 80828,
+              "bytes": 51738032,
+              "stream_us": 1031261
+            },
+            "17-31": {
+              "intervals": 69,
+              "us": 1415878,
+              "bytes": 2106363496,
+              "stream_us": 40177846
+            },
+            "32-32": {
+              "intervals": 175,
+              "us": 3902040,
+              "bytes": 11059714248,
+              "stream_us": 124865280
+            }
+          }
+        }
+      }
+    },
+    "final-trace/2-orb.json": {
+      "reported_mib_s": 3144.332795533224,
+      "scored_us": 12285075,
+      "scored_bytes": 40504775912,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 3267,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9990627704722407,
+      "median_native_sample_us": 5015.0,
+      "max_native_sample_us": 58504,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 2208,
+          "sampled_us": 12281808,
+          "bytes": 40466813640,
+          "mib_s": 3142.2214738470193,
+          "progress_fraction": 0.9651828948962563,
+          "moving_streams_during_progress": 21.819546437205204,
+          "mib_s_per_moving_stream": 149.20434033921103,
+          "mib_s_during_progress": 3255.5710326639846,
+          "longest_consecutive_idle_us": 58504,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 82,
+              "us": 427617,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 107,
+              "us": 562123,
+              "bytes": 218558430,
+              "stream_us": 1093574
+            },
+            "5-16": {
+              "intervals": 277,
+              "us": 1401126,
+              "bytes": 4596388294,
+              "stream_us": 18294521
+            },
+            "17-31": {
+              "intervals": 1699,
+              "us": 9623926,
+              "bytes": 34735636080,
+              "stream_us": 230720464
+            },
+            "32-32": {
+              "intervals": 43,
+              "us": 267016,
+              "bytes": 916230836,
+              "stream_us": 8544512
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 1104,
+          "sampled_us": 12281808,
+          "bytes": 40466813640,
+          "mib_s": 3142.2214738470193,
+          "progress_fraction": 0.9925134800999983,
+          "moving_streams_during_progress": 23.695003798238865,
+          "mib_s_per_moving_stream": 133.61142492319604,
+          "mib_s_during_progress": 3165.923221043237,
+          "longest_consecutive_idle_us": 40052,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 10,
+              "us": 91948,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 14,
+              "us": 195877,
+              "bytes": 60621492,
+              "stream_us": 496632
+            },
+            "5-16": {
+              "intervals": 77,
+              "us": 826137,
+              "bytes": 2575927302,
+              "stream_us": 11486628
+            },
+            "17-31": {
+              "intervals": 964,
+              "us": 10686427,
+              "bytes": 36498824330,
+              "stream_us": 261450111
+            },
+            "32-32": {
+              "intervals": 39,
+              "us": 481419,
+              "bytes": 1331440516,
+              "stream_us": 15405408
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 552,
+          "sampled_us": 12281808,
+          "bytes": 40466813640,
+          "mib_s": 3142.2214738470193,
+          "progress_fraction": 0.9967389166155342,
+          "moving_streams_during_progress": 25.043577898464893,
+          "mib_s_per_moving_stream": 125.88065725551144,
+          "mib_s_during_progress": 3152.5020458883605,
+          "longest_consecutive_idle_us": 40052,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 2,
+              "us": 40052,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 20,
+              "us": 421024,
+              "bytes": 1651215708,
+              "stream_us": 6313843
+            },
+            "17-31": {
+              "intervals": 503,
+              "us": 11176994,
+              "bytes": 37121198834,
+              "stream_us": 279663911
+            },
+            "32-32": {
+              "intervals": 27,
+              "us": 643738,
+              "bytes": 1694399098,
+              "stream_us": 20599616
+            }
+          }
+        }
+      }
+    },
+    "final-trace/3-baseline.json": {
+      "reported_mib_s": 3107.6924524445317,
+      "scored_us": 5223133,
+      "scored_bytes": 17020372832,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 9780,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9976782802356888,
+      "median_native_sample_us": 4996.5,
+      "max_native_sample_us": 13490,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1034,
+          "sampled_us": 5213353,
+          "bytes": 16980856296,
+          "mib_s": 3106.2938803646266,
+          "progress_fraction": 0.9924919720571387,
+          "moving_streams_during_progress": 22.514549174743742,
+          "mib_s_per_moving_stream": 139.01199731958144,
+          "mib_s_during_progress": 3129.792449531062,
+          "longest_consecutive_idle_us": 7859,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 9,
+              "us": 39142,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 22,
+              "us": 106135,
+              "bytes": 30539368,
+              "stream_us": 229100
+            },
+            "5-16": {
+              "intervals": 137,
+              "us": 668368,
+              "bytes": 928619880,
+              "stream_us": 7701951
+            },
+            "17-31": {
+              "intervals": 860,
+              "us": 4370030,
+              "bytes": 15870543096,
+              "stream_us": 107614281
+            },
+            "32-32": {
+              "intervals": 6,
+              "us": 29678,
+              "bytes": 151153952,
+              "stream_us": 949696
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 517,
+          "sampled_us": 5213353,
+          "bytes": 16980856296,
+          "mib_s": 3106.2938803646266,
+          "progress_fraction": 0.9984925248683525,
+          "moving_streams_during_progress": 27.859903209954712,
+          "mib_s_per_moving_stream": 111.66526988081078,
+          "mib_s_during_progress": 3110.98361079286,
+          "longest_consecutive_idle_us": 7859,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 1,
+              "us": 7859,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 1,
+              "us": 18254,
+              "bytes": 262144,
+              "stream_us": 18254
+            },
+            "5-16": {
+              "intervals": 22,
+              "us": 226883,
+              "bytes": 188177784,
+              "stream_us": 2891150
+            },
+            "17-31": {
+              "intervals": 393,
+              "us": 3945460,
+              "bytes": 12348252976,
+              "stream_us": 109638451
+            },
+            "32-32": {
+              "intervals": 100,
+              "us": 1014897,
+              "bytes": 4444163392,
+              "stream_us": 32476704
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 259,
+          "sampled_us": 5213353,
+          "bytes": 16980856296,
+          "mib_s": 3106.2938803646266,
+          "progress_fraction": 1.0,
+          "moving_streams_during_progress": 31.149341508238557,
+          "mib_s_per_moving_stream": 99.72261787759,
+          "mib_s_during_progress": 3106.2938803646266,
+          "longest_consecutive_idle_us": 0,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 1,
+              "us": 19916,
+              "bytes": 20099864,
+              "stream_us": 278824
+            },
+            "17-31": {
+              "intervals": 55,
+              "us": 1102541,
+              "bytes": 2013230868,
+              "stream_us": 31205017
+            },
+            "32-32": {
+              "intervals": 203,
+              "us": 4090896,
+              "bytes": 14947525564,
+              "stream_us": 130908672
+            }
+          }
+        }
+      }
+    },
+    "final-trace/3-candidate.json": {
+      "reported_mib_s": 2631.3383735999355,
+      "scored_us": 5797559,
+      "scored_bytes": 15996382840,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 8139,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9990639733901242,
+      "median_native_sample_us": 5012,
+      "max_native_sample_us": 21185,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1103,
+          "sampled_us": 5789420,
+          "bytes": 15981409800,
+          "mib_s": 2632.5711498255687,
+          "progress_fraction": 0.9379063878592329,
+          "moving_streams_during_progress": 23.801585065306504,
+          "mib_s_per_moving_stream": 117.92740555115284,
+          "mib_s_during_progress": 2806.8591747566625,
+          "longest_consecutive_idle_us": 24808,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 72,
+              "us": 359486,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 48,
+              "us": 226106,
+              "bytes": 22635232,
+              "stream_us": 391665
+            },
+            "5-16": {
+              "intervals": 182,
+              "us": 934146,
+              "bytes": 1566451864,
+              "stream_us": 12188131
+            },
+            "17-31": {
+              "intervals": 694,
+              "us": 3672120,
+              "bytes": 11966582284,
+              "stream_us": 97539256
+            },
+            "32-32": {
+              "intervals": 107,
+              "us": 597562,
+              "bytes": 2425740420,
+              "stream_us": 19121984
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 552,
+          "sampled_us": 5789420,
+          "bytes": 15981409800,
+          "mib_s": 2632.5711498255687,
+          "progress_fraction": 0.975728484027761,
+          "moving_streams_during_progress": 27.470309982364714,
+          "mib_s_per_moving_stream": 98.21720567411305,
+          "mib_s_during_progress": 2698.0570854695557,
+          "longest_consecutive_idle_us": 20406,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 14,
+              "us": 140518,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 8,
+              "us": 81953,
+              "bytes": 3784160,
+              "stream_us": 141560
+            },
+            "5-16": {
+              "intervals": 48,
+              "us": 480263,
+              "bytes": 652938920,
+              "stream_us": 6816378
+            },
+            "17-31": {
+              "intervals": 307,
+              "us": 3248719,
+              "bytes": 8643760324,
+              "stream_us": 89404207
+            },
+            "32-32": {
+              "intervals": 175,
+              "us": 1837967,
+              "bytes": 6680926396,
+              "stream_us": 58814944
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 276,
+          "sampled_us": 5789420,
+          "bytes": 15981409800,
+          "mib_s": 2632.5711498255687,
+          "progress_fraction": 0.9932609829654784,
+          "moving_streams_during_progress": 30.343674749865443,
+          "mib_s_per_moving_stream": 87.34711537631128,
+          "mib_s_during_progress": 2650.4324593177603,
+          "longest_consecutive_idle_us": 20406,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 2,
+              "us": 39015,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 11,
+              "us": 211178,
+              "bytes": 258065664,
+              "stream_us": 3108653
+            },
+            "17-31": {
+              "intervals": 74,
+              "us": 1558656,
+              "bytes": 3107050912,
+              "stream_us": 44001494
+            },
+            "32-32": {
+              "intervals": 189,
+              "us": 3980571,
+              "bytes": 12616293224,
+              "stream_us": 127378272
+            }
+          }
+        }
+      }
+    },
+    "final-trace/3-direct.json": {
+      "reported_mib_s": 2709.1971896224336,
+      "scored_us": 4299190,
+      "scored_bytes": 12213136728,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 4627,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9994717602739017,
+      "median_native_sample_us": 4998.0,
+      "max_native_sample_us": 16656,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 832,
+          "sampled_us": 4294563,
+          "bytes": 12206685264,
+          "mib_s": 2710.6837703234173,
+          "progress_fraction": 0.917169919267688,
+          "moving_streams_during_progress": 27.722155789871344,
+          "mib_s_per_moving_stream": 106.61100887247584,
+          "mib_s_during_progress": 2955.4869968781313,
+          "longest_consecutive_idle_us": 28948,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 78,
+              "us": 355719,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 29,
+              "us": 128228,
+              "bytes": 10253896,
+              "stream_us": 249721
+            },
+            "5-16": {
+              "intervals": 34,
+              "us": 148272,
+              "bytes": 166409424,
+              "stream_us": 1664787
+            },
+            "17-31": {
+              "intervals": 485,
+              "us": 2575157,
+              "bytes": 7916327088,
+              "stream_us": 72488755
+            },
+            "32-32": {
+              "intervals": 206,
+              "us": 1087187,
+              "bytes": 4113694856,
+              "stream_us": 34789984
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 416,
+          "sampled_us": 4294563,
+          "bytes": 12206685264,
+          "mib_s": 2710.6837703234173,
+          "progress_fraction": 0.9806699773644024,
+          "moving_streams_during_progress": 30.26579650385167,
+          "mib_s_per_moving_stream": 91.3279833637953,
+          "mib_s_during_progress": 2764.1141595957797,
+          "longest_consecutive_idle_us": 20574,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 8,
+              "us": 83014,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 3,
+              "us": 26299,
+              "bytes": 1501128,
+              "stream_us": 63377
+            },
+            "5-16": {
+              "intervals": 3,
+              "us": 32260,
+              "bytes": 4816176,
+              "stream_us": 249834
+            },
+            "17-31": {
+              "intervals": 170,
+              "us": 1726088,
+              "bytes": 3950343488,
+              "stream_us": 49491810
+            },
+            "32-32": {
+              "intervals": 232,
+              "us": 2426902,
+              "bytes": 8250024472,
+              "stream_us": 77660864
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 208,
+          "sampled_us": 4294563,
+          "bytes": 12206685264,
+          "mib_s": 2710.6837703234173,
+          "progress_fraction": 0.9952092913760958,
+          "moving_streams_during_progress": 31.62983573425201,
+          "mib_s_per_moving_stream": 86.11275763183485,
+          "mib_s_during_progress": 2723.7323785183926,
+          "longest_consecutive_idle_us": 20574,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 1,
+              "us": 20574,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "17-31": {
+              "intervals": 22,
+              "us": 474829,
+              "bytes": 596386680,
+              "stream_us": 13612450
+            },
+            "32-32": {
+              "intervals": 185,
+              "us": 3799160,
+              "bytes": 11610298584,
+              "stream_us": 121573120
+            }
+          }
+        }
+      }
+    },
+    "final-trace/3-orb.json": {
+      "reported_mib_s": 2747.7485918253888,
+      "scored_us": 16230694,
+      "scored_bytes": 46764252792,
+      "bulk_reopens": 1,
+      "uncovered_boundary_us": 11586,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9990649115640851,
+      "median_native_sample_us": 5024,
+      "max_native_sample_us": 45029,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 3019,
+          "sampled_us": 16219108,
+          "bytes": 46720524080,
+          "mib_s": 2747.140216597346,
+          "progress_fraction": 0.9808073292316692,
+          "moving_streams_during_progress": 24.14025366140678,
+          "mib_s_per_moving_stream": 116.02599326875614,
+          "mib_s_during_progress": 2800.896908824449,
+          "longest_consecutive_idle_us": 35129,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 72,
+              "us": 311288,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 125,
+              "us": 519443,
+              "bytes": 125722856,
+              "stream_us": 1058653
+            },
+            "5-16": {
+              "intervals": 257,
+              "us": 1174733,
+              "bytes": 2359941986,
+              "stream_us": 14047456
+            },
+            "17-31": {
+              "intervals": 2433,
+              "us": 13460860,
+              "bytes": 42119876390,
+              "stream_us": 344823613
+            },
+            "32-32": {
+              "intervals": 132,
+              "us": 752784,
+              "bytes": 2114982848,
+              "stream_us": 24089088
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 1510,
+          "sampled_us": 16219108,
+          "bytes": 46720524080,
+          "mib_s": 2747.140216597346,
+          "progress_fraction": 0.9979286160496619,
+          "moving_streams_during_progress": 26.327985793714774,
+          "mib_s_per_moving_stream": 104.55955239997093,
+          "mib_s_during_progress": 2752.8424101836104,
+          "longest_consecutive_idle_us": 18101,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 3,
+              "us": 33596,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 6,
+              "us": 70109,
+              "bytes": 18695200,
+              "stream_us": 129224
+            },
+            "5-16": {
+              "intervals": 45,
+              "us": 466357,
+              "bytes": 1141118870,
+              "stream_us": 6618823
+            },
+            "17-31": {
+              "intervals": 1342,
+              "us": 14431809,
+              "bytes": 42355454270,
+              "stream_us": 380432299
+            },
+            "32-32": {
+              "intervals": 114,
+              "us": 1217237,
+              "bytes": 3205255740,
+              "stream_us": 38951584
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 755,
+          "sampled_us": 16219108,
+          "bytes": 46720524080,
+          "mib_s": 2747.140216597346,
+          "progress_fraction": 1.0,
+          "moving_streams_during_progress": 27.30144166991181,
+          "mib_s_per_moving_stream": 100.6225330446522,
+          "mib_s_during_progress": 2747.140216597346,
+          "longest_consecutive_idle_us": 0,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 11,
+              "us": 234874,
+              "bytes": 630880874,
+              "stream_us": 3333044
+            },
+            "17-31": {
+              "intervals": 663,
+              "us": 14308447,
+              "bytes": 41795170470,
+              "stream_us": 385846803
+            },
+            "32-32": {
+              "intervals": 81,
+              "us": 1675787,
+              "bytes": 4294472736,
+              "stream_us": 53625184
+            }
+          }
+        }
+      }
+    },
+    "sched/1-bulk.json": {
+      "reported_mib_s": 5145.701326433474,
+      "scored_us": 6000007,
+      "scored_bytes": 32373993504,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 3971,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.999946527943802,
+      "median_native_sample_us": 4998.0,
+      "max_native_sample_us": 12403,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1194,
+          "sampled_us": 5996036,
+          "bytes": 32372262400,
+          "mib_s": 5148.834198934721,
+          "progress_fraction": 0.9709317956062973,
+          "moving_streams_during_progress": 29.429412708429883,
+          "mib_s_per_moving_stream": 180.19327898356835,
+          "mib_s_during_progress": 5302.982374492677,
+          "longest_consecutive_idle_us": 49398,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 36,
+              "us": 174294,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 10,
+              "us": 43573,
+              "bytes": 4582616,
+              "stream_us": 93851
+            },
+            "5-16": {
+              "intervals": 43,
+              "us": 207565,
+              "bytes": 360195332,
+              "stream_us": 2690305
+            },
+            "17-31": {
+              "intervals": 590,
+              "us": 2972112,
+              "bytes": 14714529460,
+              "stream_us": 85394548
+            },
+            "32-32": {
+              "intervals": 515,
+              "us": 2598492,
+              "bytes": 17292954992,
+              "stream_us": 83151744
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 597,
+          "sampled_us": 5996036,
+          "bytes": 32372262400,
+          "mib_s": 5148.834198934721,
+          "progress_fraction": 0.9815788297468527,
+          "moving_streams_during_progress": 30.91453215671789,
+          "mib_s_per_moving_stream": 169.67624533869918,
+          "mib_s_during_progress": 5245.46174275437,
+          "longest_consecutive_idle_us": 49398,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 11,
+              "us": 110454,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 2,
+              "us": 20052,
+              "bytes": 1048576,
+              "stream_us": 39186
+            },
+            "5-16": {
+              "intervals": 12,
+              "us": 121256,
+              "bytes": 125659400,
+              "stream_us": 1530787
+            },
+            "17-31": {
+              "intervals": 99,
+              "us": 984797,
+              "bytes": 3193037204,
+              "stream_us": 28076777
+            },
+            "32-32": {
+              "intervals": 473,
+              "us": 4759477,
+              "bytes": 29052517220,
+              "stream_us": 152303264
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 299,
+          "sampled_us": 5996036,
+          "bytes": 32372262400,
+          "mib_s": 5148.834198934721,
+          "progress_fraction": 0.9933973044858303,
+          "moving_streams_during_progress": 31.431986456353336,
+          "mib_s_per_moving_stream": 164.89751129759452,
+          "mib_s_during_progress": 5183.056341792362,
+          "longest_consecutive_idle_us": 39590,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 2,
+              "us": 39590,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 1,
+              "us": 20293,
+              "bytes": 262144,
+              "stream_us": 20293
+            },
+            "5-16": {
+              "intervals": 4,
+              "us": 79616,
+              "bytes": 24661976,
+              "stream_us": 865576
+            },
+            "17-31": {
+              "intervals": 15,
+              "us": 320029,
+              "bytes": 534995760,
+              "stream_us": 9168805
+            },
+            "32-32": {
+              "intervals": 277,
+              "us": 5536508,
+              "bytes": 31812342520,
+              "stream_us": 177168256
+            }
+          }
+        }
+      }
+    },
+    "sched/1-mixed.json": {
+      "reported_mib_s": 4993.801441493653,
+      "scored_us": 6001149,
+      "scored_bytes": 31424299952,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 5104,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9988196983844778,
+      "median_native_sample_us": 4998.5,
+      "max_native_sample_us": 11726,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1192,
+          "sampled_us": 5996045,
+          "bytes": 31387209800,
+          "mib_s": 4992.153302704458,
+          "progress_fraction": 0.9853580151583252,
+          "moving_streams_during_progress": 29.360601978487374,
+          "mib_s_per_moving_stream": 172.5555388579529,
+          "mib_s_during_progress": 5066.334495591766,
+          "longest_consecutive_idle_us": 25448,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 18,
+              "us": 87794,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 5,
+              "us": 17714,
+              "bytes": 2681336,
+              "stream_us": 44463
+            },
+            "5-16": {
+              "intervals": 44,
+              "us": 216472,
+              "bytes": 356108856,
+              "stream_us": 2731280
+            },
+            "17-31": {
+              "intervals": 661,
+              "us": 3339361,
+              "bytes": 16390549688,
+              "stream_us": 95983535
+            },
+            "32-32": {
+              "intervals": 464,
+              "us": 2334704,
+              "bytes": 14637869920,
+              "stream_us": 74710528
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 596,
+          "sampled_us": 5996045,
+          "bytes": 31387209800,
+          "mib_s": 4992.153302704458,
+          "progress_fraction": 0.993386807470591,
+          "moving_streams_during_progress": 31.025391209980807,
+          "mib_s_per_moving_stream": 161.97659270391188,
+          "mib_s_during_progress": 5025.387155498589,
+          "longest_consecutive_idle_us": 19742,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 4,
+              "us": 39653,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 2,
+              "us": 16244,
+              "bytes": 1571360,
+              "stream_us": 49518
+            },
+            "5-16": {
+              "intervals": 7,
+              "us": 71619,
+              "bytes": 104625312,
+              "stream_us": 981694
+            },
+            "17-31": {
+              "intervals": 108,
+              "us": 1077549,
+              "bytes": 3738169548,
+              "stream_us": 30456820
+            },
+            "32-32": {
+              "intervals": 475,
+              "us": 4790980,
+              "bytes": 27542843580,
+              "stream_us": 153311360
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 298,
+          "sampled_us": 5996045,
+          "bytes": 31387209800,
+          "mib_s": 4992.153302704458,
+          "progress_fraction": 1.0,
+          "moving_streams_during_progress": 31.630394201511162,
+          "mib_s_per_moving_stream": 157.82772958504432,
+          "mib_s_during_progress": 4992.153302704458,
+          "longest_consecutive_idle_us": 0,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 3,
+              "us": 59055,
+              "bytes": 30899800,
+              "stream_us": 777008
+            },
+            "17-31": {
+              "intervals": 12,
+              "us": 237928,
+              "bytes": 405703848,
+              "stream_us": 6510275
+            },
+            "32-32": {
+              "intervals": 283,
+              "us": 5699062,
+              "bytes": 30950606152,
+              "stream_us": 182369984
+            }
+          }
+        }
+      }
+    },
+    "sched/2-bulk.json": {
+      "reported_mib_s": 1117.6789795554914,
+      "scored_us": 6000453,
+      "scored_bytes": 7032359904,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 3746,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9978787672696451,
+      "median_native_sample_us": 5065,
+      "max_native_sample_us": 49509,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 987,
+          "sampled_us": 5996707,
+          "bytes": 7017442632,
+          "mib_s": 1116.0049682255071,
+          "progress_fraction": 0.5867468595680929,
+          "moving_streams_during_progress": 18.41602490117375,
+          "mib_s_per_moving_stream": 103.2807684674523,
+          "mib_s_during_progress": 1902.0212039089627,
+          "longest_consecutive_idle_us": 1770619,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 382,
+              "us": 2478158,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 73,
+              "us": 361411,
+              "bytes": 56344608,
+              "stream_us": 854833
+            },
+            "5-16": {
+              "intervals": 237,
+              "us": 1273297,
+              "bytes": 2058427540,
+              "stream_us": 16244417
+            },
+            "17-31": {
+              "intervals": 258,
+              "us": 1661109,
+              "bytes": 4090972624,
+              "stream_us": 40571012
+            },
+            "32-32": {
+              "intervals": 37,
+              "us": 222732,
+              "bytes": 811697860,
+              "stream_us": 7127424
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 494,
+          "sampled_us": 5996707,
+          "bytes": 7017442632,
+          "mib_s": 1116.0049682255071,
+          "progress_fraction": 0.6297071042490486,
+          "moving_streams_during_progress": 22.37114096323549,
+          "mib_s_per_moving_stream": 79.22083227196433,
+          "mib_s_during_progress": 1772.2604059809496,
+          "longest_consecutive_idle_us": 1770619,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 167,
+              "us": 2220538,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 16,
+              "us": 217927,
+              "bytes": 15404028,
+              "stream_us": 625638
+            },
+            "5-16": {
+              "intervals": 73,
+              "us": 786818,
+              "bytes": 1082182156,
+              "stream_us": 10296613
+            },
+            "17-31": {
+              "intervals": 187,
+              "us": 2200297,
+              "bytes": 4268318292,
+              "stream_us": 55278894
+            },
+            "32-32": {
+              "intervals": 51,
+              "us": 571127,
+              "bytes": 1651538156,
+              "stream_us": 18276064
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 247,
+          "sampled_us": 5996707,
+          "bytes": 7017442632,
+          "mib_s": 1116.0049682255071,
+          "progress_fraction": 0.6620029959776257,
+          "moving_streams_during_progress": 26.09656741660491,
+          "mib_s_per_moving_stream": 64.59855247833055,
+          "mib_s_during_progress": 1685.8004797658434,
+          "longest_consecutive_idle_us": 1770619,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 75,
+              "us": 2026869,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 6,
+              "us": 175772,
+              "bytes": 6546112,
+              "stream_us": 454072
+            },
+            "5-16": {
+              "intervals": 21,
+              "us": 463731,
+              "bytes": 653491588,
+              "stream_us": 6582833
+            },
+            "17-31": {
+              "intervals": 76,
+              "us": 1837112,
+              "bytes": 2831153656,
+              "stream_us": 48779104
+            },
+            "32-32": {
+              "intervals": 69,
+              "us": 1493223,
+              "bytes": 3526251276,
+              "stream_us": 47783136
+            }
+          }
+        }
+      }
+    },
+    "sched/2-mixed.json": {
+      "reported_mib_s": 3812.8464514740017,
+      "scored_us": 6000033,
+      "scored_bytes": 23988487952,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 6090,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9995627682736408,
+      "median_native_sample_us": 5000,
+      "max_native_sample_us": 10298,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1197,
+          "sampled_us": 5993943,
+          "bytes": 23977999424,
+          "mib_s": 3815.0516628991395,
+          "progress_fraction": 0.8749070520023297,
+          "moving_streams_during_progress": 28.604716538050162,
+          "mib_s_per_moving_stream": 152.44067318699703,
+          "mib_s_during_progress": 4360.522245383594,
+          "longest_consecutive_idle_us": 704932,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 150,
+              "us": 749800,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 6,
+              "us": 29340,
+              "bytes": 2325680,
+              "stream_us": 40414
+            },
+            "5-16": {
+              "intervals": 48,
+              "us": 231053,
+              "bytes": 360346272,
+              "stream_us": 3135411
+            },
+            "17-31": {
+              "intervals": 671,
+              "us": 3362719,
+              "bytes": 14447773680,
+              "stream_us": 94958407
+            },
+            "32-32": {
+              "intervals": 322,
+              "us": 1621031,
+              "bytes": 9167553792,
+              "stream_us": 51872992
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 599,
+          "sampled_us": 5993943,
+          "bytes": 23977999424,
+          "mib_s": 3815.0516628991395,
+          "progress_fraction": 0.8806993993770044,
+          "moving_streams_during_progress": 30.912578127634326,
+          "mib_s_per_moving_stream": 140.13205676186473,
+          "mib_s_during_progress": 4331.843152837232,
+          "longest_consecutive_idle_us": 704932,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 72,
+              "us": 715081,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 1,
+              "us": 8506,
+              "bytes": 950272,
+              "stream_us": 8506
+            },
+            "5-16": {
+              "intervals": 4,
+              "us": 39753,
+              "bytes": 18525048,
+              "stream_us": 546312
+            },
+            "17-31": {
+              "intervals": 139,
+              "us": 1379897,
+              "bytes": 4474138712,
+              "stream_us": 39405824
+            },
+            "32-32": {
+              "intervals": 383,
+              "us": 3850706,
+              "bytes": 19484385392,
+              "stream_us": 123222592
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 300,
+          "sampled_us": 5993943,
+          "bytes": 23977999424,
+          "mib_s": 3815.0516628991395,
+          "progress_fraction": 0.8823926086717875,
+          "moving_streams_during_progress": 31.897214431960908,
+          "mib_s_per_moving_stream": 135.5457184633844,
+          "mib_s_during_progress": 4323.530847160775,
+          "longest_consecutive_idle_us": 704932,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 36,
+              "us": 704932,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "17-31": {
+              "intervals": 11,
+              "us": 221029,
+              "bytes": 490243160,
+              "stream_us": 6529294
+            },
+            "32-32": {
+              "intervals": 253,
+              "us": 5067982,
+              "bytes": 23487756264,
+              "stream_us": 162175424
+            }
+          }
+        }
+      }
+    },
+    "sched/3-bulk.json": {
+      "reported_mib_s": 3658.296573612374,
+      "scored_us": 6000084,
+      "scored_bytes": 23016334152,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 5419,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9997400187205971,
+      "median_native_sample_us": 4994,
+      "max_native_sample_us": 16395,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1177,
+          "sampled_us": 5994665,
+          "bytes": 23010350336,
+          "mib_s": 3660.651617221834,
+          "progress_fraction": 0.9718848342651341,
+          "moving_streams_during_progress": 25.96784637608125,
+          "mib_s_per_moving_stream": 145.04663595525983,
+          "mib_s_during_progress": 3766.548759853571,
+          "longest_consecutive_idle_us": 29938,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 37,
+              "us": 168541,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 36,
+              "us": 135151,
+              "bytes": 31841312,
+              "stream_us": 305983
+            },
+            "5-16": {
+              "intervals": 137,
+              "us": 631197,
+              "bytes": 1191614204,
+              "stream_us": 8342448
+            },
+            "17-31": {
+              "intervals": 804,
+              "us": 4207795,
+              "bytes": 17273283736,
+              "stream_us": 115380070
+            },
+            "32-32": {
+              "intervals": 163,
+              "us": 851981,
+              "bytes": 4513611084,
+              "stream_us": 27263392
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 589,
+          "sampled_us": 5994665,
+          "bytes": 23010350336,
+          "mib_s": 3660.651617221834,
+          "progress_fraction": 0.991738153841791,
+          "moving_streams_during_progress": 29.076536490826623,
+          "mib_s_per_moving_stream": 126.94590738466749,
+          "mib_s_during_progress": 3691.147308431381,
+          "longest_consecutive_idle_us": 29938,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 5,
+              "us": 49527,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 6,
+              "us": 54708,
+              "bytes": 3271912,
+              "stream_us": 91134
+            },
+            "5-16": {
+              "intervals": 30,
+              "us": 294190,
+              "bytes": 490018584,
+              "stream_us": 3966950
+            },
+            "17-31": {
+              "intervals": 259,
+              "us": 2617807,
+              "bytes": 8422798644,
+              "stream_us": 73496082
+            },
+            "32-32": {
+              "intervals": 289,
+              "us": 2978433,
+              "bytes": 14094261196,
+              "stream_us": 95309856
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 295,
+          "sampled_us": 5994665,
+          "bytes": 23010350336,
+          "mib_s": 3660.651617221834,
+          "progress_fraction": 0.9967732975904409,
+          "moving_streams_during_progress": 31.018185965542944,
+          "mib_s_per_moving_stream": 118.3983386825039,
+          "mib_s_during_progress": 3672.5016872652427,
+          "longest_consecutive_idle_us": 19343,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 1,
+              "us": 19343,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 10,
+              "us": 199740,
+              "bytes": 250984832,
+              "stream_us": 2931760
+            },
+            "17-31": {
+              "intervals": 37,
+              "us": 734093,
+              "bytes": 1728252284,
+              "stream_us": 21084241
+            },
+            "32-32": {
+              "intervals": 247,
+              "us": 5041489,
+              "bytes": 21031113220,
+              "stream_us": 161327648
+            }
+          }
+        }
+      }
+    },
+    "sched/3-mixed.json": {
+      "reported_mib_s": 3863.432092500898,
+      "scored_us": 6000040,
+      "scored_bytes": 24306778944,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 9886,
+      "reported_bytes_above_outer_sample_delta_by_stream": {
+        "5": 65536,
+        "7": 65328,
+        "13": 130656
+      },
+      "interior_byte_coverage": 0.998176614346882,
+      "median_native_sample_us": 4997,
+      "max_native_sample_us": 10311,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1195,
+          "sampled_us": 5990154,
+          "bytes": 24262458312,
+          "mib_s": 3862.7526679667567,
+          "progress_fraction": 0.9808290404553873,
+          "moving_streams_during_progress": 27.063929316494754,
+          "mib_s_per_moving_stream": 145.51666559942254,
+          "mib_s_during_progress": 3938.2527521547754,
+          "longest_consecutive_idle_us": 20732,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 23,
+              "us": 114837,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 15,
+              "us": 63773,
+              "bytes": 21248552,
+              "stream_us": 178925
+            },
+            "5-16": {
+              "intervals": 126,
+              "us": 601309,
+              "bytes": 987695412,
+              "stream_us": 7564422
+            },
+            "17-31": {
+              "intervals": 756,
+              "us": 3831491,
+              "bytes": 15807123524,
+              "stream_us": 107146009
+            },
+            "32-32": {
+              "intervals": 275,
+              "us": 1378744,
+              "bytes": 7446390824,
+              "stream_us": 44119808
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 598,
+          "sampled_us": 5990154,
+          "bytes": 24262458312,
+          "mib_s": 3862.7526679667567,
+          "progress_fraction": 0.9953789168024728,
+          "moving_streams_during_progress": 29.81598994242825,
+          "mib_s_per_moving_stream": 130.15451261762655,
+          "mib_s_during_progress": 3880.6856391688048,
+          "longest_consecutive_idle_us": 10128,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 3,
+              "us": 27681,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 1,
+              "us": 9662,
+              "bytes": 523904,
+              "stream_us": 38648
+            },
+            "5-16": {
+              "intervals": 19,
+              "us": 188767,
+              "bytes": 256050952,
+              "stream_us": 2510285
+            },
+            "17-31": {
+              "intervals": 214,
+              "us": 2140920,
+              "bytes": 6347648224,
+              "stream_us": 59288134
+            },
+            "32-32": {
+              "intervals": 361,
+              "us": 3623124,
+              "bytes": 17658235232,
+              "stream_us": 115939968
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 299,
+          "sampled_us": 5990154,
+          "bytes": 24262458312,
+          "mib_s": 3862.7526679667567,
+          "progress_fraction": 1.0,
+          "moving_streams_during_progress": 31.344690804276485,
+          "mib_s_per_moving_stream": 123.2346712904804,
+          "mib_s_during_progress": 3862.7526679667567,
+          "longest_consecutive_idle_us": 0,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 0,
+              "us": 0,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "5-16": {
+              "intervals": 1,
+              "us": 19741,
+              "bytes": 34837200,
+              "stream_us": 236892
+            },
+            "17-31": {
+              "intervals": 42,
+              "us": 842439,
+              "bytes": 1940780044,
+              "stream_us": 23427465
+            },
+            "32-32": {
+              "intervals": 256,
+              "us": 5127974,
+              "bytes": 22286841068,
+              "stream_us": 164095168
+            }
+          }
+        }
+      }
+    },
+    "sched/4-bulk.json": {
+      "reported_mib_s": 3871.4095334336125,
+      "scored_us": 6000048,
+      "scored_bytes": 24356997592,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 4970,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9982764525947242,
+      "median_native_sample_us": 5002.0,
+      "max_native_sample_us": 8800,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1198,
+          "sampled_us": 5995078,
+          "bytes": 24315017152,
+          "mib_s": 3867.9408943202816,
+          "progress_fraction": 0.8684287343717629,
+          "moving_streams_during_progress": 24.860008397521618,
+          "mib_s_per_moving_stream": 179.16136936429362,
+          "mib_s_during_progress": 4453.953146907812,
+          "longest_consecutive_idle_us": 64562,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 157,
+              "us": 788780,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 29,
+              "us": 140006,
+              "bytes": 32964288,
+              "stream_us": 311298
+            },
+            "5-16": {
+              "intervals": 242,
+              "us": 1216297,
+              "bytes": 3131955104,
+              "stream_us": 16424726
+            },
+            "17-31": {
+              "intervals": 504,
+              "us": 2516833,
+              "bytes": 12713461792,
+              "stream_us": 70031404
+            },
+            "32-32": {
+              "intervals": 266,
+              "us": 1333162,
+              "bytes": 8436635968,
+              "stream_us": 42661184
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 599,
+          "sampled_us": 5995078,
+          "bytes": 24315017152,
+          "mib_s": 3867.9408943202816,
+          "progress_fraction": 0.9224762380072453,
+          "moving_streams_during_progress": 27.050252634704304,
+          "mib_s_per_moving_stream": 155.00771542820772,
+          "mib_s_during_progress": 4192.997862661371,
+          "longest_consecutive_idle_us": 60119,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 46,
+              "us": 464761,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 11,
+              "us": 105059,
+              "bytes": 16567112,
+              "stream_us": 219280
+            },
+            "5-16": {
+              "intervals": 90,
+              "us": 909240,
+              "bytes": 1857518776,
+              "stream_us": 12686234
+            },
+            "17-31": {
+              "intervals": 163,
+              "us": 1622999,
+              "bytes": 5561750244,
+              "stream_us": 44114350
+            },
+            "32-32": {
+              "intervals": 289,
+              "us": 2893019,
+              "bytes": 16879181020,
+              "stream_us": 92576608
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 300,
+          "sampled_us": 5995078,
+          "bytes": 24315017152,
+          "mib_s": 3867.9408943202816,
+          "progress_fraction": 0.9798806621031453,
+          "moving_streams_during_progress": 28.791036318055394,
+          "mib_s_per_moving_stream": 137.10375351509754,
+          "mib_s_during_progress": 3947.359146794888,
+          "longest_consecutive_idle_us": 39903,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 6,
+              "us": 120617,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 6,
+              "us": 120314,
+              "bytes": 8645520,
+              "stream_us": 220339
+            },
+            "5-16": {
+              "intervals": 25,
+              "us": 505556,
+              "bytes": 919423888,
+              "stream_us": 6896944
+            },
+            "17-31": {
+              "intervals": 60,
+              "us": 1199035,
+              "bytes": 2510019440,
+              "stream_us": 32428745
+            },
+            "32-32": {
+              "intervals": 203,
+              "us": 4049556,
+              "bytes": 20876928304,
+              "stream_us": 129585792
+            }
+          }
+        }
+      }
+    },
+    "sched/4-mixed.json": {
+      "reported_mib_s": 2151.257367853785,
+      "scored_us": 6000142,
+      "scored_bytes": 13534861392,
+      "bulk_reopens": 0,
+      "uncovered_boundary_us": 9932,
+      "reported_bytes_above_outer_sample_delta_by_stream": {},
+      "interior_byte_coverage": 0.9972280824373883,
+      "median_native_sample_us": 5007.0,
+      "max_native_sample_us": 23132,
+      "groups_of_native_samples": {
+        "1": {
+          "sample_intervals": 1130,
+          "sampled_us": 5990210,
+          "bytes": 13497343872,
+          "mib_s": 2148.851240679323,
+          "progress_fraction": 0.8885207697225974,
+          "moving_streams_during_progress": 22.389935341515315,
+          "mib_s_per_moving_stream": 108.01546209101461,
+          "mib_s_during_progress": 2418.459212101716,
+          "longest_consecutive_idle_us": 49914,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 135,
+              "us": 667784,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 53,
+              "us": 252123,
+              "bytes": 38784148,
+              "stream_us": 529460
+            },
+            "5-16": {
+              "intervals": 248,
+              "us": 1252507,
+              "bytes": 2042854472,
+              "stream_us": 16498564
+            },
+            "17-31": {
+              "intervals": 617,
+              "us": 3392165,
+              "bytes": 9810222888,
+              "stream_us": 88520558
+            },
+            "32-32": {
+              "intervals": 77,
+              "us": 425631,
+              "bytes": 1605482364,
+              "stream_us": 13620192
+            }
+          }
+        },
+        "2": {
+          "sample_intervals": 565,
+          "sampled_us": 5990210,
+          "bytes": 13497343872,
+          "mib_s": 2148.851240679323,
+          "progress_fraction": 0.9436952961582316,
+          "moving_streams_during_progress": 26.090730599495874,
+          "mib_s_per_moving_stream": 87.2746911612163,
+          "mib_s_during_progress": 2277.060455241498,
+          "longest_consecutive_idle_us": 40706,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 34,
+              "us": 337277,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 15,
+              "us": 163829,
+              "bytes": 15897852,
+              "stream_us": 409796
+            },
+            "5-16": {
+              "intervals": 65,
+              "us": 664339,
+              "bytes": 856519304,
+              "stream_us": 9206357
+            },
+            "17-31": {
+              "intervals": 321,
+              "us": 3458232,
+              "bytes": 7923282944,
+              "stream_us": 94143943
+            },
+            "32-32": {
+              "intervals": 130,
+              "us": 1366533,
+              "bytes": 4701643772,
+              "stream_us": 43729056
+            }
+          }
+        },
+        "4": {
+          "sample_intervals": 283,
+          "sampled_us": 5990210,
+          "bytes": 13497343872,
+          "mib_s": 2148.851240679323,
+          "progress_fraction": 0.9773997906584243,
+          "moving_streams_during_progress": 29.098512510183898,
+          "mib_s_per_moving_stream": 75.55501932306551,
+          "mib_s_during_progress": 2198.538674979408,
+          "longest_consecutive_idle_us": 36868,
+          "moving_stream_counts": {
+            "0-0": {
+              "intervals": 7,
+              "us": 135380,
+              "bytes": 0,
+              "stream_us": 0
+            },
+            "1-4": {
+              "intervals": 5,
+              "us": 103368,
+              "bytes": 11395944,
+              "stream_us": 334794
+            },
+            "5-16": {
+              "intervals": 15,
+              "us": 318341,
+              "bytes": 424501536,
+              "stream_us": 4601210
+            },
+            "17-31": {
+              "intervals": 91,
+              "us": 1922911,
+              "bytes": 3343672888,
+              "stream_us": 53104120
+            },
+            "32-32": {
+              "intervals": 165,
+              "us": 3510210,
+              "bytes": 9717773504,
+              "stream_us": 112326720
+            }
+          }
+        }
+      }
+    }
+  }
+}
