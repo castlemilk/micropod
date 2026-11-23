@@ -4,11 +4,15 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 
+#ifndef FIXTURE_KEVENT
+#define FIXTURE_KEVENT kevent
+#endif
+
 static unsigned calls, filters;
 static int counted_kevent(int q, const struct kevent *changes, int n, struct kevent *events,
                           int capacity, const struct timespec *timeout) {
     if (n) { ++calls; filters += (unsigned)n; }
-    return kevent(q, changes, n, events, capacity, timeout);
+    return FIXTURE_KEVENT(q, changes, n, events, capacity, timeout);
 }
 
 #define kevent(...) counted_kevent(__VA_ARGS__)
