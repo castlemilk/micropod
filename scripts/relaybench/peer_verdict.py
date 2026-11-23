@@ -6,6 +6,8 @@ plan.json, handoff.json, fixtures.json (including scope and service_limits), com
 and the original per-arm JSON receipts for three warmup and 16 scored pairs. Both admission
 observations must bracket the host counters for each attempt. All inputs are read-only.
 New holdouts use the checksum-pinned client that records scheduled-arrival p50, p95 and p99.
+Each row retains the invoked URL and service marker in client_arguments and the raw
+client output must identify one published port for both products.
 
 Exit codes are 0 for a qualified result, 1 for a completed comparison that missed the criteria
 and 2 for invalid or incomplete evidence. --json includes every scored arm and its errors.
@@ -18,7 +20,7 @@ from pathlib import Path, PurePosixPath
 from statistics import median
 
 from gamma_contrasts import IMAGE, VM, clean_client, host_units, paired_median_interval, process_delta, read_receipt
-from gamma_pilot import DIRECT_ROUTE, HASHES, STOCK_KERNEL, arm_settings, plan, require
+from gamma_pilot import DIRECT_ROUTE, HASHES, STOCK_KERNEL, arm_settings, peer_client, plan, require
 from host_role import CLIENT_SHA256, timestamp
 
 ARCHIVE_SHA = "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4"
@@ -199,7 +201,7 @@ def directory(root, candidate_sha):
                 and r["after"]["epoch_ns"] / 1e9 <= after < timestamp(r["admission"]["effective_disk_gate"]["expires_at"])
                 and last_start <= first_expiry,
                 "admission observations do not provide continuous coverage around the measured window")
-        client = json.loads(r["stdout"])
+        client = peer_client(fixtures[arm], r)
         for q in (50, 95, 99):
             value = client.get(f"fresh_p{q}_us")
             require(type(value) is int and value > 0, f"missing or invalid fresh p{q} from selected load client")

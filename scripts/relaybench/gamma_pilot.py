@@ -204,11 +204,25 @@ def identities(snap):
     return {r["pid"]: r["birth_ticks"] for r in snap["tasks"]}
 
 
+def peer_client(fixture, receipt):
+    """Verify which single published endpoint the pinned client was asked to measure."""
+    address = fixture["address"]
+    port = re.fullmatch(r"127\.0\.0\.1:([1-9][0-9]{0,4})", address) if isinstance(address, str) else None
+    require(port and int(port[1]) <= 65535, "peer fixture must identify a published loopback port")
+    require(receipt.get("client_arguments") == ["http://" + address, fixture["name"]],
+            "client arguments differ from the peer fixture endpoint or marker")
+    client = json.loads(receipt["stdout"])
+    require(isinstance(client, dict) and type(client.get("published_ports")) is int and client["published_ports"] == 1,
+            "peer holdout needs one published port in the raw client output")
+    return client
+
+
 def attempt(tools, fixture, birth, receipt, check_window=None):
     receipt["before"] = snapshot(tools, fixture)
     require(identities(receipt["before"]) == birth, "host process replaced before timing")
     try:
-        args = [tools / "fixed", "http://" + fixture["address"], fixture["name"]]
+        receipt["client_arguments"] = ["http://" + fixture["address"], fixture["name"]]
+        args = [tools / "fixed", *receipt["client_arguments"]]
         if check_window is None:
             result = subprocess.run(args, capture_output=True, text=True, timeout=75)
         else:
@@ -407,7 +421,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                             and latest_start <= opening["valid_until_epoch"],
                             "admission evidence does not cover the whole attempt")
                     if peer_holdout:
-                        require(type(row.get("fresh_p50_us")) is int, "missing scheduled-arrival p50 on the peer holdout")
+                        client = peer_client(fixtures[arm], row)
+                        require(type(client.get("fresh_p50_us")) is int, "missing scheduled-arrival p50 on the peer holdout")
                     if role_test:
                         row["guest_after"] = host_role.guest_sample(command, fixture)
                         row["guest"] = host_role.guest_delta(row["guest_before"], row["guest_after"])

@@ -36,7 +36,8 @@ def completed_run(root):
     clock = 1000
     write(root, "handoff.json", admission(clock-2))
     for arm in "AB":
-        fixtures[arm] = dict(engine=arm, id=arm, address=arm, name=arm, scope="/fixture/"+arm,
+        fixtures[arm] = dict(engine=arm, id=arm, address="127.0.0.1:9001" if arm == "A" else "127.0.0.1:9002",
+                             name=arm, scope="/fixture/"+arm,
                              cpus=6, cpuset="0-3", memory_bytes=4*2**30,
                              image_config=peer.IMAGE, service_limits=peer.LIMITS, release=arm, engine_version=arm,
                              pids={"vmm": 10, "relay": 20} if arm == "A" else {"vmm": 30})
@@ -51,11 +52,12 @@ def completed_run(root):
                                             runnable_ticks=t*500) for p in fixtures[arm]["pids"].values()])
                 stream = (6 if arm == "A" else 3) * 2**20
                 total = 32 * stream
-                client = dict(streams=32, arrivals=240, period_us=25000, bytes=total, per_stream_bytes=[stream]*32,
+                client = dict(published_ports=1, streams=32, arrivals=240, period_us=25000, bytes=total, per_stream_bytes=[stream]*32,
                               window_s=6, mib_s=total/2**20/6, fresh_p50_us=900, fresh_p95_us=75000, fresh_p99_us=80000,
                               errors=None, reopened=0)
                 row = dict(phase=phase, pair=n, arm=arm, before=snapshot(clock), after=snapshot(clock+7),
                            admission=admission(clock-.1), admission_after=admission(clock+7.1),
+                           client_arguments=["http://" + fixtures[arm]["address"], arm],
                            stdout=json.dumps(client), exit_code=0, clean=True)
                 write(root, f"{phase}-{n}-{arm}.json", row)
                 clock += 8
@@ -108,6 +110,39 @@ class PeerVerdictTests(unittest.TestCase):
             self.assertEqual(r["bootstrap_ci95"], [2, 2])
             self.assertEqual(r["pairs"][0]["A"]["fresh_failed"], 1)
             self.assertIn("Micropod round 2 exceeded 75 ms fresh p95", r["reasons"])
+
+    def test_new_holdout_requires_one_port_and_the_exact_arm_endpoint_on_every_attempt(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixtures = completed_run(root)
+            for name in ("warmup-2-B.json", "scored-16-A.json"):
+                original = json.loads((root/name).read_text())
+                for count in (None, True, 32):
+                    client = json.loads(original["stdout"])
+                    if count is None:
+                        del client["published_ports"]
+                    else:
+                        client["published_ports"] = count
+                    write(root, name, dict(original, stdout=json.dumps(client)))
+                    with self.subTest(name=name, count=count), self.assertRaisesRegex(ValueError, "one published port"):
+                        peer.directory(root, CLI_SHA)
+                other = "B" if original["arm"] == "A" else "A"
+                url, marker = original["client_arguments"]
+                for args in (None, ["--targets", "32-port.tsv"], ["http://" + fixtures[other]["address"], marker], [url, other]):
+                    row = original.copy()
+                    if args is None:
+                        del row["client_arguments"]
+                    else:
+                        row["client_arguments"] = args
+                    write(root, name, row)
+                    with self.subTest(name=name, args=args), self.assertRaisesRegex(ValueError, "client arguments"):
+                        peer.directory(root, CLI_SHA)
+                write(root, name, original)
+            for address in ("192.0.2.1:9001", "127.0.0.1:65536"):
+                fixtures["A"]["address"] = address
+                write(root, "fixtures.json", fixtures)
+                with self.subTest(address=address), self.assertRaisesRegex(ValueError, "published loopback port"):
+                    peer.directory(root, CLI_SHA)
 
     def test_new_holdout_requires_the_pinned_client_and_all_three_fresh_percentiles(self):
         with tempfile.TemporaryDirectory() as d:

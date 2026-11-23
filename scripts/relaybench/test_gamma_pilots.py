@@ -57,12 +57,14 @@ class GammaPilots(unittest.TestCase):
                 old = archive["phases"]["grace-holdout"]["runs"][arm][n]
                 scope = archive["scopes"][arm]
                 roles = {k: int(scope[k]) for k in ("vmm", "relay") if k in scope}
-                fixture = dict(address="unused", name="unused", pids=roles)
+                fixture = dict(address="127.0.0.1:12000", name=arm, pids=roles)
                 result = subprocess.CompletedProcess([], int(not ok), json.dumps(old["client"]), "")
                 with patch.object(vm, "snapshot", side_effect=[old["before"], old["after"]]), \
-                     patch.object(vm.subprocess, "run", return_value=result):
+                     patch.object(vm.subprocess, "run", return_value=result) as fixed:
                     row = {}
                     vm.attempt(Path("/irrelevant"), fixture, vm.identities(old["before"]), row)
+                self.assertEqual(row["client_arguments"], ["http://127.0.0.1:12000", arm])
+                self.assertEqual(fixed.call_args.args[0][1:], row["client_arguments"])
                 self.assertEqual((row["clean"], row["fresh_failed"], row["reopened"]), (ok, drops, 0))
                 self.assertGreater(row["host"]["vmm"]["runnable_s_per_s"], row["host"]["vmm"]["wait_s_per_s"])
                 self.assertEqual(row["fresh_p99_us"], old["client"]["fresh_p99_us"])
@@ -289,7 +291,8 @@ class GammaPilots(unittest.TestCase):
     def test_six_vcpu_holdout_reports_dirty_candidate_round(self):
         def inspect(scope, cpus, orb):
             self.assertEqual(cpus, 6)
-            return dict(engine=scope.name, id=scope.name, address=scope.name, name=scope.name, cpuset="0-3",
+            return dict(engine=scope.name, id=scope.name, address="127.0.0.1:9002" if orb else "127.0.0.1:9001",
+                        name=scope.name, cpuset="0-3",
                         relay_workers=None if orb else 4, callback_events=None if orb else 128,
                         route=vm.DIRECT_ROUTE, pids={"vmm": 2 if orb else 1})
 
@@ -297,7 +300,8 @@ class GammaPilots(unittest.TestCase):
             self.assertEqual(check()["mode"], "peer")
             dirty = row["phase"] == "scored" and row["pair"] == 1 and row["arm"] == "A"
             row.update(clean=not dirty, mib_s=3000 if row["arm"] == "A" else 2700, fresh_failed=int(dirty),
-                       fresh_p50_us=1200)
+                       client_arguments=["http://" + fixture["address"], fixture["name"]],
+                       stdout=json.dumps({"published_ports": 1, "fresh_p50_us": 1200}))
 
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -319,6 +323,23 @@ class GammaPilots(unittest.TestCase):
             self.assertEqual(result["bootstrap_ci95"], [3000 / 2700] * 2)
             self.assertNotIn("1", result["paired_ratios"])
             self.assertEqual(json.loads((args.out / "scored-1-A.json").read_text())["fresh_failed"], 1)
+
+            def multiport(tools, fixture, birth, row, check):
+                measure(tools, fixture, birth, row, check)
+                row["stdout"] = json.dumps({"published_ports": 32, "fresh_p50_us": 1200})
+
+            args.out = root / "multiport"
+            with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
+                 patch.object(vm, "digest", side_effect=lambda p: dict(vm.HASHES, fixed=vm.host_role.CLIENT_SHA256)[p.name]), \
+                 patch.object(vm, "inspect", side_effect=inspect), patch.object(vm, "snapshot", return_value={"tasks": []}), \
+                 patch.object(vm, "attempt", side_effect=multiport) as timed:
+                with self.assertRaisesRegex(ValueError, "one published port"):
+                    vm.run(args, vm.plan(args.seed, 16), workers=4, peer_vcpus=6)
+            self.assertEqual(timed.call_count, 1)
+            rejected = json.loads(next(args.out.glob("warmup-*.json")).read_text())
+            self.assertFalse(rejected["clean"])
+            self.assertEqual(json.loads(rejected["stdout"])["published_ports"], 32)
+            self.assertFalse((args.out / "complete.json").exists())
 
     def test_replaced_relay_executable_cannot_supply_a_matching_hash(self):
         with tempfile.TemporaryDirectory() as temp:
