@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build on ARM64 Linux. Arguments are the upstream archive, the compatible
-# Apple guest's .config, an output directory and optional full|full-cubic|full-scx|lazy profile.
+# Apple guest's .config, an output directory and optional full|full-16k|full-cubic|full-scx|lazy profile.
 set -eu
 archive=${1:?Linux 7.3.5 source tar.xz}
 config=${2:?base Apple guest .config}
@@ -8,19 +8,39 @@ out=${3:?output directory}
 profile=${4:-full}
 archive=$(realpath "$archive")
 config=$(realpath "$config")
-mkdir -p "$out"
-out=$(realpath "$out")
+if [ "$profile" = full-16k ]; then
+    mkdir -p "$(dirname "$out")"
+    out="$(realpath "$(dirname "$out")")/$(basename "$out")"
+    if [ -e "$out" ] || [ -L "$out" ]; then
+        echo "full-16k requires a new output directory to preserve the control build" >&2
+        exit 1
+    fi
+else
+    mkdir -p "$out"
+    out=$(realpath "$out")
+fi
 digest=8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990
 printf '%s  %s\n' "$digest" "$archive" | sha256sum -c -
 [ "$(uname -m)" = aarch64 ] || { echo "ARM64 Linux build host required" >&2; exit 1; }
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+claimed_out=
+cleanup() {
+    rm -rf "$work"
+    if [ -n "$claimed_out" ]; then
+        rm -f "$claimed_out/Image" "$claimed_out/config" "$claimed_out/release" "$claimed_out/SHA256SUMS"
+        rmdir "$claimed_out"
+    fi
+}
+trap cleanup EXIT
 tar -xJf "$archive" -C "$work"
 cd "$work/linux-7.3.5"
 cp "$config" .config
 case "$profile" in
-    full|full-cubic|full-scx)
+    full|full-16k|full-cubic|full-scx)
         localversion=-micropod
+        if [ "$profile" = full-16k ]; then
+            scripts/config -d ARM64_4K_PAGES -e ARM64_16K_PAGES -d ARM64_64K_PAGES
+        fi
         if [ "$profile" = full-cubic ]; then
             localversion=-micropod-cc
             scripts/config -e TCP_CONG_CUBIC
@@ -36,7 +56,7 @@ case "$profile" in
         localversion=-micropod-lazy
         preempt=PREEMPT_LAZY
         scripts/config -d PREEMPT -e PREEMPT_LAZY -d PREEMPT_DYNAMIC ;;
-    *) echo "Select full, full-cubic, full-scx or lazy" >&2; exit 1 ;;
+    *) echo "Select full, full-16k, full-cubic, full-scx or lazy" >&2; exit 1 ;;
 esac
 scripts/config --set-str LOCALVERSION "$localversion" -d LOCALVERSION_AUTO \
     -e MACVLAN -e NETKIT -e NET_CLS_ACT -e NET_SCH_INGRESS -e NET_CLS_FLOWER \
@@ -44,6 +64,15 @@ scripts/config --set-str LOCALVERSION "$localversion" -d LOCALVERSION_AUTO \
     -e NETFILTER_INGRESS -e NETFILTER_EGRESS -e NF_TABLES_NETDEV \
     -e BPF_STREAM_PARSER -e NET_SCH_FQ -e CC_OPTIMIZE_FOR_PERFORMANCE
 make olddefconfig
+if [ "$profile" = full-16k ]; then
+    for setting in ARM64_16K_PAGES=y PAGE_SIZE_16KB=y PAGE_SHIFT=14; do
+        grep -qx "CONFIG_$setting" .config || { echo "Missing 16 KiB kernel setting $setting" >&2; exit 1; }
+    done
+    if grep -Eq '^CONFIG_ARM64_(4K|64K)_PAGES=y$' .config; then
+        echo "Conflicting arm64 page sizes in resolved config" >&2
+        exit 1
+    fi
+fi
 if [ "$profile" = full-cubic ]; then
     grep -qx CONFIG_TCP_CONG_CUBIC=y .config
 fi
@@ -58,7 +87,13 @@ for symbol in "$preempt" NET_NS VIRTIO_NET MACVLAN NETFILTER_INGRESS NETFILTER_E
     grep -qx "CONFIG_$symbol=y" .config || { echo "Missing built-in $symbol" >&2; exit 1; }
 done
 make -j"${JOBS:-4}" Image
+if [ "$profile" = full-16k ]; then
+    # Claim the destination atomically after the build, even if another build raced our preflight.
+    mkdir "$out"
+    claimed_out=$out
+fi
 cp arch/arm64/boot/Image "$out/Image"
 cp .config "$out/config"
 make -s kernelrelease >"$out/release"
 (cd "$out" && sha256sum Image config >SHA256SUMS)
+claimed_out=
