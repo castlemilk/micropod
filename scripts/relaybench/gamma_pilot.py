@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 import platform
 import plistlib
@@ -231,6 +232,7 @@ def attempt(tools, fixture, birth, receipt, check_window=None):
         receipt["host"] = counters
     if "fresh_p50_us" in c:
         receipt["fresh_p50_us"] = c["fresh_p50_us"]
+        receipt["bulk_streams_with_bytes"] = sum(n > 0 for n in streams)
     receipt.update(mib_s=c.get("mib_s"), fresh_p95_us=c.get("fresh_p95_us"), fresh_p99_us=c.get("fresh_p99_us"),
                    arrivals=c.get("arrivals"), reopened=c.get("reopened"))
 
@@ -261,10 +263,52 @@ def save(path, obj):
     path.write_text(json.dumps(obj, indent=2, allow_nan=False) + "\n")
 
 
+def screening_result(rows, pairs):
+    """Score every first attempt and withhold paired improvement when evidence is incomplete."""
+    attempts = []
+    reasons = []
+    ratios = []
+    for number in range(1, pairs + 1):
+        pair = {"pair": number}
+        for arm in "AB":
+            row = rows[number, arm]
+            counts = {key: row.get(key) for key in ("arrivals", "fresh_failed", "bulk_streams_with_bytes", "reopened")}
+            problems = []
+            if (not row["clean"] or counts["arrivals"] != 240 or counts["fresh_failed"] != 0
+                    or counts["bulk_streams_with_bytes"] != 32 or counts["reopened"] != 0):
+                problems.append("unaccounted request, stream, or reconnect")
+            tails = [row.get(f"fresh_p{p}_us") for p in (50, 95, 99)]
+            if not all(type(t) is int for t in tails) or not 0 < tails[0] <= tails[1] <= tails[2]:
+                problems.append("missing or unordered fresh-request percentiles")
+            if arm == "B" and type(tails[1]) is int and tails[1] > 75000:
+                problems.append("candidate fresh p95 exceeded 75 ms")
+            host = row.get("host", {})
+            metrics = {"mib_s": row.get("mib_s")}
+            for process in ("vmm", "relay"):
+                counters = host.get(process, {})
+                for name in ("cpu_s_per_gib", "runnable_s_per_s", "wait_s_per_s"):
+                    metrics[f"{process}_{name}"] = counters.get(name)
+            if (any(type(v) not in (int, float) or not math.isfinite(v) or v < 0 for v in metrics.values())
+                    or metrics["mib_s"] == 0):
+                problems.append("missing or invalid throughput or process counters")
+            pair[arm] = dict(**counts, **metrics, fresh_p50_us=tails[0], fresh_p95_us=tails[1],
+                             fresh_p99_us=tails[2], clean=row["clean"], problems=problems)
+            reasons.extend(f"pair {number} {arm}: {p}" for p in problems)
+        if not pair["A"]["problems"] and not pair["B"]["problems"]:
+            ratios.append(pair["B"]["mib_s"] / pair["A"]["mib_s"])
+        attempts.append(pair)
+    change = 100 * (median(ratios) - 1) if len(ratios) == pairs else None
+    if change is not None and change <= 0:
+        reasons.append("no median paired throughput improvement")
+    return dict(verdict="reject" if reasons else "eligible for confirmation", reasons=reasons,
+                median_paired_throughput_change_pct=change, pairs=attempts)
+
+
 def run(args, orders, *, workers=2, peer_vcpus=4):
     settings = arm_settings(args.mode, workers, peer_vcpus)
     role_test = args.mode == "host-role"
-    tools = dict(HASHES, fixed=host_role.CLIENT_SHA256) if role_test else HASHES
+    screen = getattr(args, "scored_pairs", None) is not None
+    tools = dict(HASHES, fixed=host_role.CLIENT_SHA256) if role_test or screen else HASHES
     args.out.mkdir()  # Refuse to overwrite a previous attempt.
     save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=tools,
                                      host=platform.node(), macos=platform.mac_ver()[0]))
@@ -275,10 +319,11 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     scopes = {"A": (args.a, settings["A"]["vcpus"], False), "B": (args.b, settings["B"]["vcpus"], peer)}
     for path, _, _ in scopes.values():
         require(path.is_dir() and not (path / "removed").exists(), f"missing or retired fixture: {path}")
-    if role_test:
-        require(len(orders["scored"]) >= 4, "host-role needs at least four scored pairs")
+    check_window = None
+    if role_test or screen:
+        require(len(orders["scored"]) >= 4, "this comparison needs at least four scored pairs")
         def read_window():
-            return host_role.check_window(args.fleet, args.release, (args.a, args.b), time.time())
+            return host_role.check_window(args.fleet, args.release, (args.a, args.b), time.time(), mode=args.mode)
 
         initial_window = read_window()
         save(args.out / "handoff.json", initial_window)
@@ -289,8 +334,9 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
             return live
 
     def inspect_arm(arm):
-        if role_test:
+        if check_window:
             check_window()
+        if role_test:
             return inspect(*scopes[arm], process_type=settings[arm]["process_type"])
         return inspect(*scopes[arm])
 
@@ -306,7 +352,7 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
             continue
         fixture = fixtures[arm]
         require(fixture["relay_workers"] == expected, f"arm {arm} needs {expected} relay workers")
-        if (args.mode in ("workers", "host-role") or expected == 4 or len(orders["scored"]) >= 16
+        if (screen or args.mode in ("workers", "host-role") or expected == 4 or len(orders["scored"]) >= 16
                 or fixture.get("callback_events") is not None):
             require(fixture.get("callback_events") == settings_arm["callback_events"],
                     f"arm {arm} needs a verified 128-event callback")
@@ -324,11 +370,11 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     and fixture["kernel_image_sha256"] == STOCK_KERNEL, "wrong role or stock kernel")
     birth = {arm: identities(snapshot(args.tools, f)) for arm, f in fixtures.items()}
     save(args.out / "fixtures.json", fixtures)
-    if role_test:
+    if check_window:
         check_window()
     if args.check:
         return
-    scored, role_rows = {}, {}
+    scored, measured_rows = {}, {}
     for phase, pairs in orders.items():
         for number, order in enumerate(pairs, 1):
             for arm in order:
@@ -336,20 +382,23 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                 try:
                     require(all(path.is_dir() and not (path / "removed").exists() for path, _, _ in scopes.values()),
                             "fixture retired during the pilot")
-                    if role_test:
+                    if check_window:
                         row["admission"] = check_window()
+                    if role_test:
                         fixture = fixtures[arm]
                         row["guest_before"] = host_role.guest_sample(command, fixture)
                         require(row["guest_before"]["boot"] == fixture["guest_boot"], "guest boot changed before timing")
-                        attempt(args.tools, fixture, birth[arm], row, check_window)
+                    if check_window:
+                        attempt(args.tools, fixtures[arm], birth[arm], row, check_window)
                         check_window()
+                    else:
+                        attempt(args.tools, fixtures[arm], birth[arm], row)
+                    if role_test:
                         row["guest_after"] = host_role.guest_sample(command, fixture)
                         row["guest"] = host_role.guest_delta(row["guest_before"], row["guest_after"])
                         if phase == "warmup":
                             require(not any(row["guest"]["delta"][k] for k in host_role.FAULT_COUNTERS),
                                     "interface fault or TCP reset during warmup")
-                    else:
-                        attempt(args.tools, fixtures[arm], birth[arm], row)
                 except (OSError, ValueError, KeyError, StopIteration, subprocess.SubprocessError) as exc:
                     row.update(clean=False, error=str(exc))
                     raise
@@ -358,9 +407,14 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                 require(phase != "warmup" or row["clean"], "warmup failed")
                 if phase == "scored" and row["clean"]:
                     scored[number, arm] = row["mib_s"]
-                if phase == "scored" and role_test:
-                    role_rows[number, arm] = row
+                if phase == "scored" and (role_test or screen):
+                    measured_rows[number, arm] = row
     require(all(inspect_arm(arm) == fixtures[arm] for arm in scopes), "fixture changed since preflight")
+    if screen:
+        check_window()
+        result = screening_result(measured_rows, len(orders["scored"]))
+        save(args.out / "complete.json", dict(identity_rechecked=True, mode=args.mode, screen=result))
+        return
     numerator, denominator = ("A", "B") if peer else ("B", "A")
     ratios = {n: scored[n, numerator] / scored[n, denominator] for n in range(1, len(orders["scored"]) + 1)
               if (n, "A") in scored and (n, "B") in scored}
@@ -374,9 +428,10 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     median_paired_mib_s_difference=median(deltas.values()) if deltas else None,
                     median_ratio=median(values) if values else None, bootstrap_ci95=paired_median_interval(values),
                     clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings})
-    if role_test:
+    if check_window:
         check_window()
-        complete["host_role"] = host_role.decision(role_rows, len(orders["scored"]))
+    if role_test:
+        complete["host_role"] = host_role.decision(measured_rows, len(orders["scored"]))
     save(args.out / "complete.json", complete)
     if role_test and complete["host_role"]["verdict"] != "eligible for confirmation":
         outcome = complete["host_role"]
@@ -389,7 +444,10 @@ if __name__ == "__main__":
                         help="VM size, matched peer, relay workers, or Standard/Interactive launchd roles")
     parser.add_argument("--relay-workers", type=int, choices=(2, 4), default=2, help="fixed Micropod count for size/peer")
     parser.add_argument("--peer-vcpus", type=int, choices=(4, 6), default=4, help="equal VM size for a peer test")
-    parser.add_argument("--holdout", action="store_true", help="16 scored pairs, balanced in blocks of two")
+    length = parser.add_mutually_exclusive_group()
+    length.add_argument("--holdout", action="store_true", help="16 scored pairs, balanced in blocks of two")
+    length.add_argument("--scored-pairs", type=int, metavar="N",
+                        help="workers/size screen: even number of scored pairs (at least four)")
     parser.add_argument("--seed", type=int, default=34199)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--run", action="store_true")
@@ -397,8 +455,8 @@ if __name__ == "__main__":
     parser.add_argument("--tools", type=Path, default=TOOLS)
     parser.add_argument("--a", type=Path, help="owner's already-running Micropod control fixture scope")
     parser.add_argument("--b", type=Path, help="owner's already-running candidate or peer fixture scope")
-    parser.add_argument("--fleet", type=Path, help="refreshed Cuttlefish fleet export for host-role")
-    parser.add_argument("--release", type=Path, help="owner's exclusive host-role handoff for both fixture paths")
+    parser.add_argument("--fleet", type=Path, help="refreshed Cuttlefish fleet export for host-role or --scored-pairs")
+    parser.add_argument("--release", type=Path, help="owner's exclusive handoff for the chosen mode and both fixtures")
     parser.add_argument("--out", type=Path, help="new output directory")
     args = parser.parse_args()
     try:
@@ -406,12 +464,16 @@ if __name__ == "__main__":
     except ValueError as exc:
         parser.error(str(exc))
     pilot_pairs = 4 if args.mode == "host-role" else 2
+    if args.scored_pairs is not None:
+        if args.mode not in ("workers", "size") or args.scored_pairs < 4 or args.scored_pairs % 2:
+            parser.error("--scored-pairs requires workers or size mode and an even count of at least four")
+        pilot_pairs = args.scored_pairs
     orders = plan(args.seed, 16 if args.holdout else pilot_pairs)
     if args.run or args.check:
         if not all((args.a, args.b, args.out)):
             parser.error("fixture checks and runs need --a, --b and --out")
-        if args.mode == "host-role" and not (args.fleet and args.release):
-            parser.error("live host-role checks need --fleet and --release")
+        if (args.mode == "host-role" or args.scored_pairs is not None) and not (args.fleet and args.release):
+            parser.error(f"this live {args.mode} comparison needs --fleet and --release")
         try:
             run(args, orders, workers=args.relay_workers, peer_vcpus=args.peer_vcpus)
         except (OSError, ValueError, KeyError, StopIteration, subprocess.SubprocessError, tarfile.TarError) as exc:

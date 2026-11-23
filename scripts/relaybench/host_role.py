@@ -29,17 +29,17 @@ def timestamp(value):
     return instant.timestamp()
 
 
-def check_window(fleet_path, release_path, scopes, now):
+def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
     """Use the same fleet export and owner handoff schema as the shared stock pilot."""
     fleet = json.loads(fleet_path.read_text())
     release = json.loads(release_path.read_text())
     mac = "Gamma-128GB.local"
     linux = "Gamma-128GB Linux CI (isolated VM)"
     if not (release["owner"].strip() and release["reservation"].strip() and release["host"] == mac
-            and release["exclusive"] is True and "host-role" in release["modes"]
+            and release["exclusive"] is True and isinstance(release["modes"], list) and mode in release["modes"]
             and timestamp(release["starts_at"]) <= now < timestamp(release["expires_at"])
             and {str(path.resolve()) for path in scopes} <= set(release["scopes"])):
-        raise ValueError("no current owner handoff for these host-role fixtures")
+        raise ValueError(f"no current owner handoff for these {mode} fixtures")
     clearance = release.get("effective_disk_gate") or {}
     if (clearance.get("passed") is not True or not clearance.get("source")
             or not timestamp(clearance["checked_at"]) <= now < timestamp(clearance["expires_at"])):
