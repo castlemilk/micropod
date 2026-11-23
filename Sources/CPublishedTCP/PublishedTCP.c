@@ -25,6 +25,13 @@
 #define DATA_READY_BATCH 24
 #define LARGE_READ (16 * 1024)
 
+#ifndef MICROPOD_BENCH_DEFER_HANDSHAKE_READS
+#define MICROPOD_BENCH_DEFER_HANDSHAKE_READS 0
+#endif
+// The experiment creates the read filters only when the connection can use them.
+// Both policies preserve buffered input and the single-write service budget.
+static const uint16_t connected_read_flags = MICROPOD_BENCH_DEFER_HANDSHAKE_READS ? EV_ADD | EV_ENABLE : EV_ENABLE;
+
 enum event_kind { ACCEPT, STREAM, BULK_READY, RETRY_GUEST };
 struct watch { enum event_kind kind; int fd; };
 struct pair;
@@ -451,7 +458,7 @@ static void connected(struct pair *p) {
     observe(p->listener->stats.connect_us, p->connected_at - p->accepted_at);
 }
 
-// The client read filter stays disabled throughout setup. No application byte
+// The client read filter stays inactive throughout setup. No application byte
 // can be consumed, sent or replayed while a guest handshake is pending.
 static int dial_guest(struct pair *p, int timeout_seconds) {
     mp_tcp_listener *l = p->listener;
@@ -468,9 +475,10 @@ static int dial_guest(struct pair *p, int timeout_seconds) {
     int rc = connect(fd, (struct sockaddr *)&l->target, sizeof(l->target));
     if (rc < 0 && errno != EINPROGRESS && errno != EINTR) return -1;
     p->guest.connecting = rc < 0;
-    if (watch_fd(r, &p->guest.watch, EVFILT_READ, EV_ADD | (rc < 0 ? EV_DISABLE : EV_ENABLE)) < 0) return -1;
+    if ((!MICROPOD_BENCH_DEFER_HANDSHAKE_READS || rc == 0) &&
+        watch_fd(r, &p->guest.watch, EVFILT_READ, EV_ADD | (rc < 0 ? EV_DISABLE : EV_ENABLE)) < 0) return -1;
     if (rc < 0) return watch_fd(r, &p->guest.watch, EVFILT_WRITE, EV_ADD);
-    if (watch_fd(r, &p->client.watch, EVFILT_READ, EV_ENABLE) < 0) return -1;
+    if (watch_fd(r, &p->client.watch, EVFILT_READ, connected_read_flags) < 0) return -1;
     connected(p);
     return 0;
 }
@@ -546,7 +554,8 @@ void mp_tcp_adopt(mp_tcp_listener *l, int client, uint64_t accepted_at) {
         while (peak < active && !atomic_compare_exchange_weak_explicit(&l->parent->group_peak, &peak, active,
                memory_order_relaxed, memory_order_relaxed)) {}
     } else if (l->profile && l->active > l->stats.peak_active) l->stats.peak_active = l->active;
-    if (watch_fd(l->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) < 0) {
+    if (!MICROPOD_BENCH_DEFER_HANDSHAKE_READS &&
+        watch_fd(l->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) < 0) {
         ++l->stats.connect_errors;
         retire(p);
         return;
@@ -688,8 +697,8 @@ static void finish_connect(struct pair *p) {
     }
     p->guest.connecting = false;
     struct kevent changes[] = { filter_change(&p->guest.watch, EVFILT_WRITE, EV_DISABLE),
-                                filter_change(&p->guest.watch, EVFILT_READ, EV_ENABLE),
-                                filter_change(&p->client.watch, EVFILT_READ, EV_ENABLE) };
+                                filter_change(&p->guest.watch, EVFILT_READ, connected_read_flags),
+                                filter_change(&p->client.watch, EVFILT_READ, connected_read_flags) };
     if (update_stream_filters(r, changes, 3) < 0) { retire(p); return; }
     connected(p);
     // The Mac client can already have sent its first request during connect.

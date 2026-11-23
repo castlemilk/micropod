@@ -155,10 +155,15 @@ static void exercise(bool dedicated, size_t room) {
     close(client[0]);
     close(guest[0]);
 
-    // Remove the last filter in the registration group. A successful prefix
-    // followed by ENOENT must retire all descriptors. Reuse the owner immediately.
+    // Fail the final registration after a successful prefix and reuse the owner.
     p = stage(l, client, guest);
+#if defined(MICROPOD_BENCH_DEFER_HANDSHAKE_READS) && MICROPOD_BENCH_DEFER_HANDSHAKE_READS
+    // EV_ADD can recreate a missing filter. Invalidate its descriptor instead.
+    check(close(client[1]) == 0, "invalidate client filter descriptor");
+    p->client.watch.fd = -1;
+#else
     check(watch_fd(r, &p->client.watch, EVFILT_READ, EV_DELETE) == 0, "remove client filter");
+#endif
     drain(r);
     check(!l->head && read(client[0], &unused, 1) == 0 && read(guest[0], &unused, 1) == 0,
           "failed group left a stream open");
