@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import platform
+import random
 import re
 import statistics
 import subprocess
@@ -23,14 +24,14 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def compile_arm(go, arm, work, env):
+def compile_arm(go, arm, work, env, base):
     dest = work / arm
     dest.mkdir()
     digests = {}
     for name in ("go.mod", "go.sum", "docker_dns_answer.go", "docker_dns_directory.go", "docker_dns_linux.go",
                  "docker_network_metrics_linux.go"):
         path = GUEST / name
-        data = (subprocess.check_output(["git", "show", f"{BASE}:{path}"], cwd=ROOT) if arm == "base"
+        data = (subprocess.check_output(["git", "show", f"{base}:{path}"], cwd=ROOT) if arm == "base"
                 else (ROOT / path).read_bytes())
         digests[str(path)] = sha(data)
         if name == "docker_dns_linux.go":
@@ -67,9 +68,27 @@ def run(exe, env):
     return rows
 
 
+def summarize(blocks):
+    report = {}
+    for cell in blocks[0]["rows"]["base"]:
+        a, b = ([block["rows"][arm][cell] for block in blocks] for arm in ("base", "candidate"))
+        ratios = [y[0] / x[0] for x, y in zip(a, b)]
+        rng = random.Random(23114)
+        bootstrap = sorted(statistics.median(rng.choices(ratios, k=len(ratios))) for _ in range(10_000))
+        report[cell] = dict(base=[statistics.median(col) for col in zip(*a)],
+                            candidate=[statistics.median(col) for col in zip(*b)],
+                            paired_ns_per_op_ratios=ratios,
+                            median_paired_ratio=statistics.median(ratios),
+                            paired_ratio_ci95=[bootstrap[249], bootstrap[9749]],
+                            median_paired_change_pct=round(100 * (statistics.median(ratios) - 1), 2),
+                            faster_pairs=sum(r < 1 for r in ratios))
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--go", default="go")
+    parser.add_argument("--base", default=BASE, help="baseline Git commit for the DNS handler comparison")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="mp-dns-snapshot-") as scratch:
         directory = Path(scratch)
@@ -77,26 +96,20 @@ def main():
                    CGO_ENABLED="0", GOFLAGS="-trimpath", GOTELEMETRY="off", GOMAXPROCS="1",
                    GOCACHE=os.environ.get("GOCACHE", str(directory / "cache")))
         env.pop("GOROOT", None)
+        base = subprocess.check_output(["git", "rev-parse", "--verify", "--end-of-options", args.base + "^{commit}"],
+                                       cwd=ROOT, text=True).strip()
         source, binaries = {}, {}
         for arm in ("base", "candidate"):
-            binaries[arm], source[arm] = compile_arm(args.go, arm, directory, env)
+            binaries[arm], source[arm] = compile_arm(args.go, arm, directory, env, base)
         if source["base"]["verified_response_sha256"] != source["candidate"]["verified_response_sha256"]:
             raise ValueError("reply bytes differ")
         blocks = []
         for i in range(BLOCKS):
             order = ("base", "candidate") if i % 2 == 0 else ("candidate", "base")
             blocks.append(dict(order=order, rows={arm: run(binaries[arm], env) for arm in order}))
-        report = {}
-        for cell in blocks[0]["rows"]["base"]:
-            a, b = ([block["rows"][arm][cell] for block in blocks] for arm in ("base", "candidate"))
-            ratios = [y[0] / x[0] for x, y in zip(a, b)]
-            report[cell] = dict(base=[statistics.median(col) for col in zip(*a)],
-                                candidate=[statistics.median(col) for col in zip(*b)],
-                                median_paired_change_pct=round(100 * (statistics.median(ratios) - 1), 2),
-                                faster_pairs=sum(r < 1 for r in ratios))
         print(json.dumps(dict(scope="Native Go DNS parser, directory, encoder and metrics; empty upstream, "
                                     "internal network. Per-op means within fixed-work blocks, with setup excluded.",
-                              base_commit=BASE, host=platform.platform(), arch=platform.machine(),
+                              base_commit=base, host=platform.platform(), arch=platform.machine(),
                               go=subprocess.check_output([args.go, "version"], env=env, text=True).strip(),
                               gomaxprocs=1, iterations_per_cell=ITERATIONS, pairs=BLOCKS,
                               read_work="A, AAAA or alternating A/AAAA; UDP, legacy 512-byte cap, mixed-case IN name. "
@@ -108,7 +121,9 @@ def main():
                                            "addresses, truncation, authority, per-directory counters and wire digest.",
                               row_units=["ns/op", "B/op", "allocs/op"], fixture_sha256=sha(FIXTURE.read_bytes()),
                               driver_sha256=sha(Path(__file__).read_bytes()), source=source,
-                              summary=report, blocks=blocks), indent=2))
+                              interval_method="Within-pair candidate/base ns/op; median with a 10,000-resample paired "
+                                              "block bootstrap (seed 23114, sorted indices 249 and 9749).",
+                              summary=summarize(blocks), blocks=blocks), indent=2))
 
 
 if __name__ == "__main__":

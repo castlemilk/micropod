@@ -57,6 +57,19 @@ func TestSingleServiceAWireMatchesGeneralPacker(t *testing.T) {
 	}
 }
 
+func TestSingleServiceAQuestionClassAndInvalidName(t *testing.T) {
+	for _, name := range []string{"", ".", "Svc.", "missing-root", "two..dots.", strings.Repeat("x", 64) + "."} {
+		q := dnsmessage.Question{Name: dnsmessage.MustNewName(name), Type: dnsmessage.TypeALL, Class: dnsmessage.ClassCHAOS}
+		h := dnsmessage.Header{ID: 0xffff, Response: true, RecursionDesired: true}
+		ip := [4]byte{255, 0, 255, 0}
+		want, wantErr := referenceServiceA(h, q, ip)
+		got, err := packSingleServiceA(h, q, ip)
+		if (err != nil) != (wantErr != nil) || !bytes.Equal(got, want) {
+			t.Fatalf("question %q: packed %x (%v), want %x (%v)", name, got, err, want, wantErr)
+		}
+	}
+}
+
 var dnsAnswerBytes []byte
 
 func BenchmarkPackSingleServiceA(b *testing.B) {

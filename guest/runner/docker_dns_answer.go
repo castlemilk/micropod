@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"math"
 	"net/netip"
@@ -10,7 +11,11 @@ import (
 
 // A question-only response has no later name that could reference the first.
 func packServiceQuestion(header dnsmessage.Header, q dnsmessage.Question) ([]byte, error) {
-	out := dnsmessage.NewBuilder(make([]byte, 0, 12+int(q.Name.Length)+1+4), header)
+	return packServiceQuestionWithRoom(header, q, 0)
+}
+
+func packServiceQuestionWithRoom(header dnsmessage.Header, q dnsmessage.Question, answerBytes int) ([]byte, error) {
+	out := dnsmessage.NewBuilder(make([]byte, 0, 12+int(q.Name.Length)+1+4+answerBytes), header)
 	if err := out.StartQuestions(); err != nil {
 		return nil, err
 	}
@@ -20,21 +25,24 @@ func packServiceQuestion(header dnsmessage.Header, q dnsmessage.Question) ([]byt
 	return out.Finish()
 }
 
-// A single compressed IPv4 answer always fits the original 512-byte UDP limit.
-// Size the reply for its actual name and construct the one resource directly.
-func packSingleServiceA(header dnsmessage.Header, question dnsmessage.Question, address [4]byte) ([]byte, error) {
-	body := dnsmessage.AResource{A: address}
-	reply := dnsmessage.Message{
-		Header:    header,
-		Questions: []dnsmessage.Question{question},
-		Answers: []dnsmessage.Resource{{
-			Header: dnsmessage.ResourceHeader{Name: question.Name, Class: dnsmessage.ClassINET, TTL: 1},
-			Body:   &body,
-		}},
+// The sole answer always has the same owner as the question. Its name is
+// either the literal root or a compression pointer to the QNAME at offset 12.
+func packSingleServiceA(header dnsmessage.Header, q dnsmessage.Question, address [4]byte) ([]byte, error) {
+	wire, err := packServiceQuestionWithRoom(header, q, 16)
+	if err != nil {
+		return nil, err
 	}
-	// Header, encoded QNAME (including root), QTYPE/QCLASS, compressed A RR.
-	capacity := 12 + int(question.Name.Length) + 1 + 4 + 16
-	return reply.AppendPack(make([]byte, 0, capacity))
+	binary.BigEndian.PutUint16(wire[6:8], 1) // ANCOUNT
+	if wire[12] == 0 {
+		wire = append(wire, 0)
+	} else {
+		wire = append(wire, 0xc0, 12)
+	}
+	wire = binary.BigEndian.AppendUint16(wire, uint16(dnsmessage.TypeA))
+	wire = binary.BigEndian.AppendUint16(wire, uint16(dnsmessage.ClassINET))
+	wire = binary.BigEndian.AppendUint32(wire, 1) // TTL
+	wire = binary.BigEndian.AppendUint16(wire, uint16(len(address)))
+	return append(wire, address[:]...), nil
 }
 
 // Compression makes each answer a pointer to the question plus its IPv4
