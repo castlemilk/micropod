@@ -46,9 +46,23 @@ Both builds copied zero suffix bytes in the freely draining control. Within each
 
 The archived Linux 6.18.35 mixed-load trial contained a 256 KiB control with the same flat relay queue as its 512 KiB candidate. Comparing within seven blocks, 512 KiB won six and gained 11.9% in median paired throughput (95% interval +1.2% to +22.2%). One round at each size exceeded the 75 ms fresh p95 target, reaching 87.2 ms at 512 KiB and 128.9 ms at 256 KiB. In an earlier three-burst workload, 512 KiB won two of six pairs and delivered 0.661× the paired 256 KiB throughput. Queue topology, callback policy and offered work differed between studies. [Archive replay and per-block results](relay-chunk-replay.json) · [Replay source](../../../scripts/relaybench/chunk_replay.py)
 
-After the four-vCPU worker comparison, build stock and `-Xcc -DMICROPOD_BENCH_512K_READS=1` arms from the same revision with the selected worker count and identical callback settings. The switch doubles scratch capacity per relay object from 256 to 512 KiB. It changes the maximum read on both directions for fresh and established streams. With two data owners and an accept owner, the larger setting adds 768 KiB of scratch capacity. A Darwin socketpair check delivered 786,449 queued bytes in four reads at 256 KiB and two at 512 KiB. Both builds served a newly readable 17-byte reply before the next ready bulk read. [Fixed-work regression](../../../scripts/relaybench/test_relay_read_size.py)
+The revised relay can select either cap inside one benchmark binary. Build with both `-Xcc -DMICROPOD_BENCH_FIXED_RELAY_BUDGET=1` and `-Xcc -DMICROPOD_BENCH_512K_READS=1`. Set `MICROPOD_BENCH_RELAY_READ_KIB=256` on A and `512` on B. Both reserve 512 KiB of scratch per relay owner, keeping memory capacity equal for the comparison. The ordinary build reserves and reads up to 256 KiB. Fresh pilots require the native readback. Earlier receipts that omit it retain an unknown cap. All 50 current MicropodRuntime Swift sources typechecked together with Swift 6.3.3 for ARM64 macOS 26 and the current C header. At the selected worker count, the pilot checks the effective read size, mapped executable, callback budget and stock kernel for both arms. [Pilot](../../../scripts/relaybench/gamma_pilot.py)
 
-Keep socket windows, one-write-per-ready-endpoint service and guest limits fixed. Record throughput and every round’s fresh p95, p99, loss, CPU/GiB and runnable wait. The historical result qualifies this comparison for a new trial on the revised relay.
+An earlier socketpair check forwarded 786,449 bytes in four reads at 256 KiB and two at 512 KiB. A fresh reply already ready at the start of a batch was serviced first. The follow-up injected a reply immediately after the first bulk write in a batch of 16 ready streams. It counted the bulk bytes written before the relay picked up that reply on its next poll. Both caps used the same binary, verified every byte and completed the fresh reply. [Fixed-work regression](../../../scripts/relaybench/test_relay_read_size.py) · [Arrival-during-batch results](relay-mid-batch-fresh.json)
+
+| Queued per bulk stream | Fresh reply arrives after | Bulk ahead at 256 KiB | Bulk ahead at 512 KiB |
+| --- | --- | ---: | ---: |
+| 128 KiB | First bulk write | 1.875 MiB | 1.875 MiB |
+| 512 KiB | First bulk write | 3.75 MiB | 7.50 MiB |
+| Either offer | Sixteenth bulk write | 0 | 0 |
+
+On saturated streams the larger cap halved total bulk writes, 32 to 16 across the batch, while doubling the bytes ahead of a mid-batch arrival. This fixture establishes service order. The elapsed fresh p95 and p99 under real TCP arrivals remain part of the VM decision.
+
+After the stock baseline and worker comparison, the following command prints the four-pair read-size schedule offline. The released-window forms add the two already-serving scopes, current fleet and release evidence, pinned tools, a new output directory and either `--check` or `--run`. Keep guest-facing socket buffers at 512 KiB, both VMs at four vCPUs, one published port and 128 callback events throughout. Carry the selected read cap into the subsequent VM-size and peer comparisons.
+
+```sh
+python3 -B scripts/relaybench/gamma_pilot.py --mode read-size --relay-workers "$WORKERS" --seed 34215
+```
 
 ## First released window
 
@@ -80,7 +94,7 @@ The first command prints the schedule offline. The second verifies already-servi
 
 1. If both scored orders show a gain with clean requests and acceptable tail latency and CPU cost, carry that worker count and callback budget into the next comparison. The short screen selects a candidate. A four-worker result at 128 events qualifies that setting only. Changing it to the ordinary four-worker budget of 24 needs a separate callback-only test.
 2. If the worker gain disappears inside the VM, compare the same server on the same boot through the published port and directly through guest ingress. One earlier six-round series measured 2,839 MiB/s published and 3,282 MiB/s through guest DNAT. A repeat can locate a host-publication bottleneck or point toward guest/VMM work. [Prior path measurements](../2026-11-21/gamma-mixed-path.md)
-3. For a four- versus six-vCPU comparison use `--mode size --relay-workers "$WORKERS" --seed 34204`. Fix the selected worker count, 128-event callback and effective service CPUs 0–3 on both arms. A six-vCPU candidate needs a six-vCPU OrbStack comparison.
+3. For a four- versus six-vCPU comparison use `--mode size --relay-workers "$WORKERS" --relay-read-kib "$READ_KIB" --seed 34204`. Fix the selected worker count, 128-event callback and effective service CPUs 0–3 on both arms. A six-vCPU candidate needs a six-vCPU OrbStack comparison.
 4. Once the owner confirms restored OrbStack socket and loopback access, run the preflight below against two dedicated scopes. For the independent timed holdout replace `--check` with `--run` and choose a fresh output directory. Use the same Micropod executable digest as the selected candidate. Compare 16 scored pairs with balanced randomized ordering, preceded by three warmup pairs. Retain every dirty attempt. Require clean Micropod rounds, zero fresh losses and bulk reopens, and a lower 95% paired throughput bound above 1 before reporting a throughput win. Compare the tails, cost and runnable time with the contemporaneous control.
 
 The peer holdout uses the fixed-load client that records scheduled-arrival p50, p95 and p99. Build the pinned tools offline into a new directory before preflight. [Build procedure and toolchains](../../research/2026-11-23-apple-silicon-performance-optimization.md#reproduce-offline)
@@ -88,7 +102,7 @@ The peer holdout uses the fixed-load client that records scheduled-arrival p50, 
 ```sh
 python3 -B scripts/relaybench/build_host_role_tools.py "$NEW_TOOLS"
 python3 -B scripts/relaybench/gamma_pilot.py --mode peer --holdout --seed 34203 --tools "$NEW_TOOLS" \
-  --relay-workers "$WORKERS" --peer-vcpus "$VCPUS" \
+  --relay-workers "$WORKERS" --relay-read-kib "$READ_KIB" --peer-vcpus "$VCPUS" \
   --a "$SCOPE_MICROPOD" --b "$SCOPE_ORBSTACK" --fleet "$FLEET" --release "$RELEASE" \
   --check --out "$NEW_PEER_CHECK"
 ```
@@ -96,6 +110,6 @@ python3 -B scripts/relaybench/gamma_pilot.py --mode peer --holdout --seed 34203 
 After a timed holdout, score the local receipts against the executable digest recorded when the candidate was selected. The scorer requires a complete schedule, at least 15 common clean pairs, every Micropod round clean with fresh p95 ≤75 ms, and a lower paired throughput bound above parity. Its exit status is 0 for a qualifying comparison, 1 for a completed comparison that missed the criteria, and 2 for incomplete or invalid evidence.
 
 ```sh
-python3 -B scripts/relaybench/peer_verdict.py --run-directory "$NEW_PEER_RUN" --candidate-sha256 "$SELECTED_CLI_SHA"
+python3 -B scripts/relaybench/peer_verdict.py --run-directory "$NEW_PEER_RUN" --candidate-sha256 "$SELECTED_CLI_SHA" --candidate-read-kib "$READ_KIB"
 python3 -B scripts/relaybench/peer_verdict.py --archive
 ```
