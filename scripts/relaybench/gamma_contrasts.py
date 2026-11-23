@@ -27,6 +27,23 @@ def percentile(values, fraction):
     return sorted(values)[math.ceil(len(values) * fraction) - 1]
 
 
+def stream_rates(sample, seconds, reported_rate):
+    """Compute whole-window stream extremes and the fixed-fastest redistribution sensitivity."""
+    counts, total = sample["per_stream_bytes"], sample["bytes"]
+    if (not isinstance(counts, list) or len(counts) != 32 or any(type(n) is not int or n <= 0 for n in counts)
+            or type(total) is not int or total != sum(counts)):
+        raise ValueError("expected 32 positive integer stream counts summing to the raw byte total")
+    if any(type(v) not in (int, float) or not math.isfinite(v) or v <= 0 for v in (seconds, reported_rate)):
+        raise ValueError("expected positive finite elapsed time and throughput")
+    scale = 1 / (seconds * MIB)
+    if not math.isclose(total * scale, reported_rate):
+        raise ValueError("stream bytes and elapsed time disagree with reported throughput")
+    equalized_bytes = len(counts) * max(counts)
+    return dict(mib_s=total * scale, slowest_mib_s=min(counts) * scale, fastest_mib_s=max(counts) * scale,
+                equalized_mib_s=equalized_bytes * scale, extra_mib_s=(equalized_bytes - total) * scale,
+                extra_pct=100 * (equalized_bytes - total) / total)
+
+
 def relay_rows(source, arrivals):
     rows = []
     for record in source:

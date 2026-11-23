@@ -5,23 +5,11 @@ import math
 from pathlib import Path
 from statistics import median
 
-from gamma_contrasts import IMAGE, MIB, RELAY, VM, clean_client, paired_median_interval, read_receipt, relay_rows
+from gamma_contrasts import IMAGE, RELAY, VM, clean_client, paired_median_interval, read_receipt, relay_rows, stream_rates
 
 
 RELAY_SHA = "82ceb6976075b8054e61524777d2da8302f19cce2552a1c07515668686c6c969"
 VM_SHA = "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4"
-
-
-def stream_rates(sample, seconds, reported_rate):
-    counts = sample["per_stream_bytes"]
-    total = sum(counts)
-    scale = 1 / (seconds * MIB)
-    if len(counts) != 32 or min(counts) <= 0 or total != sample["bytes"] or not math.isclose(total * scale, reported_rate):
-        raise ValueError("stream byte counts, elapsed time or aggregate rate disagree")
-    equalized_bytes = len(counts) * max(counts)
-    return dict(mib_s=total * scale, slowest_mib_s=min(counts) * scale, fastest_mib_s=max(counts) * scale,
-                equalized_mib_s=equalized_bytes * scale, extra_mib_s=(equalized_bytes - total) * scale,
-                extra_pct=100 * (equalized_bytes - total) / total)
 
 
 def product_holdout(vm):

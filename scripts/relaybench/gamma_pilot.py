@@ -16,7 +16,7 @@ from pathlib import Path
 from statistics import median
 
 import host_role
-from gamma_contrasts import IMAGE, clean_client, host_units, paired_median_interval, process_delta
+from gamma_contrasts import IMAGE, clean_client, host_units, paired_median_interval, process_delta, stream_rates
 
 TOOLS = Path("/tmp/mp-priority.b3sbI7ym")
 HASHES = {"fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
@@ -293,6 +293,42 @@ def save(path, obj):
     path.write_text(json.dumps(obj, indent=2, allow_nan=False) + "\n")
 
 
+def worker_stream_rates(row):
+    """Read the original client payload after timing. Old summaries may lack raw counts."""
+    if row.get("stdout") is None:
+        return {"status": "unavailable", "reason": "missing raw client output"}
+    try:
+        client = json.loads(row["stdout"])
+        require(isinstance(client, dict), "raw client output must be an object")
+        missing = [k for k in ("per_stream_bytes", "bytes", "window_s", "mib_s") if k not in client]
+        if missing:
+            return {"status": "unavailable", "reason": "missing raw fields: " + ", ".join(missing)}
+        rates = stream_rates(client, client["window_s"], client["mib_s"])
+        require(client["window_s"] >= 6, "worker measurement window was shorter than six seconds")
+        require("streams" not in client or type(client["streams"]) is int and client["streams"] == 32,
+                "declared stream count differs from the 32 stream counters")
+        if row.get("mib_s") is not None:
+            require(type(row["mib_s"]) in (float, int) and math.isclose(row["mib_s"], rates["mib_s"]),
+                    "pilot throughput disagrees with raw counters")
+    except (TypeError, ValueError, OverflowError) as exc:
+        return {"status": "invalid", "reason": str(exc)}
+    if row.get("clean") is not True:
+        return {"status": "unclean"}
+    return dict(status="measured", window_s=client["window_s"], **rates)
+
+
+def worker_stream_comparison(rows, pairs):
+    results = []
+    for number in range(1, pairs + 1):
+        two, four = (worker_stream_rates(rows[number, arm]) for arm in "AB")
+        ratio = None
+        if two["status"] == four["status"] == "measured":
+            ratio = four["slowest_mib_s"] / two["fastest_mib_s"]
+        results.append(dict(pair=number, two_workers=two, four_workers=four, four_slowest_over_two_fastest=ratio))
+    ratios = [p["four_slowest_over_two_fastest"] for p in results if p["four_slowest_over_two_fastest"] is not None]
+    return dict(pairs=results, measured_pairs=len(ratios), pairs_with_all_four_worker_streams_faster=sum(r > 1 for r in ratios))
+
+
 def screening_result(rows, pairs):
     """Score every first attempt and withhold paired improvement when evidence is incomplete."""
     attempts = []
@@ -457,13 +493,16 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                 require(phase != "warmup" or row["clean"], "warmup failed")
                 if phase == "scored" and row["clean"]:
                     scored[number, arm] = row["mib_s"]
-                if phase == "scored" and (role_test or screen):
+                if phase == "scored" and (role_test or screen or args.mode == "workers"):
                     measured_rows[number, arm] = row
     require(all(inspect_arm(arm) == fixtures[arm] for arm in scopes), "fixture changed since preflight")
+    extras = {}
+    if args.mode == "workers":
+        extras["worker_streams"] = worker_stream_comparison(measured_rows, len(orders["scored"]))
     if screen:
         check_window()
         result = screening_result(measured_rows, len(orders["scored"]))
-        save(args.out / "complete.json", dict(identity_rechecked=True, mode=args.mode, screen=result))
+        save(args.out / "complete.json", dict(identity_rechecked=True, mode=args.mode, screen=result, **extras))
         if result["verdict"] == "reject":
             raise ValueError(f"{args.mode} screen rejected: " + ", ".join(result["reasons"]))
         return
@@ -479,7 +518,7 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     paired_mib_s_differences=deltas,
                     median_paired_mib_s_difference=median(deltas.values()) if deltas else None,
                     median_ratio=median(values) if values else None, bootstrap_ci95=paired_median_interval(values),
-                    clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings})
+                    clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings}, **extras)
     check_window()
     if role_test:
         complete["host_role"] = host_role.decision(measured_rows, len(orders["scored"]))

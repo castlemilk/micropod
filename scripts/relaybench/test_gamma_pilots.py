@@ -282,6 +282,8 @@ class GammaPilots(unittest.TestCase):
                 self.assertEqual(result["median_paired_mib_s_difference"], 300)
                 self.assertEqual(result["clean_scored"], {"A": 2, "B": 2})
                 self.assertIsNone(result["bootstrap_ci95"])
+                self.assertEqual(result["worker_streams"]["measured_pairs"], 0)
+                self.assertEqual(result["worker_streams"]["pairs"][0]["two_workers"]["status"], "unavailable")
 
     def test_peer_holdout_preserves_resource_parity_and_balanced_blocks(self):
         arms = vm.arm_settings("peer", workers=4, peer_vcpus=6)

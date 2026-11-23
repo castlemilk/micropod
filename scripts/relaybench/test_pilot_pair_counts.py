@@ -24,7 +24,41 @@ def measured(arm):
                 host={"vmm": counters.copy(), "relay": counters.copy()})
 
 
+def worker_row(arm):
+    row = measured(arm)
+    window = 6.25
+    total = int(row["mib_s"] * 2**20 * window)
+    counts = [total // 32] * 32
+    counts[0] -= 2**20
+    counts[-1] += 2**20
+    raw = dict(streams=32, bytes=total, window_s=window, mib_s=row["mib_s"], per_stream_bytes=counts)
+    return dict(row, stdout=json.dumps(raw))
+
+
 class PilotPairCountTests(unittest.TestCase):
+    def test_worker_streams_distinguish_missing_and_invalid_raw_evidence(self):
+        row = worker_row("A")
+        payload = json.loads(row["stdout"])
+        invalid_counts = [1.0, *payload["per_stream_bytes"][1:]]
+        for changes in (dict(per_stream_bytes=payload["per_stream_bytes"][:-1]),
+                        dict(per_stream_bytes=invalid_counts, bytes=int(sum(invalid_counts))),
+                        dict(per_stream_bytes=[True] * 32, bytes=32), dict(bytes=payload["bytes"] + 1),
+                        dict(mib_s=payload["mib_s"] * 2), dict(window_s=0), dict(streams=31)):
+            with self.subTest(changes=list(changes)):
+                bad = dict(row, stdout=json.dumps(dict(payload, **changes)))
+                self.assertEqual(pilot.worker_stream_rates(bad)["status"], "invalid")
+        for output in ("[]", "{"):
+            self.assertEqual(pilot.worker_stream_rates(dict(row, stdout=output))["status"], "invalid")
+        self.assertEqual(pilot.worker_stream_rates(dict(row, mib_s=81))["status"], "invalid")
+        self.assertEqual(pilot.worker_stream_rates(measured("A"))["status"], "unavailable")
+        del payload["window_s"]
+        self.assertEqual(pilot.worker_stream_rates(dict(row, stdout=json.dumps(payload)))["status"], "unavailable")
+        rows = {(1, "A"): row, (1, "B"): dict(worker_row("B"), clean=False)}
+        comparison = pilot.worker_stream_comparison(rows, 1)
+        self.assertEqual(comparison["pairs"][0]["four_workers"]["status"], "unclean")
+        self.assertIsNone(comparison["pairs"][0]["four_slowest_over_two_fastest"])
+        self.assertEqual(comparison["measured_pairs"], 0)
+
     def test_four_and_six_pair_screens_change_only_the_intended_control(self):
         for mode, count, workers, lever, expected in (
             ("workers", 4, 2, "relay_workers", (2, 4)),
@@ -158,7 +192,7 @@ class PilotPairCountTests(unittest.TestCase):
                             pids={"vmm": 1 if path == a else 2})
             def measure(tools, fixture, birth, row, window):
                 self.assertEqual(window()["reservation"], row["admission"]["reservation"])
-                row.update(measured(row["arm"]))
+                row.update(worker_row(row["arm"]))
 
             orders = pilot.plan(args.seed, args.scored_pairs)
             with patch.object(pilot.platform, "node", return_value="Gamma-128GB"), \
@@ -178,7 +212,14 @@ class PilotPairCountTests(unittest.TestCase):
                 args.out = root / "accepted"
                 pilot.run(args, orders)
                 self.assertEqual(attempt.call_count, (3 + 4) * 2)
-                complete = json.loads((args.out / "complete.json").read_text())["screen"]
+                report = json.loads((args.out / "complete.json").read_text())
+                streams = report["worker_streams"]
+                self.assertEqual((streams["measured_pairs"], streams["pairs_with_all_four_worker_streams_faster"]), (4, 4))
+                pair = streams["pairs"][0]
+                self.assertAlmostEqual(pair["two_workers"]["fastest_mib_s"], 100 / 32 + 1 / 6.25)
+                self.assertAlmostEqual(pair["four_workers"]["slowest_mib_s"], 120 / 32 - 1 / 6.25)
+                self.assertAlmostEqual(pair["four_slowest_over_two_fastest"], (120 / 32 - 1 / 6.25) / (100 / 32 + 1 / 6.25))
+                complete = report["screen"]
                 self.assertEqual(complete["verdict"], "eligible for confirmation")
                 self.assertAlmostEqual(complete["median_paired_throughput_change_pct"], 20)
                 last = complete["pairs"][-1]["B"]
