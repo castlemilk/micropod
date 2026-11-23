@@ -1,0 +1,57 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -633,4 +633,23 @@
+ }
+
++static void finish_eof(struct endpoint *src, struct endpoint *dst) {
++    struct pair *p = src->pair;
++    mp_tcp_relay *r = p->listener->relay;
++    int error = event_error(src);
++    if (error) {
++        stream_failed(p, src, src == &p->guest ? "guest_read" : "client_read", error);
++        return;
++    }
++    src->eof = true;
++    if (src == &p->guest) observe_close(p, "guest_fin", 0, false);
++    if (watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0) { retire(p); return; }
++    // A disconnected write half may still have received bytes queued.
++    if (shutdown(dst->watch.fd, SHUT_WR) < 0 && errno != ENOTCONN && errno != EPIPE) {
++        stream_failed(p, dst, "shutdown_write", errno);
++        return;
++    }
++    if (dst->eof) retire(p);
++}
++
+ // Read directly into the worker scratch and immediately write to the peer.
+ // On backpressure, keep just the unwritten suffix and pause that reader.
+@@ -657,18 +676,5 @@
+         }
+         if (got == 0) {
+-            int error = event_error(src);
+-            if (error) {
+-                stream_failed(p, src, src == &p->guest ? "guest_read" : "client_read", error);
+-                return;
+-            }
+-            src->eof = true;
+-            if (src == &p->guest) observe_close(p, "guest_fin", 0, false);
+-            if (watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0) { retire(p); return; }
+-            // A disconnected write half may still have received bytes queued.
+-            if (shutdown(dst->watch.fd, SHUT_WR) < 0 && errno != ENOTCONN && errno != EPIPE) {
+-                stream_failed(p, dst, "shutdown_write", errno);
+-                return;
+-            }
+-            if (dst->eof) retire(p);
++            finish_eof(src, dst);
+             return;
+         }
+@@ -743,4 +749,10 @@
+                                     filter_change(&src->watch, EVFILT_READ, EV_ENABLE) };
+         if (update_stream_filters(r, changes, 2) < 0) retire(p);
++    } else if (read_event && read_event->filter == EVFILT_READ &&
++               (read_event->flags & (EV_EOF | EV_ERROR)) == EV_EOF &&
++               read_event->fflags == 0 && read_event->data == (intptr_t)count) {
++        // A single owner consumed the final bytes reported with this graceful
++        // receive shutdown and forwarded all of them. Half-close only this direction.
++        finish_eof(src, dst);
+     }
+ }
