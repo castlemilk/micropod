@@ -6,6 +6,25 @@ The 23 November 2026 research supplied an itemized 13-experiment roadmap and an 
 
 25 measured, 5 regressed, 26 ready for their next check, 16 open and 35 conditional. **Measured** means a result exists at the stated scope, including inconclusive comparisons. **Regressed** means the tested variant increased cost, lost throughput or failed delivery. **Ready** means a control, verifier or fixture is available for the named next check. **Open** means the hypothesis still needs implementation or a controlled measurement. **Conditional** identifies an explicit dependency such as host capability, prior profiling or a distinct backend.
 
+## Ticket evidence added on 24 November
+
+The 23 November status counts are a dated snapshot. Follow-up measurements are recorded on their existing tickets. [24 November milestone on #227](https://github.com/castlemilk/micropod/issues/227#issuecomment-7117440724)
+
+| Ticket | Verified issue receipts |
+| --- | --- |
+| #229 | [229.02 detecting a TCP MSS clamp on the service socket](https://github.com/castlemilk/micropod/issues/229#issuecomment-7103939575) |
+| #230 | [230.09 discontiguous HTTP header/body · inconclusive](https://github.com/castlemilk/micropod/issues/230#issuecomment-7102726110) · [230.11 receive-buffer setup and TCP window scaling](https://github.com/castlemilk/micropod/issues/230#issuecomment-7105796425) · [230.13 bulk write coalescing across a producer stall](https://github.com/castlemilk/micropod/issues/230#issuecomment-7109133945) · [230.13 explicit flush after one bulk write](https://github.com/castlemilk/micropod/issues/230#issuecomment-7111810399) · [230.12 listen backlog during a bounded accept stall](https://github.com/castlemilk/micropod/issues/230#issuecomment-7112100406) |
+| #231 | [231.05 Fast Open request versus data on SYN](https://github.com/castlemilk/micropod/issues/231#issuecomment-7106228725) · [231.11 foreground scheduling slice under fixed contention](https://github.com/castlemilk/micropod/issues/231#issuecomment-7108932428) · [231.07 verifying the Reno control on accepted sockets](https://github.com/castlemilk/micropod/issues/231#issuecomment-7113658264) · [231.08 detecting a receive-window stall before the window reaches zero](https://github.com/castlemilk/micropod/issues/231#issuecomment-7116705624) |
+| #234 | [234.01 splice accounting versus receiver delivery](https://github.com/castlemilk/micropod/issues/234#issuecomment-7115755570) |
+
+The Mac relay follow-ups measured a short-reply scheduling improvement, a load-generator accounting effect, and stream progress in archived Gamma windows. Their scopes and raw inputs differ. [230.04 short replies on established connections](https://github.com/castlemilk/micropod/issues/230#issuecomment-7117307831) · [230.08 load-client counter spacing](https://github.com/castlemilk/micropod/issues/230#issuecomment-7117309349) · [230.02 stream progress in archived windows](https://github.com/castlemilk/micropod/issues/230#issuecomment-7117408758)
+
+The single-address DNS encoder reduced native handler time by 47.74% across eight paired blocks. A separate TCP byte-limit change fixed four failing frame boundaries and preserved every fitting reply tested. Guest socket latency remains open. [231.14 single-address DNS encoding](https://github.com/castlemilk/micropod/issues/231#issuecomment-7117410371) · [231.14 TCP frame boundary](https://github.com/castlemilk/micropod/issues/231#issuecomment-7117433827) · [Raw DNS timings](../benchmarks/2026-11-24/dns-single-answer-pointer.json) · [Raw frame checks](../benchmarks/2026-11-24/dns-tcp-frame-budget.json)
+
+At 10:42 AEDT on 24 November, the read-only Cuttlefish snapshot showed zero of six Gamma-128GB Mac slots occupied and the isolated Linux slot occupied. The warm-CI priority note did not release a serving scope or time window. The next live measurements remain revised stock with four vCPUs and two workers, then two versus four workers at the same four-vCPU budget.
+
+The one-off reconciliation for #228 and #230 verified both local alignment trials and the archived VMM replay. The exact study revisions and inputs could not be fetched from GitHub. Both issue section links are pending until a repository-accessible copy is confirmed. The private bundle includes separate sections, hashes, raw-input coverage, the original report, and replay instructions. [Local reconciliation bundle](../benchmarks/2026-11-23/alignment-vmm-reconciliation.zip)
+
 ## Research layers and phases
 
 | Blueprint layer | Area | Execution phase | Backlog |
