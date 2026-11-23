@@ -1,0 +1,130 @@
+[
+  {
+    "file": "vmlinux-6.18.35-197",
+    "image_sha256": "fb2cfb79eb1ae19447a85d75682d7fa5cfec97e24beb2609a492b806e8072c8d",
+    "btf_offset": 17731584,
+    "btf_sha256": "23fb87e278a629dda57afd15583ed6edc538528830e388ace8b143e7d0802fa4",
+    "struct_bytes": {
+      "ipv6_pinfo": 128,
+      "sock": 784,
+      "tcp6_sock": 2432,
+      "tcp_request_sock": 312,
+      "tcp_sock": 2304,
+      "tcp_timewait_sock": 248
+    },
+    "absent_types": [
+      "tcp6_request_sock",
+      "tcp6_timewait_sock"
+    ],
+    "tcp_sock_group_offsets_bytes": {
+      "__cacheline_group_begin__tcp_sock_read_rx": 1464,
+      "__cacheline_group_begin__tcp_sock_read_tx": 1400,
+      "__cacheline_group_begin__tcp_sock_read_txrx": 1432,
+      "__cacheline_group_begin__tcp_sock_write_rx": 1752,
+      "__cacheline_group_begin__tcp_sock_write_tx": 1536,
+      "__cacheline_group_begin__tcp_sock_write_txrx": 1641,
+      "__cacheline_group_end__tcp_sock_read_rx": 1528,
+      "__cacheline_group_end__tcp_sock_read_tx": 1432,
+      "__cacheline_group_end__tcp_sock_read_txrx": 1464,
+      "__cacheline_group_end__tcp_sock_write_rx": 1864,
+      "__cacheline_group_end__tcp_sock_write_tx": 1641,
+      "__cacheline_group_end__tcp_sock_write_txrx": 1752
+    }
+  },
+  {
+    "file": "Image",
+    "image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "btf_offset": 19550208,
+    "btf_sha256": "8902c848bb997484d17005ccea010f548c73411fd85f6d64adc608a3e8f8c034",
+    "struct_bytes": {
+      "ipv6_pinfo": 128,
+      "sock": 792,
+      "tcp6_sock": 2560,
+      "tcp_request_sock": 312,
+      "tcp_sock": 2432,
+      "tcp_timewait_sock": 248
+    },
+    "absent_types": [
+      "tcp6_request_sock",
+      "tcp6_timewait_sock"
+    ],
+    "tcp_sock_group_offsets_bytes": {
+      "__cacheline_group_begin__tcp_sock_read_rx": 1488,
+      "__cacheline_group_begin__tcp_sock_read_tx": 1424,
+      "__cacheline_group_begin__tcp_sock_read_txrx": 1456,
+      "__cacheline_group_begin__tcp_sock_write_rx": 1864,
+      "__cacheline_group_begin__tcp_sock_write_tx": 1600,
+      "__cacheline_group_begin__tcp_sock_write_txrx": 1745,
+      "__cacheline_group_end__tcp_sock_read_rx": 1552,
+      "__cacheline_group_end__tcp_sock_read_tx": 1456,
+      "__cacheline_group_end__tcp_sock_read_txrx": 1488,
+      "__cacheline_group_end__tcp_sock_write_rx": 1936,
+      "__cacheline_group_end__tcp_sock_write_tx": 1745,
+      "__cacheline_group_end__tcp_sock_write_txrx": 1860
+    }
+  },
+  {
+    "file": "Image",
+    "image_sha256": "3955ba50110de136beed489a4957141442afd2ba565358186b7abd20f5dfabe8",
+    "btf_offset": 19615744,
+    "btf_sha256": "aa78b01cbe2e263b2398ed5caf80c7b46e7bd9de39adce517db8228e7f1ae823",
+    "struct_bytes": {
+      "ipv6_pinfo": 128,
+      "sock": 792,
+      "tcp6_sock": 2560,
+      "tcp_request_sock": 312,
+      "tcp_sock": 2432,
+      "tcp_timewait_sock": 248
+    },
+    "absent_types": [
+      "tcp6_request_sock",
+      "tcp6_timewait_sock"
+    ],
+    "tcp_sock_group_offsets_bytes": {
+      "__cacheline_group_begin__tcp_sock_read_rx": 1488,
+      "__cacheline_group_begin__tcp_sock_read_tx": 1424,
+      "__cacheline_group_begin__tcp_sock_read_txrx": 1456,
+      "__cacheline_group_begin__tcp_sock_write_rx": 1864,
+      "__cacheline_group_begin__tcp_sock_write_tx": 1600,
+      "__cacheline_group_begin__tcp_sock_write_txrx": 1745,
+      "__cacheline_group_end__tcp_sock_read_rx": 1552,
+      "__cacheline_group_end__tcp_sock_read_tx": 1456,
+      "__cacheline_group_end__tcp_sock_read_txrx": 1488,
+      "__cacheline_group_end__tcp_sock_write_rx": 1936,
+      "__cacheline_group_end__tcp_sock_write_tx": 1745,
+      "__cacheline_group_end__tcp_sock_write_txrx": 1860
+    }
+  },
+  {
+    "file": "Image",
+    "image_sha256": "5a3cb6b86c7bdf12edf034a6fcacf54e02fca88d21d0eff42b1870413a757735",
+    "btf_offset": 19550208,
+    "btf_sha256": "97a3ddf9e2cba7a819efb47e1044c3fca27f4a076446cd633cbecd22aec4cda2",
+    "struct_bytes": {
+      "ipv6_pinfo": 128,
+      "sock": 792,
+      "tcp6_sock": 2560,
+      "tcp_request_sock": 312,
+      "tcp_sock": 2432,
+      "tcp_timewait_sock": 248
+    },
+    "absent_types": [
+      "tcp6_request_sock",
+      "tcp6_timewait_sock"
+    ],
+    "tcp_sock_group_offsets_bytes": {
+      "__cacheline_group_begin__tcp_sock_read_rx": 1488,
+      "__cacheline_group_begin__tcp_sock_read_tx": 1424,
+      "__cacheline_group_begin__tcp_sock_read_txrx": 1456,
+      "__cacheline_group_begin__tcp_sock_write_rx": 1864,
+      "__cacheline_group_begin__tcp_sock_write_tx": 1600,
+      "__cacheline_group_begin__tcp_sock_write_txrx": 1745,
+      "__cacheline_group_end__tcp_sock_read_rx": 1552,
+      "__cacheline_group_end__tcp_sock_read_tx": 1456,
+      "__cacheline_group_end__tcp_sock_read_txrx": 1488,
+      "__cacheline_group_end__tcp_sock_write_rx": 1936,
+      "__cacheline_group_end__tcp_sock_write_tx": 1745,
+      "__cacheline_group_end__tcp_sock_write_txrx": 1860
+    }
+  }
+]

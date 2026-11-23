@@ -70,6 +70,22 @@ python3 -B scripts/relaybench/guest_paths.py "$PROC_CAPTURE" \
 
 Each endpoint argument takes an IPv4 address and port. The checker requires distinct inodes for the two established flows and requires the forwarder's descriptor table to contain both. It checks process start ticks, namespace IDs and guest boot identity across its reads. A copied tree can establish the contents of that capture. Its acquisition time, the bytes copied, and the mechanism used still require independent evidence. [Offline verifier](../../scripts/relaybench/guest_paths.py) · [Regression fixtures](../../scripts/relaybench/test_guest_paths.py)
 
+## TCP socket layout in the shipped guest kernels
+
+The host-published fixture binds the listening socket and creates the guest-facing socket with `AF_INET`. An IPv6 route-cache optimization applies to a different workload. For the two actual images below, the stock 7.3.5 layout adds 128 bytes to both the established IPv4 and IPv6 TCP structures. The CUBIC and lazy-preemption builds of 7.3.5 have the same sizes and cache-group offsets as stock. [Relay sockets](../../Sources/CPublishedTCP/PublishedTCP.c) · [Image hashes and offsets](../benchmarks/2026-11-23/tcp-socket-layout.json)
+
+| BTF structure size, bytes | Apple 6.18.35-197 | Micropod stock 7.3.5 |
+| --- | ---: | ---: |
+| `sock` | 784 | 792 |
+| `tcp_sock` | 2,304 | 2,432 |
+| `tcp6_sock` | 2,432 | 2,560 |
+| `tcp_request_sock` | 312 | 312 |
+| `tcp_timewait_sock` | 248 | 248 |
+
+Linux 7.3.5 sets the IPv4 and IPv6 protocol object sizes from the respective established-socket structures. Real memory cost also depends on the slab allocator, queued buffers, flow counts and the socket state distribution. The images differ in source and build configuration. A cache-locality or CPU gain still needs packet processing measurements with matched controls.
+
+From `scripts/relaybench/socket_layout`, run `go run . IMAGE [IMAGE ...]` on unpacked arm64 Images. The reader extracts the embedded BTF section, looks up typed structures and preserves both image and section digests. The archived result used the pinned Go dependencies on arm64. [Reader and dependency versions](../../scripts/relaybench/socket_layout/main.go)
+
 ## Guest link traffic in a scored window
 
 The link checker reads a saved JSON capture with `before`, `after` and `client`. Both snapshots contain the Linux guest `boot_id`, the service's `netns` symlink text, the guest `monotonic_ns` sample time and all service interfaces from `ip -j -s -d link show` in `links`. Collect the first snapshot before starting the offered-load client and the second after it exits. Preserve the actual client JSON in `client`. For the existing download workload, bytes leave the service through TX.
