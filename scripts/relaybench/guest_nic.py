@@ -9,11 +9,12 @@ from uuid import UUID
 
 SECTIONS = ("before", "bitmap", "queues", "offloads", "channels", "coalescing", "after")
 # Linux drivers/virtio/virtio.c features_show emits bit zero first. Feature
-# numbers are from include/uapi/linux/virtio_net.h. Keep the full raw bitmap,
+# numbers are from the virtio_net, virtio_ring and virtio_config UAPI headers. Keep the full raw bitmap,
 # since a kernel can expose further device and transport features.
 FEATURE_BITS = {0: "CSUM", 1: "GUEST_CSUM", 2: "CTRL_GUEST_OFFLOADS",
                 7: "GUEST_TSO4", 8: "GUEST_TSO6", 11: "HOST_TSO4", 12: "HOST_TSO6",
-                15: "MRG_RXBUF", 17: "CTRL_VQ", 22: "MQ", 52: "VQ_NOTF_COAL",
+                15: "MRG_RXBUF", 17: "CTRL_VQ", 22: "MQ", 28: "INDIRECT_DESC", 29: "EVENT_IDX",
+                32: "VERSION_1", 34: "RING_PACKED", 35: "IN_ORDER", 52: "VQ_NOTF_COAL",
                 53: "NOTF_COAL", 60: "RSS"}
 
 

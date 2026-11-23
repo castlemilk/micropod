@@ -61,6 +61,9 @@ esac
         features = feature_bitmap(bits)["negotiated"]
         self.assertTrue(features["GUEST_TSO4"] and features["HOST_TSO4"])
         self.assertFalse(features["MQ"] or features["NOTF_COAL"])
+        self.assertTrue(features["INDIRECT_DESC"] and features["EVENT_IDX"] and features["VERSION_1"])
+        self.assertTrue(features["RING_PACKED"])
+        self.assertFalse(features["IN_ORDER"] or features["MRG_RXBUF"])
 
     def test_wrong_boot_or_changed_identity(self):
         with self.assertRaises(ValueError):
