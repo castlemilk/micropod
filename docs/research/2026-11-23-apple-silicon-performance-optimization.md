@@ -70,3 +70,31 @@ The preflight verifies both running fixtures with zero timed load. In the releas
 Every scored arm must account for all requests and streams, with zero resets, interface errors, drops and queue timeouts. Every Interactive p95 must be at most 75 ms. The median paired throughput change must be positive, median paired VMM wait must fall, and median paired combined VMM-plus-supervisor wait must hold or fall. The receipt includes median and quartiles for throughput, fresh p50/p95/p99, CPU per GiB, wait and comparable packet/IRQ rates. Missing interrupt coverage gives an inconclusive result. A failed arm remains in the decision even if the surviving pairs are faster.
 
 Passing this screen qualifies the role for an independent confirmation. A performance decision on Gamma is pending. The matched OrbStack holdout, MTU change and relay tuning each retain their own experiment. [Offline verification](../benchmarks/2026-11-23/host-role-verification.json)
+
+## GitHub backlog and implementation
+
+The [tracking issue](https://github.com/castlemilk/micropod/issues/227) links all 13 experiments. The first implementation work is available below. Tests with recorded or simulated observations establish how the tools handle evidence. The next live result depends on a released stock-relay fixture. [Test runs, artifact digests and historical replay](../benchmarks/2026-11-23/research-backlog-verification.json)
+
+| Experiment | Work started | Next evidence |
+| --- | --- | --- |
+| [#228 Host scheduling](https://github.com/castlemilk/micropod/issues/228) | The [role comparison](../../scripts/relaybench/gamma_pilot.py) isolates Standard and Interactive launchd scheduling. | Four-vCPU baseline and two serving role fixtures. |
+| [#229 Jumbo MTU](https://github.com/castlemilk/micropod/issues/229) | The [path check](../../scripts/relaybench/mtu_path.py) rejected the historical 1500-byte host route in a nominal jumbo trial. | Confirm DF in each direction on the host-only hop, TCP MSS and payload delivery on the service path. |
+| [#230 Relay workers](https://github.com/castlemilk/micropod/issues/230) | The [paired screen](../../scripts/relaybench/gamma_pilot.py) compares two and four workers with a fixed callback budget. | Revised-relay baseline followed by a worker-only comparison. |
+| [#231 Guest NIC tuning](https://github.com/castlemilk/micropod/issues/231) | A [worker collector](../../scripts/relaybench/guest_nic_capture.sh) and [decoder](../../scripts/relaybench/guest_nic.py) record negotiated features, queues and driver settings on the same boot. | Capture the real publication NIC and vary one supported setting. |
+| [#232 Direct ingress](https://github.com/castlemilk/micropod/issues/232) | [Replay of six historical pairs](2026-11-23-guest-paths.md) found three direct-ingress rounds above 75 ms fresh p95. | Compare the same service and boot through the revised relay and direct ingress. |
+| [#233 Guest link driver](https://github.com/castlemilk/micropod/issues/233) | The [interface check](../../scripts/relaybench/guest_link_path.py) connects the claimed link kind with byte counters in the service namespace. | Bind those counters to a timed macvlan-versus-ipvlan or netkit interval. |
+| [#234 Socket splicing](https://github.com/castlemilk/micropod/issues/234) | The [socket check](../../scripts/relaybench/guest_paths.py) identifies two established sockets owned by one forwarder. The current kernel publication path has no such process. | Qualify a separate userspace forwarding fixture and observe actual splice calls and body integrity. |
+| [#235 Compiler variants](https://github.com/castlemilk/micropod/issues/235) | The [compiler audit](../../scripts/relaybench/kernel_compiler.py) recovered GCC 15.2.0 with LTO disabled from the stock build. | Reproduce the control, then make a single compiler or LTO change and qualify the image. |
+| [#236 Native and translated guests](https://github.com/castlemilk/micropod/issues/236) | The [kernel builder](../../ci/build-worker-kernel.sh) has an opt-in 16 KiB profile. The [image verifier](../../scripts/relaybench/kernel_candidate.py) checks hashes, the binary page size and additional config changes. | Build both images on ARM64 Linux, boot and run native OCI checks. Qualify 4 KiB translation independently. |
+| [#237 CPU sizing](https://github.com/castlemilk/micropod/issues/237) | The [size screen](../../scripts/relaybench/gamma_pilot.py) changes four to six vCPUs with fixed service quota and relay worker count. | Measure host headroom and tail latency at both sizes. |
+| [#238 Storage and reclaim](https://github.com/castlemilk/micropod/issues/238) | A [file replacement workload](../../scripts/relaybench/volume_durability.py) syncs the file, renames it, syncs its directory and verifies the reopened payload. [Reclaim measurements](2026-11-23-transport-storage-evidence.md) identify guest and host counters. | Compare matched guest volumes, verify acknowledged writes after restart and measure host memory recovery separately. |
+| [#239 Custom virtio](https://github.com/castlemilk/micropod/issues/239) | The [SDK and dependency audit](2026-11-23-transport-storage-evidence.md) identified the extension point and macOS 27 dependency. | A supported test host and a same-host stock control. |
+| [#240 Second VMM](https://github.com/castlemilk/micropod/issues/240) | The [backend audit](2026-11-23-transport-storage-evidence.md) identifies VZ-specific networking recovery and the upstream alternative's Linux-only implementation. | Decide on a prototype once the preceding work isolates a repeatable ceiling and quantifies the benefit needed. |
+
+The following commands print balanced pilot plans without contacting a runtime. The live forms require `--fleet` and `--release` for the selected mode, two dedicated fixtures, and the checksum-pinned clients built above.
+
+```sh
+python3 -B scripts/relaybench/gamma_pilot.py --mode workers --scored-pairs 4 --seed 34202
+python3 -B scripts/relaybench/gamma_pilot.py --mode size --scored-pairs 4 --relay-workers 2 --seed 34204
+python3 -B scripts/relaybench/kernel_compiler.py --gamma-stock
+```
