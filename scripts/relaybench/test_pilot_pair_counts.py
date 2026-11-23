@@ -134,7 +134,8 @@ class PilotPairCountTests(unittest.TestCase):
                         row.update(clean=False, fresh_failed=1)
                 attempt.side_effect = drop
                 args.out = root / "loss"
-                pilot.run(args, orders)
+                with self.assertRaisesRegex(ValueError, "workers screen rejected: pair 1 B"):
+                    pilot.run(args, orders)
                 failed = json.loads((args.out / "complete.json").read_text())["screen"]
                 self.assertEqual(failed["verdict"], "reject")
                 self.assertIsNone(failed["median_paired_throughput_change_pct"])

@@ -414,6 +414,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
         check_window()
         result = screening_result(measured_rows, len(orders["scored"]))
         save(args.out / "complete.json", dict(identity_rechecked=True, mode=args.mode, screen=result))
+        if result["verdict"] == "reject":
+            raise ValueError(f"{args.mode} screen rejected: " + ", ".join(result["reasons"]))
         return
     numerator, denominator = ("A", "B") if peer else ("B", "A")
     ratios = {n: scored[n, numerator] / scored[n, denominator] for n in range(1, len(orders["scored"]) + 1)
