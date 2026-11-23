@@ -72,7 +72,7 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
             "valid_until_epoch": expiry, "fleet_time": fleet["generatedAt"], "effective_disk_gate": clearance}
 
 
-def verify_job(job, live, pid, home, expected, *, read_kib=None):
+def verify_job(job, live, pid, home, expected, *, read_kib=None, worker_count=None):
     pids = re.findall(r"(?m)^[ \t]*pid = (\d+)[ \t]*$", live)
     types = re.findall(r"(?m)^[ \t]*spawn type = ([^\n]+)$", live)
     if (job.get("ProcessType", "Standard") != expected or pids != [str(pid)]
@@ -97,6 +97,15 @@ def verify_job(job, live, pid, home, expected, *, read_kib=None):
         if env.get(selector) != str(read_kib):
             raise ValueError("launchd read-size selector differs from the planned arm")
         excluded_env.add(selector)
+    if worker_count is not None:
+        selector = "MICROPOD_CI_PORT_RELAY_WORKERS"
+        # Interactive defaults to two workers. Accept the unset control only
+        # when the loaded job also omits it. The runtime count is checked separately.
+        if (env.get(selector, "2") != str(worker_count) or
+                (selector not in env and re.search(rf"(?m)^[ \t]*{selector} =>", live))):
+            raise ValueError("launchd worker selector differs from the planned arm")
+        excluded_env.add(selector)
+    if read_kib is not None or worker_count is not None:
         # The pilot separately matches the mapped executable digests across jobs.
         controls["ProgramArguments"] = controls["ProgramArguments"][1:]
     controls["EnvironmentVariables"] = {key: value for key, value in env.items() if key not in excluded_env}

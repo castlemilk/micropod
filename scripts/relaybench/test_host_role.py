@@ -113,6 +113,33 @@ class HostRoleTests(unittest.TestCase):
                 verify(selector=1024 - kib // 2)
         self.assertEqual(*hashes)
 
+    def test_worker_comparison_varies_only_the_observed_worker_selector(self):
+        selector = "MICROPOD_CI_PORT_RELAY_WORKERS"
+        def controls(count, *, configured=None, extra_live="", **job_controls):
+            home = Path("/fixture") / str(count)
+            env = {"MICROPOD_CI_HOME": str(home), "MICROPOD_CI_PORT_RELAY": "kqueue-interactive"}
+            if configured is not None:
+                env[selector] = str(configured)
+            job = dict(Label=f"arm-{count}", ProcessType="Interactive", EnvironmentVariables=env,
+                       ProgramArguments=[str(home / "micropod"), "ci", "serve"], **job_controls)
+            live = "pid = 17\nspawn type = interactive (4)\n"
+            live += "\n".join(f"{k} => {v}" for k, v in env.items()) + "\n" + extra_live
+            return role.verify_job(job, live, 17, home, "Interactive", worker_count=count)["job_controls_sha256"]
+
+        two = controls(2, configured=2)
+        self.assertEqual(two, controls(2))
+        self.assertEqual(two, controls(4, configured=4))
+        self.assertNotEqual(two, controls(4, configured=4, Nice=9))
+        self.assertNotEqual(two, controls(4, configured=4, extra_live="MICROPOD_BENCH_RELAY_READ_KIB => 512"))
+        with self.assertRaisesRegex(ValueError, "worker selector"):
+            controls(4)
+        with self.assertRaisesRegex(ValueError, "worker selector"):
+            controls(2, extra_live=f"{selector} => 4")
+        with self.assertRaisesRegex(ValueError, "worker selector"):
+            controls(4, configured=2)
+        with self.assertRaisesRegex(ValueError, "loaded job differs"):
+            controls(4, configured=4, extra_live=f"{selector} => 2")
+
     def test_network_and_irq_counters_keep_their_scopes_and_detect_resets(self):
         files = network_files()
         sample = role.guest_counters(files, dict.fromkeys(role.LINK_ERRORS, 0))
@@ -163,7 +190,8 @@ class HostRoleTests(unittest.TestCase):
                              Config={"Cmd": ["-listen", ":8080", "-marker", "marker"]},
                              Mounts=[{"Destination": "/mpcheck", "RW": False}],
                              NetworkSettings={"Ports": {"8080/tcp": ["binding"]}})
-            outputs = {"vmm": "/System/example/com.apple.Virtualization.VirtualMachine", "probe": role.GUEST_PROBE_SHA256}
+            outputs = {"vmm": "/System/example/com.apple.Virtualization.VirtualMachine", "probe": role.GUEST_PROBE_SHA256,
+                       "spawn": "daemon (3)"}
             def command(*args):
                 if args[0] == "docker":
                     operation = args[-1] if args[3] == "exec" else args[3]
@@ -171,11 +199,13 @@ class HostRoleTests(unittest.TestCase):
                             "state": json.dumps(state), "routes": json.dumps({"mppub0": [pilot.DIRECT_ROUTE]}),
                             "-self-sha256": outputs["probe"], "-net-info": json.dumps(network_files())}[operation]
                 if args[0] == "ps":
+                    if args == ("ps", "-p", "102", "-o", "nice="):
+                        return "  7"
                     return outputs["vmm"]
                 if args[0] == "lsof":
                     return "101"
                 if args[0] == "launchctl":
-                    return ("\tpid = 102\n\tspawn type = daemon (3)\n\t\tMICROPOD_CI_PORT_RELAY => kqueue-interactive"
+                    return (f"\tpid = 102\n\tspawn type = {outputs['spawn']}\n\t\tMICROPOD_CI_PORT_RELAY => kqueue-interactive"
                             + "\n\t\tMICROPOD_CI_HOME => " + str(home))
                 if args[-1].endswith("/id"):
                     return "marker"
@@ -202,6 +232,12 @@ class HostRoleTests(unittest.TestCase):
                 container["Mounts"][0]["RW"] = True
                 with self.assertRaisesRegex(ValueError, "read-only"):
                     pilot.inspect(scope, 4, False, "Standard")
+                job["ProcessType"] = "Interactive"
+                (owner / "job.plist").write_bytes(plistlib.dumps(job))
+                outputs["spawn"] = "interactive (4)"
+                worker = pilot.inspect(scope, 4, False, worker_count=2)
+                self.assertEqual((worker["relay_nice"], worker["relay_workers"]), (7, 2))
+                self.assertEqual(len(worker["job_controls_sha256"]), 64)
 
     def test_decision_rejects_a_faster_dirty_or_slower_to_schedule_candidate(self):
         def series():

@@ -82,13 +82,14 @@ Use the isolated benchmark jobs' normal signing and launch procedure for that bi
 
 ```sh
 python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202
-python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202 \
+python3 -B scripts/relaybench/build_host_role_tools.py "$NEW_WORKER_TOOLS"
+python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202 --tools "$NEW_WORKER_TOOLS" \
   --a "$SCOPE_4V_2W" --b "$SCOPE_4V_4W" --fleet "$FLEET" --release "$RELEASE" --check --out "$NEW_WORKER_CHECK"
-python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202 \
+python3 -B scripts/relaybench/gamma_pilot.py --mode workers --seed 34202 --tools "$NEW_WORKER_TOOLS" \
   --a "$SCOPE_4V_2W" --b "$SCOPE_4V_4W" --fleet "$FLEET" --release "$RELEASE" --run --out "$NEW_WORKER_RUN"
 ```
 
-The first command prints the schedule offline. The second verifies already-serving endpoints with zero timed load. The last runs three warmup pairs and two scored pairs with opposite orders, 60 seconds of offered load including warmup. Each arm keeps 32 bulk downloads active and schedules 240 fresh requests at 25 ms intervals. Record MiB/s, fresh failures and reopens across all attempts, scheduled-arrival p95/p99, CPU-s/GiB and runnable thread-s/s. Sum Micropod's VMM and supervisor within each round. The corresponding OrbStack process is its helper.
+The first two commands print the schedule and build the pinned tools offline. Use a new directory for the tools. The check verifies already-serving endpoints with zero timed load. The run uses three warmup pairs and two scored pairs with opposite orders, 60 seconds of offered load including warmup. Each arm keeps 32 bulk downloads active and schedules 240 fresh requests at 25 ms intervals. Record MiB/s, fresh failures and reopens across all attempts, scheduled-arrival p95/p99, CPU-s/GiB and runnable thread-s/s. Sum Micropod's VMM and supervisor within each round. The corresponding OrbStack process is its helper.
 
 ## What to do with the result
 

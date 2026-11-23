@@ -108,6 +108,8 @@ Micropod appears first in the historical comparisons. Measurements from differen
 
 [Update directions in #230](https://github.com/castlemilk/micropod/issues/230#issuecomment-7091849663) · 15 directions
 
+On 24 November, the two-worker versus four-worker pilot gained a run-order check and matched launch controls (230.02). A bounded 4 KiB turn for short replies on established bulk connections cut callback-to-write p95 from 159.1 to 5.9 µs when queued behind 16 downloads (230.04). The 17-position sweep found identical service order when the reply was queued first. Both throughput intervals included zero. [Measurements, client controls and next VM test](../benchmarks/2026-11-24/published-tcp-tuning.md)
+
 | ID | Direction | Status | Evidence so far | Next check |
 | --- | --- | --- | --- | --- |
 | 230.01 | Listener distribution on one vs many ports | Measured | The one-port and 32-port layouts can both split flows 16/16. The old host scorer accepted a 32-port sample at 11,011.66 MiB/s as one port. Its replacement rejects that mismatch and reproduces all 71 valid rates at their original settings. Staggering gained +4.7% on one port and +78.5% on 32. | Keep raw listener count, profiling and client buffers fixed for worker comparisons. The end-to-end peer scorer also requires a one-port receipt. |

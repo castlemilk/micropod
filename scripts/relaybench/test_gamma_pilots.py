@@ -18,6 +18,7 @@ import gamma_contrasts as evidence
 import gamma_pilot as vm
 import gamma_relay_pilot as relay
 from test_host_role import make_window
+from test_pilot_pair_counts import worker_row
 
 
 def owner_window(root, scopes, mode):
@@ -181,7 +182,7 @@ class GammaPilots(unittest.TestCase):
                     with self.subTest(pairs=pairs, checking=checking), \
                             patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
                             patch.object(vm, "digest", side_effect=lambda p: (
-                                vm.host_role.CLIENT_SHA256 if mode == "peer" and pairs == 16 and p.name == "fixed"
+                                vm.host_role.CLIENT_SHA256 if (mode == "workers" or mode == "peer" and pairs == 16) and p.name == "fixed"
                                 else vm.HASHES[p.name])), \
                             patch.object(vm, "inspect") as inspect, patch.object(vm, "attempt") as attempt:
                         with self.assertRaisesRegex(ValueError, "owner handoff"):
@@ -248,19 +249,22 @@ class GammaPilots(unittest.TestCase):
             args = Namespace(a=a, b=b, out=root / "out", seed=34202, mode="workers", tools=root, check=False,
                              fleet=fleet, release=release)
             common = dict(cpuset="0-3", kernel_image_sha256=vm.STOCK_KERNEL, release="7.3.5-micropod", engine_version="same",
-                          cli_sha256="same-digest", route=vm.DIRECT_ROUTE, service_env_sha256="same-env")
-            fixtures = {p: dict(common, engine=p.name, id=p.name, address=p.name, name=p.name, instance=p.name,
+                          cli_sha256="same-digest", route=vm.DIRECT_ROUTE, service_env_sha256="same-env",
+                          job_controls_sha256="same-launch-controls", relay_nice=0)
+            fixtures = {p: dict(common, engine=p.name, id=p.name, address=f"127.0.0.1:{9000+n}", name=p.name, instance=p.name,
                                 kernel=str(p / "Image"), worker=p.name, pids={"vmm": n}, relay_workers=n, callback_events=128,
                                 read_bytes=256 * 1024)
                         for p, n in ((a, 2), (b, 4))}
-            def inspect(path, cpus, orb):
+            def inspect(path, cpus, orb, *, worker_count):
                 self.assertEqual((cpus, orb), (4, False))
+                self.assertEqual(worker_count, 2 if path == a else 4)
                 return fixtures[path]
             def measure(tools, f, birth, row, check):
                 self.assertEqual(check()["mode"], "workers")
-                row.update(clean=True, mib_s=2700 if row["arm"] == "A" else 3000)
+                row.update(worker_row(row["arm"], 2700 if row["arm"] == "A" else 3000),
+                           client_arguments=["http://" + f["address"], f["name"]])
             with patch.object(vm.platform, "node", return_value="Gamma-128GB"), \
-                 patch.object(vm, "digest", side_effect=lambda path: vm.HASHES[path.name]), \
+                 patch.object(vm, "digest", side_effect=lambda p: dict(vm.HASHES, fixed=vm.host_role.CLIENT_SHA256)[p.name]), \
                  patch.object(vm, "inspect", side_effect=inspect), patch.object(vm, "snapshot", return_value={"tasks": []}), \
                  patch.object(vm, "attempt", side_effect=measure) as timed:
                 for i, (arm, key, wrong, message) in enumerate((
@@ -270,6 +274,8 @@ class GammaPilots(unittest.TestCase):
                     (b, "relay_workers", 2, "needs 4 relay workers"),
                     (b, "cli_sha256", "other", "differ in cli_sha256"),
                     (b, "kernel_image_sha256", "other", "differ in kernel_image_sha256"),
+                    (b, "job_controls_sha256", "different-nice-or-runtime-environment", "beyond worker count"),
+                    (b, "relay_nice", 7, "beyond worker count"),
                 )):
                     args.out = root / str(i)
                     with patch.dict(fixtures[arm], {key: wrong}), self.assertRaisesRegex(ValueError, message):
@@ -282,8 +288,32 @@ class GammaPilots(unittest.TestCase):
                 self.assertEqual(result["median_paired_mib_s_difference"], 300)
                 self.assertEqual(result["clean_scored"], {"A": 2, "B": 2})
                 self.assertIsNone(result["bootstrap_ci95"])
-                self.assertEqual(result["worker_streams"]["measured_pairs"], 0)
-                self.assertEqual(result["worker_streams"]["pairs"][0]["two_workers"]["status"], "unavailable")
+                self.assertEqual(result["worker_streams"]["measured_pairs"], 2)
+                self.assertEqual(result["screen"]["verdict"], "eligible for confirmation")
+
+                def mixed(tools, fixture, birth, row, check):
+                    measure(tools, fixture, birth, row, check)
+                    if (row["phase"], row["pair"], row["arm"]) == ("scored", 2, "B"):
+                        if drop:
+                            row.update(clean=False, fresh_failed=1)
+                            raw = json.loads(row["stdout"])
+                            raw["errors"] = ['GET "/id": timeout']
+                            row["stdout"] = json.dumps(raw)
+                        else:
+                            row.update(worker_row("B", 2699))
+
+                timed.side_effect = mixed
+                for drop in (False, True):
+                    args.out = root / ("lost-request" if drop else "lost-pair")
+                    with self.subTest(drop=drop), self.assertRaisesRegex(ValueError, "workers screen rejected"):
+                        vm.run(args, vm.plan(args.seed))
+                    report = json.loads((args.out / "complete.json").read_text())
+                    self.assertEqual(report["screen"]["verdict"], "reject")
+                    if drop:
+                        self.assertIsNone(report["median_ratio"])
+                        self.assertEqual(report["clean_scored"], {"A": 2, "B": 1})
+                    else:
+                        self.assertGreater(report["median_ratio"], 1)
 
     def test_peer_holdout_preserves_resource_parity_and_balanced_blocks(self):
         arms = vm.arm_settings("peer", workers=4, peer_vcpus=6)

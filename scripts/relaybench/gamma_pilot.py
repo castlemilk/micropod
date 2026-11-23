@@ -111,7 +111,7 @@ def image_config(docker, container):
     return "sha256:" + hashlib.sha256(config).hexdigest()
 
 
-def inspect(scope, cpus, orb, process_type=None, *, read_kib=None):
+def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=None):
     scope = scope.resolve()
     require(scope.is_dir() and not (scope / "removed").exists(), f"missing or retired fixture: {scope}")
     base = value(scope, "base")
@@ -166,8 +166,11 @@ def inspect(scope, cpus, orb, process_type=None, *, read_kib=None):
     job = plistlib.loads((owner / "job.plist").read_bytes())
     env = job["EnvironmentVariables"]
     role = command("launchctl", "print", f"gui/{os.getuid()}/{job['Label']}")
-    if read_kib is not None:
-        fixture.update(host_role.verify_job(job, role, pids["relay"], home, "Interactive", read_kib=read_kib))
+    if read_kib is not None or worker_count is not None:
+        fixture.update(host_role.verify_job(job, role, pids["relay"], home, "Interactive",
+                                            read_kib=read_kib, worker_count=worker_count))
+        if worker_count is not None:
+            fixture["relay_nice"] = int(command("ps", "-p", str(pids["relay"]), "-o", "nice="))
     elif process_type is None:
         require(re.search(rf"(?m)^\s*pid = {pids['relay']}$", role) and "spawn type = interactive" in role
                 and env["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive", "different live relay role")
@@ -335,13 +338,13 @@ def worker_stream_comparison(rows, pairs):
     return dict(pairs=results, measured_pairs=len(ratios), pairs_with_all_four_worker_streams_faster=sum(r > 1 for r in ratios))
 
 
-def screening_result(rows, pairs):
+def screening_result(rows, orders):
     """Score every first attempt and withhold paired improvement when evidence is incomplete."""
     attempts = []
     reasons = []
     ratios = []
-    for number in range(1, pairs + 1):
-        pair = {"pair": number}
+    for number, order in enumerate(orders, 1):
+        pair = {"pair": number, "order": order}
         for arm in "AB":
             row = rows[number, arm]
             counts = {key: row.get(key) for key in ("arrivals", "fresh_failed", "bulk_streams_with_bytes", "reopened")}
@@ -370,9 +373,12 @@ def screening_result(rows, pairs):
                              fresh_p99_us=tails[2], clean=row["clean"], problems=problems)
             reasons.extend(f"pair {number} {arm}: {p}" for p in problems)
         if not pair["A"]["problems"] and not pair["B"]["problems"]:
-            ratios.append(pair["B"]["mib_s"] / pair["A"]["mib_s"])
+            ratio = pair["B"]["mib_s"] / pair["A"]["mib_s"]
+            ratios.append(ratio)
+            if len(orders) == 2 and ratio <= 1:
+                reasons.append(f"pair {number} {order}: four workers did not improve throughput")
         attempts.append(pair)
-    change = 100 * (median(ratios) - 1) if len(ratios) == pairs else None
+    change = 100 * (median(ratios) - 1) if len(ratios) == len(orders) else None
     if change is not None and change <= 0:
         reasons.append("no median paired throughput improvement")
     return dict(verdict="reject" if reasons else "eligible for confirmation", reasons=reasons,
@@ -383,7 +389,7 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     settings = arm_settings(args.mode, workers, peer_vcpus, getattr(args, "relay_read_kib", None))
     read_size = args.mode == "read-size"
     role_test = args.mode == "host-role"
-    screen = read_size or getattr(args, "scored_pairs", None) is not None
+    screen = args.mode == "workers" or read_size or getattr(args, "scored_pairs", None) is not None
     peer = args.mode == "peer"
     peer_holdout = peer and len(orders["scored"]) == 16
     args.out.mkdir()  # Refuse to overwrite a previous attempt.
@@ -399,7 +405,9 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     for tool, expected in tools.items():
         require(digest(args.tools / tool) == expected, f"unrecognized {tool} binary")
     scopes = {"A": (args.a, settings["A"]["vcpus"], False), "B": (args.b, settings["B"]["vcpus"], peer)}
-    if role_test or screen:
+    if args.mode == "workers" and len(orders["scored"]) == 2:
+        require(sorted(orders["scored"]) == ["AB", "BA"], "the short worker screen requires both run orders")
+    elif role_test or screen:
         require(len(orders["scored"]) >= 4, "this comparison needs at least four scored pairs")
     require(getattr(args, "fleet", None) and getattr(args, "release", None),
             f"this live {args.mode} comparison needs --fleet and --release")
@@ -421,6 +429,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
 
     def inspect_arm(arm):
         check_window()
+        if args.mode == "workers":
+            return inspect(*scopes[arm], worker_count=settings[arm]["relay_workers"])
         if read_size:
             return inspect(*scopes[arm], read_kib=settings[arm]["read_bytes"] // 1024)
         if role_test:
@@ -451,6 +461,9 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
         kernel_field = "kernel_image_sha256" if all("kernel_image_sha256" in f for f in (a, b)) else "kernel"
         for key in (kernel_field, "release", "engine_version", "cli_sha256", "route", "service_env_sha256"):
             require(a[key] == b[key], f"Micropod arms differ in {key}")
+    if args.mode == "workers":
+        require(a["job_controls_sha256"] == b["job_controls_sha256"] and a["relay_nice"] == b["relay_nice"],
+                "launchd controls or live supervisor nice differ beyond worker count")
     if read_size:
         require(a.get("kernel_image_sha256") == b.get("kernel_image_sha256") == STOCK_KERNEL,
                 "read-size screen needs stock kernel image digests")
@@ -510,7 +523,7 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                 require(phase != "warmup" or row["clean"], "warmup failed")
                 if phase == "scored" and row["clean"]:
                     scored[number, arm] = row["mib_s"]
-                if phase == "scored" and (role_test or screen or args.mode == "workers"):
+                if phase == "scored" and (role_test or screen):
                     measured_rows[number, arm] = row
     require(all(inspect_arm(arm) == fixtures[arm] for arm in scopes), "fixture changed since preflight")
     extras = {}
@@ -521,30 +534,30 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                            for arm in "AB"}}
             for n in range(1, len(orders["scored"]) + 1)
         ]
-    if screen:
-        check_window()
-        result = screening_result(measured_rows, len(orders["scored"]))
-        save(args.out / "complete.json", dict(identity_rechecked=True, mode=args.mode, screen=result, **extras))
-        if result["verdict"] == "reject":
-            raise ValueError(f"{args.mode} screen rejected: " + ", ".join(result["reasons"]))
-        return
     numerator, denominator = ("A", "B") if peer else ("B", "A")
     ratios = {n: scored[n, numerator] / scored[n, denominator] for n in range(1, len(orders["scored"]) + 1)
               if (n, "A") in scored and (n, "B") in scored}
     deltas = {n: scored[n, numerator] - scored[n, denominator] for n in ratios}
     direction = {"peer": "Micropod/OrbStack", "size": "Micropod 6 vCPUs/Micropod 4 vCPUs",
                  "workers": "Micropod 4 relay workers/Micropod 2 relay workers",
+                 "read-size": "Micropod 512 KiB/Micropod 256 KiB",
                  "host-role": "Micropod Interactive/Micropod Standard"}[args.mode]
     values = list(ratios.values())
-    complete = dict(identity_rechecked=True, ratio_direction=direction, paired_ratios=ratios,
+    complete = dict(identity_rechecked=True, mode=args.mode, ratio_direction=direction, paired_ratios=ratios,
                     paired_mib_s_differences=deltas,
                     median_paired_mib_s_difference=median(deltas.values()) if deltas else None,
                     median_ratio=median(values) if values else None, bootstrap_ci95=paired_median_interval(values),
                     clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings}, **extras)
     check_window()
+    if screen:
+        complete["screen"] = screening_result(measured_rows, orders["scored"])
+        if complete["screen"]["median_paired_throughput_change_pct"] is None:
+            complete.update(median_ratio=None, median_paired_mib_s_difference=None, bootstrap_ci95=None)
     if role_test:
         complete["host_role"] = host_role.decision(measured_rows, len(orders["scored"]))
     save(args.out / "complete.json", complete)
+    if screen and complete["screen"]["verdict"] == "reject":
+        raise ValueError(f"{args.mode} screen rejected: " + ", ".join(complete["screen"]["reasons"]))
     if role_test and complete["host_role"]["verdict"] != "eligible for confirmation":
         outcome = complete["host_role"]
         raise ValueError("host-role " + outcome["verdict"] + ": " + ", ".join(outcome["reasons"]))

@@ -24,8 +24,10 @@ def measured(arm):
                 host={"vmm": counters.copy(), "relay": counters.copy()})
 
 
-def worker_row(arm):
+def worker_row(arm, rate=None):
     row = measured(arm)
+    if rate is not None:
+        row["mib_s"] = rate
     window = 6.25
     total = int(row["mib_s"] * 2**20 * window)
     counts = [total // 32] * 32
@@ -164,7 +166,7 @@ class PilotPairCountTests(unittest.TestCase):
             with self.subTest(change=change):
                 rows = {(n, arm): measured(arm) for n in range(1, 5) for arm in "AB"}
                 rows[2, "B"].update(change)
-                result = pilot.screening_result(rows, 4)
+                result = pilot.screening_result(rows, ["AB", "BA", "BA", "AB"])
                 self.assertEqual(result["verdict"], "reject")
                 self.assertIsNone(result["median_paired_throughput_change_pct"])
                 self.assertEqual(len(result["pairs"]), 4)
@@ -172,9 +174,27 @@ class PilotPairCountTests(unittest.TestCase):
         rows = {(n, arm): measured(arm) for n in range(1, 5) for arm in "AB"}
         for n in range(1, 5):
             rows[n, "B"]["mib_s"] = 90
-        result = pilot.screening_result(rows, 4)
+        result = pilot.screening_result(rows, ["AB", "BA", "BA", "AB"])
         self.assertEqual(result["verdict"], "reject")
         self.assertAlmostEqual(result["median_paired_throughput_change_pct"], -10)
+
+    def test_two_pair_worker_screen_requires_a_gain_in_each_run_order(self):
+        orders = ["BA", "AB"]
+        rows = {(n, arm): measured(arm) for n in (1, 2) for arm in "AB"}
+        for slower in (99, 100):
+            with self.subTest(slower=slower):
+                rows[2, "B"]["mib_s"] = slower
+                result = pilot.screening_result(rows, orders)
+                self.assertGreater(result["median_paired_throughput_change_pct"], 0)
+                self.assertEqual(result["verdict"], "reject")
+                self.assertIn("pair 2 AB: four workers did not improve throughput", result["reasons"])
+        rows[2, "B"] = dict(measured("B"), clean=False, fresh_failed=1)
+        result = pilot.screening_result(rows, orders)
+        self.assertEqual([p["order"] for p in result["pairs"]], orders)
+        self.assertEqual(result["verdict"], "reject")
+        self.assertIsNone(result["median_paired_throughput_change_pct"])
+        rows[2, "B"] = measured("B")
+        self.assertEqual(pilot.screening_result(rows, orders)["verdict"], "eligible for confirmation")
 
     def test_live_screen_uses_its_own_handoff_before_probes_and_while_timing(self):
         now = 1_795_385_000
@@ -186,12 +206,13 @@ class PilotPairCountTests(unittest.TestCase):
             fleet, release = make_window(root, now, (a, b))
             args = Namespace(mode="workers", seed=34202, scored_pairs=4, tools=root,
                              a=a, b=b, fleet=fleet, release=release, check=False, out=root/"denied")
-            def fixture(path, cpus, orb):
+            def fixture(path, cpus, orb, *, worker_count=None):
+                self.assertEqual(worker_count, (2 if path == a else 4) if args.mode == "workers" else None)
                 return dict(engine=path.name, id=path.name, address="127.0.0.1:9041" if path == a else "127.0.0.1:9042", name=path.name,
                             cpuset="0-3", instance=path.name, worker=path.name, kernel_image_sha256=pilot.STOCK_KERNEL,
                             release="same", engine_version="same", cli_sha256="same", service_env_sha256="same",
                             relay_workers=2 if path == a or args.mode == "size" else 4, callback_events=128, read_bytes=262144, route=pilot.DIRECT_ROUTE,
-                            pids={"vmm": 1 if path == a else 2})
+                            job_controls_sha256="same-controls", relay_nice=0, pids={"vmm": 1 if path == a else 2})
             def measure(tools, fixture, birth, row, window):
                 self.assertEqual(window()["reservation"], row["admission"]["reservation"])
                 row.update(worker_row(row["arm"]), client_arguments=["http://" + fixture["address"], fixture["name"]])
