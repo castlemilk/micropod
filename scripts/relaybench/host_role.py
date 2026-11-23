@@ -15,7 +15,8 @@ from gamma_fleet import GAMMA_LINUX, GAMMA_MAC, hosted_export
 
 # These spellings and numbers appear in Gamma's archived role-control launchctl output.
 SPAWN_TYPES = {"Standard": "daemon (3)", "Interactive": "interactive (4)"}
-CLIENT_SHA256 = "bf306205c4b1a196868abdf9d14e6eb15540593f4420701d183a670925af812b"
+LEGACY_P50_CLIENT_SHA256 = "bf306205c4b1a196868abdf9d14e6eb15540593f4420701d183a670925af812b"
+CLIENT_SHA256 = "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53"
 GUEST_PROBE_SHA256 = "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605"
 LINK_ERRORS = ("rx_dropped", "tx_dropped", "rx_errors", "tx_errors", "tx_queue_timeouts")
 FAULT_COUNTERS = ("rx_errors", "tx_errors", "rx_dropped", "tx_dropped", "tcp_out_resets",
@@ -217,6 +218,9 @@ def decision(rows, pairs):
                       vmm_wait_s_per_s=vmm["wait_s_per_s"], relay_wait_s_per_s=relay["wait_s_per_s"],
                       total_wait_s_per_s=vmm["wait_s_per_s"] + relay["wait_s_per_s"],
                       cpu_s_per_gib=vmm["cpu_s_per_gib"] + relay["cpu_s_per_gib"])
+        if "invocation_cpu_s_per_bulk_gib" in vmm and "invocation_cpu_s_per_bulk_gib" in relay:
+            values["invocation_cpu_s_per_bulk_gib"] = (vmm["invocation_cpu_s_per_bulk_gib"]
+                                                       + relay["invocation_cpu_s_per_bulk_gib"])
         if not all(math.isfinite(v) and v >= 0 for v in values.values()) or values["mib_s"] <= 0:
             raise ValueError("invalid host-role measurements")
         metrics[key] = values

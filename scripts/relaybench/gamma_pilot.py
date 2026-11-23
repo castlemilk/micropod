@@ -16,7 +16,7 @@ from pathlib import Path
 from statistics import median
 
 import host_role
-from gamma_contrasts import IMAGE, clean_client, paired_median_interval, process_work, stream_rates
+from gamma_contrasts import IMAGE, clean_client, invocation_bulk_bytes, paired_median_interval, process_work, stream_rates
 
 TOOLS = Path("/tmp/mp-priority.b3sbI7ym")
 HASHES = {"fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
@@ -248,13 +248,15 @@ def attempt(tools, fixture, birth, receipt, check_window=None):
     require(identities(receipt["after"]) == birth, "host process replaced during timing")
     c = json.loads(result.stdout)
     receipt["clean"] = result.returncode == 0 and clean_client(c)
+    whole = (invocation_bulk_bytes(c, receipt["clean"])
+             if receipt.get("fixed_sha256") == host_role.CLIENT_SHA256 else None)
     streams, errors = c.get("per_stream_bytes", []), c.get("errors")
     if len(streams) == 32 and min(streams) > 0 and "errors" in c and all('/id"' in s for s in errors or []):
         receipt["fresh_failed"] = len(errors or [])
     if c.get("bytes", 0) > 0:
         counters = {}
         for role, pid in fixture["pids"].items():
-            counters[role] = process_work(receipt["before"], receipt["after"], pid, c["bytes"])
+            counters[role] = process_work(receipt["before"], receipt["after"], pid, c["bytes"], invocation_bytes=whole)
         receipt["host"] = counters
     if "fresh_p50_us" in c:
         receipt["fresh_p50_us"] = c["fresh_p50_us"]
@@ -356,7 +358,10 @@ def screening_result(rows, pairs):
             metrics = {"mib_s": row.get("mib_s")}
             for process in ("vmm", "relay"):
                 counters = host.get(process, {})
-                for name in ("cpu_s_per_gib", "runnable_s_per_s", "wait_s_per_s"):
+                names = ["cpu_s_per_gib", "runnable_s_per_s", "wait_s_per_s"]
+                if "invocation_cpu_s_per_bulk_gib" in counters:
+                    names.append("invocation_cpu_s_per_bulk_gib")
+                for name in names:
                     metrics[f"{process}_{name}"] = counters.get(name)
             if (any(type(v) not in (int, float) or not math.isfinite(v) or v < 0 for v in metrics.values())
                     or metrics["mib_s"] == 0):
@@ -381,8 +386,13 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     screen = read_size or getattr(args, "scored_pairs", None) is not None
     peer = args.mode == "peer"
     peer_holdout = peer and len(orders["scored"]) == 16
-    tools = dict(HASHES, fixed=host_role.CLIENT_SHA256) if role_test or screen or peer_holdout else HASHES
     args.out.mkdir()  # Refuse to overwrite a previous attempt.
+    # The current client can run every schedule. Previously built, pinned clients
+    # remain usable on the schedules for which their observation fields suffice.
+    fixed = digest(args.tools / "fixed")
+    legacy = host_role.LEGACY_P50_CLIENT_SHA256 if role_test or screen or peer_holdout else HASHES["fixed"]
+    require(fixed in (host_role.CLIENT_SHA256, legacy), "unrecognized fixed binary")
+    tools = dict(HASHES, fixed=fixed)
     save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=tools,
                                      host=platform.node(), macos=platform.mac_ver()[0]))
     require(platform.node().split(".")[0] == "Gamma-128GB", "run only on the original Gamma Mac")
@@ -460,7 +470,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     for phase, pairs in orders.items():
         for number, order in enumerate(pairs, 1):
             for arm in order:
-                row = dict(phase=phase, pair=number, arm=arm, clean=False, fresh_failed=None)
+                row = dict(phase=phase, pair=number, arm=arm, clean=False, fresh_failed=None,
+                           fixed_sha256=tools["fixed"])
                 try:
                     require(all(path.is_dir() and not (path / "removed").exists() for path, _, _ in scopes.values()),
                             "fixture retired during the pilot")

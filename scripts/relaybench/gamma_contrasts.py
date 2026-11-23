@@ -102,8 +102,38 @@ def host_units(delta, count):
                 wait_s_per_s=delta["wait_s"] / delta["sample_seconds"])
 
 
-def process_work(before, after, pid, payload_bytes):
-    """Darwin host process work over the observer interval, per scored bulk byte."""
+def invocation_bulk_bytes(client, clean):
+    """Verify actual warmup, scored and drain bytes from the fixed-arrival client."""
+    phases = client.get("bulk_body_bytes")
+    if not isinstance(phases, dict):
+        raise ValueError("missing full-invocation bulk body counters")
+    streams = {}
+    for name in ("warmup", "scored", "drain", "invocation"):
+        phase = phases.get(name)
+        if not isinstance(phase, dict):
+            raise ValueError(f"missing {name} bulk body counters")
+        counts, total = phase.get("per_stream_bytes"), phase.get("bytes")
+        if (not isinstance(counts, list) or len(counts) != 32
+                or any(type(n) is not int or n < 0 for n in counts)
+                or type(total) is not int or total != sum(counts) or total >= 2**63):
+            raise ValueError(f"invalid {name} bulk body counters")
+        streams[name] = counts
+    scored = client.get("per_stream_bytes")
+    if (not isinstance(scored, list) or any(type(n) is not int for n in scored)
+            or scored != streams["scored"] or type(client.get("bytes")) is not int
+            or client["bytes"] != phases["scored"]["bytes"]):
+        raise ValueError("bulk body counters disagree with the scored stream bytes")
+    for warm, timed, drain, whole in zip(streams["warmup"], streams["scored"], streams["drain"], streams["invocation"]):
+        if warm + timed + drain != whole:
+            raise ValueError("bulk body phases disagree within a stream")
+        # Each clean stream finished one response before ready and joined at a response boundary.
+        if clean and (warm < 8 * MIB or whole % (8 * MIB) != 0):
+            raise ValueError("clean stream did not complete the fixed 8 MiB bodies")
+    return phases["invocation"]["bytes"]
+
+
+def process_work(before, after, pid, payload_bytes, *, invocation_bytes=None):
+    """Normalize Darwin process work by scored bytes and, when recorded, all bulk bytes."""
     if type(payload_bytes) is not int or payload_bytes <= 0:
         raise ValueError("process work needs a positive bulk byte count")
     delta = process_delta(before, after, pid)
@@ -119,11 +149,18 @@ def process_work(before, after, pid, payload_bytes):
 
     instructions = hardware_delta("instructions")
     cycles = hardware_delta("cycles")
-    return dict(**delta, **host_units(delta, payload_bytes),
-                mean_host_cores=delta["cpu_s"] / delta["sample_seconds"],
-                instructions_per_byte=instructions / payload_bytes if instructions else None,
-                cycles_per_byte=cycles / payload_bytes if cycles else None,
-                instructions_per_cycle=instructions / cycles if instructions and cycles else None)
+    result = dict(**delta, **host_units(delta, payload_bytes),
+                  mean_host_cores=delta["cpu_s"] / delta["sample_seconds"],
+                  instructions_per_byte=instructions / payload_bytes if instructions else None,
+                  cycles_per_byte=cycles / payload_bytes if cycles else None,
+                  instructions_per_cycle=instructions / cycles if instructions and cycles else None)
+    if invocation_bytes is not None:
+        if type(invocation_bytes) is not int or invocation_bytes < payload_bytes:
+            raise ValueError("invocation bytes must cover the scored bytes")
+        result.update(invocation_cpu_s_per_bulk_gib=delta["cpu_s"] / (invocation_bytes / GIB),
+                      invocation_instructions_per_bulk_byte=instructions / invocation_bytes if instructions else None,
+                      invocation_cycles_per_bulk_byte=cycles / invocation_bytes if cycles else None)
+    return result
 
 
 def vm_rows(receipt):

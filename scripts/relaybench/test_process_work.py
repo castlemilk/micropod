@@ -16,6 +16,44 @@ def snapshot(epoch, user, system, runnable, **hardware):
 
 
 class ProcessWorkTests(unittest.TestCase):
+    def test_process_cost_includes_bulk_bytes_before_and_after_scoring(self):
+        mib = 2**20
+        scored = 64 * mib
+        client = dict(streams=32, arrivals=240, period_us=25000, errors=[], reopened=0,
+                      per_stream_bytes=[scored]*32, window_s=6, bytes=scored*32, mib_s=scored*32/mib/6,
+                      fresh_p95_us=150, fresh_p99_us=180)
+        start = snapshot(1_000_000_000, 10, 10, 30, instructions=1, cycles=2)
+        end = snapshot(11_000_000_000, 3_000_000_010, 1_000_000_010, 4_500_000_030,
+                       instructions=1+scored*32, cycles=2+scored*64)
+        fixture = dict(pids={"vmm": 31}, address="127.0.0.1:1234", name="test")
+        row = {"fixed_sha256": pilot.host_role.CLIENT_SHA256}
+
+        def measure():
+            result = subprocess.CompletedProcess([], 0, json.dumps(client), "")
+            with patch.object(pilot, "snapshot", side_effect=[start, end]), patch.object(pilot, "run_in_window", return_value=result):
+                pilot.attempt(Path("/unused"), fixture, {31: 7}, row, lambda: None)
+
+        with self.assertRaisesRegex(ValueError, "missing full-invocation"):
+            measure()
+        for drain in (8*mib, 40*mib):
+            whole = 8*mib + scored + drain
+            client["bulk_body_bytes"] = {key: {"bytes": 32*n, "per_stream_bytes": [n]*32}
+                                         for key, n in (("warmup", 8*mib), ("scored", scored), ("drain", drain), ("invocation", whole))}
+            measure()
+            self.assertTrue(row["clean"])
+            self.assertEqual(row["mib_s"], 2048/6)
+            counters = row["host"]["vmm"]
+            self.assertEqual(counters["cpu_s_per_gib"], 4)
+            self.assertEqual(counters["invocation_cpu_s_per_bulk_gib"], 8 / (32*whole / 2**30))
+            self.assertEqual(counters["invocation_instructions_per_bulk_byte"], scored/whole)
+            self.assertEqual(counters["invocation_cycles_per_bulk_byte"], 2*scored/whole)
+        # Move a full response between streams. All phase totals and body sizes still match.
+        counts = client["bulk_body_bytes"]["invocation"]["per_stream_bytes"]
+        counts[0] -= 8*mib
+        counts[1] += 8*mib
+        with self.assertRaisesRegex(ValueError, "within a stream"):
+            measure()
+
     def test_worker_attempt_units_and_counter_resets(self):
         # Host snapshots bracket setup and drain as well as the 6s client window.
         payload = 2**30

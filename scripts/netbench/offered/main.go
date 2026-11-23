@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptrace"
@@ -63,6 +64,18 @@ func main() {
 		os.Exit(2)
 	}
 
+	newBulkClient := func() *http.Client {
+		tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, MaxIdleConnsPerHost: 1}
+		return &http.Client{Transport: tr, Timeout: 30 * time.Second}
+	}
+	freshClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: true, DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}, Timeout: 15 * time.Second}
+	if err := run(services, newBulkClient, freshClient, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run(services []service, newBulkClient func() *http.Client, freshClient *http.Client, output io.Writer) error {
 	var bytes [32]atomic.Int64
 	var reopens atomic.Int64
 	var jobs, ready sync.WaitGroup
@@ -77,9 +90,8 @@ func main() {
 		go func(i int) {
 			defer jobs.Done()
 			target := services[i%len(services)]
-			tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, MaxIdleConnsPerHost: 1}
-			defer tr.CloseIdleConnections()
-			client := &http.Client{Transport: tr, Timeout: 30 * time.Second}
+			client := newBulkClient()
+			defer client.CloseIdleConnections()
 			if e := identity(client, target.url, target.marker); e != nil {
 				report(e)
 				ready.Done()
@@ -125,11 +137,10 @@ func main() {
 	ready.Wait()
 	const count = 240
 	const gap = 25 * time.Millisecond
-	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true, DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}, Timeout: 15 * time.Second}
 	var results [count]int64
 	var delays [count]int64
 	var fresh sync.WaitGroup
-	var before, delta [32]int64
+	var before, end, final [32]int64
 	for i := range bytes {
 		before[i] = bytes[i].Load()
 	}
@@ -144,7 +155,7 @@ func main() {
 			defer fresh.Done()
 			delays[i] = time.Since(target).Microseconds()
 			service := services[i%len(services)]
-			if e := identity(client, service.url, service.marker); e != nil {
+			if e := identity(freshClient, service.url, service.marker); e != nil {
 				report(e)
 				return
 			}
@@ -155,36 +166,77 @@ func main() {
 		time.Sleep(wait)
 	}
 	elapsed := time.Since(begin)
-	var total int64
 	for i := range bytes {
-		delta[i] = bytes[i].Load() - before[i]
-		total += delta[i]
+		end[i] = bytes[i].Load()
 	}
 	fresh.Wait()
 	close(stop)
 	jobs.Wait()
+	for i := range bytes {
+		final[i] = bytes[i].Load()
+	}
+	phases, err := bulkBodyBytes(&before, &end, &final)
+	if err != nil {
+		return err
+	}
 	slices.Sort(results[:])
 	slices.Sort(delays[:])
-	for stream, n := range delta {
+	for stream, n := range phases.Scored.Streams {
 		if n <= 0 {
 			report(fmt.Errorf("no bytes on stream %d in the offered window", stream))
 		}
 	}
-	err = json.NewEncoder(os.Stdout).Encode(map[string]any{
+	err = json.NewEncoder(output).Encode(map[string]any{
 		"published_ports": len(services),
 		"streams":         32, "arrivals": count, "period_us": gap.Microseconds(), "window_s": elapsed.Seconds(),
-		"bytes": total, "per_stream_bytes": delta, "mib_s": float64(total) / (1 << 20) / elapsed.Seconds(),
+		"bytes": phases.Scored.Bytes, "per_stream_bytes": phases.Scored.Streams,
+		"mib_s": float64(phases.Scored.Bytes) / (1 << 20) / elapsed.Seconds(), "bulk_body_bytes": phases,
 		"fresh_p50_us": results[119], "fresh_p95_us": results[227], "fresh_p99_us": results[237],
 		"dispatch_p95_us": delays[227], "dispatch_max_us": delays[239],
 		"errors": problems, "reopened": reopens.Load(),
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 	if len(problems) > 0 || reopens.Load() != 0 {
-		os.Exit(1)
+		return fmt.Errorf("offered workload recorded %d errors and %d reopens", len(problems), reopens.Load())
 	}
+	return nil
+}
+
+type phaseBytes struct {
+	Bytes   int64     `json:"bytes"`
+	Streams [32]int64 `json:"per_stream_bytes"`
+}
+
+type bulkPhases struct {
+	Warmup     phaseBytes `json:"warmup"`
+	Scored     phaseBytes `json:"scored"`
+	Drain      phaseBytes `json:"drain"`
+	Invocation phaseBytes `json:"invocation"`
+}
+
+// The snapshots contain cumulative /data body bytes only. An unsuccessful response
+// can contribute bytes before its length or HTTP status is checked.
+func bulkBodyBytes(before, end, final *[32]int64) (bulkPhases, error) {
+	var p bulkPhases
+	for i, received := range final {
+		if before[i] < 0 || end[i] < before[i] || received < end[i] {
+			return bulkPhases{}, fmt.Errorf("bulk byte counters decreased on stream %d", i)
+		}
+		if received > math.MaxInt64-p.Invocation.Bytes {
+			return bulkPhases{}, fmt.Errorf("total bulk bytes exceed int64")
+		}
+		p.Invocation.Streams[i] = received
+		p.Invocation.Bytes += received
+		p.Warmup.Streams[i] = before[i]
+		p.Warmup.Bytes += before[i]
+		p.Scored.Streams[i] = end[i] - before[i]
+		p.Scored.Bytes += p.Scored.Streams[i]
+		p.Drain.Streams[i] = received - end[i]
+		p.Drain.Bytes += p.Drain.Streams[i]
+	}
+	return p, nil
 }
 
 type counter struct{ n *atomic.Int64 }

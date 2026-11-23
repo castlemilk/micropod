@@ -20,9 +20,9 @@ import re
 from pathlib import Path, PurePosixPath
 from statistics import median
 
-from gamma_contrasts import IMAGE, VM, clean_client, host_units, paired_median_interval, process_delta, read_receipt
+from gamma_contrasts import GIB, IMAGE, VM, clean_client, host_units, invocation_bulk_bytes, paired_median_interval, process_delta, read_receipt
 from gamma_pilot import DIRECT_ROUTE, HASHES, STOCK_KERNEL, arm_settings, plan, require, single_port_client
-from host_role import CLIENT_SHA256, timestamp
+from host_role import CLIENT_SHA256, LEGACY_P50_CLIENT_SHA256, timestamp
 
 ARCHIVE_SHA = "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4"
 LIMITS = {"cpu.max": "400000 100000", "memory.max": "1073741824", "pids.max": "512"}
@@ -30,7 +30,7 @@ MIN_COMMON = 15
 PRODUCT = {"A": "Micropod", "B": "OrbStack"}
 
 
-def observation(record, pids):
+def observation(record, pids, full_body_counts=False):
     c = record["client"]
     # A recorded failure has an outcome. An absent or malformed record cannot count as a failed peer.
     stream_bytes = c["per_stream_bytes"]
@@ -54,18 +54,22 @@ def observation(record, pids):
             "host counters do not cover the reported client window")
     for sample in (before, after):
         require(sorted(t["pid"] for t in sample["tasks"]) == sorted(pids.values()), "process identity mismatch")
-    host = [host_units(process_delta(before, after, pid), c["bytes"]) for pid in pids.values()]
+    deltas = [process_delta(before, after, pid) for pid in pids.values()]
+    host = [host_units(d, c["bytes"]) for d in deltas]
     require(all(math.isfinite(n) and n >= 0 for h in host for n in h.values()), "invalid host counter")
+    whole = invocation_bulk_bytes(c, clean) if full_body_counts else None
     verified_fresh_errors = len(errors) if min(stream_bytes) > 0 and all('/id"' in e for e in errors) else None
     return dict(clean=clean, mib_s=c["mib_s"], fresh_failed=verified_fresh_errors, offered=c["arrivals"],
                 bulk_reopens=c["reopened"], client_errors=errors, exit_code=record["exit_code"],
                 p50_ms=p50 / 1000 if p50 is not None else None, p95_ms=p95 / 1000, p99_ms=p99 / 1000,
                 cpu_s_per_gib=sum(h["cpu_s_per_gib"] for h in host),
+                invocation_bulk_bytes=whole,
+                invocation_cpu_s_per_bulk_gib=sum(d["cpu_s"] for d in deltas) / (whole / GIB) if whole else None,
                 wait_s_per_s=sum(h["wait_s_per_s"] for h in host),
                 runnable_s_per_s=sum(h["runnable_s_per_s"] for h in host))
 
 
-def assess(orders, pids, get_record):
+def assess(orders, pids, get_record, *, full_body_counts=False):
     require(len(orders["warmup"]) == 3 and len(orders["scored"]) == 16, "need three warmups and 16 scored pairs")
     require(all(sorted(orders["scored"][n:n+2]) == ["AB", "BA"] for n in range(0, 16, 2)),
             "scored orders must balance within each two-pair block")
@@ -85,7 +89,7 @@ def assess(orders, pids, get_record):
                 previous_end = last["epoch_ns"]
                 identity = {t["pid"]: t["birth_ticks"] for t in first["tasks"]}
                 require(births.setdefault(arm, identity) == identity, "process replaced across rounds")
-                row = observation(record, pids[arm])
+                row = observation(record, pids[arm], full_body_counts)
                 if phase == "warmup":
                     require(row["clean"], "dirty warmup")
                 pair[arm] = row
@@ -106,7 +110,8 @@ def assess(orders, pids, get_record):
     for arm, name in PRODUCT.items():
         attempts = [r[arm] for r in rows]
         clean = [r for r in attempts if r["clean"]]
-        metrics = ("mib_s", "p50_ms", "p95_ms", "p99_ms", "cpu_s_per_gib", "wait_s_per_s", "runnable_s_per_s")
+        metrics = ("mib_s", "p50_ms", "p95_ms", "p99_ms", "cpu_s_per_gib",
+                   "invocation_cpu_s_per_bulk_gib", "wait_s_per_s", "runnable_s_per_s")
         summary[name] = {k: median(r[k] for r in clean) if clean and all(r[k] is not None for r in clean) else None
                          for k in metrics}
         summary[name].update(clean=len(clean), offered=sum(r["offered"] for r in attempts),
@@ -169,7 +174,7 @@ def directory(root, candidate_sha, candidate_read_kib=None):
     require(re.fullmatch("[a-f0-9]{64}", candidate_sha or "") is not None, "need the independently selected CLI SHA-256")
     require(schedule["mode"] == "peer" and schedule["host"].split(".")[0] == "Gamma-128GB"
             and schedule["macos"] and schedule["tools"]["rusage"] == HASHES["rusage"]
-            and schedule["tools"]["fixed"] == CLIENT_SHA256
+            and schedule["tools"]["fixed"] in (CLIENT_SHA256, LEGACY_P50_CLIENT_SHA256)
             and completion["identity_rechecked"] is True and completion["ratio_direction"] == "Micropod/OrbStack",
             "missing completed Gamma peer controls")
     order = plan(schedule["seed"], 16)
@@ -214,13 +219,19 @@ def directory(root, candidate_sha, candidate_read_kib=None):
                 and last_start <= first_expiry,
                 "admission observations do not provide continuous coverage around the measured window")
         client = single_port_client(fixtures[arm], r)
+        pin = schedule["tools"]["fixed"]
+        if pin == CLIENT_SHA256 or "fixed_sha256" in r:
+            require(r.get("fixed_sha256") == pin, "attempt load-client hash differs from the peer plan")
+        if pin == LEGACY_P50_CLIENT_SHA256:
+            require("bulk_body_bytes" not in client, "legacy client cannot emit full-invocation body counters")
         for q in (50, 95, 99):
             value = client.get(f"fresh_p{q}_us")
             require(type(value) is int and value > 0, f"missing or invalid fresh p{q} from selected load client")
         return dict(r, client=client)
     return dict(source=str(root), reservation=handoff["reservation"], candidate_sha256=candidate_sha,
                 vcpus=a["cpus"], image_config=IMAGE, relay_read_bytes=a.get("read_bytes"),
-                **assess(order, {arm: f["pids"] for arm, f in fixtures.items()}, get_record))
+                **assess(order, {arm: f["pids"] for arm, f in fixtures.items()}, get_record,
+                         full_body_counts=schedule["tools"]["fixed"] == CLIENT_SHA256))
 
 
 if __name__ == "__main__":
@@ -249,7 +260,9 @@ if __name__ == "__main__":
             for name, arm in result["arm_clean_medians_and_all_attempt_counts"].items():
                 latency = "/".join(fmt(arm[f"p{q}_ms"]) for q in (50, 95, 99))
                 print(f'{name} completed {arm["clean"]}/16 clean rounds at {fmt(arm["mib_s"])} MiB/s, '
-                      f'fresh p50/p95/p99 {latency} ms, {fmt(arm["cpu_s_per_gib"])} CPU-s/GiB, '
+                      f'fresh p50/p95/p99 {latency} ms, '
+                      f'{fmt(arm["invocation_cpu_s_per_bulk_gib"])} CPU-s per full-invocation bulk GiB '
+                      f'({fmt(arm["cpu_s_per_gib"])} invocation CPU-s per scored GiB), '
                       f'{fmt(arm["wait_s_per_s"])} runnable wait thread-s/s, {arm["known_fresh_failures"]} '
                       f'known fresh failures, {arm["unknown_fresh_failure_counts"]} unknown failure counts, '
                       f'{arm["bulk_reopens"]} bulk reopens')

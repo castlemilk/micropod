@@ -31,7 +31,7 @@ def completed_run(root):
     order = peer.plan(34203, 16)
     write(root, "plan.json", dict(seed=34203, mode="peer", host="Gamma-128GB.local", macos="26.5.1",
                                   arms=peer.arm_settings("peer", 4, 6), order=order,
-                                  tools=dict(peer.HASHES, fixed=peer.CLIENT_SHA256)))
+                                  tools=dict(peer.HASHES, fixed=peer.LEGACY_P50_CLIENT_SHA256)))
     fixtures = {}
     clock = 1000
     write(root, "handoff.json", admission(clock-2))
@@ -77,6 +77,45 @@ def change_client(root, number, arm, *, is_clean, **updates):
 
 
 class PeerVerdictTests(unittest.TestCase):
+    def test_current_pin_requires_full_body_counts_and_recomputes_cost(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            completed_run(root)
+            legacy = peer.directory(root, CLI_SHA)
+            self.assertIsNone(legacy["pairs"][0]["A"]["invocation_cpu_s_per_bulk_gib"])
+            schedule = json.loads((root/"plan.json").read_text())
+            schedule["tools"]["fixed"] = peer.CLIENT_SHA256
+            write(root, "plan.json", schedule)
+            with self.assertRaisesRegex(ValueError, "attempt load-client hash"):
+                peer.directory(root, CLI_SHA)
+            body = 8 * 2**20
+            for file in [*root.glob("warmup-*.json"), *root.glob("scored-*.json")]:
+                row = json.loads(file.read_text())
+                client = json.loads(row["stdout"])
+                count = client["per_stream_bytes"][0]
+                client["bulk_body_bytes"] = {name: dict(bytes=n*32, per_stream_bytes=[n]*32)
+                                             for name, n in (("warmup", body), ("scored", count),
+                                                             ("drain", body-count), ("invocation", 2*body))}
+                row.update(stdout=json.dumps(client), fixed_sha256=peer.CLIENT_SHA256,
+                           host={"vmm": {"invocation_cpu_s_per_bulk_gib": 99}})
+                write(root, file.name, row)
+            report = peer.directory(root, CLI_SHA)
+            a = report["pairs"][0]["A"]
+            self.assertEqual(a["invocation_bulk_bytes"], 512 * 2**20)
+            self.assertAlmostEqual(a["invocation_cpu_s_per_bulk_gib"], 2*7*300*1e-9/.5)
+            self.assertEqual(report["median_ratio"], legacy["median_ratio"])
+            row = json.loads((root/"scored-16-B.json").read_text())
+            client = json.loads(row["stdout"])
+            del client["bulk_body_bytes"]["drain"]
+            row["stdout"] = json.dumps(client)
+            write(root, "scored-16-B.json", row)
+            with self.assertRaisesRegex(ValueError, "missing drain"):
+                peer.directory(root, CLI_SHA)
+            schedule["tools"]["fixed"] = peer.LEGACY_P50_CLIENT_SHA256
+            write(root, "plan.json", schedule)
+            with self.assertRaisesRegex(ValueError, "attempt load-client hash"):
+                peer.directory(root, CLI_SHA)
+
     def test_historical_archive_replays_including_failed_peer_and_unknown_p50(self):
         r = peer.archived()
         self.assertEqual((r["verdict"], r["common_clean_pairs"], r["micropod_pair_wins"]), ("did not qualify", 15, 7))
