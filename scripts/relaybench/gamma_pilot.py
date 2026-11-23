@@ -10,9 +10,11 @@ import re
 import subprocess
 import tarfile
 import tempfile
+import time
 from pathlib import Path
 from statistics import median
 
+import host_role
 from gamma_contrasts import IMAGE, clean_client, host_units, paired_median_interval, process_delta
 
 TOOLS = Path("/tmp/mp-priority.b3sbI7ym")
@@ -41,9 +43,14 @@ def plan(seed, scored_pairs=2):
 
 
 def arm_settings(mode, workers=2, peer_vcpus=4):
-    require(mode in ("size", "peer", "workers") and workers in (2, 4) and peer_vcpus in (4, 6), "invalid arms")
+    require(mode in ("size", "peer", "workers", "host-role") and workers in (2, 4) and peer_vcpus in (4, 6),
+            "invalid arms")
     require(mode == "peer" or peer_vcpus == 4, "--peer-vcpus applies only to the OrbStack comparison")
     require(mode != "workers" or workers == 2, "the workers comparison always uses two and four workers")
+    if mode == "host-role":
+        require(workers == 2, "host-role requires the stock two-worker relay")
+        return {arm: dict(engine="Micropod", vcpus=4, relay_workers=2, callback_events=128, process_type=role)
+                for arm, role in (("A", "Standard"), ("B", "Interactive"))}
     a_cpus = peer_vcpus if mode == "peer" else 4
     b_workers = {"workers": 4, "size": workers, "peer": None}[mode]
     return {"A": dict(engine="Micropod", vcpus=a_cpus, relay_workers=workers, callback_events=128),
@@ -94,7 +101,7 @@ def image_config(docker, container):
     return "sha256:" + hashlib.sha256(config).hexdigest()
 
 
-def inspect(scope, cpus, orb):
+def inspect(scope, cpus, orb, process_type=None):
     scope = scope.resolve()
     require(scope.is_dir() and not (scope / "removed").exists(), f"missing or retired fixture: {scope}")
     base = value(scope, "base")
@@ -147,8 +154,20 @@ def inspect(scope, cpus, orb):
     job = plistlib.loads((owner / "job.plist").read_bytes())
     env = job["EnvironmentVariables"]
     role = command("launchctl", "print", f"gui/{os.getuid()}/{job['Label']}")
-    require(re.search(rf"(?m)^\s*pid = {pids['relay']}$", role) and "spawn type = interactive" in role
-            and env["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive", "different live relay role")
+    if process_type is None:
+        require(re.search(rf"(?m)^\s*pid = {pids['relay']}$", role) and "spawn type = interactive" in role
+                and env["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive", "different live relay role")
+    else:
+        require(Path(command("ps", "-p", str(pids["vmm"]), "-o", "comm=")).name
+                == "com.apple.Virtualization.VirtualMachine", "disk holder is not the Apple VMM")
+        fixture.update(host_role.verify_job(job, role, pids["relay"], home, process_type))
+        fixture["docker_socket"] = str(sock)
+        mounts = [mount for mount in c["Mounts"] if mount["Destination"] == "/mpcheck"]
+        require(len(mounts) == 1 and mounts[0]["RW"] is False, "need the read-only guest probe mount")
+        probe = command(*docker, "exec", cid, "/mpcheck/netbench", "-self-sha256")
+        require(probe == host_role.GUEST_PROBE_SHA256, "unrecognized running guest probe")
+        fixture["guest_probe_sha256"] = probe
+        fixture["guest_boot"] = host_role.guest_sample(command, fixture)["boot"]
     routes = json.loads(command(*docker, "exec", cid, "/mpcheck/pathproof", "routes"))
     reno_routes = [route for route in routes.get("mppub0", []) if route.get("Congctl") == "reno"]
     require(state["release"].strip() == "7.3.5-micropod" and config["memoryMiB"] == 4096
@@ -182,15 +201,18 @@ def identities(snap):
     return {r["pid"]: r["birth_ticks"] for r in snap["tasks"]}
 
 
-def attempt(tools, fixture, birth, receipt):
+def attempt(tools, fixture, birth, receipt, check_window=None):
     receipt["before"] = snapshot(tools, fixture)
     require(identities(receipt["before"]) == birth, "host process replaced before timing")
     try:
-        result = subprocess.run([tools / "fixed", "http://" + fixture["address"], fixture["name"]],
-                                capture_output=True, text=True, timeout=75)
+        args = [tools / "fixed", "http://" + fixture["address"], fixture["name"]]
+        if check_window is None:
+            result = subprocess.run(args, capture_output=True, text=True, timeout=75)
+        else:
+            result = run_in_window(args, check_window, receipt)
     except subprocess.TimeoutExpired as exc:
-        receipt.update(stdout=(exc.stdout or b"").decode(errors="replace"),
-                       stderr=(exc.stderr or b"").decode(errors="replace"))
+        receipt.setdefault("stdout", (exc.stdout or b"").decode(errors="replace"))
+        receipt.setdefault("stderr", (exc.stderr or b"").decode(errors="replace"))
         receipt["after"] = snapshot(tools, fixture)
         raise
     receipt.update(exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
@@ -207,8 +229,32 @@ def attempt(tools, fixture, birth, receipt):
             delta = process_delta(receipt["before"], receipt["after"], pid)
             counters[role] = {**delta, **host_units(delta, c["bytes"])}
         receipt["host"] = counters
+    if "fresh_p50_us" in c:
+        receipt["fresh_p50_us"] = c["fresh_p50_us"]
     receipt.update(mib_s=c.get("mib_s"), fresh_p95_us=c.get("fresh_p95_us"), fresh_p99_us=c.get("fresh_p99_us"),
                    arrivals=c.get("arrivals"), reopened=c.get("reopened"))
+
+
+def run_in_window(args, check_window, receipt):
+    check_window()
+    deadline = time.monotonic() + 75
+    with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as client:
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(args, 75)
+                try:
+                    stdout, stderr = client.communicate(timeout=min(1, remaining))
+                    return subprocess.CompletedProcess(args, client.returncode, stdout, stderr)
+                except subprocess.TimeoutExpired:
+                    check_window()
+        except BaseException:
+            if client.poll() is None:
+                client.kill()
+            receipt["stdout"], receipt["stderr"] = client.communicate()
+            receipt["exit_code"] = client.returncode
+            raise
 
 
 def save(path, obj):
@@ -217,17 +263,38 @@ def save(path, obj):
 
 def run(args, orders, *, workers=2, peer_vcpus=4):
     settings = arm_settings(args.mode, workers, peer_vcpus)
+    role_test = args.mode == "host-role"
+    tools = dict(HASHES, fixed=host_role.CLIENT_SHA256) if role_test else HASHES
     args.out.mkdir()  # Refuse to overwrite a previous attempt.
-    save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=HASHES,
+    save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=tools,
                                      host=platform.node(), macos=platform.mac_ver()[0]))
     require(platform.node().split(".")[0] == "Gamma-128GB", "run only on the original Gamma Mac")
-    for tool, expected in HASHES.items():
+    for tool, expected in tools.items():
         require(digest(args.tools / tool) == expected, f"unrecognized {tool} binary")
     peer = args.mode == "peer"
     scopes = {"A": (args.a, settings["A"]["vcpus"], False), "B": (args.b, settings["B"]["vcpus"], peer)}
     for path, _, _ in scopes.values():
         require(path.is_dir() and not (path / "removed").exists(), f"missing or retired fixture: {path}")
-    fixtures = {arm: inspect(*scopes[arm]) for arm in ("BA" if peer else "AB")}
+    if role_test:
+        require(len(orders["scored"]) >= 4, "host-role needs at least four scored pairs")
+        def read_window():
+            return host_role.check_window(args.fleet, args.release, (args.a, args.b), time.time())
+
+        initial_window = read_window()
+        save(args.out / "handoff.json", initial_window)
+
+        def check_window():
+            live = read_window()
+            require(all(live[k] == initial_window[k] for k in ("owner", "reservation")), "Gamma handoff changed")
+            return live
+
+    def inspect_arm(arm):
+        if role_test:
+            check_window()
+            return inspect(*scopes[arm], process_type=settings[arm]["process_type"])
+        return inspect(*scopes[arm])
+
+    fixtures = {arm: inspect_arm(arm) for arm in ("BA" if peer else "AB")}
     a, b = fixtures["A"], fixtures["B"]
     for key in ("engine", "id", "address", "name"):
         require(a[key] and b[key] and a[key] != b[key], f"arms share {key}")
@@ -239,7 +306,7 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
             continue
         fixture = fixtures[arm]
         require(fixture["relay_workers"] == expected, f"arm {arm} needs {expected} relay workers")
-        if (args.mode == "workers" or expected == 4 or len(orders["scored"]) >= 16
+        if (args.mode in ("workers", "host-role") or expected == 4 or len(orders["scored"]) >= 16
                 or fixture.get("callback_events") is not None):
             require(fixture.get("callback_events") == settings_arm["callback_events"],
                     f"arm {arm} needs a verified 128-event callback")
@@ -249,11 +316,19 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
         kernel_field = "kernel_image_sha256" if all("kernel_image_sha256" in f for f in (a, b)) else "kernel"
         for key in (kernel_field, "release", "engine_version", "cli_sha256", "route", "service_env_sha256"):
             require(a[key] == b[key], f"Micropod arms differ in {key}")
+    if role_test:
+        require(a["job_controls_sha256"] == b["job_controls_sha256"], "launchd controls differ beyond ProcessType")
+        require(a["guest_boot"] != b["guest_boot"], "arms share a guest boot")
+        for arm, fixture in fixtures.items():
+            require(fixture["process_type"] == settings[arm]["process_type"]
+                    and fixture["kernel_image_sha256"] == STOCK_KERNEL, "wrong role or stock kernel")
     birth = {arm: identities(snapshot(args.tools, f)) for arm, f in fixtures.items()}
     save(args.out / "fixtures.json", fixtures)
+    if role_test:
+        check_window()
     if args.check:
         return
-    scored = {}
+    scored, role_rows = {}, {}
     for phase, pairs in orders.items():
         for number, order in enumerate(pairs, 1):
             for arm in order:
@@ -261,7 +336,20 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                 try:
                     require(all(path.is_dir() and not (path / "removed").exists() for path, _, _ in scopes.values()),
                             "fixture retired during the pilot")
-                    attempt(args.tools, fixtures[arm], birth[arm], row)
+                    if role_test:
+                        row["admission"] = check_window()
+                        fixture = fixtures[arm]
+                        row["guest_before"] = host_role.guest_sample(command, fixture)
+                        require(row["guest_before"]["boot"] == fixture["guest_boot"], "guest boot changed before timing")
+                        attempt(args.tools, fixture, birth[arm], row, check_window)
+                        check_window()
+                        row["guest_after"] = host_role.guest_sample(command, fixture)
+                        row["guest"] = host_role.guest_delta(row["guest_before"], row["guest_after"])
+                        if phase == "warmup":
+                            require(not any(row["guest"]["delta"][k] for k in host_role.FAULT_COUNTERS),
+                                    "interface fault or TCP reset during warmup")
+                    else:
+                        attempt(args.tools, fixtures[arm], birth[arm], row)
                 except (OSError, ValueError, KeyError, StopIteration, subprocess.SubprocessError) as exc:
                     row.update(clean=False, error=str(exc))
                     raise
@@ -270,26 +358,35 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                 require(phase != "warmup" or row["clean"], "warmup failed")
                 if phase == "scored" and row["clean"]:
                     scored[number, arm] = row["mib_s"]
-    require(all(inspect(*spec) == fixtures[arm] for arm, spec in scopes.items()), "fixture changed since preflight")
+                if phase == "scored" and role_test:
+                    role_rows[number, arm] = row
+    require(all(inspect_arm(arm) == fixtures[arm] for arm in scopes), "fixture changed since preflight")
     numerator, denominator = ("A", "B") if peer else ("B", "A")
     ratios = {n: scored[n, numerator] / scored[n, denominator] for n in range(1, len(orders["scored"]) + 1)
               if (n, "A") in scored and (n, "B") in scored}
     deltas = {n: scored[n, numerator] - scored[n, denominator] for n in ratios}
     direction = {"peer": "Micropod/OrbStack", "size": "Micropod 6 vCPUs/Micropod 4 vCPUs",
-                 "workers": "Micropod 4 relay workers/Micropod 2 relay workers"}[args.mode]
+                 "workers": "Micropod 4 relay workers/Micropod 2 relay workers",
+                 "host-role": "Micropod Interactive/Micropod Standard"}[args.mode]
     values = list(ratios.values())
-    save(args.out / "complete.json", dict(identity_rechecked=True, ratio_direction=direction, paired_ratios=ratios,
-                                         paired_mib_s_differences=deltas,
-                                         median_paired_mib_s_difference=median(deltas.values()) if deltas else None,
-                                         median_ratio=median(values) if values else None,
-                                         bootstrap_ci95=paired_median_interval(values),
-                                         clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings}))
+    complete = dict(identity_rechecked=True, ratio_direction=direction, paired_ratios=ratios,
+                    paired_mib_s_differences=deltas,
+                    median_paired_mib_s_difference=median(deltas.values()) if deltas else None,
+                    median_ratio=median(values) if values else None, bootstrap_ci95=paired_median_interval(values),
+                    clean_scored={arm: sum(a == arm for _, a in scored) for arm in settings})
+    if role_test:
+        check_window()
+        complete["host_role"] = host_role.decision(role_rows, len(orders["scored"]))
+    save(args.out / "complete.json", complete)
+    if role_test and complete["host_role"]["verdict"] != "eligible for confirmation":
+        outcome = complete["host_role"]
+        raise ValueError("host-role " + outcome["verdict"] + ": " + ", ".join(outcome["reasons"]))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("size", "peer", "workers"), default="size",
-                        help="VM size, matched OrbStack peer, or two/four relay workers on four-vCPU VMs")
+    parser.add_argument("--mode", choices=("size", "peer", "workers", "host-role"), default="size",
+                        help="VM size, matched peer, relay workers, or Standard/Interactive launchd roles")
     parser.add_argument("--relay-workers", type=int, choices=(2, 4), default=2, help="fixed Micropod count for size/peer")
     parser.add_argument("--peer-vcpus", type=int, choices=(4, 6), default=4, help="equal VM size for a peer test")
     parser.add_argument("--holdout", action="store_true", help="16 scored pairs, balanced in blocks of two")
@@ -300,16 +397,21 @@ if __name__ == "__main__":
     parser.add_argument("--tools", type=Path, default=TOOLS)
     parser.add_argument("--a", type=Path, help="owner's already-running Micropod control fixture scope")
     parser.add_argument("--b", type=Path, help="owner's already-running candidate or peer fixture scope")
+    parser.add_argument("--fleet", type=Path, help="refreshed Cuttlefish fleet export for host-role")
+    parser.add_argument("--release", type=Path, help="owner's exclusive host-role handoff for both fixture paths")
     parser.add_argument("--out", type=Path, help="new output directory")
     args = parser.parse_args()
     try:
         settings = arm_settings(args.mode, args.relay_workers, args.peer_vcpus)
     except ValueError as exc:
         parser.error(str(exc))
-    orders = plan(args.seed, 16 if args.holdout else 2)
+    pilot_pairs = 4 if args.mode == "host-role" else 2
+    orders = plan(args.seed, 16 if args.holdout else pilot_pairs)
     if args.run or args.check:
         if not all((args.a, args.b, args.out)):
             parser.error("fixture checks and runs need --a, --b and --out")
+        if args.mode == "host-role" and not (args.fleet and args.release):
+            parser.error("live host-role checks need --fleet and --release")
         try:
             run(args, orders, workers=args.relay_workers, peer_vcpus=args.peer_vcpus)
         except (OSError, ValueError, KeyError, StopIteration, subprocess.SubprocessError, tarfile.TarError) as exc:

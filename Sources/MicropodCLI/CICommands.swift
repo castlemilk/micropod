@@ -31,7 +31,8 @@ enum CICommands {
         micropod ci serve                 supervise the worker in the foreground
         micropod ci install-service       run the worker under launchd across CI job lifetimes
         micropod ci uninstall-service     retire the idle service and retain its disk
-        micropod ci launch-agent          print the launchd configuration for inspection
+        micropod ci launch-agent [--process-type Standard|Interactive]
+                                          print the launchd configuration for inspection
         """
 
     static func main(_ args: [String]) async -> Int32 {
@@ -50,10 +51,14 @@ enum CICommands {
             print(help)
             return 0
         }
+        let processType =
+            command == "launch-agent" && args.count == 3 && args[1] == "--process-type"
+            ? CIWorker.LaunchProcessType(rawValue: args[2]) : nil
         guard
             ["run", "create", "docker", "snapshot", "warm-go", "job", "runner-prime"].contains(command)
                 || args == ["metrics", "--usage"]
                 || args == ["metrics", "--kernel"]
+                || processType != nil
                 || (command == "set-cpus" && args.count == 2)
                 || args.count == 1
         else {
@@ -140,7 +145,8 @@ enum CICommands {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
                 if command == "launch-agent" {
-                    FileHandle.standardOutput.write(try worker.launchAgent(executable: executable))
+                    FileHandle.standardOutput.write(
+                        try worker.launchAgent(executable: executable, processType: processType))
                 } else {
                     try printStatus(await worker.installService(executable: executable))
                 }

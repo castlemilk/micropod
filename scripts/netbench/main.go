@@ -40,14 +40,29 @@ func main() {
 	traceMixed := flag.Bool("trace-mixed", false, "sample per-stream bytes and fresh HTTP phase timestamps around the mixed interval")
 	freshURL := flag.String("fresh-url", "", "mixed profile only: send fresh requests to a second URL serving the same marker")
 	netInfo := flag.Bool("net-info", false, "snapshot Linux network-namespace and cgroup counters")
+	selfDigest := flag.Bool("self-sha256", false, "print the SHA-256 of the running Linux probe")
 	cgroupInfo := flag.Bool("cgroup-info", false, "print the actual cgroup v2 limits seen inside this Linux container")
 	dns := flag.Int("lookups", 0, "number of single-family service DNS lookups")
 	dnsClients := flag.Int("dns-clients", 1, "independent resolvers issuing parallel service lookups")
 	flag.Parse()
+	if *selfDigest {
+		executable, err := os.Open("/proc/self/exe")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer executable.Close()
+		hash := sha256.New()
+		if _, err := io.Copy(hash, executable); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%x\n", hash.Sum(nil))
+		return
+	}
 	if *netInfo {
 		files := []string{"/proc/net/snmp", "/proc/net/netstat", "/proc/net/sockstat", "/proc/net/dev", "/proc/net/stat/nf_conntrack",
 			"/proc/sys/net/netfilter/nf_conntrack_count", "/proc/sys/net/netfilter/nf_conntrack_max",
-			"/sys/fs/cgroup/cpu.stat", "/sys/fs/cgroup/cpu.pressure", "/sys/fs/cgroup/memory.events"}
+			"/sys/fs/cgroup/cpu.stat", "/sys/fs/cgroup/cpu.pressure", "/sys/fs/cgroup/memory.events",
+			"/proc/sys/kernel/random/boot_id", "/proc/interrupts", "/proc/softirqs", "/proc/stat"}
 		values := map[string]string{}
 		for _, path := range files {
 			if b, err := os.ReadFile(path); err == nil {

@@ -3,6 +3,11 @@ import Foundation
 import MicropodCore
 
 extension CIWorker {
+    public enum LaunchProcessType: String, Sendable {
+        case standard = "Standard"
+        case interactive = "Interactive"
+    }
+
     private static let agentLabel = "com.skunkworq.micropod.ci-worker"
 
     private var agentFile: URL {
@@ -12,6 +17,11 @@ extension CIWorker {
 
     /// Used by launchd before the runner begins accepting individual jobs.
     public func launchAgent(executable: URL) throws -> Data {
+        try launchAgent(executable: executable, processType: nil)
+    }
+
+    /// Render a job with an explicit scheduling role for a same-relay comparison.
+    public func launchAgent(executable: URL, processType: LaunchProcessType?) throws -> Data {
         var environment = resourceEnvironment
         environment["MICROPOD_CI_HOME"] = directory.path
         var plist: [String: Any] = [
@@ -19,9 +29,9 @@ extension CIWorker {
             "EnvironmentVariables": environment, "RunAtLoad": true, "KeepAlive": ["Crashed": true],
             "StandardOutPath": log.path, "StandardErrorPath": log.path,
         ]
-        if isNativeRunner && environment["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive" {
-            plist["ProcessType"] = "Interactive"
-        }
+        let interactiveRelay = isNativeRunner && environment["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive"
+        plist["ProcessType"] =
+            processType?.rawValue ?? (interactiveRelay ? LaunchProcessType.interactive.rawValue : nil)
         return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
     }
 

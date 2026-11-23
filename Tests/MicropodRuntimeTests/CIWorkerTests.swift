@@ -196,6 +196,24 @@ final class CIWorkerTests: XCTestCase {
         XCTAssertEqual((plist["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_PORT_RELAY_WORKERS"], "4")
     }
 
+    func testLaunchProcessTypeOnlyChangesTheRenderedJobRole() throws {
+        let worker = CIWorker(environment: [
+            "MICROPOD_CI_ENGINE": "containerd", "MICROPOD_CI_PORT_RELAY": "kqueue-interactive",
+            "MICROPOD_CI_PORT_RELAY_WORKERS": "2", "MICROPOD_CI_CPUS": "4",
+        ])
+        let binary = URL(fileURLWithPath: "/bin/micropod")
+        func plist(_ data: Data) throws -> [String: Any] {
+            try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        }
+        let original = try plist(worker.launchAgent(executable: binary))
+        let interactive = try plist(worker.launchAgent(executable: binary, processType: .interactive))
+        XCTAssertEqual(original as NSDictionary, interactive as NSDictionary)
+        var standard = try plist(worker.launchAgent(executable: binary, processType: .standard))
+        XCTAssertEqual(standard["ProcessType"] as? String, "Standard")
+        standard["ProcessType"] = "Interactive"
+        XCTAssertEqual(standard as NSDictionary, interactive as NSDictionary)
+    }
+
     func testPublishedRelayWorkerCountFollowsTheSelectedMode() throws {
         for mode in [nil, "kqueue", "nio"] as [String?] {
             let config = try CIWorkerPortRelay(mode: mode)

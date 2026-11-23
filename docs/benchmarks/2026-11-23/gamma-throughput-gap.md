@@ -1,5 +1,7 @@
 # Closing the single-port throughput gap on Gamma
 
+The 23 November research also has a separate four-vCPU pilot comparing launchd Standard and Interactive with the same relay build and socket settings. [Host scheduling experiment and source audit](../../research/2026-11-23-apple-silicon-performance-optimization.md)
+
 The last four-vCPU VM holdout delivered 2,709.8 MiB/s for Micropod and 3,010.4 MiB/s for OrbStack. Closing that difference between clean medians takes an 11.1% lift. The median Micropod/OrbStack ratio across the 15 common clean pairs was 0.854, with a 95% paired bootstrap interval of 0.709–1.259. Recovering that paired point estimate would take a 17.1% lift. The comparison that decides which runtime is faster is a fresh paired holdout. [VM throughput graph](../2026-11-22/gamma-end-to-end-vm.png) · [Original per-round data](../2026-11-22/gamma-tcp-contrasts.json)
 
 ## Which change to test first

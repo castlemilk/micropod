@@ -174,7 +174,7 @@ func main() {
 		"published_ports": len(services),
 		"streams":         32, "arrivals": count, "period_us": gap.Microseconds(), "window_s": elapsed.Seconds(),
 		"bytes": total, "per_stream_bytes": delta, "mib_s": float64(total) / (1 << 20) / elapsed.Seconds(),
-		"fresh_p95_us": results[227], "fresh_p99_us": results[237],
+		"fresh_p50_us": results[119], "fresh_p95_us": results[227], "fresh_p99_us": results[237],
 		"dispatch_p95_us": delays[227], "dispatch_max_us": delays[239],
 		"errors": problems, "reopened": reopens.Load(),
 	})
