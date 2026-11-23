@@ -241,6 +241,42 @@ class HostRoleTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "has a lease"):
                 role.check_window(f, r, scopes, now)
 
+    def test_hosted_fleet_keeps_server_time_and_rejects_an_online_leased_runner(self):
+        archive = Path(__file__).resolve().parents[2] / "docs/benchmarks/2026-11-23/gamma-fleet-1611-aedt.json"
+        hosted = json.loads(archive.read_text())
+        now = role.timestamp(hosted["serverTime"])
+        self.assertEqual([rig["leasedSlots"] for rig in hosted["rigs"]], [4, 1])
+        self.assertEqual(hosted["rigs"][1]["state"], "online")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scopes = [root / "a", root / "b"]
+            fleet, release = make_window(root, now, scopes)
+            with self.assertRaisesRegex(ValueError, "has a lease"):
+                role.check_window(archive, release, scopes, now)
+            hosted["rigs"][0].update(state="online", leasedSlots=0)
+            fleet.write_text(json.dumps(hosted))
+            with self.assertRaisesRegex(ValueError, "has a lease: Gamma-128GB Linux CI"):
+                role.check_window(fleet, release, scopes, now)
+            hosted["rigs"][1]["leasedSlots"] = 0
+            def observe(data=hosted, at=now):
+                fleet.write_text(json.dumps(data))
+                return role.check_window(fleet, release, scopes, at)
+            admitted = observe()
+            self.assertEqual(admitted["fleet_time"], hosted["serverTime"])
+            first_heartbeat = min(role.timestamp(r["lastSeenAt"]) for r in hosted["rigs"])
+            self.assertEqual(admitted["valid_until_epoch"], first_heartbeat + 90)
+            with self.assertRaisesRegex(ValueError, "unavailable"):
+                observe(at=first_heartbeat + 91)
+            for patch in ({"leasedSlots": None}, {"leasedSlots": False}, {"leasedSlots": -1},
+                          {"capacity": 0}, {"acceptingWork": False}, {"state": "draining"},
+                          {"snapshotFreshness": "stale"}, {"connectionState": "offline"}):
+                with self.subTest(patch=patch), self.assertRaises(ValueError):
+                    observe(dict(hosted, rigs=[hosted["rigs"][0], dict(hosted["rigs"][1], **patch)]))
+            for bad in (dict(hosted, truncated=True), dict(hosted, runners=[]), dict(hosted, project="other"),
+                        dict(hosted, rigs=hosted["rigs"] * 2), dict(hosted, rigs=hosted["rigs"][:1])):
+                with self.assertRaises(ValueError):
+                    observe(bad)
+
     def test_mid_attempt_handoff_loss_stops_only_our_child_and_keeps_output(self):
         with patch.object(pilot.time, "time", return_value=100):
             receipt = {}

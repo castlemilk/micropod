@@ -16,6 +16,10 @@ The last four-vCPU VM holdout delivered 2,709.8 MiB/s for Micropod and 3,010.4 M
 
 ## First released window
 
+At 16:11 AEDT on 23 November the project volume showed 173 GiB available. Cuttlefish reported four of six slots leased on the Mac and one of one on the isolated Linux runner, whose displayed state was online. The four earlier scopes were retired. The storage update and request for an existing baseline or a released and provisioned scope were placed in the warm-CI handoff. [Fleet observation](gamma-fleet-1611-aedt.json)
+
+The paired driver accepts the hosted Cuttlefish runners-list JSON for the `cuttlefish` project as well as the native fleet export. Preserve the service timestamp and both heartbeat times when refreshing it. For the stock pilot in the sibling checkout, `python3 -B scripts/relaybench/gamma_fleet.py "$HOSTED_SNAPSHOT"` prints its native fleet format. A busy, stale or otherwise ineligible lane remains ineligible after conversion. The owner handoff and effective disk clearance are separate inputs.
+
 The warm-CI owner's first priority is the shared stock baseline. Reuse its receipt if available. Otherwise the designated direct-Reno four-vCPU, two-worker scope gets one six-second warmup and one six-second scored interval. At 10:21 and 10:34 AEDT on 23 November the isolated Gamma Linux runner held 1/1 leases and the Mac agent was draining. All four previous peer fixture records were retired. The worker comparison needs its own two serving scopes and a released window. [Baseline command and fixture requirements in the sibling checkout](../../../../kernel-path-20261122/docs/benchmarks/2026-11-22/kernel-path/README.md#run-in-a-released-slot)
 
 An ordinary build gives two workers 128 events per callback and four workers 24. To isolate the worker count, build one benchmark binary for both disposable supervisors. The following build option makes both use 128. The local Darwin fixed-work fixture actually forwarded 128 and 24 one-byte reads with the ordinary binary and 128 and 128 with the benchmark binary. Both preserved the full payload and order. [Fixed-work program](../../../scripts/relaybench/check_callback_budget.c)

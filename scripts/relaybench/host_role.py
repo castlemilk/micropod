@@ -10,6 +10,8 @@ from pathlib import Path
 from statistics import median, quantiles
 from uuid import UUID
 
+from gamma_fleet import GAMMA_LINUX, GAMMA_MAC, hosted_export
+
 
 # These spellings and numbers appear in Gamma's archived role-control launchctl output.
 SPAWN_TYPES = {"Standard": "daemon (3)", "Interactive": "interactive (4)"}
@@ -32,11 +34,11 @@ def timestamp(value):
 def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
     """Use the same fleet export and owner handoff schema as the shared stock pilot."""
     fleet = json.loads(fleet_path.read_text())
+    if "rigs" in fleet or "serverTime" in fleet:
+        fleet = hosted_export(fleet)
     release = json.loads(release_path.read_text())
-    mac = "Gamma-128GB.local"
-    linux = "Gamma-128GB Linux CI (isolated VM)"
     scope_paths = [str(path.resolve()) for path in scopes]
-    if not (release["owner"].strip() and release["reservation"].strip() and release["host"] == mac
+    if not (release["owner"].strip() and release["reservation"].strip() and release["host"] == GAMMA_MAC
             and release["exclusive"] is True and isinstance(release["modes"], list) and mode in release["modes"]
             and timestamp(release["starts_at"]) <= now < timestamp(release["expires_at"])
             and len(set(scope_paths)) == len(scope_paths) == 2 and isinstance(release["scopes"], list)
@@ -51,7 +53,7 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
         raise ValueError("stale Gamma fleet receipt")
     expiry = min(timestamp(release["expires_at"]), timestamp(clearance["expires_at"]),
                  timestamp(fleet["generatedAt"]) + 90)
-    for name in (mac, linux):
+    for name in (GAMMA_MAC, GAMMA_LINUX):
         matches = [r for r in fleet["runners"] if r["runner"]["displayName"] == name]
         if len(matches) != 1:
             raise ValueError(f"missing or ambiguous Gamma runner: {name}")
@@ -60,7 +62,7 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
                 or type(info["activeLeases"]) is not int or info["activeLeases"] != 0
                 or type(info["capacity"]) is not int or info["capacity"] < 1
                 or not 0 <= now - timestamp(info["lastSeenAt"]) <= 90
-                or (name == linux and info["capacity"] != 1)):
+                or (name == GAMMA_LINUX and info["capacity"] != 1)):
             raise ValueError(f"Gamma runner is unavailable or has a lease: {name}")
         expiry = min(expiry, timestamp(info["lastSeenAt"]) + 90)
     return {"reservation": release["reservation"], "owner": release["owner"], "mode": mode,
