@@ -11,6 +11,34 @@ Source audit at Micropod `5ed73417`, with Apple Containerization 0.42.0 pinned t
 
 The APFS clone test already checks private writes and fsync on sibling files. The pnpm probe can report private sizes and clone-family IDs for selected files. Neither measures end-to-end edit propagation. The shared-view tests cover stale echoes and edits and can supply correctness fixtures for a timed comparison. [APFS clone test](../../scripts/bench_worker_clone.py) · [pnpm allocation probe](../../scripts/bench_pnpm_storage.py) · [Shared-view tests](../../Tests/MicropodSharedFSTests/SharedViewSyncTests.swift)
 
+### Private allocation after edits to a cloned file
+
+On macOS 26.5.1, a background thread made eight separately fsynced 4 KiB edits to a dense 1 MiB APFS file, then rewrote the same offsets. Each of four balanced rounds included a fresh clone and an independently written control for each layout. All 256 edits completed. Full-file rereads after each pass verified the edited bytes, untouched regions and the source. [Raw timings and allocation after every fsync](../benchmarks/2026-11-23/apfs-cow-local.json)
+
+| File and edit placement | First-pass private byte growth, all four rounds | Second-pass private byte growth, all four rounds | Median time for eight first-pass writes and fsyncs |
+| --- | ---: | ---: | ---: |
+| Clone, consecutive 4 KiB blocks | 32 KiB | 0 | 161 ms |
+| Clone, 64 KiB between offsets | 128 KiB | 0 | 515 ms |
+| Independent file, consecutive 4 KiB blocks | 0 | 0 | 152 ms |
+| Independent file, 64 KiB between offsets | 0 | 0 | 68 ms |
+
+The independent files already owned 1 MiB before the writes. Every file reported 2,048 blocks through `st_blocks` both before and after each pass. The APFS private-size attribute exposed a fourfold difference in growth between the two clone layouts. A worker comparison should capture that attribute around first install and warm rebuild, along with guest-written bytes and edit offsets. These regular-file timings include fsync on a shared host. Guest allocation, pipeline latency and survival across restart still need a disposable worker. Reproduce the local measurement with `python3 -B scripts/bench_worker_cow.py --rounds 4` on APFS. [Workload](../../scripts/bench_worker_cow.py) · [Receipt replay tests](../../scripts/test_bench_worker_cow.py)
+
+### Guest storage and reclaim prerequisites
+
+The stock Linux 7.3.5 archive contains the full config under `kernels.full.config`. Its SHA-256 is `a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c`. The matching Image is `7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd`. [Archived config and image identities](../benchmarks/2026-11-21/gamma-direct-macvlan.json.gz)
+
+| Candidate | Stock config | Required qualification |
+| --- | --- | --- |
+| Compressed swap | `CONFIG_SWAP=y`, `CONFIG_ZRAM=n`, `CONFIG_ZSWAP=n` | Build a distinct zram candidate. Check the actual swap device, its compressor and memory statistics before comparing pressure and rebuild time. |
+| Generational LRU | `CONFIG_LRU_GEN=y`, `CONFIG_LRU_GEN_ENABLED=n`, `CONFIG_LRU_GEN_STATS=n`, `CONFIG_LRU_GEN_WALKS_MMU=y` | The feature is built in with the default off. Read `/sys/kernel/mm/lru_gen/enabled` on the boot used for the comparison. Compare enabled and disabled on the same kernel under the same working set. |
+| Btrfs | `CONFIG_BTRFS_FS=n` | A Btrfs arm needs kernel support and a freshly formatted disposable filesystem. Verify the device, filesystem feature bits and recovered bytes. |
+| ext4 and iomap | `CONFIG_EXT4_FS=y`, `CONFIG_JBD2=y`, `CONFIG_FS_IOMAP=y` | Read the ext4 superblock feature list on an identified disposable disk before scoring fast commit or directory indexing. Check the actual file and I/O mode for each iomap experiment. |
+
+The archived Linux 6.18.35 worker records `data=ordered`, `barrier`, `commit=5` and `max_batch_time` of 0 or 15,000 µs. The restart receipt verifies retained mount options. Two seven-round 16-client trials record sectors written and flush counts. Those measurements leave the on-disk fast-commit and directory-index feature flags, and survival of acknowledged payloads across disruption, unverified. [Mount options and restart](../benchmarks/2026-11-20/worker-profile/adaptive-setup.json) · [Per-round block counters](../benchmarks/2026-11-20/worker-profile/ext4.json) · [Historical kernel and workload](../benchmarks/2026-11-20/worker-profile/immediate-writes.md)
+
+For the `RWF_DONTCACHE` scan experiment, start with a buffered read of a regular file on a directly mounted, non-DAX ext4 volume. The worker builder pins upstream Linux 7.3.5 to SHA-256 `8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990`. In that source, `include/linux/fs.h` lines 3477–3484 reject a file lacking `FOP_DONTCACHE` and reject DAX with `EOPNOTSUPP`. The regular-file operations in `fs/ext4/file.c` advertise the flag. The table in `fs/overlayfs/file.c` omits it, so an ordinary container root file on OverlayFS provides a negative control even with an ext4 backing device. Capture each file's actual mount, syscall return or errno and content digest before timing scan throughput, page-cache footprint and the subsequent warm build. Live behavior on a worker remains unmeasured. [Kernel source pin](../../ci/build-worker-kernel.sh)
+
 ## Custom virtio transport and a second VMM
 
 **Custom device.** Apple exposes `customVirtioDevices` starting in macOS 27. The recorded Gamma run used macOS 26.5.1. A device experiment needs a confirmed supported Mac and SDK. In the pinned dependency, `VZVirtualMachineManager.create` passes configured extensions to the VZ instance. A `VZInstanceExtension` can modify the device configuration before validation. The existing Micropod host path already has tests for byte preservation, simultaneous send and receive, half-close, backpressure and port revocation. [Apple availability](https://developer.apple.com/documentation/virtualization/vzvirtualmachineconfiguration/customvirtiodevices.md) · [Recorded Gamma environment](../benchmarks/2026-11-20/worker-profile/immediate-writes.md) · [Pinned VZ manager](https://github.com/apple/containerization/blob/c0185aea5c04fcd4d1cfe9359e0066a380835403/Sources/Containerization/VZVirtualMachineManager.swift) · [Pinned VZ instance](https://github.com/apple/containerization/blob/c0185aea5c04fcd4d1cfe9359e0066a380835403/Sources/Containerization/VZVirtualMachineInstance.swift) · [Relay contract tests](../../Tests/MicropodRuntimeTests/NativePublishedPortsTests.swift)
