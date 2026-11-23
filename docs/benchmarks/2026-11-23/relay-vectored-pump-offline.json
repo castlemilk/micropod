@@ -1,0 +1,571 @@
+{
+  "schema": 1,
+  "completed_utc": "2026-11-23T05:34:07.372242+00:00",
+  "machine": "arm64",
+  "darwin_release": "25.5.0",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2"
+  ],
+  "source_sha256": {
+    "scripts/relaybench/check_vectored_pump.py": "09582a1f8d462f7494703e77dd3ac51c55db8141eb5d0e3034c72dc92224e9f6",
+    "scripts/relaybench/vectored_pump.c": "10b9ca3a517131ae0b2c7e6f3d63d5633278e861b954f998437289bc8401a9bd",
+    "scripts/relaybench/vectored_pump.h": "77b5dd3e608dca87cb023c124a56238836794506e2da198d7f7ba9b0f62653b9",
+    "scripts/relaybench/filter_work.c": "4c11e89dccdde3c04b8bc18c8d153c9ed8dabdd9c83117797bfdda7040527024",
+    "Sources/CPublishedTCP/PublishedTCP.c": "c877f1efe9b46a9e80385bf6f8b1a00add0b1671cf8d0d8d8ec02d2d0842990f",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "039b653ac1ae9472a1ce71251b82e485b06d198b8745437326f7933942f545db",
+    "docs/benchmarks/2026-11-21/gamma-published-profile.json.gz": "234f8f89de4462068e31934a8b1fc0ec6ecc93d814dd2da97b13c574481ebe93"
+  },
+  "method": "One background-QoS thread in one process at a time, anonymous UNIX socket pairs. The candidate splits each contiguous read or write buffer at one third and invokes readv/writev. One unscored warmup per arm precedes eight pairs in alternating order. Per-call thread CPU covers the production pump with the same counters in both arms. Seeding, dispatch, and ordered byte verification are outside the timed interval. CPU changes apply to this local fixture only.",
+  "qualification": {
+    "scalar": [
+      {
+        "owner": "split",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "split",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "payload_reads": 44,
+        "payload_writes": 40,
+        "short_inside_second": 2,
+        "blocked_payload_writes": 10,
+        "max_chunk": 262144
+      }
+    ],
+    "vectored": [
+      {
+        "owner": "split",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "split",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "payload_reads": 44,
+        "payload_writes": 40,
+        "short_inside_second": 2,
+        "blocked_payload_writes": 10,
+        "max_chunk": 262144
+      }
+    ]
+  },
+  "archived_bounds": {
+    "fresh": {
+      "json_path": "final_profiles.fresh.lease",
+      "reads": 6406,
+      "writes": 3202,
+      "blocked_writes": 0,
+      "transfer_bytes": 393828,
+      "max_new_pending_allocations": 0,
+      "max_suffix_copy_bytes": 0,
+      "max_suffix_copy_pct_of_payload": 0.0
+    },
+    "bulk": {
+      "json_path": "final_profiles.bulk.lease",
+      "reads": 35875,
+      "writes": 35821,
+      "blocked_writes": 12,
+      "transfer_bytes": 8590192515,
+      "max_new_pending_allocations": 12,
+      "max_suffix_copy_bytes": 3145728,
+      "max_suffix_copy_pct_of_payload": 0.03662
+    }
+  },
+  "bound_basis": "Each pump call has one contiguous buffer and at most one payload syscall per direction. Subdividing it saves zero data syscalls per successful read/write pair. A new pending suffix is allocated only after a partial/blocked write, at most once per event and at most 256 KiB. Retry writes advance the offset in place. The archived bound covers suffix allocation and copying only. Connection records and changes to buffering, read-ahead, queue layout or scheduling are outside it.",
+  "summary": [
+    {
+      "chunk_bytes": 148,
+      "chunks_per_sample": 2048,
+      "paired_cpu_change_percent": {
+        "min": 14.5,
+        "median": 31.07,
+        "max": 48.27
+      },
+      "faster_vectored_pairs": 0
+    },
+    {
+      "chunk_bytes": 262144,
+      "chunks_per_sample": 128,
+      "paired_cpu_change_percent": {
+        "min": 4.58,
+        "median": 12.04,
+        "max": 19.5
+      },
+      "faster_vectored_pairs": 0
+    }
+  ],
+  "blocks": [
+    {
+      "order": [
+        "scalar",
+        "vectored"
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1859224
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3938078
+        }
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2452163
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 4118412
+        }
+      ]
+    },
+    {
+      "order": [
+        "vectored",
+        "scalar"
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2587379
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 4104413
+        }
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1945952
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3673836
+        }
+      ]
+    },
+    {
+      "order": [
+        "scalar",
+        "vectored"
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1956434
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3885583
+        }
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2548401
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 4415668
+        }
+      ]
+    },
+    {
+      "order": [
+        "vectored",
+        "scalar"
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2722068
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 4527587
+        }
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1835903
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3788793
+        }
+      ]
+    },
+    {
+      "order": [
+        "scalar",
+        "vectored"
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1777044
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3608836
+        }
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2227482
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 4054622
+        }
+      ]
+    },
+    {
+      "order": [
+        "vectored",
+        "scalar"
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2567085
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 4306585
+        }
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1941848
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3660923
+        }
+      ]
+    },
+    {
+      "order": [
+        "scalar",
+        "vectored"
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1746485
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3562044
+        }
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2237446
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3968216
+        }
+      ]
+    },
+    {
+      "order": [
+        "vectored",
+        "scalar"
+      ],
+      "vectored": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 2064138
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3811879
+        }
+      ],
+      "scalar": [
+        {
+          "chunk_bytes": 148,
+          "rounds": 2048,
+          "payload_reads": 2048,
+          "payload_writes": 2048,
+          "thread_cpu_ns": 1802673
+        },
+        {
+          "chunk_bytes": 262144,
+          "rounds": 128,
+          "payload_reads": 128,
+          "payload_writes": 128,
+          "thread_cpu_ns": 3544255
+        }
+      ]
+    }
+  ]
+}
