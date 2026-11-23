@@ -19,7 +19,7 @@ from kernel_candidate import config_options
 
 COMPILERS = {"CONFIG_CC_IS_GCC": "GCC", "CONFIG_CC_IS_CLANG": "Clang"}
 LTO_MODES = {"CONFIG_LTO_NONE": "none", "CONFIG_LTO_CLANG_THIN": "Clang ThinLTO",
-             "CONFIG_LTO_CLANG_FULL": "Clang full LTO"}
+             "CONFIG_LTO_CLANG_FULL": "Clang full LTO", "CONFIG_LTO_CLANG_THIN_DIST": "Clang distributed ThinLTO"}
 PROFILE_OPTIONS = ("CONFIG_AUTOFDO_CLANG", "CONFIG_PROPELLER_CLANG")
 MITIGATIONS = ("CONFIG_CPU_MITIGATIONS", "CONFIG_UNMAP_KERNEL_AT_EL0", "CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY",
                "CONFIG_ARM64_PTR_AUTH", "CONFIG_ARM64_BTI", "CONFIG_ARM64_BTI_KERNEL", "CONFIG_CFI",
@@ -43,7 +43,7 @@ def audit(data):
             raise ValueError(f"expected a boolean for {symbol}")
     compiler = selected(options, COMPILERS)
     lto = selected(options, LTO_MODES)
-    if compiler == "GCC" and (lto in ("Clang ThinLTO", "Clang full LTO")
+    if compiler == "GCC" and (lto not in (None, "none")
                               or any(options.get(key) == "y" for key in PROFILE_OPTIONS)):
         raise ValueError("Clang optimization selected in a GCC config")
     def fields(keys):
@@ -72,8 +72,13 @@ if __name__ == "__main__":
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--config", type=Path)
     src.add_argument("--gamma-stock", action="store_true")
+    parser.add_argument("--require-lto", choices=LTO_MODES, metavar="CONFIG_LTO_*",
+                        help="require this exact LTO choice in the resolved config")
     args = parser.parse_args()
     try:
-        print(json.dumps(gamma_stock() if args.gamma_stock else audit(args.config.read_bytes()), indent=2))
+        report = gamma_stock() if args.gamma_stock else audit(args.config.read_bytes())
+        if args.require_lto and report["lto_options"][args.require_lto] != "y":
+            raise ValueError(f"expected {args.require_lto}=y, resolved LTO mode: {report['lto_mode']}")
+        print(json.dumps(report, indent=2))
     except (ValueError, OSError) as error:
         parser.exit(2, f"Cannot audit kernel config: {error}\n")

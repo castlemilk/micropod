@@ -1,3 +1,6 @@
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from kernel_compiler import audit, gamma_stock
@@ -27,6 +30,22 @@ CONFIG_AUTOFDO_CLANG=y
         self.assertEqual(report["profile_options"], {"CONFIG_AUTOFDO_CLANG": "y", "CONFIG_PROPELLER_CLANG": "n"})
         self.assertFalse(report["profile_use_verified"])
         self.assertIsNone(report["mitigation_build_options"]["CONFIG_CPU_MITIGATIONS"])
+
+    def test_command_refuses_silently_reverted_lto(self):
+        cli = [sys.executable, "-B", str(Path(__file__).with_name("kernel_compiler.py")), "--gamma-stock", "--require-lto"]
+        control = subprocess.run([*cli, "CONFIG_LTO_NONE"], capture_output=True, text=True)
+        self.assertEqual(control.returncode, 0, control.stderr)
+        candidate = subprocess.run([*cli, "CONFIG_LTO_CLANG_THIN"], capture_output=True, text=True)
+        self.assertEqual(candidate.returncode, 2)
+        self.assertIn("expected CONFIG_LTO_CLANG_THIN=y, resolved LTO mode: none", candidate.stderr)
+
+    def test_distributed_thinlto_is_a_distinct_choice(self):
+        options = b"CONFIG_ARM64=y\nCONFIG_CC_IS_CLANG=y\nCONFIG_LTO_CLANG_THIN_DIST=y\n"
+        self.assertEqual(audit(options)["lto_mode"], "Clang distributed ThinLTO")
+        with self.assertRaisesRegex(ValueError, "multiple selections"):
+            audit(options + b"CONFIG_LTO_CLANG_THIN=y\n")
+        with self.assertRaisesRegex(ValueError, "GCC config"):
+            audit(options.replace(b"CONFIG_CC_IS_CLANG", b"CONFIG_CC_IS_GCC"))
 
     def test_support_symbols_alone_leave_selection_unknown(self):
         report = audit(b"CONFIG_ARM64=y\nCONFIG_ARCH_SUPPORTS_LTO_CLANG_THIN=y\n")
