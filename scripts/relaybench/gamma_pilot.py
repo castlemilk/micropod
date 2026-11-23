@@ -16,7 +16,7 @@ from pathlib import Path
 from statistics import median
 
 import host_role
-from gamma_contrasts import IMAGE, clean_client, host_units, paired_median_interval, process_delta, stream_rates
+from gamma_contrasts import IMAGE, clean_client, paired_median_interval, process_work, stream_rates
 
 TOOLS = Path("/tmp/mp-priority.b3sbI7ym")
 HASHES = {"fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
@@ -254,8 +254,7 @@ def attempt(tools, fixture, birth, receipt, check_window=None):
     if c.get("bytes", 0) > 0:
         counters = {}
         for role, pid in fixture["pids"].items():
-            delta = process_delta(receipt["before"], receipt["after"], pid)
-            counters[role] = {**delta, **host_units(delta, c["bytes"])}
+            counters[role] = process_work(receipt["before"], receipt["after"], pid, c["bytes"])
         receipt["host"] = counters
     if "fresh_p50_us" in c:
         receipt["fresh_p50_us"] = c["fresh_p50_us"]
@@ -506,6 +505,11 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     extras = {}
     if args.mode == "workers":
         extras["worker_streams"] = worker_stream_comparison(measured_rows, len(orders["scored"]))
+        extras["worker_process_work"] = [
+            {"pair": n, **{arm: measured_rows[n, arm].get("host") if measured_rows[n, arm]["clean"] else None
+                           for arm in "AB"}}
+            for n in range(1, len(orders["scored"]) + 1)
+        ]
     if screen:
         check_window()
         result = screening_result(measured_rows, len(orders["scored"]))

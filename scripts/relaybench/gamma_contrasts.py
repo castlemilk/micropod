@@ -74,10 +74,12 @@ def process_delta(before, after, pid):
     if (first["birth_ticks"] != last["birth_ticks"] or before["tick_numer"] != after["tick_numer"]
             or before["tick_denom"] != after["tick_denom"]):
         raise ValueError(f"counter identity changed for pid {pid}")
-    cpu = last["user_ticks"] + last["system_ticks"] - first["user_ticks"] - first["system_ticks"]
+    user = last["user_ticks"] - first["user_ticks"]
+    system = last["system_ticks"] - first["system_ticks"]
+    cpu = user + system
     runnable = last["runnable_ticks"] - first["runnable_ticks"]
     seconds = (after["epoch_ns"] - before["epoch_ns"]) / 1e9
-    if min(cpu, runnable) < 0 or seconds <= 0 or min(after["tick_numer"], after["tick_denom"]) <= 0:
+    if min(user, system, runnable) < 0 or seconds <= 0 or min(after["tick_numer"], after["tick_denom"]) <= 0:
         raise ValueError(f"invalid counter delta for pid {pid}")
     scale = after["tick_numer"] / after["tick_denom"] / 1e9
     return dict(cpu_s=cpu * scale, runnable_s=runnable * scale, wait_s=(runnable - cpu) * scale,
@@ -98,6 +100,30 @@ def host_units(delta, count):
     return dict(cpu_s_per_gib=delta["cpu_s"] / (count / GIB),
                 runnable_s_per_s=delta["runnable_s"] / delta["sample_seconds"],
                 wait_s_per_s=delta["wait_s"] / delta["sample_seconds"])
+
+
+def process_work(before, after, pid, payload_bytes):
+    """Darwin host process work over the observer interval, per scored bulk byte."""
+    if type(payload_bytes) is not int or payload_bytes <= 0:
+        raise ValueError("process work needs a positive bulk byte count")
+    delta = process_delta(before, after, pid)
+    first, = (t for t in before["tasks"] if t["pid"] == pid)
+    last, = (t for t in after["tasks"] if t["pid"] == pid)
+
+    def hardware_delta(key):
+        start, end = first.get(key), last.get(key)
+        # Some observers omit PMCs or return zero for unsupported counters.
+        if type(start) is int and type(end) is int and 0 <= start < end:
+            return end - start
+        return None
+
+    instructions = hardware_delta("instructions")
+    cycles = hardware_delta("cycles")
+    return dict(**delta, **host_units(delta, payload_bytes),
+                mean_host_cores=delta["cpu_s"] / delta["sample_seconds"],
+                instructions_per_byte=instructions / payload_bytes if instructions else None,
+                cycles_per_byte=cycles / payload_bytes if cycles else None,
+                instructions_per_cycle=instructions / cycles if instructions and cycles else None)
 
 
 def vm_rows(receipt):

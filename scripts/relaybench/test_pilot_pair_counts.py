@@ -223,6 +223,9 @@ class PilotPairCountTests(unittest.TestCase):
                 self.assertAlmostEqual(pair["four_slowest_over_two_fastest"], (120 / 32 - 1 / 6.25) / (100 / 32 + 1 / 6.25))
                 complete = report["screen"]
                 self.assertEqual(complete["verdict"], "eligible for confirmation")
+                self.assertEqual(len(report["worker_process_work"]), 4)
+                self.assertEqual(report["worker_process_work"][0],
+                                 {"pair": 1, "A": worker_row("A")["host"], "B": worker_row("B")["host"]})
                 self.assertAlmostEqual(complete["median_paired_throughput_change_pct"], 20)
                 last = complete["pairs"][-1]["B"]
                 self.assertEqual((last["vmm_cpu_s_per_gib"], last["relay_wait_s_per_s"]), (.5, .1))
@@ -237,7 +240,9 @@ class PilotPairCountTests(unittest.TestCase):
                 args.out = root / "loss"
                 with self.assertRaisesRegex(ValueError, "workers screen rejected: pair 1 B"):
                     pilot.run(args, orders)
-                failed = json.loads((args.out / "complete.json").read_text())["screen"]
+                completion = json.loads((args.out / "complete.json").read_text())
+                self.assertIsNone(completion["worker_process_work"][0]["B"])
+                failed = completion["screen"]
                 self.assertEqual(failed["verdict"], "reject")
                 self.assertIsNone(failed["median_paired_throughput_change_pct"])
                 self.assertEqual(failed["pairs"][0]["B"]["fresh_failed"], 1)
