@@ -180,10 +180,12 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 			}
 			return wire
 		}
-		for _, ip := range ips {
-			if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
-				out.Answers = append(out.Answers, dnsmessage.Resource{Header: dnsmessage.ResourceHeader{Name: q.Name, Class: dnsmessage.ClassINET, TTL: 1}, Body: &dnsmessage.AResource{A: ip.As4()}})
+		if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
+			raw, err := packServiceAddresses(out.Header, q, ips, network, &parser)
+			if err != nil {
+				return nil
 			}
+			return raw
 		}
 	} else if n.Internal || !strings.Contains(host, ".") {
 		s.metrics.networks.dnsMissing.Add(1)
@@ -199,32 +201,10 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 		s.metrics.networks.dnsFailures.Add(1)
 		out.RCode = dnsmessage.RCodeServerFailure
 	}
-	raw, err := out.Pack()
+	// Local NODATA, NXDOMAIN and upstream failures contain only the original question.
+	raw, err := out.AppendPack(make([]byte, 0, 12+int(q.Name.Length)+1+4))
 	if err != nil {
 		return nil
-	}
-	if network == "udp" && len(raw) > 512 {
-		limit := 512
-		if parser.SkipAllAnswers() == nil && parser.SkipAllAuthorities() == nil {
-			for {
-				h, err := parser.AdditionalHeader()
-				if err != nil {
-					break
-				}
-				if h.Type == dnsmessage.TypeOPT {
-					limit = min(4096, max(512, int(h.Class)))
-					break
-				}
-				if parser.SkipAdditional() != nil {
-					break
-				}
-			}
-		}
-		if len(raw) > limit {
-			out.Truncated = true
-			out.Answers = nil
-			raw, _ = out.Pack()
-		}
 	}
 	return raw
 }

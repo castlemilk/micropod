@@ -1,0 +1,236 @@
+{
+  "base": "d622b5c0568b3b927c96c22bdfbad0dc71710515",
+  "observed_utc": "2026-11-23T05:59:39.604068+00:00",
+  "toolchain": "go version go1.27.2 darwin/arm64",
+  "dns_library": "golang.org/x/net v0.48.0",
+  "scope": "In-process local service DNS response construction on darwin/arm64. Case-insensitive directory lookup, packet parse, atomic metrics and reply packing included. Upstream function replaced by a nil result, no network or VM.",
+  "method": "Production dnsReply method extracted unchanged from base and candidate and renamed; same compiled binary, actual serviceDirectory and encoders. Each pair runs baseline and candidate in alternating order, seven pairs, GOMAXPROCS=1, go test -cpu 1 -benchmem -benchtime=55ms. Key is address count, question type, transport, EDNS size (zero = absent).",
+  "results": {
+    "0_TypeA_udp_0": {
+      "baseline": {
+        "ns_per_op": [
+          390.7,
+          419.0,
+          406.3,
+          510.0,
+          551.9,
+          392.5,
+          471.2
+        ],
+        "bytes_per_op": 800,
+        "allocs_per_op": 5,
+        "median_ns_per_op": 419.0
+      },
+      "candidate": {
+        "ns_per_op": [
+          286.4,
+          286.3,
+          275.9,
+          324.4,
+          345.8,
+          303.5,
+          362.0
+        ],
+        "bytes_per_op": 320,
+        "allocs_per_op": 5,
+        "median_ns_per_op": 303.5
+      }
+    },
+    "1_TypeA_udp_0": {
+      "baseline": {
+        "ns_per_op": [
+          323.5,
+          351.5,
+          322.1,
+          458.7,
+          433.2,
+          396.3,
+          428.6
+        ],
+        "bytes_per_op": 336,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 396.3
+      },
+      "candidate": {
+        "ns_per_op": [
+          347.9,
+          429.6,
+          335.6,
+          432.2,
+          406.5,
+          385.8,
+          429.8
+        ],
+        "bytes_per_op": 336,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 406.5
+      }
+    },
+    "2_TypeA_udp_0": {
+      "baseline": {
+        "ns_per_op": [
+          722.1,
+          695.9,
+          670.0,
+          1147.0,
+          954.0,
+          872.9,
+          951.5
+        ],
+        "bytes_per_op": 1781,
+        "allocs_per_op": 10,
+        "median_ns_per_op": 872.9
+      },
+      "candidate": {
+        "ns_per_op": [
+          421.1,
+          529.0,
+          400.5,
+          507.0,
+          465.7,
+          436.8,
+          545.9
+        ],
+        "bytes_per_op": 400,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 465.7
+      }
+    },
+    "8_TypeA_udp_0": {
+      "baseline": {
+        "ns_per_op": [
+          1917.0,
+          1584.0,
+          1610.0,
+          2723.0,
+          1933.0,
+          2079.0,
+          2323.0
+        ],
+        "bytes_per_op": 5920,
+        "allocs_per_op": 18,
+        "median_ns_per_op": 1933.0
+      },
+      "candidate": {
+        "ns_per_op": [
+          609.6,
+          653.2,
+          601.7,
+          717.5,
+          690.7,
+          662.8,
+          785.4
+        ],
+        "bytes_per_op": 640,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 662.8
+      }
+    },
+    "256_TypeAAAA_udp_0": {
+      "baseline": {
+        "ns_per_op": [
+          2299.0,
+          1644.0,
+          1619.0,
+          2209.0,
+          2184.0,
+          2187.0,
+          2358.0
+        ],
+        "bytes_per_op": 7328,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 2187.0
+      },
+      "candidate": {
+        "ns_per_op": [
+          1656.0,
+          1452.0,
+          1584.0,
+          2447.0,
+          2034.0,
+          1900.0,
+          2137.0
+        ],
+        "bytes_per_op": 6848,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 1900.0
+      }
+    },
+    "256_TypeA_udp_1232": {
+      "baseline": {
+        "ns_per_op": [
+          40932.0,
+          35371.0,
+          32853.0,
+          39059.0,
+          40069.0,
+          47806.0,
+          46553.0
+        ],
+        "bytes_per_op": 216400,
+        "allocs_per_op": 281,
+        "median_ns_per_op": 40069.0
+      },
+      "candidate": {
+        "ns_per_op": [
+          1677.0,
+          1510.0,
+          2070.0,
+          8300.0,
+          1949.0,
+          2125.0,
+          2056.0
+        ],
+        "bytes_per_op": 6848,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 2056.0
+      }
+    },
+    "256_TypeA_tcp_0": {
+      "baseline": {
+        "ns_per_op": [
+          36365.0,
+          31549.0,
+          32063.0,
+          49278.0,
+          43412.0,
+          46604.0,
+          53112.0
+        ],
+        "bytes_per_op": 215616,
+        "allocs_per_op": 277,
+        "median_ns_per_op": 43412.0
+      },
+      "candidate": {
+        "ns_per_op": [
+          7847.0,
+          7302.0,
+          10000.0,
+          8656.0,
+          8235.0,
+          8143.0,
+          8860.0
+        ],
+        "bytes_per_op": 11680,
+        "allocs_per_op": 6,
+        "median_ns_per_op": 8235.0
+      }
+    }
+  },
+  "tests": {
+    "portable_dns_tests_passed": 3,
+    "multi_answer_wire_equality_cases": 800,
+    "production_wire_and_counter_comparisons": 432,
+    "production_fixture_scope": "Actual method bodies, stub transport and worker/metric container matching the fields read. Internal/external scope, missing/1/2/8/30/31/64/256/512 addresses, A/AAAA/ANY, four EDNS settings, TCP/UDP. Byte strings and four classification counters agree.",
+    "linux_arm64_encoder_test_binary_sha256": "986057ce427edcd4ce766baa10d65e612fcac2729d2719e78075ab2b6576a4d9",
+    "cross_build_scope": "Portable DNS encoder and its checked-in regression tests cross-compiled for Linux arm64, CGO disabled. The Linux binary was not executed."
+  },
+  "limits": "One address still uses the earlier single-record path. Its median varied from 396.3 to 406.5 ns with the same bytes and allocations. Uncontrolled host load and short samples limit interpretation of small timing changes. No client latency, queueing, packet rate or resident memory measured.",
+  "portable_reproduction": "In guest/runner, run go test -mod=readonly -p 1 -cpu 1 -count 5 -bench '^BenchmarkPackMultiServiceA$' -benchmem -benchtime=75ms docker_dns_answer.go docker_dns_answer_test.go docker_dns_multi_test.go. This persistent benchmark isolates encoding; the seven-pair numbers include directory lookup and parsing.",
+  "source_sha256": {
+    "guest/runner/docker_dns_answer.go": "a439bce6cc10be0c1bbddd779e5a2558ea9f0916ec37301d8958926afa454ac9",
+    "guest/runner/docker_dns_linux.go": "f01e05b27d314e4c22405ed0c04c5ab198865786c1b6fd77afd9c7ff2aa35e75",
+    "guest/runner/docker_dns_directory.go": "bf8aeca0e03ee3518a7de03e8908d67fffb1a5657271eb9e593bf00450e8f8ea",
+    "guest/runner/docker_dns_multi_test.go": "bbe419edf7c4c1f381580639a0088622cb27ae68bd6eb38249122790fe70b7e9"
+  }
+}
