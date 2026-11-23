@@ -190,7 +190,9 @@ class HostRoleTests(unittest.TestCase):
                              Config={"Cmd": ["-listen", ":8080", "-marker", "marker"]},
                              Mounts=[{"Destination": "/mpcheck", "RW": False}],
                              NetworkSettings={"Ports": {"8080/tcp": ["binding"]}})
-            outputs = {"vmm": "/System/example/com.apple.Virtualization.VirtualMachine", "probe": role.GUEST_PROBE_SHA256,
+            outputs = {"vmm": (
+                "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/"
+                "com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"), "probe": role.GUEST_PROBE_SHA256,
                        "spawn": "daemon (3)"}
             def command(*args):
                 if args[0] == "docker":

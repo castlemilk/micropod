@@ -72,7 +72,7 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
             "valid_until_epoch": expiry, "fleet_time": fleet["generatedAt"], "effective_disk_gate": clearance}
 
 
-def verify_job(job, live, pid, home, expected, *, read_kib=None, worker_count=None):
+def verify_job(job, live, pid, home, expected, *, read_kib=None, worker_count=None, vcpus=None):
     pids = re.findall(r"(?m)^[ \t]*pid = (\d+)[ \t]*$", live)
     types = re.findall(r"(?m)^[ \t]*spawn type = ([^\n]+)$", live)
     if (job.get("ProcessType", "Standard") != expected or pids != [str(pid)]
@@ -105,7 +105,16 @@ def verify_job(job, live, pid, home, expected, *, read_kib=None, worker_count=No
                 (selector not in env and re.search(rf"(?m)^[ \t]*{selector} =>", live))):
             raise ValueError("launchd worker selector differs from the planned arm")
         excluded_env.add(selector)
-    if read_kib is not None or worker_count is not None:
+    if vcpus is not None:
+        # The running CPU count comes from the engine. A loaded fixed selector
+        # must agree. Auto and inherited/manifest defaults are valid methods.
+        selector = "MICROPOD_CI_CPUS"
+        values = set(re.findall(rf"(?m)^[ \t]*{selector} => ([^\n]*)$", live))
+        if len(values) > 1 or any(v != "auto" and (not re.fullmatch(r"[+]?[0-9]+", v) or int(v) != vcpus)
+                                  for v in values):
+            raise ValueError("launchd vCPU selector differs from observed VM size")
+        excluded_env.add(selector)
+    if read_kib is not None or worker_count is not None or vcpus is not None:
         # The pilot separately matches the mapped executable digests across jobs.
         controls["ProgramArguments"] = controls["ProgramArguments"][1:]
     controls["EnvironmentVariables"] = {key: value for key, value in env.items() if key not in excluded_env}

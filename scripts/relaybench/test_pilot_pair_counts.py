@@ -206,7 +206,8 @@ class PilotPairCountTests(unittest.TestCase):
             fleet, release = make_window(root, now, (a, b))
             args = Namespace(mode="workers", seed=34202, scored_pairs=4, tools=root,
                              a=a, b=b, fleet=fleet, release=release, check=False, out=root/"denied")
-            def fixture(path, cpus, orb, *, worker_count=None):
+            def fixture(path, cpus, orb, *, worker_count=None, vary_vcpus=False):
+                self.assertEqual(vary_vcpus, args.mode == "size")
                 self.assertEqual(worker_count, (2 if path == a else 4) if args.mode == "workers" else None)
                 return dict(engine=path.name, id=path.name, address="127.0.0.1:9041" if path == a else "127.0.0.1:9042", name=path.name,
                             cpuset="0-3", instance=path.name, worker=path.name, kernel_image_sha256=pilot.STOCK_KERNEL,

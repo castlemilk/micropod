@@ -111,7 +111,7 @@ def image_config(docker, container):
     return "sha256:" + hashlib.sha256(config).hexdigest()
 
 
-def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=None):
+def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=None, vary_vcpus=False):
     scope = scope.resolve()
     require(scope.is_dir() and not (scope / "removed").exists(), f"missing or retired fixture: {scope}")
     base = value(scope, "base")
@@ -162,21 +162,28 @@ def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=
     require(session["started"] and session["owner"]["pid"] == pids["relay"] and workers in (2, 4),
             "need a live two- or four-worker relay")
     require(command("lsof", "-t", str(home / "worker.ext4")) == str(pids["vmm"]), "wrong Micropod VMM process")
+    if worker_count is not None or vary_vcpus or process_type is not None:
+        executable = command("ps", "-p", str(pids["vmm"]), "-o", "comm=")
+        binary = "com.apple.Virtualization.VirtualMachine"
+        path = Path(executable)
+        require(path.is_relative_to("/System/Library/Frameworks/Virtualization.framework") and
+                path.parts[-4:] == (binary + ".xpc", "Contents", "MacOS", binary),
+                "disk holder is not the Apple VMM")
+        fixture["vmm_executable"] = executable
     owner = scope.parent / base
     job = plistlib.loads((owner / "job.plist").read_bytes())
     env = job["EnvironmentVariables"]
     role = command("launchctl", "print", f"gui/{os.getuid()}/{job['Label']}")
-    if read_kib is not None or worker_count is not None:
+    if read_kib is not None or worker_count is not None or vary_vcpus:
         fixture.update(host_role.verify_job(job, role, pids["relay"], home, "Interactive",
-                                            read_kib=read_kib, worker_count=worker_count))
-        if worker_count is not None:
+                                            read_kib=read_kib, worker_count=worker_count,
+                                            vcpus=cpus if vary_vcpus else None))
+        if worker_count is not None or vary_vcpus:
             fixture["relay_nice"] = int(command("ps", "-p", str(pids["relay"]), "-o", "nice="))
     elif process_type is None:
         require(re.search(rf"(?m)^\s*pid = {pids['relay']}$", role) and "spawn type = interactive" in role
                 and env["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive", "different live relay role")
     else:
-        require(Path(command("ps", "-p", str(pids["vmm"]), "-o", "comm=")).name
-                == "com.apple.Virtualization.VirtualMachine", "disk holder is not the Apple VMM")
         fixture.update(host_role.verify_job(job, role, pids["relay"], home, process_type))
         fixture["docker_socket"] = str(sock)
         mounts = [mount for mount in c["Mounts"] if mount["Destination"] == "/mpcheck"]
@@ -431,6 +438,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
         check_window()
         if args.mode == "workers":
             return inspect(*scopes[arm], worker_count=settings[arm]["relay_workers"])
+        if args.mode == "size":
+            return inspect(*scopes[arm], vary_vcpus=True)
         if read_size:
             return inspect(*scopes[arm], read_kib=settings[arm]["read_bytes"] // 1024)
         if role_test:
@@ -461,9 +470,10 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
         kernel_field = "kernel_image_sha256" if all("kernel_image_sha256" in f for f in (a, b)) else "kernel"
         for key in (kernel_field, "release", "engine_version", "cli_sha256", "route", "service_env_sha256"):
             require(a[key] == b[key], f"Micropod arms differ in {key}")
-    if args.mode == "workers":
+    if args.mode in ("workers", "size"):
+        factor = "worker count" if args.mode == "workers" else "vCPU count"
         require(a["job_controls_sha256"] == b["job_controls_sha256"] and a["relay_nice"] == b["relay_nice"],
-                "launchd controls or live supervisor nice differ beyond worker count")
+                f"launchd controls or live supervisor nice differ beyond {factor}")
     if read_size:
         require(a.get("kernel_image_sha256") == b.get("kernel_image_sha256") == STOCK_KERNEL,
                 "read-size screen needs stock kernel image digests")

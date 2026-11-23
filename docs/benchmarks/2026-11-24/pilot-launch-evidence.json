@@ -1,0 +1,102 @@
+{
+  "date": "2026-11-24",
+  "control_commit": "4dc985b50bbd1e5942020618df4d8dcc2de47483",
+  "directions": [
+    "230.02",
+    "237.03"
+  ],
+  "evidence": "Source/fixture, two synthetic already-serving scope descriptions. Command and mapped-binary evidence supplied in memory. No client or socket opened.",
+  "cases": "Change only the named field in arm B. Worker count is two vs four at four vCPUs. For size it is four vs six vCPUs, with two relay workers in both arms.",
+  "guardrails": "Preflight only. No delivered bytes, drops, CPU time, request latency or rate measured.",
+  "fixture_sha256": "7d8248e32d6701446f45226415862ed4d9074f56be12ee69088031f4155ac177",
+  "control": {
+    "sources": {
+      "gamma_pilot.py": "921de1b08a4ef4ebd6a242fac22f025fd68f1c47e873eb110e423b02f24b24ca",
+      "host_role.py": "f718e9ec02b5fa79ac8db83083ea1b971b2be4b7aceb2f366ec2bc24033792d8",
+      "gamma_contrasts.py": "16e344e07b782957f6c9e935c42d16956946fe488d876efe28396d0385a58f09",
+      "gamma_fleet.py": "e9b5404e3c277ed59163f388436172cd3e0d8f2cc9fbe7b677156f1f344ea6cd",
+      "test_host_role.py": "6e68c89ba549f034264e5fcf28502d14d8e5d31e583902f99bb7e2c23f07bdc2"
+    },
+    "observations": {
+      "workers": {
+        "unchanged": {
+          "admitted": true
+        },
+        "disk holder executable": {
+          "admitted": true
+        },
+        "same executable basename": {
+          "admitted": true
+        }
+      },
+      "size": {
+        "unchanged": {
+          "admitted": true
+        },
+        "auto": {
+          "admitted": true
+        },
+        "saved nice": {
+          "admitted": true
+        },
+        "live nice": {
+          "admitted": true
+        },
+        "inherited env": {
+          "admitted": true
+        },
+        "fixed CPU selector": {
+          "admitted": true
+        }
+      }
+    }
+  },
+  "candidate": {
+    "sources": {
+      "gamma_pilot.py": "d9008ec0cf29a94a5f46de83f321b04fbb89463a26726648dd3ed71c5385efb0",
+      "host_role.py": "a646d15033c77388d8fa295643a5e8f8b7153a510bfafcd49da209de91a13fcc",
+      "gamma_contrasts.py": "16e344e07b782957f6c9e935c42d16956946fe488d876efe28396d0385a58f09",
+      "gamma_fleet.py": "e9b5404e3c277ed59163f388436172cd3e0d8f2cc9fbe7b677156f1f344ea6cd",
+      "test_host_role.py": "6e68c89ba549f034264e5fcf28502d14d8e5d31e583902f99bb7e2c23f07bdc2"
+    },
+    "observations": {
+      "workers": {
+        "unchanged": {
+          "admitted": true
+        },
+        "disk holder executable": {
+          "admitted": false,
+          "reason": "disk holder is not the Apple VMM"
+        },
+        "same executable basename": {
+          "admitted": false,
+          "reason": "disk holder is not the Apple VMM"
+        }
+      },
+      "size": {
+        "unchanged": {
+          "admitted": true
+        },
+        "auto": {
+          "admitted": true
+        },
+        "saved nice": {
+          "admitted": false,
+          "reason": "launchd controls or live supervisor nice differ beyond vCPU count"
+        },
+        "live nice": {
+          "admitted": false,
+          "reason": "launchd controls or live supervisor nice differ beyond vCPU count"
+        },
+        "inherited env": {
+          "admitted": false,
+          "reason": "launchd controls or live supervisor nice differ beyond vCPU count"
+        },
+        "fixed CPU selector": {
+          "admitted": false,
+          "reason": "launchd vCPU selector differs from observed VM size"
+        }
+      }
+    }
+  }
+}

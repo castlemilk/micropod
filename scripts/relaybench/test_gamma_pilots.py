@@ -226,7 +226,8 @@ class GammaPilots(unittest.TestCase):
             a, b = root / "four", root / "six"
             a.mkdir()
             b.mkdir()
-            def fixture(path, cpus, orb):
+            def fixture(path, cpus, orb, *, vary_vcpus):
+                self.assertTrue(vary_vcpus)
                 return dict(engine=path.name, id=path.name, address=path.name, name=path.name,
                             cpuset=f"0-{cpus - 1}", pids={"vmm": cpus})
             fleet, release = owner_window(root, (a, b), "size")
