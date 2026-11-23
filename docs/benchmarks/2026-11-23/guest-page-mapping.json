@@ -1,0 +1,130 @@
+{
+  "issue": 236,
+  "direction": "236.02",
+  "source_base": "d622b5c0568b3b927c96c22bdfbad0dc71710515",
+  "archives": [
+    {
+      "file": "orb-image.tar",
+      "sha256": "3989c7ced4264b60419fee78907861694ade6f8cb21b5034a6e4bc452bdb74d1",
+      "config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+      "layer_blobs": [
+        "blobs/sha256/7d4ee779f04af2802fa3613187490f443211d116770559941ad4094137353af4"
+      ],
+      "rootfs_diff_ids": [
+        "sha256:10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7"
+      ]
+    },
+    {
+      "file": "alpine.tar",
+      "sha256": "1f63b12d91219a2323ed74fbf30b09dc137d752fc7aeb7dd7526467ee1a53885",
+      "config_sha256": "0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856",
+      "layer_blobs": [
+        "blobs/sha256/0aeae9e5c96856ad8a51ac2a81bf4ce73766c2199992b92fd9302dd7ec7a38de"
+      ],
+      "rootfs_diff_ids": [
+        "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd"
+      ]
+    }
+  ],
+  "netbench": {
+    "sha256": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+    "go": "go1.27.2, linux/arm64, CGO_ENABLED=0",
+    "sysauxv_at_pagesz_cmp_and_store": {
+      "virtual_address": "0x55690",
+      "bytes": 24,
+      "hex": "047864f87f1800f1810000541b3200f064eb07f91a000014",
+      "sha256": "2a16f4eb888689bfa294a6462e292c15e2c29c9fc0edba3b647b68e1ed33846c"
+    },
+    "runtime_physPageSize": "0x698fd0",
+    "mallocinit_page_guards": {
+      "virtual_address": "0x2adf8",
+      "bytes": 40,
+      "hex": "7b3300d062eb47f9021a00b45f0042f1e81600545f0440f1c3130054430400d15f0003ea41110054",
+      "sha256": "84d63b53360b0868b1993ab7d62c874bf0d5e285e7176c19deeef21d77132a85"
+    }
+  },
+  "alpine": {
+    "musl_package": "1.2.5-r24",
+    "musl_sha256": "652a04bcb0326733f762eca799887bbc9e070df0a0d6668238769f6dfcdc77c2",
+    "getconf_sha256": "4b22a4083e4aa0a837d8e42d20510c106d968fdf14e1e46de9c876ffaaf61744",
+    "getconf_interpreter": "/lib/ld-musl-aarch64.so.1",
+    "getconf_import": "sysconf",
+    "getpagesize": {
+      "virtual_address": "0x23cd8",
+      "bytes": 12,
+      "hex": "e00400f000a842b9c0035fd6",
+      "sha256": "f27c53ab1d9342c3fe834c9f2c1de53c48488925cf2db6449c69208b5e3e99fa"
+    },
+    "mmap_offset_guard": {
+      "virtual_address": "0x3e1ec",
+      "bytes": 8,
+      "hex": "bf2c40f2c1020054",
+      "sha256": "bd7698bf61cac2ab69af383d8191771269fc9318fea0548d6b4fbbf4abd818e4"
+    },
+    "mmap_syscall": {
+      "virtual_address": "0x3e21c",
+      "bytes": 8,
+      "hex": "c81b80d2010000d4",
+      "sha256": "0dc9e4e2dbed4a5fca27a1756d42d39bca1fcfb0892da2a4aa68323851ef1f87"
+    }
+  },
+  "pinned_kernel_source": {
+    "tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+    "source": "arch/arm64/kernel/sys.c",
+    "sha256": "f052e58e829fd4a977f7a52ce96a774051430c3a677e6d8b805694b8d466da9c",
+    "line": 21
+  },
+  "actual_host": {
+    "os": "darwin",
+    "arch": "arm64",
+    "runtime_page_bytes": 16384,
+    "temporary_file_bytes": 32785,
+    "windows": [
+      {
+        "offset": 4096,
+        "raw_mmap": "EINVAL",
+        "aligned_base": 0,
+        "verified_window_bytes": 16401
+      },
+      {
+        "offset": 8192,
+        "raw_mmap": "EINVAL",
+        "aligned_base": 0,
+        "verified_window_bytes": 16401
+      },
+      {
+        "offset": 12288,
+        "raw_mmap": "EINVAL",
+        "aligned_base": 0,
+        "verified_window_bytes": 16401
+      },
+      {
+        "offset": 16384,
+        "raw_mmap": "matched",
+        "aligned_base": 16384,
+        "verified_window_bytes": 16401
+      }
+    ]
+  },
+  "independent_host_getconf_pagesize": 16384,
+  "wrong_expected_page": {
+    "exit": 1,
+    "stderr": "runtime reported 16384-byte pages, expected 4096"
+  },
+  "probe": {
+    "source_sha256": "066fe2e10ce00071a1697732751a12b244faee654a769925000f7f9b65da6734",
+    "test_sha256": "e610036fabbb305e44c22543c2c760a9431b2668ae71e58c9feeda90670a346a",
+    "go": "1.27.2",
+    "darwin_arm64_sha256": "ebbada02f661fc08b5c0012dc2e4afccbecfa8b695a62b8bc30b691dbf184ba7",
+    "linux_arm64_sha256": "5b70316628c9eb82d673e7a90ba474b1c825dd9cdb88210672068d98ce0a1a85",
+    "auxv_subtests": 7,
+    "auxv_subtests_passed": 7,
+    "guest_runs": 0,
+    "host_private_file_left": false
+  },
+  "limits": [
+    "Machine code inspection of two saved userspace binaries.",
+    "Mapping syscall results measured on the 16 KiB Darwin host only.",
+    "No live VM, OCI container or guest filesystem ran."
+  ]
+}
