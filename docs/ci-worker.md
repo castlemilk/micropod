@@ -157,6 +157,8 @@ Set resources before first boot. Later starts reuse the recorded configuration. 
 
 `micropod ci cpu-plan` previews the next boot. To change a provisioned worker, select its engine and home, drain it, stop it, then use `micropod ci set-cpus auto` or a fixed count. This edits only the CPU field of the stopped worker's manifest. A registered launch agent that pins a conflicting count must be uninstalled while idle and registered again with the new policy. An agent with no CPU override can reuse the manifest. The CPU count is fixed for the lifetime of a VM. Status reports the boot allocation and its source.
 
+`micropod ci cpu-plan --topology` also reports the host's active logical CPU count, Virtualization.framework CPU bounds, and each available performance tier's name, physical CPU count and CPUs per shared L2. Missing fields mean the host did not report a usable value. `levels` can be empty on a restricted host. The allocation uses the configured policy and the same rules as `cpu-plan`. The reported counts describe topology. Actual VM thread placement and runnable wait require a scheduler trace.
+
 Set `MICROPOD_CI_POSTGRES_PATH=bridge` for the sample CI pipeline to run a PostgreSQL server and its SQL client on a per-run guest network. The default path continues to exercise Testcontainers and Ryuk. The bridge mode runs a different integration check and should be compared on both engines. [Gamma sizing, scheduler and storage qualification](benchmarks/2026-11-21/gamma-worker-sizing.md)
 
 ```sh

@@ -140,14 +140,17 @@ public struct CIWorker: Sendable {
         try resourceEnvironment["MICROPOD_CI_CPUS"].map(CIWorkerCPUCount.init) ?? existing?.cpus ?? .fixed(4)
     }
 
+    private func plannedCPUPolicy() throws -> CIWorkerCPUCount {
+        if FileManager.default.fileExists(atPath: manifest.path) { return try configuration().cpus }
+        return try cpuPolicy(existing: nil)
+    }
+
     public func cpuPlan() throws -> some Encodable {
-        let policy: CIWorkerCPUCount
-        if FileManager.default.fileExists(atPath: manifest.path) {
-            policy = try configuration().cpus
-        } else {
-            policy = try cpuPolicy(existing: nil)
-        }
-        return try policy.resolveForBoot()
+        try plannedCPUPolicy().resolveForBoot()
+    }
+
+    public func cpuTopologyPlan() throws -> some Encodable {
+        try plannedCPUPolicy().topologyPlan()
     }
 
     private func selectedEngine() throws -> Engine {

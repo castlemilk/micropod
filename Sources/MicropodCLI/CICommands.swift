@@ -14,7 +14,7 @@ enum CICommands {
         micropod ci start                 start or join this account's Linux worker
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
-        micropod ci cpu-plan              show the vCPU count and source for the next boot
+        micropod ci cpu-plan [--topology] show the next boot's vCPU plan and optionally the host CPU tiers
         micropod ci set-cpus COUNT|auto   change a stopped worker's CPU policy and reuse its disk
         micropod ci docker [arguments]    run the stock Docker CLI or a plugin against this worker
         micropod ci snapshot BASE_IMAGE [DIRECTORY]
@@ -56,6 +56,7 @@ enum CICommands {
             ? CIWorker.LaunchProcessType(rawValue: args[2]) : nil
         guard
             ["run", "create", "docker", "snapshot", "warm-go", "job", "runner-prime"].contains(command)
+                || args == ["cpu-plan", "--topology"]
                 || args == ["metrics", "--usage"]
                 || args == ["metrics", "--kernel"]
                 || processType != nil
@@ -67,6 +68,7 @@ enum CICommands {
         }
         do {
             switch command {
+            case "cpu-plan" where args.count == 2: try printStatus(worker.cpuTopologyPlan())
             case "cpu-plan": try printStatus(worker.cpuPlan())
             case "set-cpus":
                 guard args.count == 2 else {
