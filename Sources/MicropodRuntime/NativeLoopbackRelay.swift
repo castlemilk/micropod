@@ -110,6 +110,11 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     var dataCallbackEvents: Int? {
         workers.isEmpty ? nil : Int(mp_tcp_data_callback_events(Int32(workers.count)))
     }
+    var readBytes: Int? {
+        guard let first = workers.first else { return Int(mp_tcp_relay_read_bytes(accept.backend.handle)) }
+        let bytes = mp_tcp_relay_read_bytes(first.backend.handle)
+        return workers.dropFirst().allSatisfy { mp_tcp_relay_read_bytes($0.backend.handle) == bytes } ? Int(bytes) : nil
+    }
     private let profile: Bool
     private var listeners: [UInt16: Lease] = [:]
     private var pending = Set<UInt16>()

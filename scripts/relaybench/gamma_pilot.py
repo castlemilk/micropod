@@ -43,20 +43,29 @@ def plan(seed, scored_pairs=2):
     return {"warmup": warmup, "scored": scored}
 
 
-def arm_settings(mode, workers=2, peer_vcpus=4):
-    require(mode in ("size", "peer", "workers", "host-role") and workers in (2, 4) and peer_vcpus in (4, 6),
+def arm_settings(mode, workers=2, peer_vcpus=4, fixed_read_kib=None):
+    require(mode in ("size", "peer", "workers", "host-role", "read-size") and workers in (2, 4) and peer_vcpus in (4, 6),
             "invalid arms")
     require(mode == "peer" or peer_vcpus == 4, "--peer-vcpus applies only to the OrbStack comparison")
     require(mode != "workers" or workers == 2, "the workers comparison always uses two and four workers")
+    require(fixed_read_kib is None or (fixed_read_kib in (256, 512) and mode in ("peer", "size")),
+            "--relay-read-kib applies only to a size or peer comparison")
+    if mode == "read-size":
+        return {arm: dict(engine="Micropod", vcpus=4, relay_workers=workers, callback_events=128, read_bytes=kib * 1024)
+                for arm, kib in (("A", 256), ("B", 512))}
     if mode == "host-role":
         require(workers == 2, "host-role requires the stock two-worker relay")
-        return {arm: dict(engine="Micropod", vcpus=4, relay_workers=2, callback_events=128, process_type=role)
+        return {arm: dict(engine="Micropod", vcpus=4, relay_workers=2, callback_events=128, read_bytes=256 * 1024, process_type=role)
                 for arm, role in (("A", "Standard"), ("B", "Interactive"))}
     a_cpus = peer_vcpus if mode == "peer" else 4
     b_workers = {"workers": 4, "size": workers, "peer": None}[mode]
-    return {"A": dict(engine="Micropod", vcpus=a_cpus, relay_workers=workers, callback_events=128),
+    arms = {"A": dict(engine="Micropod", vcpus=a_cpus, relay_workers=workers, callback_events=128),
             "B": dict(engine="OrbStack" if mode == "peer" else "Micropod", vcpus=6 if mode == "size" else a_cpus,
                       relay_workers=b_workers, callback_events=None if mode == "peer" else 128)}
+    for setting in arms.values():
+        if setting["engine"] == "Micropod":
+            setting["read_bytes"] = (fixed_read_kib or 256) * 1024
+    return arms
 
 
 def command(*args):
@@ -102,7 +111,7 @@ def image_config(docker, container):
     return "sha256:" + hashlib.sha256(config).hexdigest()
 
 
-def inspect(scope, cpus, orb, process_type=None):
+def inspect(scope, cpus, orb, process_type=None, *, read_kib=None):
     scope = scope.resolve()
     require(scope.is_dir() and not (scope / "removed").exists(), f"missing or retired fixture: {scope}")
     base = value(scope, "base")
@@ -157,7 +166,9 @@ def inspect(scope, cpus, orb, process_type=None):
     job = plistlib.loads((owner / "job.plist").read_bytes())
     env = job["EnvironmentVariables"]
     role = command("launchctl", "print", f"gui/{os.getuid()}/{job['Label']}")
-    if process_type is None:
+    if read_kib is not None:
+        fixture.update(host_role.verify_job(job, role, pids["relay"], home, "Interactive", read_kib=read_kib))
+    elif process_type is None:
         require(re.search(rf"(?m)^\s*pid = {pids['relay']}$", role) and "spawn type = interactive" in role
                 and env["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive", "different live relay role")
     else:
@@ -188,7 +199,7 @@ def inspect(scope, cpus, orb, process_type=None):
         require(fixture["kernel_image_sha256"] == STOCK_KERNEL, "different kernel image")
     fixture.update(instance=session["instance"], worker=config["worker"], kernel=config["kernel"],
                    cli_sha256=mapped_digest(executable, pids["relay"]) if callback is not None else digest(executable),
-                   relay_workers=workers, callback_events=callback,
+                   relay_workers=workers, callback_events=callback, read_bytes=session.get("publishedRelayReadBytes"),
                    route={k: reno_routes[0][k] for k in DIRECT_ROUTE},
                    service_env_sha256=hashlib.sha256(service_env).hexdigest())
     return fixture
@@ -324,9 +335,10 @@ def screening_result(rows, pairs):
 
 
 def run(args, orders, *, workers=2, peer_vcpus=4):
-    settings = arm_settings(args.mode, workers, peer_vcpus)
+    settings = arm_settings(args.mode, workers, peer_vcpus, getattr(args, "relay_read_kib", None))
+    read_size = args.mode == "read-size"
     role_test = args.mode == "host-role"
-    screen = getattr(args, "scored_pairs", None) is not None
+    screen = read_size or getattr(args, "scored_pairs", None) is not None
     peer = args.mode == "peer"
     peer_holdout = peer and len(orders["scored"]) == 16
     tools = dict(HASHES, fixed=host_role.CLIENT_SHA256) if role_test or screen or peer_holdout else HASHES
@@ -359,6 +371,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
 
     def inspect_arm(arm):
         check_window()
+        if read_size:
+            return inspect(*scopes[arm], read_kib=settings[arm]["read_bytes"] // 1024)
         if role_test:
             return inspect(*scopes[arm], process_type=settings[arm]["process_type"])
         return inspect(*scopes[arm])
@@ -374,17 +388,23 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
         if expected is None:
             continue
         fixture = fixtures[arm]
+        # Older fixed-512 and fixed-256 binaries both omitted this field.
+        cap = settings_arm["read_bytes"]
+        require(type(fixture.get("read_bytes")) is int and fixture["read_bytes"] == cap,
+                f"arm {arm} needs a verified {cap // 1024} KiB relay read")
         require(fixture["relay_workers"] == expected, f"arm {arm} needs {expected} relay workers")
-        if (screen or args.mode in ("workers", "host-role") or expected == 4 or len(orders["scored"]) >= 16
-                or fixture.get("callback_events") is not None):
-            require(fixture.get("callback_events") == settings_arm["callback_events"],
-                    f"arm {arm} needs a verified 128-event callback")
-            require(fixture.get("route") == DIRECT_ROUTE, f"arm {arm} needs the qualified direct Reno route")
+        require(fixture.get("callback_events") == settings_arm["callback_events"],
+                f"arm {arm} needs a verified 128-event callback")
+        require(fixture.get("route") == DIRECT_ROUTE, f"arm {arm} needs the qualified direct Reno route")
     if not peer:
         require(a["instance"] != b["instance"] and a["worker"] != b["worker"], "need separate Micropod VMs")
         kernel_field = "kernel_image_sha256" if all("kernel_image_sha256" in f for f in (a, b)) else "kernel"
         for key in (kernel_field, "release", "engine_version", "cli_sha256", "route", "service_env_sha256"):
             require(a[key] == b[key], f"Micropod arms differ in {key}")
+    if read_size:
+        require(a.get("kernel_image_sha256") == b.get("kernel_image_sha256") == STOCK_KERNEL,
+                "read-size screen needs stock kernel image digests")
+        require(a["job_controls_sha256"] == b["job_controls_sha256"], "launchd controls differ beyond read size")
     if role_test:
         require(a["job_controls_sha256"] == b["job_controls_sha256"], "launchd controls differ beyond ProcessType")
         require(a["guest_boot"] != b["guest_boot"], "arms share a guest boot")
@@ -420,9 +440,9 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     require(host_role.timestamp(final["observed_at"]) < clearance_expiry
                             and latest_start <= opening["valid_until_epoch"],
                             "admission evidence does not cover the whole attempt")
-                    if peer_holdout:
+                    if peer_holdout or read_size:
                         client = peer_client(fixtures[arm], row)
-                        require(type(client.get("fresh_p50_us")) is int, "missing scheduled-arrival p50 on the peer holdout")
+                        require(type(client.get("fresh_p50_us")) is int, "missing scheduled-arrival p50 on the single-port comparison")
                     if role_test:
                         row["guest_after"] = host_role.guest_sample(command, fixture)
                         row["guest"] = host_role.guest_delta(row["guest_before"], row["guest_after"])
@@ -471,14 +491,16 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("size", "peer", "workers", "host-role"), default="size",
-                        help="VM size, matched peer, relay workers, or Standard/Interactive launchd roles")
-    parser.add_argument("--relay-workers", type=int, choices=(2, 4), default=2, help="fixed Micropod count for size/peer")
+    parser.add_argument("--mode", choices=("size", "peer", "workers", "host-role", "read-size"), default="size",
+                        help="VM size, matched peer, relay workers, relay read size, or Standard/Interactive launchd roles")
+    parser.add_argument("--relay-workers", type=int, choices=(2, 4), default=2, help="fixed Micropod count for size/peer/read-size")
+    parser.add_argument("--relay-read-kib", type=int, choices=(256, 512),
+                        help="pin the selected native read cap on a subsequent size or peer comparison")
     parser.add_argument("--peer-vcpus", type=int, choices=(4, 6), default=4, help="equal VM size for a peer test")
     length = parser.add_mutually_exclusive_group()
     length.add_argument("--holdout", action="store_true", help="16 scored pairs, balanced in blocks of two")
     length.add_argument("--scored-pairs", type=int, metavar="N",
-                        help="workers/size screen: even number of scored pairs (at least four)")
+                        help="workers/size/read-size screen: even number of scored pairs (at least four)")
     parser.add_argument("--seed", type=int, default=34199)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--run", action="store_true")
@@ -491,13 +513,13 @@ if __name__ == "__main__":
     parser.add_argument("--out", type=Path, help="new output directory")
     args = parser.parse_args()
     try:
-        settings = arm_settings(args.mode, args.relay_workers, args.peer_vcpus)
+        settings = arm_settings(args.mode, args.relay_workers, args.peer_vcpus, args.relay_read_kib)
     except ValueError as exc:
         parser.error(str(exc))
-    pilot_pairs = 4 if args.mode == "host-role" else 2
+    pilot_pairs = 4 if args.mode in ("host-role", "read-size") else 2
     if args.scored_pairs is not None:
-        if args.mode not in ("workers", "size") or args.scored_pairs < 4 or args.scored_pairs % 2:
-            parser.error("--scored-pairs requires workers or size mode and an even count of at least four")
+        if args.mode not in ("workers", "size", "read-size") or args.scored_pairs < 4 or args.scored_pairs % 2:
+            parser.error("--scored-pairs requires workers, size or read-size mode and an even count of at least four")
         pilot_pairs = args.scored_pairs
     orders = plan(args.seed, 16 if args.holdout else pilot_pairs)
     if args.run or args.check:

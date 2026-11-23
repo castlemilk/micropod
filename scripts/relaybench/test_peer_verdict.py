@@ -41,7 +41,7 @@ def completed_run(root):
                              cpus=6, cpuset="0-3", memory_bytes=4*2**30,
                              image_config=peer.IMAGE, service_limits=peer.LIMITS, release=arm, engine_version=arm,
                              pids={"vmm": 10, "relay": 20} if arm == "A" else {"vmm": 30})
-    fixtures["A"].update(cli_sha256=CLI_SHA, relay_workers=4, callback_events=128, route=peer.DIRECT_ROUTE,
+    fixtures["A"].update(cli_sha256=CLI_SHA, relay_workers=4, callback_events=128, read_bytes=262144, route=peer.DIRECT_ROUTE,
                          kernel_image_sha256=peer.STOCK_KERNEL)
     for phase, slots in order.items():
         for n, pair in enumerate(slots, 1):
@@ -162,6 +162,30 @@ class PeerVerdictTests(unittest.TestCase):
             write(root, "plan.json", plan)
             with self.assertRaisesRegex(ValueError, "peer controls"):
                 peer.directory(root, CLI_SHA)
+
+    def test_same_selected_executable_cannot_hide_a_different_read_cap(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            fixtures = completed_run(root)
+            schedule = json.loads((root / "plan.json").read_text())
+            del schedule["arms"]["A"]["read_bytes"]
+            del fixtures["A"]["read_bytes"]
+            write(root, "fixtures.json", fixtures)
+            write(root, "plan.json", schedule)
+            self.assertIsNone(peer.directory(root, CLI_SHA)["relay_read_bytes"])
+            with self.assertRaisesRegex(ValueError, "read size"):
+                peer.directory(root, CLI_SHA, 512)  # Legacy receipts contain no native readback.
+            schedule["arms"] = peer.arm_settings("peer", 4, 6, 512)
+            write(root, "plan.json", schedule)
+            fixtures["A"]["read_bytes"] = 262144
+            write(root, "fixtures.json", fixtures)
+            with self.assertRaisesRegex(ValueError, "read size"):
+                peer.directory(root, CLI_SHA, 512)
+            fixtures["A"]["read_bytes"] = 524288
+            write(root, "fixtures.json", fixtures)
+            with self.assertRaisesRegex(ValueError, "read size"):
+                peer.directory(root, CLI_SHA, 256)
+            self.assertEqual(peer.directory(root, CLI_SHA, 512)["relay_read_bytes"], 524288)
 
     def test_wrong_build_missing_quota_overlapping_round_and_missing_attempt_are_invalid(self):
         with tempfile.TemporaryDirectory() as d:

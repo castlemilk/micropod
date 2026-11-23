@@ -18,7 +18,10 @@
 #include <unistd.h>
 
 // One scratch buffer per worker. Only a short write needs per-stream storage.
-#if defined(MICROPOD_BENCH_512K_READS) && MICROPOD_BENCH_512K_READS
+#ifndef MICROPOD_BENCH_512K_READS
+#define MICROPOD_BENCH_512K_READS 0
+#endif
+#if MICROPOD_BENCH_512K_READS
 #define CHUNK (512 * 1024)
 #else
 #define CHUNK (256 * 1024)
@@ -50,6 +53,9 @@ struct mp_tcp_relay {
     atomic_bool path_failure, guest_data;
     uint64_t interface_checked;
     struct pair *retired;
+#if MICROPOD_BENCH_512K_READS
+    unsigned read_bytes;
+#endif
     char scratch[CHUNK];
 };
 
@@ -153,6 +159,13 @@ static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
     if (inet_pton(AF_INET, guest, &address) != 1) { errno = EINVAL; return NULL; }
     mp_tcp_relay *r = calloc(1, sizeof(*r));
     if (!r) return NULL;
+#if MICROPOD_BENCH_512K_READS
+    // Both arms reserve the same scratch capacity in one executable.
+    const char *kib = getenv("MICROPOD_BENCH_RELAY_READ_KIB");
+    if (!kib || strcmp(kib, "512") == 0) r->read_bytes = CHUNK;
+    else if (strcmp(kib, "256") == 0) r->read_bytes = 256 * 1024;
+    else { free(r); errno = EINVAL; return NULL; }
+#endif
     r->guest = address;
     atomic_init(&r->path_failure, false);
     atomic_init(&r->guest_data, false);
@@ -174,6 +187,14 @@ static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
 mp_tcp_relay *mp_tcp_relay_create(const char *guest) { return create_relay(guest, false); }
 
 mp_tcp_relay *mp_tcp_relay_create_data(const char *guest) { return create_relay(guest, true); }
+
+unsigned mp_tcp_relay_read_bytes(const mp_tcp_relay *r) {
+#if MICROPOD_BENCH_512K_READS
+    return r->read_bytes;
+#else
+    return sizeof(r->scratch);
+#endif
+}
 
 void mp_tcp_relay_bound_guest_window(mp_tcp_relay *r) {
     // Keep macOS receive autotuning from admitting several MiB per stream
@@ -597,7 +618,7 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         data = dst->pending + dst->offset;
     } else {
         if (src->eof) return;
-        ssize_t got = read(src->watch.fd, data, CHUNK);
+        ssize_t got = read(src->watch.fd, data, mp_tcp_relay_read_bytes(r));
         if (l->profile) ++l->stats.reads;
         if (got < 0) {
             if (errno != EAGAIN && errno != EINTR) {

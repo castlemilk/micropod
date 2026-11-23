@@ -7,7 +7,8 @@ and the original per-arm JSON receipts for three warmup and 16 scored pairs. Bot
 observations must bracket the host counters for each attempt. All inputs are read-only.
 New holdouts use the checksum-pinned client that records scheduled-arrival p50, p95 and p99.
 Each row retains the invoked URL and service marker in client_arguments and the raw
-client output must identify one published port for both products.
+client output must identify one published port for both products. Supply --candidate-read-kib
+for a selected nondefault native cap. Historical directories without a cap remain unattributed.
 
 Exit codes are 0 for a qualified result, 1 for a completed comparison that missed the criteria
 and 2 for invalid or incomplete evidence. --json includes every scored arm and its errors.
@@ -159,7 +160,7 @@ def admission(observation, handoff, scopes):
     return checked, start, valid_until
 
 
-def directory(root, candidate_sha):
+def directory(root, candidate_sha, candidate_read_kib=None):
     def load(name):
         path = root / name
         require(path.is_file(), f"missing regular receipt file: {name}")
@@ -174,7 +175,18 @@ def directory(root, candidate_sha):
     order = plan(schedule["seed"], 16)
     require(order == schedule["order"], "holdout order differs from the seeded schedule")
     a, b = fixtures["A"], fixtures["B"]
-    require(schedule["arms"] == arm_settings("peer", a["relay_workers"], a["cpus"])
+    # One benchmark binary can serve at either read size. Bind a selected cap to
+    # the plan and the booted relay. A legacy receipt has neither field.
+    selected_read = (candidate_read_kib or 256) * 1024
+    expected_arms = arm_settings("peer", a["relay_workers"], a["cpus"], candidate_read_kib)
+    if "read_bytes" not in schedule["arms"]["A"] and a.get("read_bytes") is None and candidate_read_kib is None:
+        del expected_arms["A"]["read_bytes"]  # Old receipt, unknown size, no cap-specific conclusion.
+    else:
+        planned_read = schedule["arms"]["A"].get("read_bytes")
+        require(type(a.get("read_bytes")) is int and type(planned_read) is int
+                and a["read_bytes"] == planned_read == selected_read,
+                "holdout read size differs from the selected or planned relay cap")
+    require(schedule["arms"] == expected_arms
             and a["cpus"] == b["cpus"] and a["callback_events"] == 128 and a["cli_sha256"] == candidate_sha
             and a["kernel_image_sha256"] == STOCK_KERNEL and a["route"] == DIRECT_ROUTE,
             "candidate hash, path or matched resources differ")
@@ -207,7 +219,7 @@ def directory(root, candidate_sha):
             require(type(value) is int and value > 0, f"missing or invalid fresh p{q} from selected load client")
         return dict(r, client=client)
     return dict(source=str(root), reservation=handoff["reservation"], candidate_sha256=candidate_sha,
-                vcpus=a["cpus"], image_config=IMAGE,
+                vcpus=a["cpus"], image_config=IMAGE, relay_read_bytes=a.get("read_bytes"),
                 **assess(order, {arm: f["pids"] for arm, f in fixtures.items()}, get_record))
 
 
@@ -217,18 +229,23 @@ if __name__ == "__main__":
     source.add_argument("--archive", action="store_true", help="replay the pinned November four-vCPU holdout")
     source.add_argument("--run-directory", type=Path, help="completed gamma_pilot.py --mode peer --holdout output")
     parser.add_argument("--candidate-sha256", help="previously selected Micropod executable, required for a run directory")
+    parser.add_argument("--candidate-read-kib", type=int, choices=(256, 512),
+                        help="previously selected Micropod read cap, to match --relay-read-kib in the peer pilot")
     parser.add_argument("--json", action="store_true", help="include complete per-attempt results in JSON")
     args = parser.parse_args()
-    if args.archive and args.candidate_sha256:
-        parser.error("--candidate-sha256 applies to a new run directory")
+    if args.archive and (args.candidate_sha256 or args.candidate_read_kib):
+        parser.error("--candidate-sha256 and --candidate-read-kib apply to a new run directory")
     try:
-        result = archived() if args.archive else directory(args.run_directory, args.candidate_sha256)
+        result = archived() if args.archive else directory(args.run_directory, args.candidate_sha256, args.candidate_read_kib)
         if args.json:
             print(json.dumps(result, indent=2, allow_nan=False))
         else:
             def fmt(value):
                 return "unknown" if value is None else f"{value:.3f}"
             print(f'Matched published TCP {result["verdict"]} ({result["common_clean_pairs"]}/16 common clean pairs)')
+            if args.run_directory:
+                cap = result["relay_read_bytes"]
+                print(f'Micropod relay read cap: {str(cap // 1024) + " KiB" if cap else "unknown in this receipt"}')
             for name, arm in result["arm_clean_medians_and_all_attempt_counts"].items():
                 latency = "/".join(fmt(arm[f"p{q}_ms"]) for q in (50, 95, 99))
                 print(f'{name} completed {arm["clean"]}/16 clean rounds at {fmt(arm["mib_s"])} MiB/s, '

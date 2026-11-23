@@ -43,7 +43,7 @@ public struct CIWorker: Sendable {
             "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
             "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS", "MICROPOD_CI_ENGINE", "MICROPOD_CI_KATA_TOOLS",
             "MICROPOD_CI_MAX_STARTING", "MICROPOD_CI_PORT_RELAY", "MICROPOD_CI_PORT_PROFILE",
-            "MICROPOD_CI_PORT_RELAY_WORKERS",
+            "MICROPOD_CI_PORT_RELAY_WORKERS", "MICROPOD_BENCH_RELAY_READ_KIB",
             "MICROPOD_CI_KERNEL", "MICROPOD_CI_PUBLISHED_PATH",
         ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
@@ -81,6 +81,7 @@ public struct CIWorker: Sendable {
         var cpuAllocation: CIWorkerCPUCount.Allocation?
         var publishedRelayWorkers: Int?
         var publishedRelayCallbackEvents: Int?
+        var publishedRelayReadBytes: Int?
     }
 
     struct ReadySocket: Codable, Equatable {
@@ -111,6 +112,7 @@ public struct CIWorker: Sendable {
         public var publishedAddress: String? = nil
         public var publishedRelayWorkers: Int? = nil
         public var publishedRelayCallbackEvents: Int? = nil
+        public var publishedRelayReadBytes: Int? = nil
         public let cpus: Int
         public var cpuSizingSource: String? = nil
         public let memoryBytes: UInt64
@@ -383,7 +385,8 @@ public struct CIWorker: Sendable {
                 engine: "containerd", daemon: identity.engine, engineVersion: identity.version,
                 guestAddress: active.guestAddress, publishedAddress: active.publishedAddress,
                 publishedRelayWorkers: active.publishedRelayWorkers,
-                publishedRelayCallbackEvents: active.publishedRelayCallbackEvents, cpus: count,
+                publishedRelayCallbackEvents: active.publishedRelayCallbackEvents,
+                publishedRelayReadBytes: active.publishedRelayReadBytes, cpus: count,
                 cpuSizingSource: active.cpuAllocation?.source.rawValue,
                 memoryBytes: identity.memory_bytes,
                 storageDriver: "overlayfs", kataPrerequisitesPresent: identity.kata_prerequisites_present,
@@ -413,7 +416,8 @@ public struct CIWorker: Sendable {
             engine: config.engine.rawValue,
             daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress,
             publishedAddress: active.publishedAddress, publishedRelayWorkers: active.publishedRelayWorkers,
-            publishedRelayCallbackEvents: active.publishedRelayCallbackEvents, cpus: info.NCPU,
+            publishedRelayCallbackEvents: active.publishedRelayCallbackEvents,
+            publishedRelayReadBytes: active.publishedRelayReadBytes, cpus: info.NCPU,
             cpuSizingSource: active.cpuAllocation?.source.rawValue,
             memoryBytes: info.MemTotal, storageDriver: info.Driver,
             cgroupDriver: info.CgroupDriver)
@@ -827,6 +831,7 @@ public struct CIWorker: Sendable {
                     profile: resourceEnvironment["MICROPOD_CI_PORT_PROFILE"] == "1")
                 active.publishedRelayWorkers = nativeRelay?.dataWorkerCount
                 active.publishedRelayCallbackEvents = nativeRelay?.dataCallbackEvents
+                active.publishedRelayReadBytes = nativeRelay?.readBytes
             } else {
                 nativeRelay = nil
             }

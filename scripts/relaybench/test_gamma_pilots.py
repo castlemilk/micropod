@@ -100,10 +100,11 @@ class GammaPilots(unittest.TestCase):
                 vm.image_config(["docker"], container)
 
     def test_peer_preflight_checks_orbstack_first_and_timing_preserves_ratio_direction(self):
+        cap = {"read_bytes": 256 * 1024}
         def inspect(scope, cpus, orb):
             key = scope.name
             return dict(engine=key, id=key, address=key, name=key, cpus=cpus, cpuset="0-3", relay_workers=2,
-                        pids={"vmm": 2 if orb else 1})
+                        pids={"vmm": 2 if orb else 1}, callback_events=128, route=vm.DIRECT_ROUTE, **cap)
 
         def attempt(tools, fixture, birth, row, check):
             self.assertEqual(check()["scopes"], row["admission"]["scopes"])
@@ -124,6 +125,10 @@ class GammaPilots(unittest.TestCase):
                  patch.object(vm, "inspect", side_effect=inspect) as inspected, \
                  patch.object(vm, "snapshot", return_value={"tasks": [{"pid": 1, "birth_ticks": 10}]}), \
                  patch.object(vm, "attempt", side_effect=attempt) as measured:
+                with patch.dict(cap, clear=True), self.assertRaisesRegex(ValueError, "verified 256 KiB"):
+                    vm.run(args, vm.plan(args.seed))
+                measured.assert_not_called()
+                args.out = root / "verified-check"
                 vm.run(args, vm.plan(args.seed))
                 self.assertEqual(inspected.call_args_list[0].args, (b, 4, True))
                 measured.assert_not_called()
@@ -245,7 +250,8 @@ class GammaPilots(unittest.TestCase):
             common = dict(cpuset="0-3", kernel_image_sha256=vm.STOCK_KERNEL, release="7.3.5-micropod", engine_version="same",
                           cli_sha256="same-digest", route=vm.DIRECT_ROUTE, service_env_sha256="same-env")
             fixtures = {p: dict(common, engine=p.name, id=p.name, address=p.name, name=p.name, instance=p.name,
-                                kernel=str(p / "Image"), worker=p.name, pids={"vmm": n}, relay_workers=n, callback_events=128)
+                                kernel=str(p / "Image"), worker=p.name, pids={"vmm": n}, relay_workers=n, callback_events=128,
+                                read_bytes=256 * 1024)
                         for p, n in ((a, 2), (b, 4))}
             def inspect(path, cpus, orb):
                 self.assertEqual((cpus, orb), (4, False))
@@ -258,6 +264,7 @@ class GammaPilots(unittest.TestCase):
                  patch.object(vm, "inspect", side_effect=inspect), patch.object(vm, "snapshot", return_value={"tasks": []}), \
                  patch.object(vm, "attempt", side_effect=measure) as timed:
                 for i, (arm, key, wrong, message) in enumerate((
+                    (a, "read_bytes", None, "verified 256 KiB"),
                     (a, "callback_events", None, "verified 128-event"),
                     (b, "callback_events", 24, "verified 128-event"),
                     (b, "relay_workers", 2, "needs 4 relay workers"),
@@ -278,7 +285,7 @@ class GammaPilots(unittest.TestCase):
 
     def test_peer_holdout_preserves_resource_parity_and_balanced_blocks(self):
         arms = vm.arm_settings("peer", workers=4, peer_vcpus=6)
-        self.assertEqual(arms["A"], dict(engine="Micropod", vcpus=6, relay_workers=4, callback_events=128))
+        self.assertEqual(arms["A"], dict(engine="Micropod", vcpus=6, relay_workers=4, callback_events=128, read_bytes=262144))
         self.assertEqual(arms["B"], dict(engine="OrbStack", vcpus=6, relay_workers=None, callback_events=None))
         holdout = vm.plan(34203, 16)
         self.assertEqual(len(holdout["warmup"]), 3)
@@ -294,6 +301,7 @@ class GammaPilots(unittest.TestCase):
             return dict(engine=scope.name, id=scope.name, address="127.0.0.1:9002" if orb else "127.0.0.1:9001",
                         name=scope.name, cpuset="0-3",
                         relay_workers=None if orb else 4, callback_events=None if orb else 128,
+                        read_bytes=None if orb else 256 * 1024,
                         route=vm.DIRECT_ROUTE, pids={"vmm": 2 if orb else 1})
 
         def measure(tools, fixture, birth, row, check):

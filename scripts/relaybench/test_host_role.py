@@ -94,6 +94,25 @@ class HostRoleTests(unittest.TestCase):
                 verify(owner=pid + 1)
         self.assertEqual(*controls)
 
+    def test_read_size_controls_bind_the_loaded_selector(self):
+        home = Path("/fixture/a")
+        env = {"MICROPOD_CI_HOME": str(home), "MICROPOD_CI_PORT_RELAY": "kqueue-interactive"}
+        hashes = []
+        for kib in (256, 512):
+            env["MICROPOD_BENCH_RELAY_READ_KIB"] = str(kib)
+            job = {"ProgramArguments": ["/micropod", "ci", "serve"], "ProcessType": "Interactive", "EnvironmentVariables": env}
+            live = "pid = 17\nspawn type = " + role.SPAWN_TYPES["Interactive"] + "\n"
+            live += "\n".join(f"{k} => {v}" for k, v in env.items())
+            def verify(record=live, selector=kib, job=job):
+                return role.verify_job(job, record, 17, home, "Interactive", read_kib=selector)["job_controls_sha256"]
+            hashes.append(verify())
+            self.assertNotEqual(verify(job=dict(job, Nice=7)), hashes[-1])
+            with self.assertRaisesRegex(ValueError, "loaded job differs"):
+                verify(live.replace(f"KIB => {kib}", "KIB => 1024"))
+            with self.assertRaisesRegex(ValueError, "selector differs"):
+                verify(selector=1024 - kib // 2)
+        self.assertEqual(*hashes)
+
     def test_network_and_irq_counters_keep_their_scopes_and_detect_resets(self):
         files = network_files()
         sample = role.guest_counters(files, dict.fromkeys(role.LINK_ERRORS, 0))
@@ -167,6 +186,10 @@ class HostRoleTests(unittest.TestCase):
                     patch.object(pilot, "mapped_digest", return_value="same-mapped-executable"), \
                     patch.object(pilot, "digest", return_value=pilot.STOCK_KERNEL):
                 fx = pilot.inspect(scope, 4, False, "Standard")
+                self.assertIsNone(fx["read_bytes"])
+                session["publishedRelayReadBytes"] = 524288
+                (home / "session.json").write_text(json.dumps(session))
+                self.assertEqual(pilot.inspect(scope, 4, False, "Standard")["read_bytes"], 524288)
                 self.assertEqual(fx["service_limits"], {"cpu.max": "400000 100000",
                                                        "memory.max": "1073741824", "pids.max": "512"})
                 self.assertEqual((fx["process_type"], fx["spawn_type"], fx["pids"]["relay"]),
@@ -305,7 +328,7 @@ class HostRoleTests(unittest.TestCase):
                 return {"engine": path.name, "name": path.name, "address": path.name, "id": path.name,
                         "pids": {"vmm": 1 if path == a else 3, "relay": 2 if path == a else 4},
                         "cpuset": "0-3", "instance": path.name, "worker": path.name, "relay_workers": 2,
-                        "kernel_image_sha256": pilot.STOCK_KERNEL, "callback_events": 128, "route": pilot.DIRECT_ROUTE,
+                        "kernel_image_sha256": pilot.STOCK_KERNEL, "callback_events": 128, "read_bytes": 262144, "route": pilot.DIRECT_ROUTE,
                         "release": "7.3.5-micropod", "engine_version": "same", "cli_sha256": "same",
                         "service_env_sha256": "same", "process_type": process_type, "guest_boot": path.name,
                         "job_controls_sha256": "same settings"}

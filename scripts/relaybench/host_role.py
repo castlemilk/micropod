@@ -71,7 +71,7 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
             "valid_until_epoch": expiry, "fleet_time": fleet["generatedAt"], "effective_disk_gate": clearance}
 
 
-def verify_job(job, live, pid, home, expected):
+def verify_job(job, live, pid, home, expected, *, read_kib=None):
     pids = re.findall(r"(?m)^[ \t]*pid = (\d+)[ \t]*$", live)
     types = re.findall(r"(?m)^[ \t]*spawn type = ([^\n]+)$", live)
     if (job.get("ProcessType", "Standard") != expected or pids != [str(pid)]
@@ -90,10 +90,18 @@ def verify_job(job, live, pid, home, expected):
     # Scope identity and log destinations necessarily differ between two live jobs.
     controls = {key: value for key, value in job.items()
                 if key not in ("Label", "ProcessType", "StandardOutPath", "StandardErrorPath")}
-    controls["EnvironmentVariables"] = {key: value for key, value in env.items() if key != "MICROPOD_CI_HOME"}
+    excluded_env = {"MICROPOD_CI_HOME"}
+    if read_kib is not None:
+        selector = "MICROPOD_BENCH_RELAY_READ_KIB"
+        if env.get(selector) != str(read_kib):
+            raise ValueError("launchd read-size selector differs from the planned arm")
+        excluded_env.add(selector)
+        # The pilot separately matches the mapped executable digests across jobs.
+        controls["ProgramArguments"] = controls["ProgramArguments"][1:]
+    controls["EnvironmentVariables"] = {key: value for key, value in env.items() if key not in excluded_env}
     controls["loaded_micropod_environment"] = sorted(
         [key, value] for key, value in re.findall(r"(?m)^[ \t]*(MICROPOD_[A-Z0-9_]+) => ([^\n]*)$", live)
-        if key != "MICROPOD_CI_HOME")
+        if key not in excluded_env)
     return {"process_type": expected, "spawn_type": types[0],
             "job_controls_sha256": hashlib.sha256(plistlib.dumps(controls)).hexdigest()}
 

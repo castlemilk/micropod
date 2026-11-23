@@ -43,6 +43,11 @@ static void ready(mp_tcp_relay *owner, int count) {
 
 int main(int argc, char **argv) {
     check(argc == 2, "expected read capacity");
+    if (strcmp(argv[1], "invalid") == 0) {
+        check(mp_tcp_relay_create_data("127.0.0.1") == NULL && errno == EINVAL, "invalid data-owner cap");
+        check(mp_tcp_relay_create("127.0.0.1") == NULL && errno == EINVAL, "invalid inline cap");
+        return 0;
+    }
     expected_cap = (size_t)atoi(argv[1]) * 1024;
     alarm(5);
     static const unsigned char marker[] = "fresh-on-new-flow";
@@ -51,6 +56,11 @@ int main(int argc, char **argv) {
     for (size_t j = 0; j < BODY; ++j) body[j] = (unsigned char)(j * 193 + j / 257);
     mp_tcp_relay *owner = mp_tcp_relay_create_data("127.0.0.1");
     check(owner != NULL, "create owner");
+    mp_tcp_relay *inline_owner = mp_tcp_relay_create("127.0.0.1");
+    check(inline_owner != NULL && mp_tcp_relay_read_bytes(inline_owner) == expected_cap, "inline owner cap");
+    mp_tcp_relay_destroy(inline_owner);
+    check(setenv("MICROPOD_BENCH_RELAY_READ_KIB", "invalid-after-creation", 1) == 0, "change environment");
+    check(mp_tcp_relay_read_bytes(owner) == expected_cap, "cap is fixed at owner creation");
     mp_tcp_listener *l = new_listener(owner, 8080, 0);
     check(l != NULL, "create lease");
     int client[2][2], guest[2][2];
@@ -85,7 +95,7 @@ int main(int argc, char **argv) {
         offset += n;
         ++turns;
     }
-    printf("%zu %d %d %d\n", expected_cap, turns, BODY, MARKER);
+    printf("%zu %d %d %d %zu\n", expected_cap, turns, BODY, MARKER, sizeof(owner->scratch));
     mp_tcp_release(l, NULL);
     mp_tcp_relay_destroy(owner);
     for (int i = 0; i < 2; ++i) { close(client[i][0]); close(guest[i][0]); }

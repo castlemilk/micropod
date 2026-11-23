@@ -47,6 +47,64 @@ class PilotPairCountTests(unittest.TestCase):
             for i in range(0, count, 2):
                 self.assertCountEqual(scored[i:i + 2], ["AB", "BA"])
 
+    def test_read_size_screen_requires_same_build_and_booted_caps(self):
+        now = 1_795_385_000
+        seed = 34215
+        result = json.loads(cli("--mode", "read-size", "--relay-workers", "4", "--seed", str(seed)).stdout)
+        self.assertEqual(result["order"], pilot.plan(seed, 4))
+        settings = result["arms"]
+        self.assertEqual([key for key in settings["A"] if settings["A"][key] != settings["B"][key]], ["read_bytes"])
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            a, b = root / "a", root / "b"
+            a.mkdir()
+            b.mkdir()
+            fleet, release = make_window(root, now, (a, b))
+            args = Namespace(mode="read-size", seed=seed, a=a, b=b, tools=root, check=False,
+                             fleet=fleet, release=release, out=root / "no-handoff")
+            fixtures = {path: dict(settings[arm], engine=arm, id=arm, name=arm, instance=arm, worker=arm,
+                                   address=f"127.0.0.1:{port}", pids={"relay": port}, cpuset="0-3",
+                                   route=pilot.DIRECT_ROUTE, service_env_sha256="same", engine_version="same", release="7.3.5",
+                                   kernel_image_sha256=pilot.STOCK_KERNEL, cli_sha256="same-build", job_controls_sha256="same")
+                        for path, arm, port in ((a, "A", 9041), (b, "B", 9042))}
+            def inspect(path, cpus, orb, *, read_kib):
+                self.assertEqual((cpus, orb, read_kib), (4, False, 256 if path == a else 512))
+                return fixtures[path].copy()
+            def attempt(_tools, fixture, _birth, row, check):
+                self.assertEqual(check()["mode"], "read-size")
+                row.update(measured(row["arm"]), stdout=json.dumps({"published_ports": 1, "fresh_p50_us": 5000}),
+                           client_arguments=["http://" + fixture["address"], fixture["name"]])
+            with patch.object(pilot.platform, "node", return_value="Gamma-128GB"), patch.object(pilot.time, "time", return_value=now), \
+                    patch.object(pilot, "digest", side_effect=lambda p: dict(pilot.HASHES, fixed=pilot.host_role.CLIENT_SHA256)[p.name]), \
+                    patch.object(pilot, "inspect", side_effect=inspect) as probe, patch.object(pilot, "snapshot", return_value={"tasks": []}), \
+                    patch.object(pilot, "attempt", side_effect=attempt) as load:
+                with self.assertRaisesRegex(ValueError, "owner handoff"):
+                    pilot.run(args, result["order"], workers=4)
+                probe.assert_not_called()
+                gate = json.loads(release.read_text())
+                release.write_text(json.dumps(dict(gate, modes=["read-size"])))
+                for i, (path, key, wrong, error) in enumerate((
+                    (b, "read_bytes", 262144, "verified 512 KiB"),
+                    (a, "read_bytes", 524288, "verified 256 KiB"),
+                    (b, "read_bytes", None, "verified 512 KiB"),
+                    (a, "read_bytes", 262144.0, "verified 256 KiB"),
+                    (b, "callback_events", 24, "128-event"),
+                    (b, "relay_workers", 2, "needs 4 relay workers"),
+                    (b, "job_controls_sha256", "different QoS", "beyond read size"),
+                    (b, "cli_sha256", "different-build", "differ in cli_sha256"),
+                )):
+                    args.out = root / str(i)
+                    with self.subTest(key=key, wrong=wrong), patch.dict(fixtures[path], {key: wrong}), self.assertRaisesRegex(ValueError, error):
+                        pilot.run(args, result["order"], workers=4)
+                    load.assert_not_called()
+                args.out = root / "comparison"
+                pilot.run(args, result["order"], workers=4)
+                self.assertEqual(load.call_count, 14)
+                captured = json.loads((args.out / "fixtures.json").read_text())
+                self.assertEqual([captured[arm]["read_bytes"] for arm in "AB"], [262144, 524288])
+                self.assertEqual(json.loads((args.out / "complete.json").read_text())["screen"]["verdict"],
+                                 "eligible for confirmation")
+
     def test_conflicting_and_invalid_modes_and_counts_are_usage_errors(self):
         for args in (("--mode", "size", "--scored-pairs", "2"),
                      ("--mode", "workers", "--scored-pairs", "5"),
@@ -96,7 +154,7 @@ class PilotPairCountTests(unittest.TestCase):
                 return dict(engine=path.name, id=path.name, address=path.name, name=path.name,
                             cpuset="0-3", instance=path.name, worker=path.name, kernel_image_sha256=pilot.STOCK_KERNEL,
                             release="same", engine_version="same", cli_sha256="same", service_env_sha256="same",
-                            relay_workers=2 if path == a else 4, callback_events=128, route=pilot.DIRECT_ROUTE,
+                            relay_workers=2 if path == a else 4, callback_events=128, read_bytes=262144, route=pilot.DIRECT_ROUTE,
                             pids={"vmm": 1 if path == a else 2})
             def measure(tools, fixture, birth, row, window):
                 self.assertEqual(window()["reservation"], row["admission"]["reservation"])

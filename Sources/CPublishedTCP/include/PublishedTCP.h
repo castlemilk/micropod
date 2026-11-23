@@ -31,6 +31,8 @@ typedef struct {
 mp_tcp_relay *mp_tcp_relay_create(const char *guest);
 // A data owner receives accepted streams from a separate listener owner.
 mp_tcp_relay *mp_tcp_relay_create_data(const char *guest);
+// Maximum bytes per read syscall on this owner, fixed at creation.
+unsigned mp_tcp_relay_read_bytes(const mp_tcp_relay *relay);
 // Configure before event processing starts. Applies only to newly dialed guest sockets.
 void mp_tcp_relay_bound_guest_window(mp_tcp_relay *relay);
 int mp_tcp_relay_scope(mp_tcp_relay *relay, const char *gateway);
