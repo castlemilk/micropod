@@ -1,0 +1,167 @@
+{
+  "reference": "a79eac4ef7c0171b2bd199dbbd22d5c403d945d3",
+  "candidate_script_sha256": "cd56bd1b9739b7b355de141cc6289bb1eb33720ad99df7a3fac0924a5727b4fc",
+  "go": [
+    "go1.27.2",
+    "darwin",
+    "arm64"
+  ],
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "profile": {
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "GOFLAGS": "-trimpath -p=2",
+    "CGO_ENABLED": "0",
+    "GOMAXPROCS": "2",
+    "GOTELEMETRY": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off"
+  },
+  "method": "Six local test packages, cold then three warm rebuilds per independent arm and trial. Elapsed wall time covers the entire suite compile command including vet and discovery. Outside the clock, compare all artifact hashes and run each test from its package directory.",
+  "samples": [
+    {
+      "trial": 1,
+      "iteration": 0,
+      "arm": "reference",
+      "cache": "empty",
+      "elapsed_ns": 5424485750,
+      "child_cpu_s": 12.023998
+    },
+    {
+      "trial": 1,
+      "iteration": 0,
+      "arm": "candidate",
+      "cache": "empty",
+      "elapsed_ns": 4789399708,
+      "child_cpu_s": 11.268437
+    },
+    {
+      "trial": 1,
+      "iteration": 1,
+      "arm": "candidate",
+      "cache": "warm",
+      "elapsed_ns": 425907333,
+      "child_cpu_s": 0.845654
+    },
+    {
+      "trial": 1,
+      "iteration": 1,
+      "arm": "reference",
+      "cache": "warm",
+      "elapsed_ns": 976860792,
+      "child_cpu_s": 1.343311
+    },
+    {
+      "trial": 1,
+      "iteration": 2,
+      "arm": "reference",
+      "cache": "warm",
+      "elapsed_ns": 1284950042,
+      "child_cpu_s": 1.622757
+    },
+    {
+      "trial": 1,
+      "iteration": 2,
+      "arm": "candidate",
+      "cache": "warm",
+      "elapsed_ns": 520369959,
+      "child_cpu_s": 0.95134
+    },
+    {
+      "trial": 1,
+      "iteration": 3,
+      "arm": "candidate",
+      "cache": "warm",
+      "elapsed_ns": 786436875,
+      "child_cpu_s": 0.96366
+    },
+    {
+      "trial": 1,
+      "iteration": 3,
+      "arm": "reference",
+      "cache": "warm",
+      "elapsed_ns": 1001167541,
+      "child_cpu_s": 1.351921
+    },
+    {
+      "trial": 2,
+      "iteration": 0,
+      "arm": "candidate",
+      "cache": "empty",
+      "elapsed_ns": 4440844042,
+      "child_cpu_s": 10.363757
+    },
+    {
+      "trial": 2,
+      "iteration": 0,
+      "arm": "reference",
+      "cache": "empty",
+      "elapsed_ns": 4934733084,
+      "child_cpu_s": 10.893171
+    },
+    {
+      "trial": 2,
+      "iteration": 1,
+      "arm": "reference",
+      "cache": "warm",
+      "elapsed_ns": 935599792,
+      "child_cpu_s": 1.289523
+    },
+    {
+      "trial": 2,
+      "iteration": 1,
+      "arm": "candidate",
+      "cache": "warm",
+      "elapsed_ns": 419147000,
+      "child_cpu_s": 0.823286
+    },
+    {
+      "trial": 2,
+      "iteration": 2,
+      "arm": "candidate",
+      "cache": "warm",
+      "elapsed_ns": 435417417,
+      "child_cpu_s": 0.821217
+    },
+    {
+      "trial": 2,
+      "iteration": 2,
+      "arm": "reference",
+      "cache": "warm",
+      "elapsed_ns": 932789708,
+      "child_cpu_s": 1.271323
+    },
+    {
+      "trial": 2,
+      "iteration": 3,
+      "arm": "reference",
+      "cache": "warm",
+      "elapsed_ns": 1122579166,
+      "child_cpu_s": 1.447863
+    },
+    {
+      "trial": 2,
+      "iteration": 3,
+      "arm": "candidate",
+      "cache": "warm",
+      "elapsed_ns": 445295500,
+      "child_cpu_s": 0.85873
+    }
+  ],
+  "output_sha256": {
+    "test-count": "06e9d52c1720fca412803e3b07c4b228ff113e303f4c7ab94665319d832bbfb7",
+    "tests/1/package": "eb4bd64f7014f7d42e9d358035802242741b974e8dfcd37c59f9c21ce29d781e",
+    "tests/1/test": "80326c2d576eaf8ed9e291c55bafe55b78aa4c90e64c0dd8724c43f73152e7a7",
+    "tests/2/package": "45da146add9bd16a4f1e0a8213cfc4605e48e84ee08f4d9d2498fd7993729cf4",
+    "tests/2/test": "f50af7d34388f8ae61ae6f3301c967980cafcecbe51153ab145fd3824a0a9990",
+    "tests/3/package": "2baeb6dfae003edbe48ec333b55faeb03c6f53bcdaa17a1f14f9cf42e04bd02a",
+    "tests/3/test": "1a152e9ede0749c64c02641715b7ab99e677e7c4dfb07d80487f3141824cc36d",
+    "tests/4/package": "d4978f51b546397b19f3a90e9102e8383d56d5017138df95c294ee01e2fc2623",
+    "tests/4/test": "23b31bdf322e70458f087f38fe964f56d14f5bfd386b00baebc28c7eb4bdb41d",
+    "tests/5/package": "b715024d92830e1510c04eab0c5197d7fb58e05fcef142d946fac9d46dd492e2",
+    "tests/5/test": "344b3d4e3463d88cb4437c5e944956fdd079505909f50e22588994aaa6877d40",
+    "tests/6/package": "994f1f0a1da5d70a0ae51821119479d591a4afa48cd1efac6c4839bd686716a7",
+    "tests/6/test": "7958ac3b1fa9a9a46b5607263a1cd63035116c63cb53ad9abf81bec62515cf79"
+  }
+}
