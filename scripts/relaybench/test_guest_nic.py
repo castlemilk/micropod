@@ -28,6 +28,9 @@ case "$1" in
         *) exit 9 ;;
         esac ;;
     */features) echo BITMAP ;;
+    */parameters/napi_tx) echo Y ;;
+    */eth1/napi_defer_hard_irqs) echo 2 ;;
+    */eth1/gro_flush_timeout) echo 20000 ;;
     -1) printf '%s\\n' tx-10 rx-0 tx-2 ;;
     -k) printf '%s\\n' 'Features for eth1:' 'generic-receive-offload: on [fixed]' ;;
     -l) printf '%s\\n' 'Channel parameters for eth1:' 'Current hardware settings:' 'Combined: 1' ;;
@@ -45,6 +48,10 @@ esac
 
     def test_capture_and_decode(self):
         report = decode(self.raw, BOOT)
+        self.assertEqual(report["schema"], 2)
+        self.assertIs(report["napi_tx_module"], True)
+        self.assertEqual(report["napi_defer_hard_irqs"], 2)
+        self.assertEqual(report["gro_flush_timeout_ns"], 20000)
         self.assertEqual(report["queues"], {"rx": [0], "tx": [2, 10]})
         self.assertTrue(report["bitmap"]["negotiated"]["VQ_NOTF_COAL"])
         self.assertFalse(report["bitmap"]["negotiated"]["NOTF_COAL"])
@@ -52,6 +59,30 @@ esac
         self.assertIn("Combined: 1", report["channels"])
         self.assertIsNone(report["coalescing"])
         self.assertEqual(report["unavailable"]["coalescing"], {"exit_code": 1, "diagnostic": "Operation not supported"})
+
+    def test_napi_unavailable_and_legacy_capture(self):
+        raw = self.raw.replace(b"Y\n@@ end napi_tx_module 0", b"Permission denied\n@@ end napi_tx_module 1")
+        report = decode(raw, BOOT)
+        self.assertIsNone(report["napi_tx_module"])
+        self.assertEqual(report["unavailable"]["napi_tx_module"]["exit_code"], 1)
+        self.assertEqual(report["gro_flush_timeout_ns"], 20000)
+        start = self.raw.index(b"@@ napi_tx_module")
+        end = self.raw.index(b"@@ after")
+        legacy = self.raw[self.raw.index(b"@@ before"):start] + self.raw[end:]
+        report = decode(legacy, BOOT)
+        self.assertEqual(report["schema"], 1)
+        self.assertNotIn("napi_tx_module", report)
+        with self.assertRaises(ValueError):
+            decode(self.raw[:start] + self.raw[end:], BOOT)
+
+    def test_invalid_napi_values(self):
+        for old, new in [(b"Y\n@@", b"1\n@@"), (b"2\n@@ end napi_defer", b"-1\n@@ end napi_defer"),
+                         (b"20000\n@@", b"20 us\n@@"), (b"20000\n@@", b"20000\n0\n@@")]:
+            with self.subTest(new=new), self.assertRaises(ValueError):
+                decode(self.raw.replace(old, new), BOOT)
+        report = decode(self.raw.replace(b"Y\n@@", b"N\n@@").replace(b"20000\n@@", b"0\n@@"), BOOT)
+        self.assertIs(report["napi_tx_module"], False)
+        self.assertEqual(report["gro_flush_timeout_ns"], 0)
 
     def test_real_archived_bitmap(self):
         archive = HERE.parents[1] / "docs/benchmarks/2026-11-21/gamma-vnic.json.gz"

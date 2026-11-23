@@ -23,7 +23,7 @@ capture() {
 
 # Read identity under errexit separately from optional probes. Any failed read
 # terminates the collector and leaves the decoder with an incomplete receipt.
-printf '@@ before\n'
+printf '@@ guest-nic 2\n@@ before\n'
 identity
 printf '@@ end before 0\n'
 capture bitmap cat "$nic/device/features"
@@ -31,6 +31,11 @@ capture queues ls -1 "$nic/queues"
 capture offloads ethtool -k eth1
 capture channels ethtool -l eth1
 capture coalescing ethtool -c eth1
+# The module parameter initializes newly created TX queues. Per-queue
+# coalescing can subsequently change their weight independently.
+capture napi_tx_module cat /sys/module/virtio_net/parameters/napi_tx
+capture napi_defer_hard_irqs cat "$nic/napi_defer_hard_irqs"
+capture gro_flush_timeout_ns cat "$nic/gro_flush_timeout"
 printf '@@ after\n'
 identity
 printf '@@ end after 0\n'

@@ -8,6 +8,7 @@ from uuid import UUID
 
 
 SECTIONS = ("before", "bitmap", "queues", "offloads", "channels", "coalescing", "after")
+NAPI_CONTROLS = ("napi_tx_module", "napi_defer_hard_irqs", "gro_flush_timeout_ns")
 # Linux drivers/virtio/virtio.c features_show emits bit zero first. Feature
 # numbers are from the virtio_net, virtio_ring and virtio_config UAPI headers. Keep the full raw bitmap,
 # since a kernel can expose further device and transport features.
@@ -19,9 +20,13 @@ FEATURE_BITS = {0: "CSUM", 1: "GUEST_CSUM", 2: "CTRL_GUEST_OFFLOADS",
 
 
 def split_sections(text):
+    version = 2 if text.startswith("@@ guest-nic 2\n") else 1
     lines = iter(text.splitlines())
+    if version == 2:
+        next(lines)
     sections = {}
-    for key in SECTIONS:
+    keys = SECTIONS[:-1] + (NAPI_CONTROLS if version == 2 else ()) + ("after",)
+    for key in keys:
         if next(lines, None) != "@@ " + key:
             raise ValueError(f"missing section {key}")
         result = []
@@ -37,7 +42,7 @@ def split_sections(text):
             raise ValueError(f"truncated section {key}")
     if next(lines, None) is not None:
         raise ValueError("unexpected data after final identity")
-    return sections
+    return version, sections
 
 
 def feature_bitmap(bits):
@@ -47,7 +52,7 @@ def feature_bitmap(bits):
 
 
 def decode(raw, expected_boot):
-    sections = split_sections(raw.decode("utf-8"))
+    version, sections = split_sections(raw.decode("utf-8"))
     status, identity = sections["before"]
     if status or sections["after"] != (0, identity) or len(identity) != 7:
         raise ValueError("guest or interface identity changed or is incomplete")
@@ -58,17 +63,26 @@ def decode(raw, expected_boot):
             and device.startswith("/sys/devices/") and re.fullmatch(r"virtio\d+", PurePosixPath(device).name)
             and driver == "/sys/bus/virtio/drivers/virtio_net"):
         raise ValueError("incomplete virtio-net device identity")
-    report = {"schema": 1, "boot_id": str(UUID(boot)), "kernel_release": kernel,
+    report = {"schema": version, "boot_id": str(UUID(boot)), "kernel_release": kernel,
               "interface": "eth1", "ifindex": int(index), "mac": mac, "netns": netns, "device": device,
               "driver": driver, "capture_sha256": hashlib.sha256(raw).hexdigest(), "unavailable": {}}
-    for key in SECTIONS[1:-1]:
-        status, lines = sections[key]
+    for key, (status, lines) in sections.items():
+        if key in ("before", "after"):
+            continue
         if status:
             report[key] = None
             report["unavailable"][key] = {"exit_code": status, "diagnostic": "\n".join(lines)}
             continue
         if key == "bitmap":
             report[key] = feature_bitmap("\n".join(lines))
+        elif key == "napi_tx_module":
+            if lines not in (["Y"], ["N"]):
+                raise ValueError("invalid virtio-net napi_tx module parameter")
+            report[key] = lines == ["Y"]
+        elif key in ("gro_flush_timeout_ns", "napi_defer_hard_irqs"):
+            if len(lines) != 1 or not re.fullmatch(r"0|[1-9][0-9]*", lines[0]):
+                raise ValueError(f"invalid {key} readback")
+            report[key] = int(lines[0])
         elif key == "queues":
             if not lines or any(not re.fullmatch(r"(rx|tx)-\d+", name) for name in lines) or len(set(lines)) != len(lines):
                 raise ValueError("invalid sysfs queue inventory")
