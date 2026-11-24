@@ -1,0 +1,396 @@
+{
+  "direction": "230.10",
+  "phase": "larger-windows",
+  "evidence": "archived VM, offline first-attempt replay",
+  "date": "2026-11-24",
+  "source_revision": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "micropod_replay_base": "ad9d174eda5eb499e0e15675829e21a00d836f84",
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "option_source": "darwin-ack-fixture.json.gz",
+  "option_source_sha256": "733991064cd7dc4556739d5092f72bd7fdf6be5d4594d645ee3e25800a242e45",
+  "launch_proof_sha256": "e0c21eca426e2f098bfe60403afa7d44b00962fcb58508211b3fe3a776085e41",
+  "replay_sha256": "185183937e4aa6f8fe19a5772f67abcc4ad99bcceddad6d9410fb485a04137f2",
+  "fixture_image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "rows": [
+    {
+      "block": 1,
+      "order": [
+        "fix-window-1024",
+        "fix-window-2048",
+        "fix-window-512",
+        "fix-window-4096"
+      ],
+      "fix-window-512": {
+        "clean": true,
+        "meets_75ms": false,
+        "window_s": 6.000864,
+        "bytes": 13360543096,
+        "mib_s": 2123.2953794477,
+        "offered": 240,
+        "fresh_failed": 0,
+        "setup_identity_failed": 0,
+        "bulk_errors": 0,
+        "reopens": 0,
+        "p95_ms": 108.196,
+        "p99_ms": 186.804,
+        "process": {
+          "relay": {
+            "cpu_s": 4.425544166666667,
+            "runnable_s": 5.360610124999999,
+            "wait_s": 0.9350659583333333,
+            "sample_seconds": 6.314346,
+            "cpu_s_per_gib": 0.35566607072521556,
+            "runnable_s_per_s": 0.848957298982349,
+            "wait_s_per_s": 0.14808595511448586
+          },
+          "vmm": {
+            "cpu_s": 7.9603563333333325,
+            "runnable_s": 22.6242675,
+            "wait_s": 14.663911166666665,
+            "sample_seconds": 6.314346,
+            "cpu_s_per_gib": 0.6397470123502893,
+            "runnable_s_per_s": 3.582994580911467,
+            "wait_s_per_s": 2.3223167002040537
+          }
+        }
+      },
+      "fix-window-1024": {
+        "clean": false,
+        "meets_75ms": false,
+        "window_s": 6.001235916,
+        "bytes": 2455265308,
+        "mib_s": 390.17354041358453,
+        "offered": 240,
+        "fresh_failed": 212,
+        "setup_identity_failed": 0,
+        "bulk_errors": 15,
+        "reopens": 6,
+        "p95_ms": 29.347,
+        "p99_ms": 73.154,
+        "process": {
+          "relay": {
+            "cpu_s": 1.3501774166666665,
+            "runnable_s": 1.5203436249999998,
+            "wait_s": 0.17016620833333332,
+            "sample_seconds": 31.017336,
+            "cpu_s_per_gib": 0.5904624471219362,
+            "runnable_s_per_s": 0.04901593176796356,
+            "wait_s_per_s": 0.005486164522102521
+          },
+          "vmm": {
+            "cpu_s": 2.1031044166666666,
+            "runnable_s": 4.072026374999999,
+            "wait_s": 1.968921958333333,
+            "sample_seconds": 31.017336,
+            "cpu_s_per_gib": 0.9197340772324074,
+            "runnable_s_per_s": 0.13128227308109244,
+            "wait_s_per_s": 0.06347811296022757
+          }
+        }
+      }
+    },
+    {
+      "block": 2,
+      "order": [
+        "fix-window-2048",
+        "fix-window-4096",
+        "fix-window-1024",
+        "fix-window-512"
+      ],
+      "fix-window-512": {
+        "clean": true,
+        "meets_75ms": true,
+        "window_s": 6.050487,
+        "bytes": 15442579016,
+        "mib_s": 2434.0505130633783,
+        "offered": 240,
+        "fresh_failed": 0,
+        "setup_identity_failed": 0,
+        "bulk_errors": 0,
+        "reopens": 0,
+        "p95_ms": 73.999,
+        "p99_ms": 133.214,
+        "process": {
+          "relay": {
+            "cpu_s": 5.155263916666666,
+            "runnable_s": 6.073820874999999,
+            "wait_s": 0.9185569583333333,
+            "sample_seconds": 6.271445,
+            "cpu_s_per_gib": 0.35845194480454456,
+            "runnable_s_per_s": 0.9684882630717481,
+            "wait_s_per_s": 0.14646655728198738
+          },
+          "vmm": {
+            "cpu_s": 9.046216333333332,
+            "runnable_s": 22.311933999999997,
+            "wait_s": 13.265717666666665,
+            "sample_seconds": 6.271445,
+            "cpu_s_per_gib": 0.6289947304778566,
+            "runnable_s_per_s": 3.5577022520328248,
+            "wait_s_per_s": 2.1152569569958226
+          }
+        }
+      },
+      "fix-window-1024": {
+        "clean": false,
+        "meets_75ms": false,
+        "window_s": 6.007760417,
+        "bytes": 24992385892,
+        "mib_s": 3967.301436234072,
+        "offered": 240,
+        "fresh_failed": 6,
+        "setup_identity_failed": 0,
+        "bulk_errors": 1,
+        "reopens": 12,
+        "p95_ms": 50.066,
+        "p99_ms": 76.086,
+        "process": {
+          "relay": {
+            "cpu_s": 7.036991958333332,
+            "runnable_s": 8.029043083333333,
+            "wait_s": 0.9920511249999999,
+            "sample_seconds": 35.924716,
+            "cpu_s_per_gib": 0.3023285817314782,
+            "runnable_s_per_s": 0.22349635508136886,
+            "wait_s_per_s": 0.027614724219392577
+          },
+          "vmm": {
+            "cpu_s": 11.820466333333332,
+            "runnable_s": 23.067032416666663,
+            "wait_s": 11.246566083333333,
+            "sample_seconds": 35.924716,
+            "cpu_s_per_gib": 0.5078398331448076,
+            "runnable_s_per_s": 0.642093660995585,
+            "wait_s_per_s": 0.3130592899699843
+          }
+        }
+      }
+    },
+    {
+      "block": 3,
+      "order": [
+        "fix-window-4096",
+        "fix-window-512",
+        "fix-window-2048",
+        "fix-window-1024"
+      ],
+      "fix-window-512": {
+        "clean": true,
+        "meets_75ms": true,
+        "window_s": 6.010566125,
+        "bytes": 14831893520,
+        "mib_s": 2353.3217370096377,
+        "offered": 240,
+        "fresh_failed": 0,
+        "setup_identity_failed": 0,
+        "bulk_errors": 0,
+        "reopens": 0,
+        "p95_ms": 57.268,
+        "p99_ms": 75.896,
+        "process": {
+          "relay": {
+            "cpu_s": 5.031708458333333,
+            "runnable_s": 5.846366458333333,
+            "wait_s": 0.8146579999999999,
+            "sample_seconds": 6.283787,
+            "cpu_s_per_gib": 0.36426608717233167,
+            "runnable_s_per_s": 0.9303890246969435,
+            "wait_s_per_s": 0.12964443256908612
+          },
+          "vmm": {
+            "cpu_s": 8.488224208333332,
+            "runnable_s": 23.245114291666663,
+            "wait_s": 14.756890083333332,
+            "sample_seconds": 6.283787,
+            "cpu_s_per_gib": 0.6144974902689827,
+            "runnable_s_per_s": 3.6992205960620024,
+            "wait_s_per_s": 2.3484071123565027
+          }
+        }
+      },
+      "fix-window-1024": {
+        "clean": false,
+        "meets_75ms": false,
+        "window_s": 6.003322375,
+        "bytes": 18487853440,
+        "mib_s": 2936.9388964741274,
+        "offered": 240,
+        "fresh_failed": 63,
+        "setup_identity_failed": 0,
+        "bulk_errors": 29,
+        "reopens": 8,
+        "p95_ms": 68.124,
+        "p99_ms": 141.039,
+        "process": {
+          "relay": {
+            "cpu_s": 5.194969583333333,
+            "runnable_s": 5.925858541666666,
+            "wait_s": 0.7308889583333332,
+            "sample_seconds": 34.555011,
+            "cpu_s_per_gib": 0.3017146438409268,
+            "runnable_s_per_s": 0.17149057025815057,
+            "wait_s_per_s": 0.021151460734112722
+          },
+          "vmm": {
+            "cpu_s": 38.939383416666665,
+            "runnable_s": 64.36540620833333,
+            "wait_s": 25.426022791666664,
+            "sample_seconds": 34.555011,
+            "cpu_s_per_gib": 2.2615305076351264,
+            "runnable_s_per_s": 1.862693842242832,
+            "wait_s_per_s": 0.735812898212264
+          }
+        }
+      }
+    },
+    {
+      "block": 4,
+      "order": [
+        "fix-window-512",
+        "fix-window-1024",
+        "fix-window-4096",
+        "fix-window-2048"
+      ],
+      "fix-window-512": {
+        "clean": true,
+        "meets_75ms": true,
+        "window_s": 6.000905708,
+        "bytes": 9540150044,
+        "mib_s": 1516.1371490132994,
+        "offered": 240,
+        "fresh_failed": 0,
+        "setup_identity_failed": 0,
+        "bulk_errors": 0,
+        "reopens": 0,
+        "p95_ms": 61.331,
+        "p99_ms": 113.482,
+        "process": {
+          "relay": {
+            "cpu_s": 5.249535416666666,
+            "runnable_s": 6.223498166666666,
+            "wait_s": 0.9739627499999999,
+            "sample_seconds": 6.369467,
+            "cpu_s_per_gib": 0.5908340757165838,
+            "runnable_s_per_s": 0.9770830379789496,
+            "wait_s_per_s": 0.15291118550421878
+          },
+          "vmm": {
+            "cpu_s": 8.840108541666666,
+            "runnable_s": 24.09159020833333,
+            "wait_s": 15.251481666666665,
+            "sample_seconds": 6.369467,
+            "cpu_s_per_gib": 0.9949523043253246,
+            "runnable_s_per_s": 3.7823557620022723,
+            "wait_s_per_s": 2.3944674910265906
+          }
+        }
+      },
+      "fix-window-1024": {
+        "clean": false,
+        "meets_75ms": false,
+        "window_s": 6.001185,
+        "bytes": 5347381044,
+        "mib_s": 849.775496289556,
+        "offered": 240,
+        "fresh_failed": 181,
+        "setup_identity_failed": 0,
+        "bulk_errors": 30,
+        "reopens": 14,
+        "p95_ms": 29.696,
+        "p99_ms": 42.118,
+        "process": {
+          "relay": {
+            "cpu_s": 2.1326930833333333,
+            "runnable_s": 2.4031504999999997,
+            "wait_s": 0.2704574166666666,
+            "sample_seconds": 31.583908,
+            "cpu_s_per_gib": 0.4282398696647879,
+            "runnable_s_per_s": 0.07608781345234414,
+            "wait_s_per_s": 0.008563139706038487
+          },
+          "vmm": {
+            "cpu_s": 2.8068896249999997,
+            "runnable_s": 6.387418041666666,
+            "wait_s": 3.580528416666666,
+            "sample_seconds": 31.583908,
+            "cpu_s_per_gib": 0.5636169857571451,
+            "runnable_s_per_s": 0.20223646933326508,
+            "wait_s_per_s": 0.11336559163820595
+          }
+        }
+      }
+    },
+    {
+      "block": 5,
+      "order": [
+        "fix-window-1024",
+        "fix-window-2048",
+        "fix-window-512",
+        "fix-window-4096"
+      ],
+      "fix-window-512": {
+        "clean": false,
+        "meets_75ms": false,
+        "window_s": 6.000172083,
+        "bytes": 0,
+        "mib_s": 0,
+        "offered": 240,
+        "fresh_failed": 240,
+        "setup_identity_failed": 32,
+        "bulk_errors": 0,
+        "reopens": 0,
+        "p95_ms": 0.0,
+        "p99_ms": 0.0,
+        "process": {
+          "relay": {
+            "cpu_s": 0.7887487083333332,
+            "runnable_s": 0.9062172083333332,
+            "wait_s": 0.11746849999999999,
+            "sample_seconds": 27.810872
+          },
+          "vmm": {
+            "cpu_s": 20.77387345833333,
+            "runnable_s": 23.732918749999996,
+            "wait_s": 2.9590452916666665,
+            "sample_seconds": 27.810872
+          }
+        }
+      },
+      "fix-window-1024": {
+        "clean": true,
+        "meets_75ms": true,
+        "window_s": 6.000008792,
+        "bytes": 27299411504,
+        "mib_s": 4339.118242473754,
+        "offered": 240,
+        "fresh_failed": 0,
+        "setup_identity_failed": 0,
+        "bulk_errors": 0,
+        "reopens": 0,
+        "p95_ms": 26.992,
+        "p99_ms": 34.999,
+        "process": {
+          "relay": {
+            "cpu_s": 7.696774416666666,
+            "runnable_s": 8.571434791666666,
+            "wait_s": 0.8746603749999999,
+            "sample_seconds": 6.149534,
+            "cpu_s_per_gib": 0.30272991781735964,
+            "runnable_s_per_s": 1.3938348485700975,
+            "wait_s_per_s": 0.14223197643919033
+          },
+          "vmm": {
+            "cpu_s": 12.561282916666665,
+            "runnable_s": 23.137259583333332,
+            "wait_s": 10.575976666666666,
+            "sample_seconds": 6.149534,
+            "cpu_s_per_gib": 0.49406101039011263,
+            "runnable_s_per_s": 3.7624411188446687,
+            "wait_s_per_s": 1.7198013161105647
+          }
+        }
+      }
+    }
+  ]
+}
