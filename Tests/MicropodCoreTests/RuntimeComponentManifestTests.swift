@@ -167,6 +167,49 @@ final class RuntimeComponentUpdateClientTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: ledger.path), "A finished update is forgotten")
     }
 
+    // `--force` reaches the helper as `force: true` on the update itself, is
+    // kept with the pending request so a resend stays forced, and is absent
+    // from every other request, so older helpers see what they always did.
+    func testAForcedRequestCarriesForceAndOnlyItDoes() async throws {
+        let helper = Helper()
+        await helper.setLoseReplies(1)
+        let ledger = ledger()
+        let operation = try await client(helper, ledger: ledger).request(rollback: false, force: true)
+        let updates = await helper.requests.filter { $0.action == .update }
+        XCTAssertEqual(updates.count, 2)
+        XCTAssertEqual(Set(updates.map(\.operation)), [operation])
+        XCTAssertTrue(updates.allSatisfy { $0.force == true }, "The resend stays forced")
+        XCTAssertEqual(client(helper, ledger: ledger).pending()?.force, true)
+        let statuses = await helper.requests.filter { $0.action == .status }
+        XCTAssertTrue(statuses.allSatisfy { $0.force == nil })
+
+        func keys(_ request: IsolatedRuntimeRequest) throws -> [String: Any] {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        }
+        XCTAssertEqual(Set(try keys(.init(action: .update)).keys), ["operation", "action"])
+        let forced = try keys(.init(action: .update, force: true))
+        XCTAssertEqual(Set(forced.keys), ["operation", "action", "force"])
+        XCTAssertEqual(forced["force"] as? Bool, true)
+        XCTAssertTrue(
+            RuntimeComponentUpdateClient.defaultLedger(asRoot: true).path.hasPrefix("/var/root/"),
+            "sudo never writes into the owner's home")
+    }
+
+    func testAForcedSummaryNamesWhatItOverrode() throws {
+        let plain = RuntimeComponentUpdateSummary(
+            operation: UUID(), phase: "completed", rollback: false, sourceVersion: "a", targetVersion: "b",
+            runtimeOperation: nil, reason: nil)
+        let json = try XCTUnwrap(String(data: JSONEncoder().encode(plain), encoding: .utf8))
+        XCTAssertFalse(json.contains("forced"), "Unforced summaries encode as before")
+        let long = String(repeating: "x", count: 2000)
+        let mark = RuntimeForcedComponentUpdate(
+            operation: UUID(), rollback: false, targetVersion: "0.13.13", overridden: "unprotected: " + long,
+            forcedAt: Date(timeIntervalSince1970: 0))
+        XCTAssertLessThanOrEqual(mark.overridden.utf8.count, RuntimeForcedComponentUpdate.maximumReasonBytes)
+        XCTAssertTrue(mark.line.contains("to 0.13.13 was forced over \"unprotected: x"), mark.line)
+        XCTAssertTrue(mark.line.hasSuffix("at 1970-01-01T00:00:00Z"), mark.line)
+    }
+
     func testAHelperThatCannotUpdateItselfIsNamed() async throws {
         let helper = Helper()
         await helper.setLegacy()

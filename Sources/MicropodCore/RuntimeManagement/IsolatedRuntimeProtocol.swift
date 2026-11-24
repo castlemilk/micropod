@@ -12,9 +12,16 @@ public enum IsolatedRuntimeAction: String, Codable, Sendable {
 public struct IsolatedRuntimeRequest: Codable, Sendable {
     public let operation: UUID
     public let action: IsolatedRuntimeAction
-    public init(operation: UUID = UUID(), action: IsolatedRuntimeAction) {
+    /// `update` or `rollback` only: go ahead although the helper's protection
+    /// check fails. It is a request, not a credential: the helper accepts it
+    /// only from a peer whose XPC audit token says euid 0, and refuses it
+    /// from everyone else. Absent from the encoding when nil, so every other
+    /// request is byte-for-byte what older helpers accept.
+    public let force: Bool?
+    public init(operation: UUID = UUID(), action: IsolatedRuntimeAction, force: Bool? = nil) {
         self.operation = operation
         self.action = action
+        self.force = force
     }
 }
 
@@ -65,6 +72,10 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     /// A VM release-gate fault file is present in `RuntimeHost`
     /// (docs/vm-release-gate.md). Status replies only.
     public var gateFaultArmed: Bool?
+    /// The last component update root forced over a failed protection check
+    /// on this host, whatever ran since (no update removes it). Status
+    /// replies only.
+    public var forcedComponentUpdate: RuntimeForcedComponentUpdate?
     public var isTerminal: Bool {
         ["idle", "completed", "cancelled", "blocked", "failed", "recoveryRequired"].contains(phase)
     }

@@ -17,6 +17,45 @@ final class RuntimeUpdateCommandsTests: XCTestCase {
         } catch is UsageError {}
     }
 
+    // `--force` is root's: the CLI says so before sending anything (the
+    // helper decides from the peer's audit token regardless), and as root
+    // only a forced update is sent.
+    func testForceNeedsRootAndRootNeedsForce() async throws {
+        XCTAssertNil(RuntimeUpdateCommands.privilegeProblem(force: true, euid: 0))
+        XCTAssertNil(RuntimeUpdateCommands.privilegeProblem(force: false, euid: 501))
+        XCTAssertTrue(RuntimeUpdateCommands.privilegeProblem(force: true, euid: 501)?.contains("sudo") == true)
+        XCTAssertTrue(
+            RuntimeUpdateCommands.privilegeProblem(force: false, euid: 0)?.contains("runtime's owner") == true)
+        guard geteuid() != 0 else { throw XCTSkip("run as a user") }
+        do {
+            try await RuntimeUpdateCommands.run(["--force", "--detach"])
+            XCTFail("--force ran without root")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("needs root"), error.localizedDescription)
+        }
+        do {
+            try await RuntimeUpdateCommands.run(["--force", "--bootstrap"])
+            XCTFail("--force with --bootstrap was accepted")
+        } catch is UsageError {}
+    }
+
+    func testAForcedRequestPrintsOneLineNamingTheOverriddenCheck() {
+        let forced = RuntimeComponentUpdateSummary(
+            operation: UUID(), phase: "staging", rollback: false, sourceVersion: "0.13.12", targetVersion: "0.13.13",
+            runtimeOperation: nil, reason: nil, forced: true,
+            forcedOver: "unprotected: launchd's live authority job could not be read")
+        let line = try? XCTUnwrap(RuntimeUpdateCommands.forcedLine(forced))
+        XCTAssertEqual(line?.contains("\n"), false)
+        XCTAssertTrue(
+            line?.hasPrefix("FORCED over \"unprotected: launchd's live authority job could not be read\"") == true,
+            line ?? "")
+        let ordinary = RuntimeComponentUpdateSummary(
+            operation: UUID(), phase: "staging", rollback: false, sourceVersion: "0.13.12", targetVersion: "0.13.13",
+            runtimeOperation: nil, reason: nil)
+        XCTAssertTrue(RuntimeUpdateCommands.forcedLine(ordinary)?.contains("overrode nothing") == true)
+        XCTAssertNil(RuntimeUpdateCommands.forcedLine(nil))
+    }
+
     // Requirement 1: install-authority refuses unless it runs as root, and as
     // root refuses an executable on a path another account can change.
     func testInstallAuthorityNeedsRootAndAProtectedLaunchPath() async throws {

@@ -10,6 +10,19 @@ public struct RuntimeComponentUpdateClient: Sendable {
         public let operation: UUID
         public let rollback: Bool
         public let requestedAt: Date
+        /// Sent with `force` (`sudo micropod runtime update --force`).
+        public var force: Bool? = nil
+    }
+
+    /// Where a request waits until it is terminal. Root's own home for a
+    /// forced request, so `sudo` never leaves a root-owned file in the
+    /// owner's `~/.micropod`.
+    public static func defaultLedger(asRoot: Bool = geteuid() == 0) -> URL {
+        let home =
+            asRoot
+            ? URL(fileURLWithPath: NSHomeDirectoryForUser("root") ?? "/var/root", isDirectory: true)
+            : FileManager.default.homeDirectoryForCurrentUser
+        return home.appendingPathComponent(".micropod/runtime-component-update.json")
     }
 
     /// The helper predates component updates: it needs the one-time
@@ -33,8 +46,7 @@ public struct RuntimeComponentUpdateClient: Sendable {
         call: @escaping @Sendable (IsolatedRuntimeRequest) async throws -> IsolatedRuntimeStatus = {
             try await IsolatedRuntimeClient().call($0)
         },
-        ledger: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
-            ".micropod/runtime-component-update.json"),
+        ledger: URL = RuntimeComponentUpdateClient.defaultLedger(),
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         log: @escaping @Sendable (String) -> Void = { _ in },
         relaunchGrace: Duration = .seconds(120)
@@ -52,25 +64,28 @@ public struct RuntimeComponentUpdateClient: Sendable {
     }
 
     /// Sends the update (or rollback) and returns its operation. A request
-    /// still pending from an earlier run is resumed, not repeated.
-    public func request(rollback: Bool) async throws -> UUID {
+    /// still pending from an earlier run is resumed, not repeated. `force`
+    /// asks the helper to go ahead over a failed protection check; the
+    /// helper grants that only to a root peer.
+    public func request(rollback: Bool, force: Bool = false) async throws -> UUID {
         let status = try await call(.init(action: .status))
         guard status.componentProtocol != nil else { throw LegacyHelper(version: nil) }
-        if let existing = pending(), existing.rollback == rollback {
+        if let existing = pending(), existing.rollback == rollback, (existing.force ?? false) == force {
             if let summary = status.componentUpdate, summary.operation == existing.operation, summary.isTerminal {
                 try? RuntimeDurableFile.remove(ledger)
             } else {
                 return try await send(existing)
             }
         }
-        let pending = Pending(operation: UUID(), rollback: rollback, requestedAt: Date())
+        let pending = Pending(operation: UUID(), rollback: rollback, requestedAt: Date(), force: force ? true : nil)
         try RuntimeDurableFile.write(pending, to: ledger)
         return try await send(pending)
     }
 
     private func send(_ pending: Pending) async throws -> UUID {
         let request = IsolatedRuntimeRequest(
-            operation: pending.operation, action: pending.rollback ? .rollback : .update)
+            operation: pending.operation, action: pending.rollback ? .rollback : .update,
+            force: pending.force == true ? true : nil)
         var lastError: Error?
         for attempt in 0..<3 {
             if attempt > 0 { try await sleep(.seconds(2)) }

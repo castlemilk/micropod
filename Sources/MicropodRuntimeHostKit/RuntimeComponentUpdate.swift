@@ -2,6 +2,7 @@ import CryptoKit
 import Darwin
 import Foundation
 import MicropodCore
+import os
 
 /// One setup app as a component update sees it.
 public struct RuntimeComponentBundle: Codable, Sendable, Equatable {
@@ -103,8 +104,12 @@ public protocol RuntimeComponentEnvironment: Sendable {
     func isSealed(_ bundle: URL) -> Bool
     /// The live check of the authority job (``RuntimeAuthority/protection``).
     func protection() -> RuntimeAuthority.Protection
-    /// Records the last check where the version manifest reads it.
-    func publishProtection(_ protection: RuntimeAuthority.Protection)
+    /// Records the last check, and the last forced update, where the version
+    /// manifest reads them.
+    func publishProtection(_ protection: RuntimeAuthority.Protection, forced: RuntimeForcedComponentUpdate?)
+    /// A fault-level record of something root did that weakens a guarantee:
+    /// a component update forced over a failed protection check.
+    func fault(_ message: String)
     /// How this helper is installed, checked now (`runtime-inspect`'s
     /// attestation).
     func installFacts() -> RuntimeInstallFacts
@@ -132,7 +137,8 @@ public protocol RuntimeComponentEnvironment: Sendable {
 extension RuntimeComponentEnvironment {
     public var authorityDefinitionSHA256: String { RuntimeAuthority.definitionSHA256 }
     public func checkpoint(_ name: String) throws {}
-    public func publishProtection(_ protection: RuntimeAuthority.Protection) {}
+    public func publishProtection(_ protection: RuntimeAuthority.Protection, forced: RuntimeForcedComponentUpdate?) {}
+    public func fault(_ message: String) { RuntimeComponentUpdater.log(message) }
     public func installFacts() -> RuntimeInstallFacts {
         let protection = protection()
         return .init(
@@ -225,6 +231,13 @@ public struct RuntimeComponentUpdateRecord: Codable, Sendable, Equatable {
     public var reason: String?
     public let createdAt: Date
     public var updatedAt: Date
+    /// Root forced this update over a failed protection check
+    /// (`sudo micropod runtime update --force`). Nil when it was not forced,
+    /// including a forced request on a protected helper: nothing was
+    /// overridden, so nothing is claimed.
+    public var forced: Bool? = nil
+    /// The check it overrode, `unprotected: <reason>`.
+    public var forcedOver: String? = nil
 }
 
 public struct RuntimeComponentUpdater: Sendable {
@@ -241,6 +254,10 @@ public struct RuntimeComponentUpdater: Sendable {
 
     public var journal: URL { environment.root.appendingPathComponent("component-update.json") }
     var stateURL: URL { environment.root.appendingPathComponent("component-state.json") }
+    /// The last forced update (``RuntimeForcedComponentUpdate``). Its own
+    /// file, so no helper rewriting `component-state.json` (an older one
+    /// after a rollback, for one) can drop it, and no update removes it.
+    public var forcedURL: URL { environment.root.appendingPathComponent("component-forced.json") }
     var components: URL { environment.root.appendingPathComponent("components") }
     func directory(_ operation: UUID) -> URL { components.appendingPathComponent(operation.uuidString) }
     func path(_ operation: UUID, _ kind: String) -> URL {
@@ -340,7 +357,66 @@ public struct RuntimeComponentUpdater: Sendable {
         return .init(
             operation: record.operation, phase: record.phase.rawValue, rollback: record.rollback,
             sourceVersion: record.source.version, targetVersion: record.targetVersion,
-            runtimeOperation: record.runtimeOperation, reason: record.reason)
+            runtimeOperation: record.runtimeOperation, reason: record.reason, forced: record.forced,
+            forcedOver: record.forcedOver)
+    }
+
+    // MARK: Forced updates
+
+    /// The last update root forced over a failed protection check on this
+    /// host, or nil. Lenient: it only ever reports.
+    public func lastForced() -> RuntimeForcedComponentUpdate? {
+        guard let data = try? RuntimeDurableFile.read(forcedURL, maximumBytes: 4096, ownerUID: geteuid()) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(RuntimeForcedComponentUpdate.self, from: data)
+    }
+
+    /// Publishes a protection check with the last forced update beside it.
+    public func publish(_ protection: RuntimeAuthority.Protection) {
+        environment.publishProtection(protection, forced: lastForced())
+    }
+
+    /// Called just before a forced record is first saved: the durable mark
+    /// first (an update that cannot be recorded as forced does not run), then
+    /// the fault-level log and the published receipt.
+    func recordForced(_ record: RuntimeComponentUpdateRecord, protection: RuntimeAuthority.Protection) throws {
+        guard record.forced == true, let overridden = record.forcedOver else { return }
+        let forced = RuntimeForcedComponentUpdate(
+            operation: record.operation, rollback: record.rollback, targetVersion: record.targetVersion,
+            overridden: overridden, forcedAt: environment.now())
+        try RuntimeDurableFile.write(forced, to: forcedURL)
+        environment.fault(
+            "FORCED runtime component \(record.rollback ? "rollback" : "update") \(record.operation.uuidString) "
+                + "to \(record.targetVersion): root overrode the failed protection check \"\(overridden)\". "
+                + "Signatures, digests, the security floor and the high-water mark still apply; this host's "
+                + "release-gate evidence is void")
+        environment.publishProtection(protection, forced: forced)
+    }
+
+    /// The protection check's verdict for a plan: nil when protected, the
+    /// overridden check when `force` may override it, a refusal otherwise.
+    func overridden(_ protection: RuntimeAuthority.Protection, force: Bool) throws -> String? {
+        guard !protection.protected else {
+            if force {
+                environment.fault(
+                    "A forced runtime component update was requested, but the helper is protected: it runs as an "
+                        + "ordinary update and is not recorded as forced")
+            }
+            return nil
+        }
+        guard force else {
+            throw MicropodError.message(
+                "The runtime helper is unprotected (\(protection.reason ?? "unknown")); updates and rollbacks are "
+                    + "refused. `sudo micropod runtime install-authority` repairs it")
+        }
+        guard !protection.elsewhere else {
+            throw MicropodError.message(
+                "A forced update cannot help here: \(protection.reason ?? "this helper is not the authority"). "
+                    + "The update swaps the root-only authority bundle, which this helper would never relaunch "
+                    + "into. `sudo micropod runtime install-authority` installs the authority")
+        }
+        return RuntimeForcedComponentUpdate.bounded(protection.described)
     }
 
     // MARK: Planning
@@ -353,9 +429,15 @@ public struct RuntimeComponentUpdater: Sendable {
     ///   bytes, root-owned, swapped in without a relaunch.
     /// - A rollback first restores the previous runtime (`restoringRuntime`)
     ///   when the runtime moved, then stages the retained previous bundle.
+    ///
+    /// `force` (granted only to a root peer, by the controller) lets a plan go
+    /// ahead over a failed protection check, and nothing else: the release
+    /// key, the version, the high-water mark, the security floor, n-1, the
+    /// sealed copies, the code signature and every digest are checked exactly
+    /// as without it. A forced record says so (``RuntimeComponentUpdateRecord/forced``).
     public func plan(
         operation: UUID, ownerUID: UInt32, installedSelection: ManagedRuntimeLocation.Selection,
-        runtime: RuntimeComponentRuntime?, rollback: Bool, restartRuntime: Bool = true
+        runtime: RuntimeComponentRuntime?, rollback: Bool, restartRuntime: Bool = true, force: Bool = false
     ) throws -> RuntimeComponentUpdateRecord {
         if let current = try read() {
             if current.operation == operation {
@@ -383,11 +465,8 @@ public struct RuntimeComponentUpdater: Sendable {
                     + "downgrade; nothing was changed")
         }
         let protection = environment.protection()
-        guard protection.protected else {
-            throw MicropodError.message(
-                "The runtime helper is unprotected (\(protection.reason ?? "unknown")); updates and rollbacks are "
-                    + "refused. `sudo micropod runtime install-authority` repairs it")
-        }
+        // The only check `force` changes.
+        let forcedOver = try overridden(protection, force: force)
         // Checked by lstat before Security.framework ever opens it.
         guard environment.isSealed(environment.installedBundle) else {
             throw MicropodError.message("The installed authority bundle is not a sealed root-owned copy")
@@ -425,7 +504,8 @@ public struct RuntimeComponentUpdater: Sendable {
                 phase: restoreRuntime ? .restoringRuntime : .staging, source: installed, target: last.source,
                 manifest: nil, targetVersion: last.source.version, restoring: last.operation,
                 previousRuntime: last.previousRuntime, targetLaunches: 0, runtimeOperation: nil, reason: nil,
-                createdAt: now, updatedAt: now)
+                createdAt: now, updatedAt: now, forced: forcedOver.map { _ in true }, forcedOver: forcedOver)
+            try recordForced(record, protection: protection)
             try save(&record)
             return record
         }
@@ -450,7 +530,8 @@ public struct RuntimeComponentUpdater: Sendable {
             schema: RuntimeComponentUpdateRecord.schemaVersion, operation: operation, ownerUID: ownerUID,
             rollback: false, reseat: false, restartRuntime: restartRuntime, phase: .staging, source: installed,
             target: nil, manifest: manifest, targetVersion: manifest.version, restoring: nil, previousRuntime: nil,
-            targetLaunches: 0, runtimeOperation: nil, reason: nil, createdAt: now, updatedAt: now)
+            targetLaunches: 0, runtimeOperation: nil, reason: nil, createdAt: now, updatedAt: now,
+            forced: forcedOver.map { _ in true }, forcedOver: forcedOver)
         if manifest.helper.sha256 == runningSHA256 {
             // The running helper is this release: nothing is swapped. The
             // runtime follows from a sealed copy of the installed authority.
@@ -459,6 +540,7 @@ public struct RuntimeComponentUpdater: Sendable {
             }
             record.reseat = true
             record.target = installed
+            try recordForced(record, protection: protection)
             try save(&record)
             return record
         }
@@ -474,6 +556,7 @@ public struct RuntimeComponentUpdater: Sendable {
                 "Runtime components \(manifest.version) need an installed helper of at least "
                     + "\(manifest.minimumHelperVersion); this one is \(running)")
         }
+        try recordForced(record, protection: protection)
         try save(&record)
         return record
     }
@@ -895,6 +978,15 @@ public struct RuntimeComponentUpdater: Sendable {
     static func describe(_ error: Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? String(describing: error)
     }
+
+    static let logger = Logger(subsystem: IsolatedRuntimePolicy.helperIdentifier, category: "component-update")
+
+    /// Fault level in the unified log (`log show --predicate 'subsystem ==
+    /// "com.skunkworq.micropod.runtime-authority"'`), and stderr.
+    static func log(_ message: String) {
+        logger.fault("\(message, privacy: .public)")
+        fputs(message + "\n", stderr)
+    }
 }
 
 /// Thrown by a test checkpoint to stop the update as a crash would.
@@ -942,13 +1034,11 @@ public struct NativeRuntimeComponentEnvironment: RuntimeComponentEnvironment {
 
     /// Only the authority publishes: a helper the legacy job started must
     /// not describe the authority.
-    public func publishProtection(_ protection: RuntimeAuthority.Protection) {
+    public func publishProtection(_ protection: RuntimeAuthority.Protection, forced: RuntimeForcedComponentUpdate?) {
         guard executable.path == IsolatedRuntimePolicy.authorityProgram.path else { return }
         let url = RuntimeAuthority.publishedProtection
-        guard
-            (try? RuntimeDurableFile.write(RuntimeAuthority.PublishedProtection(protection, checkedAt: Date()), to: url))
-                != nil
-        else { return }
+        let published = RuntimeAuthority.PublishedProtection(protection, checkedAt: Date(), forced: forced)
+        guard (try? RuntimeDurableFile.write(published, to: url)) != nil else { return }
         _ = chmod(url.path, 0o644)
     }
 

@@ -307,8 +307,41 @@ record() {
   say "== $STEP: $1"
 }
 
+# no_forced_update: no component update on this host was forced over a
+# failed protection check (sudo micropod runtime update --force). Root's own
+# mark (component-forced.json, which no update removes and rig-reset does not
+# touch), the journal and every history record are read as root. Evidence
+# from a forced host proves nothing about the protection the gate tests, so a
+# forced receipt fails every test step, whatever else passed. The gate itself
+# never forces (user_cli refuses --force).
+no_forced_update() {
+  local found
+  # Fail closed: a check that cannot run as root proves nothing.
+  sudo true || return 1
+  sudo test -e "$RH" || return 0
+  sudo test -d "$RH" || return 1
+  found=$(
+    sudo test -e "$RH/component-forced.json" && printf '%s\n' "$RH/component-forced.json"
+    sudo grep -lE '"forced" *: *true' "$RH/component-update.json" 2>/dev/null
+    sudo find "$RH/components/history" -type f -name '*.json' -exec grep -lE '"forced" *: *true' {} + 2>/dev/null
+  )
+  [ -z "$found" ] && return 0
+  printf 'forced component update receipts on this host:\n%s\n' "$found"
+  return 1
+}
+
+# forced_check: the test steps' verdicts (result and needs_reboot) include it.
+forced_check() {
+  case "$STEP" in
+    g[0-9]* | rig-reset)
+      check "no component update on this host was forced over the protection check" no_forced_update
+      ;;
+  esac
+}
+
 result() {
   local v
+  forced_check
   v=$(verdict "${1:-}")
   record "$v"
   [ "$v" = FAIL ] && exit 1
@@ -325,6 +358,7 @@ human() {
 # reboot starts with none), then ask for the reboot.
 needs_reboot() {
   [ -z "$RIG" ] || rig_stamp
+  forced_check
   record "$(verdict)"
   printf '%s\n' "$1" >"$GATE/next"
   say ""
@@ -436,7 +470,12 @@ install_authority() {
 as_user() {
   if [ "$(id -u)" = 0 ]; then sudo -u "$GATE_USER" -H "$@"; else "$@"; fi
 }
-user_cli() { as_user "$(unpack "$1")/micropod" "${@:2}"; }
+user_cli() {
+  # The gate never forces: a forced update overrides the very check it tests.
+  local arg
+  for arg in "${@:2}"; do [ "$arg" != --force ] || die "the gate never passes --force"; done
+  as_user "$(unpack "$1")/micropod" "${@:2}"
+}
 
 # status_field <name> <key>: a field of the helper's status reply.
 status_field() {
@@ -512,6 +551,8 @@ finished() {
     test "$(status_field "$name" helperService)" = "$AUTH_LABEL"
   check "the helper reports itself protected" \
     test "$(status_field "$name" componentProtection)" = protected
+  check "the helper reports no forced component update" \
+    test -z "$(status_field "$name" forcedComponentUpdate.operation)"
   check "at most one helper process" at_most_one_helper
 }
 

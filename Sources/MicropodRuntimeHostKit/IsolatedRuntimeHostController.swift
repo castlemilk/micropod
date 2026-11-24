@@ -119,42 +119,24 @@ public actor IsolatedRuntimeHostController {
         return state
     }
 
+    /// `ownerUID` is the requesting peer's effective uid, which the XPC
+    /// server reads from the connection's kernel audit token
+    /// (`xpc_connection_get_euid`), never from the request. Uid 0 is root:
+    /// it may read status and force a component update, and nothing else.
+    /// `force` from any other peer is refused, whatever it asks for.
     public func submit(_ request: IsolatedRuntimeRequest, ownerUID: UInt32) async throws -> IsolatedRuntimeStatus {
+        if ownerUID == 0 { return try await submitAsRoot(request) }
+        guard request.force == nil else {
+            throw MicropodError.message(
+                "Only root can force a runtime component update over the protection check: run "
+                    + "`sudo micropod runtime update --force`. Nothing was changed")
+        }
         guard ownerUID >= 500, state.ownerUID == nil || state.ownerUID == ownerUID,
             state.identity == nil || state.identity?.ownerUID == ownerUID
         else {
             throw MicropodError.message("This runtime belongs to another macOS account")
         }
-        if request.action == .status {
-            followComponentRuntime()
-            var snapshot = state
-            snapshot.componentProtocol = components == nil ? nil : RuntimeComponentManifest.protocolVersion
-            snapshot.componentUpdate = components?.summary()
-            if components != nil {
-                let armed = RuntimeGateHooks.faultArmed()
-                snapshot.gateFaultArmed = armed
-                snapshot.componentProtection = Self.describeProtection(protection, gateFaultArmed: armed)
-            }
-            if let identity = state.identity {
-                let pending = gate.root.appendingPathComponent("pending")
-                if let files = try? FileManager.default.contentsOfDirectory(
-                    at: pending, includingPropertiesForKeys: nil)
-                {
-                    snapshot.pendingOperationCount = files.count
-                    struct PendingRoute: Decodable { let route: String }
-                    snapshot.pendingOperationRoutes = files.prefix(16).map { file in
-                        guard file.pathExtension == "json",
-                            UUID(uuidString: file.deletingPathExtension().lastPathComponent) != nil,
-                            let bytes = try? RuntimeDurableFile.read(
-                                file, maximumBytes: 4096, ownerUID: identity.serviceUID),
-                            let item = try? JSONDecoder().decode(PendingRoute.self, from: bytes)
-                        else { return "Unconfirmed request" }
-                        return String(item.route.prefix(80))
-                    }
-                }
-            }
-            return snapshot
-        }
+        if request.action == .status { return statusSnapshot() }
         if request.action == .probe {
             guard task == nil, !gate.isClosed, let identity = state.identity,
                 let digest = state.workerSHA256, let selection = state.selection ?? state.pendingSelection
@@ -213,6 +195,61 @@ public actor IsolatedRuntimeHostController {
             return state
         }
         return try startOperation(request, ownerUID: ownerUID)
+    }
+
+    /// A root peer (euid 0 in its audit token): status, and `update` or
+    /// `rollback` with `force`, which acts for the runtime's recorded owner.
+    /// Everything else is the owner's to ask for.
+    private func submitAsRoot(_ request: IsolatedRuntimeRequest) async throws -> IsolatedRuntimeStatus {
+        if request.action == .status, request.force == nil { return statusSnapshot() }
+        guard request.action == .update || request.action == .rollback else {
+            throw MicropodError.message(
+                "Root may read status or force a component update (`sudo micropod runtime update --force`); run "
+                    + "every other runtime command as the runtime's owner")
+        }
+        guard request.force == true else {
+            throw MicropodError.message(
+                "Run `micropod runtime update` as the runtime's owner. Root sends only a forced update "
+                    + "(`sudo micropod runtime update --force`)")
+        }
+        // The owner from root-owned state, never from the request.
+        guard let owner = state.identity?.ownerUID, owner >= 500, state.ownerUID == nil || state.ownerUID == owner
+        else {
+            throw MicropodError.message("Install the dedicated runtime before updating its components")
+        }
+        return try await submitComponentUpdate(request, ownerUID: owner, force: true)
+    }
+
+    private func statusSnapshot() -> IsolatedRuntimeStatus {
+        followComponentRuntime()
+        var snapshot = state
+        snapshot.componentProtocol = components == nil ? nil : RuntimeComponentManifest.protocolVersion
+        snapshot.componentUpdate = components?.summary()
+        if let components {
+            let armed = RuntimeGateHooks.faultArmed()
+            snapshot.gateFaultArmed = armed
+            snapshot.componentProtection = Self.describeProtection(protection, gateFaultArmed: armed)
+            snapshot.forcedComponentUpdate = components.lastForced()
+        }
+        if let identity = state.identity {
+            let pending = gate.root.appendingPathComponent("pending")
+            if let files = try? FileManager.default.contentsOfDirectory(
+                at: pending, includingPropertiesForKeys: nil)
+            {
+                snapshot.pendingOperationCount = files.count
+                struct PendingRoute: Decodable { let route: String }
+                snapshot.pendingOperationRoutes = files.prefix(16).map { file in
+                    guard file.pathExtension == "json",
+                        UUID(uuidString: file.deletingPathExtension().lastPathComponent) != nil,
+                        let bytes = try? RuntimeDurableFile.read(
+                            file, maximumBytes: 4096, ownerUID: identity.serviceUID),
+                        let item = try? JSONDecoder().decode(PendingRoute.self, from: bytes)
+                    else { return "Unconfirmed request" }
+                    return String(item.route.prefix(80))
+                }
+            }
+        }
+        return snapshot
     }
 
     /// Records and starts a runtime operation. `stageComponents` first stages
@@ -1031,8 +1068,9 @@ public actor IsolatedRuntimeHostController {
     /// `update` and `rollback`. The helper swap runs unfenced and undrained:
     /// the dedicated API and Apple runtime keep serving. The runtime follows
     /// in an ordinary coordinated restart (``continueComponentUpdate()``).
-    private func submitComponentUpdate(_ request: IsolatedRuntimeRequest, ownerUID: UInt32) async throws
-        -> IsolatedRuntimeStatus
+    /// `force` is set only by ``submitAsRoot(_:)``, for a root peer.
+    private func submitComponentUpdate(_ request: IsolatedRuntimeRequest, ownerUID: UInt32, force: Bool = false)
+        async throws -> IsolatedRuntimeStatus
     {
         guard let components else {
             throw MicropodError.message("This runtime helper cannot update its own components")
@@ -1045,6 +1083,7 @@ public actor IsolatedRuntimeHostController {
             let armed = RuntimeGateHooks.faultArmed()
             current.gateFaultArmed = armed
             current.componentProtection = Self.describeProtection(protection, gateFaultArmed: armed)
+            current.forcedComponentUpdate = components.lastForced()
             return current
         }
         if let record = components.readLeniently(), record.operation == request.operation {
@@ -1070,7 +1109,7 @@ public actor IsolatedRuntimeHostController {
             Result {
                 try components.plan(
                     operation: request.operation, ownerUID: ownerUID, installedSelection: selection,
-                    runtime: runtime, rollback: rollback)
+                    runtime: runtime, rollback: rollback, force: force)
             }
         }.value
         componentPlanning = false
@@ -1139,7 +1178,7 @@ public actor IsolatedRuntimeHostController {
         guard let components else { return }
         let protection = components.environment.protection()
         recordProtection(protection)
-        components.environment.publishProtection(protection)
+        components.publish(protection)
     }
 
     /// A protection check made off the actor (the helper repeats one every
@@ -1147,7 +1186,7 @@ public actor IsolatedRuntimeHostController {
     /// follow a re-enabled legacy job).
     public func recordProtection(_ protection: RuntimeAuthority.Protection) {
         guard components != nil else { return }
-        self.protection = protection.protected ? "protected" : "unprotected: " + (protection.reason ?? "unknown")
+        self.protection = protection.described
     }
 
     /// `runtime-inspect`'s attestation, checked for this reply (and recorded
@@ -1156,7 +1195,7 @@ public actor IsolatedRuntimeHostController {
         let facts = components?.environment.installFacts()
         let protection = facts?.protection ?? .unprotected("this helper cannot update its own components")
         if let facts { recordProtection(facts.protection) }
-        let described = protection.protected ? "protected" : "unprotected: " + (protection.reason ?? "unknown")
+        let described = protection.described
         return RuntimeHelperAttestation(
             helperIdentifier: IsolatedRuntimePolicy.helperIdentifier,
             helperVersion: components?.environment.runningVersion ?? "",
