@@ -33,6 +33,8 @@ The [third ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-03.md) t
 
 The [fourth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-04.md) compares queue limits, congestion control, interrupts and relay policies, and reports per-vCPU nonrunnable time across archived diagnostic pairs. [Batch 4 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7118736270)
 
+The [fifth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-05.md) brings the total to 50. It measures sender queueing, relay write order and bridge receive offload, and shows why netkit source counters need destination confirmation. [Batch 5 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7119218634)
+
 ## Research layers and phases
 
 | Blueprint layer | Area | Execution phase | Backlog |
