@@ -31,6 +31,8 @@ The [second ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-02.md) 
 
 The [third ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-03.md) traces established bulk delivery and VM CPU use, reports four kernel queue comparisons, and documents delivery and latency regressions. [Batch 3 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7118391347)
 
+The [fourth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-04.md) compares queue limits, congestion control, interrupts and relay policies, and reports per-vCPU nonrunnable time across archived diagnostic pairs. [Batch 4 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7118736270)
+
 ## Research layers and phases
 
 | Blueprint layer | Area | Execution phase | Backlog |
