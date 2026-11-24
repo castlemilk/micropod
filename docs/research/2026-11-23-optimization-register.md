@@ -35,6 +35,8 @@ The [fourth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-04.md) 
 
 The [fifth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-05.md) brings the total to 50. It measures sender queueing, relay write order and bridge receive offload, and shows why netkit source counters need destination confirmation. [Batch 5 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7119218634)
 
+The [sixth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-06.md) brings the total to 60 comparisons across 33 directions. Service-side fair queueing warrants a matched fixed-arrival test. The stock worker selector already balanced long-lived flows in the benchmark fixture. [Batch 6 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7119620875)
+
 ## Research layers and phases
 
 | Blueprint layer | Area | Execution phase | Backlog |
