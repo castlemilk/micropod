@@ -27,6 +27,8 @@ The one-off reconciliation for #228 and #230 verified both local alignment trial
 
 The first [ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-01.md) records two new local timings, five analyses of archived VM traffic and three benchmark qualification fixes. [GitHub batch index](https://github.com/castlemilk/micropod/issues/227#issuecomment-7117627198)
 
+The [second ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-02.md) compares kernel networking controls, datagram and stream buffering, and an opt-in relay patch. [Batch 2 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7117958023)
+
 ## Research layers and phases
 
 | Blueprint layer | Area | Execution phase | Backlog |
