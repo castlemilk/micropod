@@ -1,0 +1,354 @@
+{
+  "id": "231.08",
+  "date": "2026-11-24",
+  "tier": "offline replay of archived VM first attempts",
+  "source": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "readbacks_sha256": "1ade90ef711545a7ad913c8bd8725cd7fe999dd3da985944f978cd72d0265fc0",
+  "boot": "D2AA2C3B-6DB4-4DEE-B5D2-D2D2F7A9F25A",
+  "vm": "4 4116488192 \"7.3.5-micropod\" \"micropod\"",
+  "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "client": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "workload": "32 bulk streams, 240 fixed arrivals in six seconds, all first attempts. Host process counters span setup and drain. Interface byte and packet counters are driver-reported. No on-wire capture.",
+  "comparison": "Guest tx-0 BQL limit_max write of 524288 vs restoring stock 1879048192. All writes exited successfully. The snapshots lack post-write limit_max/inflight/limit values. Four alternating blocks; zero clean controls, so no qualified throughput ratio. BQL here is driver TX queue control, distinct from fq/socket buffer controls.",
+  "summary": {
+    "bql-default": {
+      "attempts": 4,
+      "clean": 0,
+      "pass_75ms": 0,
+      "fresh_errors": 614,
+      "reopens": 58,
+      "medians": {
+        "p95_ms": null,
+        "p99_ms": null,
+        "throughput_mib_s": null,
+        "bytes_per_tx_packet": null,
+        "tx_kicks_per_interface_gib": null
+      }
+    },
+    "bql-512k": {
+      "attempts": 4,
+      "clean": 4,
+      "pass_75ms": 4,
+      "fresh_errors": 0,
+      "reopens": 0,
+      "medians": {
+        "p95_ms": 13.376999999999999,
+        "p99_ms": 23.665999999999997,
+        "throughput_mib_s": 1365.346941732309,
+        "bytes_per_tx_packet": 63350.44253002839,
+        "tx_kicks_per_interface_gib": 1841.5027584531517
+      }
+    }
+  },
+  "rows": [
+    {
+      "block": 1,
+      "arm": "bql-512k",
+      "epoch_ns": 1795259204537512000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 1609.265465327066,
+      "p95_ms": 33.925,
+      "p99_ms": 76.109,
+      "tx_interface": {
+        "bytes": 10681655350,
+        "packets": 168379,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 18341,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63438.16835828696,
+      "tx_kicks_per_interface_gib": 1843.6748002718512,
+      "process": {
+        "vmm": {
+          "cpu_s": 6.29730075,
+          "runnable_s": 15.730806291666665,
+          "observer_s": 6.414448,
+          "cpu_s_per_scored_gib": 0.6673051085436319
+        },
+        "relay": {
+          "cpu_s": 3.4788414999999997,
+          "runnable_s": 4.378410499999999,
+          "observer_s": 6.414448,
+          "cpu_s_per_scored_gib": 0.36864186687662825
+        }
+      }
+    },
+    {
+      "block": 1,
+      "arm": "bql-default",
+      "epoch_ns": 1795259260720365000,
+      "clean": false,
+      "fresh_errors": 239,
+      "bulk_errors": 25,
+      "bulk_reopens": 21,
+      "throughput_mib_s": 61.40681807072494,
+      "p95_ms": 0.0,
+      "p99_ms": 0.0,
+      "tx_interface": {
+        "bytes": 749608272,
+        "packets": 12869,
+        "errors": 4,
+        "dropped": 253,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 360,
+        "tx0_tx_timeouts": 4
+      },
+      "bytes_per_tx_packet": 58249.14694226436,
+      "tx_kicks_per_interface_gib": 515.6654096261094,
+      "process": {
+        "vmm": {
+          "cpu_s": 1.0081918333333333,
+          "runnable_s": 1.2768311666666665,
+          "observer_s": 30.129123,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 0.6149695,
+          "runnable_s": 0.6761532083333333,
+          "observer_s": 30.129123,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "bql-default",
+      "epoch_ns": 1795259291179632000,
+      "clean": false,
+      "fresh_errors": 0,
+      "bulk_errors": 32,
+      "bulk_reopens": 19,
+      "throughput_mib_s": 0,
+      "p95_ms": 2222.829,
+      "p99_ms": 2472.325,
+      "tx_interface": {
+        "bytes": 443551304,
+        "packets": 9726,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 951,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 45604.699156899034,
+      "tx_kicks_per_interface_gib": 2302.1654212609415,
+      "process": {
+        "vmm": {
+          "cpu_s": 31.762857041666663,
+          "runnable_s": 40.36380683333333,
+          "observer_s": 36.108029,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 0.27009762499999995,
+          "runnable_s": 0.34041012499999995,
+          "observer_s": 36.108029,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "bql-512k",
+      "epoch_ns": 1795259357164855000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 1367.783355835358,
+      "p95_ms": 13.449,
+      "p99_ms": 28.24,
+      "tx_interface": {
+        "bytes": 9102936208,
+        "packets": 143688,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 15622,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63352.097656032514,
+      "tx_kicks_per_interface_gib": 1842.7015625778404,
+      "process": {
+        "vmm": {
+          "cpu_s": 6.376777166666666,
+          "runnable_s": 15.650103833333333,
+          "observer_s": 6.255503,
+          "cpu_s_per_scored_gib": 0.7956661245027633
+        },
+        "relay": {
+          "cpu_s": 3.4099000416666665,
+          "runnable_s": 4.368351874999999,
+          "observer_s": 6.255503,
+          "cpu_s_per_scored_gib": 0.4254722848521566
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "bql-512k",
+      "epoch_ns": 1795259363780579000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 1362.91052762926,
+      "p95_ms": 9.866,
+      "p99_ms": 14.802,
+      "tx_interface": {
+        "bytes": 8960179188,
+        "packets": 141442,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 15357,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63348.78740402427,
+      "tx_kicks_per_interface_gib": 1840.3039543284633,
+      "process": {
+        "vmm": {
+          "cpu_s": 6.296820124999999,
+          "runnable_s": 14.967985208333332,
+          "observer_s": 6.200206,
+          "cpu_s_per_scored_gib": 0.7884845201315317
+        },
+        "relay": {
+          "cpu_s": 3.418147458333333,
+          "runnable_s": 4.4057445416666665,
+          "observer_s": 6.200206,
+          "cpu_s_per_scored_gib": 0.4280186355843813
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "bql-default",
+      "epoch_ns": 1795259383677902000,
+      "clean": false,
+      "fresh_errors": 136,
+      "bulk_errors": 0,
+      "bulk_reopens": 2,
+      "throughput_mib_s": 1992.696301058858,
+      "p95_ms": 34.308,
+      "p99_ms": 59.448,
+      "tx_interface": {
+        "bytes": 13083893328,
+        "packets": 205764,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 1178,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63586.89240100309,
+      "tx_kicks_per_interface_gib": 96.67366103980208,
+      "process": {
+        "vmm": {
+          "cpu_s": 4.896921999999999,
+          "runnable_s": 11.161819874999999,
+          "observer_s": 25.476305,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 3.3541256249999996,
+          "runnable_s": 3.854079416666666,
+          "observer_s": 25.476305,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "bql-default",
+      "epoch_ns": 1795259409670956000,
+      "clean": false,
+      "fresh_errors": 239,
+      "bulk_errors": 20,
+      "bulk_reopens": 16,
+      "throughput_mib_s": 37.98649054544529,
+      "p95_ms": 0.0,
+      "p99_ms": 0.0,
+      "tx_interface": {
+        "bytes": 829414846,
+        "packets": 14434,
+        "errors": 0,
+        "dropped": 14,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 539,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 57462.577663849246,
+      "tx_kicks_per_interface_gib": 697.7772895278028,
+      "process": {
+        "vmm": {
+          "cpu_s": 0.6383985416666667,
+          "runnable_s": 0.8194429583333332,
+          "observer_s": 30.142475,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 0.6881601249999999,
+          "runnable_s": 0.7649480833333333,
+          "observer_s": 30.142475,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "bql-512k",
+      "epoch_ns": 1795259477164205000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 1115.8053575069846,
+      "p95_ms": 13.305,
+      "p99_ms": 19.092,
+      "tx_interface": {
+        "bytes": 7524220566,
+        "packets": 118987,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 12894,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63235.652348575895,
+      "tx_kicks_per_interface_gib": 1840.034719505324,
+      "process": {
+        "vmm": {
+          "cpu_s": 5.662438333333332,
+          "runnable_s": 15.667121583333332,
+          "observer_s": 6.400878,
+          "cpu_s_per_scored_gib": 0.8659694164923311
+        },
+        "relay": {
+          "cpu_s": 3.1331321249999995,
+          "runnable_s": 4.258354958333333,
+          "observer_s": 6.400878,
+          "cpu_s_per_scored_gib": 0.4791569352919447
+        }
+      }
+    }
+  ],
+  "verdict": "Prioritize a bounded 512 KiB request for replication. Record actual limit_max, inflight, and limit using explicit paths at each boundary. All four stock attempts lost delivery. No jointly clean throughput ratio or effective queue size can be inferred.",
+  "uncertainty": "Short single-guest screen; no independent-boot interval.",
+  "benchmark_snapshot": "ad0646d6292076b6ddf7647f2dc806d785d8f8fb",
+  "replay_base": "2ccda8507355b8220258db2ce8160f3113d3e1ff"
+}
