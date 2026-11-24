@@ -1,0 +1,100 @@
+{
+  "direction": "231.08",
+  "date": "2026-11-24",
+  "tier": "source/fixture",
+  "micropod_revision": "a60d203b16b24abd857e1b5c9e817636b241f850",
+  "linux": "7.3.5",
+  "linux_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "kernel_members": {
+    "include/linux/dynamic_queue_limits.h": "411f7ee98f224fb23186dcfed7f8d20a72aa63cb7b30186941a14eb8d44b02d9",
+    "include/linux/netdevice.h": "c01410d782e5c984ee118c5f6a041fb7cc91ce5c1ee06493de92d44670fd5907",
+    "drivers/net/virtio_net.c": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace"
+  },
+  "compiled_fragment_sha256": "e0dea0b459e96471196643822798b4d0cb359cb367d2c3cabb62db722c0aceb8",
+  "harness_sha256": "0ecdac50861b48953e4f88bcc6cb8d2b211045f717b3c77eee431b96b5254294",
+  "script_sha256": "07746faddbeee52798900149276ee9134fae231ab6b030cc4de0002607d9b322",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "fixture": "32 fixed-size SKBs offered to one 256-entry ring, one descriptor per SKB, no completions, CONFIG_BQL enabled, MAX_SKB_FRAGS=17, one kick requested per submission, fixed initial BQL allowance of 524288 B. Stop before next admission if the stack or driver queue stops.",
+  "observations": [
+    {
+      "skb_bytes": 1460,
+      "tx_napi_weight": 0,
+      "submitted_skbs": 32,
+      "submitted_bytes": 46720,
+      "dql_queued_bytes": 0,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 0,
+      "ring_stops": 0
+    },
+    {
+      "skb_bytes": 1460,
+      "tx_napi_weight": 64,
+      "submitted_skbs": 32,
+      "submitted_bytes": 46720,
+      "dql_queued_bytes": 46720,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 0,
+      "ring_stops": 0
+    },
+    {
+      "skb_bytes": 16384,
+      "tx_napi_weight": 0,
+      "submitted_skbs": 32,
+      "submitted_bytes": 524288,
+      "dql_queued_bytes": 0,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 0,
+      "ring_stops": 0
+    },
+    {
+      "skb_bytes": 16384,
+      "tx_napi_weight": 64,
+      "submitted_skbs": 32,
+      "submitted_bytes": 524288,
+      "dql_queued_bytes": 524288,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 0,
+      "ring_stops": 0
+    },
+    {
+      "skb_bytes": 32768,
+      "tx_napi_weight": 0,
+      "submitted_skbs": 32,
+      "submitted_bytes": 1048576,
+      "dql_queued_bytes": 0,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 0,
+      "ring_stops": 0
+    },
+    {
+      "skb_bytes": 32768,
+      "tx_napi_weight": 64,
+      "submitted_skbs": 17,
+      "submitted_bytes": 557056,
+      "dql_queued_bytes": 557056,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 1,
+      "ring_stops": 0
+    },
+    {
+      "skb_bytes": 64512,
+      "tx_napi_weight": 0,
+      "submitted_skbs": 32,
+      "submitted_bytes": 2064384,
+      "dql_queued_bytes": 0,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 0,
+      "ring_stops": 0
+    },
+    {
+      "skb_bytes": 64512,
+      "tx_napi_weight": 64,
+      "submitted_skbs": 9,
+      "submitted_bytes": 580608,
+      "dql_queued_bytes": 580608,
+      "fixed_bql_limit_bytes": 524288,
+      "bql_stack_stopped": 1,
+      "ring_stops": 0
+    }
+  ]
+}

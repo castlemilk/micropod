@@ -1,0 +1,107 @@
+{
+  "stable_id": "233.04",
+  "date": "2026-11-24",
+  "base": "a60d203b16b24abd857e1b5c9e817636b241f850",
+  "tier": "source/fixture",
+  "kernel": "Linux 7.3.5",
+  "kernel_member": "io_uring/zcrx.c",
+  "kernel_sha256": "81710ffc59b47cacbcabc7f673d298ab7eff6de7e962b9663c88b8dda4f789c2",
+  "original_functions_sha256": "74bed9b66576272faf22cba89f4218ecc5c12b99f10238b57f49621784d4f792",
+  "fixture_sha256": "73d777502e4fb6c1d89eb52ba01c4a5dcc521e60114b1a96156facfbb091a35e",
+  "reproducer_sha256": "e810376453b88d1347a0276111ee45203079b59e0d699097376c9651af5a2078",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "attempts": [
+    {
+      "arm": "control",
+      "functions_sha256": "74bed9b66576272faf22cba89f4218ecc5c12b99f10238b57f49621784d4f792",
+      "cases": [
+        {
+          "linear_bytes": 0,
+          "start": 0,
+          "verified_bytes": 4096,
+          "cqe": 1,
+          "memcpy_bytes": 4096,
+          "driver_copy_stat_bytes": 4096,
+          "fallback_buffers": 1,
+          "provider_refs": 0
+        },
+        {
+          "linear_bytes": 148,
+          "start": 0,
+          "verified_bytes": 4096,
+          "cqe": 2,
+          "memcpy_bytes": 4096,
+          "driver_copy_stat_bytes": 3948,
+          "fallback_buffers": 2,
+          "provider_refs": 0
+        },
+        {
+          "linear_bytes": 148,
+          "start": 84,
+          "verified_bytes": 2000,
+          "cqe": 2,
+          "memcpy_bytes": 2000,
+          "driver_copy_stat_bytes": 1936,
+          "fallback_buffers": 2,
+          "provider_refs": 0
+        },
+        {
+          "linear_bytes": 4096,
+          "start": 0,
+          "verified_bytes": 4096,
+          "cqe": 1,
+          "memcpy_bytes": 4096,
+          "driver_copy_stat_bytes": 0,
+          "fallback_buffers": 1,
+          "provider_refs": 0
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "functions_sha256": "74bed9b66576272faf22cba89f4218ecc5c12b99f10238b57f49621784d4f792",
+      "cases": [
+        {
+          "linear_bytes": 0,
+          "start": 0,
+          "verified_bytes": 4096,
+          "cqe": 1,
+          "memcpy_bytes": 0,
+          "driver_copy_stat_bytes": 0,
+          "fallback_buffers": 0,
+          "provider_refs": 1
+        },
+        {
+          "linear_bytes": 148,
+          "start": 0,
+          "verified_bytes": 4096,
+          "cqe": 2,
+          "memcpy_bytes": 148,
+          "driver_copy_stat_bytes": 0,
+          "fallback_buffers": 1,
+          "provider_refs": 1
+        },
+        {
+          "linear_bytes": 148,
+          "start": 84,
+          "verified_bytes": 2000,
+          "cqe": 2,
+          "memcpy_bytes": 64,
+          "driver_copy_stat_bytes": 0,
+          "fallback_buffers": 1,
+          "provider_refs": 1
+        },
+        {
+          "linear_bytes": 4096,
+          "start": 0,
+          "verified_bytes": 4096,
+          "cqe": 1,
+          "memcpy_bytes": 4096,
+          "driver_copy_stat_bytes": 0,
+          "fallback_buffers": 1,
+          "provider_refs": 0
+        }
+      ]
+    }
+  ]
+}

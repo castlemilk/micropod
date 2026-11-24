@@ -1,0 +1,72 @@
+{
+  "revision": "a60d203b16b24abd857e1b5c9e817636b241f850",
+  "source_paths": [
+    "Sources/CPublishedTCP/PublishedTCP.c",
+    "Sources/CPublishedTCP/include/PublishedTCP.h",
+    "scripts/relaybench/filter_work.c"
+  ],
+  "source_sha256": [
+    "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109"
+  ],
+  "candidate_sha256": "a634422f08605ad42e9040cef48c28c02cddd042de95e00124a3353efe84f123",
+  "fixture_sha256": "d83a933909a19d825901da3802614b50aa08b191e35369ffc62369ab7f59616a",
+  "driver_sha256": "7daf12adc31f4d3565ac3aecd73ffb55534a3313129e6aa86dabf4eb0a572824",
+  "darwin": "25.5.0",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "attempts": [
+    {
+      "arm": "control",
+      "returncode": 0,
+      "stdout": [
+        "{\"suffix\":4096,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2]],\"room_at_first_progress\":2048,\"room_at_full_flush\":4096,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,4096,1]],\"room_at_first_progress\":8192,\"room_at_full_flush\":8192,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,4096,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2],[6144,6144,3],[8192,8192,4],[10240,10240,5],[12288,12288,6],[14336,14336,7],[16384,16384,8],[18432,18432,9],[20480,20480,10],[22528,22528,11],[24576,24576,12],[26624,26624,13],[28672,28672,14],[30720,30720,15],[32768,32768,16]],\"room_at_first_progress\":2048,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,8192,1],[16384,16384,2],[24576,24576,3],[32768,32768,4]],\"room_at_first_progress\":8192,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,32768,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}"
+      ],
+      "stderr": ""
+    },
+    {
+      "arm": "candidate",
+      "returncode": 0,
+      "stdout": [
+        "{\"suffix\":4096,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2]],\"room_at_first_progress\":2048,\"room_at_full_flush\":4096,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,4096,1]],\"room_at_first_progress\":8192,\"room_at_full_flush\":8192,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,4096,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2],[6144,6144,3],[8192,8192,4],[10240,10240,5],[12288,12288,6],[14336,14336,7],[16384,16384,8],[18432,18432,9],[20480,20480,10],[22528,22528,11],[24576,24576,12],[26624,26624,13],[28672,28672,14],[30720,30720,15],[32768,32768,16]],\"room_at_first_progress\":2048,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,8192,1],[16384,16384,2],[24576,24576,3],[32768,32768,4]],\"room_at_first_progress\":8192,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,32768,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}"
+      ],
+      "stderr": ""
+    },
+    {
+      "arm": "candidate",
+      "returncode": 0,
+      "stdout": [
+        "{\"suffix\":4096,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2]],\"room_at_first_progress\":2048,\"room_at_full_flush\":4096,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,4096,1]],\"room_at_first_progress\":8192,\"room_at_full_flush\":8192,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,4096,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2],[6144,6144,3],[8192,8192,4],[10240,10240,5],[12288,12288,6],[14336,14336,7],[16384,16384,8],[18432,18432,9],[20480,20480,10],[22528,22528,11],[24576,24576,12],[26624,26624,13],[28672,28672,14],[30720,30720,15],[32768,32768,16]],\"room_at_first_progress\":2048,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,8192,1],[16384,16384,2],[24576,24576,3],[32768,32768,4]],\"room_at_first_progress\":8192,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,32768,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}"
+      ],
+      "stderr": ""
+    },
+    {
+      "arm": "control",
+      "returncode": 0,
+      "stdout": [
+        "{\"suffix\":4096,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2]],\"room_at_first_progress\":2048,\"room_at_full_flush\":4096,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,4096,1]],\"room_at_first_progress\":8192,\"room_at_full_flush\":8192,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":4096,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,4096,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":4096,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":2048,\"initial_filler\":65536,\"rows\":[[2048,2048,1],[4096,4096,2],[6144,6144,3],[8192,8192,4],[10240,10240,5],[12288,12288,6],[14336,14336,7],[16384,16384,8],[18432,18432,9],[20480,20480,10],[22528,22528,11],[24576,24576,12],[26624,26624,13],[28672,28672,14],[30720,30720,15],[32768,32768,16]],\"room_at_first_progress\":2048,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":8192,\"initial_filler\":65536,\"rows\":[[8192,8192,1],[16384,16384,2],[24576,24576,3],[32768,32768,4]],\"room_at_first_progress\":8192,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}",
+        "{\"suffix\":32768,\"step\":32768,\"initial_filler\":65536,\"rows\":[[32768,32768,1]],\"room_at_first_progress\":32768,\"room_at_full_flush\":32768,\"delivery\":32768,\"reverse_bytes\":1,\"dual_fin\":true}"
+      ],
+      "stderr": ""
+    }
+  ]
+}

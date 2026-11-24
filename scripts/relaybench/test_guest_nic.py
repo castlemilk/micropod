@@ -35,6 +35,9 @@ case "$1" in
     -k) printf '%s\\n' 'Features for eth1:' 'generic-receive-offload: on [fixed]' ;;
     -l) printf '%s\\n' 'Channel parameters for eth1:' 'Current hardware settings:' 'Combined: 1' ;;
     -c) echo 'Operation not supported' >&2; exit 1 ;;
+    --per-queue)
+        [ "$*" = '--per-queue eth1 queue_mask 1 --show-coalesce' ] || exit 8
+        printf '%s\\n' 'Queue: 0' 'rx-frames: 1' 'tx-frames: 0' 'tx-frames-irq: 0' ;;
     *) exit 9 ;;
 esac
 """.replace("BOOT", BOOT).replace("BITMAP", "1" + "0" * 51 + "1" + "0" * 75)
@@ -45,6 +48,27 @@ esac
                 path.chmod(0o755)
             cls.raw = subprocess.check_output(["/bin/sh", str(HERE / "guest_nic_capture.sh")],
                                               env=dict(os.environ, PATH=directory))
+            # The older inventory fixture has queues 2 and 10. This capture
+            # exercises the diagnostic on the single-queue publication NIC.
+            (Path(directory) / "ls").write_text("#!/bin/sh\nprintf '%s\\n' rx-0 tx-0\n")
+            cls.queue0 = subprocess.check_output(["/bin/sh", str(HERE / "guest_nic_capture.sh"), "--tx-queue0"],
+                                                 env=dict(os.environ, PATH=directory))
+
+    def test_tx_queue0_coalescing_has_own_identity_and_readback(self):
+        report = decode(self.queue0, BOOT)
+        self.assertEqual(report["schema"], 3)
+        self.assertTrue(report["napi_tx_module"])
+        self.assertTrue(report["bitmap"]["negotiated"]["VQ_NOTF_COAL"])
+        self.assertEqual(report["tx_queue0_coalescing"]["tx_frames"], 0)
+        self.assertIsNone(report["coalescing"])
+        for before, after in [(b"Queue: 0", b"Queue: 1"), (b"Queue: 0", b"Queue: 0\nQueue: 1"),
+                              (b"tx-frames: 0", b"tx-frames-irq: 0"), (b"tx-0\n", b"tx-2\n")]:
+            with self.subTest(after=after), self.assertRaises(ValueError):
+                decode(self.queue0.replace(before, after), BOOT)
+        unavailable = self.queue0.replace(b"tx-frames: 0", b"tx-frames: n/a")
+        self.assertIsNone(decode(unavailable, BOOT)["tx_queue0_coalescing"]["tx_frames"])
+        denied = self.queue0.replace(b"@@ end tx_queue0_coalescing 0", b"@@ end tx_queue0_coalescing 1")
+        self.assertEqual(decode(denied, BOOT)["unavailable"]["tx_queue0_coalescing"]["exit_code"], 1)
 
     def test_capture_and_decode(self):
         report = decode(self.raw, BOOT)

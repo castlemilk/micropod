@@ -1,0 +1,85 @@
+import Foundation
+import Darwin
+
+final class WorkQueue: @unchecked Sendable {
+    let serial = DispatchQueue(label: "fixture.owner")
+    var submissions = 0 // The fixture has one submitting accept owner.
+    func async(_ body: @escaping @Sendable () -> Void) {
+        submissions += 1
+        serial.async(execute: body)
+    }
+}
+final class Owner: @unchecked Sendable {
+    let queue = WorkQueue()
+    var taken = [UInt8]()
+    var ahead = -1
+}
+func mp_tcp_adopt(_ owner: Owner, _ fd: Int32, _ accepted: UInt64) {
+    // Verifiable substitute for the backend dial at the production dispatch boundary.
+    var received: UInt8 = 0
+    precondition(read(fd, &received, 1) == 1 && received == UInt8(accepted))
+    owner.taken.append(received)
+    precondition(write(fd, &received, 1) == 1 && shutdown(fd, SHUT_WR) == 0)
+    precondition(read(fd, &received, 1) == 0)
+    close(fd)
+}
+final class Target: @unchecked Sendable {
+    let owner: Owner
+    let handle: Owner
+    init(_ owner: Owner) { self.owner = owner; self.handle = owner }
+    __ADOPT_METHOD__
+}
+func stream(_ tag: UInt8) -> (Int32, Int32) {
+    var fds: [Int32] = [-1, -1]
+    precondition(socketpair(AF_UNIX, SOCK_STREAM, 0, &fds) == 0)
+    var byte = tag
+    precondition(write(fds[0],&byte,1)==1 && shutdown(fds[0],SHUT_WR)==0)
+    return (fds[0],fds[1])
+}
+func verify(_ client: Int32, _ expected: UInt8) {
+    var response: UInt8=0
+    precondition(read(client,&response,1)==1 && response==expected && read(client,&response,1)==0)
+    close(client)
+}
+func cell(_ n: Int, _ cutoff: Int, _ burst: Bool) {
+    let targets=(0..<n).map { _ in Target(Owner()) }
+    let readyClients=targets.map { _ in stream(241) }
+    var clients=[Int32]()
+    for target in targets where burst { target.owner.queue.serial.suspend() }
+    for i in 0...32 {
+        if i == cutoff {
+            for (index,target) in targets.enumerated() {
+                let ready=readyClients[index].1
+                target.owner.queue.serial.async {
+                    target.owner.ahead=target.owner.taken.count
+                    var b: UInt8=0
+                    precondition(read(ready,&b,1)==1 && b==241 && write(ready,&b,1)==1)
+                    precondition(shutdown(ready,SHUT_WR)==0 && read(ready,&b,1)==0)
+                    close(ready)
+                }
+            }
+        }
+        if i == 32 { break }
+        let tag=UInt8(i+1), target=targets[i%n], pair=stream(tag)
+        clients.append(pair.0)
+        target.adopt(pair.1, accepted: UInt64(tag))
+        if !burst { target.owner.queue.serial.sync {} }
+    }
+    for target in targets where burst { target.owner.queue.serial.resume() }
+    for (index,target) in targets.enumerated() {
+        target.owner.queue.serial.sync {}
+        let expected=(0..<32).filter { $0 % n == index }.map { UInt8($0+1) }
+        precondition(target.owner.taken==expected && target.owner.ahead>=0)
+        verify(readyClients[index].0,241)
+    }
+    for (index,fd) in clients.enumerated() { verify(fd,UInt8(index+1)) }
+    let result: [String:Any] = ["workers":n, "cutoff":cutoff, "burst":burst,
+        "ahead":targets.map{$0.owner.ahead}, "submissions":targets.map{$0.owner.queue.submissions},
+        "verified_handoffs":clients.count,"verified_existing_replies":readyClients.count,
+        "clean_eofs":clients.count+readyClients.count]
+    print(String(decoding:try! JSONSerialization.data(withJSONObject:result,options:[.sortedKeys]),as:UTF8.self))
+}
+for n in [2,4] {
+    for cutoff in [0,1,16,31,32] { cell(n,cutoff,true) }
+    cell(n,16,false)
+}

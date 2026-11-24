@@ -20,12 +20,16 @@ FEATURE_BITS = {0: "CSUM", 1: "GUEST_CSUM", 2: "CTRL_GUEST_OFFLOADS",
 
 
 def split_sections(text):
-    version = 2 if text.startswith("@@ guest-nic 2\n") else 1
+    header = re.match(r"@@ guest-nic ([23])\n", text)
+    version = int(header[1]) if header else 1
     lines = iter(text.splitlines())
-    if version == 2:
+    if header:
         next(lines)
     sections = {}
-    keys = SECTIONS[:-1] + (NAPI_CONTROLS if version == 2 else ()) + ("after",)
+    keys = SECTIONS[:-1] + (NAPI_CONTROLS if version >= 2 else ())
+    if version == 3:
+        keys += ("tx_queue0_coalescing",)
+    keys += ("after",)
     for key in keys:
         if next(lines, None) != "@@ " + key:
             raise ValueError(f"missing section {key}")
@@ -91,6 +95,20 @@ def decode(raw, expected_boot):
             if not all(queues.values()):
                 raise ValueError("missing RX or TX queue inventory")
             report[key] = queues
+        elif key == "tx_queue0_coalescing":
+            # ethtool -Q prints each queue before its settings. With VQ_NOTF_COAL,
+            # tx-frames is a device coalescing limit rather than a NAPI mode.
+            clean = [line.strip() for line in lines]
+            queues = [i for i, line in enumerate(clean) if line.startswith("Queue:")]
+            frames = [i for i, line in enumerate(clean) if line.startswith("tx-frames:")]
+            if (len(queues) != 1 or clean[queues[0]] != "Queue: 0" or len(frames) != 1
+                    or frames[0] <= queues[0] or (report["queues"] and 0 not in report["queues"]["tx"])):
+                raise ValueError("ambiguous queue 0 TX coalescing response")
+            match = re.fullmatch(r"tx-frames:\s*(n/a|0|[1-9][0-9]*)", clean[frames[0]])
+            if not match:
+                raise ValueError("invalid queue 0 tx-frames readback")
+            report[key] = {"queue": 0, "tx_frames": None if match[1] == "n/a" else int(match[1]),
+                           "raw": "\n".join(lines)}
         else:
             title = {"offloads": "Features", "channels": "Channel parameters", "coalescing": "Coalesce parameters"}[key]
             if not lines or lines[0] != title + " for eth1:" or not any(line.strip() for line in lines[1:]):

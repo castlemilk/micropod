@@ -1,0 +1,905 @@
+{
+  "revision": "a60d203b16b24abd857e1b5c9e817636b241f850",
+  "target": "Sources/MicropodRuntime/NativeLoopbackRelay.swift",
+  "target_sha256": "549259065039321394cb9b41c7f0011206f589ccca6b19e95af044ef6bf5db1e",
+  "control_method_sha256": "0ab97c40b878a8655a89958636ccd45223c145a01ca0adaf8d4edd06d0e36c75",
+  "candidate_method_sha256": "64dbd5bcbbcc9d972585e7324d47bbc76d56816b8c9509b2a500c55a0904f716",
+  "fixture_sha256": "af1509aeb614208bf3d5a62c672fc6d6eb420c872d3fa9602961a376df00d763",
+  "driver_sha256": "45b1641351ee45257309af7f04beeb441c78c7a1954d924781eca14981e22697",
+  "darwin": "25.5.0",
+  "compiler": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "attempts": [
+    {
+      "arm": "control",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "ahead": [
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 0,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            1,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 1,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            15
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 31,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 32,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            8,
+            8
+          ],
+          "burst": false,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 0,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            1,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 1,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            4,
+            4,
+            4,
+            4
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            7
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 31,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 32,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            4,
+            4,
+            4,
+            4
+          ],
+          "burst": false,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "ahead": [
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 0,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 1,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 31,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 32,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            8,
+            8
+          ],
+          "burst": false,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 0,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 1,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 31,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 32,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            4,
+            4,
+            4,
+            4
+          ],
+          "burst": false,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "ahead": [
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 0,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 1,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 31,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 32,
+          "submissions": [
+            1,
+            1
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            8,
+            8
+          ],
+          "burst": false,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 0,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 1,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 31,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 32,
+          "submissions": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            4,
+            4,
+            4,
+            4
+          ],
+          "burst": false,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        }
+      ]
+    },
+    {
+      "arm": "control",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "ahead": [
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 0,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            1,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 1,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            15
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 31,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            16,
+            16
+          ],
+          "burst": true,
+          "clean_eofs": 34,
+          "cutoff": 32,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            8,
+            8
+          ],
+          "burst": false,
+          "clean_eofs": 34,
+          "cutoff": 16,
+          "submissions": [
+            16,
+            16
+          ],
+          "verified_existing_replies": 2,
+          "verified_handoffs": 32,
+          "workers": 2
+        },
+        {
+          "ahead": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 0,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            1,
+            0,
+            0,
+            0
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 1,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            4,
+            4,
+            4,
+            4
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            7
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 31,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "burst": true,
+          "clean_eofs": 36,
+          "cutoff": 32,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        },
+        {
+          "ahead": [
+            4,
+            4,
+            4,
+            4
+          ],
+          "burst": false,
+          "clean_eofs": 36,
+          "cutoff": 16,
+          "submissions": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_existing_replies": 4,
+          "verified_handoffs": 32,
+          "workers": 4
+        }
+      ]
+    }
+  ]
+}
