@@ -37,6 +37,8 @@ The [fifth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-05.md) b
 
 The [sixth ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-06.md) brings the total to 60 comparisons across 33 directions. Service-side fair queueing warrants a matched fixed-arrival test. The stock worker selector already balanced long-lived flows in the benchmark fixture. [Batch 6 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7119620875)
 
+The [seventh ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-07.md) brings the total to 70 comparisons across 37 directions. Linux virtio charged its byte limit in only one of the two tested transmit modes. Darwin suppressed writable events while still admitting eager writes. Both findings inform queue attribution on the next admitted VM run. [Batch 7 ticket receipts](https://github.com/castlemilk/micropod/issues/227#issuecomment-7119845102)
+
 ## Research layers and phases
 
 | Blueprint layer | Area | Execution phase | Backlog |
