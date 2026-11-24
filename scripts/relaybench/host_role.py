@@ -42,7 +42,8 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
     if not (release["owner"].strip() and release["reservation"].strip() and release["host"] == GAMMA_MAC
             and release["exclusive"] is True and isinstance(release["modes"], list) and mode in release["modes"]
             and timestamp(release["starts_at"]) <= now < timestamp(release["expires_at"])
-            and len(set(scope_paths)) == len(scope_paths) == 2 and isinstance(release["scopes"], list)
+            and len(set(scope_paths)) == len(scope_paths) == (1 if mode == "guest-tx-trace" else 2)
+            and isinstance(release["scopes"], list)
             and set(scope_paths) <= set(release["scopes"])):
         raise ValueError(f"no current owner handoff for these {mode} fixtures")
     clearance = release.get("effective_disk_gate") or {}

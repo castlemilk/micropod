@@ -1,4 +1,10 @@
 import copy
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+from tempfile import TemporaryDirectory
 import unittest
 
 from gamma_contrasts import ROOT, read_receipt
@@ -71,3 +77,44 @@ class GuestLinkCoverageTests(unittest.TestCase):
         self.capture["client"] = dict(self.client, errors=["EOF"])
         with self.assertRaisesRegex(ValueError, "complete"):
             self.prove()
+
+    def test_netavark_cli_matches_saved_status_to_observed_service(self):
+        # A fixture for the shape of setup stdout, independent of the observed status counters.
+        saved = b' { "pub": {"interfaces":{"mppub0":{"mac_address":"02:00:00:00:00:A3"}}}, "dns":{} }\n'
+        for sample in ("before", "after"):
+            self.capture[sample]["links"][1]["address"] = "02:00:00:00:00:a3"
+        with TemporaryDirectory() as tmp:
+            capture = Path(tmp) / "capture.json"
+            status = Path(tmp) / "status.json"
+            capture.write_text(json.dumps(self.capture))
+            status.write_bytes(saved)
+            cmd = [sys.executable, str(Path(__file__).with_name("guest_link_path.py")), str(capture),
+                   "--device", "mppub0", "--kind", "macvlan", "--mode", "private", "--direction", "tx"]
+            self.assertEqual(json.loads(subprocess.check_output(cmd)), self.prove())
+            for opts in (["--netavark-status", str(status)], ["--network", "pub"]):
+                run = subprocess.run([*cmd, *opts], capture_output=True)
+                self.assertEqual(run.returncode, 2)
+            receipt = json.loads(subprocess.check_output([*cmd, "--netavark-status", str(status), "--network", "pub"]))
+        self.assertEqual(receipt.pop("netavark_status"),
+                         {"network": "pub", "saved_interface": "mppub0", "saved_mac_address": "02:00:00:00:00:a3",
+                          "observed_ifindex": 3, "observed_netns": "net:[1202]",
+                          "observed_boot_id": self.capture["before"]["boot_id"],
+                          "status_sha256": hashlib.sha256(saved).hexdigest()})
+        self.assertEqual(receipt, self.prove())
+
+    def test_netavark_wrong_ambiguous_or_stale_identity(self):
+        status = {"pub": {"interfaces": {"mppub0": {"mac_address": "02:00:00:00:00:03"}}}}
+        cases = [(status, "other"), ({"pub": {"interfaces": {"eth0": {}}}}, "pub"),
+                 ({"pub": {"interfaces": {"mppub0": {"mac_address": "02:00:00:00:00:02"}}}}, "pub"),
+                 ({"pub": status["pub"], "other": status["pub"]}, "pub"), ({"pub": {}}, "pub")]
+        for value, network in cases:
+            with self.subTest(status=value, network=network), self.assertRaises(ValueError):
+                check(self.capture, "mppub0", "macvlan", "tx", netavark_status=json.dumps(value).encode(),
+                      network=network)
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            check(self.capture, "mppub0", "macvlan", "tx",
+                  netavark_status=b'{"pub": {}, "pub": {}}', network="pub")
+        self.final["links"][1]["ifindex"] = 9
+        with self.assertRaisesRegex(ValueError, "identity changed"):
+            check(self.capture, "mppub0", "macvlan", "tx", netavark_status=json.dumps(status).encode(),
+                  network="pub")

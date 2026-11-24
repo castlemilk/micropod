@@ -1,5 +1,6 @@
 """Check service-netns link counters around one fixed offered-load client interval."""
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -35,7 +36,43 @@ def snapshot(raw):
     return rows
 
 
-def check(capture, device, kind, direction, mode=None):
+def unique_keys(pairs):
+    fields = {}
+    for key, value in pairs:
+        if key in fields:
+            raise ValueError(f"duplicate JSON key {key!r}")
+        fields[key] = value
+    return fields
+
+
+def netavark_provenance(raw, network, device, identity, observed):
+    # Saved setup stdout is keyed by network. Interface names belong to the container netns.
+    status = json.loads(raw, object_pairs_hook=unique_keys)
+    if not isinstance(status, dict) or not isinstance(status.get(network), dict):
+        raise ValueError("named network missing from saved Netavark status")
+    interfaces = status[network].get("interfaces")
+    if not isinstance(interfaces, dict) or not isinstance(interfaces.get(device), dict):
+        raise ValueError("observed device missing from named Netavark network")
+    mac = interfaces[device].get("mac_address")
+    if not isinstance(mac, str) or mac.lower() != identity[1]:
+        raise ValueError("saved Netavark MAC differs from observed device")
+    for name, block in status.items():
+        if not isinstance(block, dict):
+            raise ValueError("invalid Netavark network status block")
+        links = block.get("interfaces")
+        if links is not None and not isinstance(links, dict):
+            raise ValueError("invalid Netavark interfaces map")
+        if name != network and links and device in links:
+            raise ValueError("multiple Netavark networks claim the observed device name")
+    return {"status_sha256": hashlib.sha256(raw).hexdigest(), "network": network,
+            "saved_interface": device, "saved_mac_address": mac.lower(),
+            "observed_boot_id": observed["boot_id"], "observed_netns": observed["netns"],
+            "observed_ifindex": identity[0]}
+
+
+def check(capture, device, kind, direction, mode=None, *, netavark_status=None, network=None):
+    if (netavark_status is None) != (network is None) or network == "":
+        raise ValueError("supply both a saved Netavark status and its network name")
     first, last = capture["before"], capture["after"]
     if (UUID(first["boot_id"]) != UUID(last["boot_id"]) or first["netns"] != last["netns"]
             or not re.fullmatch(r"net:\[\d+\]", first["netns"])):
@@ -66,10 +103,13 @@ def check(capture, device, kind, direction, mode=None):
     if deltas[device][column] < payload:
         raise ValueError(f"{device} {direction} does not cover the completed bulk payload")
     competing = {name: values[column] for name, values in deltas.items() if name != device and values[column]}
-    return {"device": device, "kind": kind, "mode": identity[3], "direction": direction,
-            "client_payload_bytes": payload, "link_byte_deltas": deltas,
-            "other_interfaces_with_traffic": competing,
-            "other_interfaces_covering_payload": sorted(name for name, count in competing.items() if count >= payload)}
+    result = {"device": device, "kind": kind, "mode": identity[3], "direction": direction,
+              "client_payload_bytes": payload, "link_byte_deltas": deltas,
+              "other_interfaces_with_traffic": competing,
+              "other_interfaces_covering_payload": sorted(name for name, count in competing.items() if count >= payload)}
+    if netavark_status is not None:
+        result["netavark_status"] = netavark_provenance(netavark_status, network, device, identity, first)
+    return result
 
 
 if __name__ == "__main__":
@@ -79,9 +119,15 @@ if __name__ == "__main__":
     parser.add_argument("--kind", required=True, choices=("veth", "macvlan", "ipvlan", "netkit"))
     parser.add_argument("--mode")
     parser.add_argument("--direction", required=True, choices=("rx", "tx"))
+    parser.add_argument("--netavark-status", type=Path, help="saved Netavark setup JSON from this service")
+    parser.add_argument("--network", help="exact network name in the saved Netavark status")
     args = parser.parse_args()
+    if (args.netavark_status is None) != (args.network is None):
+        parser.error("--netavark-status and --network must be used together")
     try:
-        print(json.dumps(check(json.loads(args.capture.read_text()), args.device, args.kind,
-                               args.direction, args.mode), indent=2))
+        saved = args.netavark_status.read_bytes() if args.netavark_status else None
+        capture = json.loads(args.capture.read_text(), object_pairs_hook=unique_keys if saved is not None else None)
+        print(json.dumps(check(capture, args.device, args.kind, args.direction, args.mode,
+                               netavark_status=saved, network=args.network), indent=2))
     except (KeyError, TypeError, OSError, ValueError) as exc:
         parser.exit(1, f"Guest link coverage unverified: {exc}\n")
