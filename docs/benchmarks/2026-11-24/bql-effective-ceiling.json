@@ -1,0 +1,316 @@
+{
+  "date": "2026-11-24",
+  "direction": "231.08",
+  "tier": "offline raw replay of archived VM measurements",
+  "source": "gamma-published-scheduling.json.gz",
+  "archive_sha256": "4ba4e71da88a7196bf132151f30c54c3c091e8fd7eeaac30ba98f689397dfe30",
+  "archive_revision": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "study_baseline": "56b59864d3545cba23cf102cf46cf119f119da08",
+  "linux": "Linux mp-6ecb4932-b01a-4f8e-a91f-76bfa3d40b8c 6.18.35 #1 SMP Mon Jun 15 12:55:27 UTC 2026 aarch64 Linux",
+  "image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "interface": "eth0",
+  "analysis_base": "a3b561c6a97320d4ca9aff60885ae6393ccaa613",
+  "analyzer_sha256": "4a65e9b648c2f615f5146c9055de1c4a39a51cc4e4f328f06ab4a7f350e1e54f",
+  "workload": "32 warm downloads with 160 closed-loop fresh HTTP connections. The eight numbered blocks rotated four settings; use stock and 512 KiB only. Each arm has a separate 200-fresh diagnostic with 1,700 queue samples.",
+  "method": "Use median within-block percentage changes and 10,000 whole-block bootstrap draws with seed 7317. Progress samples are endpoints of adjacent qdisc reads that have increasing bytes. Samples are correlated and do not establish duration at a queue depth. Queue samples and drop deltas came from separate instrumented runs. Transport loss, NIC drops and per-process CPU in scored arms are unmeasured. Historical eth0 and workloads differ from the revised eth1 four-vCPU stock.",
+  "control": "bqldefault",
+  "candidate": "bql512",
+  "rows": [
+    {
+      "block": 0,
+      "order": [
+        "bqldefault",
+        "bql512"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 5366.293827838929,
+        "bytes": 1475235984,
+        "elapsed_s": 0.2621725,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 3.347667,
+        "p99_ms": 4.733833
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 3535.493405419653,
+        "bytes": 3398943544,
+        "elapsed_s": 0.916840958,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 7.731666,
+        "p99_ms": 14.249042
+      }
+    },
+    {
+      "block": 1,
+      "order": [
+        "bql512",
+        "bqldefault"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 5785.727375903288,
+        "bytes": 1644076776,
+        "elapsed_s": 0.270996833,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 2.731208,
+        "p99_ms": 4.013458
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 3962.707926049022,
+        "bytes": 3268661232,
+        "elapsed_s": 0.786643458,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 5.969875,
+        "p99_ms": 6.937667
+      }
+    },
+    {
+      "block": 2,
+      "order": [
+        "bql512",
+        "bqldefault"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 4594.5117015125825,
+        "bytes": 1570502032,
+        "elapsed_s": 0.325986209,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 3.492417,
+        "p99_ms": 4.193459
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 4014.017414737737,
+        "bytes": 3412834112,
+        "elapsed_s": 0.810841584,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 6.292084,
+        "p99_ms": 7.34625
+      }
+    },
+    {
+      "block": 3,
+      "order": [
+        "bqldefault",
+        "bql512"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 4463.920368551442,
+        "bytes": 1539455664,
+        "elapsed_s": 0.328890125,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 3.76425,
+        "p99_ms": 4.15075
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 2608.1032928716004,
+        "bytes": 3262138680,
+        "elapsed_s": 1.192827709,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 19.367834,
+        "p99_ms": 34.509583
+      }
+    },
+    {
+      "block": 4,
+      "order": [
+        "bqldefault",
+        "bql512"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 5502.182456378421,
+        "bytes": 1517587976,
+        "elapsed_s": 0.263038292,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 2.511959,
+        "p99_ms": 3.166084
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 3201.376572872039,
+        "bytes": 3419130312,
+        "elapsed_s": 1.018542083,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 10.6415,
+        "p99_ms": 22.099834
+      }
+    },
+    {
+      "block": 5,
+      "order": [
+        "bql512",
+        "bqldefault"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 5279.860635596596,
+        "bytes": 1566084576,
+        "elapsed_s": 0.282873875,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 3.408334,
+        "p99_ms": 4.966833
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 3508.282234620508,
+        "bytes": 3338257200,
+        "elapsed_s": 0.907455541,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 7.917792,
+        "p99_ms": 9.7165
+      }
+    },
+    {
+      "block": 6,
+      "order": [
+        "bql512",
+        "bqldefault"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 5301.030017534198,
+        "bytes": 1546288416,
+        "elapsed_s": 0.278182833,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 2.968917,
+        "p99_ms": 4.520708
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 3793.328872550873,
+        "bytes": 3291413472,
+        "elapsed_s": 0.827488625,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 6.692125,
+        "p99_ms": 7.343917
+      }
+    },
+    {
+      "block": 7,
+      "order": [
+        "bqldefault",
+        "bql512"
+      ],
+      "bqldefault": {
+        "ceiling_bytes": 1879048192,
+        "mib_s": 5095.301573250188,
+        "bytes": 1409029920,
+        "elapsed_s": 0.263724458,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 2.894042,
+        "p99_ms": 4.442125
+      },
+      "bql512": {
+        "ceiling_bytes": 524288,
+        "mib_s": 3617.645121134706,
+        "bytes": 3426202040,
+        "elapsed_s": 0.903206583,
+        "fresh_completed": 160,
+        "reopens": 0,
+        "p95_ms": 6.9995,
+        "p99_ms": 7.590458
+      }
+    }
+  ],
+  "summary": {
+    "bqldefault": {
+      "mib_s": 5290.445326565397,
+      "p95_ms": 3.158292,
+      "p99_ms": 4.317792,
+      "clean": 8,
+      "p95_at_most_75ms": 8,
+      "fresh_completed": 1280,
+      "reopens": 0
+    },
+    "bql512": {
+      "mib_s": 3576.5692632771797,
+      "p95_ms": 7.365583,
+      "p99_ms": 8.653479,
+      "clean": 8,
+      "p95_at_most_75ms": 8,
+      "fresh_completed": 1280,
+      "reopens": 0
+    }
+  },
+  "paired": {
+    "mib_s": {
+      "median_pct": -32.53120686224403,
+      "ci95_pct": [
+        -41.57370478098517,
+        -28.44166397844018
+      ],
+      "higher": 0
+    },
+    "p95_ms": {
+      "median_pct": 131.6318263941905,
+      "ci95_pct": [
+        118.58002026941925,
+        323.6335067570769
+      ],
+      "higher": 8
+    },
+    "p99_ms": {
+      "median_pct": 85.40560921351894,
+      "ci95_pct": [
+        70.87448011931228,
+        598.0179300359687
+      ],
+      "higher": 8
+    }
+  },
+  "separate_profiles": {
+    "bqldefault": {
+      "kind": "pfifo_fast",
+      "samples": 1700,
+      "intervals_with_tx_progress": 200,
+      "qdisc_drop_delta": 0,
+      "nonzero_backlog_ends": 4,
+      "max_backlog_bytes": 4050136,
+      "verified_ceiling_bytes": 1879048192,
+      "at_ceiling_ends": 0,
+      "max_dynamic_limit_bytes": 14699528,
+      "max_inflight_bytes": 10365620
+    },
+    "bql512": {
+      "kind": "pfifo_fast",
+      "samples": 1700,
+      "intervals_with_tx_progress": 502,
+      "qdisc_drop_delta": 0,
+      "nonzero_backlog_ends": 494,
+      "max_backlog_bytes": 15616404,
+      "verified_ceiling_bytes": 524288,
+      "at_ceiling_ends": 501,
+      "max_dynamic_limit_bytes": 524288,
+      "max_inflight_bytes": 588916
+    }
+  },
+  "driver_sha256": "50de20df747a492c478de4e65ba8258bdbc04b59a4b2f1ea0853f6355460099e",
+  "client_path_hash_at_reconciliation": "253c465424c2ba9f77083714db2e2591d96ab55fbe0a0767e33902ec15ae0036",
+  "verdict": "The verified 512 KiB ceiling frequently bound the dynamic limit on this guest. Retain stock for loss-free bulk throughput. The later eth1 candidate remains a separate reliability hypothesis with no common clean throughput pair.",
+  "future_readback": {
+    "bql_capture.sh": "76e377dc5237657a38d6777d608d110febffa5afaee15f94b5214e3399ed2f50",
+    "bql_bounds.py": "d84fb6c95964cb90a9ab41933b62cc273a8815d17737a7a20babe7bfb9021641",
+    "test_bql_bounds.py": "7d41ae33e52b7a8b61f5c66229eaf7c5e1bfcd146a10bd95e2032bca0b25d842"
+  }
+}

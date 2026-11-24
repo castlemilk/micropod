@@ -1,0 +1,1166 @@
+{
+  "direction": "228.02",
+  "replay_base": "a3b561c6a97320d4ca9aff60885ae6393ccaa613",
+  "analyzer_sha256": "f3900074a7dca614a55fffd16b0054accc60382ef816922a5350e8cecc8c74bc",
+  "historical_source": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "original_archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "compressed_inputs_sha256": "9b53caaf1b1228903d23be0696cf5e0a764d4e404629d4a6c390fc6dc4a401b0",
+  "profiler_source_sha256": "1bc27eb986ec1459a56fd148bdbc352bcfe9ab33192b0e05b19a8f53a703d4c0",
+  "client_sha256": "f191dcd874c5a4e328a6a4e54496498e3c1e33bdfb2173acfc563d9742d27b07",
+  "study": "grace-trace, four alternating diagnostic pairs, separate from grace-holdout",
+  "control": "Every original Mach thread-state observation and per-level CPU counters, per vCPU, inside the score window.",
+  "change": "Retain every other state observation, testing both starting offsets. Fix endpoints, thread IDs and CPU totals.",
+  "units": "CPU bounds are seconds per individual vCPU over the whole client window. State shares are fractions of the slightly shorter common interior interval. Percentage-point changes are absolute, per-vCPU changes in estimated wait.",
+  "limits": "Mach state 1 includes executing and runnable. Only running time is obtained from cumulative per-level counters. Runnable waiting and nonrunnable time are trapezoidal state estimates. Offsets between sampled wall and monotonic clocks are checked and padded. Hidden within-gap transitions, or clock jumps that reverse between samples, cannot be excluded. A nonrunnable state need not indicate network I/O. These diagnostic runs are not a peer holdout. No statistical interval is inferred from deterministic replay and two sampling phases.",
+  "verdict": "Thinning changes individual dominant off-CPU state in both engines. In all three jointly clean diagnostic pairs the four Micropod vCPUs had higher aggregate estimated nonrunnable time, including both thinning phases. Attribute exact stalls only with scheduler transitions plus a score-bound guest and relay trace. State alone does not identify a blocked resource.",
+  "nonrunnable_micropod_minus_orbstack_thread_s_per_s": {
+    "1": {
+      "common_clean": true,
+      "full_cadence_difference": 0.552852830080943,
+      "min_across_cadences": 0.4524751593982874,
+      "max_across_cadences": 0.6239780093523756
+    },
+    "2": {
+      "common_clean": false,
+      "full_cadence_difference": 0.5130981559943701,
+      "min_across_cadences": 0.4502458456787599,
+      "max_across_cadences": 0.6043842995792917
+    },
+    "3": {
+      "common_clean": true,
+      "full_cadence_difference": 0.4034617617618579,
+      "min_across_cadences": 0.22840116258419152,
+      "max_across_cadences": 0.5871938605251622
+    },
+    "4": {
+      "common_clean": true,
+      "full_cadence_difference": 0.6442681131244089,
+      "min_across_cadences": 0.5690700599840309,
+      "max_across_cadences": 0.7130524479497183
+    }
+  },
+  "summary": {
+    "confirm-micropod": {
+      "attempts": 4,
+      "clean": 4,
+      "vcpu_windows": 16,
+      "dominance_flips": 2,
+      "median_largest_phase_change_pp": 2.247851576806986,
+      "maximum_phase_change_pp": 6.108893503385316,
+      "score_cpu_bounds_width_ms_range": [
+        14.93383333333309,
+        37.942750000000025
+      ]
+    },
+    "confirm-orb": {
+      "attempts": 4,
+      "clean": 3,
+      "vcpu_windows": 16,
+      "dominance_flips": 3,
+      "median_largest_phase_change_pp": 1.4667395678217758,
+      "maximum_phase_change_pp": 4.63314679625062,
+      "score_cpu_bounds_width_ms_range": [
+        19.0286249999998,
+        159.84741666666702
+      ]
+    }
+  },
+  "attempts": {
+    "1-confirm-micropod": {
+      "score_s": 6.001148625,
+      "interior_s": 5.9489185,
+      "edge_padding_ns": 112000,
+      "pid": 76823,
+      "birth_ticks": 10856298890097,
+      "rows": [
+        {
+          "tid": 135832757,
+          "score_running_cpu_s_bounds": [
+            1.4537808333333333,
+            1.4762617916666665
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 392,
+              "max_gap_ms": 75.49975,
+              "running_cpu_fraction": 0.24437733233920303,
+              "estimated_runnable_wait_fraction": 0.30811963614338755,
+              "estimated_nonrunnable_fraction": 0.44750303151740944
+            },
+            "alternate_even": {
+              "intervals": 196,
+              "max_gap_ms": 112.674667,
+              "running_cpu_fraction": 0.24437733233920303,
+              "estimated_runnable_wait_fraction": 0.3284639540223432,
+              "estimated_nonrunnable_fraction": 0.42715871363845376
+            },
+            "alternate_odd": {
+              "intervals": 197,
+              "max_gap_ms": 89.158,
+              "running_cpu_fraction": 0.24437733233920303,
+              "estimated_runnable_wait_fraction": 0.30172288848244716,
+              "estimated_nonrunnable_fraction": 0.45389977917834984
+            }
+          }
+        },
+        {
+          "tid": 135832758,
+          "score_running_cpu_s_bounds": [
+            1.4877365416666666,
+            1.5061409583333332
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 392,
+              "max_gap_ms": 75.49975,
+              "running_cpu_fraction": 0.25008521156688673,
+              "estimated_runnable_wait_fraction": 0.30811402246195396,
+              "estimated_nonrunnable_fraction": 0.4418007659711593
+            },
+            "alternate_even": {
+              "intervals": 196,
+              "max_gap_ms": 112.674667,
+              "running_cpu_fraction": 0.25008521156688673,
+              "estimated_runnable_wait_fraction": 0.3535992437673055,
+              "estimated_nonrunnable_fraction": 0.39631554466580776
+            },
+            "alternate_odd": {
+              "intervals": 197,
+              "max_gap_ms": 89.158,
+              "running_cpu_fraction": 0.25008521156688673,
+              "estimated_runnable_wait_fraction": 0.2777371352176591,
+              "estimated_nonrunnable_fraction": 0.4721776532154542
+            }
+          }
+        },
+        {
+          "tid": 135832759,
+          "score_running_cpu_s_bounds": [
+            1.499195875,
+            1.5196525833333332
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 392,
+              "max_gap_ms": 75.49975,
+              "running_cpu_fraction": 0.25201150007350076,
+              "estimated_runnable_wait_fraction": 0.35081900105035896,
+              "estimated_nonrunnable_fraction": 0.3971694988761403
+            },
+            "alternate_even": {
+              "intervals": 196,
+              "max_gap_ms": 112.674667,
+              "running_cpu_fraction": 0.25201150007350076,
+              "estimated_runnable_wait_fraction": 0.3638919023684725,
+              "estimated_nonrunnable_fraction": 0.3840965975580267
+            },
+            "alternate_odd": {
+              "intervals": 197,
+              "max_gap_ms": 89.158,
+              "running_cpu_fraction": 0.25201150007350076,
+              "estimated_runnable_wait_fraction": 0.33903135410243057,
+              "estimated_nonrunnable_fraction": 0.40895714582406867
+            }
+          }
+        },
+        {
+          "tid": 135832760,
+          "score_running_cpu_s_bounds": [
+            3.1132672916666664,
+            3.150930958333333
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 392,
+              "max_gap_ms": 75.49975,
+              "running_cpu_fraction": 0.5233333238077924,
+              "estimated_runnable_wait_fraction": 0.3371128013996718,
+              "estimated_nonrunnable_fraction": 0.1395538747925358
+            },
+            "alternate_even": {
+              "intervals": 196,
+              "max_gap_ms": 112.674667,
+              "running_cpu_fraction": 0.5233333238077924,
+              "estimated_runnable_wait_fraction": 0.3249635346043711,
+              "estimated_nonrunnable_fraction": 0.15170314158783652
+            },
+            "alternate_odd": {
+              "intervals": 197,
+              "max_gap_ms": 89.158,
+              "running_cpu_fraction": 0.5233333238077924,
+              "estimated_runnable_wait_fraction": 0.3490340688535796,
+              "estimated_nonrunnable_fraction": 0.12763260733862802
+            }
+          }
+        }
+      ],
+      "mib_s": 3235.524817026882,
+      "bytes": 20360058956,
+      "fresh_p95_ms": 19.61,
+      "fresh_p99_ms": 27.209,
+      "fresh_errors": 0,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "6e3269ea88732aae110ca3e5809b00dacb3bd3bda096ddc293a601ba41176f47",
+      "original_client_sha256": "d14f04795bc480f290b93e04faa4bac40c0c821f3567fad2c096f71dfb6ec229"
+    },
+    "1-confirm-orb": {
+      "score_s": 6.000623625,
+      "interior_s": 5.9158405,
+      "edge_padding_ns": 147125,
+      "pid": 17759,
+      "birth_ticks": 7599749073321,
+      "rows": [
+        {
+          "tid": 85904098,
+          "score_running_cpu_s_bounds": [
+            3.042630333333333,
+            3.20247775
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 367,
+              "max_gap_ms": 59.030625,
+              "running_cpu_fraction": 0.5143191966269769,
+              "estimated_runnable_wait_fraction": 0.45414329386782265,
+              "estimated_nonrunnable_fraction": 0.031537509505200484
+            },
+            "alternate_even": {
+              "intervals": 184,
+              "max_gap_ms": 118.017875,
+              "running_cpu_fraction": 0.5143191966269769,
+              "estimated_runnable_wait_fraction": 0.44714263335305726,
+              "estimated_nonrunnable_fraction": 0.03853817001996589
+            },
+            "alternate_odd": {
+              "intervals": 184,
+              "max_gap_ms": 114.977458,
+              "running_cpu_fraction": 0.5143191966269769,
+              "estimated_runnable_wait_fraction": 0.4590178444916943,
+              "estimated_nonrunnable_fraction": 0.026662958881328865
+            }
+          }
+        },
+        {
+          "tid": 85904099,
+          "score_running_cpu_s_bounds": [
+            1.9620979166666666,
+            2.08938425
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 367,
+              "max_gap_ms": 59.030625,
+              "running_cpu_fraction": 0.3316684952318553,
+              "estimated_runnable_wait_fraction": 0.3813631946860862,
+              "estimated_nonrunnable_fraction": 0.2869683100820585
+            },
+            "alternate_even": {
+              "intervals": 184,
+              "max_gap_ms": 118.017875,
+              "running_cpu_fraction": 0.3316684952318553,
+              "estimated_runnable_wait_fraction": 0.35455263074339705,
+              "estimated_nonrunnable_fraction": 0.31377887402474763
+            },
+            "alternate_odd": {
+              "intervals": 184,
+              "max_gap_ms": 114.977458,
+              "running_cpu_fraction": 0.3316684952318553,
+              "estimated_runnable_wait_fraction": 0.4176356118514915,
+              "estimated_nonrunnable_fraction": 0.2506958929166532
+            }
+          }
+        },
+        {
+          "tid": 85904100,
+          "score_running_cpu_s_bounds": [
+            1.9974231666666664,
+            2.1010369583333333
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 367,
+              "max_gap_ms": 59.030625,
+              "running_cpu_fraction": 0.33763979381571674,
+              "estimated_runnable_wait_fraction": 0.39783104688730764,
+              "estimated_nonrunnable_fraction": 0.2645291592969756
+            },
+            "alternate_even": {
+              "intervals": 184,
+              "max_gap_ms": 118.017875,
+              "running_cpu_fraction": 0.33763979381571674,
+              "estimated_runnable_wait_fraction": 0.4101636423993063,
+              "estimated_nonrunnable_fraction": 0.25219656378497696
+            },
+            "alternate_odd": {
+              "intervals": 184,
+              "max_gap_ms": 114.977458,
+              "running_cpu_fraction": 0.33763979381571674,
+              "estimated_runnable_wait_fraction": 0.3830181828487995,
+              "estimated_nonrunnable_fraction": 0.27934202333548375
+            }
+          }
+        },
+        {
+          "tid": 85904101,
+          "score_running_cpu_s_bounds": [
+            1.5045027083333333,
+            1.5757195416666665
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 367,
+              "max_gap_ms": 59.030625,
+              "running_cpu_fraction": 0.2543176592292056,
+              "estimated_runnable_wait_fraction": 0.4555429785787272,
+              "estimated_nonrunnable_fraction": 0.2901393621920672
+            },
+            "alternate_even": {
+              "intervals": 184,
+              "max_gap_ms": 118.017875,
+              "running_cpu_fraction": 0.2543176592292056,
+              "estimated_runnable_wait_fraction": 0.44339711054864767,
+              "estimated_nonrunnable_fraction": 0.3022852302221468
+            },
+            "alternate_odd": {
+              "intervals": 184,
+              "max_gap_ms": 114.977458,
+              "running_cpu_fraction": 0.2543176592292056,
+              "estimated_runnable_wait_fraction": 0.46369403970013506,
+              "estimated_nonrunnable_fraction": 0.28198830107065936
+            }
+          }
+        }
+      ],
+      "mib_s": 3572.0719930463565,
+      "bytes": 22475869616,
+      "fresh_p95_ms": 1006.606,
+      "fresh_p99_ms": 1021.11,
+      "fresh_errors": 0,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "14ebe92f9bb2d23757d7efbd3159c63cef52fd74ee026b34c3747fb1db789c15",
+      "original_client_sha256": "4636801d973f4b39d8d09f96f1abae1acfa6379386bcfae829108962ac420cda"
+    },
+    "2-confirm-micropod": {
+      "score_s": 6.000699417,
+      "interior_s": 5.972749333,
+      "edge_padding_ns": 161042,
+      "pid": 76823,
+      "birth_ticks": 10856298890097,
+      "rows": [
+        {
+          "tid": 135832757,
+          "score_running_cpu_s_bounds": [
+            1.347743125,
+            1.36862625
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 372,
+              "max_gap_ms": 58.57025,
+              "running_cpu_fraction": 0.22564870043241106,
+              "estimated_runnable_wait_fraction": 0.33893877695737545,
+              "estimated_nonrunnable_fraction": 0.43541252261021346
+            },
+            "alternate_even": {
+              "intervals": 186,
+              "max_gap_ms": 88.916042,
+              "running_cpu_fraction": 0.22564870043241106,
+              "estimated_runnable_wait_fraction": 0.35757915951702307,
+              "estimated_nonrunnable_fraction": 0.4167721400505659
+            },
+            "alternate_odd": {
+              "intervals": 187,
+              "max_gap_ms": 81.295625,
+              "running_cpu_fraction": 0.22564870043241106,
+              "estimated_runnable_wait_fraction": 0.30823184070832327,
+              "estimated_nonrunnable_fraction": 0.4661194588592657
+            }
+          }
+        },
+        {
+          "tid": 135832758,
+          "score_running_cpu_s_bounds": [
+            1.378111875,
+            1.3930457083333332
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 372,
+              "max_gap_ms": 58.57025,
+              "running_cpu_fraction": 0.2307332516678379,
+              "estimated_runnable_wait_fraction": 0.3482938905549412,
+              "estimated_nonrunnable_fraction": 0.4209728577772209
+            },
+            "alternate_even": {
+              "intervals": 186,
+              "max_gap_ms": 88.916042,
+              "running_cpu_fraction": 0.2307332516678379,
+              "estimated_runnable_wait_fraction": 0.34541966270058433,
+              "estimated_nonrunnable_fraction": 0.42384708563157775
+            },
+            "alternate_odd": {
+              "intervals": 187,
+              "max_gap_ms": 81.295625,
+              "running_cpu_fraction": 0.2307332516678379,
+              "estimated_runnable_wait_fraction": 0.3503455144917263,
+              "estimated_nonrunnable_fraction": 0.4189212338404358
+            }
+          }
+        },
+        {
+          "tid": 135832759,
+          "score_running_cpu_s_bounds": [
+            1.4320235,
+            1.4470057916666665
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 372,
+              "max_gap_ms": 58.57025,
+              "running_cpu_fraction": 0.23975951779659258,
+              "estimated_runnable_wait_fraction": 0.29141466181802006,
+              "estimated_nonrunnable_fraction": 0.46882582038538734
+            },
+            "alternate_even": {
+              "intervals": 186,
+              "max_gap_ms": 88.916042,
+              "running_cpu_fraction": 0.23975951779659258,
+              "estimated_runnable_wait_fraction": 0.31649631344071677,
+              "estimated_nonrunnable_fraction": 0.4437441687626906
+            },
+            "alternate_odd": {
+              "intervals": 187,
+              "max_gap_ms": 81.295625,
+              "running_cpu_fraction": 0.23975951779659258,
+              "estimated_runnable_wait_fraction": 0.26384173412288087,
+              "estimated_nonrunnable_fraction": 0.49639874808052653
+            }
+          }
+        },
+        {
+          "tid": 135832760,
+          "score_running_cpu_s_bounds": [
+            3.034614083333333,
+            3.0636206666666665
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 372,
+              "max_gap_ms": 58.57025,
+              "running_cpu_fraction": 0.50807658485964,
+              "estimated_runnable_wait_fraction": 0.3466811425060465,
+              "estimated_nonrunnable_fraction": 0.14524227263431347
+            },
+            "alternate_even": {
+              "intervals": 186,
+              "max_gap_ms": 88.916042,
+              "running_cpu_fraction": 0.50807658485964,
+              "estimated_runnable_wait_fraction": 0.3652262804022596,
+              "estimated_nonrunnable_fraction": 0.12669713473810035
+            },
+            "alternate_odd": {
+              "intervals": 187,
+              "max_gap_ms": 81.295625,
+              "running_cpu_fraction": 0.50807658485964,
+              "estimated_runnable_wait_fraction": 0.3220616977911045,
+              "estimated_nonrunnable_fraction": 0.16986171734925545
+            }
+          }
+        }
+      ],
+      "mib_s": 3000.086708826681,
+      "bytes": 18877113764,
+      "fresh_p95_ms": 26.346,
+      "fresh_p99_ms": 86.129,
+      "fresh_errors": 0,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "1e26741f87897f05ecb86c05cc05c66d187ae069011a41f83e9548b405eaf190",
+      "original_client_sha256": "ee0f36a3c2ee78e3211c8c9fd7a10297edfca319382c1c8519e5789887cabdbf"
+    },
+    "2-confirm-orb": {
+      "score_s": 6.0004255,
+      "interior_s": 5.9491385,
+      "edge_padding_ns": 113334,
+      "pid": 17759,
+      "birth_ticks": 7599749073321,
+      "rows": [
+        {
+          "tid": 85904098,
+          "score_running_cpu_s_bounds": [
+            3.209078,
+            3.2829380416666667
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 362,
+              "max_gap_ms": 70.407417,
+              "running_cpu_fraction": 0.5394189427595273,
+              "estimated_runnable_wait_fraction": 0.43036375476886274,
+              "estimated_nonrunnable_fraction": 0.030217302471609964
+            },
+            "alternate_even": {
+              "intervals": 181,
+              "max_gap_ms": 97.523709,
+              "running_cpu_fraction": 0.5394189427595273,
+              "estimated_runnable_wait_fraction": 0.43361507998174864,
+              "estimated_nonrunnable_fraction": 0.0269659772587241
+            },
+            "alternate_odd": {
+              "intervals": 182,
+              "max_gap_ms": 109.075,
+              "running_cpu_fraction": 0.5394189427595273,
+              "estimated_runnable_wait_fraction": 0.42507990854474137,
+              "estimated_nonrunnable_fraction": 0.03550114869573132
+            }
+          }
+        },
+        {
+          "tid": 85904099,
+          "score_running_cpu_s_bounds": [
+            2.0857922916666665,
+            2.1303152499999998
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 362,
+              "max_gap_ms": 70.407417,
+              "running_cpu_fraction": 0.35060409026729944,
+              "estimated_runnable_wait_fraction": 0.33481247592963814,
+              "estimated_nonrunnable_fraction": 0.3145834338030624
+            },
+            "alternate_even": {
+              "intervals": 181,
+              "max_gap_ms": 97.523709,
+              "running_cpu_fraction": 0.35060409026729944,
+              "estimated_runnable_wait_fraction": 0.3181758407260704,
+              "estimated_nonrunnable_fraction": 0.33122006900663015
+            },
+            "alternate_odd": {
+              "intervals": 182,
+              "max_gap_ms": 109.075,
+              "running_cpu_fraction": 0.35060409026729944,
+              "estimated_runnable_wait_fraction": 0.3583694653996261,
+              "estimated_nonrunnable_fraction": 0.29102644433307445
+            }
+          }
+        },
+        {
+          "tid": 85904100,
+          "score_running_cpu_s_bounds": [
+            1.8603810416666664,
+            1.899071
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 362,
+              "max_gap_ms": 70.407417,
+              "running_cpu_fraction": 0.31271436051903423,
+              "estimated_runnable_wait_fraction": 0.37698622251496305,
+              "estimated_nonrunnable_fraction": 0.3102994169660027
+            },
+            "alternate_even": {
+              "intervals": 181,
+              "max_gap_ms": 97.523709,
+              "running_cpu_fraction": 0.31271436051903423,
+              "estimated_runnable_wait_fraction": 0.37000695232315295,
+              "estimated_nonrunnable_fraction": 0.3172786871578128
+            },
+            "alternate_odd": {
+              "intervals": 182,
+              "max_gap_ms": 109.075,
+              "running_cpu_fraction": 0.31271436051903423,
+              "estimated_runnable_wait_fraction": 0.3902672598449899,
+              "estimated_nonrunnable_fraction": 0.2970183796359759
+            }
+          }
+        },
+        {
+          "tid": 85904101,
+          "score_running_cpu_s_bounds": [
+            1.8252046666666666,
+            1.8581579166666664
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 362,
+              "max_gap_ms": 70.407417,
+              "running_cpu_fraction": 0.3068015085993823,
+              "estimated_runnable_wait_fraction": 0.39094332722852787,
+              "estimated_nonrunnable_fraction": 0.3022551641720898
+            },
+            "alternate_even": {
+              "intervals": 181,
+              "max_gap_ms": 97.523709,
+              "running_cpu_fraction": 0.3068015085993823,
+              "estimated_runnable_wait_fraction": 0.4078485413196101,
+              "estimated_nonrunnable_fraction": 0.28534995008100755
+            },
+            "alternate_odd": {
+              "intervals": 182,
+              "max_gap_ms": 109.075,
+              "running_cpu_fraction": 0.3068015085993823,
+              "estimated_runnable_wait_fraction": 0.36982760551520755,
+              "estimated_nonrunnable_fraction": 0.32337088588541013
+            }
+          }
+        }
+      ],
+      "mib_s": 3817.5685098869903,
+      "bytes": 24019767588,
+      "fresh_p95_ms": 212.378,
+      "fresh_p99_ms": 1013.195,
+      "fresh_errors": 1,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "9e8614857391377468b90a3e5c2a880506e0c429e950ccef668433e2326416f6",
+      "original_client_sha256": "0baa37b681bd965038076b088ae7758000aea190914b44db4626b743ca0565bc"
+    },
+    "3-confirm-micropod": {
+      "score_s": 6.004305791,
+      "interior_s": 5.966382583,
+      "edge_padding_ns": 154333,
+      "pid": 76823,
+      "birth_ticks": 10856298890097,
+      "rows": [
+        {
+          "tid": 135832757,
+          "score_running_cpu_s_bounds": [
+            1.39590875,
+            1.4133679583333332
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 74.482459,
+              "running_cpu_fraction": 0.23396232651546006,
+              "estimated_runnable_wait_fraction": 0.3463612052616506,
+              "estimated_nonrunnable_fraction": 0.41967646822288934
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 87.113209,
+              "running_cpu_fraction": 0.23396232651546006,
+              "estimated_runnable_wait_fraction": 0.33017222137462787,
+              "estimated_nonrunnable_fraction": 0.43586545210991207
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 105.713,
+              "running_cpu_fraction": 0.23396232651546006,
+              "estimated_runnable_wait_fraction": 0.35577525971066276,
+              "estimated_nonrunnable_fraction": 0.4102624137738772
+            }
+          }
+        },
+        {
+          "tid": 135832758,
+          "score_running_cpu_s_bounds": [
+            1.4188952916666666,
+            1.4388062083333333
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 74.482459,
+              "running_cpu_fraction": 0.23781500296503305,
+              "estimated_runnable_wait_fraction": 0.34360605589970655,
+              "estimated_nonrunnable_fraction": 0.4185789411352604
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 87.113209,
+              "running_cpu_fraction": 0.23781500296503305,
+              "estimated_runnable_wait_fraction": 0.292842496944741,
+              "estimated_nonrunnable_fraction": 0.46934250009022593
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 105.713,
+              "running_cpu_fraction": 0.23781500296503305,
+              "estimated_runnable_wait_fraction": 0.4046949909335597,
+              "estimated_nonrunnable_fraction": 0.35749000610140724
+            }
+          }
+        },
+        {
+          "tid": 135832759,
+          "score_running_cpu_s_bounds": [
+            1.490660375,
+            1.5099364166666664
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 74.482459,
+              "running_cpu_fraction": 0.24984324324882135,
+              "estimated_runnable_wait_fraction": 0.3573989928295552,
+              "estimated_nonrunnable_fraction": 0.3927577639216235
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 87.113209,
+              "running_cpu_fraction": 0.24984324324882135,
+              "estimated_runnable_wait_fraction": 0.30818081474343834,
+              "estimated_nonrunnable_fraction": 0.4419759420077403
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 105.713,
+              "running_cpu_fraction": 0.24984324324882135,
+              "estimated_runnable_wait_fraction": 0.4052305997588757,
+              "estimated_nonrunnable_fraction": 0.34492615699230295
+            }
+          }
+        },
+        {
+          "tid": 135832760,
+          "score_running_cpu_s_bounds": [
+            2.979107625,
+            3.017050375
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 74.482459,
+              "running_cpu_fraction": 0.4993155540324156,
+              "estimated_runnable_wait_fraction": 0.3526072767264915,
+              "estimated_nonrunnable_fraction": 0.1480771692410929
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 87.113209,
+              "running_cpu_fraction": 0.4993155540324156,
+              "estimated_runnable_wait_fraction": 0.30797185563251034,
+              "estimated_nonrunnable_fraction": 0.19271259033507407
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 105.713,
+              "running_cpu_fraction": 0.4993155540324156,
+              "estimated_runnable_wait_fraction": 0.3926517603271168,
+              "estimated_nonrunnable_fraction": 0.10803268564046759
+            }
+          }
+        }
+      ],
+      "mib_s": 3179.3686892487863,
+      "bytes": 20017212904,
+      "fresh_p95_ms": 23.092,
+      "fresh_p99_ms": 28.239,
+      "fresh_errors": 0,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "d7b0a9c639f1b9ebe1de231e72b733169d441215abb304198864f80f4434e939",
+      "original_client_sha256": "8f92a3f80818308e83b493a3f2196935c089958739ab21d68e9ee51a8463e3de"
+    },
+    "3-confirm-orb": {
+      "score_s": 6.001812875,
+      "interior_s": 5.973620209,
+      "edge_padding_ns": 129625,
+      "pid": 17759,
+      "birth_ticks": 7599749073321,
+      "rows": [
+        {
+          "tid": 85904098,
+          "score_running_cpu_s_bounds": [
+            3.75645475,
+            3.789768875
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 61.714708,
+              "running_cpu_fraction": 0.6288405721442476,
+              "estimated_runnable_wait_fraction": 0.3371857454153728,
+              "estimated_nonrunnable_fraction": 0.0339736824403796
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 92.164875,
+              "running_cpu_fraction": 0.6288405721442476,
+              "estimated_runnable_wait_fraction": 0.3418769718441603,
+              "estimated_nonrunnable_fraction": 0.029282456011592083
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 74.502375,
+              "running_cpu_fraction": 0.6288405721442476,
+              "estimated_runnable_wait_fraction": 0.3372573277197442,
+              "estimated_nonrunnable_fraction": 0.03390210013600816
+            }
+          }
+        },
+        {
+          "tid": 85904099,
+          "score_running_cpu_s_bounds": [
+            2.2992702916666663,
+            2.323085375
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 61.714708,
+              "running_cpu_fraction": 0.38490399644130885,
+              "estimated_runnable_wait_fraction": 0.31548077495686894,
+              "estimated_nonrunnable_fraction": 0.2996152286018222
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 92.164875,
+              "running_cpu_fraction": 0.38490399644130885,
+              "estimated_runnable_wait_fraction": 0.3060988458185614,
+              "estimated_nonrunnable_fraction": 0.30899715774012976
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 74.502375,
+              "running_cpu_fraction": 0.38490399644130885,
+              "estimated_runnable_wait_fraction": 0.32092015181096584,
+              "estimated_nonrunnable_fraction": 0.2941758517477253
+            }
+          }
+        },
+        {
+          "tid": 85904100,
+          "score_running_cpu_s_bounds": [
+            2.1409920416666663,
+            2.161694333333333
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 61.714708,
+              "running_cpu_fraction": 0.3584077940611283,
+              "estimated_runnable_wait_fraction": 0.3337190174611138,
+              "estimated_nonrunnable_fraction": 0.3078731884777578
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 92.164875,
+              "running_cpu_fraction": 0.3584077940611283,
+              "estimated_runnable_wait_fraction": 0.3482409447790412,
+              "estimated_nonrunnable_fraction": 0.29335126115983046
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 74.502375,
+              "running_cpu_fraction": 0.3584077940611283,
+              "estimated_runnable_wait_fraction": 0.3224084277958712,
+              "estimated_nonrunnable_fraction": 0.3191837781430005
+            }
+          }
+        },
+        {
+          "tid": 85904101,
+          "score_running_cpu_s_bounds": [
+            2.1427811666666665,
+            2.1618097916666663
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 430,
+              "max_gap_ms": 61.714708,
+              "running_cpu_fraction": 0.3587072983713127,
+              "estimated_runnable_wait_fraction": 0.30712622038963866,
+              "estimated_nonrunnable_fraction": 0.3341664812390486
+            },
+            "alternate_even": {
+              "intervals": 215,
+              "max_gap_ms": 92.164875,
+              "running_cpu_fraction": 0.3587072983713127,
+              "estimated_runnable_wait_fraction": 0.28061347661637615,
+              "estimated_nonrunnable_fraction": 0.36067922501231114
+            },
+            "alternate_odd": {
+              "intervals": 216,
+              "max_gap_ms": 74.502375,
+              "running_cpu_fraction": 0.3587072983713127,
+              "estimated_runnable_wait_fraction": 0.33585180763763106,
+              "estimated_nonrunnable_fraction": 0.30544089399105623
+            }
+          }
+        }
+      ],
+      "mib_s": 4584.571476532753,
+      "bytes": 28852344706,
+      "fresh_p95_ms": 1007.274,
+      "fresh_p99_ms": 1023.823,
+      "fresh_errors": 0,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "80c12e4fd269c6425b20341dacbe67559169061970fe3228bc9a6256b91379b5",
+      "original_client_sha256": "08f677ad43e55f912e1ad7519611167ef93ea29aaf950c31318991a04953b7d3"
+    },
+    "4-confirm-micropod": {
+      "score_s": 6.005721667,
+      "interior_s": 5.970927791,
+      "edge_padding_ns": 298583,
+      "pid": 76823,
+      "birth_ticks": 10856298890097,
+      "rows": [
+        {
+          "tid": 135832757,
+          "score_running_cpu_s_bounds": [
+            1.4741294583333333,
+            1.4918915833333333
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 463,
+              "max_gap_ms": 64.65775,
+              "running_cpu_fraction": 0.24688448930085768,
+              "estimated_runnable_wait_fraction": 0.2899744186785237,
+              "estimated_nonrunnable_fraction": 0.4631410920206186
+            },
+            "alternate_even": {
+              "intervals": 232,
+              "max_gap_ms": 80.132875,
+              "running_cpu_fraction": 0.24688448930085768,
+              "estimated_runnable_wait_fraction": 0.2997666118763932,
+              "estimated_nonrunnable_fraction": 0.45334889882274915
+            },
+            "alternate_odd": {
+              "intervals": 232,
+              "max_gap_ms": 75.910584,
+              "running_cpu_fraction": 0.24688448930085768,
+              "estimated_runnable_wait_fraction": 0.27864525680154334,
+              "estimated_nonrunnable_fraction": 0.474470253897599
+            }
+          }
+        },
+        {
+          "tid": 135832758,
+          "score_running_cpu_s_bounds": [
+            1.470367625,
+            1.4892449166666666
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 463,
+              "max_gap_ms": 64.65775,
+              "running_cpu_fraction": 0.24625446437591997,
+              "estimated_runnable_wait_fraction": 0.28237492890826354,
+              "estimated_nonrunnable_fraction": 0.4713706067158165
+            },
+            "alternate_even": {
+              "intervals": 232,
+              "max_gap_ms": 80.132875,
+              "running_cpu_fraction": 0.24625446437591997,
+              "estimated_runnable_wait_fraction": 0.29214787635337525,
+              "estimated_nonrunnable_fraction": 0.4615976592707048
+            },
+            "alternate_odd": {
+              "intervals": 232,
+              "max_gap_ms": 75.910584,
+              "running_cpu_fraction": 0.24625446437591997,
+              "estimated_runnable_wait_fraction": 0.26107770845088757,
+              "estimated_nonrunnable_fraction": 0.49266782717319246
+            }
+          }
+        },
+        {
+          "tid": 135832759,
+          "score_running_cpu_s_bounds": [
+            1.5366254583333332,
+            1.5567028333333333
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 463,
+              "max_gap_ms": 64.65775,
+              "running_cpu_fraction": 0.2573512043889551,
+              "estimated_runnable_wait_fraction": 0.28572025343166085,
+              "estimated_nonrunnable_fraction": 0.45692854217938406
+            },
+            "alternate_even": {
+              "intervals": 232,
+              "max_gap_ms": 80.132875,
+              "running_cpu_fraction": 0.2573512043889551,
+              "estimated_runnable_wait_fraction": 0.2637427328363192,
+              "estimated_nonrunnable_fraction": 0.47890606277472564
+            },
+            "alternate_odd": {
+              "intervals": 232,
+              "max_gap_ms": 75.910584,
+              "running_cpu_fraction": 0.2573512043889551,
+              "estimated_runnable_wait_fraction": 0.3006437259838346,
+              "estimated_nonrunnable_fraction": 0.4420050696272103
+            }
+          }
+        },
+        {
+          "tid": 135832760,
+          "score_running_cpu_s_bounds": [
+            3.274330583333333,
+            3.307466375
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 463,
+              "max_gap_ms": 64.65775,
+              "running_cpu_fraction": 0.5483788613670295,
+              "estimated_runnable_wait_fraction": 0.31015491536475476,
+              "estimated_nonrunnable_fraction": 0.1414662232682157
+            },
+            "alternate_even": {
+              "intervals": 232,
+              "max_gap_ms": 80.132875,
+              "running_cpu_fraction": 0.5483788613670295,
+              "estimated_runnable_wait_fraction": 0.33313442630555284,
+              "estimated_nonrunnable_fraction": 0.11848671232741759
+            },
+            "alternate_odd": {
+              "intervals": 232,
+              "max_gap_ms": 75.910584,
+              "running_cpu_fraction": 0.5483788613670295,
+              "estimated_runnable_wait_fraction": 0.29044261735682864,
+              "estimated_nonrunnable_fraction": 0.16117852127614182
+            }
+          }
+        }
+      ],
+      "mib_s": 3358.072676676909,
+      "bytes": 21147313592,
+      "fresh_p95_ms": 24.604,
+      "fresh_p99_ms": 45.211,
+      "fresh_errors": 0,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "e86ca51877b27d5fffd977cac55cafb3b6a52c426405c936d84b7799165306d6",
+      "original_client_sha256": "7fb5a3db1e4487c1d0ce6bad7e6852441b061861d4c43454ab33ac8a1c87371e"
+    },
+    "4-confirm-orb": {
+      "score_s": 6.00002025,
+      "interior_s": 5.900403916,
+      "edge_padding_ns": 181292,
+      "pid": 17759,
+      "birth_ticks": 7599749073321,
+      "rows": [
+        {
+          "tid": 85904098,
+          "score_running_cpu_s_bounds": [
+            2.7677545416666667,
+            2.868233958333333
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 303,
+              "max_gap_ms": 168.151,
+              "running_cpu_fraction": 0.46907882597010103,
+              "estimated_runnable_wait_fraction": 0.47431832247013467,
+              "estimated_nonrunnable_fraction": 0.0566028515597643
+            },
+            "alternate_even": {
+              "intervals": 152,
+              "max_gap_ms": 225.7715,
+              "running_cpu_fraction": 0.46907882597010103,
+              "estimated_runnable_wait_fraction": 0.4807282366960814,
+              "estimated_nonrunnable_fraction": 0.050192937333817605
+            },
+            "alternate_odd": {
+              "intervals": 152,
+              "max_gap_ms": 200.99175,
+              "running_cpu_fraction": 0.46907882597010103,
+              "estimated_runnable_wait_fraction": 0.47237289040083635,
+              "estimated_nonrunnable_fraction": 0.058548283629062656
+            }
+          }
+        },
+        {
+          "tid": 85904099,
+          "score_running_cpu_s_bounds": [
+            1.4722605416666665,
+            1.5221385833333332
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 303,
+              "max_gap_ms": 168.151,
+              "running_cpu_fraction": 0.24951860290011144,
+              "estimated_runnable_wait_fraction": 0.506062921596999,
+              "estimated_nonrunnable_fraction": 0.24441847550288961
+            },
+            "alternate_even": {
+              "intervals": 152,
+              "max_gap_ms": 225.7715,
+              "running_cpu_fraction": 0.24951860290011144,
+              "estimated_runnable_wait_fraction": 0.5031113687460534,
+              "estimated_nonrunnable_fraction": 0.24737002835383515
+            },
+            "alternate_odd": {
+              "intervals": 152,
+              "max_gap_ms": 200.99175,
+              "running_cpu_fraction": 0.24951860290011144,
+              "estimated_runnable_wait_fraction": 0.4727115675538667,
+              "estimated_nonrunnable_fraction": 0.27776982954602186
+            }
+          }
+        },
+        {
+          "tid": 85904100,
+          "score_running_cpu_s_bounds": [
+            1.2751175,
+            1.3255586666666666
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 303,
+              "max_gap_ms": 168.151,
+              "running_cpu_fraction": 0.21610681542365107,
+              "estimated_runnable_wait_fraction": 0.4565739828751073,
+              "estimated_nonrunnable_fraction": 0.3273192017012416
+            },
+            "alternate_even": {
+              "intervals": 152,
+              "max_gap_ms": 225.7715,
+              "running_cpu_fraction": 0.21610681542365107,
+              "estimated_runnable_wait_fraction": 0.43815328057280073,
+              "estimated_nonrunnable_fraction": 0.3457399040035482
+            },
+            "alternate_odd": {
+              "intervals": 152,
+              "max_gap_ms": 200.99175,
+              "running_cpu_fraction": 0.21610681542365107,
+              "estimated_runnable_wait_fraction": 0.4622196943338887,
+              "estimated_nonrunnable_fraction": 0.3216734902424602
+            }
+          }
+        },
+        {
+          "tid": 85904101,
+          "score_running_cpu_s_bounds": [
+            1.4791365833333332,
+            1.547357875
+          ],
+          "sample_estimates": {
+            "every_sample": {
+              "intervals": 303,
+              "max_gap_ms": 168.151,
+              "running_cpu_fraction": 0.25068395391074666,
+              "estimated_runnable_wait_fraction": 0.4890182237935229,
+              "estimated_nonrunnable_fraction": 0.26029782229573045
+            },
+            "alternate_even": {
+              "intervals": 152,
+              "max_gap_ms": 225.7715,
+              "running_cpu_fraction": 0.25068395391074666,
+              "estimated_runnable_wait_fraction": 0.5353496917560291,
+              "estimated_nonrunnable_fraction": 0.21396635433322425
+            },
+            "alternate_odd": {
+              "intervals": 152,
+              "max_gap_ms": 200.99175,
+              "running_cpu_fraction": 0.25068395391074666,
+              "estimated_runnable_wait_fraction": 0.46403837629523176,
+              "estimated_nonrunnable_fraction": 0.2852776697940216
+            }
+          }
+        }
+      ],
+      "mib_s": 2959.432552401789,
+      "bytes": 18619202528,
+      "fresh_p95_ms": 1011.382,
+      "fresh_p99_ms": 3016.277,
+      "fresh_errors": 0,
+      "bulk_reopens": 0,
+      "original_trace_sha256": "3eb9d896b46626d8480f890bb3b9780f7cfb80b7f351b6f1235595a13fd0eade",
+      "original_client_sha256": "c2a15f37fba4797040553fe1b378b5d4fde054ba61a0196f3808970eb695a92d"
+    }
+  }
+}

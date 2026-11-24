@@ -1,0 +1,497 @@
+{
+  "date": "2026-11-24",
+  "direction": "237.05",
+  "tier": "Offline replay of archived VM observations",
+  "archive": "gamma-mixed-path.json.gz",
+  "archive_sha256": "09ebe5510401244cd6d299c1d0cf6dd8f88b256bf14b8c2c14f6db3eff61b74a",
+  "archive_revision": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "experiment_base": "4f887ba5d28f47fa37d4bd0a2d89cd0914d74754",
+  "replay_base": "a3b561c6a97320d4ca9aff60885ae6393ccaa613",
+  "replay_sha256": "6c107184b5989bc7c9b0b8878a927dd43acb4481cd9bfeb884828576f2676dc9",
+  "original_driver_sources_sha256": {
+    "queue-screen.sh": "e091c9d50bca0433ffd9ecb2363914b80c6a18e57593f5cefd2e1f381cb177d9",
+    "candidate-tools/runner/vnic-action.sh": "e1fa881926558a3e32a5af7df69b999c2afb17b18ddaeddd12f1deb4457236f0",
+    "netbench": "b6850b2d05cedbd2b08d30525f675551504007c8374ecc38e02eb5f84af32f1f"
+  },
+  "platform": {
+    "model": "Apple M5 Max",
+    "cores": 18,
+    "memory_gib": 128,
+    "macos": "26.5.1 (25F80)",
+    "orbstack": "2.2.5",
+    "vm_vcpus": 4,
+    "vm_memory_mib": 4096,
+    "container_memory_mib": 1024,
+    "pids": 512,
+    "image_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889"
+  },
+  "boot": "7849FF02-93BF-4681-B964-BC7B7227FA91",
+  "image_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "control": "Guest publication NIC IRQ requested 0-3, effective CPU 0.",
+  "candidate": "Request CPU 3 on that IRQ; effective CPU 3 before every included attempt.",
+  "workload": "One guest and service, 32 ongoing downloads and 100 closed-loop fresh requests per attempt. Two verified separate qdisc conditions in the same four rotated blocks. Do not pool the contrasts. Limits/route fixed. All 16 included first attempts retained.",
+  "stock_qdiscs": {
+    "arms": [
+      "stock",
+      "irq"
+    ],
+    "pairs": [
+      {
+        "block": 0,
+        "positions": [
+          1,
+          2
+        ],
+        "control": {
+          "record": "queues/0-stock.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 2943.627338609251,
+          "bulk_bytes": 9933167112,
+          "window_s": 3.2181405,
+          "p95_ms": 85.004708,
+          "p99_ms": 99.886542
+        },
+        "cpu3": {
+          "record": "queues/0-irq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 4325.460640457163,
+          "bulk_bytes": 10738293040,
+          "window_s": 2.367570792,
+          "p95_ms": 37.374584,
+          "p99_ms": 45.285542
+        },
+        "throughput_change_pct": 46.943214710758
+      },
+      {
+        "block": 1,
+        "positions": [
+          5,
+          4
+        ],
+        "control": {
+          "record": "queues/1-stock.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 2967.669717903471,
+          "bulk_bytes": 11172701160,
+          "window_s": 3.590398917,
+          "p95_ms": 65.829125,
+          "p99_ms": 141.707834
+        },
+        "cpu3": {
+          "record": "queues/1-irq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 4100.820471338468,
+          "bulk_bytes": 10382488224,
+          "window_s": 2.414519833,
+          "p95_ms": 35.141125,
+          "p99_ms": 47.333625
+        },
+        "throughput_change_pct": 38.18318280497599
+      },
+      {
+        "block": 2,
+        "positions": [
+          3,
+          4
+        ],
+        "control": {
+          "record": "queues/2-stock.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 3963.9713876519786,
+          "bulk_bytes": 11074804720,
+          "window_s": 2.664438208,
+          "p95_ms": 39.624792,
+          "p99_ms": 45.348083
+        },
+        "cpu3": {
+          "record": "queues/2-irq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 3648.938605795771,
+          "bulk_bytes": 10232307016,
+          "window_s": 2.674281333,
+          "p95_ms": 40.994083,
+          "p99_ms": 42.515959
+        },
+        "throughput_change_pct": -7.9474030220691
+      },
+      {
+        "block": 3,
+        "positions": [
+          7,
+          6
+        ],
+        "control": {
+          "record": "queues/3-stock.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 5318.068953500782,
+          "bulk_bytes": 9699845520,
+          "window_s": 1.7394459580000001,
+          "p95_ms": 29.879208,
+          "p99_ms": 49.264125
+        },
+        "cpu3": {
+          "record": "queues/3-irq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc pfifo_fast <handle> root refcnt 2 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+            "service_qdisc": "qdisc noqueue <handle> root refcnt 2",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 5193.39790520269,
+          "bulk_bytes": 11423953576,
+          "window_s": 2.097804042,
+          "p95_ms": 34.159208,
+          "p99_ms": 40.149083
+        },
+        "throughput_change_pct": -2.3442916853498863
+      }
+    ],
+    "clean_pairs": 4,
+    "medians": {
+      "control": {
+        "mib_s": 3465.8205527777245,
+        "p95_ms": 52.7269585,
+        "p99_ms": 74.5753335
+      },
+      "cpu3": {
+        "mib_s": 4213.140555897816,
+        "p95_ms": 36.2578545,
+        "p99_ms": 43.9007505
+      }
+    },
+    "p95_within_75ms": {
+      "control": 3,
+      "cpu3": 4
+    },
+    "faster_cpu3": 2,
+    "median_change_pct": 17.919445559813052,
+    "observed_range_pct": [
+      -7.9474030220691,
+      46.943214710758
+    ]
+  },
+  "fair_qdiscs": {
+    "arms": [
+      "bothfq",
+      "irqfq"
+    ],
+    "pairs": [
+      {
+        "block": 0,
+        "positions": [
+          5,
+          6
+        ],
+        "control": {
+          "record": "queues/0-bothfq.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 3335.033411535442,
+          "bulk_bytes": 8271357392,
+          "window_s": 2.3652480000000002,
+          "p95_ms": 53.75175,
+          "p99_ms": 59.464416
+        },
+        "cpu3": {
+          "record": "queues/0-irqfq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 5483.08045220645,
+          "bulk_bytes": 8920377136,
+          "window_s": 1.5515246660000002,
+          "p95_ms": 25.198916,
+          "p99_ms": 29.5945
+        },
+        "throughput_change_pct": 64.40856134277982
+      },
+      {
+        "block": 1,
+        "positions": [
+          1,
+          8
+        ],
+        "control": {
+          "record": "queues/1-bothfq.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 4983.629551738875,
+          "bulk_bytes": 7853961240,
+          "window_s": 1.502945,
+          "p95_ms": 22.915208,
+          "p99_ms": 26.36275
+        },
+        "cpu3": {
+          "record": "queues/1-irqfq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 3798.0939231844227,
+          "bulk_bytes": 8959089400,
+          "window_s": 2.2495635,
+          "p95_ms": 44.23175,
+          "p99_ms": 54.881333
+        },
+        "throughput_change_pct": -23.78859857552611
+      },
+      {
+        "block": 2,
+        "positions": [
+          7,
+          8
+        ],
+        "control": {
+          "record": "queues/2-bothfq.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 4733.277829122471,
+          "bulk_bytes": 9799986392,
+          "window_s": 1.9745292079999999,
+          "p95_ms": 27.355708,
+          "p99_ms": 49.879708
+        },
+        "cpu3": {
+          "record": "queues/2-irqfq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 4123.550837342843,
+          "bulk_bytes": 8701600568,
+          "window_s": 2.012462875,
+          "p95_ms": 34.496708,
+          "p99_ms": 45.130292
+        },
+        "throughput_change_pct": -12.881707218371108
+      },
+      {
+        "block": 3,
+        "positions": [
+          3,
+          2
+        ],
+        "control": {
+          "record": "queues/3-bothfq.json",
+          "requested": "0-3",
+          "effective": "0",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 5236.423983389476,
+          "bulk_bytes": 8182058472,
+          "window_s": 1.4901427090000001,
+          "p95_ms": 25.372042,
+          "p99_ms": 28.699417
+        },
+        "cpu3": {
+          "record": "queues/3-irqfq.json",
+          "requested": "3",
+          "effective": "3",
+          "fixed_settings": {
+            "nic_qdisc": "qdisc fq <handle> root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_qdisc": "qdisc fq <handle> root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+            "service_route": [
+              "10.88.0.1 dev eth0 src 10.88.0.2 uid 0 ",
+              "    cache rto_min lock 20ms congctl reno "
+            ]
+          },
+          "fresh_completed": 100,
+          "fresh_incomplete": 0,
+          "reopens": 0,
+          "mib_s": 6081.759036924501,
+          "bulk_bytes": 8512884024,
+          "window_s": 1.3348965,
+          "p95_ms": 20.316875,
+          "p99_ms": 28.456959
+        },
+        "throughput_change_pct": 16.1433653236736
+      }
+    ],
+    "clean_pairs": 4,
+    "medians": {
+      "control": {
+        "mib_s": 4858.453690430673,
+        "p95_ms": 26.363875,
+        "p99_ms": 39.2895625
+      },
+      "cpu3": {
+        "mib_s": 4803.315644774646,
+        "p95_ms": 29.847811999999998,
+        "p99_ms": 37.362396
+      }
+    },
+    "p95_within_75ms": {
+      "control": 4,
+      "cpu3": 4
+    },
+    "faster_cpu3": 2,
+    "median_change_pct": 1.6308290526512454,
+    "observed_range_pct": [
+      -23.78859857552611,
+      64.40856134277982
+    ]
+  },
+  "limits": "Ranges describe the four paired changes within a stratum. No independent confidence interval, scored-window NIC drops, IRQ residence, per-process CPU/GiB, runnable time or CPU 1 treatment. Closed-loop latency starts at the request. IRQ affinity reads do not measure per-CPU interrupt distribution throughout scoring.",
+  "verdict": "A CPU 3 pin won two of four pairs in either queue setup. Keep stock affinity. Bind per-CPU IRQ deltas to the scored interval and verify the actual online CPUs before a separate CPU 1 trial on the revised worker."
+}

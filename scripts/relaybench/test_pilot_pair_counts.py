@@ -143,6 +143,31 @@ class PilotPairCountTests(unittest.TestCase):
                 self.assertEqual(json.loads((args.out / "complete.json").read_text())["screen"]["verdict"],
                                  "eligible for confirmation")
 
+                # The opt-in read-size observer must supply actual paired entries before it can score.
+                with patch.object(pilot, "digest", side_effect=lambda p: dict(
+                        pilot.HASHES, fixed=pilot.fresh_samples.CLIENT_SHA256)[p.name]):
+                    args.out = root / "missing-fresh-rows"
+                    with self.assertRaisesRegex(KeyError, "fresh_samples"):
+                        pilot.run(args, result["order"], workers=4)
+                    retained = list(args.out.glob("warmup-1-*.json"))
+                    self.assertEqual(len(retained), 1)
+                    self.assertFalse(json.loads(retained[0].read_text())["clean"])
+                    def paired_attempt(tools, fixture, birth, row, check):
+                        attempt(tools, fixture, birth, row, check)
+                        raw = json.loads(row["stdout"])
+                        durations = [5000000] * 120 + [14000000] * 108 + [81000000] * 12
+                        raw.update(begin_ns=1, end_ns=6250000001, dispatch_p95_us=0, dispatch_max_us=0,
+                                   fresh_samples=[dict(ordinal=i, scheduled_ns=i * 25000000, launch_delay_ns=0,
+                                                       completion_delay_ns=t, ok=True) for i, t in enumerate(durations)])
+                        row["stdout"] = json.dumps(raw)
+                    with patch.object(pilot, "attempt", side_effect=paired_attempt):
+                        args.out = root / "paired-fresh"
+                        pilot.run(args, result["order"], workers=4)
+                    arm = json.loads((args.out / "scored-1-B.json").read_text())
+                    self.assertEqual(arm["fresh_timing"]["success_post_launch_p95_ns"], 14000000)
+                    self.assertEqual(arm["fresh_timing"]["failed"], 0)
+
+
     def test_conflicting_and_invalid_modes_and_counts_are_usage_errors(self):
         for args in (("--mode", "size", "--scored-pairs", "2"),
                      ("--mode", "workers", "--scored-pairs", "5"),

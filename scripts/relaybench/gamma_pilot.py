@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 from statistics import median
 
+import fresh_samples
 import host_role
 from gamma_contrasts import IMAGE, clean_client, invocation_bulk_bytes, paired_median_interval, process_work, stream_rates
 
@@ -259,7 +260,7 @@ def attempt(tools, fixture, birth, receipt, check_window=None):
     c = json.loads(result.stdout)
     receipt["clean"] = result.returncode == 0 and clean_client(c)
     whole = (invocation_bulk_bytes(c, receipt["clean"])
-             if receipt.get("fixed_sha256") == host_role.CLIENT_SHA256 else None)
+             if receipt.get("fixed_sha256") in (host_role.CLIENT_SHA256, fresh_samples.CLIENT_SHA256) else None)
     streams, errors = c.get("per_stream_bytes", []), c.get("errors")
     if len(streams) == 32 and min(streams) > 0 and "errors" in c and all('/id"' in s for s in errors or []):
         receipt["fresh_failed"] = len(errors or [])
@@ -404,7 +405,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     # remain usable on the schedules for which their observation fields suffice.
     fixed = digest(args.tools / "fixed")
     legacy = host_role.LEGACY_P50_CLIENT_SHA256 if role_test or screen or peer_holdout else HASHES["fixed"]
-    require(fixed in (host_role.CLIENT_SHA256, legacy), "unrecognized fixed binary")
+    require(fixed in (host_role.CLIENT_SHA256, legacy) or (read_size and fixed == fresh_samples.CLIENT_SHA256),
+            "unrecognized fixed binary for this comparison")
     tools = dict(HASHES, fixed=fixed)
     save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=tools,
                                      host=platform.node(), macos=platform.mac_ver()[0]))
@@ -517,6 +519,10 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
                     if peer_holdout or screen:
                         client = single_port_client(fixtures[arm], row)
                         require(type(client.get("fresh_p50_us")) is int, "missing scheduled-arrival p50 on the single-port comparison")
+                        if read_size and fixed == fresh_samples.CLIENT_SHA256:
+                            row["fresh_timing"] = fresh_samples.summarize(client)
+                            require(not row["clean"] or row["fresh_timing"]["failed"] == 0,
+                                    "clean flag disagrees with raw fresh completions")
                         if screen and row["clean"]:
                             checked_stream_rates(client, row["mib_s"])
                     if role_test:

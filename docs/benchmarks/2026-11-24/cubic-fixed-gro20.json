@@ -1,0 +1,580 @@
+{
+  "date": "2026-11-24",
+  "tier": "Offline replay of raw historical VM measurements",
+  "archive": "gamma-vm-scheduling.json.gz",
+  "archive_sha256": "29f33979ca570117e54addabfe07aecb452ab23af7f0b9e039c996dbb9611e51",
+  "script_sha256": "07280d6e4c6802eb8420ec3c0df9071a27ba6bdc48927c173305c196b470a812",
+  "direction": "231.07",
+  "archive_revision": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "source_revision": "7a4eb51a04b51f6332ed49561b3dd0bb42ffacd9",
+  "kernel_image_sha256": "5a3cb6b86c7bdf12edf034a6fcacf54e02fca88d21d0eff42b1870413a757735",
+  "image_sha256": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "driver_sha256": "f2070e09e0eff1b69996d0cfefe1b7c8590e5a5b4fccf0ad9a18dc30ff38f6bf",
+  "fixture": "One four-vCPU warm VM. Two otherwise matched services with distinct source addresses. Fixed two deferred polls and 20 us GRO flush; change accepted-socket Reno to CUBIC. 32 warm bulk streams, 240 fixed arrivals six seconds, both using the same port per service.",
+  "control_route": {
+    "AdvMSS": 0,
+    "Congctl": "reno",
+    "Cwnd": 0,
+    "Dst": {
+      "IP": "192.168.133.1",
+      "Mask": "/////w=="
+    },
+    "Encap": null,
+    "Family": 2,
+    "FastOpenNoCookie": 0,
+    "Features": 0,
+    "Flags": 0,
+    "Gw": "",
+    "Hoplimit": 0,
+    "ILinkIndex": 0,
+    "InitCwnd": 0,
+    "InitRwnd": 0,
+    "LinkIndex": 3,
+    "MPLSDst": null,
+    "MTU": 0,
+    "MTULock": false,
+    "MultiPath": null,
+    "NewDst": null,
+    "Priority": 0,
+    "Protocol": 3,
+    "QuickACK": 0,
+    "Realm": 0,
+    "Reordering": 0,
+    "RtoMin": 20,
+    "RtoMinLock": true,
+    "Rtt": 0,
+    "RttVar": 0,
+    "Scope": 253,
+    "Src": "10.88.0.2",
+    "Ssthresh": 0,
+    "Table": 254,
+    "Tos": 0,
+    "Type": 1,
+    "Via": null,
+    "Window": 0
+  },
+  "candidate_route": {
+    "AdvMSS": 0,
+    "Congctl": "cubic",
+    "Cwnd": 0,
+    "Dst": {
+      "IP": "192.168.133.1",
+      "Mask": "/////w=="
+    },
+    "Encap": null,
+    "Family": 2,
+    "FastOpenNoCookie": 0,
+    "Features": 0,
+    "Flags": 0,
+    "Gw": "",
+    "Hoplimit": 0,
+    "ILinkIndex": 0,
+    "InitCwnd": 0,
+    "InitRwnd": 0,
+    "LinkIndex": 3,
+    "MPLSDst": null,
+    "MTU": 0,
+    "MTULock": false,
+    "MultiPath": null,
+    "NewDst": null,
+    "Priority": 0,
+    "Protocol": 3,
+    "QuickACK": 0,
+    "Realm": 0,
+    "Reordering": 0,
+    "RtoMin": 20,
+    "RtoMinLock": true,
+    "Rtt": 0,
+    "RttVar": 0,
+    "Scope": 253,
+    "Src": "10.88.0.3",
+    "Ssthresh": 0,
+    "Table": 254,
+    "Tos": 0,
+    "Type": 1,
+    "Via": null,
+    "Window": 0
+  },
+  "limits": "Eight rotated multi-arm blocks; bootstrap resamples seven jointly clean blocks 10000 times, seed 7317. Whole-invocation CPU and guest IRQ/softirq deltas divided by scored payload. Counted interrupts and NET_RX/NET_TX entries are not work time. No per-arm interface drop snapshots. Distinct services and endpoint ports remain a possible confound. Timing was acquired on the historical guest.",
+  "verdict": "CUBIC is a candidate for independent matched confirmation with 20 us GRO already fixed. It gained throughput in 6/7 clean pairs and met the p95 gate 8/8, but increased IRQs per scored GiB. This screened condition was selected from a larger sweep and is not a stock or peer result.",
+  "next_check": "Keep Reno on the revised stock baseline. Isolate only the controller on the same qualified kernel and polling policy, independently verify accepted sockets, drops and per-process CPU.",
+  "common_clean_and_75ms": {
+    "blocks": [
+      1,
+      2,
+      3,
+      4,
+      7
+    ],
+    "throughput": {
+      "control_median": 6137.503018832535,
+      "candidate_median": 6455.195584264734,
+      "candidate_higher": 4,
+      "paired_median_pct": 0.8528085024644749,
+      "paired_bootstrap_ci95_pct": [
+        -17.208794774692272,
+        24.375871861557208
+      ]
+    }
+  },
+  "relative_order_on_common_clean": {
+    "lab-20_reno": {
+      "blocks": 3,
+      "median_pct": 15.995897649337376
+    },
+    "lab-20_cubic": {
+      "blocks": 4,
+      "median_pct": 12.614340182010842
+    }
+  },
+  "clean_pairs": 7,
+  "clean_p95_passes": {
+    "control": 5,
+    "candidate": 8
+  },
+  "paired": {
+    "mib_s": {
+      "control_median": 6109.041359518931,
+      "candidate_median": 6096.109712438398,
+      "candidate_higher": 6,
+      "paired_median_pct": 15.995897649337376,
+      "paired_bootstrap_ci95_pct": [
+        0.6762227265750598,
+        44.2281827671603
+      ]
+    },
+    "p95_ms": {
+      "control_median": 29.125,
+      "candidate_median": 37.674,
+      "candidate_higher": 2,
+      "paired_median_pct": -8.171673819742487,
+      "paired_bootstrap_ci95_pct": [
+        -23.573615363206223,
+        53.266794933461604
+      ]
+    },
+    "p99_ms": {
+      "control_median": 44.033,
+      "candidate_median": 76.862,
+      "candidate_higher": 3,
+      "paired_median_pct": -16.320360244451592,
+      "paired_bootstrap_ci95_pct": [
+        -31.85328356488665,
+        153.15159382662625
+      ]
+    },
+    "vmm_cpu_s_per_scored_gib": {
+      "control_median": 0.42418664269091994,
+      "candidate_median": 0.4154513701976301,
+      "candidate_higher": 2,
+      "paired_median_pct": -1.9841211608147558,
+      "paired_bootstrap_ci95_pct": [
+        -3.6200279372962885,
+        0.6979422014388836
+      ]
+    },
+    "relay_cpu_s_per_scored_gib": {
+      "control_median": 0.27203737662358457,
+      "candidate_median": 0.2704419843328887,
+      "candidate_higher": 4,
+      "paired_median_pct": 0.3089657974538307,
+      "paired_bootstrap_ci95_pct": [
+        -2.8899108882345925,
+        1.4835229343926448
+      ]
+    },
+    "irq_per_scored_gib": {
+      "control_median": 92.59644652934102,
+      "candidate_median": 133.5850721895085,
+      "candidate_higher": 6,
+      "paired_median_pct": 44.77859508958619,
+      "paired_bootstrap_ci95_pct": [
+        14.938569324117479,
+        66.25363723723585
+      ]
+    },
+    "NET_RX_per_scored_gib": {
+      "control_median": 401.97773705655715,
+      "candidate_median": 424.4982809632003,
+      "candidate_higher": 5,
+      "paired_median_pct": 6.338329867481773,
+      "paired_bootstrap_ci95_pct": [
+        -2.927441225439631,
+        8.872686037664534
+      ]
+    },
+    "NET_TX_per_scored_gib": {
+      "control_median": 693.2220456385801,
+      "candidate_median": 900.5661613089537,
+      "candidate_higher": 6,
+      "paired_median_pct": 19.567699650776426,
+      "paired_bootstrap_ci95_pct": [
+        0.1983755336443016,
+        47.62756396111356
+      ]
+    }
+  },
+  "rows": [
+    {
+      "block": 1,
+      "relative_order": [
+        "lab-20_cubic",
+        "lab-20_reno"
+      ],
+      "control": {
+        "clean": true,
+        "mib_s": 6469.7130836174,
+        "bytes": 40705418136,
+        "p95_ms": 29.125,
+        "p99_ms": 43.391,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.40151301688331104,
+        "vmm_runnable_s_per_s": 3.469661925197745,
+        "vmm_wait_s_per_s": 0.9786178323789242,
+        "relay_cpu_s_per_scored_gib": 0.25924262601409553,
+        "relay_runnable_s_per_s": 1.9029755981033247,
+        "relay_wait_s_per_s": 0.29459732645458386,
+        "irq_per_scored_gib": 116.22301632518968,
+        "NET_RX_per_scored_gib": 427.8568599170623,
+        "NET_TX_per_scored_gib": 610.0257547744749
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 6513.4627538330205,
+        "bytes": 40985189968,
+        "p95_ms": 26.745,
+        "p99_ms": 33.879,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4132047370596603,
+        "vmm_runnable_s_per_s": 3.5077449060874533,
+        "vmm_wait_s_per_s": 0.9579535518357116,
+        "relay_cpu_s_per_scored_gib": 0.26480226121019207,
+        "relay_runnable_s_per_s": 1.9083227362837585,
+        "relay_wait_s_per_s": 0.27428891318513304,
+        "irq_per_scored_gib": 133.5850721895085,
+        "NET_RX_per_scored_gib": 464.7314366679136,
+        "NET_TX_per_scored_gib": 900.5661613089537
+      }
+    },
+    {
+      "block": 2,
+      "relative_order": [
+        "lab-20_cubic",
+        "lab-20_reno"
+      ],
+      "control": {
+        "clean": true,
+        "mib_s": 4819.0649137011105,
+        "bytes": 30319235104,
+        "p95_ms": 52.119,
+        "p99_ms": 71.502,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4208686640844414,
+        "vmm_runnable_s_per_s": 3.478923015115156,
+        "vmm_wait_s_per_s": 1.5330840724883898,
+        "relay_cpu_s_per_scored_gib": 0.26546796879099316,
+        "relay_runnable_s_per_s": 1.798821947409142,
+        "relay_wait_s_per_s": 0.5714606450007946,
+        "irq_per_scored_gib": 89.13840213110939,
+        "NET_RX_per_scored_gib": 399.688520640326,
+        "NET_TX_per_scored_gib": 746.078155620215
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 5993.754001990155,
+        "bytes": 37710480516,
+        "p95_ms": 47.953,
+        "p99_ms": 135.16,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.41251811986110365,
+        "vmm_runnable_s_per_s": 3.368253252722958,
+        "vmm_wait_s_per_s": 1.0282611095534018,
+        "relay_cpu_s_per_scored_gib": 0.262746734946574,
+        "relay_runnable_s_per_s": 1.8925551719786344,
+        "relay_wait_s_per_s": 0.40213507691601996,
+        "irq_per_scored_gib": 159.42200656990428,
+        "NET_RX_per_scored_gib": 461.12509312370065,
+        "NET_TX_per_scored_gib": 892.068488272031
+      }
+    },
+    {
+      "block": 3,
+      "relative_order": [
+        "lab-20_cubic",
+        "lab-20_reno"
+      ],
+      "control": {
+        "clean": true,
+        "mib_s": 6400.610632580443,
+        "bytes": 40269485120,
+        "p95_ms": 24.349,
+        "p99_ms": 44.033,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4161144198096375,
+        "vmm_runnable_s_per_s": 3.589246557975236,
+        "vmm_wait_s_per_s": 1.046150382371149,
+        "relay_cpu_s_per_scored_gib": 0.26673259808114674,
+        "relay_runnable_s_per_s": 1.9137352142733643,
+        "relay_wait_s_per_s": 0.2835906727806072,
+        "irq_per_scored_gib": 95.69676381141672,
+        "NET_RX_per_scored_gib": 411.53074746876723,
+        "NET_TX_per_scored_gib": 691.421783893521
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 6455.195584264734,
+        "bytes": 40613188456,
+        "p95_ms": 37.674,
+        "p99_ms": 160.681,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4154513701976301,
+        "vmm_runnable_s_per_s": 3.52084549437767,
+        "vmm_wait_s_per_s": 1.0105145574157315,
+        "relay_cpu_s_per_scored_gib": 0.2704419843328887,
+        "relay_runnable_s_per_s": 1.9659008909632376,
+        "relay_wait_s_per_s": 0.3317773120681331,
+        "irq_per_scored_gib": 113.94887812006561,
+        "NET_RX_per_scored_gib": 396.57382176356947,
+        "NET_TX_per_scored_gib": 908.603502169906
+      }
+    },
+    {
+      "block": 4,
+      "relative_order": [
+        "lab-20_reno",
+        "lab-20_cubic"
+      ],
+      "control": {
+        "clean": true,
+        "mib_s": 6109.041359518931,
+        "bytes": 38435141256,
+        "p95_ms": 24.948,
+        "p99_ms": 34.665,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.42418664269091994,
+        "vmm_runnable_s_per_s": 3.600204484898099,
+        "vmm_wait_s_per_s": 1.1111781311917361,
+        "relay_cpu_s_per_scored_gib": 0.27203737662358457,
+        "relay_runnable_s_per_s": 1.9088607044371686,
+        "relay_wait_s_per_s": 0.3126100650632773,
+        "irq_per_scored_gib": 97.60999466784423,
+        "NET_RX_per_scored_gib": 401.97773705655715,
+        "NET_TX_per_scored_gib": 666.8433236180429
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 5057.748969258248,
+        "bytes": 31820681336,
+        "p95_ms": 38.237,
+        "p99_ms": 87.755,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.41158510940001264,
+        "vmm_runnable_s_per_s": 3.743056354879389,
+        "vmm_wait_s_per_s": 1.8198244561348074,
+        "relay_cpu_s_per_scored_gib": 0.2728778790736421,
+        "relay_runnable_s_per_s": 1.8207683699859005,
+        "relay_wait_s_per_s": 0.5456798657850751,
+        "irq_per_scored_gib": 74.4719505074522,
+        "NET_RX_per_scored_gib": 390.21007506487416,
+        "NET_TX_per_scored_gib": 1091.7716169771709
+      }
+    },
+    {
+      "block": 5,
+      "relative_order": [
+        "lab-20_reno",
+        "lab-20_cubic"
+      ],
+      "control": {
+        "clean": false,
+        "mib_s": 2773.6335748625206,
+        "bytes": 17450453168,
+        "p95_ms": 118.422,
+        "p99_ms": 180.093,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 1,
+        "vmm_cpu_s_per_scored_gib": 0.42660023905220334,
+        "vmm_runnable_s_per_s": 3.5977134723586692,
+        "vmm_wait_s_per_s": 2.469649988735268,
+        "relay_cpu_s_per_scored_gib": 0.2711824843859317,
+        "relay_runnable_s_per_s": 1.8009481723094998,
+        "relay_wait_s_per_s": 1.0838574863931043,
+        "irq_per_scored_gib": 89.0967212245866,
+        "NET_RX_per_scored_gib": 403.88872798217295,
+        "NET_TX_per_scored_gib": 1019.382168872739
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 7957.386339799703,
+        "bytes": 50063689272,
+        "p95_ms": 17.263,
+        "p99_ms": 19.803,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.3984124625879,
+        "vmm_runnable_s_per_s": 3.3819787041403866,
+        "vmm_wait_s_per_s": 0.3526402348152221,
+        "relay_cpu_s_per_scored_gib": 0.2524016045432793,
+        "relay_runnable_s_per_s": 1.9823242935571874,
+        "relay_wait_s_per_s": 0.06318279533244055,
+        "irq_per_scored_gib": 160.81348205504258,
+        "NET_RX_per_scored_gib": 414.4518174488721,
+        "NET_TX_per_scored_gib": 743.0277770491991
+      }
+    },
+    {
+      "block": 6,
+      "relative_order": [
+        "lab-20_reno",
+        "lab-20_cubic"
+      ],
+      "control": {
+        "clean": true,
+        "mib_s": 3825.2597668231933,
+        "bytes": 24066475408,
+        "p95_ms": 80.565,
+        "p99_ms": 173.401,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4489320332086096,
+        "vmm_runnable_s_per_s": 3.6311809279634546,
+        "vmm_wait_s_per_s": 1.9810684068202158,
+        "relay_cpu_s_per_scored_gib": 0.2868099021914022,
+        "relay_runnable_s_per_s": 1.8273330279271964,
+        "relay_wait_s_per_s": 0.7731230901525352,
+        "irq_per_scored_gib": 79.2820381423091,
+        "NET_RX_per_scored_gib": 384.14088261411445,
+        "NET_TX_per_scored_gib": 889.0117569069506
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 6096.109712438398,
+        "bytes": 38353461160,
+        "p95_ms": 26.961,
+        "p99_ms": 40.466,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.42999745345141416,
+        "vmm_runnable_s_per_s": 3.6076941218075054,
+        "vmm_wait_s_per_s": 1.1248565753706328,
+        "relay_cpu_s_per_scored_gib": 0.27852135159943786,
+        "relay_runnable_s_per_s": 1.9108770237596429,
+        "relay_wait_s_per_s": 0.3026738502644175,
+        "irq_per_scored_gib": 114.78342098082499,
+        "NET_RX_per_scored_gib": 408.488998910053,
+        "NET_TX_per_scored_gib": 890.7753387238754
+      }
+    },
+    {
+      "block": 7,
+      "relative_order": [
+        "lab-20_reno",
+        "lab-20_cubic"
+      ],
+      "control": {
+        "clean": true,
+        "mib_s": 6137.503018832535,
+        "bytes": 38614443728,
+        "p95_ms": 25.151,
+        "p99_ms": 31.09,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4374514597700872,
+        "vmm_runnable_s_per_s": 3.5586835032097945,
+        "vmm_wait_s_per_s": 0.9860314712989235,
+        "relay_cpu_s_per_scored_gib": 0.2812883984867165,
+        "relay_runnable_s_per_s": 1.9130687977866125,
+        "relay_wait_s_per_s": 0.25881172821336007,
+        "irq_per_scored_gib": 92.59644652934102,
+        "NET_RX_per_scored_gib": 407.98049954309056,
+        "NET_TX_per_scored_gib": 693.2220456385801
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 7119.251719949979,
+        "bytes": 44791277308,
+        "p95_ms": 19.222,
+        "p99_ms": 26.016,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4216155947142996,
+        "vmm_runnable_s_per_s": 3.452693971631838,
+        "vmm_wait_s_per_s": 0.598576485563062,
+        "relay_cpu_s_per_scored_gib": 0.26868613060117824,
+        "relay_runnable_s_per_s": 1.9616608857573417,
+        "relay_wait_s_per_s": 0.14279604008522662,
+        "irq_per_scored_gib": 153.63730984262202,
+        "NET_RX_per_scored_gib": 424.4982809632003,
+        "NET_TX_per_scored_gib": 794.3880751388373
+      }
+    },
+    {
+      "block": 8,
+      "relative_order": [
+        "lab-20_cubic",
+        "lab-20_reno"
+      ],
+      "control": {
+        "clean": true,
+        "mib_s": 3293.4384124717985,
+        "bytes": 20721311104,
+        "p95_ms": 78.367,
+        "p99_ms": 112.789,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.44362608274672694,
+        "vmm_runnable_s_per_s": 3.579078710280223,
+        "vmm_wait_s_per_s": 2.2115513391936044,
+        "relay_cpu_s_per_scored_gib": 0.2839637719634437,
+        "relay_runnable_s_per_s": 1.826949961133677,
+        "relay_wait_s_per_s": 0.9515996477511548,
+        "irq_per_scored_gib": 80.62917784297362,
+        "NET_RX_per_scored_gib": 395.4767900370017,
+        "NET_TX_per_scored_gib": 978.0174181287173
+      },
+      "candidate": {
+        "clean": true,
+        "mib_s": 4750.066372863688,
+        "bytes": 29885582984,
+        "p95_ms": 60.73,
+        "p99_ms": 76.862,
+        "arrivals": 240,
+        "reopens": 0,
+        "fresh_errors": 0,
+        "vmm_cpu_s_per_scored_gib": 0.4467223363948065,
+        "vmm_runnable_s_per_s": 3.5208432477121554,
+        "vmm_wait_s_per_s": 1.5252061027151311,
+        "relay_cpu_s_per_scored_gib": 0.2881764396458878,
+        "relay_runnable_s_per_s": 1.8663017292495694,
+        "relay_wait_s_per_s": 0.5789346996276927,
+        "irq_per_scored_gib": 134.0489408384231,
+        "NET_RX_per_scored_gib": 430.5662039688186,
+        "NET_TX_per_scored_gib": 949.0492554936869
+      }
+    }
+  ]
+}

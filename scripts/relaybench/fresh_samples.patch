@@ -1,0 +1,58 @@
+--- a/scripts/netbench/offered/main.go
++++ b/scripts/netbench/offered/main.go
+@@ -139,6 +139,7 @@
+ 	const gap = 25 * time.Millisecond
+ 	var results [count]int64
+ 	var delays [count]int64
++	var samples [count]freshObservation
+ 	var fresh sync.WaitGroup
+ 	var before, end, final [32]int64
+ 	for i := range bytes {
+@@ -153,13 +154,18 @@
+ 		fresh.Add(1)
+ 		go func(i int) {
+ 			defer fresh.Done()
+-			delays[i] = time.Since(target).Microseconds()
++			launch := time.Since(target)
++			delays[i] = launch.Microseconds()
+ 			service := services[i%len(services)]
+-			if e := identity(freshClient, service.url, service.marker); e != nil {
++			e := identity(freshClient, service.url, service.marker)
++			done := time.Since(target)
++			samples[i] = freshObservation{Ordinal: i, ScheduledNS: int64(time.Duration(i) * gap),
++				LaunchDelayNS: launch.Nanoseconds(), CompletionDelayNS: done.Nanoseconds(), OK: e == nil}
++			if e != nil {
+ 				report(e)
+ 				return
+ 			}
+-			results[i] = time.Since(target).Microseconds()
++			results[i] = done.Microseconds()
+ 		}(i)
+ 	}
+ 	if wait := time.Until(begin.Add(count * gap)); wait > 0 {
+@@ -187,7 +193,8 @@
+ 		}
+ 	}
+ 	err = json.NewEncoder(output).Encode(map[string]any{
+-		"published_ports": len(services),
++		"begin_ns": begin.UnixNano(), "end_ns": begin.Add(elapsed).UnixNano(),
++		"fresh_samples": samples, "published_ports": len(services),
+ 		"streams":         32, "arrivals": count, "period_us": gap.Microseconds(), "window_s": elapsed.Seconds(),
+ 		"bytes": phases.Scored.Bytes, "per_stream_bytes": phases.Scored.Streams,
+ 		"mib_s": float64(phases.Scored.Bytes) / (1 << 20) / elapsed.Seconds(), "bulk_body_bytes": phases,
+@@ -202,6 +209,15 @@
+ 		return fmt.Errorf("offered workload recorded %d errors and %d reopens", len(problems), reopens.Load())
+ 	}
+ 	return nil
++}
++
++// Both delays use the same monotonic scheduled target. Failed identity checks retain their completion.
++type freshObservation struct {
++	Ordinal           int   `json:"ordinal"`
++	ScheduledNS       int64 `json:"scheduled_ns"`
++	LaunchDelayNS     int64 `json:"launch_delay_ns"`
++	CompletionDelayNS int64 `json:"completion_delay_ns"`
++	OK                bool  `json:"ok"`
+ }
+ 
+ type phaseBytes struct {
