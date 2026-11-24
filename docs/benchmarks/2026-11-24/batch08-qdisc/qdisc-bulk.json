@@ -1,0 +1,873 @@
+{
+  "date": "2026-11-24",
+  "direction": "231.08",
+  "tier": "source/fixture",
+  "micropod_base": "c9ec734fc9692e31ca99122fe13c9b71a5478c80",
+  "linux_version": "7.3.5",
+  "linux_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "kernel_member_sha256": {
+    "net/core/dev.c": "8b3c43e8becfd552ead597c2e009edf16b126924a7cbe4c5c961e74563b76274",
+    "drivers/net/virtio_net.c": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+    "include/linux/netdevice.h": "c01410d782e5c984ee118c5f6a041fb7cc91ce5c1ee06493de92d44670fd5907",
+    "include/linux/dynamic_queue_limits.h": "411f7ee98f224fb23186dcfed7f8d20a72aa63cb7b30186941a14eb8d44b02d9",
+    "net/sched/sch_generic.c": "5396cd77c6e674722da773c652e0309e594c46df4afd467206a70d166c825160",
+    "include/net/sch_generic.h": "8d0311e110ca9796231c5aa017b9846c3a2dc6bb82fe30b7ef8b111c90d08025"
+  },
+  "fragment_sha256": {
+    "qdisc": "5de4156b4743a628951a13be45365fd0f3bc67b8f09d52fcda9a4e5ed00b1266",
+    "driver": "e0dea0b459e96471196643822798b4d0cb359cb367d2c3cabb62db722c0aceb8",
+    "prefix": "835a75ba40219c35fcc692d982ca85c35d22243937b190e303d38b719ced9002"
+  },
+  "source_sha256": {
+    "qdisc_bulk.c": "0aa705f74f10d6dbf74ba7569167799d902c0064e06a5c2d387e878e673c5c0c",
+    "qdisc_bulk.py": "ed9c25be03594f60ac271e1d061b8181baf4f47b94577a14b179581d5cbc7331",
+    "tx_bql.c": "0ecdac50861b48953e4f88bcc6cb8d2b211045f717b3c77eee431b96b5254294",
+    "kernel_queue.py": "07746faddbeee52798900149276ee9134fae231ab6b030cc4de0002607d9b322"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "fixed": {
+    "offers": 32,
+    "initial_dql_allowance_bytes": 524288,
+    "tx_napi_weight": 64,
+    "ring_entries": 256,
+    "tx_queue": 0,
+    "completions": 0,
+    "dequeue_budget": 64,
+    "device_accepts_each_requested_notification": true
+  },
+  "arms": "One-buffer dispatch versus Linux ONETXQUEUE qdisc bulk-dequeue before identical driver calls.",
+  "observations": [
+    {
+      "skb_bytes": 1460,
+      "chaining": false,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 1,
+          "cumulative_ring_bytes": 1460,
+          "cumulative_dql_charged_bytes": 1460,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 1,
+          "packets": 1,
+          "cumulative_ring_bytes": 2920,
+          "cumulative_dql_charged_bytes": 2920,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 2,
+          "packets": 1,
+          "cumulative_ring_bytes": 4380,
+          "cumulative_dql_charged_bytes": 4380,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 3,
+          "packets": 1,
+          "cumulative_ring_bytes": 5840,
+          "cumulative_dql_charged_bytes": 5840,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 4,
+          "packets": 1,
+          "cumulative_ring_bytes": 7300,
+          "cumulative_dql_charged_bytes": 7300,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 5,
+          "packets": 1,
+          "cumulative_ring_bytes": 8760,
+          "cumulative_dql_charged_bytes": 8760,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 6,
+          "packets": 1,
+          "cumulative_ring_bytes": 10220,
+          "cumulative_dql_charged_bytes": 10220,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 7,
+          "packets": 1,
+          "cumulative_ring_bytes": 11680,
+          "cumulative_dql_charged_bytes": 11680,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 8,
+          "packets": 1,
+          "cumulative_ring_bytes": 13140,
+          "cumulative_dql_charged_bytes": 13140,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 9,
+          "packets": 1,
+          "cumulative_ring_bytes": 14600,
+          "cumulative_dql_charged_bytes": 14600,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 10,
+          "packets": 1,
+          "cumulative_ring_bytes": 16060,
+          "cumulative_dql_charged_bytes": 16060,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 11,
+          "packets": 1,
+          "cumulative_ring_bytes": 17520,
+          "cumulative_dql_charged_bytes": 17520,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 12,
+          "packets": 1,
+          "cumulative_ring_bytes": 18980,
+          "cumulative_dql_charged_bytes": 18980,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 13,
+          "packets": 1,
+          "cumulative_ring_bytes": 20440,
+          "cumulative_dql_charged_bytes": 20440,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 14,
+          "packets": 1,
+          "cumulative_ring_bytes": 21900,
+          "cumulative_dql_charged_bytes": 21900,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 15,
+          "packets": 1,
+          "cumulative_ring_bytes": 23360,
+          "cumulative_dql_charged_bytes": 23360,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 16,
+          "packets": 1,
+          "cumulative_ring_bytes": 24820,
+          "cumulative_dql_charged_bytes": 24820,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 17,
+          "packets": 1,
+          "cumulative_ring_bytes": 26280,
+          "cumulative_dql_charged_bytes": 26280,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 18,
+          "packets": 1,
+          "cumulative_ring_bytes": 27740,
+          "cumulative_dql_charged_bytes": 27740,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 19,
+          "packets": 1,
+          "cumulative_ring_bytes": 29200,
+          "cumulative_dql_charged_bytes": 29200,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 20,
+          "packets": 1,
+          "cumulative_ring_bytes": 30660,
+          "cumulative_dql_charged_bytes": 30660,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 21,
+          "packets": 1,
+          "cumulative_ring_bytes": 32120,
+          "cumulative_dql_charged_bytes": 32120,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 22,
+          "packets": 1,
+          "cumulative_ring_bytes": 33580,
+          "cumulative_dql_charged_bytes": 33580,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 23,
+          "packets": 1,
+          "cumulative_ring_bytes": 35040,
+          "cumulative_dql_charged_bytes": 35040,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 24,
+          "packets": 1,
+          "cumulative_ring_bytes": 36500,
+          "cumulative_dql_charged_bytes": 36500,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 25,
+          "packets": 1,
+          "cumulative_ring_bytes": 37960,
+          "cumulative_dql_charged_bytes": 37960,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 26,
+          "packets": 1,
+          "cumulative_ring_bytes": 39420,
+          "cumulative_dql_charged_bytes": 39420,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 27,
+          "packets": 1,
+          "cumulative_ring_bytes": 40880,
+          "cumulative_dql_charged_bytes": 40880,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 28,
+          "packets": 1,
+          "cumulative_ring_bytes": 42340,
+          "cumulative_dql_charged_bytes": 42340,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 29,
+          "packets": 1,
+          "cumulative_ring_bytes": 43800,
+          "cumulative_dql_charged_bytes": 43800,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 30,
+          "packets": 1,
+          "cumulative_ring_bytes": 45260,
+          "cumulative_dql_charged_bytes": 45260,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 31,
+          "packets": 1,
+          "cumulative_ring_bytes": 46720,
+          "cumulative_dql_charged_bytes": 46720,
+          "notifications": 1,
+          "stopped": false
+        }
+      ],
+      "submitted_skbs": 32,
+      "notifications": 32,
+      "left_upstream": 0
+    },
+    {
+      "skb_bytes": 1460,
+      "chaining": true,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 32,
+          "cumulative_ring_bytes": 46720,
+          "cumulative_dql_charged_bytes": 46720,
+          "notifications": 1,
+          "stopped": false
+        }
+      ],
+      "submitted_skbs": 32,
+      "notifications": 1,
+      "left_upstream": 0
+    },
+    {
+      "skb_bytes": 16384,
+      "chaining": false,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 1,
+          "cumulative_ring_bytes": 16384,
+          "cumulative_dql_charged_bytes": 16384,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 1,
+          "packets": 1,
+          "cumulative_ring_bytes": 32768,
+          "cumulative_dql_charged_bytes": 32768,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 2,
+          "packets": 1,
+          "cumulative_ring_bytes": 49152,
+          "cumulative_dql_charged_bytes": 49152,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 3,
+          "packets": 1,
+          "cumulative_ring_bytes": 65536,
+          "cumulative_dql_charged_bytes": 65536,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 4,
+          "packets": 1,
+          "cumulative_ring_bytes": 81920,
+          "cumulative_dql_charged_bytes": 81920,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 5,
+          "packets": 1,
+          "cumulative_ring_bytes": 98304,
+          "cumulative_dql_charged_bytes": 98304,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 6,
+          "packets": 1,
+          "cumulative_ring_bytes": 114688,
+          "cumulative_dql_charged_bytes": 114688,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 7,
+          "packets": 1,
+          "cumulative_ring_bytes": 131072,
+          "cumulative_dql_charged_bytes": 131072,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 8,
+          "packets": 1,
+          "cumulative_ring_bytes": 147456,
+          "cumulative_dql_charged_bytes": 147456,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 9,
+          "packets": 1,
+          "cumulative_ring_bytes": 163840,
+          "cumulative_dql_charged_bytes": 163840,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 10,
+          "packets": 1,
+          "cumulative_ring_bytes": 180224,
+          "cumulative_dql_charged_bytes": 180224,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 11,
+          "packets": 1,
+          "cumulative_ring_bytes": 196608,
+          "cumulative_dql_charged_bytes": 196608,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 12,
+          "packets": 1,
+          "cumulative_ring_bytes": 212992,
+          "cumulative_dql_charged_bytes": 212992,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 13,
+          "packets": 1,
+          "cumulative_ring_bytes": 229376,
+          "cumulative_dql_charged_bytes": 229376,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 14,
+          "packets": 1,
+          "cumulative_ring_bytes": 245760,
+          "cumulative_dql_charged_bytes": 245760,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 15,
+          "packets": 1,
+          "cumulative_ring_bytes": 262144,
+          "cumulative_dql_charged_bytes": 262144,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 16,
+          "packets": 1,
+          "cumulative_ring_bytes": 278528,
+          "cumulative_dql_charged_bytes": 278528,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 17,
+          "packets": 1,
+          "cumulative_ring_bytes": 294912,
+          "cumulative_dql_charged_bytes": 294912,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 18,
+          "packets": 1,
+          "cumulative_ring_bytes": 311296,
+          "cumulative_dql_charged_bytes": 311296,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 19,
+          "packets": 1,
+          "cumulative_ring_bytes": 327680,
+          "cumulative_dql_charged_bytes": 327680,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 20,
+          "packets": 1,
+          "cumulative_ring_bytes": 344064,
+          "cumulative_dql_charged_bytes": 344064,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 21,
+          "packets": 1,
+          "cumulative_ring_bytes": 360448,
+          "cumulative_dql_charged_bytes": 360448,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 22,
+          "packets": 1,
+          "cumulative_ring_bytes": 376832,
+          "cumulative_dql_charged_bytes": 376832,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 23,
+          "packets": 1,
+          "cumulative_ring_bytes": 393216,
+          "cumulative_dql_charged_bytes": 393216,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 24,
+          "packets": 1,
+          "cumulative_ring_bytes": 409600,
+          "cumulative_dql_charged_bytes": 409600,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 25,
+          "packets": 1,
+          "cumulative_ring_bytes": 425984,
+          "cumulative_dql_charged_bytes": 425984,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 26,
+          "packets": 1,
+          "cumulative_ring_bytes": 442368,
+          "cumulative_dql_charged_bytes": 442368,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 27,
+          "packets": 1,
+          "cumulative_ring_bytes": 458752,
+          "cumulative_dql_charged_bytes": 458752,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 28,
+          "packets": 1,
+          "cumulative_ring_bytes": 475136,
+          "cumulative_dql_charged_bytes": 475136,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 29,
+          "packets": 1,
+          "cumulative_ring_bytes": 491520,
+          "cumulative_dql_charged_bytes": 491520,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 30,
+          "packets": 1,
+          "cumulative_ring_bytes": 507904,
+          "cumulative_dql_charged_bytes": 507904,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 31,
+          "packets": 1,
+          "cumulative_ring_bytes": 524288,
+          "cumulative_dql_charged_bytes": 524288,
+          "notifications": 1,
+          "stopped": false
+        }
+      ],
+      "submitted_skbs": 32,
+      "notifications": 32,
+      "left_upstream": 0
+    },
+    {
+      "skb_bytes": 16384,
+      "chaining": true,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 32,
+          "cumulative_ring_bytes": 524288,
+          "cumulative_dql_charged_bytes": 524288,
+          "notifications": 1,
+          "stopped": false
+        }
+      ],
+      "submitted_skbs": 32,
+      "notifications": 1,
+      "left_upstream": 0
+    },
+    {
+      "skb_bytes": 32768,
+      "chaining": false,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 1,
+          "cumulative_ring_bytes": 32768,
+          "cumulative_dql_charged_bytes": 32768,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 1,
+          "packets": 1,
+          "cumulative_ring_bytes": 65536,
+          "cumulative_dql_charged_bytes": 65536,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 2,
+          "packets": 1,
+          "cumulative_ring_bytes": 98304,
+          "cumulative_dql_charged_bytes": 98304,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 3,
+          "packets": 1,
+          "cumulative_ring_bytes": 131072,
+          "cumulative_dql_charged_bytes": 131072,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 4,
+          "packets": 1,
+          "cumulative_ring_bytes": 163840,
+          "cumulative_dql_charged_bytes": 163840,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 5,
+          "packets": 1,
+          "cumulative_ring_bytes": 196608,
+          "cumulative_dql_charged_bytes": 196608,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 6,
+          "packets": 1,
+          "cumulative_ring_bytes": 229376,
+          "cumulative_dql_charged_bytes": 229376,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 7,
+          "packets": 1,
+          "cumulative_ring_bytes": 262144,
+          "cumulative_dql_charged_bytes": 262144,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 8,
+          "packets": 1,
+          "cumulative_ring_bytes": 294912,
+          "cumulative_dql_charged_bytes": 294912,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 9,
+          "packets": 1,
+          "cumulative_ring_bytes": 327680,
+          "cumulative_dql_charged_bytes": 327680,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 10,
+          "packets": 1,
+          "cumulative_ring_bytes": 360448,
+          "cumulative_dql_charged_bytes": 360448,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 11,
+          "packets": 1,
+          "cumulative_ring_bytes": 393216,
+          "cumulative_dql_charged_bytes": 393216,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 12,
+          "packets": 1,
+          "cumulative_ring_bytes": 425984,
+          "cumulative_dql_charged_bytes": 425984,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 13,
+          "packets": 1,
+          "cumulative_ring_bytes": 458752,
+          "cumulative_dql_charged_bytes": 458752,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 14,
+          "packets": 1,
+          "cumulative_ring_bytes": 491520,
+          "cumulative_dql_charged_bytes": 491520,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 15,
+          "packets": 1,
+          "cumulative_ring_bytes": 524288,
+          "cumulative_dql_charged_bytes": 524288,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 16,
+          "packets": 1,
+          "cumulative_ring_bytes": 557056,
+          "cumulative_dql_charged_bytes": 557056,
+          "notifications": 1,
+          "stopped": true
+        }
+      ],
+      "submitted_skbs": 17,
+      "notifications": 17,
+      "left_upstream": 15
+    },
+    {
+      "skb_bytes": 32768,
+      "chaining": true,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 16,
+          "cumulative_ring_bytes": 524288,
+          "cumulative_dql_charged_bytes": 524288,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 16,
+          "packets": 1,
+          "cumulative_ring_bytes": 557056,
+          "cumulative_dql_charged_bytes": 557056,
+          "notifications": 1,
+          "stopped": true
+        }
+      ],
+      "submitted_skbs": 17,
+      "notifications": 2,
+      "left_upstream": 15
+    },
+    {
+      "skb_bytes": 64512,
+      "chaining": false,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 1,
+          "cumulative_ring_bytes": 64512,
+          "cumulative_dql_charged_bytes": 64512,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 1,
+          "packets": 1,
+          "cumulative_ring_bytes": 129024,
+          "cumulative_dql_charged_bytes": 129024,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 2,
+          "packets": 1,
+          "cumulative_ring_bytes": 193536,
+          "cumulative_dql_charged_bytes": 193536,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 3,
+          "packets": 1,
+          "cumulative_ring_bytes": 258048,
+          "cumulative_dql_charged_bytes": 258048,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 4,
+          "packets": 1,
+          "cumulative_ring_bytes": 322560,
+          "cumulative_dql_charged_bytes": 322560,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 5,
+          "packets": 1,
+          "cumulative_ring_bytes": 387072,
+          "cumulative_dql_charged_bytes": 387072,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 6,
+          "packets": 1,
+          "cumulative_ring_bytes": 451584,
+          "cumulative_dql_charged_bytes": 451584,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 7,
+          "packets": 1,
+          "cumulative_ring_bytes": 516096,
+          "cumulative_dql_charged_bytes": 516096,
+          "notifications": 1,
+          "stopped": false
+        },
+        {
+          "first_offer_zero_based": 8,
+          "packets": 1,
+          "cumulative_ring_bytes": 580608,
+          "cumulative_dql_charged_bytes": 580608,
+          "notifications": 1,
+          "stopped": true
+        }
+      ],
+      "submitted_skbs": 9,
+      "notifications": 9,
+      "left_upstream": 23
+    },
+    {
+      "skb_bytes": 64512,
+      "chaining": true,
+      "dequeues": [
+        {
+          "first_offer_zero_based": 0,
+          "packets": 9,
+          "cumulative_ring_bytes": 580608,
+          "cumulative_dql_charged_bytes": 580608,
+          "notifications": 1,
+          "stopped": true
+        }
+      ],
+      "submitted_skbs": 9,
+      "notifications": 1,
+      "left_upstream": 23
+    }
+  ]
+}
