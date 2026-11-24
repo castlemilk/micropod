@@ -83,6 +83,7 @@ class PeerVerdictTests(unittest.TestCase):
             completed_run(root)
             legacy = peer.directory(root, CLI_SHA)
             self.assertIsNone(legacy["pairs"][0]["A"]["invocation_cpu_s_per_bulk_gib"])
+            self.assertIsNone(legacy["pairs"][0]["A"]["processes"]["vmm"]["invocation_cpu_s_per_bulk_gib"])
             schedule = json.loads((root/"plan.json").read_text())
             schedule["tools"]["fixed"] = peer.CLIENT_SHA256
             write(root, "plan.json", schedule)
@@ -91,6 +92,11 @@ class PeerVerdictTests(unittest.TestCase):
             body = 8 * 2**20
             for file in [*root.glob("warmup-*.json"), *root.glob("scored-*.json")]:
                 row = json.loads(file.read_text())
+                for snapshot in (row["before"], row["after"]):
+                    for task in snapshot["tasks"]:
+                        if task["pid"] == 20:
+                            for field in ("user_ticks", "system_ticks", "runnable_ticks"):
+                                task[field] *= 3
                 client = json.loads(row["stdout"])
                 count = client["per_stream_bytes"][0]
                 client["bulk_body_bytes"] = {name: dict(bytes=n*32, per_stream_bytes=[n]*32)
@@ -102,7 +108,15 @@ class PeerVerdictTests(unittest.TestCase):
             report = peer.directory(root, CLI_SHA)
             a = report["pairs"][0]["A"]
             self.assertEqual(a["invocation_bulk_bytes"], 512 * 2**20)
-            self.assertAlmostEqual(a["invocation_cpu_s_per_bulk_gib"], 2*7*300*1e-9/.5)
+            self.assertAlmostEqual(a["invocation_cpu_s_per_bulk_gib"], 4*7*300*1e-9/.5, delta=1e-15)
+            self.assertEqual(a["processes"].keys(), {"vmm", "relay"})
+            self.assertEqual(report["pairs"][0]["B"]["processes"].keys(), {"vmm"})
+            for role, multiplier in (("vmm", 1), ("relay", 3)):
+                proc = a["processes"][role]
+                self.assertAlmostEqual(proc["cpu_s_per_gib"], multiplier * 7 * 300e-9 / (192/1024), delta=1e-15)
+                self.assertAlmostEqual(proc["invocation_cpu_s_per_bulk_gib"], multiplier * 7 * 300e-9 / .5, delta=1e-15)
+                self.assertAlmostEqual(proc["runnable_s"], multiplier * 7 * 500e-9, delta=1e-15)
+                self.assertAlmostEqual(proc["wait_s_per_s"], multiplier * 200e-9, delta=1e-15)
             self.assertEqual(report["median_ratio"], legacy["median_ratio"])
             row = json.loads((root/"scored-16-B.json").read_text())
             client = json.loads(row["stdout"])

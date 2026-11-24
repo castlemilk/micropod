@@ -11,7 +11,8 @@ client output must identify one published port for both products. Supply --candi
 for a selected nondefault native cap. Historical directories without a cap remain unattributed.
 
 Exit codes are 0 for a qualified result, 1 for a completed comparison that missed the criteria
-and 2 for invalid or incomplete evidence. --json includes every scored arm and its errors.
+and 2 for invalid or incomplete evidence. --json includes every scored arm, its errors and
+the CPU and runnable-time counters for the individual VMM and relay processes.
 """
 import argparse
 import json
@@ -54,17 +55,22 @@ def observation(record, pids, full_body_counts=False):
             "host counters do not cover the reported client window")
     for sample in (before, after):
         require(sorted(t["pid"] for t in sample["tasks"]) == sorted(pids.values()), "process identity mismatch")
-    deltas = [process_delta(before, after, pid) for pid in pids.values()]
-    host = [host_units(d, c["bytes"]) for d in deltas]
-    require(all(math.isfinite(n) and n >= 0 for h in host for n in h.values()), "invalid host counter")
     whole = invocation_bulk_bytes(c, clean) if full_body_counts else None
+    processes = {}
+    for role, pid in pids.items():
+        delta = process_delta(before, after, pid)
+        costs = host_units(delta, c["bytes"])
+        require(all(math.isfinite(n) and n >= 0 for n in costs.values()), "invalid host counter")
+        processes[role] = dict(pid=pid, **delta, **costs,
+                               invocation_cpu_s_per_bulk_gib=delta["cpu_s"] / (whole / GIB) if whole else None)
+    host = processes.values()
     verified_fresh_errors = len(errors) if min(stream_bytes) > 0 and all('/id"' in e for e in errors) else None
     return dict(clean=clean, mib_s=c["mib_s"], fresh_failed=verified_fresh_errors, offered=c["arrivals"],
                 bulk_reopens=c["reopened"], client_errors=errors, exit_code=record["exit_code"],
                 p50_ms=p50 / 1000 if p50 is not None else None, p95_ms=p95 / 1000, p99_ms=p99 / 1000,
-                cpu_s_per_gib=sum(h["cpu_s_per_gib"] for h in host),
+                processes=processes, cpu_s_per_gib=sum(h["cpu_s_per_gib"] for h in host),
                 invocation_bulk_bytes=whole,
-                invocation_cpu_s_per_bulk_gib=sum(d["cpu_s"] for d in deltas) / (whole / GIB) if whole else None,
+                invocation_cpu_s_per_bulk_gib=sum(h["cpu_s"] for h in host) / (whole / GIB) if whole else None,
                 wait_s_per_s=sum(h["wait_s_per_s"] for h in host),
                 runnable_s_per_s=sum(h["runnable_s_per_s"] for h in host))
 

@@ -1,0 +1,379 @@
+{
+  "id": "231.02",
+  "date": "2026-11-24",
+  "tier": "source/fixture",
+  "replay_base": "17bcd4355234b11da3a7a1da2ded52f4dc20f5d1",
+  "linux": "7.3.5",
+  "source_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "source_members": {
+    "drivers/virtio/virtio_ring.c": "59c42c2eeb83355a0f4f5d5160be659671149632818b2813d68fdbf8f9055e85",
+    "include/uapi/linux/virtio_ring.h": "d5c9d2126e22415141e8d569fdb16584e920adfd4e30e38cd2031b6f741bb92f"
+  },
+  "functions_sha256": "d736aa62cd2775a7032c9d5ce06b92faac35cb240eb3ed03a5e63edd46387e9c",
+  "fixture_sha256": "736e2e0682f0d48df3e49a8a163630a2bb413a89c5cdc57cdf486b5d62b19a94",
+  "replay_sha256": "a43a8d7fe24bdddd7a9ea50f0111a6c588f456724a6378f4125b31b59d9eeb76",
+  "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "conditions": "256 slots, packed ring, EVENT_IDX set, one descriptor per buffer, ordered single completions, prompt service only following a notification, no parallel CPU or timing.",
+  "observations": [
+    {
+      "start": 0,
+      "descriptors": 1,
+      "policy": "delayed",
+      "reclaimed": 1,
+      "notifications": 1,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 0,
+      "descriptors": 1,
+      "policy": "immediate",
+      "reclaimed": 1,
+      "notifications": 1,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 248,
+      "descriptors": 1,
+      "policy": "delayed",
+      "reclaimed": 1,
+      "notifications": 1,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 248,
+      "descriptors": 1,
+      "policy": "immediate",
+      "reclaimed": 1,
+      "notifications": 1,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 504,
+      "descriptors": 1,
+      "policy": "delayed",
+      "reclaimed": 1,
+      "notifications": 1,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 504,
+      "descriptors": 1,
+      "policy": "immediate",
+      "reclaimed": 1,
+      "notifications": 1,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 0,
+      "descriptors": 4,
+      "policy": "delayed",
+      "reclaimed": 4,
+      "notifications": 1,
+      "first_notification_after": 4,
+      "max_additional_completions_waited": 3,
+      "sum_additional_completions_waited": 6
+    },
+    {
+      "start": 0,
+      "descriptors": 4,
+      "policy": "immediate",
+      "reclaimed": 4,
+      "notifications": 4,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 248,
+      "descriptors": 4,
+      "policy": "delayed",
+      "reclaimed": 4,
+      "notifications": 1,
+      "first_notification_after": 4,
+      "max_additional_completions_waited": 3,
+      "sum_additional_completions_waited": 6
+    },
+    {
+      "start": 248,
+      "descriptors": 4,
+      "policy": "immediate",
+      "reclaimed": 4,
+      "notifications": 4,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 504,
+      "descriptors": 4,
+      "policy": "delayed",
+      "reclaimed": 4,
+      "notifications": 1,
+      "first_notification_after": 4,
+      "max_additional_completions_waited": 3,
+      "sum_additional_completions_waited": 6
+    },
+    {
+      "start": 504,
+      "descriptors": 4,
+      "policy": "immediate",
+      "reclaimed": 4,
+      "notifications": 4,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 0,
+      "descriptors": 16,
+      "policy": "delayed",
+      "reclaimed": 16,
+      "notifications": 2,
+      "first_notification_after": 13,
+      "max_additional_completions_waited": 12,
+      "sum_additional_completions_waited": 81
+    },
+    {
+      "start": 0,
+      "descriptors": 16,
+      "policy": "immediate",
+      "reclaimed": 16,
+      "notifications": 16,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 248,
+      "descriptors": 16,
+      "policy": "delayed",
+      "reclaimed": 16,
+      "notifications": 2,
+      "first_notification_after": 13,
+      "max_additional_completions_waited": 12,
+      "sum_additional_completions_waited": 81
+    },
+    {
+      "start": 248,
+      "descriptors": 16,
+      "policy": "immediate",
+      "reclaimed": 16,
+      "notifications": 16,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 504,
+      "descriptors": 16,
+      "policy": "delayed",
+      "reclaimed": 16,
+      "notifications": 2,
+      "first_notification_after": 13,
+      "max_additional_completions_waited": 12,
+      "sum_additional_completions_waited": 81
+    },
+    {
+      "start": 504,
+      "descriptors": 16,
+      "policy": "immediate",
+      "reclaimed": 16,
+      "notifications": 16,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 0,
+      "descriptors": 32,
+      "policy": "delayed",
+      "reclaimed": 32,
+      "notifications": 3,
+      "first_notification_after": 25,
+      "max_additional_completions_waited": 24,
+      "sum_additional_completions_waited": 315
+    },
+    {
+      "start": 0,
+      "descriptors": 32,
+      "policy": "immediate",
+      "reclaimed": 32,
+      "notifications": 32,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 248,
+      "descriptors": 32,
+      "policy": "delayed",
+      "reclaimed": 32,
+      "notifications": 3,
+      "first_notification_after": 25,
+      "max_additional_completions_waited": 24,
+      "sum_additional_completions_waited": 315
+    },
+    {
+      "start": 248,
+      "descriptors": 32,
+      "policy": "immediate",
+      "reclaimed": 32,
+      "notifications": 32,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 504,
+      "descriptors": 32,
+      "policy": "delayed",
+      "reclaimed": 32,
+      "notifications": 3,
+      "first_notification_after": 25,
+      "max_additional_completions_waited": 24,
+      "sum_additional_completions_waited": 315
+    },
+    {
+      "start": 504,
+      "descriptors": 32,
+      "policy": "immediate",
+      "reclaimed": 32,
+      "notifications": 32,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 0,
+      "descriptors": 128,
+      "policy": "delayed",
+      "reclaimed": 128,
+      "notifications": 4,
+      "first_notification_after": 97,
+      "max_additional_completions_waited": 96,
+      "sum_additional_completions_waited": 4947
+    },
+    {
+      "start": 0,
+      "descriptors": 128,
+      "policy": "immediate",
+      "reclaimed": 128,
+      "notifications": 128,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 248,
+      "descriptors": 128,
+      "policy": "delayed",
+      "reclaimed": 128,
+      "notifications": 4,
+      "first_notification_after": 97,
+      "max_additional_completions_waited": 96,
+      "sum_additional_completions_waited": 4947
+    },
+    {
+      "start": 248,
+      "descriptors": 128,
+      "policy": "immediate",
+      "reclaimed": 128,
+      "notifications": 128,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 504,
+      "descriptors": 128,
+      "policy": "delayed",
+      "reclaimed": 128,
+      "notifications": 4,
+      "first_notification_after": 97,
+      "max_additional_completions_waited": 96,
+      "sum_additional_completions_waited": 4947
+    },
+    {
+      "start": 504,
+      "descriptors": 128,
+      "policy": "immediate",
+      "reclaimed": 128,
+      "notifications": 128,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 0,
+      "descriptors": 256,
+      "policy": "delayed",
+      "reclaimed": 256,
+      "notifications": 4,
+      "first_notification_after": 193,
+      "max_additional_completions_waited": 192,
+      "sum_additional_completions_waited": 19725
+    },
+    {
+      "start": 0,
+      "descriptors": 256,
+      "policy": "immediate",
+      "reclaimed": 256,
+      "notifications": 256,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 248,
+      "descriptors": 256,
+      "policy": "delayed",
+      "reclaimed": 256,
+      "notifications": 4,
+      "first_notification_after": 193,
+      "max_additional_completions_waited": 192,
+      "sum_additional_completions_waited": 19725
+    },
+    {
+      "start": 248,
+      "descriptors": 256,
+      "policy": "immediate",
+      "reclaimed": 256,
+      "notifications": 256,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    },
+    {
+      "start": 504,
+      "descriptors": 256,
+      "policy": "delayed",
+      "reclaimed": 256,
+      "notifications": 4,
+      "first_notification_after": 193,
+      "max_additional_completions_waited": 192,
+      "sum_additional_completions_waited": 19725
+    },
+    {
+      "start": 504,
+      "descriptors": 256,
+      "policy": "immediate",
+      "reclaimed": 256,
+      "notifications": 256,
+      "first_notification_after": 1,
+      "max_additional_completions_waited": 0,
+      "sum_additional_completions_waited": 0
+    }
+  ]
+}

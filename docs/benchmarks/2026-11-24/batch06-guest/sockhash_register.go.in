@@ -1,0 +1,39 @@
+package main
+
+import (
+    "encoding/json"
+    "net"
+    "os"
+    "fmt"
+)
+
+type entry struct { cookie uint64; fd uint32 }
+type step struct { Map string; Key, Value uint64 }
+type table struct { name string; entries map[uint64]uint64 }
+type sockEngine struct { socks, peers *table }
+var ebpf = struct{ UpdateNoExist uint64 }{1}
+var sockets = make(map[*net.TCPConn]entry)
+var steps []step
+func check(e error) {if e != nil {panic(e)}}
+func socketID(c *net.TCPConn) entry {return sockets[c]}
+func (t *table) Update(key uint64, value any, flag uint64) error {
+    if _,found:=t.entries[key]; found || flag != ebpf.UpdateNoExist {return fmt.Errorf("unexpected update")}
+    var num uint64
+    switch v:=value.(type) { case uint32: num=uint64(v); case uint64: num=v; default: return fmt.Errorf("wrong value type") }
+    t.entries[key]=num
+    steps=append(steps,step{t.name,key,num})
+    return nil
+}
+func (t *table) Delete(key uint64) { delete(t.entries,key) }
+
+REGISTER_BODY
+
+func main(){
+    a,b:=new(net.TCPConn),new(net.TCPConn)
+    sockets[a]=entry{11,111}
+    sockets[b]=entry{22,222}
+    engine:=sockEngine{&table{"socks",map[uint64]uint64{}},&table{"peers",map[uint64]uint64{}}}
+    done:=engine.register(a,b)
+    defer done()
+    check(json.NewEncoder(os.Stdout).Encode(steps))
+}
