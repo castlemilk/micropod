@@ -1,0 +1,406 @@
+{
+  "direction": "230.07",
+  "base": "2ccda8507355b8220258db2ce8160f3113d3e1ff",
+  "scope": "Darwin AF_UNIX streams and real kqueue; untimed",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "file_sha256": {
+    "directional_backpressure.c": "f2733762f1670a24a95bb2e92c084ad78a90f0e3b0a4c727fc47bb2f88483262",
+    "directional_backpressure.patch": "2039e2de80c91a14dd19455ed1b90e6f1009577302414c23ab2e7aec0f35c385",
+    "filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "directional_backpressure.py": "4af2b644ee846b2d0d20d71a624642582ea6a8c5f3f07ce0ee72ca9a5648894a"
+  },
+  "verified": "Both half-closes and all bytes in both directions. Target and merged lease counters checked. One deliberately forced blocked retry per pressured send.",
+  "arms": {
+    "aggregate": {
+      "source_sha256": {
+        "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+        "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+        "Sources/MicropodRuntime/NativeLoopbackRelay.swift": "549259065039321394cb9b41c7f0011206f589ccca6b19e95af044ef6bf5db1e"
+      },
+      "optimized": [
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384
+        }
+      ],
+      "sanitized": [
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384
+        }
+      ]
+    },
+    "directional": {
+      "source_sha256": {
+        "Sources/CPublishedTCP/PublishedTCP.c": "893ae0e93c16cd09d9776ef7e378ef25ee6cb14b8ca20836a6a73f2541b21e32",
+        "Sources/CPublishedTCP/include/PublishedTCP.h": "edf52686fe0c5d4ce98b3cadfddc64565cc19b8693ef2601ddce2101679968cb",
+        "Sources/MicropodRuntime/NativeLoopbackRelay.swift": "d60db00a4b47c98ae78e543829244eeaaf4a98912868af5776741a7cd21457a5"
+      },
+      "optimized": [
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768,
+          "download_blocked_writes": 2,
+          "download_allocations": 1,
+          "download_copy_bytes": 32768
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384,
+          "download_blocked_writes": 2,
+          "download_allocations": 1,
+          "download_copy_bytes": 16384
+        }
+      ],
+      "sanitized": [
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 0,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 0,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 0,
+          "allocations": 0,
+          "copy_bytes": 0,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "guest",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384,
+          "download_blocked_writes": 0,
+          "download_allocations": 0,
+          "download_copy_bytes": 0
+        },
+        {
+          "pressured_destination": "client",
+          "room": 0,
+          "profile": 1,
+          "suffix": 32768,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 32768,
+          "download_blocked_writes": 2,
+          "download_allocations": 1,
+          "download_copy_bytes": 32768
+        },
+        {
+          "pressured_destination": "client",
+          "room": 16384,
+          "profile": 1,
+          "suffix": 16384,
+          "verified_each_way": 32768,
+          "blocked_writes": 2,
+          "allocations": 1,
+          "copy_bytes": 16384,
+          "download_blocked_writes": 2,
+          "download_allocations": 1,
+          "download_copy_bytes": 16384
+        }
+      ]
+    }
+  }
+}
