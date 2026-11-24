@@ -25,6 +25,8 @@ At 10:42 AEDT on 24 November, the read-only Cuttlefish snapshot showed zero of s
 
 The one-off reconciliation for #228 and #230 verified both local alignment trials and the archived VMM replay. The exact study revisions and inputs could not be fetched from GitHub. Both issue section links are pending until a repository-accessible copy is confirmed. The private bundle includes separate sections, hashes, raw-input coverage, the original report, and replay instructions. [Local reconciliation bundle](../benchmarks/2026-11-23/alignment-vmm-reconciliation.zip)
 
+The first [ten-experiment batch](../benchmarks/2026-11-24/backlog-batch-01.md) records two new local timings, five analyses of archived VM traffic and three benchmark qualification fixes. [GitHub batch index](https://github.com/castlemilk/micropod/issues/227#issuecomment-7117627198)
+
 ## Research layers and phases
 
 | Blueprint layer | Area | Execution phase | Backlog |
