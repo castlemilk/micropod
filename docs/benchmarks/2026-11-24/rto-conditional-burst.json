@@ -1,0 +1,459 @@
+{
+  "direction": "231.08",
+  "archive": "gamma-vnic.json.gz",
+  "archive_sha256": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f",
+  "interval": "Block bootstrap of median paired ratios, 10,000 resamples, seed 7317.",
+  "original_revision": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "client": "6e2531ef4bed59edd55144630a7bff68a3e1f63fae606d276a4cf3913a48abbd",
+  "configuration_driver_sha256": "9b6a5a9dce51df6cdf8026f05cd33e880352062bc31c7e67750f6d8d1af63583",
+  "limits": "Default Reno route vs same route with explicit 20 ms RTO floor. A counter interval includes the full burst invocation (single/fresh/keepalive and three synchronized 32-stream bursts), not individual recovery events. Subgroups describe the control, not a causal RTO effect. 160 fresh requests were closed-loop in a separate mixed invocation.",
+  "rows": [
+    {
+      "block": 0,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          35.664958,
+          36.64925,
+          35.695292
+        ],
+        "burst_max_ms": 36.64925,
+        "burst_median_ms": 35.695292,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 0,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 6847.616254419566,
+        "fresh_p95_ms": 17.2265,
+        "fresh_p99_ms": 20.187584,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 15742031600
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          45.486917,
+          65.079709,
+          50.018209
+        ],
+        "burst_max_ms": 65.079709,
+        "burst_median_ms": 50.018209,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 1,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 6100.67009123923,
+        "fresh_p95_ms": 20.4375,
+        "fresh_p99_ms": 23.381834,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16708510392
+      }
+    },
+    {
+      "block": 1,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          68.139917,
+          317.484375,
+          77.719083
+        ],
+        "burst_max_ms": 317.484375,
+        "burst_median_ms": 77.719083,
+        "counters": {
+          "TCPTimeouts": 1,
+          "TCPLossProbes": 3,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5508.757221385735,
+        "fresh_p95_ms": 25.952584,
+        "fresh_p99_ms": 34.142209,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16909720552
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          89.32125,
+          37.88445900000001,
+          38.276666
+        ],
+        "burst_max_ms": 89.32125,
+        "burst_median_ms": 38.276666,
+        "counters": {
+          "TCPTimeouts": 3,
+          "TCPLossProbes": 3,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 7755.943084794128,
+        "fresh_p95_ms": 16.710291,
+        "fresh_p99_ms": 19.63325,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 17391049832
+      }
+    },
+    {
+      "block": 2,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          43.453667,
+          42.678209,
+          42.892417
+        ],
+        "burst_max_ms": 43.453667,
+        "burst_median_ms": 42.892417,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 0,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5896.782913574731,
+        "fresh_p95_ms": 23.3775,
+        "fresh_p99_ms": 30.104083,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 18425678272
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          97.71054099999999,
+          45.111417,
+          49.739417
+        ],
+        "burst_max_ms": 97.71054099999999,
+        "burst_median_ms": 49.739417,
+        "counters": {
+          "TCPTimeouts": 1,
+          "TCPLossProbes": 1,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 6142.333200725336,
+        "fresh_p95_ms": 19.864375,
+        "fresh_p99_ms": 22.367666,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16282810408
+      }
+    },
+    {
+      "block": 3,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          43.348667,
+          46.120042,
+          41.9135
+        ],
+        "burst_max_ms": 46.120042,
+        "burst_median_ms": 43.348667,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 0,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 6327.8630679809075,
+        "fresh_p95_ms": 19.719208,
+        "fresh_p99_ms": 21.861208,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 18405666864
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          51.330040999999994,
+          47.858791,
+          49.933917
+        ],
+        "burst_max_ms": 51.330040999999994,
+        "burst_median_ms": 49.933917,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 0,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5790.336345570002,
+        "fresh_p95_ms": 22.135667,
+        "fresh_p99_ms": 26.672291,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16689843264
+      }
+    },
+    {
+      "block": 4,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          47.555541999999996,
+          63.703250000000004,
+          50.12325
+        ],
+        "burst_max_ms": 63.703250000000004,
+        "burst_median_ms": 50.12325,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 0,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5419.617421418233,
+        "fresh_p95_ms": 23.876125,
+        "fresh_p99_ms": 27.104541,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16804270824
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          97.597083,
+          49.777417,
+          58.593290999999994
+        ],
+        "burst_max_ms": 97.597083,
+        "burst_median_ms": 58.593290999999994,
+        "counters": {
+          "TCPTimeouts": 1,
+          "TCPLossProbes": 1,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 4070.1090270456302,
+        "fresh_p95_ms": 36.68,
+        "fresh_p99_ms": 55.23425,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16548320616
+      }
+    },
+    {
+      "block": 5,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          48.635374999999996,
+          256.608291,
+          287.54600000000005
+        ],
+        "burst_max_ms": 287.54600000000005,
+        "burst_median_ms": 256.608291,
+        "counters": {
+          "TCPTimeouts": 3,
+          "TCPLossProbes": 9,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5701.45355480514,
+        "fresh_p95_ms": 23.078584,
+        "fresh_p99_ms": 31.147625,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 17461061896
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          43.120582999999996,
+          44.72525,
+          59.782292
+        ],
+        "burst_max_ms": 59.782292,
+        "burst_median_ms": 44.72525,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 2,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5873.894267963471,
+        "fresh_p95_ms": 23.763917,
+        "fresh_p99_ms": 45.778458,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 17899179280
+      }
+    },
+    {
+      "block": 6,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          41.97525,
+          43.729166,
+          43.339707999999995
+        ],
+        "burst_max_ms": 43.729166,
+        "burst_median_ms": 43.339707999999995,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 1,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 6431.643352223917,
+        "fresh_p95_ms": 18.778,
+        "fresh_p99_ms": 20.643416,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16739527312
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          43.360042,
+          60.431709,
+          43.293457999999994
+        ],
+        "burst_max_ms": 60.431709,
+        "burst_median_ms": 43.360042,
+        "counters": {
+          "TCPTimeouts": 0,
+          "TCPLossProbes": 1,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 6437.84383006885,
+        "fresh_p95_ms": 18.903834,
+        "fresh_p99_ms": 19.990541,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16828458824
+      }
+    },
+    {
+      "block": 7,
+      "rto200": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          45.267250000000004,
+          280.363792,
+          41.82375
+        ],
+        "burst_max_ms": 280.363792,
+        "burst_median_ms": 45.267250000000004,
+        "counters": {
+          "TCPTimeouts": 1,
+          "TCPLossProbes": 2,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5776.793322897827,
+        "fresh_p95_ms": 21.803458,
+        "fresh_p99_ms": 23.153625,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16996066184
+      },
+      "rto20": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.16 uid 0 \n    cache rto_min lock 20ms congctl reno \nbbr",
+        "burst_elapsed_ms": [
+          56.085,
+          119.525042,
+          50.27425
+        ],
+        "burst_max_ms": 119.525042,
+        "burst_median_ms": 56.085,
+        "counters": {
+          "TCPTimeouts": 1,
+          "TCPLossProbes": 1,
+          "TCPSynRetrans": 0,
+          "TCPSpuriousRTOs": 0
+        },
+        "mib_s": 5772.024693338918,
+        "fresh_p95_ms": 21.484417,
+        "fresh_p99_ms": 23.530625,
+        "reopens": 0,
+        "fresh_samples": 160,
+        "scored_bytes": 16269285960
+      }
+    }
+  ],
+  "summary": {
+    "burst_max_ms": {
+      "control_median": 54.911646000000005,
+      "candidate_median": 77.2004795,
+      "paired_median_ratio": 1.247460175443487,
+      "ci95": [
+        0.28134061715635617,
+        1.7757446332462463
+      ]
+    },
+    "burst_median_ms": {
+      "control_median": 44.3079585,
+      "candidate_median": 49.836667000000006,
+      "paired_median_ratio": 1.1557727493145586,
+      "ci95": [
+        0.4925002267461133,
+        1.2389751973004766
+      ]
+    },
+    "mib_s": {
+      "control_median": 5836.788118236279,
+      "candidate_median": 5987.28217960135,
+      "paired_median_ratio": 1.0000692888570506,
+      "ci95": [
+        0.8909188051099907,
+        1.0416413984963453
+      ]
+    },
+    "fresh_p95_ms": {
+      "control_median": 22.441021,
+      "candidate_median": 20.9609585,
+      "paired_median_ratio": 1.0181983828358128,
+      "ci95": [
+        0.8497219548711367,
+        1.186398862218094
+      ]
+    },
+    "fresh_p99_ms": {
+      "control_median": 25.129083,
+      "candidate_median": 23.4562295,
+      "paired_median_ratio": 1.0872554956646738,
+      "ci95": [
+        0.7430110393995393,
+        1.469725476661543
+      ]
+    }
+  },
+  "control_timeout_split": {
+    "timeout": {
+      "blocks": [
+        1,
+        5,
+        7
+      ],
+      "lower_candidate_worst_burst": 3,
+      "control_median_max_ms": 287.54600000000005,
+      "candidate_median_max_ms": 89.32125
+    },
+    "no_timeout": {
+      "blocks": [
+        0,
+        2,
+        3,
+        4,
+        6
+      ],
+      "lower_candidate_worst_burst": 0,
+      "control_median_max_ms": 43.729166,
+      "candidate_median_max_ms": 65.079709
+    }
+  }
+}
