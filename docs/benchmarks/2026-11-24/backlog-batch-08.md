@@ -24,3 +24,5 @@ At 14:24 AEDT the read-only Cuttlefish project showed fresh leases of 5/6 on Gam
 An additional replay of an existing six-pair VM trial showed why a lower event count can be misleading. Widening service pacing timer slack reduced scheduling deferrals per GiB in 6/6 pairs, yet throughput improved in only 2/6, and the 75 ms fresh-p95 guardrail passed in 3/6 instead of 4/6. This supplemental diagnostic and the direct-path correction each add zero to the batch count. [Pacing diagnostic](batch08-service-timer/service-timer.receipt.md) · [Issue](https://github.com/castlemilk/micropod/issues/231#issuecomment-7121212956) · [Direct-path issue update](https://github.com/castlemilk/micropod/issues/231#issuecomment-7121232068)
 
 The proposed 230.11 ACK-frequency observation also remains queued. The installed Apple SDK's public per-connection TCP counters expose packet totals and retransmissions. Its ACK-only and delayed-ACK counters are host-wide. Attributing ACKs to the test flow needs scoped observation. This inspection contributed zero experiments.
+
+[Verified batch milestone on the parent issue](https://github.com/castlemilk/micropod/issues/227#issuecomment-7121269477)
