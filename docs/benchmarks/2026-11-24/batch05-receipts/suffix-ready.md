@@ -1,0 +1,7 @@
+**24 November 2026 · 230.04 · Serving a short pending write when its socket becomes writable**
+
+Local/host-only Darwin 25.5.0 arm64 socketpair fixture using the real Micropod kqueue relay. Against `7d9b565173a901cb18942e00384838da96e0ba98`, changed only the order in which a ready batch serves an established connection’s pending write of 4,096 bytes or less. Candidate source SHA-256 `c10a244865f9bebfbc232df46de7bb697cc6cfc5f428d2e0f3e222171fe984fa`.
+
+Six fixed workloads, each run twice per arm in ABBA order. With 16 ready streams holding 64 KiB each, a resumed 17-byte suffix queued after eight or sixteen bulk events waited behind 524,289 or 1,048,577 bytes under stock. Both fell to one byte. A fresh marker remained first, and the first bulk write could wait for 17 more bytes. With 32 streams the poll boundary limited the reduction to 2,097,153 → 1,572,865 bytes. A 4,097-byte suffix kept its original order. Both repeats agreed on the fixed-work observations. All payloads, reverse markers, FINs and retirements passed. No network loss counters, timed throughput, fresh p95/p99, CPU/GiB or runnable time in this fixture.
+
+Keep stock for the worker trial. Measure the frequency and size of actual pending writes in a separately admitted VM diagnostic before promoting a candidate. Raw first attempts in `suffix-ready.json`, SHA-256 `4bf99d2d9efded46dc92395065705464cd743e91dd6c840c3a4d7f2c9aeff747`. Reproduce with `python3 -B run.py suffix_ready --output NEW.json` in `batch05-relay`.

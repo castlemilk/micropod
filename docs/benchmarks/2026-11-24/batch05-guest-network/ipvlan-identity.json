@@ -1,0 +1,39 @@
+{
+  "stable_id": "233.02",
+  "date_local": "2026-11-24",
+  "evidence_tier": "source/fixture",
+  "source_revision": "7d9b565173a901cb18942e00384838da96e0ba98",
+  "archived_recording_base": "816121afd30fba52bda7828418cd963d4216166b",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "archive": "docs/benchmarks/2026-11-21/gamma-direct-macvlan.json.gz",
+  "record": "records.workers.trial",
+  "boot": "A3D5A4FA-0EC9-4809-9E41-24B599D65ACD",
+  "pinned_linux_version": "7.3.5",
+  "kernel_tar_xz_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "kernel_member": "drivers/net/ipvlan/ipvlan_main.c",
+  "kernel_member_sha256": "eef07b562f696ce552a56cda013231d0a19d6eb100e5e9ddd95e785941f8c094",
+  "publisher_sha256": "65b5c179ab4a4ad4a9f50087275d13fa2447e2dd7efb8d208763bfd88bb61490",
+  "driver_assignment_compiled": "eth_hw_addr_set(dev, phy_dev->dev_addr);",
+  "publisher_rejection_compiled": "!strings.EqualFold(end.link.Attrs().HardwareAddr.String(), end.mac.String())",
+  "endpoint": {
+    "port": 35807,
+    "expected": "ce:38:09:58:d3:71",
+    "observed": "ce:38:09:58:d3:71",
+    "parent": "7e:37:a3:9a:80:bf"
+  },
+  "endpoint_same_at_both_boundaries": true,
+  "paired_endpoints": 1,
+  "first_outcomes": [
+    {
+      "arm": "recorded private macvlan",
+      "observed": "ce:38:09:58:d3:71",
+      "result": "admit"
+    },
+    {
+      "arm": "modeled ipvlan child address from pinned driver",
+      "observed": "7e:37:a3:9a:80:bf",
+      "result": "ownership mismatch"
+    }
+  ],
+  "limitations": "One archived lease. No ipvlan device, network traffic, timing or statistical estimate."
+}

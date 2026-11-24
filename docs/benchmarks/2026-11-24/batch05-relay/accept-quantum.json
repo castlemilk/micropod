@@ -1,0 +1,33 @@
+{
+  "revision": "7d9b565173a901cb18942e00384838da96e0ba98",
+  "experiment": "accept_quantum",
+  "system": [
+    "Darwin",
+    "25.5.0",
+    "arm64"
+  ],
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "build_flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sha256": {
+    "control_source": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "candidate_source": "d4fe208205317072e2d23bd487ec9b8c4f7d1ad48c0f1adc6b5aa7d1ed4e4d54",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "accept_quantum.c": "b8fbd5a5851128f7b4c0174f20e90787b1d63042057d22727d19fb8d056e13cf",
+    "run.py": "75dd412eabc6b8098a4d7646f4a53a5d433c184a1719fb3cee358d339667dfe9"
+  },
+  "attempts": [
+    {
+      "arm": "control",
+      "status": 1,
+      "stderr": "private UNIX listener (errno 1)\n",
+      "rows": []
+    }
+  ]
+}

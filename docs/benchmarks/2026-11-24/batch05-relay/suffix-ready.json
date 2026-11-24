@@ -1,0 +1,271 @@
+{
+  "revision": "7d9b565173a901cb18942e00384838da96e0ba98",
+  "experiment": "suffix_ready",
+  "system": [
+    "Darwin",
+    "25.5.0",
+    "arm64"
+  ],
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "build_flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sha256": {
+    "control_source": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "candidate_source": "c10a244865f9bebfbc232df46de7bb697cc6cfc5f428d2e0f3e222171fe984fa",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "suffix_ready.c": "ea79d7bc0956dc1a045434de7965876b9be01e546a93371a95176dd0c4856345",
+    "run.py": "75dd412eabc6b8098a4d7646f4a53a5d433c184a1719fb3cee358d339667dfe9"
+  },
+  "attempts": [
+    {
+      "arm": "control",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 0,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 8,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 524289,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4096,
+          "verified_bytes": 1052673,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4097,
+          "verified_bytes": 1052674,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 32,
+          "unblocked_after": 32,
+          "pending_bytes": 17,
+          "verified_bytes": 2097170,
+          "ahead_of_suffix_bytes": 2097153,
+          "ahead_of_fresh_bytes": 1572864,
+          "ahead_of_first_bulk_bytes": 0
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 0,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 8,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4096,
+          "verified_bytes": 1052673,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 4097
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4097,
+          "verified_bytes": 1052674,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 32,
+          "unblocked_after": 32,
+          "pending_bytes": 17,
+          "verified_bytes": 2097170,
+          "ahead_of_suffix_bytes": 1572865,
+          "ahead_of_fresh_bytes": 1572864,
+          "ahead_of_first_bulk_bytes": 0
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 0,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 8,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4096,
+          "verified_bytes": 1052673,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 4097
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4097,
+          "verified_bytes": 1052674,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 32,
+          "unblocked_after": 32,
+          "pending_bytes": 17,
+          "verified_bytes": 2097170,
+          "ahead_of_suffix_bytes": 1572865,
+          "ahead_of_fresh_bytes": 1572864,
+          "ahead_of_first_bulk_bytes": 0
+        }
+      ]
+    },
+    {
+      "arm": "control",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 0,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 18
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 8,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 524289,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 17,
+          "verified_bytes": 1048594,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4096,
+          "verified_bytes": 1052673,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 16,
+          "unblocked_after": 16,
+          "pending_bytes": 4097,
+          "verified_bytes": 1052674,
+          "ahead_of_suffix_bytes": 1048577,
+          "ahead_of_fresh_bytes": 0,
+          "ahead_of_first_bulk_bytes": 1
+        },
+        {
+          "bulk_streams": 32,
+          "unblocked_after": 32,
+          "pending_bytes": 17,
+          "verified_bytes": 2097170,
+          "ahead_of_suffix_bytes": 2097153,
+          "ahead_of_fresh_bytes": 1572864,
+          "ahead_of_first_bulk_bytes": 0
+        }
+      ]
+    }
+  ]
+}

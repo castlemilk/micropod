@@ -1,0 +1,248 @@
+{
+  "revision": "7d9b565173a901cb18942e00384838da96e0ba98",
+  "experiment": "accept service quantum with anonymous queue fixture",
+  "system": [
+    "Darwin",
+    "25.5.0",
+    "arm64"
+  ],
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "build_flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sha256": {
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "run_accept_queue.py": "f0f20483368df45e834fbb41c169414c62123d1de1f6e8bdea6c7f6a910a166b",
+    "run.py": "75dd412eabc6b8098a4d7646f4a53a5d433c184a1719fb3cee358d339667dfe9",
+    "accept_queue.c": "0739bc10c88f9bc4b8375a9e65a1df37e1da063d5d1d8d9b28d75a8190ee3283",
+    "control_source": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "candidate_source": "d4fe208205317072e2d23bd487ec9b8c4f7d1ad48c0f1adc6b5aa7d1ed4e4d54"
+  },
+  "attempts": [
+    {
+      "arm": "control",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": -1,
+          "verified_replies": 40,
+          "busy_handoffs_before_sparse": -1,
+          "ready_events": 2,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 0,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 0,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 32,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 20,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 32,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 40,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 32,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 1,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 2,
+          "busy_handoffs_before_sparse": 1,
+          "ready_events": 2,
+          "nonempty_polls": 1
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": -1,
+          "verified_replies": 40,
+          "busy_handoffs_before_sparse": -1,
+          "ready_events": 5,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 0,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 0,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 8,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 20,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 8,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 40,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 8,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 1,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 2,
+          "busy_handoffs_before_sparse": 1,
+          "ready_events": 2,
+          "nonempty_polls": 1
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": -1,
+          "verified_replies": 40,
+          "busy_handoffs_before_sparse": -1,
+          "ready_events": 5,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 0,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 0,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 8,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 20,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 8,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 40,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 8,
+          "ready_events": 6,
+          "nonempty_polls": 5
+        },
+        {
+          "busy_offered": 1,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 2,
+          "busy_handoffs_before_sparse": 1,
+          "ready_events": 2,
+          "nonempty_polls": 1
+        }
+      ]
+    },
+    {
+      "arm": "control",
+      "status": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": -1,
+          "verified_replies": 40,
+          "busy_handoffs_before_sparse": -1,
+          "ready_events": 2,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 0,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 0,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 32,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 20,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 32,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 40,
+          "sparse_queued_after_busy": 40,
+          "verified_replies": 41,
+          "busy_handoffs_before_sparse": 32,
+          "ready_events": 3,
+          "nonempty_polls": 2
+        },
+        {
+          "busy_offered": 1,
+          "sparse_queued_after_busy": 1,
+          "verified_replies": 2,
+          "busy_handoffs_before_sparse": 1,
+          "ready_events": 2,
+          "nonempty_polls": 1
+        }
+      ]
+    }
+  ]
+}
