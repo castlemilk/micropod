@@ -80,10 +80,13 @@ Example tools/call (JSON-RPC over stdin/stdout):
 
 ## Runtimes (execution engines)
 
-Three engines behind the same API: `apple` (micro-VM per container, the
-default), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
-in-process micro-VM; fastest boot; tcp ports and bind mounts, no named
-volumes, not restartable).
+Three lifecycle-capable engines sit behind the same API: `apple` (micro-VM
+per container, the default), `docker` (a Docker Engine socket — opt-in), and
+`sandbox` (ephemeral in-process micro-VM; fastest boot; tcp ports and bind
+mounts, no named volumes, not restartable). `hvf` is also listed as an
+experimental Rust Hypervisor.framework worker engine, but it has no container
+lifecycle control plane yet: do not select it for `run`, and treat its empty
+`capabilities`/`available: false` probe as authoritative.
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP

@@ -106,6 +106,7 @@ public final class EngineRegistry: Sendable {
     private struct State {
         var config: EngineConfig
         var docker: DockerEngine
+        var hvf: HVFEngine
     }
 
     private let state: Mutex<State>
@@ -125,10 +126,11 @@ public final class EngineRegistry: Sendable {
         state = Mutex(
             State(
                 config: config,
-                docker: DockerEngine(endpoint: config.engines["docker"]?.endpoint, environment: environment)))
+                docker: DockerEngine(endpoint: config.engines["docker"]?.endpoint, environment: environment),
+                hvf: HVFEngine(environment: environment)))
     }
 
-    public static let engineNames = ["apple", "docker", "sandbox"]
+    public static let engineNames = ["apple", "docker", "sandbox", "hvf"]
 
     public var config: EngineConfig { state.withLock { $0.config } }
 
@@ -146,6 +148,7 @@ public final class EngineRegistry: Sendable {
         switch name {
         case "docker": return state.withLock { $0.docker }
         case "sandbox": return sandbox
+        case "hvf": return state.withLock { $0.hvf }
         default: return nil
         }
     }
@@ -153,7 +156,7 @@ public final class EngineRegistry: Sendable {
     /// Enabled non-apple engines, in routing order (cheapest ownership
     /// check first: sandbox is in-memory, docker is one socket round trip).
     public func extraEngines() -> [any RuntimeEngine] {
-        ["sandbox", "docker"].filter(isEnabled).compactMap(engine)
+        ["sandbox", "docker", "hvf"].filter(isEnabled).compactMap(engine)
     }
 
     public func setDefault(_ name: String, apple: any RuntimeEngine) async throws {
@@ -216,7 +219,7 @@ public final class EngineRegistry: Sendable {
     /// `ListRuntimes` payload; `apple` is the live apple engine.
     public func describe(apple: any RuntimeEngine) async -> Micropod_V1_ListRuntimesResponse {
         let defaultName = self.defaultName
-        let engines: [any RuntimeEngine] = [apple] + ["docker", "sandbox"].compactMap(engine)
+        let engines: [any RuntimeEngine] = [apple] + ["docker", "sandbox", "hvf"].compactMap(engine)
         var infos: [Micropod_V1_RuntimeInfo] = []
         for engine in engines {
             let probe = await engine.probe()

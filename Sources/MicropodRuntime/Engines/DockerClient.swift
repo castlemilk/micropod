@@ -49,9 +49,15 @@ public struct DockerClient: Sendable {
     }
 
     public let endpoint: Endpoint
-    static let apiVersion = "v1.43"
+    /// Path prefix naming the Engine API version. Docker Engine accepts
+    /// older versions; micropod's guest engine only serves 1.44 and later.
+    public let apiVersion: String
+    public static let defaultAPIVersion = "v1.43"
 
-    public init(endpoint: Endpoint) { self.endpoint = endpoint }
+    public init(endpoint: Endpoint, apiVersion: String = DockerClient.defaultAPIVersion) {
+        self.endpoint = endpoint
+        self.apiVersion = apiVersion
+    }
 
     /// `DOCKER_HOST`, else the stock socket.
     public static func defaultEndpoint(environment: [String: String]) -> String {
@@ -73,7 +79,7 @@ public struct DockerClient: Sendable {
     ) async throws -> Response {
         let payload = try body.map { try JSONSerialization.data(withJSONObject: $0) }
         let endpoint = self.endpoint
-        let head = Self.head(method, path, query: query, bodyLength: payload?.count)
+        let head = Self.head(method, path, query: query, bodyLength: payload?.count, apiVersion: apiVersion)
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global().async {
                 do {
@@ -97,7 +103,7 @@ public struct DockerClient: Sendable {
         -> AsyncThrowingStream<Data, Error>
     {
         let endpoint = self.endpoint
-        let head = Self.head(method, path, query: query, bodyLength: nil)
+        let head = Self.head(method, path, query: query, bodyLength: nil, apiVersion: apiVersion)
         return AsyncThrowingStream { continuation in
             let box = SocketBox()
             DispatchQueue.global().async {
@@ -122,7 +128,10 @@ public struct DockerClient: Sendable {
         }
     }
 
-    static func head(_ method: String, _ path: String, query: [String: String], bodyLength: Int?) -> String {
+    static func head(
+        _ method: String, _ path: String, query: [String: String], bodyLength: Int?,
+        apiVersion: String = defaultAPIVersion
+    ) -> String {
         var target = "/\(apiVersion)\(path)"
         if !query.isEmpty {
             var comps = URLComponents()

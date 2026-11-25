@@ -1140,7 +1140,7 @@ final class MicropodAPITests: XCTestCase {
     func testRuntimeEngineManagement() async throws {
         let list = try await json("POST", "api/micropod.v1.SystemService/ListRuntimes", body: [:])
         let runtimes = try XCTUnwrap(list["runtimes"] as? [[String: Any]])
-        XCTAssertEqual(runtimes.map { $0["name"] as? String }, ["apple", "docker", "sandbox"])
+        XCTAssertEqual(runtimes.map { $0["name"] as? String }, ["apple", "docker", "sandbox", "hvf"])
         XCTAssertEqual(list["default"] as? String, "apple")
         XCTAssertEqual(runtimes[1]["available"] as? Bool ?? false, false)
         XCTAssertEqual(runtimes[1]["reason"] as? String, "Docker socket not found")

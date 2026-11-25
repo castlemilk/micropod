@@ -101,13 +101,16 @@ final class RuntimeEngineTests: XCTestCase {
 
     func testDescribeReportsEveryEngine() async {
         let response = await registry().describe(apple: apple())
-        XCTAssertEqual(response.runtimes.map(\.name), ["apple", "docker", "sandbox"])
+        XCTAssertEqual(response.runtimes.map(\.name), ["apple", "docker", "sandbox", "hvf"])
         XCTAssertEqual(response.default, "apple")
         let docker = response.runtimes[1]
         XCTAssertFalse(docker.available)
         XCTAssertEqual(docker.reason, "Docker socket not found")
         XCTAssertTrue(response.runtimes[0].capabilities.contains("volumes"))
         XCTAssertFalse(response.runtimes[2].capabilities.contains("ports"))
+        XCTAssertEqual(response.runtimes[3].name, "hvf")
+        XCTAssertTrue(response.runtimes[3].capabilities.isEmpty)
+        XCTAssertFalse(response.runtimes[3].available)
     }
 
     // MARK: Routing

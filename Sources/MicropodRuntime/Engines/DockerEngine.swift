@@ -31,6 +31,13 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         }
     }
 
+    /// An engine over an already-built client (the hvf machine's socket).
+    init(client: DockerClient) {
+        self.client = client
+        configError = nil
+        endpointString = client.endpoint.description
+    }
+
     func api() throws -> DockerClient {
         guard let client else {
             throw MicropodError.message("failedPrecondition: docker endpoint: \(configError ?? endpointString)")
@@ -217,10 +224,13 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         guard let execID = (try created.json() as? [String: Any])?["Id"] as? String else {
             throw MicropodError.message("internal: docker exec: no id")
         }
+        // 101: an engine that always upgrades exec start to a raw stream
+        // (micropod's guest engine) still sends the framed output, then EOF.
         let started = try docker.check(
             try await docker.request(
                 "POST", "/exec/\(execID)/start", json: ["Detach": request.detach, "Tty": request.tty],
-                timeout: .seconds(3600)))
+                timeout: .seconds(3600)),
+            also: [101])
         let (stdout, stderr) = request.tty ? (started.body, Data()) : DockerClient.demux(started.body)
         let inspected = try docker.check(try await docker.request("GET", "/exec/\(execID)/json"))
         let code = (try inspected.json() as? [String: Any])?["ExitCode"] as? Int ?? 0
