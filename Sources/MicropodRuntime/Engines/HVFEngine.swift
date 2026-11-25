@@ -14,9 +14,9 @@ import MicropodCore
 /// answers from `HVFContainerIndex` on the host, and every id-based call
 /// other than start/restart then reports that the machine is stopped.
 ///
-/// The guest engine implements non-interactive Docker semantics. Requests
-/// it cannot honour (interactive stdin, a TTY, archive copy/export,
-/// signals other than SIGKILL) are refused explicitly.
+/// The attached CLI exec path supports piped stdin and separate binary output.
+/// Terminal exec, archive copy/export and signals other than SIGKILL have
+/// separate capability checks.
 public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSampling {
     public let machine: HVFMachineClient
     let docker: DockerEngine
@@ -27,14 +27,18 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     public var summary: String {
         "Shared Linux machine on micropod's Hypervisor.framework VMM — containers share one VM, started on first use"
     }
-    /// Verified against the guest engine by `scripts/e2e_hvf.sh`.
+    /// Verified against the guest engine by `scripts/e2e_hvf.sh`. "volumes"
+    /// and "images" are the subsets `HVFVolumeStore`/`HVFImageStore` list.
     public static let supportedCapabilities = [
         "run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports", "volumes",
+        "images",
     ]
     public var capabilities: [String] { Self.supportedCapabilities }
     public var containers: any ContainerServing { self }
     public var logs: any LogStreaming { self }
     public var stats: (any StatsSampling)? { self }
+    public var volumeStore: (any EngineVolumeServing)? { HVFVolumeStore(machine: machine) }
+    public var imageStore: (any EngineImageServing)? { HVFImageStore(machine: machine) }
 
     public init(root: URL? = nil, environment: [String: String] = ProcessInfo.processInfo.environment) {
         let layout = root.map { HVFMachineLayout(root: $0) } ?? HVFMachineLayout(environment: environment)
@@ -246,9 +250,18 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     }
 
     public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
-        if request.interactive || request.tty { throw unsupported("interactive exec (stdin or a TTY)") }
+        if !request.detach && (request.interactive || request.tty) {
+            throw unsupported("interactive exec requires attached file handles")
+        }
         try requireServing(request.containerID)
         return try await docker.execDetailed(request)
+    }
+
+    public func execAttached(_ request: ContainerExecRequest, stdin: FileHandle, stdout: FileHandle, stderr: FileHandle)
+        async throws -> Int32
+    {
+        try requireServing(request.containerID)
+        return try await docker.execAttached(request, stdin: stdin, stdout: stdout, stderr: stderr)
     }
 
     /// Boots a stopped machine first: its containers survive a machine stop.

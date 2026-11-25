@@ -37,6 +37,12 @@ public struct ImagePullBudget: Sendable, Equatable {
 
     var expired: Bool { remainingMilliseconds.map { $0 <= 0 } ?? false }
 
+    /// The caller's deadline, if it set one: what bounds a pull on an engine
+    /// other than Apple's (`ImageRouter.pullForAPI`).
+    public var deadline: Date? {
+        deadlineUnixMilliseconds.map { Date(timeIntervalSince1970: Double($0) / 1000) }
+    }
+
     func receipt(_ failure: ImagePullFailure, attempts: Int) -> ImagePullFailure {
         var result = failure
         result.budgetOwner = callerAttempt == nil ? "micropod" : "caller"

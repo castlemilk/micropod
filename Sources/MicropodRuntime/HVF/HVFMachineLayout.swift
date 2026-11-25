@@ -14,6 +14,7 @@ import MicropodCore
 /// <root>/disk.ext4           writable machine disk
 /// <root>/machine.json        HVFMachineConfig
 /// <root>/run/docker.sock     the guest Docker Engine API
+/// <root>/run/buildkit.sock   the guest BuildKit daemon (bundles that ship it)
 /// <root>/run/supervisor.lock held (flock) by the one live supervisor
 /// <root>/run/start.lock      serialises clients that launch a supervisor
 /// <root>/run/install.lock    held by `machine install` for its whole run
@@ -47,6 +48,7 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var config: URL { root.appendingPathComponent("machine.json") }
     public var runDirectory: URL { root.appendingPathComponent("run") }
     public var dockerSocket: URL { runDirectory.appendingPathComponent("docker.sock") }
+    public var buildkitSocket: URL { runDirectory.appendingPathComponent("buildkit.sock") }
     public var supervisorLock: URL { runDirectory.appendingPathComponent("supervisor.lock") }
     public var startLock: URL { runDirectory.appendingPathComponent("start.lock") }
     public var installLock: URL { runDirectory.appendingPathComponent("install.lock") }
@@ -58,9 +60,36 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var supervisorLog: URL { logsDirectory.appendingPathComponent("supervisor.log") }
 
     public var dockerEndpoint: String { "unix://" + dockerSocket.path }
+    /// A BuildKit address for `docker buildx create --driver remote` or
+    /// `buildctl --addr`; served only when the tool bundle ships BuildKit.
+    public var buildkitEndpoint: String { "unix://" + buildkitSocket.path }
 
     /// `sockaddr_un.sun_path` is 104 bytes on Darwin, NUL included.
     public static let maxSocketPathBytes = 103
+
+    /// What a tool bundle needs for the guest to serve BuildKit on its
+    /// vsock port 2377: the guest engine starts `runner/bin/buildkitd` with
+    /// `runner/buildkitd.toml` on the first connection, and serves nothing
+    /// there without them.
+    public static let buildkitBundleFiles = ["runner/bin/buildkitd", "runner/buildkitd.toml"]
+
+    /// The BuildKit files missing from the installed tool bundle (`tools/`);
+    /// empty when it ships BuildKit.
+    public func missingBuildKitFiles(fileManager: FileManager = .default) -> [String] {
+        Self.missingBuildKitFiles(inBundle: tools, fileManager: fileManager)
+    }
+
+    /// Same, for a bundle directory anywhere.
+    public static func missingBuildKitFiles(inBundle bundle: URL, fileManager: FileManager = .default) -> [String] {
+        let daemon = bundle.appendingPathComponent(buildkitBundleFiles[0])
+        let config = bundle.appendingPathComponent(buildkitBundleFiles[1])
+        var missing: [String] = []
+        if !isRegularFile(daemon) || !fileManager.isExecutableFile(atPath: daemon.path) {
+            missing.append(buildkitBundleFiles[0])
+        }
+        if !isRegularFile(config) { missing.append(buildkitBundleFiles[1]) }
+        return missing
+    }
 
     /// The installed pieces the machine cannot boot without, by layout name.
     public func missingAssets(fileManager: FileManager = .default) -> [String] {
@@ -102,10 +131,9 @@ public struct HVFMachineLayout: Sendable, Equatable {
                 + "start it once `micropod machine install` finishes")
     }
 
-    /// Unix socket path length, and paths the VMM parses as `a:b[:ro]`.
+    /// Unix socket path lengths, and paths the VMM parses as `a:b[:ro]`.
     public func validatePaths() throws {
-        let socket = dockerSocket.path
-        guard socket.utf8.count <= Self.maxSocketPathBytes else {
+        for socket in [dockerSocket.path, buildkitSocket.path] where socket.utf8.count > Self.maxSocketPathBytes {
             throw MicropodError.message(
                 "invalidArgument: hvf socket path \(socket) is \(socket.utf8.count) bytes; unix sockets allow "
                     + "\(Self.maxSocketPathBytes). Use a shorter MICROPOD_HVF_ROOT")
@@ -278,6 +306,10 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
 public enum HVFVMMCommand {
     /// Guest vsock port of the Docker Engine API (`vmm/guest-init`).
     public static let dockerGuestPort = 2375
+    /// Guest vsock port guest init bridges to the engine's BuildKit socket.
+    /// Exposed whatever the bundle: without BuildKit in it the guest closes
+    /// each connection (see `HVFMachineLayout.missingBuildKitFiles`).
+    public static let buildkitGuestPort = 2377
 
     /// The full micropod-vmm argv (without the executable) for `config`.
     public static func arguments(layout: HVFMachineLayout, config: HVFMachineConfig, parentPID: Int32) throws
@@ -294,6 +326,7 @@ public enum HVFVMMCommand {
         // The VMM adds the share and the guest boot argument itself.
         if let workspace = config.workspace { args += ["--workspace", workspace] }
         args += ["--vsock-expose", "\(layout.dockerSocket.path):\(dockerGuestPort)"]
+        args += ["--vsock-expose", "\(layout.buildkitSocket.path):\(buildkitGuestPort)"]
         if config.publishedNet { args.append("--published-net") }
         args += ["--cpus", String(config.cpus), "--memory-mib", String(config.memoryMiB)]
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }

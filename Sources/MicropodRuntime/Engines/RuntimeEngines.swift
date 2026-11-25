@@ -18,6 +18,12 @@ public protocol RuntimeEngine: Sendable {
     var containers: any ContainerServing { get }
     var logs: any LogStreaming { get }
     var stats: (any StatsSampling)? { get }
+    /// Named volumes this engine keeps, for `VolumeRouter`; nil when it has
+    /// none of its own. The Apple runtime's are passed to the router by
+    /// each surface instead.
+    var volumeStore: (any EngineVolumeServing)? { get }
+    /// Images this engine keeps, for `ImageRouter`; nil when it has none.
+    var imageStore: (any EngineImageServing)? { get }
     func probe() async -> EngineProbe
     /// Cheap ownership test used to route id-based calls.
     func owns(_ id: String) async -> Bool
@@ -29,6 +35,23 @@ public protocol RuntimeEngine: Sendable {
 
 extension RuntimeEngine {
     public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool { false }
+    public var volumeStore: (any EngineVolumeServing)? { nil }
+    public var imageStore: (any EngineImageServing)? { nil }
+}
+
+/// `RuntimeInfo.capabilities` for volume and image management, beyond the
+/// container ones. "volumes" (mounting, listing, creating, inspecting and
+/// removing named volumes) and "images" (listing, inspecting and pulling)
+/// are the base; the rest are each one more operation.
+public enum ResourceCapability {
+    public static let imageRemove = "image-remove"  // rmi and image prune
+    public static let imageTag = "image-tag"
+    public static let imagePush = "image-push"
+    public static let imageSave = "image-save"
+    public static let imageLoad = "image-load"
+    public static let build = "build"
+    public static let volumePrune = "volume-prune"
+    public static let volumeClone = "volume-clone"  // CloneVolume / CommitVolumeClone
 }
 
 public struct EngineProbe: Sendable, Equatable {
@@ -111,6 +134,7 @@ public final class EngineRegistry: Sendable {
 
     private let state: Mutex<State>
     private let configURL: URL
+    private let dockerEnvironment: [String: String]
     /// `MICROPOD_DEFAULT_RUNTIME` overrides the persisted default (CI jobs).
     private let envDefault: String?
     public let sandbox: SandboxEngine
@@ -120,6 +144,7 @@ public final class EngineRegistry: Sendable {
         sandbox: SandboxEngine = SandboxEngine()
     ) {
         configURL = EngineConfig.url(environment: environment)
+        dockerEnvironment = environment.filter { $0.key == "DOCKER_HOST" || $0.key == "DOCKER_API_VERSION" }
         let config = EngineConfig.load(from: configURL)
         envDefault = environment["MICROPOD_DEFAULT_RUNTIME"]
         self.sandbox = sandbox
@@ -203,7 +228,8 @@ public final class EngineRegistry: Sendable {
         }
         if endpoint != nil {
             state.withLock {
-                $0.docker = DockerEngine(endpoint: $0.config.engines["docker"]?.endpoint)
+                $0.docker = DockerEngine(
+                    endpoint: $0.config.engines["docker"]?.endpoint, environment: dockerEnvironment)
             }
         }
     }
@@ -255,7 +281,10 @@ public struct AppleEngine: RuntimeEngine {
     public var capabilities: [String] {
         [
             "run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports",
-            "volumes", "networks", "export", "copy",
+            "volumes", "networks", "export", "copy", "images", ResourceCapability.imageRemove,
+            ResourceCapability.imageTag, ResourceCapability.imagePush, ResourceCapability.imageSave,
+            ResourceCapability.imageLoad, ResourceCapability.build, ResourceCapability.volumePrune,
+            ResourceCapability.volumeClone,
         ]
     }
     public var containers: any ContainerServing { services.containers }
@@ -400,6 +429,15 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         try await owner(request.containerID).containers.execDetailed(request)
     }
 
+    public func execAttached(_ request: ContainerExecRequest, stdin: FileHandle, stdout: FileHandle, stderr: FileHandle)
+        async throws -> Int32
+    {
+        try Task.checkCancellation()
+        let engine = await owner(request.containerID)
+        try Task.checkCancellation()
+        return try await engine.containers.execAttached(request, stdin: stdin, stdout: stdout, stderr: stderr)
+    }
+
     public func start(_ id: String) async throws { try await owner(id).containers.start(id) }
 
     public func stop(_ id: String, timeout: Int) async throws {
@@ -499,7 +537,9 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
 
 extension RuntimeServices {
     /// These services with containers/logs/stats routed across every
-    /// enabled engine. Volumes, the XPC client and exit codes stay apple's.
+    /// enabled engine. `volumes`, the XPC client and exit codes stay
+    /// apple's: surfaces route volumes and images with `VolumeRouter` and
+    /// `ImageRouter` over `router?.registry`.
     public func routed(through registry: EngineRegistry = .shared) -> RuntimeServices {
         guard router == nil else { return self }
         let router = RuntimeRouter(apple: AppleEngine(services: self), registry: registry)

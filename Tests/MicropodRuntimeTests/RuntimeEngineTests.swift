@@ -78,6 +78,17 @@ final class RuntimeEngineTests: XCTestCase {
         XCTAssertNil(registry().config.engines["docker"]?.endpoint, "empty endpoint restores the default")
     }
 
+    func testChangingDockerEndpointPreservesTheConfiguredAPIPin() throws {
+        let reg = registry(["DOCKER_HOST": "unix:///private/tmp/original.sock", "DOCKER_API_VERSION": "1.44"])
+        try reg.update("docker", enabled: true, endpoint: "unix:///private/tmp/alternate.sock")
+        let changed = try XCTUnwrap((reg.engine("docker") as? DockerEngine)?.client)
+        XCTAssertEqual(changed.apiVersion, "v1.44")
+        try reg.update("docker", enabled: nil, endpoint: "")
+        let original = try XCTUnwrap((reg.engine("docker") as? DockerEngine)?.client)
+        XCTAssertEqual(original.endpoint, .unix("/private/tmp/original.sock"))
+        XCTAssertEqual(original.apiVersion, "v1.44")
+    }
+
     func testUpdateValidation() {
         let reg = registry()
         XCTAssertThrowsError(try reg.update("apple", enabled: false, endpoint: nil)) {
@@ -288,6 +299,14 @@ final class RuntimeEngineTests: XCTestCase {
         XCTAssertEqual(try DockerClient.Endpoint.parse("unix:///var/run/docker.sock"), .unix("/var/run/docker.sock"))
         XCTAssertEqual(try DockerClient.Endpoint.parse("/tmp/d.sock"), .unix("/tmp/d.sock"))
         XCTAssertEqual(try DockerClient.Endpoint.parse("tcp://127.0.0.1:2375"), .tcp(host: "127.0.0.1", port: 2375))
+        for (url, host) in [("tcp://[::1]:2375", "::1"), ("tcp://[fe80::1%25lo0]:2375", "fe80::1%lo0")] {
+            let endpoint = try DockerClient.Endpoint.parse(url)
+            XCTAssertEqual(endpoint, .tcp(host: host, port: 2375))
+            XCTAssertEqual(endpoint.description, url)
+        }
+        XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://::1:2375"))
+        XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://host:65536"))
+        XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://[name]:2375"))
         XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://nohost"))
         XCTAssertThrowsError(try DockerClient.Endpoint.parse("ssh://box"))
     }

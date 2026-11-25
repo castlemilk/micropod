@@ -12,7 +12,16 @@
 #   `micropod start <id>` boots the machine and starts it;
 #   `kill -9` of the VMM is survived: the supervisor relaunches it and the
 #   Docker API comes back with the data intact;
-#   a published TCP port carries traffic and shows up in `ps`.
+#   a published TCP port carries traffic and shows up in `ps`;
+#   volumes and images on the machine through the micropod CLI: volume
+#   create/ls/rm (and a micropod-made volume mounted by a container), image
+#   pull/ls/inspect, and the operations the guest engine does not implement
+#   (image rm, volume prune, sizes) refused as unsupported;
+#   `machine status --json` capabilities, the BuildKit socket in the VMM argv,
+#   and `machine buildkit-endpoint` refusing a bundle without BuildKit — or,
+#   with a BuildKit bundle, a throwaway remote buildx builder whose
+#   `RUN --mount=type=cache` survives a second build and a machine restart
+#   (builder state under a temporary DOCKER_CONFIG; removed afterwards).
 # Only processes this script started are signalled, by pid.
 #
 # Usage: scripts/e2e_hvf.sh            (needs `swift build` first)
@@ -91,9 +100,13 @@ unset MICROPOD_DEFAULT_RUNTIME
 
 cleanup() {
     if [ -S "$ROOT_DIR/run/docker.sock" ]; then
-        for name in keep vol2 bind port race; do
+        for name in keep vol2 bind port race volm; do
             "$M" rm --force "e2e-$name-$S" >/dev/null 2>&1 || true
         done
+        "$M" volume rm --runtime hvf "e2evm-$S" >/dev/null 2>&1 || true
+    fi
+    if [ -n "${BUILDER:-}" ]; then
+        DOCKER_CONFIG="$TMP/docker" docker buildx rm "$BUILDER" >/dev/null 2>&1 || true
     fi
     "$M" machine stop >/dev/null 2>&1 || true
     if [ "${HVF_E2E_KEEP:-0}" != 1 ]; then
@@ -188,6 +201,86 @@ check "stopped" "$(ps_field "$NAME" "c.get('state')")" "exited"
 check "deleted" "$(ps_field "$NAME" "c.get('state')")" "absent"
 check "interactive run refused" "$("$M" run --runtime hvf -i alpine:3.20 2>&1 | grep -c 'interactive stdin')" "1"
 
+echo "== volumes on the machine through the micropod CLI"
+VOL="e2evm-$S"
+hvf_volume() { # hvf_volume <python expr over v>: the hvf listing's entry for $VOL
+    "$M" --json volume ls --runtime hvf | python3 -c "import sys,json; print(next(($1 for v in json.load(sys.stdin) if v['id']=='$VOL'), 'absent'))"
+}
+check "volume create --runtime hvf" "$("$M" volume create --runtime hvf "$VOL" --label e2e=1)" "Created volume $VOL on hvf"
+check "listed on hvf with its label and runtime stamp" \
+    "$(hvf_volume "(v['labels'].get('e2e'), v['labels'].get('com.micropod.runtime'), v.get('driver'))")" "('1', 'hvf', 'local')"
+check "merged listing names its runtime" \
+    "$("$M" --json volume ls | python3 -c "import sys,json; print([v['labels'].get('com.micropod.runtime','apple') for v in json.load(sys.stdin) if v['id']=='$VOL'])")" "['hvf']"
+check "volume ls table lists it" "$("$M" volume ls | grep -c "^$VOL ")" "1"
+check "a size is refused as unsupported" \
+    "$("$M" volume create --runtime hvf "$VOL-big" --size 1g 2>&1 | grep -c "runtime 'hvf' does not support volume size")" "1"
+check "volume prune is refused as unsupported" \
+    "$("$M" volume prune --runtime hvf 2>&1 | grep -c "runtime 'hvf' does not support volume prune")" "1"
+"$M" run --runtime hvf --name "e2e-volm-$S" -v "$VOL:/data" alpine:3.20 -- sh -c 'echo cached > /data/hit; sleep 600' >/dev/null
+check "a container mounts the micropod-made volume" "$("$M" exec "e2e-volm-$S" -- cat /data/hit)" "cached"
+check "rm of a volume in use is refused" \
+    "$("$M" volume rm --runtime hvf "$VOL" 2>&1 | grep -c 'is in use')" "1"
+"$M" rm --force "e2e-volm-$S" >/dev/null
+check "volume rm by name finds the hvf volume" "$("$M" volume rm "$VOL")" "Deleted volume $VOL"
+check "removed" "$(hvf_volume "v['id']")" "absent"
+
+echo "== images on the machine through the micropod CLI"
+hvf_image() { # hvf_image <ref> <python expr over i>
+    "$M" --json images --runtime hvf | python3 -c "import sys,json; print(next(($2 for i in json.load(sys.stdin) if '$1' in i.get('names', [])), 'absent'))"
+}
+check "pull --runtime hvf" "$("$M" pull --runtime hvf busybox:1.36 | tail -1)" "Pulled busybox:1.36 on hvf"
+check "listed on hvf" "$(hvf_image docker.io/library/busybox:1.36 "(i.get('runtime'), [v['architecture'] for v in i['variants']])")" "('hvf', ['arm64'])"
+check "images table lists it" "$("$M" images --runtime hvf | grep -c '^docker.io/library/busybox:1.36 ')" "1"
+check "image inspect --runtime hvf" \
+    "$("$M" image inspect --runtime hvf docker.io/library/busybox:1.36 | python3 -c 'import sys,json; print(json.load(sys.stdin)["Id"].startswith("sha256:"))')" "True"
+check "a pulled image runs" "$("$M" run --runtime hvf --name "e2e-volm-$S" busybox:1.36 -- sh -c 'echo ran; sleep 600' >/dev/null && "$M" exec "e2e-volm-$S" -- busybox echo ran)" "ran"
+"$M" rm --force "e2e-volm-$S" >/dev/null
+check "rmi is refused as unsupported (the guest answers 501)" \
+    "$("$M" rmi busybox:1.36 2>&1 | grep -c "runtime 'hvf' does not support image removal")" "1"
+check "…and the image stays" "$(hvf_image docker.io/library/busybox:1.36 "'kept'")" "kept"
+check "another platform is refused by the guest" \
+    "$("$M" pull --runtime hvf --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'unsupported platform')" "1"
+check "save is refused as unsupported" \
+    "$("$M" save --runtime hvf busybox:1.36 -o "$TMP/busybox.tar" 2>&1 | grep -c "runtime 'hvf' does not support image save")" "1"
+
+echo "== capabilities and the BuildKit socket"
+status_field() { "$M" --json machine status | python3 -c "import sys,json; s=json.load(sys.stdin); print($1)"; }
+check "engine API range from /version" \
+    "$(status_field "(s['capabilities']['engine'] or {}).get('minAPIVersion', '?') + '-' + (s['capabilities']['engine'] or {}).get('apiVersion', '?')")" \
+    "$(curl -s -m 5 --unix-socket "$ROOT_DIR/run/docker.sock" http://d/version | python3 -c 'import sys,json; v=json.load(sys.stdin); print(v.get("MinAPIVersion", "1.0") + "-" + v["ApiVersion"])')"
+check "published path reported" "$(status_field "s['capabilities']['publishedPath']")" "macvlan"
+check "the VMM exposes the BuildKit port" \
+    "$(ps -o command= -p "$(state "s['vmmPID']")" | grep -c -- "--vsock-expose $ROOT_DIR/run/buildkit.sock:2377")" "1"
+check "…as a socket on the host" "$([ -S "$ROOT_DIR/run/buildkit.sock" ] && echo yes || echo no)" "yes"
+BUILDKIT="$(status_field "s['capabilities']['buildkit']")"
+if [ "$BUILDKIT" != True ]; then
+    check "no BuildKit endpoint in status without it" "$(status_field "s.get('buildkitEndpoint')")" "None"
+    set +e
+    bk_err="$("$M" machine buildkit-endpoint 2>&1)"
+    bk_code=$?
+    set -e
+    check "buildkit-endpoint refuses a bundle without BuildKit" "$bk_code:$(echo "$bk_err" | grep -c 'has no BuildKit')" "1:1"
+    echo "    (the tool bundle ships no BuildKit: buildx checks skipped)"
+else
+    ENDPOINT="$("$M" machine buildkit-endpoint)"
+    check "buildkit-endpoint names the socket" "$ENDPOINT" "unix://$ROOT_DIR/run/buildkit.sock"
+    # A throwaway builder; DOCKER_CONFIG keeps it out of the user's buildx state.
+    BUILDER="mphvf-e2e-$S"
+    mkdir -p "$TMP/docker" "$TMP/ctx"
+    printf 'FROM alpine:3.20\nARG RUN_ID\nRUN --mount=type=cache,target=/cache,id=mphvf-e2e sh -c "echo $RUN_ID >> /cache/runs; cat /cache/runs > /seen"\n' >"$TMP/ctx/Dockerfile"
+    DOCKER_CONFIG="$TMP/docker" docker buildx create --name "$BUILDER" --driver remote "$ENDPOINT" >/dev/null
+    bx() { # bx <run id>: build, print what the cache mount held
+        rm -rf "$TMP/out"
+        DOCKER_CONFIG="$TMP/docker" docker buildx build --builder "$BUILDER" --build-arg "RUN_ID=$1" \
+            --output "type=local,dest=$TMP/out" "$TMP/ctx" >/dev/null 2>&1 && tr '\n' ' ' <"$TMP/out/seen"
+    }
+    check "first build fills the cache mount" "$(bx one)" "one "
+    check "second build reuses it" "$(bx two)" "one two "
+    "$M" machine restart >/dev/null
+    check "the cache survives a machine restart" "$(bx three)" "one two three "
+    DOCKER_CONFIG="$TMP/docker" docker buildx rm "$BUILDER" >/dev/null 2>&1 && BUILDER=""
+fi
+
 echo "== workspace bind mount"
 echo "from-host-$S" >"$WS/hello.txt"
 "$M" run --runtime hvf --name "e2e-bind-$S" -v "$WS:/w" alpine:3.20 -- sh -c 'sleep 600' >/dev/null
@@ -204,6 +297,9 @@ check "machine stopped" "$(state "s['phase']")" "stopped"
 check "graceful poweroff" "$(state "'exit_reason=poweroff' in (s.get('lastExitReason') or '')")" "True"
 check "orderly exit code recorded" "$(state "(s.get('lastExitCode'), s.get('lastExitMeaning'))")" "(0, 'orderly guest poweroff')"
 check "stopped machine lists nothing" "$(ps_field "e2e-keep-$S" "c.get('state')")" "absent"
+check "…no volumes and no images either" \
+    "$("$M" --json volume ls --runtime hvf):$("$M" --json images --runtime hvf)" "[]:[]"
+check "a stopped machine reports no engine range" "$(status_field "s['capabilities']['engine']")" "None"
 check "the stopped machine's containers are indexed on the host" \
     "$(python3 -c "import json; print(any(c.get('name')=='e2e-keep-$S' for c in json.load(open('$ROOT_DIR/run/containers.json'))['containers']))")" "True"
 set +e

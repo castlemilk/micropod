@@ -43,6 +43,7 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(layout.supervisorLock.path, root.path + "/run/supervisor.lock")
         XCTAssertEqual(layout.consoleLog.path, root.path + "/logs/console.log")
         XCTAssertEqual(layout.dockerEndpoint, "unix://\(root.path)/run/docker.sock")
+        XCTAssertEqual(layout.buildkitEndpoint, "unix://\(root.path)/run/buildkit.sock")
         XCTAssertEqual(HVFMachineLayout(environment: ["MICROPOD_HVF_ROOT": "/x/y"]).root.path, "/x/y")
         XCTAssertTrue(HVFMachineLayout(environment: [:]).root.path.hasSuffix("/.micropod/hvf"))
     }
@@ -62,6 +63,60 @@ final class HVFMachineTests: XCTestCase {
         }
         XCTAssertThrowsError(try HVFMachineLayout(root: URL(fileURLWithPath: "/tmp/a:b")).validatePaths())
         XCTAssertNoThrow(try layout.validatePaths())
+
+        // run/docker.sock fits in 102 bytes; run/buildkit.sock (104) does not.
+        let edge = HVFMachineLayout(root: URL(fileURLWithPath: "/tmp/" + String(repeating: "e", count: 81)))
+        XCTAssertEqual(edge.dockerSocket.path.utf8.count, 102)
+        XCTAssertThrowsError(try edge.validatePaths(), "the BuildKit socket is validated like the Docker one") {
+            XCTAssertTrue($0.localizedDescription.contains("/run/buildkit.sock is 104 bytes"), $0.localizedDescription)
+        }
+        XCTAssertThrowsError(try HVFVMMCommand.arguments(layout: edge, config: HVFMachineConfig(), parentPID: 1))
+    }
+
+    func testBuildKitIsDetectedFromTheInstalledBundle() throws {
+        try installPlaceholders()
+        XCTAssertEqual(layout.missingBuildKitFiles(), ["runner/bin/buildkitd", "runner/buildkitd.toml"])
+        let fm = FileManager.default
+        let daemon = layout.tools.appendingPathComponent("runner/bin/buildkitd")
+        try fm.createDirectory(at: daemon.deletingLastPathComponent(), withIntermediateDirectories: true)
+        XCTAssertTrue(fm.createFile(atPath: daemon.path, contents: Data("x".utf8)))
+        XCTAssertEqual(
+            layout.missingBuildKitFiles(), ["runner/bin/buildkitd", "runner/buildkitd.toml"],
+            "a buildkitd that is not executable does not count")
+        XCTAssertEqual(chmod(daemon.path, 0o755), 0)
+        XCTAssertEqual(layout.missingBuildKitFiles(), ["runner/buildkitd.toml"])
+        XCTAssertTrue(
+            fm.createFile(atPath: layout.tools.appendingPathComponent("runner/buildkitd.toml").path, contents: Data()))
+        XCTAssertEqual(layout.missingBuildKitFiles(), [])
+        let capabilities = HVFMachineCapabilities(layout: layout, config: HVFMachineConfig(), engine: nil)
+        XCTAssertTrue(capabilities.buildkit)
+        XCTAssertEqual(capabilities.buildkitMissing, [])
+    }
+
+    func testCapabilitiesReportThePublishedPathAndEngineRange() throws {
+        func path(_ config: HVFMachineConfig) -> String {
+            HVFMachineCapabilities(layout: layout, config: config, engine: nil).publishedPath
+        }
+        XCTAssertEqual(path(HVFMachineConfig()), "macvlan", "guest init's default with --published-net")
+        XCTAssertEqual(path(HVFMachineConfig(publishedNet: false)), "off")
+        XCTAssertEqual(path(HVFMachineConfig(kernelArguments: ["mp.published_path=bridge"])), "bridge")
+        XCTAssertEqual(
+            path(HVFMachineConfig(kernelArguments: ["mp.published_path=bridge", "mp.published_path=default"])),
+            "default", "the last one wins, as on a kernel command line")
+        let engine = try XCTUnwrap(
+            HVFMachineCapabilities.Engine(
+                version: Data(
+                    #"{"ApiVersion":"1.47","MinAPIVersion":"1.44","Version":"micropod","Os":"linux","Arch":"arm64"}"#
+                        .utf8)))
+        XCTAssertEqual(engine.minAPIVersion, "1.44")
+        XCTAssertEqual(engine.apiVersion, "1.47")
+        XCTAssertEqual(engine.version, "micropod")
+        XCTAssertNil(HVFMachineCapabilities.Engine(version: Data("{}".utf8)), "no ApiVersion, no range")
+        let none = HVFMachineCapabilities(layout: layout, config: HVFMachineConfig(), engine: nil)
+        XCTAssertFalse(none.buildkit)
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(none)) as? [String: Any]
+        XCTAssertEqual(encoded?["buildkit"] as? Bool, false)
+        XCTAssertTrue(encoded?["engine"] is NSNull, "a stopped machine reports no engine range: \(encoded ?? [:])")
     }
 
     // MARK: Config
@@ -118,7 +173,8 @@ final class HVFMachineTests: XCTestCase {
             [
                 "--kernel", "\(root.path)/Image", "--initrd", "\(root.path)/mp-hvf-init.cpio",
                 "--disk", "\(root.path)/disk.ext4", "--share", "oci-tools:\(root.path)/tools:ro",
-                "--vsock-expose", "\(root.path)/run/docker.sock:2375", "--published-net",
+                "--vsock-expose", "\(root.path)/run/docker.sock:2375",
+                "--vsock-expose", "\(root.path)/run/buildkit.sock:2377", "--published-net",
                 "--cpus", "4", "--memory-mib", "4096", "--shutdown-timeout", "10", "--json-summary",
                 "--parent-pid", "4242",
             ])
@@ -397,9 +453,12 @@ final class HVFMachineTests: XCTestCase {
     func testStaleSocketIsRemovedBeforeLaunch() async throws {
         try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
         XCTAssertTrue(FileManager.default.createFile(atPath: layout.dockerSocket.path, contents: nil))
+        XCTAssertTrue(FileManager.default.createFile(atPath: layout.buildkitSocket.path, contents: nil))
         let launcher = FakeLauncher([.healthy])
-        launcher.onLaunch = { [socket = layout.dockerSocket] in
-            XCTAssertFalse(FileManager.default.fileExists(atPath: socket.path), "stale socket removed before launch")
+        launcher.onLaunch = { [sockets = [layout.dockerSocket, layout.buildkitSocket]] in
+            for socket in sockets {
+                XCTAssertFalse(FileManager.default.fileExists(atPath: socket.path), "stale \(socket.path) removed")
+            }
         }
         let supervisor = supervisor(launcher)
         let run = Task { try await supervisor.run() }
@@ -921,6 +980,10 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(config.cpus, 2)
         XCTAssertEqual(config.memoryMiB, 1024)
         XCTAssertTrue(lines.lines.contains { $0.contains("cloned disk.ext4") })
+        XCTAssertEqual(
+            lines.lines.last,
+            "guest tools have no BuildKit (missing runner/bin/buildkitd, runner/buildkitd.toml): "
+                + "this machine serves no buildx builder", "every install says what the bundle means for buildx")
 
         // The disk is the machine's data: replacing it is explicit.
         let refused = await installError(request)

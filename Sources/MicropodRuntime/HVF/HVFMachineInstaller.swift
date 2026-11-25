@@ -234,6 +234,15 @@ public enum HVFMachineInstaller {
         }
         try config.save(to: layout.config)
         progress("wrote \(layout.config.path) (\(config.cpus) vCPU, \(config.memoryMiB) MiB)")
+        progress(buildKitReport(layout.missingBuildKitFiles()))
+    }
+
+    /// What the installed tool bundle means for `docker buildx`.
+    static func buildKitReport(_ missing: [String]) -> String {
+        missing.isEmpty
+            ? "guest tools ship BuildKit: `micropod machine buildkit-endpoint` names its socket"
+            : "guest tools have no BuildKit (missing \(missing.joined(separator: ", "))): "
+                + "this machine serves no buildx builder"
     }
 
     private static func refuseWhileRunning(_ layout: HVFMachineLayout) throws {

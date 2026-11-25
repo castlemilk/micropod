@@ -433,9 +433,11 @@ public actor HVFMachineSupervisor {
         }
     }
 
+    /// Both exposed sockets: a VMM killed outright leaves its listeners'
+    /// files behind (an orderly exit removes them itself).
     private func removeSocket() {
-        if unlink(layout.dockerSocket.path) != 0, errno != ENOENT {
-            log("ERROR: could not remove stale socket \(layout.dockerSocket.path): \(String(cString: strerror(errno)))")
+        for socket in [layout.dockerSocket, layout.buildkitSocket] where unlink(socket.path) != 0 && errno != ENOENT {
+            log("ERROR: could not remove stale socket \(socket.path): \(String(cString: strerror(errno)))")
         }
     }
 

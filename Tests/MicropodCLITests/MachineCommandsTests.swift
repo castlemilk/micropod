@@ -15,6 +15,7 @@ final class MachineCommandsTests: XCTestCase {
         XCTAssertEqual(route(["machine", "logs", "-n", "5", "--no-color"]), ["logs", "-n", "5"])
         XCTAssertEqual(MachineCommands.route(["--json", "machine", "status"])?.json, true)
         XCTAssertEqual(MachineCommands.route(["machine", "status"])?.json, false)
+        XCTAssertEqual(route(["machine", "buildkit-endpoint"]), ["buildkit-endpoint"])
         XCTAssertNil(route(["--no-color", "machine", "stop", "web"]), "a named machine is Apple's")
         XCTAssertNil(route(["machines", "logs", "web"]))
         XCTAssertNil(route(["ps", "--no-color"]))

@@ -11,6 +11,9 @@ public protocol ContainerServing: Sendable {
     /// non-zero exit. A requirement (with a default below) so backends that
     /// know the exit code keep stdout too, even through an existential.
     func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult
+    /// Attached CLI I/O. Engines with a byte stream forward it directly to these handles.
+    func execAttached(_ request: ContainerExecRequest, stdin: FileHandle, stdout: FileHandle, stderr: FileHandle)
+        async throws -> Int32
     func start(_ id: String) async throws
     func stop(_ id: String, timeout: Int) async throws
     /// Docker-style restart: stop (with grace) then start.
@@ -40,6 +43,23 @@ public struct ContainerExecResult: Sendable, Equatable {
 }
 
 extension ContainerServing {
+    public func execAttached(_ request: ContainerExecRequest, stdin: FileHandle, stdout: FileHandle, stderr: FileHandle)
+        async throws -> Int32
+    {
+        try Task.checkCancellation()
+        if request.interactive || request.tty {
+            let text = try await exec(request)
+            try Task.checkCancellation()
+            try stdout.write(contentsOf: Data((text.trimmingCharacters(in: .newlines) + "\n").utf8))
+            return 0
+        }
+        let result = try await execDetailed(request)
+        try Task.checkCancellation()
+        try stdout.write(contentsOf: Data(result.output.utf8))
+        try stderr.write(contentsOf: Data(result.error.utf8))
+        return result.exitCode
+    }
+
     /// `exec` that reports the guest exit code instead of throwing on
     /// non-zero exits. CLI-backed implementations recover the code from the
     /// thrown `cliFailure`; native backends return it directly.

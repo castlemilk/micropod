@@ -1,6 +1,8 @@
 #ifndef MICROPOD_PTY_SHIM_H
 #define MICROPOD_PTY_SHIM_H
 
+#include "exec_sink.h"
+
 #include <sys/types.h>
 #include <stdint.h>
 

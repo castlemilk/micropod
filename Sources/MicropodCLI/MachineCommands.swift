@@ -26,10 +26,13 @@ enum MachineCommands {
           micropod machine start [--timeout S]    boot it (detached supervisor) and wait for Docker
           micropod machine stop                   power the guest off gracefully
           micropod machine restart
-          micropod machine status [--json]        phase, pids, restarts, last exit
+          micropod machine status [--json]        phase, pids, restarts, last exit, endpoints and
+                                                  capabilities (BuildKit, engine API range)
           micropod machine logs [-f] [-n N] [--supervisor]
                                                   micropod-vmm console (or supervisor) log
           micropod machine docker-endpoint        unix:// socket for DOCKER_HOST
+          micropod machine buildkit-endpoint      unix:// BuildKit socket for a remote buildx builder
+                                                  (fails when the tool bundle ships no BuildKit)
           micropod machine serve                  run the supervisor in the foreground
 
         The root is MICROPOD_HVF_ROOT or ~/.micropod/hvf. `micropod run --runtime hvf …`
@@ -38,7 +41,9 @@ enum MachineCommands {
         (`--workspace ""` turns host bind mounts off).
         """
 
-    static let hvfOnly: Set<String> = ["install", "start", "restart", "status", "serve", "docker-endpoint", "help"]
+    static let hvfOnly: Set<String> = [
+        "install", "start", "restart", "status", "serve", "docker-endpoint", "buildkit-endpoint", "help",
+    ]
 
     /// The hvf machine command in a whole `micropod` argv, if it is one: the
     /// arguments after `machine` (or `machines`), with the global flags
@@ -94,11 +99,14 @@ enum MachineCommands {
                 print("hvf machine running — DOCKER_HOST=\(client.layout.dockerEndpoint)")
             case "status":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine status")
-                return try status(client, json: json)
+                return try await status(client, json: json)
             case "logs": try await logs(rest, layout: client.layout)
             case "docker-endpoint":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine docker-endpoint")
                 print(client.layout.dockerEndpoint)
+            case "buildkit-endpoint":
+                _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine buildkit-endpoint")
+                print(try client.buildkitEndpoint())
             case "serve":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine serve")
                 return try await serve(layout: client.layout, environment: environment)
@@ -164,7 +172,11 @@ enum MachineCommands {
 
     struct StatusReport: Encodable {
         var root: String
+        /// The Docker Engine API (kept as `endpoint` for existing readers).
         var endpoint: String
+        var dockerEndpoint: String
+        /// nil when the tool bundle ships no BuildKit.
+        var buildkitEndpoint: String?
         var installed: Bool
         var missing: [String]
         var problem: String?
@@ -173,16 +185,20 @@ enum MachineCommands {
         var summary: String
         var state: HVFMachineState?
         var stateError: String?
+        var capabilities: HVFMachineCapabilities
     }
 
-    static func status(_ client: HVFMachineClient, json: Bool) throws -> Int32 {
+    static func status(_ client: HVFMachineClient, json: Bool) async throws -> Int32 {
         let status = client.status()
+        let capabilities = await client.capabilities()
+        let buildkit = capabilities.buildkit ? client.layout.buildkitEndpoint : nil
         if json {
             let report = StatusReport(
-                root: status.root, endpoint: client.layout.dockerEndpoint, installed: status.installed,
-                missing: status.missing, problem: status.problem, phase: status.phase.rawValue,
-                supervisorAlive: status.supervisorAlive, summary: status.summary, state: status.state,
-                stateError: status.stateError)
+                root: status.root, endpoint: client.layout.dockerEndpoint, dockerEndpoint: client.layout.dockerEndpoint,
+                buildkitEndpoint: buildkit, installed: status.installed, missing: status.missing,
+                problem: status.problem, phase: status.phase.rawValue, supervisorAlive: status.supervisorAlive,
+                summary: status.summary, state: status.state, stateError: status.stateError,
+                capabilities: capabilities)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
@@ -192,6 +208,14 @@ enum MachineCommands {
         print("machine:    \(status.summary)")
         print("root:       \(status.root)")
         print("endpoint:   \(client.layout.dockerEndpoint)")
+        if let buildkit {
+            print("buildkit:   \(buildkit)")
+        } else if status.installed {
+            print("buildkit:   none (the tool bundle lacks \(capabilities.buildkitMissing.joined(separator: ", ")))")
+        }
+        if let engine = capabilities.engine {
+            print("engine:     \(engine.version) (Docker API \(engine.minAPIVersion)–\(engine.apiVersion))")
+        }
         if let state = status.state {
             print("supervisor: pid \(state.supervisorPID)\(status.supervisorAlive ? "" : " (exited)")")
             if let vmm = state.vmmPID, status.supervisorAlive { print("vmm:        pid \(vmm)") }

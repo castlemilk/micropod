@@ -1154,7 +1154,7 @@ final class MicropodAPITests: XCTestCase {
             hvf["capabilities"] as? [String],
             [
                 "run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports",
-                "volumes",
+                "volumes", "images",
             ])
         let (_, hvfDefault) = try await jsonStatus(
             "POST", "api/micropod.v1.SystemService/SetDefaultRuntime", body: ["name": "hvf"])
