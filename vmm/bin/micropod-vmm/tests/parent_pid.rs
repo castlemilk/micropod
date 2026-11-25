@@ -43,3 +43,57 @@ fn invalid_parent_arguments_are_rejected() {
         assert!(stderr.contains("Invalid --parent-pid"), "{stderr}");
     }
 }
+
+#[test]
+fn malformed_flags_exit_2_instead_of_panicking() {
+    let value_flags = [
+        "--initrd",
+        "--disk",
+        "--cpus",
+        "--memory-mib",
+        "--cmdline",
+        "--share",
+        "--vsock-expose",
+        "--published-mtu",
+        "--timeout",
+        "--snapshot-trigger",
+        "--snapshot-out",
+        "--restore-from",
+        "--telemetry-socket",
+        "--prometheus-listen",
+        "--otlp-endpoint",
+        "--otlp-interval-secs",
+        "--service-name",
+        "--worker-id",
+        "--otlp-traces-endpoint",
+        "--trace-slow-ms",
+        "--shutdown-timeout",
+        "--console-log",
+        "--workspace",
+        "--cmdline-append",
+    ];
+    let mut cases: Vec<Vec<&str>> = value_flags.iter().map(|f| vec![*f]).collect();
+    for numeric in [
+        "--cpus",
+        "--memory-mib",
+        "--published-mtu",
+        "--timeout",
+        "--otlp-interval-secs",
+        "--trace-slow-ms",
+        "--shutdown-timeout",
+    ] {
+        cases.push(vec![numeric, "four"]);
+    }
+    cases.push(vec!["--vsock-expose", "/tmp/x.sock:port"]);
+    cases.push(vec!["--vsock-expose", "no-port"]);
+    cases.push(vec!["--share", "tag-only"]);
+    cases.push(vec!["--no-such-flag"]);
+    cases.push(vec!["--workspace", "/opt"]);
+    cases.push(vec!["--workspace", "/tmp/."]);
+    for args in cases {
+        let output = run(&args);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {stderr}");
+        assert!(!stderr.contains("panicked"), "{args:?}: {stderr}");
+    }
+}

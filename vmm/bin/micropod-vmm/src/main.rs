@@ -4,7 +4,8 @@
 //! Virtio-FS, Virtio-Vsock, and smoltcp zero-vmnet Virtio-Net port bridge).
 
 use std::env;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use vmm_core::exit::{EXIT_USAGE, EXIT_VMM_ERROR};
 use vmm_core::{
     DEFAULT_SHUTDOWN_TIMEOUT_SECS, ShareSpec, TelemetryConfig, VmConfig, run_vm_with_parent,
@@ -38,6 +39,55 @@ fn usage_error(msg: &str) -> ! {
     std::process::exit(EXIT_USAGE);
 }
 
+/// The value after `flag` (at `args[i]`), or exit 2 when it is missing.
+fn flag_value<'a>(args: &'a [String], i: usize, flag: &str) -> &'a str {
+    args.get(i)
+        .map(String::as_str)
+        .unwrap_or_else(|| usage_error(&format!("{flag} needs a value")))
+}
+
+/// The value after `flag` parsed as `T`, or exit 2.
+fn parse_flag<T: FromStr>(args: &[String], i: usize, flag: &str) -> T {
+    let value = flag_value(args, i, flag);
+    value
+        .parse()
+        .unwrap_or_else(|_| usage_error(&format!("invalid {flag} value {value:?}")))
+}
+
+/// Guest directories a workspace may neither cover nor sit inside: the
+/// guest's system directories and the mounts its init and engine depend on.
+/// Guest init (`workspace.go`) refuses the same paths.
+const GUEST_RESERVED_TREES: &[&str] = &[
+    "/bin",
+    "/dev",
+    "/etc",
+    "/lib",
+    "/opt/micropod-oci",
+    "/proc",
+    "/root",
+    "/run",
+    "/sbin",
+    "/sys",
+    "/usr",
+    "/var/lib",
+];
+
+/// Guest mounts a workspace may sit inside but not cover (the guest's /tmp).
+const GUEST_RESERVED_MOUNTS: &[&str] = &["/tmp"];
+
+/// The guest directory `workspace` (a canonical absolute path) would hide.
+fn guest_reserved_overlap(workspace: &str) -> Option<&'static str> {
+    let within = |path: &str, dir: &str| {
+        path == dir || (path.starts_with(dir) && path.as_bytes().get(dir.len()) == Some(&b'/'))
+    };
+    GUEST_RESERVED_TREES
+        .iter()
+        .chain(GUEST_RESERVED_MOUNTS)
+        .find(|r| within(r, workspace))
+        .or_else(|| GUEST_RESERVED_TREES.iter().find(|r| within(workspace, r)))
+        .copied()
+}
+
 /// Standard base64 with padding (guest init decodes `mp.workspace_b64` strictly).
 fn base64_encode(data: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -68,15 +118,21 @@ fn workspace_boot_arg(path: &Path) -> Result<String, String> {
     let s = path
         .to_str()
         .ok_or("--workspace path must be valid UTF-8")?;
-    let canonical = path.is_absolute()
-        && path
-            .components()
-            .all(|c| matches!(c, Component::RootDir | Component::Normal(_)))
-        && !s.ends_with('/')
-        && !s.contains("//");
-    if !canonical || s == "/" || s.contains(['\0', ':']) {
+    // Lexical, as guest init checks it (`path.Clean(p) == p`): Path::components
+    // would silently drop the `.` in `/a/./b` or `/a/b/.`.
+    let canonical = s.len() > 1
+        && s.starts_with('/')
+        && s[1..]
+            .split('/')
+            .all(|c| !c.is_empty() && c != "." && c != "..");
+    if !canonical || s.contains(['\0', ':']) {
         return Err(format!(
             "--workspace {s}: need a canonical absolute directory path other than / without ':'"
+        ));
+    }
+    if let Some(reserved) = guest_reserved_overlap(s) {
+        return Err(format!(
+            "--workspace {s}: overlaps the guest's {reserved}; share a directory outside it"
         ));
     }
     if !path.is_dir() {
@@ -104,8 +160,9 @@ fn parse_share(spec: &str) -> ShareSpec {
     // Format: tag:host_path[:ro]
     let parts: Vec<&str> = spec.split(':').collect();
     if parts.len() < 2 {
-        eprintln!("Invalid --share spec (want tag:host_path[:ro]): {spec}");
-        std::process::exit(2);
+        usage_error(&format!(
+            "Invalid --share spec (want tag:host_path[:ro]): {spec}"
+        ));
     }
     let read_only = parts.len() >= 3 && parts[2] == "ro";
     ShareSpec {
@@ -118,10 +175,15 @@ fn parse_share(spec: &str) -> ShareSpec {
 fn parse_vsock_expose(spec: &str) -> VsockExposeSpec {
     // Format: host_unix_path:guest_port
     let Some((path, port_s)) = spec.rsplit_once(':') else {
-        eprintln!("Invalid --vsock-expose spec (want host_unix_path:guest_port): {spec}");
-        std::process::exit(2);
+        usage_error(&format!(
+            "Invalid --vsock-expose spec (want host_unix_path:guest_port): {spec}"
+        ));
     };
-    let guest_port: u32 = port_s.parse().expect("invalid guest vsock port");
+    let guest_port: u32 = port_s.parse().unwrap_or_else(|_| {
+        usage_error(&format!(
+            "Invalid --vsock-expose guest port {port_s:?} in {spec}"
+        ))
+    });
     VsockExposeSpec {
         host_unix_path: PathBuf::from(path),
         guest_port,
@@ -171,43 +233,43 @@ fn main() {
             }
             "--kernel" => {
                 i += 1;
-                kernel_path = args.get(i).map(PathBuf::from);
+                kernel_path = Some(PathBuf::from(flag_value(&args, i, "--kernel")));
             }
             "--initrd" => {
                 i += 1;
-                initrd_path = args.get(i).map(PathBuf::from);
+                initrd_path = Some(PathBuf::from(flag_value(&args, i, "--initrd")));
             }
             "--disk" => {
                 i += 1;
-                disk_path = args.get(i).map(PathBuf::from);
+                disk_path = Some(PathBuf::from(flag_value(&args, i, "--disk")));
             }
             "--disk-ro" => disk_read_only = true,
             "--cpus" => {
                 i += 1;
-                num_vcpus = args[i].parse().expect("invalid --cpus");
+                num_vcpus = parse_flag(&args, i, "--cpus");
             }
             "--memory-mib" => {
                 i += 1;
-                memory_mib = args[i].parse().expect("invalid --memory-mib");
+                memory_mib = parse_flag(&args, i, "--memory-mib");
             }
             "--cmdline" => {
                 i += 1;
-                cmdline = args[i].clone();
+                cmdline = flag_value(&args, i, "--cmdline").to_string();
             }
             "--share" => {
                 i += 1;
-                shares.push(parse_share(&args[i]));
+                shares.push(parse_share(flag_value(&args, i, "--share")));
             }
             "--vsock" => enable_vsock = true,
             "--vsock-expose" => {
                 i += 1;
                 enable_vsock = true;
-                vsock_exposes.push(parse_vsock_expose(&args[i]));
+                vsock_exposes.push(parse_vsock_expose(flag_value(&args, i, "--vsock-expose")));
             }
             "--published-net" => enable_published_net = true,
             "--published-mtu" => {
                 i += 1;
-                published_mtu = args[i].parse().expect("invalid --published-mtu");
+                published_mtu = parse_flag(&args, i, "--published-mtu");
             }
             "--no-balloon" => enable_balloon = false,
             "--no-net" => enable_net = false,
@@ -215,7 +277,7 @@ fn main() {
             "--json-summary" => json_summary = true,
             "--timeout" => {
                 i += 1;
-                timeout_secs = args[i].parse().expect("invalid --timeout");
+                timeout_secs = parse_flag(&args, i, "--timeout");
             }
             "--parent-pid" => {
                 i += 1;
@@ -224,59 +286,60 @@ fn main() {
                     .and_then(|s| s.parse::<i32>().ok())
                     .filter(|&pid| pid > 1)
                 else {
-                    eprintln!("Invalid --parent-pid (expected a PID greater than 1)");
-                    std::process::exit(2);
+                    usage_error("Invalid --parent-pid (expected a PID greater than 1)");
                 };
                 expected_parent_pid = Some(pid);
             }
             "--snapshot-trigger" => {
                 i += 1;
-                snapshot_trigger = args.get(i).map(PathBuf::from);
+                snapshot_trigger = Some(PathBuf::from(flag_value(&args, i, "--snapshot-trigger")));
             }
             "--snapshot-out" => {
                 i += 1;
-                snapshot_out = args.get(i).map(PathBuf::from);
+                snapshot_out = Some(PathBuf::from(flag_value(&args, i, "--snapshot-out")));
             }
             "--snapshot-and-exit" => snapshot_and_exit = true,
             "--restore-from" => {
                 i += 1;
-                restore_from = args.get(i).map(PathBuf::from);
+                restore_from = Some(PathBuf::from(flag_value(&args, i, "--restore-from")));
             }
             "--telemetry-socket" => {
                 i += 1;
-                telemetry.socket_path = args.get(i).map(PathBuf::from);
+                telemetry.socket_path =
+                    Some(PathBuf::from(flag_value(&args, i, "--telemetry-socket")));
             }
             "--prometheus-listen" => {
                 i += 1;
-                telemetry.prometheus_listen = args.get(i).cloned();
+                telemetry.prometheus_listen =
+                    Some(flag_value(&args, i, "--prometheus-listen").to_string());
             }
             "--otlp-endpoint" => {
                 i += 1;
-                telemetry.otlp_endpoint = args.get(i).cloned();
+                telemetry.otlp_endpoint = Some(flag_value(&args, i, "--otlp-endpoint").to_string());
             }
             "--otlp-interval-secs" => {
                 i += 1;
-                telemetry.otlp_interval_secs =
-                    args[i].parse().expect("invalid --otlp-interval-secs");
+                telemetry.otlp_interval_secs = parse_flag(&args, i, "--otlp-interval-secs");
             }
             "--service-name" => {
                 i += 1;
-                telemetry.service_name = args[i].clone();
+                telemetry.service_name = flag_value(&args, i, "--service-name").to_string();
             }
             "--worker-id" => {
                 i += 1;
-                telemetry.worker_id = args.get(i).cloned();
+                telemetry.worker_id = Some(flag_value(&args, i, "--worker-id").to_string());
             }
             "--trace" => {
                 telemetry.tracing_enabled = true;
             }
             "--otlp-traces-endpoint" => {
                 i += 1;
-                telemetry.traces_endpoint = args.get(i).cloned();
+                telemetry.traces_endpoint =
+                    Some(flag_value(&args, i, "--otlp-traces-endpoint").to_string());
             }
             "--trace-slow-ms" => {
                 i += 1;
-                telemetry.slow_op_threshold_ms = args[i].parse().expect("invalid --trace-slow-ms");
+                telemetry.slow_op_threshold_ms = parse_flag(&args, i, "--trace-slow-ms");
             }
             "--shutdown-timeout" => {
                 i += 1;
@@ -315,10 +378,7 @@ fn main() {
                         .unwrap_or_else(|| usage_error("--cmdline-append needs arguments")),
                 );
             }
-            other => {
-                eprintln!("Unknown argument: {other}");
-                std::process::exit(2);
-            }
+            other => usage_error(&format!("Unknown argument: {other}")),
         }
         i += 1;
     }
@@ -493,17 +553,64 @@ mod tests {
             arg,
             format!("mp.workspace_b64={}.", base64_encode(dir.as_bytes()))
         );
+        // `dir` exists, so only the spelling can make these fail.
         for bad in [
-            "relative/dir",
-            "/",
-            "/tmp/../etc",
-            "/tmp/./x",
-            "/tmp//x",
-            "/tmp/",
-            "/tmp/a:b",
-            "/definitely/not/a/dir/here",
+            "relative/dir".to_string(),
+            "/".to_string(),
+            "".to_string(),
+            "/tmp/../etc".to_string(),
+            "/tmp/./x".to_string(),
+            "/tmp//x".to_string(),
+            "/tmp/".to_string(),
+            "/tmp/a:b".to_string(),
+            "/definitely/not/a/dir/here".to_string(),
+            format!("{dir}/."),
+            format!("{dir}/./"),
+            format!("{dir}/.."),
+            dir.replacen('/', "/./", 2),
+            dir.replacen('/', "//", 1),
         ] {
-            assert!(workspace_boot_arg(Path::new(bad)).is_err(), "{bad}");
+            assert!(workspace_boot_arg(Path::new(&bad)).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn workspaces_may_not_hide_guest_system_directories() {
+        for bad in [
+            "/opt",
+            "/opt/micropod-oci",
+            "/opt/micropod-oci/runner",
+            "/var",
+            "/var/lib",
+            "/var/lib/micropod",
+            "/var/lib/docker/volumes",
+            "/tmp",
+            "/usr",
+            "/usr/local",
+            "/etc",
+            "/proc/1",
+            "/run",
+            "/root/src",
+            "/bin",
+            "/lib",
+        ] {
+            assert!(guest_reserved_overlap(bad).is_some(), "{bad}");
+        }
+        for good in [
+            "/Users/me",
+            "/Users/me/projects",
+            "/tmp/build",
+            "/private/tmp",
+            "/private/var/folders/x",
+            "/var/folders/x",
+            "/Volumes/External/src",
+            "/opt/homebrew/src",
+            "/library",
+            "/libraries",
+            "/usrdata",
+            "/home/me",
+        ] {
+            assert_eq!(guest_reserved_overlap(good), None, "{good}");
         }
     }
 

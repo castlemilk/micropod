@@ -19,8 +19,8 @@ func singleMessage(t *testing.T, b []byte) nlMsg {
 	return msgs[0]
 }
 
-func TestLinkUpMessage(t *testing.T) {
-	m := singleMessage(t, linkUpMsg(7, 3, 9000))
+func TestLinkUpAndMTUAreSeparateRequests(t *testing.T) {
+	m := singleMessage(t, linkUpMsg(7, 3))
 	if m.typ != rtmNewLink || m.seq != 7 || m.flags != nlmFRequest|nlmFAck {
 		t.Fatalf("header %+v", m)
 	}
@@ -30,12 +30,19 @@ func TestLinkUpMessage(t *testing.T) {
 	if flags, change := binary.NativeEndian.Uint32(m.body[8:12]), binary.NativeEndian.Uint32(m.body[12:16]); flags != iffUp || change != iffUp {
 		t.Fatalf("flags %#x change %#x", flags, change)
 	}
-	attrs := parseAttrs(m.body[16:])
-	if v := attrs[iflaMTU]; len(v) != 4 || binary.NativeEndian.Uint32(v) != 9000 {
-		t.Fatalf("mtu attr %v", v)
+	if _, ok := parseAttrs(m.body[16:])[iflaMTU]; ok {
+		t.Fatal("link up must not carry an MTU: a rejected MTU would keep the link down")
 	}
-	if _, ok := parseAttrs(singleMessage(t, linkUpMsg(8, 3, 0)).body[16:])[iflaMTU]; ok {
-		t.Fatal("mtu 0 must keep the device MTU")
+
+	mtu := singleMessage(t, linkMTUMsg(8, 3, 9000))
+	if mtu.typ != rtmNewLink || mtu.seq != 8 || binary.NativeEndian.Uint32(mtu.body[4:8]) != 3 {
+		t.Fatalf("mtu header %+v", mtu)
+	}
+	if change := binary.NativeEndian.Uint32(mtu.body[12:16]); change != 0 {
+		t.Fatalf("mtu request changes flags %#x", change)
+	}
+	if v := parseAttrs(mtu.body[16:])[iflaMTU]; len(v) != 4 || binary.NativeEndian.Uint32(v) != 9000 {
+		t.Fatalf("mtu attr %v", v)
 	}
 }
 

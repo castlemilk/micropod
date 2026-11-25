@@ -46,9 +46,44 @@ func parseWorkspace(fields []string) (string, error) {
 			path.Clean(value) != value || strings.ContainsAny(value, "\x00:") {
 			return "", errors.New("workspace boot argument must name a canonical absolute share path")
 		}
+		if reserved := reservedOverlap(value); reserved != "" {
+			return "", fmt.Errorf("workspace %q would hide the guest's %s", value, reserved)
+		}
 		workspace = value
 	}
 	return workspace, nil
+}
+
+// reservedTrees are guest directories a workspace may neither cover nor sit
+// inside: system directories and the mounts stage 2 and the engine rely on
+// (oci-tools, the vsock bridge sockets, engine state). micropod-vmm's
+// --workspace check refuses the same paths before boot.
+var reservedTrees = []string{
+	"/bin", "/dev", "/etc", "/lib", "/opt/micropod-oci", "/proc", "/root",
+	"/run", "/sbin", "/sys", "/usr", "/var/lib",
+}
+
+// reservedMounts may contain a workspace but not be covered by one.
+var reservedMounts = []string{"/tmp"}
+
+func within(p, dir string) bool {
+	return p == dir || strings.HasPrefix(p, dir+"/")
+}
+
+// reservedOverlap names the guest directory a workspace mounted at p would
+// hide, or returns "".
+func reservedOverlap(p string) string {
+	for _, r := range append(append([]string{}, reservedTrees...), reservedMounts...) {
+		if within(r, p) {
+			return r
+		}
+	}
+	for _, r := range reservedTrees {
+		if within(p, r) {
+			return r
+		}
+	}
+	return ""
 }
 
 // Stage 2 prepares the mount before starting any guest services. Refuse a

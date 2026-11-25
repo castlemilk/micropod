@@ -99,9 +99,9 @@ func waitForInterface(name string, timeout time.Duration) (*net.Interface, error
 	}
 }
 
-// configureGuestNetwork applies the plan with rtnetlink (link up + MTU, address,
+// configureGuestNetwork applies the plan with rtnetlink (MTU, link up, address,
 // default route, permanent neighbour), continuing past failures so one broken
-// interface does not leave the others unconfigured.
+// step, such as an MTU the device rejects, does not leave the rest undone.
 func configureGuestNetwork(r *rtnl, plan []ifacePlan) []error {
 	var errs []error
 	for _, p := range plan {
@@ -116,7 +116,10 @@ func configureGuestNetwork(r *rtnl, plan []ifacePlan) []error {
 				errs = append(errs, fmt.Errorf("%s: %s: %w", p.name, what, err))
 			}
 		}
-		step("link up", func(seq uint32) []byte { return linkUpMsg(seq, idx, p.mtu) })
+		if p.mtu != 0 {
+			step(fmt.Sprintf("mtu %d", p.mtu), func(seq uint32) []byte { return linkMTUMsg(seq, idx, p.mtu) })
+		}
+		step("link up", func(seq uint32) []byte { return linkUpMsg(seq, idx) })
 		step("address "+p.addr.String(), func(seq uint32) []byte { return addrReplaceMsg(seq, idx, p.addr, p.scope) })
 		if p.gateway.IsValid() {
 			step("default route", func(seq uint32) []byte { return defaultRouteReplaceMsg(seq, idx, p.gateway) })
@@ -206,5 +209,10 @@ func setupGuestNetwork(mtuParam string) int {
 	if !withPublished {
 		return 0
 	}
-	return obs.links["eth1"].mtu
+	// The engine must not be pointed at a published link that is down.
+	if link := obs.links["eth1"]; link.up {
+		return link.mtu
+	}
+	fmt.Fprintln(os.Stderr, "[mp-hvf-init] net: eth1 is down; published ports use eth0")
+	return 0
 }

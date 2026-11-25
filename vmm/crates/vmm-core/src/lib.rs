@@ -169,7 +169,8 @@ struct Pl011 {
     console_log: Option<io::BufWriter<std::fs::File>>,
     captured: Vec<u8>,
     line: Vec<u8>,
-    guest_failure: Option<String>,
+    /// Latest failure guest init announced, and when it was printed.
+    guest_failure: Option<(String, Instant)>,
     t0: Instant,
     boot_start_unix_ns: u64,
     first_tx_ms: Option<f64>,
@@ -207,11 +208,13 @@ impl Pl011 {
     }
 
     /// Track console lines over the VM's whole life (the capture buffer is
-    /// bounded) so a failure the guest reports late is still seen.
+    /// bounded) so a failure the guest reports late is still seen. The run's
+    /// exit code honours it only if the guest resets soon after (see
+    /// [`exit::guest_status_window`]).
     fn scan_line(&mut self, b: u8) {
         if b == b'\n' {
             if let Some(status) = exit::parse_guest_status(&self.line) {
-                self.guest_failure = Some(status);
+                self.guest_failure = Some((status, Instant::now()));
             }
             self.line.clear();
         } else if self.line.len() < CONSOLE_LINE_MAX {
@@ -423,6 +426,8 @@ struct SharedState {
     shutdown: AtomicBool,
     shutting_down: Arc<AtomicBool>,
     exit_reason: Mutex<String>,
+    /// The `--parent-pid` supervisor disappeared during the run.
+    parent_lost: AtomicBool,
     vcpu_handles: Mutex<Vec<hv_vcpu_t>>,
     vcpus_online: Arc<AtomicU32>,
     mmio_exits: Arc<AtomicU64>,
@@ -515,6 +520,8 @@ pub struct VmRunReport {
     pub exit_reason: String,
     /// Failure the guest reported before it stopped (`engine-exited ...`, `init-failed ...`).
     pub guest_failure: Option<String>,
+    /// The `--parent-pid` supervisor exited during the run (exit code 7).
+    pub parent_exited: bool,
     pub ipa_granule: &'static str,
     pub num_vcpus: u32,
     pub vcpus_started: u32,
@@ -548,6 +555,9 @@ pub struct VmRunReport {
 impl VmRunReport {
     /// Process exit code for this run (see [`exit`]).
     pub fn exit_code(&self) -> i32 {
+        if self.parent_exited {
+            return exit::EXIT_PARENT_EXITED;
+        }
         exit::exit_code(&self.exit_reason, self.guest_failure.as_deref())
     }
 }
@@ -728,6 +738,7 @@ pub fn run_vm_with_parent(
         })
         .transpose()?;
     let shutdown_timeout = Duration::from_secs(cfg.shutdown_timeout_secs);
+    let shutdown_wait = ctrl::host_shutdown_wait(shutdown_timeout);
 
     // 1. Create VM with 16 KiB Stage-2 IPA granule (macOS 26+)
     let vm_cfg = unsafe { hv_vm_config_create() };
@@ -1059,6 +1070,7 @@ pub fn run_vm_with_parent(
             shutdown: AtomicBool::new(false),
             shutting_down: Arc::new(AtomicBool::new(false)),
             exit_reason: Mutex::new("unknown".into()),
+            parent_lost: AtomicBool::new(false),
             vcpu_handles: Mutex::new(Vec::with_capacity(num_vcpus as usize)),
             vcpus_online: Arc::new(AtomicU32::new(if is_restore { num_vcpus } else { 1 })),
             mmio_exits: Arc::new(AtomicU64::new(0)),
@@ -1126,6 +1138,15 @@ pub fn run_vm_with_parent(
                 };
                 let mut snap_fired = false;
                 let mut graceful_deadline: Option<Instant> = None;
+                let mut parent_lost = false;
+                // A forced stop is reported as what started the shutdown.
+                let forced = |parent_lost: bool| {
+                    if parent_lost {
+                        "parent-exited"
+                    } else {
+                        "signal"
+                    }
+                };
                 let mut last_clock_check = Instant::now();
                 let mut last_clock_sync = Instant::now();
                 let mut last_sys_ns = ctrl::current_unix_ns(std::time::SystemTime::now());
@@ -1136,27 +1157,39 @@ pub fn run_vm_with_parent(
                     if SIGNAL_SHUTDOWN.load(Ordering::Relaxed) {
                         wd_shared.shutting_down.store(true, Ordering::Relaxed);
                         if SIGNAL_COUNT.load(Ordering::Relaxed) >= 2 {
-                            wd_shared.request_shutdown("signal");
+                            wd_shared.request_shutdown(forced(parent_lost));
                             return;
                         }
-                        match graceful_deadline {
-                            None => {
-                                if wd_ctrl.request_poweroff() {
-                                    graceful_deadline = Some(Instant::now() + shutdown_timeout);
-                                } else {
-                                    wd_shared.request_shutdown("signal");
-                                    return;
-                                }
-                            }
-                            Some(gd) if Instant::now() >= gd => {
-                                wd_shared.request_shutdown("signal");
+                        if graceful_deadline.is_none() {
+                            if !wd_ctrl.request_poweroff() {
+                                wd_shared.request_shutdown(forced(parent_lost));
                                 return;
                             }
-                            Some(_) => {}
+                            graceful_deadline = Some(Instant::now() + shutdown_wait);
                         }
                     }
-                    if verify_expected_parent(expected_parent_pid).is_err() {
-                        wd_shared.request_shutdown("parent-exited");
+                    // The supervisor is gone: stop the guest the same orderly way
+                    // (engine stop, sync, read-only remount) within the same budget.
+                    if !parent_lost && verify_expected_parent(expected_parent_pid).is_err() {
+                        parent_lost = true;
+                        wd_shared.parent_lost.store(true, Ordering::SeqCst);
+                        wd_shared.shutting_down.store(true, Ordering::Relaxed);
+                        eprintln!(
+                            "[micropod-vmm] supervisor exited; powering the guest off (up to {}s)",
+                            shutdown_wait.as_secs()
+                        );
+                        if graceful_deadline.is_none() {
+                            if !wd_ctrl.request_poweroff() {
+                                wd_shared.request_shutdown("parent-exited");
+                                return;
+                            }
+                            graceful_deadline = Some(Instant::now() + shutdown_wait);
+                        }
+                    }
+                    if let Some(gd) = graceful_deadline
+                        && Instant::now() >= gd
+                    {
+                        wd_shared.request_shutdown(forced(parent_lost));
                         return;
                     }
                     let check_elapsed = last_clock_check.elapsed();
@@ -1313,23 +1346,32 @@ pub fn run_vm_with_parent(
         let vcpus_started = shared.vcpus_online.load(Ordering::Relaxed);
         let mmio_exits = shared.mmio_exits.load(Ordering::Relaxed);
         let wfi_exits = shared.wfi_exits.load(Ordering::Relaxed);
+        let status_window = exit::guest_status_window(shutdown_timeout);
         let (boot_to_first_uart_ms, boot_to_init_ms, console_output, guest_failure) = {
             let mut uart = shared.uart.lock().unwrap();
             if let Some(log) = uart.console_log.as_mut() {
                 let _ = log.flush();
             }
+            // Only a reset shortly after the marker is the failure it announced.
+            let guest_failure = uart
+                .guest_failure
+                .as_ref()
+                .filter(|(_, seen)| exit_reason == "reboot" && seen.elapsed() <= status_window)
+                .map(|(status, _)| status.clone());
             (
                 uart.first_tx_ms,
                 uart.init_ms,
                 String::from_utf8_lossy(&uart.captured).into_owned(),
-                uart.guest_failure.clone(),
+                guest_failure,
             )
         };
+        let parent_exited = shared.parent_lost.load(Ordering::SeqCst);
         drop(shared);
         drop(mem);
         Ok(VmRunReport {
             exit_reason,
             guest_failure,
+            parent_exited,
             ipa_granule,
             num_vcpus,
             vcpus_started,

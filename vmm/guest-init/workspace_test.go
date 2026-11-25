@@ -41,6 +41,16 @@ func TestParseWorkspace(t *testing.T) {
 		{name: "ambiguous share delimiter", args: encoded("/private/tmp/parent:suffix"), invalid: true},
 		{name: "NUL", args: encoded("/private/tmp/a\x00b"), invalid: true},
 		{name: "invalid UTF-8", args: encoded("/private/tmp/" + string([]byte{0xff})), invalid: true},
+		{name: "hides oci-tools", args: "mp.workspace=/opt", invalid: true},
+		{name: "hides engine state", args: "mp.workspace=/var", invalid: true},
+		{name: "inside engine state", args: "mp.workspace=/var/lib/docker", invalid: true},
+		{name: "covers tmp", args: "mp.workspace=/tmp", invalid: true},
+		{name: "inside usr", args: encoded("/usr/local/src"), invalid: true},
+		{name: "etc", args: "mp.workspace=/etc", invalid: true},
+		{name: "inside tmp", args: "mp.workspace=/tmp/mpe2e.x/ws", want: "/tmp/mpe2e.x/ws"},
+		{name: "homebrew opt", args: "mp.workspace=/opt/homebrew/src", want: "/opt/homebrew/src"},
+		{name: "var folders", args: "mp.workspace=/var/folders/ab/T", want: "/var/folders/ab/T"},
+		{name: "prefix lookalike", args: "mp.workspace=/library", want: "/library"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := parseWorkspace(strings.Fields(tc.args))

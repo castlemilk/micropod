@@ -9,13 +9,18 @@
 #   - a published port serves HTTP, under concurrency, for large up- and
 #     downloads, and for a container that only starts listening later;
 #   - bind mounts from the Mac (--workspace): read, write, :ro, non-root
-#     writes and chown semantics;
+#     writes and chown semantics; a container cannot reach past its bind
+#     mount by renaming a directory and planting a symlink at its old name
+#     (hard link and lookup routes); a set-id binary on the workspace does
+#     not elevate a non-root user (rw and :ro binds);
 #   - SIGTERM is an orderly poweroff (exit 0); on the next boot the stopped
 #     container and a named volume are intact and ext4 needs no recovery;
 #   - kill -9 of the VMM is recovered: the stale socket is replaced and the
 #     data is intact (journal replay is allowed);
 #   - an unusable --vsock-expose path fails startup (exit 1);
-#   - guest init and engine failures exit 4, not 0.
+#   - guest init and engine failures exit 4, not 0;
+#   - losing the --parent-pid supervisor powers the guest off in an orderly
+#     way (ext4 remounted read-only) and exits 7.
 # Only the VMM processes this script starts are signalled, by pid.
 #
 # Usage: scripts/e2e_vmm_machine.sh       (after vmm/build.sh)
@@ -253,6 +258,78 @@ pass "chown + chmod 700 behave as on Linux for container users"
 if docker_ run --rm -v "$WORK:/w" alpine:3.20 true 2>/dev/null; then fail "bind outside the workspace was accepted"; fi
 pass "binds outside the workspace are rejected"
 
+log "bind mounts stay contained (rename + planted symlink)"
+mkdir -p "$WS/proj" "$WS/Library/LaunchAgents"
+echo payload >"$WS/proj/payload"
+# Hard link route: the shell's cwd is renamed away and its old name becomes a
+# symlink to "..", so the cwd's stale host path would end in $WS/Library.
+out=$(docker_ run --rm --user 1000:1000 -v "$WS/proj:/app" alpine:3.20 sh -c '
+    mkdir -p /app/d/Library/LaunchAgents && cd /app/d/Library/LaunchAgents &&
+    mv /app/d /app/e && ln -s .. /app/d && ln /app/payload evil && echo linked' 2>&1) || fail "hard link route: $out"
+[ ! -e "$WS/Library/LaunchAgents/evil" ] || fail "a hard link escaped the bind mount into $WS/Library/LaunchAgents"
+[ -f "$WS/proj/e/Library/LaunchAgents/evil" ] || fail "the hard link is not in the renamed directory: $out"
+pass "a hard link made in a renamed directory lands in it, not through the planted symlink"
+# Lookup route: the renamed cwd's old name points at the Mac's /private, and
+# the VMM's directory descriptor cache is flushed first (600 directories).
+# shellcheck disable=SC2016 # expanded by the container's shell
+out=$(docker_ run --rm --user 1000:1000 -v "$WS/proj:/app" alpine:3.20 sh -c '
+    mkdir -p /app/x/etc && cd /app/x/etc && mv /app/x /app/y && ln -s /private /app/x &&
+    mkdir /app/flush && (cd /app/flush && mkdir $(seq 1 600) && ls $(seq 1 600) >/dev/null) &&
+    cat hosts; echo "rc=$?"' 2>&1)
+case "$out" in
+*broadcasthost*) fail "a lookup in a renamed directory read the Mac's /etc/hosts: $out" ;;
+*"rc=0"*) fail "cat hosts in an empty renamed directory succeeded: $out" ;;
+esac
+[ -z "$(ls -A "$WS/proj/y/etc")" ] || fail "unexpected entries in the renamed directory"
+pass "a lookup in a renamed directory does not resolve through the planted symlink"
+
+log "set-id binaries on the workspace do not elevate"
+# A 136-byte static arm64 ELF that exits with geteuid() & 0xff (root -> 0, uid 1000 -> 232).
+python3 - "$WS/euid-probe" <<'EOF'
+import struct, sys
+code = struct.pack("<4I", 0xD28015E8, 0xD4000001, 0xD2800BA8, 0xD4000001)  # x0 = geteuid(); exit(x0)
+ehdr = b"\x7fELF" + bytes([2, 1, 1, 0]) + bytes(8) + struct.pack(
+    "<HHIQQQIHHHHHH", 2, 183, 1, 0x400078, 64, 0, 0, 64, 56, 1, 0, 0, 0)
+phdr = struct.pack("<IIQQQQQQ", 1, 5, 0, 0x400000, 0x400000, 136, 136, 0x10000)
+with open(sys.argv[1], "wb") as f:
+    f.write(ehdr + phdr + code)
+EOF
+chmod 755 "$WS/euid-probe"
+rc=$(docker_ run --rm --user 1000:1000 -v "$WS:/w" alpine:3.20 sh -c '/w/euid-probe; echo $?')
+[ "$rc" = 232 ] || fail "euid probe as uid 1000 exited $rc, want 232"
+rc=$(docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c '/w/euid-probe; echo $?')
+[ "$rc" = 0 ] || fail "euid probe as root exited $rc, want 0"
+# A non-root user makes its own (floating-owner) copy set-uid while a root
+# container keeps refreshing the guest's attribute cache for the same file.
+docker_ run -d --name e2e-statter -v "$WS:/w" alpine:3.20 \
+    sh -c 'while :; do stat /w/suid-user >/dev/null 2>&1; done' >/dev/null
+# shellcheck disable=SC2016 # expanded by the container's shell
+out=$(docker_ run --rm --user 1000:1000 -v "$WS:/w" alpine:3.20 sh -c '
+    cp /w/euid-probe /w/suid-user && chmod 4755 /w/suid-user; stat -c %a /w/suid-user
+    i=0; while [ $i -lt 50 ]; do /w/suid-user; r=$?; [ $r = 232 ] || { echo "euid=$r"; exit 1; }; i=$((i+1)); done; echo ok')
+docker_ rm -f e2e-statter >/dev/null
+[ "$out" = "$(printf '755\nok')" ] || fail "set-uid by a non-root user: $out"
+[ "$(stat -f %Lp "$WS/suid-user")" = 755 ] || fail "the Mac file kept a guest-set set-uid bit"
+pass "a non-root user's set-uid bit is not kept, and exec never runs as root"
+# Root makes a root-owned set-uid binary; a non-root user runs it through
+# read-write and read-only binds. Container runtimes remount binds without the
+# workspace's nosuid, so the VMM itself never keeps or reports set-id bits.
+expect_console "workspace: $WS nosuid=true nodev=true"
+[ "$(docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c '
+    cp /w/euid-probe /w/suid-root && chown 0:0 /w/suid-root && chmod 4755 /w/suid-root &&
+    stat -c %a:%u /w/suid-root')" = 755:0 ] || fail "a root-owned file on the workspace kept a set-uid bit"
+[ "$(stat -f %Lp "$WS/suid-root")" = 755 ] || fail "the Mac file kept a guest-set set-uid bit (root)"
+for opt in "" ":ro"; do
+    rc=$(docker_ run --rm --user 1000:1000 -v "$WS:/w$opt" alpine:3.20 sh -c '/w/suid-root; echo $?')
+    [ "$rc" = 232 ] || fail "set-uid root binary on a bind mount$opt ran with euid $rc (want 232)"
+done
+# A set-uid file made on the Mac is not honoured either.
+cp "$WS/euid-probe" "$WS/suid-mac" && chmod 4755 "$WS/suid-mac"
+out=$(docker_ run --rm --user 1000:1000 -v "$WS:/w" alpine:3.20 sh -c 'stat -c %a /w/suid-mac; /w/suid-mac; echo $?')
+[ "$out" = "$(printf '755\n232')" ] || fail "a set-uid file from the Mac: $out"
+pass "set-uid root binaries on the workspace (root-made or from the Mac) do not elevate, rw or :ro"
+rm -rf "${WS:?}/proj" "${WS:?}/Library" "${WS:?}"/suid-* "${WS:?}/euid-probe"
+
 log "persistence across an orderly stop"
 docker_ volume create e2e-vol >/dev/null
 docker_ run --rm -v e2e-vol:/data alpine:3.20 sh -c "echo $TOKEN > /data/v.txt"
@@ -335,5 +412,42 @@ if [ "$rc" != 4 ] || ! grep -q '"guest_failure":"init-failed' "$WORK/boot$BOOTS.
     fail "init failure: rc=$rc $(cat "$WORK/boot$BOOTS.summary")"
 fi
 pass "init failure -> exit 4 (guest_failure: init-failed ...)"
+
+log "supervisor loss is an orderly poweroff"
+BOOTS=$((BOOTS + 1))
+base="$WORK/boot$BOOTS"
+# A stand-in supervisor: the VMM is its child and names it with --parent-pid.
+python3 - "$base" "$VMM" --kernel "$KERNEL" --initrd "$INITRD" --disk "$DISK" \
+    --share "oci-tools:${OCI_TOOLS}:ro" --workspace "$WS" \
+    --vsock-expose "${SOCK}:2375" --cpus 2 --memory-mib 2048 --quiet --json-summary \
+    --console-log "$base.console" <<'EOF' &
+import os, subprocess, sys
+base, cmd = sys.argv[1], sys.argv[2:]
+with open(base + ".summary", "wb") as out, open(base + ".stderr", "wb") as err:
+    vm = subprocess.Popen(cmd + ["--parent-pid", str(os.getpid())], stdout=out, stderr=err)
+with open(base + ".pid", "w") as f:
+    f.write(str(vm.pid))
+vm.wait()
+EOF
+SUPERVISOR=$!
+for _ in $(seq 1 50); do [ -s "$base.pid" ] && break; sleep 0.1; done
+VM_PID=$(cat "$base.pid")
+wait_api
+docker_ run --rm -v e2e-vol:/data alpine:3.20 sh -c "echo $TOKEN-3 > /data/v3.txt"
+start=$(now)
+kill -KILL "$SUPERVISOR"
+for _ in $(seq 1 300); do kill -0 "$VM_PID" 2>/dev/null || break; sleep 0.1; done
+kill -0 "$VM_PID" 2>/dev/null && fail "VMM still running 30s after its supervisor died"
+VM_PID=""
+grep -q '"exit_reason":"poweroff","exit_code":7,' "$base.summary" || fail "summary: $(cat "$base.summary")"
+expect_console "EXT4-fs (vda): re-mounted"
+pass "supervisor killed: guest powered off in $(python3 -c "print('%.1f' % ($(now) - $start))")s, ext4 remounted read-only, exit 7"
+boot
+wait_api
+if grep -q 'recovery complete' "$WORK/boot$BOOTS.console"; then fail "ext4 needed journal recovery after a supervisor loss"; fi
+[ "$(docker_ run --rm -v e2e-vol:/data alpine:3.20 cat /data/v3.txt)" = "$TOKEN-3" ] || fail "volume data lost after a supervisor loss"
+pass "next boot: ext4 clean, data intact"
+stop_vm TERM
+[ "$VM_RC" = 0 ] || fail "SIGTERM exit code $VM_RC after the supervisor-loss boot"
 
 log "all checks passed"

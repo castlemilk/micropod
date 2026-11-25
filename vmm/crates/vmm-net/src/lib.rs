@@ -1756,6 +1756,28 @@ impl NetShared {
             return 0;
         }
 
+        // A SYN on an established flow is the guest retransmitting its SYN-ACK
+        // because our handshake ACK never reached the socket (a full accept
+        // queue drops it, as can RX overflow). Acknowledge it again, or a
+        // server-first service never sends its greeting. Its window is not
+        // read: a SYN carries it unscaled (RFC 7323).
+        if (flags & TCP_SYN) != 0 {
+            let wnd = flow.encoded_rcv_wnd(self.max_rcv_buf);
+            return irq_mask
+                | self.send_tcp(
+                    Some(slot),
+                    flow.peer(),
+                    flow.snd_nxt,
+                    flow.rcv_nxt,
+                    TCP_ACK,
+                    wnd,
+                    &[],
+                    None,
+                    true,
+                    false,
+                );
+        }
+
         // B. Process ACK field (advance snd_una, drain tx_unacked, update peer snd_wnd)
         if (flags & TCP_ACK) != 0 {
             let old_wnd = flow.snd_wnd;
@@ -3434,6 +3456,31 @@ mod tests {
             shared.flows[0].lock().unwrap().as_ref().unwrap().rcv_nxt,
             5001
         );
+
+        // The accepting address retransmits its SYN-ACK (our ACK was dropped by a
+        // full accept queue): it is acknowledged again, and its unscaled window
+        // does not get shifted into the flow's send window.
+        let wnd_before = {
+            let mut g = shared.flows[0].lock().unwrap();
+            let flow = g.as_mut().unwrap();
+            flow.peer_ws = 7;
+            flow.snd_wnd
+        };
+        deliver(guest_segment(
+            ETH0_IP,
+            guest_port,
+            lport,
+            5000,
+            iss + 1,
+            TCP_SYN | TCP_ACK,
+        ));
+        assert_eq!(take_frames_to_guest(&bridge), vec![(ETH0_IP, TCP_ACK)]);
+        {
+            let g = shared.flows[0].lock().unwrap();
+            let flow = g.as_ref().unwrap();
+            assert_eq!(flow.state, TcpState::Established);
+            assert_eq!((flow.rcv_nxt, flow.snd_wnd), (5001, wnd_before));
+        }
 
         // The next connection to this port goes straight to the address that answered.
         assert_eq!(

@@ -37,6 +37,12 @@ import (
 	"unsafe"
 )
 
+// statfs(2) f_flags bits (Linux ST_NOSUID, ST_NODEV).
+const (
+	stNosuid = 0x2
+	stNodev  = 0x4
+)
+
 const (
 	afVsock       = 40
 	vmaddrCidAny  = 0xffffffff
@@ -269,6 +275,16 @@ func reapChildrenUntil(deadline time.Time) bool {
 // orderly stop then powers off (PSCI SYSTEM_OFF); a failure stop resets (PSCI
 // SYSTEM_RESET) so the host never mistakes it for a requested poweroff.
 func gracefulStop(workspace string, total time.Duration, orderly bool) {
+	// sync(2) and the unmounts can block behind a stalled virtio-fs request
+	// (a host volume that stopped answering). Never let that keep the VM up:
+	// the host is not waiting on a failure stop, so nothing else would end it.
+	// A host-requested stop is timed by the host, which reports a forced stop
+	// at its own deadline (budget + 1s); this one fires after it.
+	deadline := total
+	if orderly {
+		deadline += orderlyStopSlack
+	}
+	armStopDeadline(deadline, orderly)
 	phases := splitShutdownBudget(total)
 	_ = syscall.Kill(-1, syscall.SIGTERM)
 	if !reapChildrenUntil(time.Now().Add(phases.term)) {
@@ -290,10 +306,31 @@ func gracefulStop(workspace string, total time.Duration, orderly bool) {
 	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 }
 
+// armStopDeadline makes the final PSCI call itself if the stop path has not
+// reached it in time. A Go timer runs on another thread, so it fires while the
+// main goroutine is stuck in sync(2).
+func armStopDeadline(after time.Duration, orderly bool) *time.Timer {
+	return time.AfterFunc(after, func() {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] stop did not finish within %v; stopping the VM now\n", after)
+		if orderly {
+			_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+		}
+		_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
+	})
+}
+
+const (
+	// orderlyStopSlack puts an orderly stop's own deadline past the host's.
+	orderlyStopSlack = 2 * time.Second
+	// fatalResetDeadline bounds the flush fatalReset attempts before resetting.
+	fatalResetDeadline = 5 * time.Second
+)
+
 // fatalReset reports an init failure, flushes what it can and resets the VM.
 // PID 1 must never simply exit: the kernel would panic instead.
 func fatalReset(err error) {
 	reportGuestFailure("init-failed", err.Error())
+	armStopDeadline(fatalResetDeadline, false)
 	syscall.Sync()
 	_ = syscall.Mount("", "/", "", syscall.MS_REMOUNT|syscall.MS_RDONLY, "")
 	syscall.Sync()
@@ -406,8 +443,16 @@ func stage2Supervise() {
 		if err := prepareWorkspaceMount(workspace); err != nil {
 			stage2Fail(fmt.Errorf("prepare workspace mount %q: %w", workspace, err))
 		}
-		if err := syscall.Mount("workspace", workspace, "virtiofs", 0, ""); err != nil {
+		// nosuid,nodev: the Mac's files are not the guest's to elevate with. The
+		// VMM also never keeps or reports set-id bits on them, because container
+		// runtimes remount bind mounts without nosuid.
+		if err := syscall.Mount("workspace", workspace, "virtiofs", syscall.MS_NOSUID|syscall.MS_NODEV, ""); err != nil {
 			stage2Fail(fmt.Errorf("mount workspace %q: %w", workspace, err))
+		}
+		var st syscall.Statfs_t
+		if err := syscall.Statfs(workspace, &st); err == nil {
+			fmt.Printf("[mp-hvf-init] workspace: %s nosuid=%t nodev=%t\n",
+				workspace, st.Flags&stNosuid != 0, st.Flags&stNodev != 0)
 		}
 	}
 

@@ -42,10 +42,18 @@ pub struct GuestControl {
 }
 
 /// Guest share of a host shutdown timeout: keep a margin for PSCI and teardown.
+/// The guest accepts no budget under one second.
 pub fn guest_shutdown_budget(host_timeout: Duration) -> Duration {
     host_timeout
         .saturating_sub(Duration::from_secs(1))
         .max(Duration::from_secs(1))
+}
+
+/// How long the host waits after `POWEROFF` before forcing the stop: the
+/// requested timeout, but never less than the guest's budget plus that margin
+/// (so `--shutdown-timeout 1` waits 2 s rather than cutting the guest's flush).
+pub fn host_shutdown_wait(host_timeout: Duration) -> Duration {
+    host_timeout.max(guest_shutdown_budget(host_timeout) + Duration::from_secs(1))
 }
 
 /// Convert `SystemTime` to a validated Unix nanosecond timestamp (`>= 2020-01-01 UTC`).
@@ -324,6 +332,20 @@ mod tests {
         assert_eq!(
             guest_shutdown_budget(Duration::ZERO),
             Duration::from_secs(1)
+        );
+        for secs in [1, 2, 10, 600] {
+            let host = Duration::from_secs(secs);
+            let wait = host_shutdown_wait(host);
+            assert!(wait >= guest_shutdown_budget(host) + Duration::from_secs(1));
+            assert!(wait >= host);
+        }
+        assert_eq!(
+            host_shutdown_wait(Duration::from_secs(1)),
+            Duration::from_secs(2)
+        );
+        assert_eq!(
+            host_shutdown_wait(Duration::from_secs(10)),
+            Duration::from_secs(10)
         );
     }
 

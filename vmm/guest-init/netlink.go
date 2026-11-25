@@ -105,17 +105,22 @@ func ip4Attr(typ uint16, ip netip.Addr) nlAttr {
 	return nlAttr{typ, a[:]}
 }
 
-// linkUpMsg is `ip link set dev <index> up [mtu N]` (mtu 0 keeps the current MTU).
-func linkUpMsg(seq uint32, index int, mtu uint32) []byte {
+// linkUpMsg is `ip link set dev <index> up`. It carries no MTU: the kernel
+// applies IFLA_MTU before the flags and stops at the first error, so a
+// rejected MTU in the same message would leave the link down.
+func linkUpMsg(seq uint32, index int) []byte {
 	body := make([]byte, 16) // ifinfomsg
 	binary.NativeEndian.PutUint32(body[4:8], uint32(index))
 	binary.NativeEndian.PutUint32(body[8:12], iffUp)
 	binary.NativeEndian.PutUint32(body[12:16], iffUp)
-	var attrs []nlAttr
-	if mtu != 0 {
-		attrs = append(attrs, u32Attr(iflaMTU, mtu))
-	}
-	return nlMessage(rtmNewLink, nlmFRequest|nlmFAck, seq, body, attrs...)
+	return nlMessage(rtmNewLink, nlmFRequest|nlmFAck, seq, body)
+}
+
+// linkMTUMsg is `ip link set dev <index> mtu N`; the flags are left alone.
+func linkMTUMsg(seq uint32, index int, mtu uint32) []byte {
+	body := make([]byte, 16) // ifinfomsg, ifi_change 0
+	binary.NativeEndian.PutUint32(body[4:8], uint32(index))
+	return nlMessage(rtmNewLink, nlmFRequest|nlmFAck, seq, body, u32Attr(iflaMTU, mtu))
 }
 
 // addrReplaceMsg is `ip addr replace <prefix> dev <index>`.
