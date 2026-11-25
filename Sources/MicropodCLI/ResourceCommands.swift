@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 #if canImport(Darwin)
     import Darwin
@@ -15,7 +16,7 @@ enum ResourceCommands {
         case "ls", "list": try await volumeList(Array(args.dropFirst()), services)
         case "create": try await volumeCreate(Array(args.dropFirst()), services)
         case "rm", "delete": try await volumeRemove(Array(args.dropFirst()), services)
-        case "prune": try await volumePrune(services)
+        case "prune": try await volumePrune(Array(args.dropFirst()), services)
         default:
             if sub.hasPrefix("-") {
                 try await volumeList(args, services)
@@ -26,8 +27,8 @@ enum ResourceCommands {
     }
 
     static func volumeList(_ args: [String], _ services: Services) async throws {
-        let parsed = try parseArgs(args, boolFlags: ["-q"], valueFlags: [], commandName: "volumes")
-        let volumes = try await services.volumes.list()
+        let parsed = try parseArgs(args, boolFlags: ["-q"], valueFlags: ["--runtime"], commandName: "volumes")
+        let volumes = try await services.volumes.list(runtime: parsed.value("--runtime"))
         if parsed.has("-q") {
             for volume in volumes { print(volume.id) }
             return
@@ -44,40 +45,67 @@ enum ResourceCommands {
                 relativeAge(from: volume.createdAt),
             ]
         }
+        // A RUNTIME column only once more than one engine is in play, as in `ps`.
+        let runtimes = volumes.map(RuntimeStamp.runtime(of:))
+        if Set(runtimes).count > 1 {
+            print(
+                renderTable(
+                    headers: ["NAME", "DRIVER", "SIZE", "CREATED", "RUNTIME"],
+                    rows: zip(rows, runtimes).map { $0 + [$1] }))
+            return
+        }
         print(renderTable(headers: ["NAME", "DRIVER", "SIZE", "CREATED"], rows: rows))
+    }
+
+    /// " on <runtime>" after a result line when a non-Apple runtime was named.
+    static func onRuntime(_ parsed: ParsedArgs) -> String {
+        guard let runtime = parsed.value("--runtime"), !runtime.isEmpty, runtime != "apple" else { return "" }
+        return " on \(runtime)"
     }
 
     static func volumeCreate(_ args: [String], _ services: Services) async throws {
         let parsed = try parseArgs(
             args,
             boolFlags: [],
-            valueFlags: ["--size", "--label", "--opt"],
+            valueFlags: ["--size", "--label", "--opt", "--runtime"],
             commandName: "volume create")
         guard let name = parsed.positionals.first else {
-            throw UsageError(message: "volume create <name> [--size 1GB] [--label k=v] [--opt k=v]")
+            throw UsageError(
+                message: "volume create <name> [--size 1GB] [--label k=v] [--opt k=v] [--runtime r]")
         }
         try await services.volumes.create(
             name: name,
             size: parsed.value("--size"),
             labels: parsed.values("--label"),
-            options: parsed.values("--opt"))
-        print("Created volume \(name)")
+            options: parsed.values("--opt"),
+            runtime: parsed.value("--runtime"))
+        print("Created volume \(name)\(onRuntime(parsed))")
     }
 
     static func volumeRemove(_ args: [String], _ services: Services) async throws {
-        let parsed = try parseArgs(args, boolFlags: [], valueFlags: [], commandName: "volume rm")
+        let parsed = try parseArgs(args, boolFlags: [], valueFlags: ["--runtime"], commandName: "volume rm")
         guard !parsed.positionals.isEmpty else {
-            throw UsageError(message: "volume rm <name…>")
+            throw UsageError(message: "volume rm <name…> [--runtime r]")
         }
         for name in parsed.positionals {
-            try await services.volumes.delete(name)
-            print("Deleted volume \(name)")
+            try await services.volumes.delete(name, runtime: parsed.value("--runtime"))
+            print("Deleted volume \(name)\(onRuntime(parsed))")
         }
     }
 
-    static func volumePrune(_ services: Services) async throws {
-        let report = try await services.volumes.prune()
+    /// `volume prune` has always ignored its arguments (`-f` included); only
+    /// `--runtime r` (or `--runtime=r`) means anything.
+    static func volumePrune(_ args: [String], _ services: Services) async throws {
+        let report = try await services.volumes.prune(runtime: runtimeFlag(in: args))
         print(report.isEmpty ? "Pruned" : report)
+    }
+
+    static func runtimeFlag(in args: [String]) -> String? {
+        for (index, arg) in args.enumerated() {
+            if arg == "--runtime", index + 1 < args.count { return args[index + 1] }
+            if arg.hasPrefix("--runtime=") { return String(arg.dropFirst("--runtime=".count)) }
+        }
+        return nil
     }
 
     static func networks(_ args: [String], _ services: Services) async throws {

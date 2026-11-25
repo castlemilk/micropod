@@ -162,9 +162,14 @@ extension APIHandlers {
                     Micropod_V1_LogChunk.with { $0.text = line.text }
                 }
 
+            // Images and volumes route like containers (`ImageRouter`,
+            // `VolumeRouter`). These messages carry no runtime field, so
+            // creates and pulls go to the default runtime and listings say
+            // where an entry came from only for volumes (a
+            // `com.micropod.runtime` label on non-Apple ones).
             case "ListImages":
                 var resp = Micropod_V1_ListImagesResponse()
-                resp.images = try await images.list()
+                resp.images = try await imageRouter(services).list()
                 return unary(resp)
 
             case "PullImage":
@@ -173,9 +178,9 @@ extension APIHandlers {
                 // No platform pulls linux/<host arch>, not every platform in
                 // the index (see ImageService.pull).
                 let budget = try ImagePullBudget.api(headers: headers)
-                let events = images.pullForAPI(
+                let events = imageRouter(services).pullForAPI(
                     req.reference,
-                    platform: req.hasPlatform ? req.platform : nil, budget: budget)
+                    platform: req.hasPlatform ? req.platform : nil, budget: budget, runtime: nil)
                 return streamEnvelope(events) { event in
                     Micropod_V1_ProgressLine.with {
                         $0.line = event.line
@@ -187,18 +192,18 @@ extension APIHandlers {
             case "DeleteImage":
                 let req = try decode(Micropod_V1_DeleteImageRequest.self, body)
                 try check(req)
-                try await images.delete(req.reference, force: req.force)
+                try await imageRouter(services).delete(req.reference, force: req.force)
                 return unary(Micropod_V1_Empty())
 
             case "ListVolumes":
                 var resp = Micropod_V1_ListVolumesResponse()
-                resp.volumes = try await services.volumes.list()
+                resp.volumes = try await volumeRouter(services).list()
                 return unary(resp)
 
             case "CreateVolume":
                 let req = try decode(Micropod_V1_CreateVolumeRequest.self, body)
                 try check(req)
-                try await services.volumes.create(
+                try await volumeRouter(services).create(
                     name: req.name,
                     size: req.hasSize ? req.size : nil,
                     labels: req.labels,
@@ -208,14 +213,14 @@ extension APIHandlers {
             case "DeleteVolume":
                 let req = try decode(Micropod_V1_DeleteVolumeRequest.self, body)
                 try check(req)
-                try await services.volumes.delete(req.name)
+                try await volumeRouter(services).delete(req.name)
                 return unary(Micropod_V1_Empty())
 
             case "CloneVolume":
                 let req = try decode(Micropod_V1_CloneVolumeRequest.self, body)
                 try check(req)
                 return unary(
-                    try await services.volumes.clone(
+                    try await volumeRouter(services).clone(
                         source: req.source,
                         name: req.name,
                         size: req.hasSize ? req.size : nil,
@@ -224,7 +229,8 @@ extension APIHandlers {
             case "CommitVolumeClone":
                 let req = try decode(Micropod_V1_CommitVolumeCloneRequest.self, body)
                 try check(req)
-                let allocated = try await services.volumes.commitClone(containerID: req.containerID, volume: req.volume)
+                let allocated = try await volumeRouter(services).commitClone(
+                    containerID: req.containerID, volume: req.volume)
                 return unary(Micropod_V1_CommitVolumeCloneResponse.with { $0.allocatedBytes = allocated })
 
             case "ListNetworks":

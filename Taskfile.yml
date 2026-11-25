@@ -173,6 +173,27 @@ tasks:
     cmds:
       - swift format lint --strict --recursive Sources Tests Package.swift
 
+  vmm-lint:
+    desc: Lint the next-generation Rust/Go VMM workspace
+    cmds:
+      - cd vmm && cargo fmt --all -- --check
+      - cd vmm && cargo clippy --workspace --all-targets -- -D warnings
+      - cd vmm/guest-init && test -z "$(gofmt -l .)"
+      - cd vmm/guest-init && env -u GOROOT go vet ./...
+      - cd vmm/guest-init && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go vet ./...
+
+  vmm-test:
+    desc: Test the next-generation Rust/Go VMM workspace
+    cmds:
+      - cd vmm && cargo test --workspace --all-targets -- --test-threads=1
+      - cd vmm/guest-init && env -u GOROOT go test -count=1 ./...
+      - cd vmm/guest-init && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /tmp/micropod-vmm-guest-init-check . && rm -f /tmp/micropod-vmm-guest-init-check
+
+  vmm-build:
+    desc: Build, sign, and package the next-generation VMM and guest initramfs
+    cmds:
+      - cd vmm && ./build.sh
+
   format:
     desc: Format sources
     cmds:

@@ -76,6 +76,7 @@ let package = Package(
         .target(
             name: "MicropodRuntime",
             dependencies: [
+                "CPtyShim",
                 "CPublishedTCP",
                 "MicropodCore",
                 .product(name: "Containerization", package: "containerization"),

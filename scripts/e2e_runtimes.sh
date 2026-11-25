@@ -54,7 +54,7 @@ available() {
 }
 
 echo "== engine management"
-check "three engines listed" "$(rpc SystemService/ListRuntimes | field "','.join(r['name'] for r in d['runtimes'])")" "apple,docker,sandbox"
+check "four engines listed" "$(rpc SystemService/ListRuntimes | field "','.join(r['name'] for r in d['runtimes'])")" "apple,docker,sandbox,hvf"
 check "apple is default" "$(rpc SystemService/Ping | field "d['defaultRuntime']")" "apple"
 check "runtime feature advertised" "$(rpc SystemService/Ping | field "'runtime' in d['features']")" "True"
 check "default can't be disabled" "$(rpc SystemService/UpdateRuntime '{"name":"apple","enabled":false}' | field "d['code']")" "failed_precondition"

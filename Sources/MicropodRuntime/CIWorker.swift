@@ -276,7 +276,7 @@ public struct CIWorker: Sendable {
         let CgroupDriver: String
     }
 
-    private var client: DockerClient { DockerClient(endpoint: .unix(socket.path), version: Self.apiVersion) }
+    private var client: DockerClient { DockerClient(endpoint: .unix(socket.path), apiVersion: Self.apiVersion) }
 
     public func status() async throws -> Status {
         guard FileManager.default.fileExists(atPath: session.path) else {
@@ -353,7 +353,7 @@ public struct CIWorker: Sendable {
     /// Verify that the API on the second socket belongs to the running native worker.
     public func nativeDockerEndpoint(executable: URL) async throws -> String {
         let active = try await start(executable: executable)
-        let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
+        let api = DockerClient(endpoint: .unix(dockerSocket.path), apiVersion: Self.apiVersion)
         let reply = try await api.request("GET", "/info", timeout: .seconds(3))
         guard reply.status == 200, let info = try reply.json() as? [String: Any],
             info["ID"] as? String == active.worker.uuidString,
@@ -364,7 +364,7 @@ public struct CIWorker: Sendable {
 
     public func nativeBuildKitEndpoint(executable: URL) async throws -> String {
         _ = try await nativeDockerEndpoint(executable: executable)
-        let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
+        let api = DockerClient(endpoint: .unix(dockerSocket.path), apiVersion: Self.apiVersion)
         let reply = try await api.request("GET", "/micropod/buildkit", timeout: .seconds(5))
         guard reply.status == 200, FileManager.default.fileExists(atPath: buildkitSocket.path) else {
             throw MicropodError.message("The active worker needs a native tool bundle with BuildKit")
@@ -496,7 +496,7 @@ public struct CIWorker: Sendable {
 
     @discardableResult
     func nativeControl(_ path: String, method: String = "GET") async throws -> Data {
-        let api = DockerClient(endpoint: .unix(ociSocket.path), version: "oci/v1")
+        let api = DockerClient(endpoint: .unix(ociSocket.path), apiVersion: "oci/v1")
         let reply = try await api.request(method, path, timeout: .seconds(3))
         guard reply.status == 200 else { throw MicropodError.message("Native OCI service: \(reply.message)") }
         return reply.body
@@ -563,7 +563,7 @@ public struct CIWorker: Sendable {
     }
 
     private func checkIdle(using endpoint: URL) async throws {
-        let api = DockerClient(endpoint: .unix(endpoint.path), version: Self.apiVersion)
+        let api = DockerClient(endpoint: .unix(endpoint.path), apiVersion: Self.apiVersion)
         let response = try await api.request("GET", "/containers/json", timeout: .seconds(3))
         guard response.status == 200, let jobs = try response.json() as? [[String: Any]], jobs.isEmpty else {
             throw MicropodError.message("Leave the worker running until its active containers finish")
@@ -774,7 +774,7 @@ public struct CIWorker: Sendable {
                 }
             }
             if config.engine == .containerd {
-                let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
+                let api = DockerClient(endpoint: .unix(dockerSocket.path), apiVersion: Self.apiVersion)
                 while true {
                     if let reply = try? await api.request("GET", "/info", timeout: .seconds(2)),
                         reply.status == 200, let info = try? reply.json() as? [String: Any],

@@ -18,6 +18,12 @@ public protocol RuntimeEngine: Sendable {
     var containers: any ContainerServing { get }
     var logs: any LogStreaming { get }
     var stats: (any StatsSampling)? { get }
+    /// Named volumes this engine keeps, for `VolumeRouter`; nil when it has
+    /// none of its own. The Apple runtime's are passed to the router by
+    /// each surface instead.
+    var volumeStore: (any EngineVolumeServing)? { get }
+    /// Images this engine keeps, for `ImageRouter`; nil when it has none.
+    var imageStore: (any EngineImageServing)? { get }
     func probe() async -> EngineProbe
     /// Cheap ownership test used to route id-based calls.
     func owns(_ id: String) async -> Bool
@@ -29,6 +35,23 @@ public protocol RuntimeEngine: Sendable {
 
 extension RuntimeEngine {
     public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool { false }
+    public var volumeStore: (any EngineVolumeServing)? { nil }
+    public var imageStore: (any EngineImageServing)? { nil }
+}
+
+/// `RuntimeInfo.capabilities` for volume and image management, beyond the
+/// container ones. "volumes" (mounting, listing, creating, inspecting and
+/// removing named volumes) and "images" (listing, inspecting and pulling)
+/// are the base; the rest are each one more operation.
+public enum ResourceCapability {
+    public static let imageRemove = "image-remove"  // rmi and image prune
+    public static let imageTag = "image-tag"
+    public static let imagePush = "image-push"
+    public static let imageSave = "image-save"
+    public static let imageLoad = "image-load"
+    public static let build = "build"
+    public static let volumePrune = "volume-prune"
+    public static let volumeClone = "volume-clone"  // CloneVolume / CommitVolumeClone
 }
 
 public struct EngineProbe: Sendable, Equatable {
@@ -106,10 +129,12 @@ public final class EngineRegistry: Sendable {
     private struct State {
         var config: EngineConfig
         var docker: DockerEngine
+        var hvf: HVFEngine
     }
 
     private let state: Mutex<State>
     private let configURL: URL
+    private let dockerEnvironment: [String: String]
     /// `MICROPOD_DEFAULT_RUNTIME` overrides the persisted default (CI jobs).
     private let envDefault: String?
     public let sandbox: SandboxEngine
@@ -120,6 +145,7 @@ public final class EngineRegistry: Sendable {
         sandbox: SandboxEngine = SandboxEngine()
     ) {
         configURL = EngineConfig.url(environment: environment)
+        dockerEnvironment = environment.filter { $0.key == "DOCKER_HOST" || $0.key == "DOCKER_API_VERSION" }
         let config = EngineConfig.load(from: configURL)
         envDefault = environment["MICROPOD_DEFAULT_RUNTIME"]
         self.sandbox = sandbox
@@ -127,10 +153,11 @@ public final class EngineRegistry: Sendable {
         state = Mutex(
             State(
                 config: config,
-                docker: DockerEngine(endpoint: config.engines["docker"]?.endpoint, environment: environment)))
+                docker: DockerEngine(endpoint: config.engines["docker"]?.endpoint, environment: environment),
+                hvf: HVFEngine(environment: environment)))
     }
 
-    public static let engineNames = ["apple", "docker", "sandbox", "ci"]
+    public static let engineNames = ["apple", "docker", "sandbox", "ci", "hvf"]
 
     public var config: EngineConfig { state.withLock { $0.config } }
 
@@ -149,6 +176,7 @@ public final class EngineRegistry: Sendable {
         case "docker": return state.withLock { $0.docker }
         case "ci": return ci
         case "sandbox": return sandbox
+        case "hvf": return state.withLock { $0.hvf }
         default: return nil
         }
     }
@@ -156,7 +184,7 @@ public final class EngineRegistry: Sendable {
     /// Enabled non-apple engines, in routing order (cheapest ownership
     /// check first: sandbox is in-memory, docker is one socket round trip).
     public func extraEngines() -> [any RuntimeEngine] {
-        ["sandbox", "ci", "docker"].filter(isEnabled).compactMap(engine)
+        ["sandbox", "ci", "docker", "hvf"].filter(isEnabled).compactMap(engine)
     }
 
     public func setDefault(_ name: String, apple: any RuntimeEngine) async throws {
@@ -203,7 +231,8 @@ public final class EngineRegistry: Sendable {
         }
         if endpoint != nil {
             state.withLock {
-                $0.docker = DockerEngine(endpoint: $0.config.engines["docker"]?.endpoint)
+                $0.docker = DockerEngine(
+                    endpoint: $0.config.engines["docker"]?.endpoint, environment: dockerEnvironment)
             }
         }
     }
@@ -219,7 +248,7 @@ public final class EngineRegistry: Sendable {
     /// `ListRuntimes` payload; `apple` is the live apple engine.
     public func describe(apple: any RuntimeEngine) async -> Micropod_V1_ListRuntimesResponse {
         let defaultName = self.defaultName
-        let engines: [any RuntimeEngine] = [apple] + ["docker", "sandbox", "ci"].compactMap(engine)
+        let engines: [any RuntimeEngine] = [apple] + ["docker", "sandbox", "ci", "hvf"].compactMap(engine)
         var infos: [Micropod_V1_RuntimeInfo] = []
         for engine in engines {
             let probe = await engine.probe()
@@ -255,7 +284,10 @@ public struct AppleEngine: RuntimeEngine {
     public var capabilities: [String] {
         [
             "run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports",
-            "volumes", "networks", "export", "copy",
+            "volumes", "networks", "export", "copy", "images", ResourceCapability.imageRemove,
+            ResourceCapability.imageTag, ResourceCapability.imagePush, ResourceCapability.imageSave,
+            ResourceCapability.imageLoad, ResourceCapability.build, ResourceCapability.volumePrune,
+            ResourceCapability.volumeClone,
         ]
     }
     public var containers: any ContainerServing { services.containers }
@@ -335,6 +367,16 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         return apple
     }
 
+    /// The Apple runtime is not running or cannot be reached: the errors
+    /// `ConnectCodeMapping` classifies `unavailable` (`runtimeNotRunning`,
+    /// a lost XPC channel, a missing `container` CLI, the CLI's own
+    /// runtime-down output). Timeouts, decode failures, refusals and
+    /// cancellation are not.
+    static func appleRuntimeIsDown(_ error: any Error) -> Bool {
+        if error is CancellationError { return false }
+        return ConnectCodeMapping.code(for: error) == "unavailable"
+    }
+
     static func require(_ engine: any RuntimeEngine, _ capability: String) throws {
         guard engine.capabilities.contains(capability) else {
             throw MicropodError.unsupported("runtime '\(engine.name)' does not support \(capability)")
@@ -344,10 +386,19 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     // MARK: ContainerServing
 
     public func list() async throws -> [Micropod_V1_Container] {
-        var all = try await apple.containers.list().map { container in
-            var container = container
-            container.runtime = "apple"
-            return container
+        var all: [Micropod_V1_Container] = []
+        do {
+            all = try await apple.containers.list().map { container in
+                var container = container
+                container.runtime = "apple"
+                return container
+            }
+        } catch {
+            // With another engine as the default, a stopped Apple runtime is
+            // just one more best-effort engine: its absence must not hide
+            // the default engine's containers. Any other Apple failure is
+            // still the listing's failure.
+            guard registry.defaultName != "apple", Self.appleRuntimeIsDown(error) else { throw error }
         }
         // Other engines are best-effort: a stopped Docker Desktop must not
         // fail the listing of containers that are running fine elsewhere.
@@ -382,6 +433,15 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
 
     public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
         try await owner(request.containerID).containers.execDetailed(request)
+    }
+
+    public func execAttached(_ request: ContainerExecRequest, stdin: FileHandle, stdout: FileHandle, stderr: FileHandle)
+        async throws -> Int32
+    {
+        try Task.checkCancellation()
+        let engine = await owner(request.containerID)
+        try Task.checkCancellation()
+        return try await engine.containers.execAttached(request, stdin: stdin, stdout: stdout, stderr: stderr)
     }
 
     public func start(_ id: String) async throws { try await owner(id).containers.start(id) }
@@ -464,7 +524,15 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     }
 
     public func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot {
-        var merged = try await apple.stats?.snapshot(ids: ids) ?? Micropod_V1_StatsSnapshot()
+        var merged = Micropod_V1_StatsSnapshot()
+        do {
+            merged = try await apple.stats?.snapshot(ids: ids) ?? merged
+        } catch {
+            // As in `list`: a stopped Apple runtime is skipped when Apple is
+            // not the default; any other Apple failure still surfaces.
+            guard registry.defaultName != "apple", Self.appleRuntimeIsDown(error) else { throw error }
+            merged.sampledAt = ISO8601DateFormatter().string(from: Date())
+        }
         for engine in registry.extraEngines() {
             guard let sampler = engine.stats, let snap = try? await sampler.snapshot(ids: ids) else { continue }
             merged.containers += snap.containers
@@ -475,7 +543,9 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
 
 extension RuntimeServices {
     /// These services with containers/logs/stats routed across every
-    /// enabled engine. Volumes, the XPC client and exit codes stay apple's.
+    /// enabled engine. `volumes`, the XPC client and exit codes stay
+    /// apple's: surfaces route volumes and images with `VolumeRouter` and
+    /// `ImageRouter` over `router?.registry`.
     public func routed(through registry: EngineRegistry = .shared) -> RuntimeServices {
         guard router == nil else { return self }
         let router = RuntimeRouter(apple: AppleEngine(services: self), registry: registry)

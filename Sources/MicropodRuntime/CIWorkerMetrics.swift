@@ -74,7 +74,7 @@ extension CIWorker {
     /// on the job launch path. A volume attachment and a package-manager hit are separate measurements.
     public func metrics(includeUsage: Bool = false) async throws -> Metrics {
         let current = try await status()
-        let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
+        let api = DockerClient(endpoint: .unix(dockerSocket.path), apiVersion: Self.apiVersion)
         async let volumesRequest = api.request(
             "GET", includeUsage ? "/system/df" : "/volumes",
             query: includeUsage ? ["type": "volume"] : [:], timeout: includeUsage ? .seconds(120) : .seconds(5))

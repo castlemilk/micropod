@@ -232,7 +232,7 @@ create.
 
 ## Container runtimes
 
-Micropod exposes four execution engines through one API. Pick one per
+Micropod drives five execution engines behind one API in this source tree. Pick one per
 container (`RunContainerRequest.runtime`, `micropod run --runtime`) or set a
 default; `ListContainers` merges every enabled engine and stamps each
 container's `runtime`, and id-based calls route to the engine that owns it.
@@ -241,6 +241,7 @@ container's `runtime`, and id-based calls route to the engine that owns it.
 |---|---|---|---|
 | `apple` | vm | Apple container runtime — one micro-VM per container | default; volumes, networks, ports |
 | `docker` | container | any Docker Engine socket (Docker Desktop, OrbStack, colima, `tcp://`) | **opt-in** so an existing Docker Desktop's containers don't appear until asked |
+| `hvf` | microvm | containerd and crun in a shared Hypervisor.framework machine | opt in with `micropod runtime enable hvf` after installing the machine assets |
 | `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; tcp ports, bind mounts; no named volumes; can't restart — run a new one |
 | `ci` | container | one Micropod-owned Linux VM per trusted runner account | `micropod ci start` keeps the kernel, Docker engine, BuildKit and named volumes warm |
 
@@ -259,9 +260,24 @@ Same over the API (Connect `SystemService.ListRuntimes / SetDefaultRuntime /
 UpdateRuntime`, REST `GET /v1/runtimes`, `PUT /v1/runtimes/default`,
 `PATCH /v1/runtimes/{name}`), the SDKs, and the MCP tools `runtimes`,
 `runtime_set_default`, `runtime_update` (+ `run`'s `runtime` argument).
-Settings persist in `~/.micropod/runtimes.json`; `MICROPOD_DEFAULT_RUNTIME`
+Settings persist in `~/.micropod/runtimes.json`. `MICROPOD_DEFAULT_RUNTIME`
 overrides the default per process. `Ping.features` includes `runtime` on
 servers that honour the field.
+
+On the Docker, CI and HVF runtimes, `micropod exec` streams binary stdout and stderr as the process runs and returns its exit code.
+Use `micropod exec -i build-1 -- sha256sum < artifact.tar` to send a file on stdin.
+Use `micropod exec -it build-1 sh` from a terminal for an interactive shell. The guest receives terminal resizes and control characters. With `-t`, its stdout and stderr share the PTY.
+The Docker adapter negotiates API 1.43 through 1.47 and accepts an explicit `DOCKER_API_VERSION` pin.
+`micropod machine help` lists the assets for the shared machine. `micropod machine docker-endpoint` prints the Unix socket for stock Docker clients.
+
+Volumes and images route the same way: `micropod volume ls` and `micropod images` merge every enabled engine
+that keeps its own (Docker, the CI worker, the hvf machine) and name the runtime once more than one is listed; `volume create`
+and `pull` take `--runtime` or the default runtime; `volume rm`, `rmi`, `tag` and `image inspect` go to the engine
+that has the name. The hvf guest engine lists, creates, inspects and removes volumes, and lists, inspects and pulls
+(linux/arm64) images; volume prune, volume sizes, image removal, tagging, save, load, push and build are refused as
+unsupported. `micropod machine status --json` reports the installed bundle's `capabilities` (BuildKit, the engine's
+Docker API range, the published-port path); `micropod machine buildkit-endpoint` prints the BuildKit socket for a
+remote `docker buildx` builder, and fails when the tool bundle ships no `runner/bin/buildkitd`.
 
 Sandbox VMs are owned by the process that boots them: long-lived sandbox
 containers live in the API daemon; the CLI's `run --runtime sandbox` runs in

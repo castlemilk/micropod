@@ -18,18 +18,23 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
             : "Micropod CI — one persistent Linux worker for trusted jobs"
     }
     public var capabilities: [String] {
-        ["run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports", "volumes"]
+        [
+            "run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports", "volumes",
+            "images", ResourceCapability.imageRemove, ResourceCapability.imageTag, ResourceCapability.volumePrune,
+        ]
     }
     public var containers: any ContainerServing { self }
     public var logs: any LogStreaming { self }
     public var stats: (any StatsSampling)? { self }
+    public var volumeStore: (any EngineVolumeServing)? { DockerVolumeStore(engine: self) }
+    public var imageStore: (any EngineImageServing)? { DockerImageStore(engine: self) }
 
     public init(endpoint: String?, environment: [String: String] = ProcessInfo.processInfo.environment) {
         ciWorker = nil
         let raw = endpoint ?? DockerClient.defaultEndpoint(environment: environment)
         endpointString = raw
         do {
-            client = DockerClient(endpoint: try DockerClient.Endpoint.parse(raw))
+            client = try DockerClient(endpoint: DockerClient.Endpoint.parse(raw), environment: environment)
             configError = nil
         } catch {
             client = nil
@@ -41,7 +46,15 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         ciWorker = worker
         endpointString = worker.endpoint
         configError = nil
-        client = DockerClient(endpoint: .unix(worker.socket.path), version: "v1.47")
+        client = DockerClient(endpoint: .unix(worker.socket.path), apiVersion: CIWorker.apiVersion)
+    }
+
+    /// An engine over an already-built client (the hvf machine's socket).
+    init(client: DockerClient) {
+        ciWorker = nil
+        self.client = client
+        configError = nil
+        endpointString = client.endpoint.description
     }
 
     func api() throws -> DockerClient {
@@ -92,14 +105,20 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
 
     public func list() async throws -> [Micropod_V1_Container] {
         if let ciWorker { _ = try await ciWorker.status() }
-        let response = try api().check(
-            try await api().request("GET", "/containers/json", query: ["all": "1"]))
-        let entries = try response.json() as? [[String: Any]] ?? []
-        return entries.map { entry in
-            var result = Self.container(from: entry)
+        return try await listWithIDs().map { entry in
+            var result = entry.container
             result.runtime = name
             return result
         }
+    }
+
+    /// The listing with each container's full engine id (`list` names a
+    /// container by its name when it has one).
+    func listWithIDs() async throws -> [(container: Micropod_V1_Container, engineID: String)] {
+        let response = try api().check(
+            try await api().request("GET", "/containers/json", query: ["all": "1"]))
+        let entries = try response.json() as? [[String: Any]] ?? []
+        return entries.map { (Self.container(from: $0), $0["Id"] as? String ?? "") }
     }
 
     static func container(from entry: [String: Any]) -> Micropod_V1_Container {
@@ -138,6 +157,11 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     }
 
     public func create(_ request: ContainerRunRequest) async throws -> String {
+        try await createContainer(request).handle
+    }
+
+    /// `create`, plus the engine's full id for the new container.
+    func createContainer(_ request: ContainerRunRequest) async throws -> (handle: String, engineID: String) {
         let docker = try api()
         var query: [String: String] = [:]
         if let name = request.name { query["name"] = name }
@@ -150,7 +174,7 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         }
         try docker.check(response)
         let id = (try response.json() as? [String: Any])?["Id"] as? String ?? ""
-        return request.name ?? String(id.prefix(12))
+        return (request.name ?? String(id.prefix(12)), id)
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
@@ -231,29 +255,78 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         return result.output
     }
 
-    public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
-        let docker = try api()
+    private func createExec(
+        _ request: ContainerExecRequest, docker: DockerClient, attachStdin: Bool, consoleSize: [UInt16]? = nil
+    ) async throws
+        -> String
+    {
         var body: [String: Any] = [
-            "Cmd": request.arguments, "AttachStdout": true, "AttachStderr": true, "Tty": request.tty,
+            "Cmd": request.arguments, "AttachStdin": attachStdin, "AttachStdout": !request.detach,
+            "AttachStderr": !request.detach, "Tty": request.tty,
         ]
         if !request.env.isEmpty { body["Env"] = request.env }
+        if let consoleSize { body["ConsoleSize"] = consoleSize }
         if let workdir = request.workdir { body["WorkingDir"] = workdir }
         if let user = request.user { body["User"] = user }
         let created = try docker.check(
             try await docker.request("POST", "/containers/\(Self.escape(request.containerID))/exec", json: body))
-        guard let execID = (try created.json() as? [String: Any])?["Id"] as? String else {
+        guard let execID = (try created.json() as? [String: Any])?["Id"] as? String, !execID.isEmpty else {
             throw MicropodError.message("internal: docker exec: no id")
         }
+        return "/exec/\(Self.escape(execID))"
+    }
+
+    private func execExitCode(_ path: String, docker: DockerClient) async throws -> Int32 {
+        let inspected = try docker.check(try await docker.request("GET", path + "/json"))
+        struct Inspection: Decodable {
+            let running: Bool
+            let exitCode: Int32
+            enum CodingKeys: String, CodingKey {
+                case running = "Running"
+                case exitCode = "ExitCode"
+            }
+        }
+        guard let state = try? JSONDecoder().decode(Inspection.self, from: inspected.body), !state.running else {
+            throw MicropodError.message("unavailable: docker exec: final exit code unavailable")
+        }
+        return state.exitCode
+    }
+
+    public func execAttached(_ request: ContainerExecRequest, stdin: FileHandle, stdout: FileHandle, stderr: FileHandle)
+        async throws -> Int32
+    {
+        try Task.checkCancellation()
+        guard !request.detach else { throw MicropodError.unsupported("detached exec has no attached stream") }
+        let input = request.interactive ? stdin : nil
+        let terminal = request.tty ? try DockerExecTerminal(input: input, output: stdout) : nil
+        let docker = try api()
+        let path = try await createExec(
+            request, docker: docker, attachStdin: request.interactive, consoleSize: terminal?.size?.consoleSize)
+        try await docker.startAttachedExec(
+            path, stdin: input, stdout: stdout, stderr: stderr, terminal: terminal)
+        return try await execExitCode(path, docker: docker)
+    }
+
+    public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
+        let docker = try api()
+        let path = try await createExec(request, docker: docker, attachStdin: false)
+        let startPath = path + "/start"
+        if request.detach {
+            // The acknowledgement is the result even if the process has already exited.
+            try await docker.startDetachedExec(startPath, tty: request.tty)
+            return ContainerExecResult(output: "", error: "", exitCode: 0)
+        }
+        // Older guests upgrade attached exec to a raw stream and send framed output, then EOF.
         let started = try docker.check(
             try await docker.request(
-                "POST", "/exec/\(execID)/start", json: ["Detach": request.detach, "Tty": request.tty],
-                timeout: .seconds(3600)))
+                "POST", startPath, json: ["Detach": false, "Tty": request.tty],
+                timeout: .seconds(3600)),
+            also: [101])
         let (stdout, stderr) = request.tty ? (started.body, Data()) : DockerClient.demux(started.body)
-        let inspected = try docker.check(try await docker.request("GET", "/exec/\(execID)/json"))
-        let code = (try inspected.json() as? [String: Any])?["ExitCode"] as? Int ?? 0
+        let code = try await execExitCode(path, docker: docker)
         return ContainerExecResult(
             output: String(decoding: stdout, as: UTF8.self), error: String(decoding: stderr, as: UTF8.self),
-            exitCode: Int32(code))
+            exitCode: code)
     }
 
     private func post(_ path: String, query: [String: String] = [:]) async throws {

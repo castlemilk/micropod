@@ -1,0 +1,8 @@
+[package]
+name = "vmm-virtio"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+hvf-sys = { path = "../hvf-sys" }
+libc = "0.2"

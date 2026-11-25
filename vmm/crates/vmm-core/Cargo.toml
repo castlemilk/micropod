@@ -1,0 +1,11 @@
+[package]
+name = "vmm-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+hvf-sys = { path = "../hvf-sys" }
+libc = "0.2"
+vmm-fdt = { path = "../vmm-fdt" }
+vmm-net = { path = "../vmm-net" }
+vmm-virtio = { path = "../vmm-virtio" }

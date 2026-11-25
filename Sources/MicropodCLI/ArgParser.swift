@@ -5,6 +5,41 @@ struct UsageError: Error, CustomStringConvertible {
     var description: String { message }
 }
 
+/// Global options can follow the subcommand. An exec's command and arguments
+/// belong to the guest, even when they use the same flag names as Micropod.
+struct GlobalArguments {
+    var arguments: [String] = []
+    var json = false
+    var noColor = false
+    var cliPath: String?
+
+    init(_ values: [String]) {
+        var rest = values[...]
+        var execContainerSeen = false
+        while let value = rest.popFirst() {
+            if arguments.first == "exec" {
+                if value == "--" || (execContainerSeen && !value.hasPrefix("-")) {
+                    arguments.append(value)
+                    arguments.append(contentsOf: rest)
+                    break
+                }
+                if ContainerCommands.execValueOptions.contains(value) {
+                    arguments.append(value)
+                    if let optionValue = rest.popFirst() { arguments.append(optionValue) }
+                    continue
+                }
+                if !value.hasPrefix("-") { execContainerSeen = true }
+            }
+            switch value {
+            case "--json": json = true
+            case "--no-color": noColor = true
+            case "--cli" where !rest.isEmpty: cliPath = rest.removeFirst()
+            default: arguments.append(value)
+            }
+        }
+    }
+}
+
 struct ParsedArgs {
     let positionals: [String]
     private let flags: Set<String>
@@ -43,7 +78,7 @@ struct ParsedArgs {
 /// container command's own `-e` or `-u` passes through untouched.
 func parseArgs(
     _ args: [String], boolFlags: Set<String>, valueFlags: Set<String>,
-    aliases: [String: String] = [:], commandName: String
+    aliases: [String: String] = [:], commandName: String, passthroughAfter: Int? = nil
 ) throws -> ParsedArgs {
     var positionals: [String] = []
     var flags = Set<String>()
@@ -55,6 +90,7 @@ func parseArgs(
         let arg = args[index]
         if onlyPositionals || arg == "-" || !arg.hasPrefix("-") {
             positionals.append(arg)
+            if positionals.count == passthroughAfter { onlyPositionals = true }
             index += 1
             continue
         }
@@ -71,6 +107,14 @@ func parseArgs(
         }
         let spelled = name
         name = aliases[name] ?? name
+        if name == spelled, inlineValue == nil, !name.hasPrefix("--"), name.count > 2 {
+            let shortFlags = name.dropFirst().compactMap { aliases["-" + String($0)] }
+            if shortFlags.count == name.count - 1 && shortFlags.allSatisfy(boolFlags.contains) {
+                flags.formUnion(shortFlags)
+                index += 1
+                continue
+            }
+        }
         guard boolFlags.contains(name) || valueFlags.contains(name) else {
             throw UsageError(message: "\(commandName): unknown flag \(spelled)")
         }
