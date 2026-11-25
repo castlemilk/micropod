@@ -18,6 +18,7 @@ const VIRTIO_MMIO_VERSION: u32 = 2;
 const VIRTIO_MMIO_VENDOR: u32 = 0x4d50_4f44; // "MPOD"
 
 const VIRTIO_F_VERSION_1: u64 = 1 << 32;
+const VIRTIO_F_EVENT_IDX: u64 = 1 << 29;
 
 const VIRTQ_DESC_F_NEXT: u16 = 1;
 const VIRTQ_DESC_F_WRITE: u16 = 2;
@@ -243,6 +244,8 @@ pub struct VirtQueue {
     pub used_addr: u64,
     pub next_avail: u16,
     pub next_used: u16,
+    // The snapshot already saves the negotiated features for the entire device.
+    event_idx: bool,
 }
 
 impl VirtQueue {
@@ -256,6 +259,7 @@ impl VirtQueue {
             used_addr: 0,
             next_avail: 0,
             next_used: 0,
+            event_idx: false,
         }
     }
 
@@ -267,6 +271,7 @@ impl VirtQueue {
         self.used_addr = 0;
         self.next_avail = 0;
         self.next_used = 0;
+        self.event_idx = false;
     }
 
     pub fn has_avail(&self, mem: &GuestMemory) -> bool {
@@ -377,10 +382,26 @@ impl VirtQueue {
     /// Must be called after `push_used` updates `used->idx`.
     #[inline]
     pub fn guest_wants_irq(&self, mem: &GuestMemory) -> bool {
+        self.guest_wants_irq_since(mem, self.next_used.wrapping_sub(1))
+    }
+
+    /// Check the entire interval published since the last notification decision.
+    /// With EVENT_IDX the driver gives the index of the first used entry it wants.
+    fn guest_wants_irq_since(&self, mem: &GuestMemory, old_used: u16) -> bool {
         if !self.ready || self.size == 0 {
             return false;
         }
         std::sync::atomic::fence(Ordering::SeqCst);
+        if self.event_idx {
+            let event = self
+                .avail_addr
+                .checked_add(4 + 2 * u64::from(self.size))
+                .and_then(|addr| mem.read_u16_acquire(addr));
+            return event.is_none_or(|idx| {
+                self.next_used.wrapping_sub(idx).wrapping_sub(1)
+                    < self.next_used.wrapping_sub(old_used)
+            });
+        }
         let flags = mem.read_u16_acquire(self.avail_addr).unwrap_or(0);
         (flags & 1) == 0
     }
@@ -393,8 +414,25 @@ impl VirtQueue {
         if !self.ready || self.size == 0 {
             return;
         }
-        let _ = mem.write_u16_release(self.used_addr, if suppress { 1 } else { 0 });
+        if self.event_idx {
+            // While draining, an index just behind the consumer suppresses kicks
+            // until wraparound. Before sleeping, request the next available entry.
+            if let Some(addr) = self.used_addr.checked_add(4 + 8 * u64::from(self.size)) {
+                let event = self.next_avail.wrapping_sub(u16::from(suppress));
+                let _ = mem.write_u16_release(addr, event);
+            }
+        } else {
+            let _ = mem.write_u16_release(self.used_addr, u16::from(suppress));
+        }
         std::sync::atomic::fence(Ordering::SeqCst);
+    }
+
+    fn configure_notifications(&mut self, mem: &GuestMemory, event_idx: bool) {
+        self.event_idx = event_idx;
+        if self.ready && event_idx {
+            let _ = mem.write_u16_release(self.used_addr, 0);
+            self.set_no_notify(mem, false);
+        }
     }
 }
 
@@ -491,6 +529,8 @@ pub trait VirtioBackend: Send {
     fn set_features(&mut self, _features: u64) {}
     /// Called when a queue's `ready` flag transitions to true (gives async backends a handle to RX queue).
     fn queue_ready(&mut self, _q_idx: usize, _q: &VirtQueue) {}
+    /// Stop accessing this ring before the guest can reuse its backing memory.
+    fn queue_disabled(&mut self, _q_idx: usize) {}
     /// Called on device reset (status == 0).
     fn reset(&mut self) {}
     /// Pause any background workers, sync live queue indices back into `queues`,
@@ -612,11 +652,20 @@ impl VirtioMmioDevice {
             }
             0x044 => {
                 let idx = self.queue_sel as usize;
-                if let Some(q) = self.queues.get_mut(idx) {
+                if let Some(q) = self.queues.get_mut(idx)
+                    && q.ready != (v != 0)
+                {
                     q.ready = v != 0;
                     if q.ready {
+                        let event_idx =
+                            self.driver_features & self.backend.features() & VIRTIO_F_EVENT_IDX != 0;
+                        q.configure_notifications(&self.mem, event_idx);
                         let snap = q.clone();
                         self.backend.queue_ready(idx, &snap);
+                    } else {
+                        self.backend.queue_disabled(idx);
+                        q.next_avail = 0;
+                        q.next_used = 0;
                     }
                 }
             }
@@ -636,11 +685,12 @@ impl VirtioMmioDevice {
             0x070 => {
                 self.status = v;
                 if v == 0 {
-                    self.irq.clear();
+                    self.backend.reset();
+                    self.driver_features = 0;
                     for q in &mut self.queues {
                         q.reset();
                     }
-                    self.backend.reset();
+                    self.irq.clear();
                 }
             }
             0x080 => {
@@ -713,6 +763,12 @@ impl VirtioMmioDevice {
                 self.queues.len()
             ));
         }
+        let event_idx = snap.driver_features & VIRTIO_F_EVENT_IDX != 0;
+        if event_idx && self.backend.features() & VIRTIO_F_EVENT_IDX == 0 {
+            return Err(format!(
+                "virtio device {} requires EVENT_IDX for snapshot restore", snap.device_id
+            ));
+        }
         self.device_features_sel = snap.device_features_sel;
         self.driver_features = snap.driver_features;
         self.driver_features_sel = snap.driver_features_sel;
@@ -729,7 +785,8 @@ impl VirtioMmioDevice {
             q.used_addr = qs.used_addr;
             q.next_avail = qs.next_avail;
             q.next_used = qs.next_used;
-            if q.ready {
+            q.configure_notifications(&self.mem, event_idx);
+            if q.ready && !event_idx {
                 q.set_no_notify(&self.mem, false);
             }
         }
@@ -897,12 +954,9 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
                 {
                     break;
                 }
-                let (ns, _) = shared
-                    .state
-                    .1
-                    .wait_timeout(st, Duration::from_millis(5))
-                    .unwrap();
-                st = ns;
+                // The drain loop rearms guest notifications, fences, and rechecks
+                // the ring. QueueNotify records its kick under this same mutex.
+                st = shared.state.1.wait(st).unwrap();
             }
             if shared.shutdown.load(Ordering::Relaxed) {
                 return;
@@ -1460,6 +1514,159 @@ impl VirtioBackend for VirtioBalloon {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn split_ring_event_thresholds_cover_each_published_entry_across_wrap() {
+        let mut backing = [0u64; 32];
+        let mem = unsafe {
+            GuestMemory::new(
+                backing.as_mut_ptr().cast(), 0, std::mem::size_of_val(&backing),
+            )
+        };
+        let mut q = VirtQueue::new(4);
+        q.ready = true;
+        q.avail_addr = 32;
+        q.used_addr = 128;
+        let used_event = 44;
+        let avail_event = 164;
+        mem.write_u16(used_event, 37).unwrap();
+        mem.write_u16(avail_event, 91).unwrap();
+        q.set_no_notify(&mem, true);
+        assert_eq!(mem.read_u16(q.used_addr), Some(1));
+        assert_eq!(mem.read_u16(avail_event), Some(91));
+        mem.write_u16(q.avail_addr, 1).unwrap();
+        assert!(!q.guest_wants_irq_since(&mem, 0));
+
+        q.next_avail = u16::MAX;
+        q.configure_notifications(&mem, true);
+        assert_eq!(mem.read_u16(q.used_addr), Some(0));
+        assert_eq!(mem.read_u16(avail_event), Some(u16::MAX));
+        q.next_avail = 0;
+        q.set_no_notify(&mem, true);
+        assert_eq!(mem.read_u16(avail_event), Some(u16::MAX));
+        q.set_no_notify(&mem, false);
+        assert_eq!(mem.read_u16(avail_event), Some(0));
+        assert_eq!(mem.read_u16(used_event), Some(37));
+
+        q.next_used = 1;
+        let old = u16::MAX - 1;
+        for (event, requested) in [
+            (old - 1, false), (old, true), (u16::MAX, true), (0, true), (1, false),
+        ] {
+            mem.write_u16_release(used_event, event).unwrap();
+            assert_eq!(q.guest_wants_irq_since(&mem, old), requested);
+        }
+        assert!(!q.guest_wants_irq_since(&mem, q.next_used));
+    }
+
+    #[test]
+    fn storage_workers_complete_requests_after_rearming_and_snapshot_resume() {
+        const AVAIL: u64 = 0x200;
+        const USED: u64 = 0x300;
+        const INPUT: u64 = 0x400;
+        const OUTPUT: u64 = 0x500;
+        const STATUS: u64 = 0x800;
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let file = File::open(std::env::current_exe().unwrap()).unwrap();
+        let mut expected = [0; 32];
+        file.read_exact_at(&mut expected, 0).unwrap();
+        let block = VirtioBlk::new(file, true, Arc::default()).unwrap();
+        let fs =
+            virtiofs::VirtioFs::new("workspace", root.to_owned(), false, Arc::default()).unwrap();
+        let devices: [Box<dyn VirtioBackend>; 2] = [Box::new(block), Box::new(fs)];
+
+        for backend in devices {
+            let is_fs = backend.device_id() == 26;
+            let queue = u64::from(is_fs);
+            let mut backing = [0u64; 512];
+            let mem = Arc::new(unsafe {
+                GuestMemory::new(
+                    backing.as_mut_ptr().cast(),
+                    0,
+                    std::mem::size_of_val(&backing),
+                )
+            });
+            let mut dev = VirtioMmioDevice::new(32, mem.clone(), backend);
+            // One ordinary FUSE GETATTR or virtio-blk READ. Suppress guest IRQs.
+            mem.write_u16(AVAIL, 1).unwrap();
+            if is_fs {
+                mem.write_u32(INPUT, 56).unwrap();
+                mem.write_u32(INPUT + 4, 3).unwrap();
+                mem.write_u32(INPUT + 8, 37).unwrap();
+                mem.write_u32(INPUT + 16, 1).unwrap();
+            }
+            let descs = [
+                (INPUT, if is_fs { 56 } else { 16 }, VIRTQ_DESC_F_NEXT),
+                (
+                    OUTPUT,
+                    512,
+                    if is_fs {
+                        VIRTQ_DESC_F_WRITE
+                    } else {
+                        VIRTQ_DESC_F_WRITE | VIRTQ_DESC_F_NEXT
+                    },
+                ),
+                (STATUS, 1, VIRTQ_DESC_F_WRITE),
+            ];
+            for (i, (addr, len, flags)) in descs.into_iter().enumerate() {
+                let d = 0x100 + i as u64 * 16;
+                mem.write_slice(d, 8)
+                    .unwrap()
+                    .copy_from_slice(&addr.to_le_bytes());
+                mem.write_u32(d + 8, len).unwrap();
+                mem.write_u16(d + 12, flags).unwrap();
+                mem.write_u16(d + 14, i as u16 + 1).unwrap();
+            }
+            for (reg, value) in [
+                (0x030, queue),
+                (0x038, 4),
+                (0x080, 0x100),
+                (0x090, AVAIL),
+                (0x0a0, USED),
+                (0x044, 1),
+            ] {
+                dev.mmio_write(reg, 4, value);
+            }
+            for seq in 1..=96u16 {
+                if seq % 8 == 0 {
+                    thread::sleep(Duration::from_millis(1));
+                }
+                let paused = seq == 49;
+                if paused {
+                    assert_eq!(
+                        dev.snapshot_pause().queues[queue as usize].next_used,
+                        seq - 1
+                    );
+                }
+                mem.write_slice(OUTPUT, 512).unwrap().fill(0xff);
+                mem.write_slice(STATUS, 1).unwrap()[0] = 0xff;
+                mem.write_u16_release(AVAIL + 2, seq).unwrap();
+                std::sync::atomic::fence(Ordering::SeqCst);
+                if mem.read_u16_acquire(USED).unwrap() & 1 == 0 {
+                    dev.mmio_write(0x050, 4, queue);
+                }
+                if paused {
+                    assert_eq!(mem.read_u16_acquire(USED + 2), Some(seq - 1));
+                    dev.snapshot_resume();
+                }
+                let limit = Instant::now() + Duration::from_secs(2);
+                while mem.read_u16_acquire(USED + 2) != Some(seq) {
+                    assert!(
+                        Instant::now() < limit,
+                        "queue {queue} stalled at request {seq}"
+                    );
+                    thread::yield_now();
+                }
+                if is_fs {
+                    assert_eq!(mem.read_u32(OUTPUT + 4), Some(0));
+                    assert_eq!(mem.read_u64(OUTPUT + 8), Some(37));
+                } else {
+                    assert_eq!(mem.read_slice(STATUS, 1).unwrap(), &[0]);
+                    assert_eq!(mem.read_slice(OUTPUT, 32).unwrap(), expected);
+                }
+            }
+        }
+    }
 
     #[test]
     fn guest_memory_madvise_aligns_inward() {

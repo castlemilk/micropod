@@ -10,7 +10,15 @@
 //! bound to. Names are single components other than `.` and `..`. A symlink the
 //! guest plants therefore never redirects a request, a renamed directory takes
 //! its subtree with it, and a node whose directory cannot be reached that way
-//! fails with ESTALE instead of being looked up by path.
+//! (or that the host moved out of the share) fails with ESTALE instead of being
+//! looked up by path.
+//!
+//! One host entry has one node however the guest spells its name (case and
+//! Unicode normalisation on the Mac's default volume); guest ownership belongs
+//! to the host file, so every name of it agrees (see [`GuestAttr`]). Host opens
+//! never block (a FIFO is refused, not waited on), and what a guest can make
+//! the VMM hold is bounded: nodes it forgets are freed, and nodes, owner pins,
+//! open handles, listings, read-only caches and request sizes have limits.
 //!
 //! Phase B5 optimizations:
 //! - Inline synchronous VirtQueue dispatch on `QueueNotify` (eliminates cross-thread
@@ -23,18 +31,19 @@
 //!   response scratch buffer (zero heap allocations on hot paths).
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ffi::{CStr, CString};
-use std::fs::{self, File, FileTimes};
+use std::fs::{self, File};
 use std::io::ErrorKind;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
-use std::os::unix::fs::{FileExt, MetadataExt, PermissionsExt};
+use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use crate::{DescBuf, GuestMemory, IrqLine, VirtQueue, VirtioBackend, scatter_writable};
 
@@ -83,8 +92,12 @@ const FUSE_PARALLEL_DIROPS: u32 = 1 << 18;
 const FUSE_MAX_PAGES: u32 = 1 << 22;
 const FUSE_CACHE_SYMLINKS: u32 = 1 << 23;
 const FUSE_EXPLICIT_INVAL_DATA: u32 = 1 << 25;
+const FUSE_INIT_EXT: u32 = 1 << 30;
+const FUSE_DIRECT_IO_ALLOW_MMAP_FLAGS2: u32 = 1 << (36 - 32);
+const FUSE_DIRECT_IO_MMAP_MINOR: u32 = 39;
 
 // FUSE open_flags (Linux include/uapi/linux/fuse.h)
+const FOPEN_DIRECT_IO: u32 = 1 << 0;
 const FOPEN_KEEP_CACHE: u32 = 1 << 1;
 const FOPEN_CACHE_DIR: u32 = 1 << 3;
 const FOPEN_NOFLUSH: u32 = 1 << 5;
@@ -132,12 +145,50 @@ const LINUX_ESTALE: i32 = 116;
 const LINUX_EDQUOT: i32 = 122;
 const FUSE_GETATTR_FH: u32 = 1;
 
+/// `fchmodat` flag for the entry itself: Darwin changes a symlink's own mode,
+/// other hosts follow it (the guest never sends a mode change for a symlink).
 #[cfg(target_vendor = "apple")]
-const METADATA_OPEN_FLAGS: i32 = libc::O_EVTONLY;
+const AT_NOFOLLOW_MODE: i32 = libc::AT_SYMLINK_NOFOLLOW;
 #[cfg(not(target_vendor = "apple"))]
-const METADATA_OPEN_FLAGS: i32 = 0;
+const AT_NOFOLLOW_MODE: i32 = 0;
+
+fn check_rc(rc: libc::c_int) -> Result<(), i32> {
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(last_os_errno_linux())
+    }
+}
 
 const MAX_CACHED_DIR_FDS: usize = 512;
+
+/// Most nodes one share holds. The guest's FORGETs keep the table to what its
+/// inode cache references; this bounds a guest kernel that never forgets
+/// (a lookup that would bind beyond it fails with ENFILE).
+const MAX_NODES: usize = 1 << 20;
+/// Most host files guest `chown`s may pin an owner on, per share (beyond it
+/// a `chown` that would add one fails with ENOSPC).
+const MAX_OWNER_PINS: usize = 1 << 20;
+/// Most entries each read-only lookup and attribute cache keeps.
+const MAX_RO_CACHE: usize = 16 * 1024;
+/// Most open file and directory handles per share (also at most a quarter of
+/// the descriptors the process may open; see [`handle_limit`]). Beyond it
+/// OPEN, CREATE and OPENDIR fail with ENFILE.
+const MAX_OPEN_HANDLES: usize = 16 * 1024;
+/// Most open directory handles per share; each holds part of a listing.
+const MAX_OPEN_DIRS: usize = 1024;
+/// Largest FUSE request accepted: `max_write` plus headers, with room to spare.
+const MAX_FUSE_REQUEST: usize = 1024 * 1024 + 4096;
+/// Attribute buffer for one `getattrlistbulk` call while a listing streams.
+const DIR_CHUNK_BYTES: usize = 16 * 1024;
+/// Entries `readdir(3)` reads per refill when `getattrlistbulk` is unavailable.
+const DIR_CHUNK_ENTRIES: usize = 128;
+/// Entries a directory handle keeps after a reply, for a guest that resumes
+/// a little before where the reply ended (its buffer held fewer entries).
+const DIR_RETAIN: usize = 128;
+/// A cached directory descriptor is checked to still lie inside the share at
+/// most this often (the guest's own attribute validity on writable shares).
+const DIR_FD_RECHECK_MS: u64 = 20;
 
 // Writable shares may be changed by a host editor while a guest file is open.
 // 20ms metadata validity keeps host-edit visibility ~3.5x faster than OrbStack (~91ms)
@@ -187,24 +238,6 @@ impl FuseStat {
         }
     }
 
-    fn from_metadata(md: &fs::Metadata) -> Self {
-        Self {
-            dev: md.dev(),
-            ino: md.ino(),
-            mode: md.mode(),
-            nlink: md.nlink() as u32,
-            size: md.size(),
-            blocks: md.blocks(),
-            atime: md.atime(),
-            atime_nsec: md.atime_nsec(),
-            mtime: md.mtime(),
-            mtime_nsec: md.mtime_nsec(),
-            ctime: md.ctime(),
-            ctime_nsec: md.ctime_nsec(),
-            rdev: md.rdev(),
-        }
-    }
-
     #[inline]
     fn dtype(&self) -> u32 {
         (self.mode >> 12) & 0xf
@@ -214,18 +247,161 @@ impl FuseStat {
 struct OpenFile {
     nodeid: u64,
     file: Arc<File>,
+    /// Host (dev, ino) of the open file.
+    identity: (u64, u64),
 }
 
 #[derive(Clone)]
 struct BulkDirEntry {
+    /// The entry's name as the host stores it.
     name: CString,
     stat: FuseStat,
+    /// A directory another file system is mounted on: the listing's identity
+    /// is the covered directory, not the mounted root a lookup reaches.
+    mount_point: bool,
 }
 
 struct OpenDir {
     dir_nodeid: u64,
     dir_fd: OwnedFd,
-    entries: Option<Vec<BulkDirEntry>>,
+    listing: DirListing,
+}
+
+/// One OPENDIR handle's pass over its directory, read from the host a chunk
+/// at a time as the guest asks for entries, never held whole: a handle keeps
+/// at most a chunk it has not sent plus [`DIR_RETAIN`] entries it has.
+/// Offsets are entry indexes within the pass; offset 0, or one before what the
+/// handle still holds, starts a new pass.
+#[derive(Default)]
+struct DirListing {
+    /// Index within the pass of `window[0]`.
+    base: usize,
+    window: VecDeque<BulkDirEntry>,
+    /// The pass has read the whole directory.
+    eof: bool,
+    /// A pass is under way.
+    started: bool,
+    /// `readdir(3)` stream, used where `getattrlistbulk` is unavailable.
+    stream: Option<DirStream>,
+}
+
+/// A `readdir(3)` stream over a duplicate of an open directory descriptor.
+struct DirStream(NonNull<libc::DIR>);
+
+// SAFETY: the stream is only used under the FsCore mutex, by one thread at a time.
+unsafe impl Send for DirStream {}
+
+impl DirStream {
+    fn open(dir_fd: RawFd) -> Result<Self, i32> {
+        let dup = unsafe { libc::fcntl(dir_fd, libc::F_DUPFD_CLOEXEC, 0) };
+        if dup < 0 {
+            return Err(last_os_errno_linux());
+        }
+        match NonNull::new(unsafe { libc::fdopendir(dup) }) {
+            Some(dirp) => {
+                unsafe { libc::rewinddir(dirp.as_ptr()) };
+                Ok(Self(dirp))
+            }
+            None => {
+                let errno = last_os_errno_linux();
+                unsafe { libc::close(dup) };
+                Err(errno)
+            }
+        }
+    }
+}
+
+impl Drop for DirStream {
+    fn drop(&mut self) {
+        unsafe { libc::closedir(self.0.as_ptr()) };
+    }
+}
+
+impl DirListing {
+    /// Start a new pass at the first entry.
+    fn rewind(&mut self, dir_fd: RawFd) {
+        self.base = 0;
+        self.window.clear();
+        self.eof = false;
+        self.started = true;
+        match &self.stream {
+            Some(stream) => unsafe { libc::rewinddir(stream.0.as_ptr()) },
+            None => {
+                unsafe { libc::lseek(dir_fd, 0, libc::SEEK_SET) };
+            }
+        }
+    }
+
+    /// Read the next chunk of entries into the window (or reach the end).
+    fn fill(&mut self, dir_fd: RawFd, buf: &mut Vec<u8>) -> Result<(), i32> {
+        #[cfg(target_vendor = "apple")]
+        if self.stream.is_none() {
+            match darwin_bulk::read_dir_chunk(dir_fd, buf, &mut self.window) {
+                Ok(0) => self.eof = true,
+                Ok(_) => {}
+                // A file system without getattrlistbulk: list it with readdir(3).
+                Err(_) if self.base == 0 && self.window.is_empty() => {
+                    self.stream = Some(DirStream::open(dir_fd)?);
+                }
+                Err(e) => return Err(e),
+            }
+            if self.stream.is_none() {
+                return Ok(());
+            }
+        }
+        #[cfg(not(target_vendor = "apple"))]
+        let _ = buf;
+        if self.stream.is_none() {
+            self.stream = Some(DirStream::open(dir_fd)?);
+        }
+        let dirp = self.stream.as_ref().map(|s| s.0.as_ptr()).unwrap();
+        for _ in 0..DIR_CHUNK_ENTRIES {
+            let ent = unsafe { libc::readdir(dirp) };
+            if ent.is_null() {
+                self.eof = true;
+                break;
+            }
+            let name = unsafe { CStr::from_ptr((*ent).d_name.as_ptr()) };
+            if matches!(name.to_bytes(), b"." | b"..") {
+                continue;
+            }
+            if let Ok(stat) = fstatat_cstr(dir_fd, name) {
+                self.window.push_back(BulkDirEntry {
+                    name: name.to_owned(),
+                    stat,
+                    mount_point: false,
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
+/// What one share may hold (fields so tests can lower them).
+struct Limits {
+    nodes: usize,
+    pins: usize,
+    /// Open file and directory handles together (see [`handle_limit`]).
+    handles: usize,
+    dirs: usize,
+}
+
+impl Limits {
+    fn new() -> Self {
+        let handles = handle_limit();
+        Self {
+            nodes: MAX_NODES,
+            pins: MAX_OWNER_PINS,
+            handles,
+            dirs: MAX_OPEN_DIRS.min(handles),
+        }
+    }
+}
+
+/// A cached directory descriptor and when it was last found inside the share.
+struct CachedDir {
+    fd: Arc<OwnedFd>,
+    checked_ms: u64,
 }
 
 fn raw_os_err_to_linux(raw: i32) -> i32 {
@@ -360,6 +536,10 @@ mod darwin_bulk {
     const ATTR_CMN_RETURNED_ATTRS: u32 = 0x8000_0000;
 
     const ATTR_DIR_LINKCOUNT: u32 = 0x0000_0001;
+    const ATTR_DIR_MOUNTSTATUS: u32 = 0x0000_0004;
+    const DIR_MNTSTATUS_MNTPOINT: u32 = 0x0000_0001;
+
+    const FSOPT_NOFOLLOW: u64 = 0x0000_0001;
 
     const ATTR_FILE_LINKCOUNT: u32 = 0x0000_0001;
     const ATTR_FILE_TOTALSIZE: u32 = 0x0000_0002;
@@ -402,6 +582,93 @@ mod darwin_bulk {
             attr_buf_size: libc::size_t,
             options: u64,
         ) -> libc::c_int;
+        fn getattrlistat(
+            dirfd: libc::c_int,
+            path: *const libc::c_char,
+            attr_list: *mut AttrList,
+            attr_buf: *mut libc::c_void,
+            attr_buf_size: libc::size_t,
+            options: libc::c_ulong,
+        ) -> libc::c_int;
+    }
+
+    /// The name in an attribute record whose cursor `cur` is at its
+    /// ATTR_CMN_NAME reference, advancing past the reference. The slice
+    /// borrows the record's buffer, which the caller keeps alive (`'a`).
+    unsafe fn record_name<'a>(cur: &mut *const u8, rec_end: *const u8) -> Option<&'a [u8]> {
+        let field_start = *cur;
+        let aref = unsafe { read_unaligned_adv::<AttrReference>(cur, rec_end) }?;
+        if aref.dataoffset < 0 || aref.length == 0 {
+            return None;
+        }
+        let str_ptr = unsafe { field_start.add(aref.dataoffset as usize) };
+        if str_ptr as usize >= rec_end as usize {
+            return None;
+        }
+        let max_len = (rec_end as usize) - (str_ptr as usize);
+        let raw_len = (aref.length as usize).min(max_len);
+        // SAFETY: within the record; the caller keeps the buffer alive while it uses the name.
+        let slice = unsafe { std::slice::from_raw_parts(str_ptr, raw_len) };
+        Some(match slice.iter().position(|&b| b == 0) {
+            Some(z) => &slice[..z],
+            None => slice,
+        })
+    }
+
+    /// The name the entry `name` of `dirfd` is stored under when it differs
+    /// from `name` (in case or Unicode normalisation, on a volume that ignores
+    /// both) and the entry is still the file `st` describes.
+    pub(super) fn stored_name(dirfd: RawFd, name: &CStr, st: &FuseStat) -> Option<CString> {
+        match entry_stored(dirfd, name) {
+            Ok((stored, identity)) if identity == (st.dev, st.ino) && stored.as_c_str() != name => {
+                Some(stored)
+            }
+            _ => None,
+        }
+    }
+
+    /// The name the host stores the entry `name` of `dirfd` under, and the
+    /// (dev, ino) it is (not following a symlink).
+    pub(super) fn entry_stored(dirfd: RawFd, name: &CStr) -> Result<(CString, (u64, u64)), i32> {
+        let mut req = AttrList {
+            bitmapcount: ATTR_BIT_MAP_COUNT,
+            reserved: 0,
+            commonattr: ATTR_CMN_RETURNED_ATTRS | ATTR_CMN_NAME | ATTR_CMN_DEVID | ATTR_CMN_FILEID,
+            volattr: 0,
+            dirattr: 0,
+            fileattr: 0,
+            forkattr: 0,
+        };
+        // A stored name is at most 255 UTF-16 units: 765 bytes of UTF-8.
+        let mut buf = [0u8; 1024];
+        let rc = unsafe {
+            getattrlistat(
+                dirfd,
+                name.as_ptr(),
+                &mut req,
+                buf.as_mut_ptr().cast(),
+                buf.len(),
+                FSOPT_NOFOLLOW as libc::c_ulong,
+            )
+        };
+        if rc != 0 {
+            return Err(last_os_errno_linux());
+        }
+        let len = u32::from_le_bytes(buf[..4].try_into().unwrap()) as usize;
+        let end = unsafe { buf.as_ptr().add(len.min(buf.len())) };
+        let mut cur = unsafe { buf.as_ptr().add(4) };
+        let parsed = (|| {
+            let ret = unsafe { read_unaligned_adv::<AttributeSet>(&mut cur, end) }?;
+            let want = ATTR_CMN_NAME | ATTR_CMN_DEVID | ATTR_CMN_FILEID;
+            if ret.commonattr & want != want {
+                return None;
+            }
+            let stored = unsafe { record_name(&mut cur, end) }?;
+            let dev = unsafe { read_unaligned_adv::<i32>(&mut cur, end) }? as u64;
+            let ino = unsafe { read_unaligned_adv::<u64>(&mut cur, end) }?;
+            Some((CString::new(stored).ok()?, (dev, ino)))
+        })();
+        parsed.ok_or(LINUX_EIO)
     }
 
     #[inline]
@@ -429,14 +696,28 @@ mod darwin_bulk {
         Some(val)
     }
 
+    /// Every entry of a directory, from its first (tests compare the parser
+    /// with `lstat`).
+    #[cfg(test)]
     pub(super) fn read_dir_bulk(
         dir_fd: RawFd,
         buf: &mut Vec<u8>,
     ) -> Result<Vec<BulkDirEntry>, i32> {
-        // Rewind so any host renames since OPENDIR are observed live.
         let _ = unsafe { libc::lseek(dir_fd, 0, libc::SEEK_SET) };
-        if buf.len() < 64 * 1024 {
-            buf.resize(64 * 1024, 0);
+        let mut entries = VecDeque::new();
+        while read_dir_chunk(dir_fd, buf, &mut entries)? > 0 {}
+        Ok(entries.into())
+    }
+
+    /// Read the next entries of a directory from its descriptor's position
+    /// (one `getattrlistbulk` call) into `out`; 0 at the end.
+    pub(super) fn read_dir_chunk(
+        dir_fd: RawFd,
+        buf: &mut Vec<u8>,
+        out: &mut VecDeque<BulkDirEntry>,
+    ) -> Result<usize, i32> {
+        if buf.len() < DIR_CHUNK_BYTES {
+            buf.resize(DIR_CHUNK_BYTES, 0);
         }
         let mut req = AttrList {
             bitmapcount: ATTR_BIT_MAP_COUNT,
@@ -451,7 +732,7 @@ mod darwin_bulk {
                 | ATTR_CMN_ACCESSMASK
                 | ATTR_CMN_FILEID,
             volattr: 0,
-            dirattr: ATTR_DIR_LINKCOUNT,
+            dirattr: ATTR_DIR_LINKCOUNT | ATTR_DIR_MOUNTSTATUS,
             fileattr: ATTR_FILE_LINKCOUNT
                 | ATTR_FILE_TOTALSIZE
                 | ATTR_FILE_ALLOCSIZE
@@ -459,16 +740,13 @@ mod darwin_bulk {
             forkattr: 0,
         };
 
-        let mut entries = Vec::with_capacity(32);
-        loop {
-            let count =
-                unsafe { getattrlistbulk(dir_fd, &mut req, buf.as_mut_ptr().cast(), buf.len(), 0) };
-            if count < 0 {
-                return Err(last_os_errno_linux());
-            }
-            if count == 0 {
-                break;
-            }
+        let size = DIR_CHUNK_BYTES.min(buf.len());
+        let count = unsafe { getattrlistbulk(dir_fd, &mut req, buf.as_mut_ptr().cast(), size, 0) };
+        if count < 0 {
+            return Err(last_os_errno_linux());
+        }
+        {
+            let entries = out;
             let base_ptr = buf.as_ptr();
             let buf_end = unsafe { base_ptr.add(buf.len()) };
             let mut rec_ptr = base_ptr;
@@ -491,24 +769,13 @@ mod darwin_bulk {
 
                 let mut name_bytes: Option<CString> = None;
                 if ret.commonattr & ATTR_CMN_NAME != 0 {
-                    let field_start = cur;
-                    let Some(aref) =
-                        (unsafe { read_unaligned_adv::<AttrReference>(&mut cur, rec_end) })
-                    else {
-                        continue;
-                    };
-                    if aref.dataoffset >= 0 && aref.length > 0 {
-                        let str_ptr = unsafe { field_start.add(aref.dataoffset as usize) };
-                        let max_len = (rec_end as usize).saturating_sub(str_ptr as usize);
-                        let raw_len = (aref.length as usize).min(max_len);
-                        let slice = unsafe { std::slice::from_raw_parts(str_ptr, raw_len) };
-                        let trimmed = match slice.iter().position(|&b| b == 0) {
-                            Some(z) => &slice[..z],
-                            None => slice,
-                        };
-                        if !trimmed.is_empty() && trimmed != b"." && trimmed != b".." {
-                            name_bytes = CString::new(trimmed).ok();
-                        }
+                    let name = unsafe { record_name(&mut cur, rec_end) };
+                    if let Some(trimmed) = name
+                        && !trimmed.is_empty()
+                        && trimmed != b"."
+                        && trimmed != b".."
+                    {
+                        name_bytes = CString::new(trimmed).ok();
                     }
                 }
                 let dev = if ret.commonattr & ATTR_CMN_DEVID != 0 {
@@ -563,6 +830,9 @@ mod darwin_bulk {
                 {
                     nlink = v;
                 }
+                let mount_point = ret.dirattr & ATTR_DIR_MOUNTSTATUS != 0
+                    && unsafe { read_unaligned_adv::<u32>(&mut cur, rec_end) }
+                        .is_some_and(|status| status & DIR_MNTSTATUS_MNTPOINT != 0);
                 if ret.fileattr & ATTR_FILE_LINKCOUNT != 0
                     && let Some(v) = unsafe { read_unaligned_adv::<u32>(&mut cur, rec_end) }
                 {
@@ -592,8 +862,9 @@ mod darwin_bulk {
                     continue;
                 };
                 let mode = vtype_to_ifmt(objtype) | (accessmask & 0o7777);
-                entries.push(BulkDirEntry {
+                entries.push_back(BulkDirEntry {
                     name,
+                    mount_point,
                     stat: FuseStat {
                         dev,
                         ino,
@@ -612,7 +883,22 @@ mod darwin_bulk {
                 });
             }
         }
-        Ok(entries)
+        Ok(count as usize)
+    }
+}
+
+#[cfg(not(target_vendor = "apple"))]
+mod darwin_bulk {
+    use super::*;
+
+    /// Names are compared byte for byte elsewhere.
+    pub(super) fn stored_name(_dirfd: RawFd, _name: &CStr, _st: &FuseStat) -> Option<CString> {
+        None
+    }
+
+    pub(super) fn entry_stored(dirfd: RawFd, name: &CStr) -> Result<(CString, (u64, u64)), i32> {
+        let st = fstatat_cstr(dirfd, name)?;
+        Ok((name.to_owned(), (st.dev, st.ino)))
     }
 }
 
@@ -621,6 +907,14 @@ pub struct FsMetrics {
     pub requests: AtomicU64,
     pub bytes_read: AtomicU64,
     pub bytes_written: AtomicU64,
+    /// Nodes all shares hold now, and the most they have held at once.
+    pub nodes: AtomicU64,
+    pub nodes_peak: AtomicU64,
+    /// Open file and directory handles all shares hold now.
+    pub open_handles: AtomicU64,
+    pub workspace_kicks: AtomicU64,
+    pub workspace_used_batches: AtomicU64,
+    pub workspace_irq_requests: AtomicU64,
 }
 
 /// Deepest directory chain resolved for one node. A chain cannot loop (every
@@ -640,8 +934,10 @@ const OWNER_ADOPT_WINDOW: Duration = Duration::from_secs(5);
 const S_ISUID: u32 = 0o4000;
 const S_ISGID: u32 = 0o2000;
 
-/// Marks the pinned-owner section of a snapshot blob.
+/// Marks the pinned-owner sections of a snapshot blob: by node, by host file.
 const SNAPSHOT_OWNERS_TAG: &[u8; 4] = b"OWN1";
+const SNAPSHOT_FILE_OWNERS_TAG: &[u8; 4] = b"OWN2";
+const SNAPSHOT_DIRECT_IO_MMAP_TAG: &[u8; 4] = b"DIO1";
 
 // renameat2(2) flags the guest may send in FUSE_RENAME2.
 const LINUX_RENAME_NOREPLACE: u32 = 1 << 0;
@@ -649,44 +945,67 @@ const LINUX_RENAME_EXCHANGE: u32 = 1 << 1;
 
 const DIR_OPEN_FLAGS: i32 = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC;
 
-/// Guest-visible ownership of one node on a writable share.
-///
-/// Host uids mean nothing in the guest, so a field no guest `chown` set
-/// "floats": a non-root caller sees itself as the owner, so non-root
-/// containers can use the Mac's files (as with Docker Desktop), and a root
-/// caller, which passes permission checks without owning anything, sees the
-/// non-root user that used the node within [`OWNER_ADOPT_WINDOW`], else root.
-/// A guest `chown`/`chgrp` pins only the field it names, for every caller,
-/// for as long as the node exists. Set-id bits are never honoured on a
-/// writable share (see [`guest_mode`]).
-#[derive(Clone, Copy, Default)]
-struct GuestOwner {
-    uid: Option<u32>,
-    gid: Option<u32>,
-    /// Last non-root caller that saw this node, and when (ms since the share opened).
-    recent_user: Option<(u32, u32)>,
-    recent_at_ms: u64,
-}
-
 /// One node the guest can name: the directory entry it was last seen at and
 /// the host file it is bound to. Nodes are addressed by (parent, name), never
 /// by a host path, so renaming a directory moves its whole subtree at once and
 /// every host access is resolved again from the share root.
+///
+/// A host entry has one node however the guest spells it: on a volume that
+/// ignores case or Unicode normalisation, a node is keyed by the name it was
+/// first bound under, and any other spelling of the entry finds it through
+/// [`FsCore::kin`] and re-keys it to the name the host stores.
+/// Hard links are separate entries, so separate nodes, of one file:
+/// they report the same inode number and share its owner (both by host
+/// identity). A node lives while the guest references it (`lookups`) or a
+/// child is addressed through it.
 struct Node {
     parent: u64,
-    /// Entry name in `parent` (the root node is `.` in itself).
+    /// Entry name in `parent` as the host stores it (the root is `.` in itself).
     name: CString,
     /// Host (dev, ino) this node is bound to (mutable shares).
     identity: Option<(u64, u64)>,
-    owner: GuestOwner,
+    /// Entry replies the guest has not forgotten yet (FUSE `nlookup`).
+    lookups: u64,
+    /// Last non-root caller that saw this node, and when (ms since the share
+    /// opened): what a root caller sees as the owner of a floating file.
+    recent_user: Option<(u32, u32)>,
+    recent_at_ms: u64,
+}
+
+impl Node {
+    fn new(parent: u64, name: CString, identity: Option<(u64, u64)>) -> Self {
+        Self {
+            parent,
+            name,
+            identity,
+            lookups: 0,
+            recent_user: None,
+            recent_at_ms: 0,
+        }
+    }
 }
 
 /// Mode, uid and gid the guest sees for a node.
+///
+/// Ownership on a writable share belongs to the host file, by (dev, ino), so
+/// every name of a file (hard links, other spellings) and every node bound to
+/// it agrees. Host uids mean nothing in the guest, so a file no guest `chown`
+/// has touched "floats": a non-root caller sees itself as owner and group, so
+/// non-root containers can use the Mac's files (as with Docker Desktop), and a
+/// root caller, which passes permission checks without owning anything, sees
+/// the non-root user that used the node within [`OWNER_ADOPT_WINDOW`], else
+/// root. A guest `chown` or `chgrp` pins both fields for every caller: the one
+/// it names, and the other at the value the caller saw then. A pin lasts until
+/// the guest removes the file's last name (or the share closes). A non-root
+/// caller handing a floating file to itself pins nothing. Set-id bits are never
+/// honoured on a writable share (see [`guest_mode`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct GuestAttr {
     mode: u32,
     uid: u32,
     gid: u32,
+    /// Inode number (see [`FsCore::guest_ino`]); the FUSE node ID is separate.
+    ino: u64,
 }
 
 /// A writable share behaves as if mounted nosuid whatever the guest's mount
@@ -743,9 +1062,102 @@ fn open_dir_at(dirfd: RawFd, name: &CStr, nofollow: i32) -> Result<OwnedFd, i32>
     Err(errno)
 }
 
+/// Open the entry `name` of `dirfd` without following a symlink and without
+/// blocking (a FIFO with no peer would otherwise hold the worker forever).
+fn open_entry_at(
+    dirfd: RawFd,
+    name: &CStr,
+    flags: i32,
+    mode: libc::c_uint,
+) -> Result<OwnedFd, i32> {
+    let fd = unsafe {
+        libc::openat(
+            dirfd,
+            name.as_ptr(),
+            flags | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK | libc::O_NOCTTY,
+            mode,
+        )
+    };
+    if fd < 0 {
+        Err(last_os_errno_linux())
+    } else {
+        Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    }
+}
+
+/// Keep `fd` (opened by [`open_entry_at`] with `flags`, describing `st`) as a
+/// host handle only for a regular file or a directory: the guest serves
+/// FIFOs, sockets and devices itself and never needs a host handle for one.
+/// A regular file drops the O_NONBLOCK it was opened with.
+fn host_handle(fd: OwnedFd, st: &FuseStat, flags: i32) -> Result<File, i32> {
+    match st.mode & libc::S_IFMT as u32 {
+        m if m == libc::S_IFREG as u32 => {
+            if unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags & libc::O_APPEND) } != 0 {
+                return Err(last_os_errno_linux());
+            }
+            Ok(File::from(fd))
+        }
+        m if m == libc::S_IFDIR as u32 => Ok(File::from(fd)),
+        _ => Err(LINUX_ENXIO),
+    }
+}
+
+/// Open handles one share may hold: [`MAX_OPEN_HANDLES`], or a quarter of the
+/// descriptors this process may open if that is less (the rest serve other
+/// shares, the disk, vsock and published-port connections).
+fn handle_limit() -> usize {
+    let mut rl = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    let mut cur = if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut rl) } == 0 {
+        rl.rlim_cur
+    } else {
+        256
+    };
+    #[cfg(target_vendor = "apple")]
+    {
+        let mut per_proc: libc::c_int = 0;
+        let mut len = std::mem::size_of::<libc::c_int>();
+        if unsafe {
+            libc::sysctlbyname(
+                c"kern.maxfilesperproc".as_ptr(),
+                (&mut per_proc as *mut libc::c_int).cast(),
+                &mut len,
+                std::ptr::null_mut(),
+                0,
+            )
+        } == 0
+            && per_proc > 0
+        {
+            cur = cur.min(per_proc as libc::rlim_t);
+        }
+    }
+    usize::try_from(cur / 4)
+        .unwrap_or(MAX_OPEN_HANDLES)
+        .clamp(64, MAX_OPEN_HANDLES)
+}
+
+/// The path the host gives an open directory now (`F_GETPATH`).
+#[cfg(target_vendor = "apple")]
+fn fd_path(fd: RawFd) -> Option<Vec<u8>> {
+    let mut buf = [0u8; libc::PATH_MAX as usize];
+    if unsafe { libc::fcntl(fd, libc::F_GETPATH, buf.as_mut_ptr()) } != 0 {
+        return None;
+    }
+    let len = buf.iter().position(|&b| b == 0)?;
+    Some(buf[..len].to_vec())
+}
+
+fn path_within(path: &[u8], root: &[u8]) -> bool {
+    path == root
+        || (path.starts_with(root) && (root.ends_with(b"/") || path.get(root.len()) == Some(&b'/')))
+}
+
 /// Open the directory reached from `base` through `names` (entry names, never
 /// `.` or `..`) without following a symlink in any component, so the result
-/// can only be a directory inside the tree `base` heads.
+/// is a directory inside the tree `base` heads unless the host moves one of
+/// those directories out of it meanwhile ([`FsCore::dir_fd`] checks that).
 fn open_dir_beneath(base: RawFd, names: &[&CStr]) -> Result<OwnedFd, i32> {
     #[cfg(target_vendor = "apple")]
     {
@@ -816,56 +1228,43 @@ fn host_rename(
     }
 }
 
-/// List a directory through its descriptor (when `getattrlistbulk` is not
-/// available), with `fstatat` relative to the same descriptor.
-fn read_dir_entries_fd(dir_fd: RawFd) -> Result<Vec<BulkDirEntry>, i32> {
-    let dup = unsafe { libc::fcntl(dir_fd, libc::F_DUPFD_CLOEXEC, 0) };
-    if dup < 0 {
-        return Err(last_os_errno_linux());
-    }
-    let dirp = unsafe { libc::fdopendir(dup) };
-    if dirp.is_null() {
-        let errno = last_os_errno_linux();
-        unsafe { libc::close(dup) };
-        return Err(errno);
-    }
-    unsafe { libc::rewinddir(dirp) };
-    let mut entries = Vec::new();
-    loop {
-        let ent = unsafe { libc::readdir(dirp) };
-        if ent.is_null() {
-            break;
-        }
-        let name = unsafe { CStr::from_ptr((*ent).d_name.as_ptr()) };
-        if matches!(name.to_bytes(), b"." | b"..") {
-            continue;
-        }
-        if let Ok(stat) = fstatat_cstr(dir_fd, name) {
-            entries.push(BulkDirEntry {
-                name: name.to_owned(),
-                stat,
-            });
-        }
-    }
-    unsafe { libc::closedir(dirp) };
-    Ok(entries)
-}
-
 struct FsCore {
     read_only: bool,
+    writable_workspace: bool,
+    direct_io_requested: bool,
+    direct_io_mmap: bool,
     /// The share root, opened once. Every host access is a `*at` call on a
     /// directory reached from here without following symlinks.
     root_fd: Arc<OwnedFd>,
+    /// Host device of the share root: inode numbers from it reach the guest
+    /// as they are; those of volumes mounted inside the share are folded with
+    /// an index into `foreign_devs`.
+    root_dev: u64,
+    foreign_devs: Vec<u64>,
+    /// Where the host says the share root is (`F_GETPATH`); cached directory
+    /// descriptors must stay beneath it.
+    #[cfg_attr(not(target_vendor = "apple"), allow(dead_code))]
+    root_path: Vec<u8>,
     next_nodeid: u64,
     next_fh: u64,
     nodes: HashMap<u64, Node>,
-    /// (parent node, entry name) -> node.
+    /// (parent node, stored entry name) -> node.
     children: HashMap<u64, HashMap<CString, u64>>,
+    /// (parent node, host identity) -> a node `parent` has for that file, to
+    /// find the node of an entry under another spelling, or after the host
+    /// renames it (writable shares). `kin_more` holds any further nodes for
+    /// the same file in the same directory (other hard links).
+    kin: HashMap<(u64, (u64, u64)), u64>,
+    kin_more: HashMap<(u64, (u64, u64)), Vec<u64>>,
     /// Open directories by node; a descriptor keeps naming its directory
-    /// across renames, so it stays valid until the node is retired.
-    dir_fds: HashMap<u64, Arc<OwnedFd>>,
+    /// across renames, so it stays valid until the node goes, unless the host
+    /// moves the directory out of the share.
+    dir_fds: HashMap<u64, CachedDir>,
     open_files: HashMap<u64, OpenFile>,
     open_dirs: HashMap<u64, OpenDir>,
+    limits: Limits,
+    /// Guest owner pinned by a guest `chown`, by host (dev, ino) (see [`GuestAttr`]).
+    owners: HashMap<(u64, u64), (u32, u32)>,
     // Read-only hot caches (eliminates repeat host lstat/open syscalls on oci-tools!)
     ro_lookup_cache: HashMap<(u64, Vec<u8>), Result<u64, i32>>,
     ro_attr_cache: HashMap<u64, FuseStat>,
@@ -882,7 +1281,7 @@ struct FsCore {
 }
 
 struct FsQueueState {
-    queues: [Option<VirtQueue>; 2],
+    queues: Vec<Option<VirtQueue>>,
     mem: Option<Arc<GuestMemory>>,
     irq: Option<IrqLine>,
     kicked: bool,
@@ -891,6 +1290,7 @@ struct FsQueueState {
 
 struct FsShared {
     core: Mutex<FsCore>,
+    workspace_metrics: Option<Arc<FsMetrics>>,
     state: (Mutex<FsQueueState>, Condvar),
     paused: AtomicBool,
     shutdown: AtomicBool,
@@ -899,6 +1299,8 @@ struct FsShared {
 pub struct VirtioFs {
     tag: [u8; 36],
     tag_name: String,
+    request_queues: u16,
+    offer_event_idx: bool,
     shared: Arc<FsShared>,
     worker_handle: Option<thread::JoinHandle<()>>,
 }
@@ -910,7 +1312,52 @@ impl VirtioFs {
         read_only: bool,
         metrics: Arc<FsMetrics>,
     ) -> std::io::Result<Self> {
-        let core = FsCore::new(&root, read_only, metrics)?;
+        let count = if tag == "workspace" && !read_only {
+            std::env::var_os("MICROPOD_VIRTIOFS_WORKSPACE_QUEUES")
+        } else {
+            None
+        };
+        let request_queues = match count {
+            None => 1,
+            Some(value) => value
+                .to_str()
+                .and_then(|s| s.parse::<u16>().ok())
+                .filter(|n| (1..=16).contains(n))
+                .ok_or_else(|| {
+                    std::io::Error::new(
+                        ErrorKind::InvalidInput,
+                        "MICROPOD_VIRTIOFS_WORKSPACE_QUEUES must be between 1 and 16",
+                    )
+                })?,
+        };
+        let mut device = Self::with_request_queues(tag, root, read_only, metrics, request_queues)?;
+        if tag == "workspace" && !read_only {
+            device.offer_event_idx = match std::env::var_os("MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX")
+                .as_deref()
+            {
+                None => false,
+                Some(value) if value == "0" => false,
+                Some(value) if value == "1" => true,
+                Some(_) => {
+                    return Err(std::io::Error::new(
+                        ErrorKind::InvalidInput,
+                        "MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX must be 0 or 1",
+                    ));
+                }
+            };
+        }
+        Ok(device)
+    }
+
+    fn with_request_queues(
+        tag: &str,
+        root: PathBuf,
+        read_only: bool,
+        metrics: Arc<FsMetrics>,
+        request_queues: u16,
+    ) -> std::io::Result<Self> {
+        let workspace_metrics = (tag == "workspace" && !read_only).then(|| metrics.clone());
+        let core = FsCore::new(tag, &root, read_only, metrics)?;
         let mut tag_bytes = [0u8; 36];
         let src = tag.as_bytes();
         let n = src.len().min(36);
@@ -919,11 +1366,14 @@ impl VirtioFs {
         Ok(Self {
             tag: tag_bytes,
             tag_name: tag.to_string(),
+            request_queues,
+            offer_event_idx: false,
             shared: Arc::new(FsShared {
                 core: Mutex::new(core),
+                workspace_metrics,
                 state: (
                     Mutex::new(FsQueueState {
-                        queues: [None, None],
+                        queues: vec![None; 1 + usize::from(request_queues)],
                         mem: None,
                         irq: None,
                         kicked: false,
@@ -951,6 +1401,25 @@ impl VirtioFs {
         self.worker_handle = Some(handle);
     }
 
+    // Once parked, the worker has rearmed each queue and returned its live
+    // cursors. Queue configuration and snapshots can then use the same state.
+    fn park_worker(&self) -> MutexGuard<'_, FsQueueState> {
+        let (state, wake) = &self.shared.state;
+        let mut st = state.lock().unwrap();
+        self.shared.paused.store(true, Ordering::Release);
+        wake.notify_all();
+        while self.worker_handle.is_some() && !st.worker_parked {
+            st = wake.wait(st).unwrap();
+        }
+        st
+    }
+
+    fn resume_worker(&self, st: &mut FsQueueState) {
+        self.shared.paused.store(false, Ordering::Release);
+        st.kicked = true;
+        self.shared.state.1.notify_all();
+    }
+
     #[cfg(test)]
     fn handle_fuse(&mut self, req: &[u8]) -> Option<Vec<u8>> {
         let mut core = self.shared.core.lock().unwrap();
@@ -973,7 +1442,7 @@ impl VirtioFs {
 }
 
 impl FsCore {
-    fn new(root: &Path, read_only: bool, metrics: Arc<FsMetrics>) -> std::io::Result<Self> {
+    fn new(tag: &str, root: &Path, read_only: bool, metrics: Arc<FsMetrics>) -> std::io::Result<Self> {
         let canon = fs::canonicalize(root)?;
         let croot = CString::new(canon.as_os_str().as_bytes())
             .map_err(|_| std::io::Error::from(ErrorKind::InvalidInput))?;
@@ -986,26 +1455,40 @@ impl FsCore {
         if fd < 0 {
             return Err(std::io::Error::last_os_error());
         }
+        let root_fd = unsafe { OwnedFd::from_raw_fd(fd) };
+        let root_dev = fstat_fd(root_fd.as_raw_fd())
+            .map_err(|_| std::io::Error::last_os_error())?
+            .dev;
+        #[cfg(target_vendor = "apple")]
+        let root_path = fd_path(root_fd.as_raw_fd()).unwrap_or_default();
+        #[cfg(not(target_vendor = "apple"))]
+        let root_path = canon.as_os_str().as_bytes().to_vec();
         let mut nodes = HashMap::new();
-        nodes.insert(
-            FUSE_ROOT_ID,
-            Node {
-                parent: FUSE_ROOT_ID,
-                name: c".".to_owned(),
-                identity: None,
-                owner: GuestOwner::default(),
-            },
-        );
+        nodes.insert(FUSE_ROOT_ID, Node::new(FUSE_ROOT_ID, c".".to_owned(), None));
+        let now = metrics.nodes.fetch_add(1, Ordering::Relaxed) + 1;
+        metrics.nodes_peak.fetch_max(now, Ordering::Relaxed);
+        let writable_workspace = tag == "workspace" && !read_only;
         Ok(Self {
             read_only,
-            root_fd: Arc::new(unsafe { OwnedFd::from_raw_fd(fd) }),
+            writable_workspace,
+            direct_io_requested: writable_workspace
+                && std::env::var_os("MICROPOD_VIRTIOFS_LIVE_READ").is_some_and(|value| value == "1"),
+            direct_io_mmap: false,
+            root_fd: Arc::new(root_fd),
+            root_dev,
+            foreign_devs: Vec::new(),
+            root_path,
             next_nodeid: 2,
             next_fh: 1,
             nodes,
             children: HashMap::new(),
+            kin: HashMap::new(),
+            kin_more: HashMap::new(),
             dir_fds: HashMap::new(),
             open_files: HashMap::new(),
             open_dirs: HashMap::new(),
+            limits: Limits::new(),
+            owners: HashMap::new(),
             ro_lookup_cache: HashMap::new(),
             ro_attr_cache: HashMap::new(),
             ro_file_cache: HashMap::new(),
@@ -1035,15 +1518,40 @@ impl FsCore {
             .entry(parent)
             .or_default()
             .insert(name.clone(), id);
-        self.nodes.insert(
-            id,
-            Node {
-                parent,
-                name,
-                identity,
-                owner: GuestOwner::default(),
-            },
-        );
+        if self
+            .nodes
+            .insert(id, Node::new(parent, name, identity))
+            .is_none()
+        {
+            let now = self.metrics.nodes.fetch_add(1, Ordering::Relaxed) + 1;
+            self.metrics.nodes_peak.fetch_max(now, Ordering::Relaxed);
+        }
+        self.index_kin(id);
+    }
+
+    /// Drop node `id` from every table. The caller handles its children.
+    fn remove_node(&mut self, id: u64) -> Option<Node> {
+        self.unindex_kin(id);
+        let node = self.nodes.remove(&id)?;
+        self.metrics.nodes.fetch_sub(1, Ordering::Relaxed);
+        if let Some(siblings) = self.children.get_mut(&node.parent)
+            && siblings.get(node.name.as_c_str()) == Some(&id)
+        {
+            siblings.remove(node.name.as_c_str());
+            if siblings.is_empty() {
+                self.children.remove(&node.parent);
+            }
+        }
+        self.dir_fds.remove(&id);
+        if self.read_only {
+            self.ro_attr_cache.remove(&id);
+            self.ro_file_cache.remove(&id);
+            let key = (node.parent, node.name.to_bytes().to_vec());
+            if self.ro_lookup_cache.get(&key) == Some(&Ok(id)) {
+                self.ro_lookup_cache.remove(&key);
+            }
+        }
+        Some(node)
     }
 
     /// Forget a node and everything below it: later requests for them get
@@ -1054,21 +1562,12 @@ impl FsCore {
             if id == FUSE_ROOT_ID {
                 continue;
             }
-            let Some(node) = self.nodes.remove(&id) else {
+            if self.remove_node(id).is_none() {
                 continue;
-            };
-            if let Some(siblings) = self.children.get_mut(&node.parent)
-                && siblings.get(node.name.as_c_str()) == Some(&id)
-            {
-                siblings.remove(node.name.as_c_str());
-                if siblings.is_empty() {
-                    self.children.remove(&node.parent);
-                }
             }
             if let Some(kids) = self.children.remove(&id) {
                 stack.extend(kids.into_values());
             }
-            self.dir_fds.remove(&id);
         }
     }
 
@@ -1078,7 +1577,188 @@ impl FsCore {
         }
     }
 
-    /// Bind the entry `name` of `parent` to the host file `st` describes.
+    /// FUSE_FORGET: the guest dropped `count` references to node `id`.
+    fn forget(&mut self, id: u64, count: u64) {
+        let Some(node) = self.nodes.get_mut(&id) else {
+            return; // already retired
+        };
+        node.lookups = node.lookups.saturating_sub(count);
+        self.drop_unreferenced(id);
+    }
+
+    /// Remove node `id` once the guest holds no reference to it and no child
+    /// is addressed through it, then its parent on the same terms.
+    fn drop_unreferenced(&mut self, mut id: u64) {
+        while id != FUSE_ROOT_ID {
+            let Some(node) = self.nodes.get(&id) else {
+                return;
+            };
+            if node.lookups != 0 || self.children.contains_key(&id) {
+                return;
+            }
+            let parent = node.parent;
+            self.remove_node(id);
+            id = parent;
+        }
+    }
+
+    /// Count an entry reply for node `id` (the guest now references it once more).
+    fn add_lookup(&mut self, id: u64) {
+        if let Some(node) = self.nodes.get_mut(&id) {
+            node.lookups = node.lookups.saturating_add(1);
+        }
+    }
+
+    /// The key the entry `name` of directory node `parent` (descriptor `pfd`),
+    /// which is the file `st` describes, has among `parent`'s children: `name`
+    /// when that is already its node's key or `parent` has no node for the
+    /// file yet (it then binds under `name`, with no extra host call), else
+    /// the spelling the host stores the entry under, which a node `parent` has
+    /// for the file under another spelling, or under its name before a rename
+    /// on the host, takes over (see [`Self::adopt_renamed`]). Different
+    /// spellings of one entry thus share one node.
+    fn child_key<'a>(
+        &mut self,
+        parent: u64,
+        pfd: RawFd,
+        name: &'a CStr,
+        st: &FuseStat,
+    ) -> Cow<'a, CStr> {
+        let known = self
+            .child_id(parent, name)
+            .and_then(|id| self.nodes.get(&id))
+            .is_some_and(|n| n.identity.is_none_or(|k| k == (st.dev, st.ino)));
+        if self.read_only || known || !self.kin.contains_key(&(parent, (st.dev, st.ino))) {
+            return Cow::Borrowed(name);
+        }
+        let key = darwin_bulk::stored_name(pfd, name, st).map_or(Cow::Borrowed(name), Cow::Owned);
+        self.adopt_renamed(parent, pfd, &key, st);
+        key
+    }
+
+    /// Before binding the stored entry `key` of `parent` to the file `st`
+    /// describes: a node `parent` already has for that file under another key
+    /// is this entry under the name it had before the host renamed it (its
+    /// old key is gone, or now another spelling of `key`), and takes `key`.
+    /// A node under a key that is still a separate entry is another hard link.
+    fn adopt_renamed(&mut self, parent: u64, pfd: RawFd, key: &CStr, st: &FuseStat) {
+        let identity = (st.dev, st.ino);
+        if self.read_only || self.child_id(parent, key).is_some() {
+            return;
+        }
+        let k = (parent, identity);
+        let Some(&first) = self.kin.get(&k) else {
+            return;
+        };
+        let mut candidates = vec![first];
+        if let Some(more) = self.kin_more.get(&k) {
+            candidates.extend(more);
+        }
+        for other in candidates {
+            let Some(old) = self.nodes.get(&other).map(|n| n.name.clone()) else {
+                continue;
+            };
+            let same_entry = match darwin_bulk::entry_stored(pfd, &old) {
+                Err(LINUX_ENOENT) => true,
+                Ok((stored, found)) => found == identity && stored.as_c_str() == key,
+                Err(_) => false,
+            };
+            if !same_entry {
+                continue;
+            }
+            if let Some(siblings) = self.children.get_mut(&parent)
+                && siblings.get(old.as_c_str()) == Some(&other)
+            {
+                siblings.remove(old.as_c_str());
+            }
+            self.children
+                .entry(parent)
+                .or_default()
+                .insert(key.to_owned(), other);
+            if let Some(node) = self.nodes.get_mut(&other) {
+                node.name = key.to_owned();
+            }
+            return;
+        }
+    }
+
+    /// Record node `id` among `parent`'s nodes for its host file (see [`FsCore::kin`]).
+    fn index_kin(&mut self, id: u64) {
+        let Some(node) = self.nodes.get(&id) else {
+            return;
+        };
+        let Some(identity) = node.identity else {
+            return;
+        };
+        let k = (node.parent, identity);
+        match self.kin.get(&k) {
+            None => {
+                self.kin.insert(k, id);
+            }
+            Some(&first) if first == id => {}
+            Some(_) => {
+                let more = self.kin_more.entry(k).or_default();
+                if !more.contains(&id) {
+                    more.push(id);
+                }
+            }
+        }
+    }
+
+    fn unindex_kin(&mut self, id: u64) {
+        let Some(node) = self.nodes.get(&id) else {
+            return;
+        };
+        let Some(identity) = node.identity else {
+            return;
+        };
+        let k = (node.parent, identity);
+        if self.kin.get(&k) == Some(&id) {
+            match self.kin_more.get_mut(&k).and_then(|more| more.pop()) {
+                Some(next) => {
+                    self.kin.insert(k, next);
+                }
+                None => {
+                    self.kin.remove(&k);
+                }
+            }
+        } else if let Some(more) = self.kin_more.get_mut(&k) {
+            more.retain(|&other| other != id);
+        }
+        if self.kin_more.get(&k).is_some_and(|more| more.is_empty()) {
+            self.kin_more.remove(&k);
+        }
+    }
+
+    /// The node for the entry `name` of directory node `parent` (descriptor
+    /// `pfd`), which is the file `st` describes, binding one if needed. The
+    /// caller replies with an entry for it. ENFILE when a node would be
+    /// needed beyond [`MAX_NODES`].
+    fn bind_entry(
+        &mut self,
+        parent: u64,
+        pfd: RawFd,
+        name: &CStr,
+        st: &FuseStat,
+    ) -> Result<u64, i32> {
+        let key = self.child_key(parent, pfd, name, st);
+        if self.child_id(parent, &key).is_none() && self.nodes.len() >= self.limits.nodes {
+            return Err(LINUX_ENFILE);
+        }
+        Ok(self.observe_child(parent, &key, st))
+    }
+
+    /// Room for another node (checked before an operation creates a host entry).
+    fn node_room(&self) -> Result<(), i32> {
+        if self.nodes.len() >= self.limits.nodes {
+            Err(LINUX_ENFILE)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Bind the entry `name` (the key it is stored under) of `parent` to the
+    /// host file `st` describes.
     ///
     /// An editor can atomically replace a pathname. Linux keys its page cache by
     /// FUSE node ID, so the replacement must receive a distinct ID while open
@@ -1093,6 +1773,7 @@ impl FsCore {
                 match node.identity {
                     None => {
                         node.identity = Some(identity);
+                        self.index_kin(id);
                         return id;
                     }
                     Some(known) if known == identity => return id,
@@ -1106,18 +1787,30 @@ impl FsCore {
     }
 
     /// Move the node at (`old_parent`, `old`) to (`new_parent`, `new`) after a
-    /// host rename. Its descendants are addressed through it, so they move too.
-    fn move_child(&mut self, old_parent: u64, old: &CStr, new_parent: u64, new: CString) {
+    /// host rename that replaced the entry `displaced` of `new_parent` (the key
+    /// the destination had; `new` itself after a rename to another spelling of
+    /// it). Its descendants are addressed through it, so they move too.
+    fn move_child(
+        &mut self,
+        old_parent: u64,
+        old: &CStr,
+        new_parent: u64,
+        new: CString,
+        displaced: &CStr,
+    ) {
         let moving = self.child_id(old_parent, old);
         // The displaced destination is gone; its open handles stay valid.
-        if let Some(dst) = self.child_id(new_parent, &new)
-            && Some(dst) != moving
-        {
-            self.retire(dst);
+        for key in [displaced, new.as_c_str()] {
+            if let Some(dst) = self.child_id(new_parent, key)
+                && Some(dst) != moving
+            {
+                self.retire(dst);
+            }
         }
         let Some(id) = moving else {
             return;
         };
+        self.unindex_kin(id);
         if let Some(siblings) = self.children.get_mut(&old_parent) {
             siblings.remove(old);
             if siblings.is_empty() {
@@ -1132,12 +1825,16 @@ impl FsCore {
             node.parent = new_parent;
             node.name = new;
         }
+        self.index_kin(id);
     }
 
     /// Swap two entries after a host `RENAME_SWAP`.
     fn exchange_children(&mut self, a_parent: u64, a: &CStr, b_parent: u64, b: &CStr) {
         let a_id = self.child_id(a_parent, a);
         let b_id = self.child_id(b_parent, b);
+        for id in [a_id, b_id].into_iter().flatten() {
+            self.unindex_kin(id);
+        }
         for (parent, name) in [(a_parent, a), (b_parent, b)] {
             if let Some(siblings) = self.children.get_mut(&parent) {
                 siblings.remove(name);
@@ -1158,6 +1855,7 @@ impl FsCore {
                 node.parent = parent;
                 node.name = name.to_owned();
             }
+            self.index_kin(id);
         }
     }
 
@@ -1209,8 +1907,8 @@ impl FsCore {
         if id == FUSE_ROOT_ID {
             return Ok(self.root_fd.clone());
         }
-        if let Some(fd) = self.dir_fds.get(&id) {
-            return Ok(fd.clone());
+        if let Some(fd) = self.cached_dir(id) {
+            return Ok(fd);
         }
         // Walk up to the nearest directory already open, collecting entry names.
         let mut chain = Vec::new();
@@ -1219,8 +1917,8 @@ impl FsCore {
             if cur == FUSE_ROOT_ID {
                 break self.root_fd.clone();
             }
-            if let Some(fd) = self.dir_fds.get(&cur) {
-                break fd.clone();
+            if let Some(fd) = self.cached_dir(cur) {
+                break fd;
             }
             let node = self.nodes.get(&cur).ok_or(LINUX_ESTALE)?;
             chain.push(cur);
@@ -1255,12 +1953,99 @@ impl FsCore {
                 return Err(LINUX_ESTALE);
             }
         }
+        // The host may have moved a directory on the way out of the share
+        // while the walk was under way.
+        if !self.fd_within_share(fd.as_raw_fd()) {
+            return Err(LINUX_ESTALE);
+        }
+        let fd = Arc::new(fd);
+        self.cache_dir(id, fd.clone());
+        Ok(fd)
+    }
+
+    fn cache_dir(&mut self, id: u64, fd: Arc<OwnedFd>) {
         if self.dir_fds.len() >= MAX_CACHED_DIR_FDS {
             self.dir_fds.clear();
         }
-        let fd = Arc::new(fd);
-        self.dir_fds.insert(id, fd.clone());
-        Ok(fd)
+        let checked_ms = self.clock_ms();
+        self.dir_fds.insert(id, CachedDir { fd, checked_ms });
+    }
+
+    /// The cached descriptor of directory node `id`, unless the host has
+    /// moved that directory out of the share since (it is then dropped, and
+    /// the node is reached again through its names from the root).
+    fn cached_dir(&mut self, id: u64) -> Option<Arc<OwnedFd>> {
+        let now = self.clock_ms();
+        let cached = self.dir_fds.get(&id)?;
+        let fd = cached.fd.clone();
+        if now.saturating_sub(cached.checked_ms) < DIR_FD_RECHECK_MS {
+            return Some(fd);
+        }
+        if self.fd_within_share(fd.as_raw_fd()) {
+            if let Some(cached) = self.dir_fds.get_mut(&id) {
+                cached.checked_ms = now;
+            }
+            Some(fd)
+        } else {
+            self.dir_fds.remove(&id);
+            None
+        }
+    }
+
+    /// Whether the directory open at `fd` lies inside the share root now.
+    #[cfg(target_vendor = "apple")]
+    fn fd_within_share(&mut self, fd: RawFd) -> bool {
+        let Some(path) = fd_path(fd) else {
+            // Longer than F_GETPATH serves: climb `..` to the root instead.
+            return self.fd_within_share_by_parents(fd);
+        };
+        if path_within(&path, &self.root_path) {
+            return true;
+        }
+        // The root itself may have been renamed: compare with where it is now.
+        match fd_path(self.root_fd.as_raw_fd()) {
+            Some(root) if root != self.root_path => {
+                self.root_path = root;
+                path_within(&path, &self.root_path)
+            }
+            _ => false,
+        }
+    }
+
+    #[cfg(not(target_vendor = "apple"))]
+    fn fd_within_share(&mut self, _fd: RawFd) -> bool {
+        true
+    }
+
+    /// Whether the root directory is among the ancestors of the directory
+    /// open at `fd` (or is it), found by opening `..` repeatedly.
+    #[cfg(target_vendor = "apple")]
+    fn fd_within_share_by_parents(&self, fd: RawFd) -> bool {
+        let Ok(root) = fstat_fd(self.root_fd.as_raw_fd()) else {
+            return false;
+        };
+        let Ok(mut st) = fstat_fd(fd) else {
+            return false;
+        };
+        let mut cur: Option<OwnedFd> = None;
+        for _ in 0..MAX_NODE_DEPTH {
+            if (st.dev, st.ino) == (root.dev, root.ino) {
+                return true;
+            }
+            let at = cur.as_ref().map_or(fd, |c| c.as_raw_fd());
+            let Ok(parent) = open_dir_at(at, c"..", 0) else {
+                return false;
+            };
+            let Ok(pst) = fstat_fd(parent.as_raw_fd()) else {
+                return false;
+            };
+            if (pst.dev, pst.ino) == (st.dev, st.ino) {
+                return false; // the file system root
+            }
+            st = pst;
+            cur = Some(parent);
+        }
+        false
     }
 
     /// Run `f` with the directory holding node `id` and the node's entry name
@@ -1286,30 +2071,16 @@ impl FsCore {
         }
     }
 
-    /// Open a node's host file without following a symlink, ESTALE if its
-    /// entry now names a different host file.
-    fn open_node(&mut self, nodeid: u64, flags: i32) -> Result<File, i32> {
-        let fd = self.at_leaf(nodeid, |dfd, name| {
-            let fd = unsafe {
-                libc::openat(
-                    dfd,
-                    name.as_ptr(),
-                    flags | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-                )
-            };
-            if fd < 0 {
-                Err(last_os_errno_linux())
-            } else {
-                Ok(unsafe { OwnedFd::from_raw_fd(fd) })
-            }
-        })?;
-        if self.has_identity(nodeid) {
-            let st = fstat_fd(fd.as_raw_fd())?;
-            if !self.identity_matches(nodeid, &st) {
-                return Err(LINUX_ESTALE);
-            }
+    /// Open a node's host file or directory without following a symlink or
+    /// blocking; ESTALE if its entry now names a different host file, ENXIO
+    /// for a FIFO, socket or device (see [`host_handle`]).
+    fn open_node(&mut self, nodeid: u64, flags: i32) -> Result<(File, FuseStat), i32> {
+        let fd = self.at_leaf(nodeid, |dfd, name| open_entry_at(dfd, name, flags, 0))?;
+        let st = fstat_fd(fd.as_raw_fd())?;
+        if !self.identity_matches(nodeid, &st) {
+            return Err(LINUX_ESTALE);
         }
-        Ok(File::from(fd))
+        Ok((host_handle(fd, &st, flags)?, st))
     }
 
     /// The errno to report for a failed open of a node: a stale positive dentry
@@ -1349,156 +2120,265 @@ impl FsCore {
         by_path
     }
 
-    /// Recorded owner fields after a SETATTR with `valid`, from this caller.
-    fn owner_after(&self, nodeid: u64, body: &[u8], valid: u32) -> (Option<u32>, Option<u32>) {
-        let (mut uid, mut gid) = self
-            .nodes
-            .get(&nodeid)
-            .map_or((None, None), |n| (n.owner.uid, n.owner.gid));
-        let (caller_uid, caller_gid) = self.caller;
-        // A non-root user handing a floating field to itself changes nothing
-        // (it already sees itself there) and must not pin it for other users.
-        if valid & FATTR_UID != 0 {
-            let new = u32::from_le_bytes(body[76..80].try_into().unwrap());
-            if !(caller_uid != 0 && uid.is_none() && new == caller_uid) {
-                uid = Some(new);
-            }
-        }
-        if valid & FATTR_GID != 0 {
-            let new = u32::from_le_bytes(body[80..84].try_into().unwrap());
-            if !(caller_uid != 0 && gid.is_none() && new == caller_gid) {
-                gid = Some(new);
-            }
-        }
-        (uid, gid)
-    }
-
-    fn set_attributes(
+    /// The owner a SETATTR naming owner fields (`valid`) leaves on the file
+    /// `st` describes: both fields fixed, the one it does not name at the
+    /// value this caller saw (see [`GuestAttr`]). None leaves the file as it
+    /// is: a non-root caller handing a floating file to itself changes nothing
+    /// (it already sees itself as owner) and must not pin it for other users.
+    fn owner_after(
         &mut self,
         nodeid: u64,
+        st: &FuseStat,
         body: &[u8],
         valid: u32,
-    ) -> Result<fs::Metadata, i32> {
-        let file = if valid & FATTR_FH != 0 {
+    ) -> Result<Option<(u32, u32)>, i32> {
+        let current = self.owners.get(&(st.dev, st.ino)).copied();
+        let seen = match current {
+            Some(pin) => pin,
+            None => self.floating_owner(nodeid, false),
+        };
+        let uid = if valid & FATTR_UID != 0 {
+            u32::from_le_bytes(body[76..80].try_into().unwrap())
+        } else {
+            seen.0
+        };
+        let gid = if valid & FATTR_GID != 0 {
+            u32::from_le_bytes(body[80..84].try_into().unwrap())
+        } else {
+            seen.1
+        };
+        if current.is_none() {
+            if self.caller.0 != 0 && (uid, gid) == self.caller {
+                return Ok(None);
+            }
+            if self.owners.len() >= self.limits.pins {
+                return Err(LINUX_ENOSPC);
+            }
+        }
+        Ok(Some((uid, gid)))
+    }
+
+    /// FUSE_SETATTR. Changes apply through the handle the guest names, else
+    /// to the node's entry with single-entry `*at` calls that need no access
+    /// to its contents and never follow a symlink (only a truncate opens it),
+    /// else, for a node already gone (its file unlinked or renamed over while
+    /// open: `fchmod` and the like on that descriptor), through a handle open
+    /// on it. Owner changes touch nothing on the host.
+    fn set_attributes(&mut self, nodeid: u64, body: &[u8], valid: u32) -> Result<FuseStat, i32> {
+        let handle = if valid & FATTR_FH != 0 {
             let fh = u64::from_le_bytes(body[8..16].try_into().unwrap());
-            self.open_files
+            let open = self
+                .open_files
                 .get(&fh)
                 .filter(|f| f.nodeid == nodeid)
-                .ok_or(LINUX_EBADF)?
-                .file
-                .clone()
+                .ok_or(LINUX_EBADF)?;
+            Some(open.file.clone())
+        } else if !self.nodes.contains_key(&nodeid) {
+            let open = self
+                .open_files
+                .values()
+                .find(|f| f.nodeid == nodeid)
+                .ok_or(LINUX_ESTALE)?;
+            Some(open.file.clone())
         } else {
-            let flags = if valid & FATTR_SIZE != 0 {
-                libc::O_WRONLY
-            } else {
-                libc::O_RDONLY | METADATA_OPEN_FLAGS
-            } | libc::O_NONBLOCK;
-            match self.open_node(nodeid, flags) {
-                Ok(file) => Arc::new(file),
-                Err(e) => return Err(self.open_failure(nodeid, e)),
-            }
+            None
         };
-        let (uid, gid) = if self.read_only {
-            (None, None)
+        let st = match &handle {
+            Some(file) => fstat_fd(file.as_raw_fd())?,
+            // An entry that is gone is a stale node to the guest, which then looks again.
+            None => self.stat_node(nodeid).map_err(|e| match e {
+                LINUX_ENOENT | LINUX_ENOTDIR | LINUX_ELOOP if self.has_identity(nodeid) => {
+                    LINUX_ESTALE
+                }
+                e => e,
+            })?,
+        };
+        let owner = if self.read_only || valid & (FATTR_UID | FATTR_GID) == 0 {
+            None
         } else {
-            self.owner_after(nodeid, body, valid)
+            self.owner_after(nodeid, &st, body, valid)?
         };
         if valid & FATTR_SIZE != 0 {
-            let size = u64::from_le_bytes(body[16..24].try_into().unwrap());
-            file.set_len(size).map_err(|e| io_err_to_linux(&e))?;
+            let size = u64::from_le_bytes(body[16..24].try_into().unwrap()) as libc::off_t;
+            let rc = match &handle {
+                Some(file) => unsafe { libc::ftruncate(file.as_raw_fd(), size) },
+                None => {
+                    let (file, _) = self
+                        .open_node(nodeid, libc::O_WRONLY)
+                        .map_err(|e| self.open_failure(nodeid, e))?;
+                    unsafe { libc::ftruncate(file.as_raw_fd(), size) }
+                }
+            };
+            if rc != 0 {
+                return Err(last_os_errno_linux());
+            }
         }
         if valid & FATTR_MODE != 0 {
-            let is_dir = file.metadata().map_err(|e| io_err_to_linux(&e))?.is_dir();
             let mode = u32::from_le_bytes(body[68..72].try_into().unwrap()) & 0o7777;
-            let mode = guest_mode(mode, is_dir);
-            file.set_permissions(fs::Permissions::from_mode(mode))
-                .map_err(|e| io_err_to_linux(&e))?;
+            let mode = guest_mode(mode, mode_is_dir(st.mode)) as libc::mode_t;
+            match &handle {
+                Some(file) => check_rc(unsafe { libc::fchmod(file.as_raw_fd(), mode) })?,
+                None => self.at_leaf(nodeid, |dfd, name| {
+                    check_rc(unsafe { libc::fchmodat(dfd, name.as_ptr(), mode, AT_NOFOLLOW_MODE) })
+                })?,
+            }
         }
         if valid & (FATTR_ATIME | FATTR_MTIME | FATTR_ATIME_NOW | FATTR_MTIME_NOW) != 0 {
-            let timestamp =
-                |offset: usize, subsec_offset: usize, now_flag: u32| -> Result<SystemTime, i32> {
-                    if valid & now_flag != 0 {
-                        return Ok(SystemTime::now());
-                    }
-                    let secs = i64::from_le_bytes(body[offset..offset + 8].try_into().unwrap());
-                    let nanos = u32::from_le_bytes(
-                        body[subsec_offset..subsec_offset + 4].try_into().unwrap(),
-                    );
-                    if nanos >= 1_000_000_000 {
-                        return Err(LINUX_EINVAL);
-                    }
-                    let whole = Duration::from_secs(secs.unsigned_abs());
-                    let base = if secs < 0 {
-                        UNIX_EPOCH.checked_sub(whole)
-                    } else {
-                        UNIX_EPOCH.checked_add(whole)
-                    };
-                    base.and_then(|t| t.checked_add(Duration::from_nanos(u64::from(nanos))))
-                        .ok_or(LINUX_EINVAL)
-                };
-            let mut times = FileTimes::new();
-            if valid & (FATTR_ATIME | FATTR_ATIME_NOW) != 0 {
-                times = times.set_accessed(timestamp(32, 56, FATTR_ATIME_NOW)?);
+            let time = |set: u32, now: u32, secs_at: usize, nsec_at: usize| {
+                if valid & now != 0 {
+                    return Ok(libc::timespec {
+                        tv_sec: 0,
+                        tv_nsec: libc::UTIME_NOW,
+                    });
+                }
+                if valid & set == 0 {
+                    return Ok(libc::timespec {
+                        tv_sec: 0,
+                        tv_nsec: libc::UTIME_OMIT,
+                    });
+                }
+                let secs = i64::from_le_bytes(body[secs_at..secs_at + 8].try_into().unwrap());
+                let nsec = u32::from_le_bytes(body[nsec_at..nsec_at + 4].try_into().unwrap());
+                if nsec >= 1_000_000_000 {
+                    return Err(LINUX_EINVAL);
+                }
+                Ok(libc::timespec {
+                    tv_sec: secs as libc::time_t,
+                    tv_nsec: nsec as libc::c_long,
+                })
+            };
+            let times = [
+                time(FATTR_ATIME, FATTR_ATIME_NOW, 32, 56)?,
+                time(FATTR_MTIME, FATTR_MTIME_NOW, 40, 60)?,
+            ];
+            match &handle {
+                Some(file) => {
+                    check_rc(unsafe { libc::futimens(file.as_raw_fd(), times.as_ptr()) })?
+                }
+                None => self.at_leaf(nodeid, |dfd, name| {
+                    check_rc(unsafe {
+                        libc::utimensat(
+                            dfd,
+                            name.as_ptr(),
+                            times.as_ptr(),
+                            libc::AT_SYMLINK_NOFOLLOW,
+                        )
+                    })
+                })?,
             }
-            if valid & (FATTR_MTIME | FATTR_MTIME_NOW) != 0 {
-                times = times.set_modified(timestamp(40, 60, FATTR_MTIME_NOW)?);
+        }
+        let st = match &handle {
+            Some(file) => fstat_fd(file.as_raw_fd())?,
+            None if valid
+                & (FATTR_SIZE
+                    | FATTR_MODE
+                    | FATTR_ATIME
+                    | FATTR_MTIME
+                    | FATTR_ATIME_NOW
+                    | FATTR_MTIME_NOW)
+                != 0 =>
+            {
+                self.stat_node(nodeid)?
             }
-            file.set_times(times).map_err(|e| io_err_to_linux(&e))?;
+            None => st,
+        };
+        if let Some(pin) = owner {
+            self.owners.insert((st.dev, st.ino), pin);
         }
-        let md = file.metadata().map_err(|e| io_err_to_linux(&e))?;
-        if let Some(node) = self.nodes.get_mut(&nodeid) {
-            node.owner.uid = uid;
-            node.owner.gid = gid;
+        Ok(st)
+    }
+
+    /// Forget the owner pinned on a file the guest no longer has a name or an
+    /// open handle for (`gone`: its last name was just removed).
+    fn release_owner(&mut self, identity: (u64, u64), gone: bool) {
+        if gone
+            && self.owners.contains_key(&identity)
+            && !self.open_files.values().any(|f| f.identity == identity)
+        {
+            self.owners.remove(&identity);
         }
-        Ok(md)
+    }
+
+    fn handles_full(&self) -> bool {
+        self.open_files.len() + self.open_dirs.len() >= self.limits.handles
     }
 
     fn clock_ms(&self) -> u64 {
         self.epoch.elapsed().as_millis() as u64
     }
 
-    /// Mode and owner the current caller sees for node `nodeid` (see [`GuestOwner`]).
-    /// Read-only tool shares stay root-owned: their attributes are cached for an
-    /// hour and must not depend on who looked first.
+    /// The owner a floating file reached through node `nodeid` shows the
+    /// current caller: a non-root caller itself (noted on the node when
+    /// `note`), root the non-root user that used the node within the adoption
+    /// window, else root.
+    fn floating_owner(&mut self, nodeid: u64, note: bool) -> (u32, u32) {
+        let caller = self.caller;
+        let now = self.clock_ms();
+        let window = self.adopt_window_ms;
+        match self.nodes.get_mut(&nodeid) {
+            Some(node) if caller.0 != 0 => {
+                if note {
+                    node.recent_user = Some(caller);
+                    node.recent_at_ms = now;
+                }
+                caller
+            }
+            Some(node) => match node.recent_user {
+                Some(user) if now.saturating_sub(node.recent_at_ms) < window => user,
+                _ => (0, 0),
+            },
+            // A node already gone, reached through an open handle.
+            None => caller,
+        }
+    }
+
+    /// Inode number the guest sees for the host file `st` describes: hard
+    /// links share it, as on the host. Files on volumes mounted inside the
+    /// share have their device folded into the top byte.
+    fn guest_ino(&mut self, st: &FuseStat) -> u64 {
+        if st.dev == self.root_dev {
+            return st.ino;
+        }
+        let index = match self.foreign_devs.iter().position(|&d| d == st.dev) {
+            Some(i) => i,
+            None if self.foreign_devs.len() < 255 => {
+                self.foreign_devs.push(st.dev);
+                self.foreign_devs.len() - 1
+            }
+            None => 254,
+        };
+        st.ino ^ ((index as u64 + 1) << 56)
+    }
+
+    /// Mode, owner and inode number the current caller sees for the host file
+    /// `st` describes, reached through node `nodeid` (see [`GuestAttr`]).
+    /// Read-only tool shares stay root-owned: their attributes are cached for
+    /// an hour and must not depend on who looked first.
     fn guest_attr(&mut self, nodeid: u64, st: &FuseStat) -> GuestAttr {
+        let ino = self.guest_ino(st);
         if self.read_only {
             return GuestAttr {
                 mode: st.mode,
                 uid: 0,
                 gid: 0,
+                ino,
             };
         }
-        let caller = self.caller;
-        let now = self.clock_ms();
-        let window = self.adopt_window_ms;
-        let (uid, gid, floating) = match self.nodes.get_mut(&nodeid) {
-            Some(node) => {
-                let owner = &mut node.owner;
-                let floating = if caller.0 != 0 {
-                    owner.recent_user = Some(caller);
-                    owner.recent_at_ms = now;
-                    caller
-                } else {
-                    match owner.recent_user {
-                        Some(user) if now.saturating_sub(owner.recent_at_ms) < window => user,
-                        _ => (0, 0),
-                    }
-                };
-                (owner.uid, owner.gid, floating)
-            }
-            // A retired node reached through an open handle.
-            None => (None, None, caller),
+        let (uid, gid) = match self.owners.get(&(st.dev, st.ino)) {
+            Some(&pin) => pin,
+            None => self.floating_owner(nodeid, true),
         };
         GuestAttr {
             mode: guest_mode(st.mode, mode_is_dir(st.mode)),
-            uid: uid.unwrap_or(floating.0),
-            gid: gid.unwrap_or(floating.1),
+            uid,
+            gid,
+            ino,
         }
     }
 
-    fn encode_attr_stat(nodeid: u64, st: &FuseStat, attr: GuestAttr, out: &mut Vec<u8>) {
+    fn encode_attr_stat(st: &FuseStat, attr: GuestAttr, out: &mut Vec<u8>) {
         // fuse_attr (88 bytes)
-        out.extend_from_slice(&nodeid.to_le_bytes()); // ino
+        out.extend_from_slice(&attr.ino.to_le_bytes()); // ino: the host's, so hard links match
         out.extend_from_slice(&st.size.to_le_bytes()); // size
         out.extend_from_slice(&st.blocks.to_le_bytes()); // blocks
         out.extend_from_slice(&(st.atime as u64).to_le_bytes()); // atime
@@ -1532,11 +2412,13 @@ impl FsCore {
         out.extend_from_slice(&valid_secs.to_le_bytes()); // attr_valid
         out.extend_from_slice(&valid_nsecs.to_le_bytes()); // entry_valid_nsec
         out.extend_from_slice(&valid_nsecs.to_le_bytes()); // attr_valid_nsec
-        Self::encode_attr_stat(nodeid, st, attr, out);
+        Self::encode_attr_stat(st, attr, out);
     }
 
-    /// Reply with a `fuse_entry_out` for node `id`.
+    /// Reply with a `fuse_entry_out` for node `id`, which the guest then
+    /// references once more.
     fn write_entry(&mut self, unique: u64, id: u64, st: &FuseStat) -> bool {
+        self.add_lookup(id);
         let attr = self.guest_attr(id, st);
         let ro = self.read_only;
         self.begin_ok(unique);
@@ -1552,7 +2434,7 @@ impl FsCore {
         self.resp_buf.extend_from_slice(&valid_secs.to_le_bytes());
         self.resp_buf.extend_from_slice(&valid_nsecs.to_le_bytes());
         self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
-        Self::encode_attr_stat(id, st, attr, &mut self.resp_buf);
+        Self::encode_attr_stat(st, attr, &mut self.resp_buf);
         self.finish_ok()
     }
 
@@ -1641,7 +2523,202 @@ impl FsCore {
         }
         let pfd = self.dir_fd(parent)?;
         let st = fstatat_cstr(pfd.as_raw_fd(), cname)?;
-        Ok((self.observe_child(parent, cname, &st), st))
+        Ok((self.bind_entry(parent, pfd.as_raw_fd(), cname, &st)?, st))
+    }
+
+    /// Reply with the entry `name` a MKDIR, SYMLINK or LINK just made in
+    /// directory node `parent` (descriptor `pfd`).
+    fn write_new_entry(&mut self, unique: u64, parent: u64, pfd: RawFd, name: &CStr) -> bool {
+        let bound = fstatat_cstr(pfd, name)
+            .and_then(|st| Ok((self.bind_entry(parent, pfd, name, &st)?, st)));
+        match bound {
+            Ok((id, st)) => self.write_entry(unique, id, &st),
+            Err(e) => self.write_err(unique, e),
+        }
+    }
+
+    /// Keep an open file of node `nodeid` as a new handle.
+    fn add_open_file(&mut self, nodeid: u64, file: File, st: &FuseStat) -> u64 {
+        let fh = self.next_fh;
+        self.next_fh += 1;
+        self.open_files.insert(
+            fh,
+            OpenFile {
+                nodeid,
+                file: Arc::new(file),
+                identity: (st.dev, st.ino),
+            },
+        );
+        self.metrics.open_handles.fetch_add(1, Ordering::Relaxed);
+        fh
+    }
+
+    fn direct_open_flags(&self, st: &FuseStat) -> u32 {
+        if self.direct_io_mmap && st.mode & libc::S_IFMT as u32 == libc::S_IFREG as u32 {
+            FOPEN_DIRECT_IO
+        } else {
+            0
+        }
+    }
+
+    /// Attributes of an entry a listing of directory node `parent` (open at
+    /// `dir_fd`) returned. A mount point, or a directory whose node is bound
+    /// to another file than the listing reports, is looked up instead: the
+    /// listing names the covered directory, while a lookup (and every later
+    /// access through the node) reaches the mounted root.
+    fn listed_stat(&self, parent: u64, dir_fd: RawFd, e: &BulkDirEntry) -> FuseStat {
+        if mode_is_dir(e.stat.mode) {
+            let rebound = !self.read_only
+                && self
+                    .child_id(parent, &e.name)
+                    .and_then(|id| self.nodes.get(&id)?.identity)
+                    .is_some_and(|known| known != (e.stat.dev, e.stat.ino));
+            if (e.mount_point || rebound)
+                && let Ok(st) = fstatat_cstr(dir_fd, &e.name)
+            {
+                return st;
+            }
+        }
+        e.stat
+    }
+
+    /// FUSE_READDIR(PLUS) on open directory handle `fh` from entry `offset`.
+    fn read_directory(
+        &mut self,
+        unique: u64,
+        plus: bool,
+        fh: u64,
+        offset: usize,
+        max_size: usize,
+    ) -> bool {
+        let Some(od) = self.open_dirs.get_mut(&fh) else {
+            return self.write_err(unique, LINUX_EBADF);
+        };
+        let (dir_nodeid, dir_fd) = (od.dir_nodeid, od.dir_fd.as_raw_fd());
+        let mut listing = std::mem::take(&mut od.listing);
+        let done = self.list_into(
+            unique,
+            plus,
+            dir_nodeid,
+            dir_fd,
+            &mut listing,
+            offset,
+            max_size,
+        );
+        if let Some(od) = self.open_dirs.get_mut(&fh) {
+            od.listing = listing;
+        }
+        done
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn list_into(
+        &mut self,
+        unique: u64,
+        plus: bool,
+        dir_nodeid: u64,
+        dir_fd: RawFd,
+        l: &mut DirListing,
+        offset: usize,
+        max_size: usize,
+    ) -> bool {
+        if offset == 0 || !l.started || offset < l.base {
+            // A directory the host moved out of the share is not listed.
+            if !self.read_only && !self.fd_within_share(dir_fd) {
+                return self.write_err(unique, LINUX_ESTALE);
+            }
+            l.rewind(dir_fd);
+        }
+        // Drop what the guest is past, reading on until `offset` is held.
+        loop {
+            let past = offset.saturating_sub(l.base).min(l.window.len());
+            l.window.drain(..past);
+            l.base += past;
+            if l.base + l.window.len() > offset || l.eof {
+                break;
+            }
+            if let Err(e) = l.fill(dir_fd, &mut self.bulk_buf) {
+                return self.write_err(unique, e);
+            }
+        }
+        // Entries listed under a node already gone are sent without one.
+        let live = self.nodes.contains_key(&dir_nodeid);
+        let ro = self.read_only;
+        self.begin_ok(unique);
+        let body_start = self.resp_buf.len();
+        let mut index = offset.max(l.base);
+        loop {
+            let k = index - l.base;
+            if k >= l.window.len() {
+                if l.eof {
+                    break;
+                }
+                match l.fill(dir_fd, &mut self.bulk_buf) {
+                    Ok(()) => continue,
+                    Err(_) if index > offset => break,
+                    Err(e) => return self.write_err(unique, e),
+                }
+            }
+            let e = &l.window[k];
+            let name = e.name.to_bytes();
+            let raw_ent = (if plus { 128 } else { 0 }) + 24 + name.len();
+            if (self.resp_buf.len() - body_start) + ((raw_ent + 7) & !7) > max_size {
+                break;
+            }
+            let st = self.listed_stat(dir_nodeid, dir_fd, e);
+            let ino = self.guest_ino(&st);
+            if plus {
+                if live {
+                    // A node the host renamed since takes the listed name.
+                    self.adopt_renamed(dir_nodeid, dir_fd, &e.name, &st);
+                }
+                let id = if live
+                    && (self.child_id(dir_nodeid, &e.name).is_some()
+                        || self.nodes.len() < self.limits.nodes)
+                {
+                    Some(self.observe_child(dir_nodeid, &e.name, &st))
+                } else {
+                    None
+                };
+                match id {
+                    Some(id) => {
+                        if ro {
+                            if self.ro_lookup_cache.len() >= MAX_RO_CACHE {
+                                self.ro_lookup_cache.clear();
+                            }
+                            if self.ro_attr_cache.len() >= MAX_RO_CACHE {
+                                self.ro_attr_cache.clear();
+                            }
+                            self.ro_lookup_cache
+                                .insert((dir_nodeid, name.to_vec()), Ok(id));
+                            self.ro_attr_cache.insert(id, st);
+                        }
+                        self.add_lookup(id);
+                        let attr = self.guest_attr(id, &st);
+                        Self::encode_entry_out_stat(id, &st, ro, attr, &mut self.resp_buf);
+                    }
+                    // Node ID 0: the guest lists the entry without binding it.
+                    None => self.resp_buf.extend_from_slice(&[0u8; 128]),
+                }
+            }
+            let dtype = st.dtype();
+            self.resp_buf.extend_from_slice(&ino.to_le_bytes());
+            self.resp_buf
+                .extend_from_slice(&((index + 1) as u64).to_le_bytes());
+            self.resp_buf
+                .extend_from_slice(&(name.len() as u32).to_le_bytes());
+            self.resp_buf.extend_from_slice(&dtype.to_le_bytes());
+            self.resp_buf.extend_from_slice(name);
+            while !(self.resp_buf.len() - body_start).is_multiple_of(8) {
+                self.resp_buf.push(0);
+            }
+            index += 1;
+        }
+        // Keep a short tail of what was sent and what was read but not sent.
+        let keep_from = (index - l.base).saturating_sub(DIR_RETAIN);
+        l.window.drain(..keep_from);
+        l.base += keep_from;
+        self.finish_ok()
     }
 
     /// Handle a FUSE request, writing any response into `self.resp_buf` (zero allocs!).
@@ -1666,9 +2743,40 @@ impl FsCore {
                     .get(12..16)
                     .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
                     .unwrap_or(0);
+                self.direct_io_mmap = false;
+                if self.direct_io_requested {
+                    let guest_major = body
+                        .get(..4)
+                        .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+                        .unwrap_or(0);
+                    let guest_minor = body
+                        .get(4..8)
+                        .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+                        .unwrap_or(0);
+                    let guest_flags2 = body
+                        .get(16..20)
+                        .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+                        .unwrap_or(0);
+                    self.direct_io_mmap = guest_major == 7
+                        && guest_minor >= FUSE_DIRECT_IO_MMAP_MINOR
+                        && in_flags & FUSE_INIT_EXT != 0
+                        && guest_flags2 & FUSE_DIRECT_IO_ALLOW_MMAP_FLAGS2 != 0;
+                    eprintln!(
+                        "[virtiofs-workspace] direct_io_mmap={} guest_minor={guest_minor}",
+                        self.direct_io_mmap
+                    );
+                    if !self.direct_io_mmap {
+                        return self.write_err(unique, LINUX_EOPNOTSUPP);
+                    }
+                }
+                let (minor, flags2) = if self.direct_io_mmap {
+                    (FUSE_DIRECT_IO_MMAP_MINOR, FUSE_DIRECT_IO_ALLOW_MMAP_FLAGS2)
+                } else {
+                    (31, 0u32)
+                };
                 self.begin_ok(unique);
                 self.resp_buf.extend_from_slice(&7u32.to_le_bytes()); // major
-                self.resp_buf.extend_from_slice(&31u32.to_le_bytes()); // minor
+                self.resp_buf.extend_from_slice(&minor.to_le_bytes());
                 self.resp_buf
                     .extend_from_slice(&(256 * 1024u32).to_le_bytes()); // max_readahead (256 KiB)
                 let mut flags = FUSE_ASYNC_READ
@@ -1679,6 +2787,9 @@ impl FsCore {
                     | FUSE_CACHE_SYMLINKS;
                 if (in_flags & FUSE_ATOMIC_O_TRUNC) != 0 {
                     flags |= FUSE_ATOMIC_O_TRUNC;
+                }
+                if self.direct_io_mmap {
+                    flags |= FUSE_INIT_EXT;
                 }
                 if self.read_only {
                     // Read-only shares (e.g. oci-tools) are immutable: skip FUSE_OPEN/FLUSH/RELEASE
@@ -1696,11 +2807,29 @@ impl FsCore {
                 self.resp_buf.extend_from_slice(&1u32.to_le_bytes()); // time_gran
                 self.resp_buf.extend_from_slice(&64u16.to_le_bytes()); // max_pages
                 self.resp_buf.extend_from_slice(&0u16.to_le_bytes()); // map_alignment
-                self.resp_buf.extend_from_slice(&[0u8; 32]); // flags2 + unused[7]
+                self.resp_buf.extend_from_slice(&flags2.to_le_bytes());
+                self.resp_buf.extend_from_slice(&[0u8; 28]);
                 self.finish_ok()
             }
             FUSE_DESTROY => self.write_ok_slice(unique, &[]),
-            FUSE_FORGET | FUSE_BATCH_FORGET => false, // No reply for FORGET
+            // No reply for either.
+            FUSE_FORGET => {
+                if let Some(count) = body.get(..8) {
+                    self.forget(nodeid, u64::from_le_bytes(count.try_into().unwrap()));
+                }
+                false
+            }
+            FUSE_BATCH_FORGET => {
+                if body.len() >= 8 {
+                    let count = u32::from_le_bytes(body[..4].try_into().unwrap()) as usize;
+                    for one in body[8..].as_chunks::<16>().0.iter().take(count) {
+                        let id = u64::from_le_bytes(one[..8].try_into().unwrap());
+                        let n = u64::from_le_bytes(one[8..].try_into().unwrap());
+                        self.forget(id, n);
+                    }
+                }
+                false
+            }
             FUSE_LOOKUP => {
                 let cname = match CStr::from_bytes_until_nul(body) {
                     Ok(name) => Cow::Borrowed(name),
@@ -1725,6 +2854,12 @@ impl FsCore {
                 match self.lookup_entry(nodeid, &cname) {
                     Ok((id, st)) => {
                         if self.read_only {
+                            if self.ro_lookup_cache.len() >= MAX_RO_CACHE {
+                                self.ro_lookup_cache.clear();
+                            }
+                            if self.ro_attr_cache.len() >= MAX_RO_CACHE {
+                                self.ro_attr_cache.clear();
+                            }
                             self.ro_lookup_cache
                                 .insert((nodeid, cname.to_bytes().to_vec()), Ok(id));
                             self.ro_attr_cache.insert(id, st);
@@ -1732,7 +2867,10 @@ impl FsCore {
                         self.write_entry(unique, id, &st)
                     }
                     Err(le) => {
-                        if self.read_only && self.ro_lookup_cache.len() < 4096 {
+                        if self.read_only && le != LINUX_ENFILE {
+                            if self.ro_lookup_cache.len() >= MAX_RO_CACHE {
+                                self.ro_lookup_cache.clear();
+                            }
                             self.ro_lookup_cache
                                 .insert((nodeid, cname.to_bytes().to_vec()), Err(le));
                         }
@@ -1748,7 +2886,10 @@ impl FsCore {
                 }
                 match self.node_stat(nodeid, body) {
                     Ok(st) => {
-                        if self.read_only {
+                        if self.read_only && self.nodes.contains_key(&nodeid) {
+                            if self.ro_attr_cache.len() >= MAX_RO_CACHE {
+                                self.ro_attr_cache.clear();
+                            }
                             self.ro_attr_cache.insert(nodeid, st);
                         }
                         self.write_attr(unique, nodeid, &st)
@@ -1765,10 +2906,7 @@ impl FsCore {
                 }
                 let valid = u32::from_le_bytes(body[0..4].try_into().unwrap());
                 match self.set_attributes(nodeid, body, valid) {
-                    Ok(md) => {
-                        let st = FuseStat::from_metadata(&md);
-                        self.write_attr(unique, nodeid, &st)
-                    }
+                    Ok(st) => self.write_attr(unique, nodeid, &st),
                     Err(errno) => self.write_err(unique, errno),
                 }
             }
@@ -1811,8 +2949,11 @@ impl FsCore {
                     Ok(f) => f,
                     Err(e) => return self.write_err(unique, e),
                 };
-                let file = match self.open_node(nodeid, base_darwin) {
-                    Ok(file) => file,
+                if self.handles_full() {
+                    return self.write_err(unique, LINUX_ENFILE);
+                }
+                let (file, st) = match self.open_node(nodeid, base_darwin) {
+                    Ok(opened) => opened,
                     Err(e) => {
                         let errno = self.open_failure(nodeid, e);
                         return self.write_err(unique, errno);
@@ -1821,22 +2962,17 @@ impl FsCore {
                 if flags & 0o1000 != 0 && unsafe { libc::ftruncate(file.as_raw_fd(), 0) } != 0 {
                     return self.write_err(unique, last_os_errno_linux());
                 }
-                let fh = self.next_fh;
-                self.next_fh += 1;
-                self.open_files.insert(
-                    fh,
-                    OpenFile {
-                        nodeid,
-                        file: Arc::new(file),
-                    },
-                );
+                let fh = self.add_open_file(nodeid, file, &st);
                 let mut out = [0u8; 16];
                 out[0..8].copy_from_slice(&fh.to_le_bytes());
-                // Each mutable open invalidates cached pages. Skipping
-                // FLUSH remains safe for handles that cannot write.
+                // An ordinary read must go to the host descriptor in direct
+                // mode even when host writes leave size and mtime unchanged.
+                let mut open_flags = self.direct_open_flags(&st);
+                // Skipping FLUSH remains safe for handles that cannot write.
                 if flags & (3 | 0o1000 | 0o2000) == 0 {
-                    out[8..12].copy_from_slice(&FOPEN_NOFLUSH.to_le_bytes());
+                    open_flags |= FOPEN_NOFLUSH;
                 }
+                out[8..12].copy_from_slice(&open_flags.to_le_bytes());
                 self.write_ok_slice(unique, &out)
             }
             FUSE_CREATE => {
@@ -1853,43 +2989,48 @@ impl FsCore {
                     Ok(c) => c,
                     Err(e) => return self.write_err(unique, e),
                 };
-                // O_NOFOLLOW: an existing symlink at the name is never opened through.
+                // An existing symlink at the name is never opened through, and
+                // an existing FIFO is not waited on (see `open_entry_at`).
                 let darwin_flags = match Self::linux_open_flags_to_darwin(flags | 0o100, false) {
-                    Ok(f) => f | libc::O_NOFOLLOW,
+                    Ok(f) => f,
                     Err(e) => return self.write_err(unique, e),
                 };
+                if self.handles_full() {
+                    return self.write_err(unique, LINUX_ENFILE);
+                }
+                if let Err(e) = self.node_room() {
+                    return self.write_err(unique, e);
+                }
                 let create_mode = guest_mode(mode & 0o7777, false) as libc::c_uint;
                 let pfd = match self.dir_fd(nodeid) {
                     Ok(fd) => fd,
                     Err(e) => return self.write_err(unique, e),
                 };
-                let fd = unsafe {
-                    libc::openat(pfd.as_raw_fd(), cname.as_ptr(), darwin_flags, create_mode)
-                };
-                if fd < 0 {
-                    return self.write_err(unique, last_os_errno_linux());
-                }
-                let file = unsafe { File::from_raw_fd(fd) };
-                let st = match fstat_fd(file.as_raw_fd()) {
-                    Ok(s) => s,
+                let opened = open_entry_at(pfd.as_raw_fd(), &cname, darwin_flags, create_mode)
+                    .and_then(|fd| {
+                        let st = fstat_fd(fd.as_raw_fd())?;
+                        if mode_is_dir(st.mode) {
+                            return Err(LINUX_EISDIR);
+                        }
+                        Ok((host_handle(fd, &st, darwin_flags)?, st))
+                    });
+                let (file, st) = match opened {
+                    Ok(opened) => opened,
                     Err(e) => return self.write_err(unique, e),
                 };
-                let id = self.observe_child(nodeid, &cname, &st);
-                let fh = self.next_fh;
-                self.next_fh += 1;
-                self.open_files.insert(
-                    fh,
-                    OpenFile {
-                        nodeid: id,
-                        file: Arc::new(file),
-                    },
-                );
+                let id = match self.bind_entry(nodeid, pfd.as_raw_fd(), &cname, &st) {
+                    Ok(id) => id,
+                    Err(e) => return self.write_err(unique, e),
+                };
+                let fh = self.add_open_file(id, file, &st);
+                self.add_lookup(id);
                 let attr = self.guest_attr(id, &st);
                 let ro = self.read_only;
                 self.begin_ok(unique);
                 Self::encode_entry_out_stat(id, &st, ro, attr, &mut self.resp_buf);
                 self.resp_buf.extend_from_slice(&fh.to_le_bytes());
-                self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
+                self.resp_buf
+                    .extend_from_slice(&self.direct_open_flags(&st).to_le_bytes());
                 self.resp_buf.extend_from_slice(&0i32.to_le_bytes());
                 self.finish_ok()
             }
@@ -1969,13 +3110,25 @@ impl FsCore {
             FUSE_RELEASE => {
                 if body.len() >= 8 {
                     let fh = u64::from_le_bytes(body[0..8].try_into().unwrap());
-                    self.open_files.remove(&fh);
+                    if let Some(open) = self.open_files.remove(&fh) {
+                        self.metrics.open_handles.fetch_sub(1, Ordering::Relaxed);
+                        // The last handle on a file the guest unlinked.
+                        if self.owners.contains_key(&open.identity) {
+                            let gone =
+                                fstat_fd(open.file.as_raw_fd()).is_ok_and(|st| st.nlink == 0);
+                            self.release_owner(open.identity, gone);
+                        }
+                    }
                 }
                 self.write_ok_slice(unique, &[])
             }
             FUSE_OPENDIR => {
+                if self.handles_full() || self.open_dirs.len() >= self.limits.dirs {
+                    return self.write_err(unique, LINUX_ENFILE);
+                }
                 let dir_fd = match self.open_node(nodeid, libc::O_RDONLY | libc::O_DIRECTORY) {
-                    Ok(dir) => OwnedFd::from(dir),
+                    Ok((dir, st)) if mode_is_dir(st.mode) => OwnedFd::from(dir),
+                    Ok(_) => return self.write_err(unique, LINUX_ENOTDIR),
                     Err(e) => {
                         let errno = self.open_failure(nodeid, e);
                         return self.write_err(unique, errno);
@@ -1986,11 +3139,7 @@ impl FsCore {
                     let dup_fd =
                         unsafe { libc::fcntl(dir_fd.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 0) };
                     if dup_fd >= 0 {
-                        if self.dir_fds.len() >= MAX_CACHED_DIR_FDS {
-                            self.dir_fds.clear();
-                        }
-                        self.dir_fds
-                            .insert(nodeid, Arc::new(unsafe { OwnedFd::from_raw_fd(dup_fd) }));
+                        self.cache_dir(nodeid, Arc::new(unsafe { OwnedFd::from_raw_fd(dup_fd) }));
                     }
                 }
                 let fh = self.next_fh;
@@ -2000,9 +3149,10 @@ impl FsCore {
                     OpenDir {
                         dir_nodeid: nodeid,
                         dir_fd,
-                        entries: None,
+                        listing: DirListing::default(),
                     },
                 );
+                self.metrics.open_handles.fetch_add(1, Ordering::Relaxed);
                 let mut out = [0u8; 16];
                 out[0..8].copy_from_slice(&fh.to_le_bytes());
                 let open_flags = if self.read_only {
@@ -2020,79 +3170,14 @@ impl FsCore {
                 let fh = u64::from_le_bytes(body[0..8].try_into().unwrap());
                 let offset = u64::from_le_bytes(body[8..16].try_into().unwrap()) as usize;
                 let max_size = u32::from_le_bytes(body[16..20].try_into().unwrap()) as usize;
-
-                // Populate entries lazily on offset == 0 via single-syscall Darwin getattrlistbulk!
-                let need_populate = match self.open_dirs.get(&fh) {
-                    Some(od) => offset == 0 || od.entries.is_none(),
-                    None => return self.write_err(unique, LINUX_EBADF),
-                };
-                if need_populate {
-                    let raw_fd = self.open_dirs[&fh].dir_fd.as_raw_fd();
-                    #[cfg(target_vendor = "apple")]
-                    let bulk_res = darwin_bulk::read_dir_bulk(raw_fd, &mut self.bulk_buf)
-                        .or_else(|_| read_dir_entries_fd(raw_fd));
-                    #[cfg(not(target_vendor = "apple"))]
-                    let bulk_res = read_dir_entries_fd(raw_fd);
-                    let entries = match bulk_res {
-                        Ok(v) => v,
-                        Err(e) => return self.write_err(unique, e),
-                    };
-                    if let Some(od) = self.open_dirs.get_mut(&fh) {
-                        od.entries = Some(entries);
-                    }
-                }
-
-                // Detach entries temporarily to avoid borrow conflict with `self.observe_child`
-                let (dir_nodeid, entries) = {
-                    let Some(od) = self.open_dirs.get_mut(&fh) else {
-                        return self.write_err(unique, LINUX_EBADF);
-                    };
-                    (od.dir_nodeid, od.entries.take().unwrap_or_default())
-                };
-
-                let plus = opcode == FUSE_READDIRPLUS;
-                let ro = self.read_only;
-                self.begin_ok(unique);
-                let body_start = self.resp_buf.len();
-                for (i, e) in entries.iter().enumerate().skip(offset) {
-                    let name = e.name.to_bytes();
-                    let name_len = name.len();
-                    let raw_ent = (if plus { 128 } else { 0 }) + 24 + name_len;
-                    let padded = (raw_ent + 7) & !7;
-                    if (self.resp_buf.len() - body_start) + padded > max_size {
-                        break;
-                    }
-                    let ino = self.observe_child(dir_nodeid, &e.name, &e.stat);
-                    if plus {
-                        if ro {
-                            self.ro_lookup_cache
-                                .insert((dir_nodeid, name.to_vec()), Ok(ino));
-                            self.ro_attr_cache.insert(ino, e.stat);
-                        }
-                        let attr = self.guest_attr(ino, &e.stat);
-                        Self::encode_entry_out_stat(ino, &e.stat, ro, attr, &mut self.resp_buf);
-                    }
-                    let dtype = e.stat.dtype();
-                    self.resp_buf.extend_from_slice(&ino.to_le_bytes());
-                    self.resp_buf
-                        .extend_from_slice(&((i + 1) as u64).to_le_bytes());
-                    self.resp_buf
-                        .extend_from_slice(&(name_len as u32).to_le_bytes());
-                    self.resp_buf.extend_from_slice(&dtype.to_le_bytes());
-                    self.resp_buf.extend_from_slice(name);
-                    while !(self.resp_buf.len() - body_start).is_multiple_of(8) {
-                        self.resp_buf.push(0);
-                    }
-                }
-                if let Some(od) = self.open_dirs.get_mut(&fh) {
-                    od.entries = Some(entries);
-                }
-                self.finish_ok()
+                self.read_directory(unique, opcode == FUSE_READDIRPLUS, fh, offset, max_size)
             }
             FUSE_RELEASEDIR => {
                 if body.len() >= 8 {
                     let fh = u64::from_le_bytes(body[0..8].try_into().unwrap());
-                    self.open_dirs.remove(&fh);
+                    if self.open_dirs.remove(&fh).is_some() {
+                        self.metrics.open_handles.fetch_sub(1, Ordering::Relaxed);
+                    }
                 }
                 self.write_ok_slice(unique, &[])
             }
@@ -2109,6 +3194,9 @@ impl FsCore {
                     Ok(c) => c,
                     Err(e) => return self.write_err(unique, e),
                 };
+                if let Err(e) = self.node_room() {
+                    return self.write_err(unique, e);
+                }
                 let pfd = match self.dir_fd(nodeid) {
                     Ok(fd) => fd,
                     Err(e) => return self.write_err(unique, e),
@@ -2117,13 +3205,7 @@ impl FsCore {
                 if unsafe { libc::mkdirat(pfd.as_raw_fd(), cname.as_ptr(), dir_mode) } != 0 {
                     return self.write_err(unique, last_os_errno_linux());
                 }
-                match fstatat_cstr(pfd.as_raw_fd(), &cname) {
-                    Ok(st) => {
-                        let id = self.observe_child(nodeid, &cname, &st);
-                        self.write_entry(unique, id, &st)
-                    }
-                    Err(e) => self.write_err(unique, e),
-                }
+                self.write_new_entry(unique, nodeid, pfd.as_raw_fd(), &cname)
             }
             FUSE_UNLINK | FUSE_RMDIR => {
                 if self.read_only {
@@ -2138,6 +3220,22 @@ impl FsCore {
                     Ok(fd) => fd,
                     Err(e) => return self.write_err(unique, e),
                 };
+                // The entry's node, under the name the host stores it by, and
+                // its file when an owner is pinned on it (the pin goes with
+                // the last name).
+                let known = self
+                    .child_id(nodeid, &cname)
+                    .and_then(|id| self.nodes.get(&id)?.identity);
+                let before = match known {
+                    Some(identity) if !self.owners.contains_key(&identity) => None,
+                    _ => fstatat_cstr(pfd.as_raw_fd(), &cname).ok(),
+                };
+                let key = match &before {
+                    Some(st) => self
+                        .child_key(nodeid, pfd.as_raw_fd(), &cname, st)
+                        .into_owned(),
+                    None => cname.clone(),
+                };
                 let flags = if opcode == FUSE_RMDIR {
                     libc::AT_REMOVEDIR
                 } else {
@@ -2147,7 +3245,10 @@ impl FsCore {
                     return self.write_err(unique, last_os_errno_linux());
                 }
                 // Open handles to the removed file stay valid; its node does not.
-                self.retire_child(nodeid, &cname);
+                self.retire_child(nodeid, &key);
+                if let Some(st) = before {
+                    self.release_owner((st.dev, st.ino), mode_is_dir(st.mode) || st.nlink <= 1);
+                }
                 self.write_ok_slice(unique, &[])
             }
             FUSE_RENAME | FUSE_RENAME2 => {
@@ -2179,28 +3280,39 @@ impl FsCore {
                     (Ok(o), Ok(n)) => (o, n),
                     (Err(e), _) | (_, Err(e)) => return self.write_err(unique, e),
                 };
-                if let Err(e) = host_rename(
-                    opfd.as_raw_fd(),
-                    &old_cname,
-                    npfd.as_raw_fd(),
-                    &new_cname,
-                    rename_flags,
-                ) {
+                let (opfd, npfd) = (opfd.as_raw_fd(), npfd.as_raw_fd());
+                // Both entries before the rename, under the names the host
+                // stores them by (the guest may use other spellings).
+                let src = fstatat_cstr(opfd, &old_cname).ok();
+                let dst = fstatat_cstr(npfd, &new_cname).ok();
+                let old_key = match &src {
+                    Some(st) => self.child_key(nodeid, opfd, &old_cname, st).into_owned(),
+                    None => old_cname.clone(),
+                };
+                let dst_key = match &dst {
+                    Some(st) => self.child_key(newdir, npfd, &new_cname, st).into_owned(),
+                    None => new_cname.clone(),
+                };
+                if let Err(e) = host_rename(opfd, &old_cname, npfd, &new_cname, rename_flags) {
                     return self.write_err(unique, e);
                 }
                 if rename_flags & LINUX_RENAME_EXCHANGE != 0 {
-                    self.exchange_children(nodeid, &old_cname, newdir, &new_cname);
-                } else if (nodeid, &old_cname) != (newdir, &new_cname) {
-                    // Renaming one hard link onto another of the same file is a no-op.
-                    let unchanged = match (
-                        fstatat_cstr(opfd.as_raw_fd(), &old_cname),
-                        fstatat_cstr(npfd.as_raw_fd(), &new_cname),
-                    ) {
-                        (Ok(old), Ok(new)) => (old.dev, old.ino) == (new.dev, new.ino),
-                        _ => false,
-                    };
-                    if !unchanged {
-                        self.move_child(nodeid, &old_cname, newdir, new_cname);
+                    self.exchange_children(nodeid, &old_key, newdir, &dst_key);
+                } else {
+                    let same_file = matches!((&src, &dst), (Some(s), Some(d)) if (s.dev, s.ino) == (d.dev, d.ino));
+                    let same_entry = (nodeid, &old_key) == (newdir, &dst_key);
+                    // Renaming one hard link onto another of the same file
+                    // leaves both. Renaming an entry to another spelling of its
+                    // own name (case or normalisation only) renames it.
+                    if !same_file || same_entry {
+                        let new_key = src
+                            .as_ref()
+                            .and_then(|st| darwin_bulk::stored_name(npfd, &new_cname, st))
+                            .unwrap_or_else(|| new_cname.clone());
+                        self.move_child(nodeid, &old_key, newdir, new_key, &dst_key);
+                        if let Some(d) = dst.filter(|_| !same_file) {
+                            self.release_owner((d.dev, d.ino), mode_is_dir(d.mode) || d.nlink <= 1);
+                        }
                     }
                 }
                 self.write_ok_slice(unique, &[])
@@ -2219,6 +3331,9 @@ impl FsCore {
                     Ok(c) => c,
                     Err(_) => return self.write_err(unique, LINUX_EINVAL),
                 };
+                if let Err(e) = self.node_room() {
+                    return self.write_err(unique, e);
+                }
                 let pfd = match self.dir_fd(nodeid) {
                     Ok(fd) => fd,
                     Err(e) => return self.write_err(unique, e),
@@ -2228,13 +3343,7 @@ impl FsCore {
                 {
                     return self.write_err(unique, last_os_errno_linux());
                 }
-                match fstatat_cstr(pfd.as_raw_fd(), &cname) {
-                    Ok(st) => {
-                        let id = self.observe_child(nodeid, &cname, &st);
-                        self.write_entry(unique, id, &st)
-                    }
-                    Err(e) => self.write_err(unique, e),
-                }
+                self.write_new_entry(unique, nodeid, pfd.as_raw_fd(), &cname)
             }
             FUSE_LINK => {
                 if self.read_only {
@@ -2249,6 +3358,9 @@ impl FsCore {
                     Ok(c) => c,
                     Err(e) => return self.write_err(unique, e),
                 };
+                if let Err(e) = self.node_room() {
+                    return self.write_err(unique, e);
+                }
                 let npfd = match self.dir_fd(nodeid) {
                     Ok(fd) => fd,
                     Err(e) => return self.write_err(unique, e),
@@ -2271,13 +3383,7 @@ impl FsCore {
                 if let Err(e) = linked {
                     return self.write_err(unique, e);
                 }
-                match fstatat_cstr(npfd.as_raw_fd(), &cname) {
-                    Ok(st) => {
-                        let id = self.observe_child(nodeid, &cname, &st);
-                        self.write_entry(unique, id, &st)
-                    }
-                    Err(e) => self.write_err(unique, e),
-                }
+                self.write_new_entry(unique, nodeid, npfd.as_raw_fd(), &cname)
             }
             FUSE_STATFS => {
                 let mut st: libc::statfs = unsafe { std::mem::zeroed() };
@@ -2337,8 +3443,8 @@ impl FsCore {
         if !self.nodes.contains_key(&nodeid) {
             return Err(LINUX_EBADF);
         }
-        let file = self.open_node(nodeid, libc::O_RDONLY | libc::O_NONBLOCK)?;
-        if !file.metadata().map_err(|e| io_err_to_linux(&e))?.is_file() {
+        let (file, st) = self.open_node(nodeid, libc::O_RDONLY)?;
+        if st.mode & libc::S_IFMT as u32 != libc::S_IFREG as u32 {
             return Err(LINUX_EINVAL);
         }
         sync_host_fd(file.as_raw_fd(), data_only)
@@ -2357,7 +3463,11 @@ impl FsCore {
             if !self.nodes.contains_key(&nodeid) {
                 return Err(LINUX_ENOENT);
             }
-            let arc_f = Arc::new(self.open_node(nodeid, libc::O_RDONLY)?);
+            let (file, st) = self.open_node(nodeid, libc::O_RDONLY)?;
+            if mode_is_dir(st.mode) {
+                return Err(LINUX_EISDIR);
+            }
+            let arc_f = Arc::new(file);
             if self.ro_file_cache.len() < 256 {
                 self.ro_file_cache.insert(nodeid, arc_f.clone());
             }
@@ -2368,8 +3478,10 @@ impl FsCore {
     }
 
     /// Snapshot of the node table: `next_nodeid`, `next_fh`, each node's path
-    /// relative to the share root (so a restored guest keeps its dentries), then
-    /// the owner fields guest `chown`s pinned (a section older blobs lack).
+    /// relative to the share root (so a restored guest keeps its dentries),
+    /// then pinned owners: `OWN1` by node (what a restore onto another
+    /// directory carries over, by path), then `OWN2` by host identity (pins
+    /// on files no node names). Older blobs end before either section.
     fn snapshot_blob(&self) -> Vec<u8> {
         let mut blob = Vec::new();
         blob.extend_from_slice(&self.next_nodeid.to_le_bytes());
@@ -2387,26 +3499,47 @@ impl FsCore {
             blob.extend_from_slice(&(rel.len() as u32).to_le_bytes());
             blob.extend_from_slice(rel);
         }
-        let mut owners: Vec<(u64, GuestOwner)> = self
+        let pin_of = |id: u64| -> Option<(u32, u32)> {
+            if id == FUSE_ROOT_ID {
+                let st = fstat_fd(self.root_fd.as_raw_fd()).ok()?;
+                return self.owners.get(&(st.dev, st.ino)).copied();
+            }
+            self.owners.get(&self.nodes.get(&id)?.identity?).copied()
+        };
+        let mut by_node: Vec<(u64, (u32, u32))> = self
             .nodes
-            .iter()
-            .filter(|(_, n)| n.owner.uid.is_some() || n.owner.gid.is_some())
-            .map(|(&id, n)| (id, n.owner))
+            .keys()
+            .filter_map(|&id| Some((id, pin_of(id)?)))
             .collect();
-        owners.sort_by_key(|(id, _)| *id);
+        by_node.sort_by_key(|(id, _)| *id);
         blob.extend_from_slice(SNAPSHOT_OWNERS_TAG);
-        blob.extend_from_slice(&(owners.len() as u32).to_le_bytes());
-        for (id, owner) in owners {
-            let flags = u8::from(owner.uid.is_some()) | (u8::from(owner.gid.is_some()) << 1);
+        blob.extend_from_slice(&(by_node.len() as u32).to_le_bytes());
+        for (id, (uid, gid)) in by_node {
             blob.extend_from_slice(&id.to_le_bytes());
-            blob.push(flags);
-            blob.extend_from_slice(&owner.uid.unwrap_or(0).to_le_bytes());
-            blob.extend_from_slice(&owner.gid.unwrap_or(0).to_le_bytes());
+            blob.push(3); // both fields
+            blob.extend_from_slice(&uid.to_le_bytes());
+            blob.extend_from_slice(&gid.to_le_bytes());
+        }
+        let mut by_file: Vec<((u64, u64), (u32, u32))> =
+            self.owners.iter().map(|(&k, &v)| (k, v)).collect();
+        by_file.sort_unstable();
+        blob.extend_from_slice(SNAPSHOT_FILE_OWNERS_TAG);
+        blob.extend_from_slice(&(by_file.len() as u32).to_le_bytes());
+        for ((dev, ino), (uid, gid)) in by_file {
+            blob.extend_from_slice(&dev.to_le_bytes());
+            blob.extend_from_slice(&ino.to_le_bytes());
+            blob.extend_from_slice(&uid.to_le_bytes());
+            blob.extend_from_slice(&gid.to_le_bytes());
+        }
+        if self.direct_io_mmap {
+            blob.extend_from_slice(SNAPSHOT_DIRECT_IO_MMAP_TAG);
         }
         blob
     }
 
     fn restore_blob(&mut self, blob: &[u8]) {
+        // Negotiation belongs to the captured FUSE session. Older snapshots omit the trailer.
+        self.direct_io_mmap = false;
         if blob.len() < 20 {
             return;
         }
@@ -2468,25 +3601,68 @@ impl FsCore {
                 Some((st.dev, st.ino))
             };
             self.insert_node(id, parent, name, identity);
+            // The restored guest references it; its own count is unknown, and
+            // a FORGET carries the guest's whole count, so one is enough.
+            self.add_lookup(id);
             by_path.insert(rel, id);
+        }
+        if self.read_only {
+            return;
         }
         if blob.len() >= pos + 8 && &blob[pos..pos + 4] == SNAPSHOT_OWNERS_TAG {
             let owners = u32::from_le_bytes(blob[pos + 4..pos + 8].try_into().unwrap());
             pos += 8;
+            let root = fstat_fd(self.root_fd.as_raw_fd())
+                .ok()
+                .map(|st| (st.dev, st.ino));
             for _ in 0..owners {
                 if pos + 17 > blob.len() {
-                    break;
+                    return;
                 }
                 let id = u64::from_le_bytes(blob[pos..pos + 8].try_into().unwrap());
                 let flags = blob[pos + 8];
                 let uid = u32::from_le_bytes(blob[pos + 9..pos + 13].try_into().unwrap());
                 let gid = u32::from_le_bytes(blob[pos + 13..pos + 17].try_into().unwrap());
                 pos += 17;
-                if let Some(node) = self.nodes.get_mut(&id) {
-                    node.owner.uid = (flags & 1 != 0).then_some(uid);
-                    node.owner.gid = (flags & 2 != 0).then_some(gid);
+                let identity = if id == FUSE_ROOT_ID {
+                    root
+                } else {
+                    self.nodes.get(&id).and_then(|n| n.identity)
+                };
+                // An older blob may pin one field: the other settles at root's.
+                let pin = (
+                    if flags & 1 != 0 { uid } else { 0 },
+                    if flags & 2 != 0 { gid } else { 0 },
+                );
+                if let Some(identity) = identity
+                    && flags & 3 != 0
+                    && self.owners.len() < self.limits.pins
+                {
+                    self.owners.insert(identity, pin);
                 }
             }
+        }
+        if blob.len() >= pos + 8 && &blob[pos..pos + 4] == SNAPSHOT_FILE_OWNERS_TAG {
+            let owners = u32::from_le_bytes(blob[pos + 4..pos + 8].try_into().unwrap());
+            pos += 8;
+            for _ in 0..owners {
+                if pos + 24 > blob.len() {
+                    return;
+                }
+                let dev = u64::from_le_bytes(blob[pos..pos + 8].try_into().unwrap());
+                let ino = u64::from_le_bytes(blob[pos + 8..pos + 16].try_into().unwrap());
+                let uid = u32::from_le_bytes(blob[pos + 16..pos + 20].try_into().unwrap());
+                let gid = u32::from_le_bytes(blob[pos + 20..pos + 24].try_into().unwrap());
+                pos += 24;
+                if self.owners.len() < self.limits.pins {
+                    self.owners.entry((dev, ino)).or_insert((uid, gid));
+                }
+            }
+            self.direct_io_mmap = self.writable_workspace
+                && blob.get(pos..) == Some(SNAPSHOT_DIRECT_IO_MMAP_TAG.as_slice());
+        }
+        if self.direct_io_requested && !self.direct_io_mmap {
+            eprintln!("[virtiofs-workspace] direct_io_mmap=false restored_without_negotiation");
         }
     }
 
@@ -2502,16 +3678,18 @@ impl FsCore {
     ) -> u32 {
         let mut hdr = [0u8; 80];
         let mut hdr_copied = 0usize;
+        // Only guest memory that exists counts: descriptor lengths are the
+        // guest's word, and the request is assembled from these bytes alone.
         let mut total_readable = 0usize;
         for b in bufs {
             if b.is_write {
                 continue;
             }
-            let blen = b.len as usize;
-            total_readable += blen;
-            if hdr_copied < hdr.len()
-                && let Some(s) = mem.read_slice(b.addr, blen)
-            {
+            let Some(s) = mem.read_slice(b.addr, b.len as usize) else {
+                continue;
+            };
+            total_readable = total_readable.saturating_add(s.len());
+            if hdr_copied < hdr.len() {
                 let take = s.len().min(hdr.len() - hdr_copied);
                 hdr[hdr_copied..hdr_copied + take].copy_from_slice(&s[..take]);
                 hdr_copied += take;
@@ -2523,6 +3701,12 @@ impl FsCore {
         let opcode = u32::from_le_bytes(hdr[4..8].try_into().unwrap());
         let unique = u64::from_le_bytes(hdr[8..16].try_into().unwrap());
         let nodeid = u64::from_le_bytes(hdr[16..24].try_into().unwrap());
+        // No request this device accepts is larger (`max_write` is 256 KiB).
+        if total_readable > MAX_FUSE_REQUEST {
+            self.metrics.requests.fetch_add(1, Ordering::Relaxed);
+            self.write_err(unique, LINUX_EINVAL);
+            return scatter_writable(bufs, mem, &self.resp_buf);
+        }
 
         // Fast path 1: ZERO-COPY FUSE_READ -> libc::preadv() straight into GuestMemory!
         if opcode == FUSE_READ && hdr_copied >= 64 {
@@ -2747,7 +3931,7 @@ fn run_fs_io_loop(shared: Arc<FsShared>) {
     unsafe {
         libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE, 0);
     }
-    let mut local_qs: [Option<VirtQueue>; 2] = [None, None];
+    let mut local_qs = Vec::<Option<VirtQueue>>::new();
     let mut desc_buf = Vec::with_capacity(16);
     let mut req_scratch = Vec::with_capacity(4096);
 
@@ -2778,38 +3962,16 @@ fn run_fs_io_loop(shared: Arc<FsShared>) {
                 {
                     break;
                 }
-                let (ns, _) = shared
-                    .state
-                    .1
-                    .wait_timeout(st, Duration::from_millis(5))
-                    .unwrap();
-                st = ns;
+                // The drain loop rearms guest notifications, fences, and rechecks
+                // the ring. QueueNotify records its kick under this same mutex.
+                st = shared.state.1.wait(st).unwrap();
             }
             if shared.shutdown.load(Ordering::Relaxed) {
                 return;
             }
             st.kicked = false;
             st.worker_parked = false;
-            for (local, updated) in local_qs.iter_mut().zip(st.queues.iter()) {
-                if let Some(updated) = updated {
-                    match local {
-                        Some(lq) => {
-                            if lq.desc_addr != updated.desc_addr
-                                || lq.avail_addr != updated.avail_addr
-                                || !lq.ready
-                            {
-                                *lq = updated.clone();
-                            } else {
-                                lq.ready = updated.ready;
-                                lq.size = updated.size;
-                            }
-                        }
-                        None => *local = Some(updated.clone()),
-                    }
-                } else {
-                    *local = None;
-                }
-            }
+            local_qs.clone_from(&st.queues);
             (st.mem.clone(), st.irq.clone())
         };
 
@@ -2830,6 +3992,12 @@ fn run_fs_io_loop(shared: Arc<FsShared>) {
         let mut spin_iters: u32 = 0;
 
         loop {
+            if shared.shutdown.load(Ordering::Acquire) || shared.paused.load(Ordering::Acquire) {
+                for q in local_qs.iter().flatten() {
+                    q.set_no_notify(&mem, false);
+                }
+                break;
+            }
             let has_work = local_qs
                 .iter()
                 .flatten()
@@ -2846,19 +4014,33 @@ fn run_fs_io_loop(shared: Arc<FsShared>) {
                         if !q.ready {
                             continue;
                         }
-                        let mut q_used = false;
-                        while let Some(head) = q.pop_into(&mem, &mut desc_buf) {
+                        let old_used = q.next_used;
+                        // A continuously refilled low-numbered queue cannot starve its
+                        // siblings, hiprio, or the handoff for a device reset.
+                        for _ in 0..32 {
+                            let Some(head) = q.pop_into(&mem, &mut desc_buf) else {
+                                break;
+                            };
                             let written = core.handle_fuse_chain(&desc_buf, &mem, &mut req_scratch);
                             q.push_used(&mem, head, written);
-                            q_used = true;
                             used_any = true;
                         }
-                        if q_used && q.guest_wants_irq(&mem) {
+                        if q.next_used != old_used && q.guest_wants_irq_since(&mem, old_used) {
                             want_irq = true;
                         }
                     }
                 }
                 if used_any {
+                    if let Some(metrics) = &shared.workspace_metrics {
+                        metrics
+                            .workspace_used_batches
+                            .fetch_add(1, Ordering::Relaxed);
+                        if want_irq {
+                            metrics
+                                .workspace_irq_requests
+                                .fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
                     if want_irq {
                         irq.raise_used_buffer();
                     }
@@ -2868,17 +4050,6 @@ fn run_fs_io_loop(shared: Arc<FsShared>) {
                 }
             }
 
-            if shared.shutdown.load(Ordering::Relaxed) {
-                return;
-            }
-            if shared.paused.load(Ordering::Acquire) {
-                for q in local_qs.iter().flatten() {
-                    if q.ready {
-                        q.set_no_notify(&mem, false);
-                    }
-                }
-                break;
-            }
             spin_iters = spin_iters.wrapping_add(1);
             if (spin_iters & 63) != 0 || last_activity.elapsed() < adaptive_spin {
                 std::hint::spin_loop();
@@ -2913,10 +4084,14 @@ impl VirtioBackend for VirtioFs {
         26
     }
     fn features(&self) -> u64 {
-        0
+        if self.offer_event_idx {
+            crate::VIRTIO_F_EVENT_IDX
+        } else {
+            0
+        }
     }
     fn num_queues(&self) -> usize {
-        2 // 0 = hiprio, 1 = request queue 0
+        1 + usize::from(self.request_queues) // queue 0 is hiprio
     }
     fn queue_max_size(&self, _q: usize) -> u16 {
         256
@@ -2924,7 +4099,7 @@ impl VirtioBackend for VirtioFs {
     fn read_config(&self, offset: u64, data: &mut [u8]) {
         let mut cfg = [0u8; 40];
         cfg[0..36].copy_from_slice(&self.tag);
-        cfg[36..40].copy_from_slice(&1u32.to_le_bytes()); // num_request_queues = 1
+        cfg[36..40].copy_from_slice(&u32::from(self.request_queues).to_le_bytes());
         let start = offset as usize;
         for (i, b) in data.iter_mut().enumerate() {
             *b = cfg.get(start + i).copied().unwrap_or(0);
@@ -2936,29 +4111,26 @@ impl VirtioBackend for VirtioFs {
         st.irq = Some(irq);
     }
     fn queue_ready(&mut self, q_idx: usize, q: &VirtQueue) {
-        if q_idx < 2 {
-            let mut st = self.shared.state.0.lock().unwrap();
+        if q_idx < self.num_queues() {
+            let mut st = self.park_worker();
             st.queues[q_idx] = Some(q.clone());
-            st.kicked = true;
-            self.shared.state.1.notify_one();
+            self.resume_worker(&mut st);
             drop(st);
             self.ensure_worker_started();
         }
     }
+    fn queue_disabled(&mut self, q_idx: usize) {
+        let mut st = self.park_worker();
+        st.queues[q_idx] = None;
+        self.resume_worker(&mut st);
+    }
     fn reset(&mut self) {
-        let mut st = self.shared.state.0.lock().unwrap();
-        st.queues = [None, None];
-        st.kicked = false;
+        let mut st = self.park_worker();
+        st.queues.fill(None);
+        self.resume_worker(&mut st);
     }
     fn snapshot_pause(&mut self, queues: &mut [VirtQueue], mem: &GuestMemory) -> Vec<u8> {
-        self.shared.paused.store(true, Ordering::Release);
-        self.shared.state.1.notify_all();
-        let mut st = self.shared.state.0.lock().unwrap();
-        if self.worker_handle.is_some() {
-            while !st.worker_parked {
-                st = self.shared.state.1.wait(st).unwrap();
-            }
-        }
+        let st = self.park_worker();
         for (sq, q) in st.queues.iter().zip(queues.iter_mut()) {
             if let Some(sq) = sq {
                 q.next_avail = sq.next_avail;
@@ -2972,31 +4144,48 @@ impl VirtioBackend for VirtioFs {
         self.shared.core.lock().unwrap().snapshot_blob()
     }
     fn snapshot_resume(&mut self) {
-        self.shared.paused.store(false, Ordering::Release);
         let mut st = self.shared.state.0.lock().unwrap();
-        st.kicked = true;
-        self.shared.state.1.notify_all();
+        self.resume_worker(&mut st);
     }
     fn snapshot_restore(&mut self, blob: &[u8], queues: &[VirtQueue]) {
+        let mut st = self.park_worker();
         self.shared.core.lock().unwrap().restore_blob(blob);
-        for (idx, q) in queues.iter().enumerate().take(2) {
-            if q.ready {
-                self.queue_ready(idx, q);
-            }
+        for (slot, q) in st.queues.iter_mut().zip(queues) {
+            *slot = q.ready.then(|| q.clone());
+        }
+        self.resume_worker(&mut st);
+        drop(st);
+        if queues.iter().any(|q| q.ready) {
+            self.ensure_worker_started();
         }
     }
-    fn handle_queue(&mut self, q_idx: usize, queues: &mut [VirtQueue], _mem: &GuestMemory) -> bool {
-        if q_idx < 2 {
-            let mut st = self.shared.state.0.lock().unwrap();
-            if st.queues[q_idx].is_none() {
-                st.queues[q_idx] = Some(queues[q_idx].clone());
+    fn handle_queue(
+        &mut self,
+        q_idx: usize,
+        _queues: &mut [VirtQueue],
+        _mem: &GuestMemory,
+    ) -> bool {
+        let mut st = self.shared.state.0.lock().unwrap();
+        if st.queues.get(q_idx).is_some_and(Option::is_some) {
+            if let Some(metrics) = &self.shared.workspace_metrics {
+                metrics.workspace_kicks.fetch_add(1, Ordering::Relaxed);
             }
             st.kicked = true;
             self.shared.state.1.notify_one();
-            drop(st);
-            self.ensure_worker_started();
         }
         false
+    }
+}
+
+impl Drop for FsCore {
+    fn drop(&mut self) {
+        let handles = (self.open_files.len() + self.open_dirs.len()) as u64;
+        self.metrics
+            .nodes
+            .fetch_sub(self.nodes.len() as u64, Ordering::Relaxed);
+        self.metrics
+            .open_handles
+            .fetch_sub(handles, Ordering::Relaxed);
     }
 }
 
@@ -3022,6 +4211,7 @@ impl Drop for VirtioFs {
 mod tests {
     use super::*;
     use std::ffi::OsStr;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
     fn request_bytes(opcode: u32, nodeid: u64, body: &[u8]) -> Vec<u8> {
         let mut req = vec![0; 40];
@@ -3179,6 +4369,151 @@ mod tests {
     }
 
     #[test]
+    fn workspace_request_queues_survive_reconfiguration_and_restore() {
+        for event_idx in [false, true] {
+            check_request_queue_lifecycle(event_idx);
+        }
+    }
+
+    fn check_request_queue_lifecycle(event_idx: bool) {
+        use crate::VirtioMmioDevice;
+
+        let mut backing = vec![0u64; 1024];
+        let mem = Arc::new(unsafe {
+            GuestMemory::new(
+                backing.as_mut_ptr().cast(),
+                0,
+                std::mem::size_of_val(&backing[..]),
+            )
+        });
+        let device = |count, offer_event_idx| {
+            let mut fs = VirtioFs::with_request_queues(
+                "workspace",
+                std::env::temp_dir(),
+                false,
+                Arc::default(),
+                count,
+            )
+            .unwrap();
+            fs.offer_event_idx = offer_event_idx;
+            VirtioMmioDevice::new(32, mem.clone(), Box::new(fs))
+        };
+        let mut dev = device(4, true);
+        assert_eq!(dev.mmio_read(0x010, 4), crate::VIRTIO_F_EVENT_IDX);
+        if event_idx {
+            dev.mmio_write(0x020, 4, crate::VIRTIO_F_EVENT_IDX);
+        }
+        assert_eq!(dev.mmio_read(0x100 + 36, 4), 4);
+
+        let configure = |dev: &mut VirtioMmioDevice, q: u64| {
+            let base = q * 1024;
+            let (desc, avail, used, input, output) =
+                (base, base + 64, base + 128, base + 256, base + 512);
+            mem.write_slice(base, 1024).unwrap().fill(0);
+            // Two descriptors and one FUSE_GETATTR on the root. Each ring has
+            // its own unique ID and writable memory; suppress hardware IRQs.
+            mem.write_slice(desc, 8)
+                .unwrap()
+                .copy_from_slice(&input.to_le_bytes());
+            mem.write_u32(desc + 8, 56).unwrap();
+            mem.write_u16(desc + 12, crate::VIRTQ_DESC_F_NEXT).unwrap();
+            mem.write_u16(desc + 14, 1).unwrap();
+            mem.write_slice(desc + 16, 8)
+                .unwrap()
+                .copy_from_slice(&output.to_le_bytes());
+            mem.write_u32(desc + 24, 256).unwrap();
+            mem.write_u16(desc + 28, crate::VIRTQ_DESC_F_WRITE).unwrap();
+            if event_idx {
+                mem.write_u16(avail + 8, u16::MAX).unwrap();
+            } else {
+                mem.write_u16(avail, 1).unwrap();
+            }
+            let req = request_bytes(FUSE_GETATTR, FUSE_ROOT_ID, &[0; 16]);
+            mem.write_slice(input, req.len())
+                .unwrap()
+                .copy_from_slice(&req);
+            mem.write_slice(input + 8, 8)
+                .unwrap()
+                .copy_from_slice(&q.to_le_bytes());
+            for (reg, value) in [
+                (0x030, q),
+                (0x038, 2),
+                (0x080, desc),
+                (0x090, avail),
+                (0x0a0, used),
+                (0x044, 1),
+            ] {
+                dev.mmio_write(reg, 4, value);
+            }
+        };
+        let submit = |dev: &mut VirtioMmioDevice, q: u64, seq: u16| {
+            mem.write_u16_release(q * 1024 + 66, seq).unwrap();
+            dev.mmio_write(0x050, 4, q);
+        };
+        let completion = |q: u64, seq| {
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while mem.read_u16_acquire(q * 1024 + 130) != Some(seq) {
+                assert!(Instant::now() < deadline, "queue {q} stalled at {seq}");
+                std::thread::yield_now();
+            }
+            assert_eq!(mem.read_u32(q * 1024 + 516), Some(0));
+            assert_eq!(mem.read_u64(q * 1024 + 520), Some(q));
+        };
+        // Register each ring while earlier rings can still be completing.
+        for q in 1..=4 {
+            configure(&mut dev, q);
+            submit(&mut dev, q, 1);
+        }
+        for q in 1..=4 {
+            completion(q, 1);
+            for seq in 2..=q as u16 + 1 {
+                submit(&mut dev, q, seq);
+                completion(q, seq);
+            }
+        }
+        let saved = dev.snapshot_pause();
+        for q in 1..=4 {
+            assert_eq!(saved.queues[q].next_used, q as u16 + 1);
+        }
+        drop(dev);
+        assert!(
+            device(1, true)
+                .snapshot_restore(&saved)
+                .unwrap_err()
+                .contains("queue count")
+        );
+        if event_idx {
+            assert!(
+                device(4, false)
+                    .snapshot_restore(&saved)
+                    .unwrap_err()
+                    .contains("EVENT_IDX")
+            );
+        }
+        // A snapshot taken without the feature still restores on a legacy device.
+        let mut restored = device(4, event_idx);
+        restored.snapshot_restore(&saved).unwrap();
+        for q in 1..=4 {
+            submit(&mut restored, q, q as u16 + 2);
+        }
+        for q in 1..=4 {
+            completion(q, q as u16 + 2);
+        }
+        // Reuse one ring at the same addresses, while the sibling keeps its index.
+        restored.mmio_write(0x030, 4, 3);
+        restored.mmio_write(0x044, 4, 0);
+        configure(&mut restored, 3);
+        submit(&mut restored, 3, 1);
+        submit(&mut restored, 4, 7);
+        completion(3, 1);
+        completion(4, 7);
+        restored.mmio_write(0x070, 4, 0);
+        configure(&mut restored, 4);
+        submit(&mut restored, 4, 1);
+        completion(4, 1);
+    }
+
+    #[test]
     fn sync_validates_packets_and_uses_open_file_and_directory_handles() {
         let dir = std::env::temp_dir().join(format!("mp-vfs-sync-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
@@ -3286,6 +4621,7 @@ mod tests {
                 OpenFile {
                     nodeid: file_id,
                     file: Arc::new(File::from(OwnedFd::from(left))),
+                    identity: (0, 0),
                 },
             );
             core.open_dirs.insert(
@@ -3293,7 +4629,7 @@ mod tests {
                 OpenDir {
                     dir_nodeid: FUSE_ROOT_ID,
                     dir_fd: OwnedFd::from(right),
-                    entries: None,
+                    listing: DirListing::default(),
                 },
             );
         }
@@ -3331,6 +4667,74 @@ mod tests {
         }
         fs::remove_file(path).unwrap();
         fs::remove_dir(dir).unwrap();
+    }
+
+    #[test]
+    fn live_workspace_reads_require_kernel_support_and_apply_to_open_and_create() {
+        let (base, share, _) = scratch("direct-io-mmap");
+        fs::write(share.join("existing"), b"old bytes").unwrap();
+        let mut fsys = writable(&share);
+        let mut init = [0; 64];
+        init[..4].copy_from_slice(&7u32.to_le_bytes());
+        init[4..8].copy_from_slice(&FUSE_DIRECT_IO_MMAP_MINOR.to_le_bytes());
+        init[12..16].copy_from_slice(&FUSE_INIT_EXT.to_le_bytes());
+        init[16..20].copy_from_slice(&FUSE_DIRECT_IO_ALLOW_MMAP_FLAGS2.to_le_bytes());
+
+        let legacy = request(&mut fsys, FUSE_INIT, ROOT, &init);
+        assert_eq!(u32::from_le_bytes(legacy[20..24].try_into().unwrap()), 31);
+        assert_eq!(u32::from_le_bytes(legacy[48..52].try_into().unwrap()), 0);
+
+        core(&fsys).direct_io_requested = true;
+        let mut missing = init;
+        missing[12..16].fill(0);
+        assert_eq!(
+            errno(&request(&mut fsys, FUSE_INIT, ROOT, &missing)),
+            LINUX_EOPNOTSUPP
+        );
+        let reply = request(&mut fsys, FUSE_INIT, ROOT, &init);
+        assert_eq!(errno(&reply), 0);
+        assert_eq!(
+            u32::from_le_bytes(reply[20..24].try_into().unwrap()),
+            FUSE_DIRECT_IO_MMAP_MINOR
+        );
+        assert_ne!(
+            u32::from_le_bytes(reply[28..32].try_into().unwrap()) & FUSE_INIT_EXT,
+            0
+        );
+        assert_eq!(
+            u32::from_le_bytes(reply[48..52].try_into().unwrap()),
+            FUSE_DIRECT_IO_ALLOW_MMAP_FLAGS2
+        );
+        let id = lookup_in(&mut fsys, ROOT, b"existing").unwrap();
+        for (access, flags) in [(0, FOPEN_DIRECT_IO | FOPEN_NOFLUSH), (2, FOPEN_DIRECT_IO)] {
+            let reply = open(&mut fsys, id, access);
+            assert_eq!(errno(&reply), 0);
+            assert_eq!(u32::from_le_bytes(reply[24..28].try_into().unwrap()), flags);
+        }
+        let reply = create_in(&mut fsys, ROOT, b"created", O_WRONLY_CREAT, 0o644);
+        assert_eq!(errno(&reply), 0);
+        assert_eq!(
+            u32::from_le_bytes(reply[152..156].try_into().unwrap()),
+            FOPEN_DIRECT_IO
+        );
+
+        let state = core(&fsys).snapshot_blob();
+        let restored = writable(&share);
+        core(&restored).direct_io_requested = false;
+        core(&restored).restore_blob(&state);
+        assert!(core(&restored).direct_io_mmap);
+        core(&restored).restore_blob(&state[..state.len() - SNAPSHOT_DIRECT_IO_MMAP_TAG.len()]);
+        assert!(!core(&restored).direct_io_mmap);
+        core(&restored).restore_blob(&state);
+        let legacy_end = state.windows(4).position(|b| b == SNAPSHOT_OWNERS_TAG).unwrap();
+        core(&restored).restore_blob(&state[..legacy_end]);
+        assert!(!core(&restored).direct_io_mmap);
+        for (tag, read_only) in [("workspace", true), ("other", false)] {
+            let other = VirtioFs::new(tag, share.clone(), read_only, Arc::default()).unwrap();
+            core(&other).restore_blob(&state);
+            assert!(!core(&other).direct_io_mmap);
+        }
+        fs::remove_dir_all(base).unwrap();
     }
 
     #[test]
@@ -3411,7 +4815,7 @@ mod tests {
             .unwrap()
             .set_attributes(second, &body, FATTR_MTIME | FATTR_MODE)
             .unwrap();
-        assert_eq!((md.mtime(), md.mode() & 0o777), (1_600_000_000, 0o640));
+        assert_eq!((md.mtime, md.mode & 0o777), (1_600_000_000, 0o640));
         assert_eq!(errno(&open(&mut fsys, second, 0o1002)), 0);
         assert_eq!(fs::metadata(&path).unwrap().size(), 0);
         fs::remove_file(path).unwrap();
@@ -3626,7 +5030,9 @@ mod tests {
             let entry = mem.read_slice(512, 128).unwrap();
             let nodeid = u64::from_le_bytes(entry[..8].try_into().unwrap());
             let attr_ino = u64::from_le_bytes(entry[40..48].try_into().unwrap());
-            assert_eq!(nodeid, attr_ino);
+            // The inode number is the host's; the node ID is the server's own.
+            let host = fs::symlink_metadata(dir.join(OsStr::from_bytes(name.to_bytes()))).unwrap();
+            assert_eq!(attr_ino, host.ino());
             let mode = u32::from_le_bytes(entry[100..104].try_into().unwrap());
             (nodeid, mode & 0o777, scratch.capacity())
         };
@@ -4314,7 +5720,16 @@ mod tests {
             libc::O_NOFOLLOW,
         )
         .unwrap();
-        let mut entries = read_dir_entries_fd(fd.as_raw_fd()).unwrap();
+        let mut listing = DirListing {
+            stream: Some(DirStream::open(fd.as_raw_fd()).unwrap()),
+            ..DirListing::default()
+        };
+        listing.rewind(fd.as_raw_fd());
+        let mut buf = Vec::new();
+        while !listing.eof {
+            listing.fill(fd.as_raw_fd(), &mut buf).unwrap();
+        }
+        let mut entries: Vec<_> = listing.window.into();
         entries.sort_by(|x, y| x.name.cmp(&y.name));
         let names: Vec<_> = entries.iter().map(|e| e.name.to_str().unwrap()).collect();
         assert_eq!(names, ["dir", "file", "lnk"]);
@@ -4395,29 +5810,56 @@ mod tests {
     }
 
     #[test]
-    fn chown_pins_only_the_named_field_and_self_chown_pins_nothing() {
+    fn a_chown_of_either_field_pins_both_and_self_chown_pins_nothing() {
         let (base, share, _) = scratch("pin");
-        for name in ["u", "g", "self"] {
+        for name in ["u", "g", "adopted", "mine", "self"] {
             fs::write(share.join(name), b"x").unwrap();
         }
         let mut fsys = writable(&share);
         let u = lookup_in(&mut fsys, ROOT, b"u").unwrap();
         let g = lookup_in(&mut fsys, ROOT, b"g").unwrap();
+        let adopted = lookup_in(&mut fsys, ROOT, b"adopted").unwrap();
+        let mine = lookup_in(&mut fsys, ROOT, b"mine").unwrap();
         let me = lookup_in(&mut fsys, ROOT, b"self").unwrap();
-        // `chown 999 u` keeps the group floating; `chgrp 5 g` keeps the user floating.
+        // `chown 999 u` (`chown root tool; chmod 0770 tool`) settles the group
+        // at what root saw (root's), so no other user is left in the group;
+        // `chgrp 5 g` settles the owner the same way.
         chown_as(&mut fsys, u, (Some(999), None), (0, 0));
         chown_as(&mut fsys, g, (None, Some(5)), (0, 0));
+        for caller in [(0, 0), (1000, 1000), (70, 70)] {
+            assert_eq!(getattr_as(&mut fsys, u, caller).0, (999, 0), "{caller:?}");
+            assert_eq!(getattr_as(&mut fsys, g, caller).0, (0, 5), "{caller:?}");
+        }
+        // Root sees a floating file as the user that just used it, and a
+        // `chown 70` then keeps that user's group, as a chown on Linux keeps
+        // the group the file had.
+        assert_eq!(getattr_as(&mut fsys, adopted, (1000, 1001)).0, (1000, 1001));
+        chown_as(&mut fsys, adopted, (Some(70), None), (0, 0));
+        assert_eq!(getattr_as(&mut fsys, adopted, (1234, 1234)).0, (70, 1001));
+        // A non-root `chgrp` to another of its groups pins it as the owner.
+        chown_as(&mut fsys, mine, (None, Some(44)), (1000, 1000));
         core(&fsys).adopt_window_ms = 0;
-        assert_eq!(getattr_as(&mut fsys, u, (1000, 1000)).0, (999, 1000));
-        assert_eq!(getattr_as(&mut fsys, u, (0, 0)).0, (999, 0));
-        assert_eq!(getattr_as(&mut fsys, g, (1000, 1000)).0, (1000, 5));
-        assert_eq!(getattr_as(&mut fsys, g, (70, 70)).0, (70, 5));
-        // A non-root `chown 1000:1000` of a file it already sees as its own is a no-op.
+        assert_eq!(getattr_as(&mut fsys, mine, (70, 70)).0, (1000, 44));
+        assert_eq!(getattr_as(&mut fsys, mine, (0, 0)).0, (1000, 44));
+        // A non-root `chown 1000:1000` (or `chown 1000`) of a file it already
+        // sees as its own is a no-op.
         chown_as(&mut fsys, me, (Some(1000), Some(1000)), (1000, 1000));
+        chown_as(&mut fsys, me, (Some(1000), None), (1000, 1000));
         assert_eq!(getattr_as(&mut fsys, me, (70, 70)).0, (70, 70));
         // Root pinning root is a real change.
         chown_as(&mut fsys, me, (Some(0), Some(0)), (0, 0));
         assert_eq!(getattr_as(&mut fsys, me, (70, 70)).0, (0, 0));
+        // Owner changes never open the entry: a symlink and a file nobody may
+        // read are chowned all the same (lchown, `chown -R`, `tar x`).
+        std::os::unix::fs::symlink("target", share.join("lnk")).unwrap();
+        fs::write(share.join("locked"), b"x").unwrap();
+        fs::set_permissions(share.join("locked"), fs::Permissions::from_mode(0o000)).unwrap();
+        let lnk = lookup_in(&mut fsys, ROOT, b"lnk").unwrap();
+        let locked = lookup_in(&mut fsys, ROOT, b"locked").unwrap();
+        chown_as(&mut fsys, lnk, (Some(5), Some(5)), (0, 0));
+        chown_as(&mut fsys, locked, (Some(6), None), (0, 0));
+        assert_eq!(getattr_as(&mut fsys, lnk, (1000, 1000)).0, (5, 5));
+        assert_eq!(getattr_as(&mut fsys, locked, (1000, 1000)).0, (6, 0));
         let _ = fs::remove_dir_all(base);
     }
 
@@ -4508,20 +5950,51 @@ mod tests {
         core(&restored).restore_blob(&blob);
         core(&restored).adopt_window_ms = 0;
         assert_eq!(getattr_as(&mut restored, data, (1000, 1000)).0, (999, 998));
-        assert_eq!(getattr_as(&mut restored, grp, (1000, 1000)).0, (1000, 5));
+        assert_eq!(getattr_as(&mut restored, grp, (1000, 1000)).0, (0, 5));
         assert_eq!(getattr_as(&mut restored, ROOT, (1000, 1000)).0, (70, 70));
+        // Pins on files no node names survive too (by host identity).
+        let data_md = fs::metadata(share.join("data")).unwrap();
+        core(&fsys).forget(data, u64::MAX);
+        assert!(!core(&fsys).nodes.contains_key(&data));
+        let by_file = core(&fsys).snapshot_blob();
+        let mut by_identity = writable(&share);
+        core(&by_identity).restore_blob(&by_file);
+        let again = lookup_in(&mut by_identity, ROOT, b"data").unwrap();
+        assert_eq!(getattr_as(&mut by_identity, again, (7, 7)).0, (999, 998));
+        let data_now = lookup_in(&mut fsys, ROOT, b"data").unwrap();
+        assert_ne!(data_now, data);
         // A blob from before pinned owners existed still restores its nodes.
         let tag = blob
             .windows(4)
-            .rposition(|w| w == SNAPSHOT_OWNERS_TAG)
+            .position(|w| w == SNAPSHOT_OWNERS_TAG)
             .unwrap();
         let mut legacy = writable(&share);
         core(&legacy).restore_blob(&blob[..tag]);
         assert_eq!(getattr_as(&mut legacy, data, (1000, 1000)).0, (1000, 1000));
+        // One from when a chgrp pinned the group alone: the owner settles at root.
+        let file_tag = blob
+            .windows(4)
+            .position(|w| w == SNAPSHOT_FILE_OWNERS_TAG)
+            .unwrap();
+        let mut old = blob[..file_tag].to_vec();
+        let records = tag + 8;
+        for rec in old[records..].chunks_mut(17) {
+            if u64::from_le_bytes(rec[..8].try_into().unwrap()) == grp {
+                rec[8] = 2;
+            }
+        }
+        let mut single = writable(&share);
+        core(&single).restore_blob(&old);
+        assert_eq!(getattr_as(&mut single, grp, (1000, 1000)).0, (0, 5));
 
         // Removing the file removes what was recorded for it; the name binds afresh.
         assert_eq!(errno(&request(&mut fsys, FUSE_UNLINK, ROOT, b"data\0")), 0);
-        assert!(!core(&fsys).nodes.contains_key(&data));
+        assert!(!core(&fsys).nodes.contains_key(&data_now));
+        assert!(
+            !core(&fsys)
+                .owners
+                .contains_key(&(data_md.dev(), data_md.ino()))
+        );
         fs::write(share.join("data"), b"y").unwrap();
         let again = lookup_in(&mut fsys, ROOT, b"data").unwrap();
         assert_ne!(again, data);
@@ -4534,6 +6007,786 @@ mod tests {
         assert_ne!(fresh, grp);
         assert!(!core(&fsys).nodes.contains_key(&grp));
         assert_eq!(getattr_as(&mut fsys, fresh, (1000, 1000)).0, (1000, 1000));
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- one owner per host file, one node per host entry ----
+
+    /// Whether `dir`'s volume ignores case (the default for a Mac's APFS).
+    fn ignores_case(dir: &Path) -> bool {
+        fs::write(dir.join("case-probe"), b"").unwrap();
+        let alias = fs::symlink_metadata(dir.join("CASE-PROBE")).is_ok();
+        fs::remove_file(dir.join("case-probe")).unwrap();
+        alias
+    }
+
+    fn attr_ino(reply: &[u8], attr: usize) -> u64 {
+        u64::from_le_bytes(reply[attr..attr + 8].try_into().unwrap())
+    }
+
+    fn lookup_as(fsys: &mut VirtioFs, parent: u64, name: &[u8], caller: (u32, u32)) -> Vec<u8> {
+        request_as(fsys, FUSE_LOOKUP, parent, &with_name(&[], name), caller)
+    }
+
+    #[test]
+    fn hard_links_and_other_spellings_share_one_owner_and_inode_number() {
+        let (base, share, _) = scratch("alias-owner");
+        fs::create_dir(share.join("app")).unwrap();
+        fs::write(share.join("app/secret.key"), b"s").unwrap();
+        let caseless = ignores_case(&share);
+        let mut fsys = writable(&share);
+        let app = lookup_in(&mut fsys, ROOT, b"app").unwrap();
+        let key = lookup_in(&mut fsys, app, b"secret.key").unwrap();
+        // Root: `chown 70:70 secret.key && chmod 600 secret.key && ln secret.key hl`.
+        chown_as(&mut fsys, key, (Some(70), Some(70)), (0, 0));
+        let reply = request_as(&mut fsys, FUSE_SETATTR, key, &setattr_mode(0o600), (0, 0));
+        assert_eq!(errno(&reply), 0);
+        let hl = link_in(&mut fsys, key, app, b"hl").unwrap();
+        assert_ne!(hl, key, "a hard link is its own entry");
+        fs::hard_link(share.join("app/secret.key"), share.join("app/mac-link")).unwrap();
+        let host_ino = fs::metadata(share.join("app/secret.key")).unwrap().ino();
+
+        // Every name shows the pinned owner and the same inode number to a
+        // non-root user, so it is neither owner nor group member of any.
+        let mut names = vec![&b"secret.key"[..], b"hl", b"mac-link"];
+        if caseless {
+            names.extend([&b"SECRET.KEY"[..], b"Secret.Key", b"HL"]);
+        }
+        for name in names {
+            let reply = lookup_as(&mut fsys, app, name, (1000, 1000));
+            assert_eq!(errno(&reply), 0, "{name:?}");
+            assert_eq!(attr_owner(&reply, ENTRY_ATTR), (70, 70), "{name:?}");
+            assert_eq!(attr_ino(&reply, ENTRY_ATTR), host_ino, "{name:?}");
+            assert_eq!(
+                attr_mode(&reply[ENTRY_ATTR - ATTR_OUT_ATTR..]) & 0o777,
+                0o600
+            );
+        }
+        if caseless {
+            // Other spellings are the entry's own node, not a fresh one.
+            for name in [&b"SECRET.KEY"[..], b"Secret.Key", b"sEcReT.kEy"] {
+                assert_eq!(lookup_in(&mut fsys, app, name), Ok(key), "{name:?}");
+            }
+            assert_eq!(lookup_in(&mut fsys, app, b"HL"), Ok(hl));
+            // A directory spelled differently is the same node, and so are its children.
+            assert_eq!(lookup_in(&mut fsys, ROOT, b"APP"), Ok(app));
+        }
+        // A chgrp through one link pins the file for all of them.
+        chown_as(&mut fsys, hl, (None, Some(5)), (0, 0));
+        assert_eq!(getattr_as(&mut fsys, key, (1000, 1000)).0, (70, 5));
+        // Removing one link keeps the pin for the others; the last one drops it.
+        for name in [&b"hl"[..], b"mac-link"] {
+            assert_eq!(
+                errno(&request(&mut fsys, FUSE_UNLINK, app, &with_name(&[], name))),
+                0
+            );
+            assert_eq!(getattr_as(&mut fsys, key, (1000, 1000)).0, (70, 5));
+        }
+        let md = fs::metadata(share.join("app/secret.key")).unwrap();
+        let unlink_name: &[u8] = if caseless {
+            b"SECRET.KEY"
+        } else {
+            b"secret.key"
+        };
+        assert_eq!(
+            errno(&request(
+                &mut fsys,
+                FUSE_UNLINK,
+                app,
+                &with_name(&[], unlink_name)
+            )),
+            0
+        );
+        assert!(
+            !core(&fsys).nodes.contains_key(&key),
+            "unlinked through a spelling"
+        );
+        assert!(!core(&fsys).owners.contains_key(&(md.dev(), md.ino())));
+        assert!(core(&fsys).kin_more.is_empty());
+        assert!(!core(&fsys).kin.contains_key(&(app, (md.dev(), md.ino()))));
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn spelling_storms_and_unicode_forms_bind_one_node() {
+        let (base, share, _) = scratch("storm");
+        if !ignores_case(&share) {
+            return; // nothing aliases on a case-sensitive volume
+        }
+        let name = "a".repeat(40);
+        fs::write(share.join(&name), b"x").unwrap();
+        // Stored as NFC "café"; the guest asks with NFD "cafe\u{301}".
+        fs::write(share.join("caf\u{e9}"), b"x").unwrap();
+        let mut fsys = writable(&share);
+        let id = lookup_in(&mut fsys, ROOT, name.as_bytes()).unwrap();
+        let before = core(&fsys).nodes.len();
+        let peak = core(&fsys).metrics.nodes_peak.load(Ordering::Relaxed);
+        let mut seed = 0x9e37_79b9_7f4a_7c15u64;
+        for _ in 0..2000 {
+            let spelling: Vec<u8> = (0..40)
+                .map(|_| {
+                    seed ^= seed << 13;
+                    seed ^= seed >> 7;
+                    seed ^= seed << 17;
+                    if seed & 1 == 0 { b'a' } else { b'A' }
+                })
+                .collect();
+            assert_eq!(lookup_in(&mut fsys, ROOT, &spelling), Ok(id));
+        }
+        assert_eq!(core(&fsys).nodes.len(), before);
+        assert_eq!(core(&fsys).metrics.nodes_peak.load(Ordering::Relaxed), peak);
+        let nfc = lookup_in(&mut fsys, ROOT, "caf\u{e9}".as_bytes()).unwrap();
+        assert_eq!(
+            lookup_in(&mut fsys, ROOT, "cafe\u{301}".as_bytes()),
+            Ok(nfc)
+        );
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn case_only_renames_move_the_node_and_hard_link_renames_change_nothing() {
+        let (base, share, _) = scratch("case-rename");
+        let caseless = ignores_case(&share);
+        let mut fsys = writable(&share);
+        let dir = mkdir_in(&mut fsys, ROOT, b"Dir", 0o755).unwrap();
+        let inner = entry_id(&create_in(&mut fsys, dir, b"f", O_WRONLY_CREAT, 0o644)).unwrap();
+        chown_as(&mut fsys, dir, (Some(70), Some(70)), (0, 0));
+        if caseless {
+            // `rename("Dir", "dir")`, then `rename("dir", "other")` (mv -T).
+            assert_eq!(rename_in(&mut fsys, (ROOT, b"Dir"), (ROOT, b"dir")), 0);
+            assert_eq!(listing(&share), ["dir"]);
+            assert_eq!(core(&fsys).node_rel_path(dir).as_deref(), Some(&b"dir"[..]));
+            assert_eq!(lookup_in(&mut fsys, ROOT, b"dir"), Ok(dir));
+            assert_eq!(getattr_as(&mut fsys, dir, (1000, 1000)).0, (70, 70));
+            assert_eq!(rename_in(&mut fsys, (ROOT, b"dir"), (ROOT, b"other")), 0);
+            // Not stranded at the old spelling: the subtree still resolves.
+            assert_eq!(errno(&request(&mut fsys, FUSE_GETATTR, inner, &[0; 16])), 0);
+            assert_eq!(
+                core(&fsys).node_rel_path(inner).as_deref(),
+                Some(&b"other/f"[..])
+            );
+            // A rename through another spelling of the source moves its node.
+            assert_eq!(rename_in(&mut fsys, (ROOT, b"OTHER"), (ROOT, b"third")), 0);
+            assert_eq!(
+                core(&fsys).node_rel_path(inner).as_deref(),
+                Some(&b"third/f"[..])
+            );
+        }
+        // rename(2) between two links of one file leaves both, and both nodes.
+        fs::write(share.join("a"), b"x").unwrap();
+        fs::hard_link(share.join("a"), share.join("b")).unwrap();
+        let a = lookup_in(&mut fsys, ROOT, b"a").unwrap();
+        let b = lookup_in(&mut fsys, ROOT, b"b").unwrap();
+        assert_eq!(rename_in(&mut fsys, (ROOT, b"a"), (ROOT, b"b")), 0);
+        assert!(share.join("a").exists() && share.join("b").exists());
+        assert_ne!(a, b);
+        assert_eq!(lookup_in(&mut fsys, ROOT, b"a"), Ok(a));
+        assert_eq!(lookup_in(&mut fsys, ROOT, b"b"), Ok(b));
+        let fh = opendir(&mut fsys, ROOT);
+        let listed = read_dir(&mut fsys, FUSE_READDIRPLUS, ROOT, fh, 0, 4096);
+        for (name, id) in [(&b"a"[..], a), (b"b", b)] {
+            assert!(listed.iter().any(|e| e.3 == name && e.0 == id), "{name:?}");
+        }
+
+        // Renames on the Mac keep the node: within a directory its new name
+        // finds it (by host identity), and so does a case-only rename.
+        let src = mkdir_in(&mut fsys, ROOT, b"Src", 0o755).unwrap();
+        let below = entry_id(&create_in(&mut fsys, src, b"g", O_WRONLY_CREAT, 0o644)).unwrap();
+        fs::rename(share.join("Src"), share.join("moved")).unwrap();
+        assert_eq!(lookup_in(&mut fsys, ROOT, b"moved"), Ok(src));
+        assert_eq!(
+            core(&fsys).node_rel_path(below).as_deref(),
+            Some(&b"moved/g"[..])
+        );
+        if caseless {
+            fs::rename(share.join("moved"), share.join("MOVED")).unwrap();
+            let fh = opendir(&mut fsys, ROOT);
+            let listed = read_dir(&mut fsys, FUSE_READDIRPLUS, ROOT, fh, 0, 4096);
+            assert!(listed.iter().any(|e| e.3 == b"MOVED" && e.0 == src));
+            assert_eq!(
+                core(&fsys).node_rel_path(below).as_deref(),
+                Some(&b"MOVED/g"[..])
+            );
+            assert_eq!(lookup_in(&mut fsys, ROOT, b"moved"), Ok(src));
+        }
+        assert_eq!(errno(&request(&mut fsys, FUSE_GETATTR, below, &[0; 16])), 0);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn owner_pins_are_bounded() {
+        let (base, share, _) = scratch("pin-cap");
+        fs::write(share.join("a"), b"x").unwrap();
+        fs::write(share.join("b"), b"x").unwrap();
+        let mut fsys = writable(&share);
+        let a = lookup_in(&mut fsys, ROOT, b"a").unwrap();
+        let b = lookup_in(&mut fsys, ROOT, b"b").unwrap();
+        core(&fsys).limits.pins = 1;
+        chown_as(&mut fsys, a, (Some(1), Some(1)), (0, 0));
+        let reply = request_as(
+            &mut fsys,
+            FUSE_SETATTR,
+            b,
+            &setattr_owner(Some(2), None),
+            (0, 0),
+        );
+        assert_eq!(errno(&reply), LINUX_ENOSPC);
+        // Changing a file already pinned needs no new slot.
+        chown_as(&mut fsys, a, (Some(3), None), (0, 0));
+        assert_eq!(getattr_as(&mut fsys, a, (1000, 1000)).0, (3, 1));
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- node lifetime ----
+
+    fn forget(fsys: &mut VirtioFs, id: u64, count: u64) {
+        assert!(
+            fsys.handle_fuse(&request_bytes(FUSE_FORGET, id, &count.to_le_bytes()))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn forget_removes_unreferenced_nodes_and_keeps_parents_of_live_children() {
+        let (base, share, _) = scratch("forget");
+        fs::create_dir_all(share.join("d/e")).unwrap();
+        fs::write(share.join("d/e/f"), b"x").unwrap();
+        let metrics = Arc::new(FsMetrics::default());
+        let mut fsys = VirtioFs::new("workspace", share.clone(), false, metrics.clone()).unwrap();
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 1);
+        let d = lookup_in(&mut fsys, ROOT, b"d").unwrap();
+        let e = lookup_in(&mut fsys, d, b"e").unwrap();
+        let f = lookup_in(&mut fsys, e, b"f").unwrap();
+        assert_eq!(lookup_in(&mut fsys, e, b"f"), Ok(f));
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 4);
+        // Forgetting a parent first keeps it while a child is addressed through it.
+        forget(&mut fsys, d, 1);
+        forget(&mut fsys, e, 1);
+        assert!(core(&fsys).nodes.contains_key(&d) && core(&fsys).nodes.contains_key(&e));
+        // One of two references to f: still there.
+        forget(&mut fsys, f, 1);
+        assert!(core(&fsys).nodes.contains_key(&f));
+        // The last one goes, and takes the unreferenced ancestors with it.
+        let mut batch = Vec::new();
+        batch.extend_from_slice(&1u32.to_le_bytes());
+        batch.extend_from_slice(&0u32.to_le_bytes());
+        batch.extend_from_slice(&f.to_le_bytes());
+        batch.extend_from_slice(&1u64.to_le_bytes());
+        assert!(
+            fsys.handle_fuse(&request_bytes(FUSE_BATCH_FORGET, 0, &batch))
+                .is_none()
+        );
+        for id in [f, e, d] {
+            assert!(!core(&fsys).nodes.contains_key(&id));
+        }
+        assert!(core(&fsys).children.is_empty());
+        assert!(core(&fsys).kin.is_empty() && core(&fsys).kin_more.is_empty());
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 1);
+        // A later lookup binds a new node; FORGET of an unknown or the root is ignored.
+        let again = lookup_in(&mut fsys, ROOT, b"d").unwrap();
+        assert_ne!(again, d);
+        forget(&mut fsys, d, 5);
+        forget(&mut fsys, ROOT, 5);
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 2);
+        // READDIRPLUS entries count as lookups; plain READDIR binds nothing.
+        let fh = opendir(&mut fsys, again);
+        assert_eq!(
+            read_dir(&mut fsys, FUSE_READDIR, again, fh, 0, 4096).len(),
+            1
+        );
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 2);
+        let listed = read_dir(&mut fsys, FUSE_READDIRPLUS, again, fh, 0, 4096);
+        assert_eq!(listed.len(), 1);
+        let e2 = listed[0].0;
+        assert_eq!(core(&fsys).nodes[&e2].lookups, 1);
+        forget(&mut fsys, e2, 1);
+        assert!(!core(&fsys).nodes.contains_key(&e2));
+        drop(fsys);
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 0);
+        assert_eq!(metrics.open_handles.load(Ordering::Relaxed), 0);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn node_and_read_only_cache_bounds_hold() {
+        let (base, share, _) = scratch("bounds");
+        for name in ["a", "b", "c"] {
+            fs::write(share.join(name), b"x").unwrap();
+        }
+        let mut fsys = writable(&share);
+        core(&fsys).limits.nodes = 2; // the root and one more
+        let a = lookup_in(&mut fsys, ROOT, b"a").unwrap();
+        assert_eq!(lookup_in(&mut fsys, ROOT, b"a"), Ok(a));
+        assert_eq!(lookup_in(&mut fsys, ROOT, b"b"), Err(LINUX_ENFILE));
+        assert_eq!(mkdir_in(&mut fsys, ROOT, b"m", 0o755), Err(LINUX_ENFILE));
+        assert!(!share.join("m").exists(), "refused before the host entry");
+        let reply = create_in(&mut fsys, ROOT, b"n", O_WRONLY_CREAT, 0o644);
+        assert_eq!(errno(&reply), LINUX_ENFILE);
+        // A listing past the cap lists entries without binding them (node ID 0).
+        let fh = opendir(&mut fsys, ROOT);
+        let listed = read_dir(&mut fsys, FUSE_READDIRPLUS, ROOT, fh, 0, 4096);
+        let ids: Vec<_> = listed.iter().map(|e| (e.3.as_slice(), e.0)).collect();
+        assert!(
+            ids.contains(&(&b"a"[..], a)) && ids.contains(&(&b"b"[..], 0)),
+            "{ids:?}"
+        );
+        // Two lookups and the listing: the last FORGET frees the slot.
+        forget(&mut fsys, a, 2);
+        assert_eq!(lookup_in(&mut fsys, ROOT, b"b"), Err(LINUX_ENFILE));
+        forget(&mut fsys, a, 1);
+        assert!(lookup_in(&mut fsys, ROOT, b"b").is_ok());
+
+        // Read-only caches stay bounded however many names the guest tries.
+        let mut ro = VirtioFs::new(
+            "oci-tools",
+            share.clone(),
+            true,
+            Arc::new(FsMetrics::default()),
+        )
+        .unwrap();
+        for i in 0..MAX_RO_CACHE + 100 {
+            assert_eq!(
+                lookup_in(&mut ro, ROOT, format!("missing-{i}").as_bytes()),
+                Err(LINUX_ENOENT)
+            );
+        }
+        assert!(core(&ro).ro_lookup_cache.len() <= MAX_RO_CACHE);
+        let c = lookup_in(&mut ro, ROOT, b"c").unwrap();
+        assert!(core(&ro).ro_attr_cache.contains_key(&c));
+        // A forgotten read-only node leaves no cache entry that would name it.
+        forget(&mut ro, c, 1);
+        assert!(!core(&ro).ro_attr_cache.contains_key(&c));
+        let again = lookup_in(&mut ro, ROOT, b"c").unwrap();
+        assert_ne!(again, c);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- listings and handles ----
+
+    fn opendir(fsys: &mut VirtioFs, id: u64) -> u64 {
+        let reply = request(fsys, FUSE_OPENDIR, id, &[0; 8]);
+        assert_eq!(errno(&reply), 0);
+        u64::from_le_bytes(reply[16..24].try_into().unwrap())
+    }
+
+    /// (node ID or 0, inode number, offset, name) of each entry in a reply.
+    fn read_dir(
+        fsys: &mut VirtioFs,
+        opcode: u32,
+        dir: u64,
+        fh: u64,
+        offset: u64,
+        size: u32,
+    ) -> Vec<(u64, u64, u64, Vec<u8>)> {
+        let mut body = [0u8; 24];
+        body[..8].copy_from_slice(&fh.to_le_bytes());
+        body[8..16].copy_from_slice(&offset.to_le_bytes());
+        body[16..20].copy_from_slice(&size.to_le_bytes());
+        let reply = request(fsys, opcode, dir, &body);
+        assert_eq!(errno(&reply), 0);
+        let mut out = Vec::new();
+        let mut pos = 16;
+        while pos < reply.len() {
+            let nodeid = if opcode == FUSE_READDIRPLUS {
+                let id = u64::from_le_bytes(reply[pos..pos + 8].try_into().unwrap());
+                pos += 128;
+                id
+            } else {
+                0
+            };
+            let ino = u64::from_le_bytes(reply[pos..pos + 8].try_into().unwrap());
+            let off = u64::from_le_bytes(reply[pos + 8..pos + 16].try_into().unwrap());
+            let len = u32::from_le_bytes(reply[pos + 16..pos + 20].try_into().unwrap()) as usize;
+            out.push((nodeid, ino, off, reply[pos + 24..pos + 24 + len].to_vec()));
+            pos += (24 + len + 7) & !7;
+        }
+        out
+    }
+
+    #[test]
+    fn large_listings_stream_in_chunks_and_resume_at_any_offset() {
+        let (base, share, _) = scratch("stream");
+        let total = 3000;
+        for i in 0..total {
+            fs::write(share.join(format!("entry-{i:05}")), b"").unwrap();
+        }
+        let mut fsys = writable(&share);
+        for plus in [FUSE_READDIR, FUSE_READDIRPLUS] {
+            let fh = opendir(&mut fsys, ROOT);
+            let mut seen = Vec::new();
+            let mut offset = 0;
+            loop {
+                let batch = read_dir(&mut fsys, plus, ROOT, fh, offset, 4096);
+                if batch.is_empty() {
+                    break;
+                }
+                // What a handle holds stays far below the directory's size.
+                let held = core(&fsys).open_dirs[&fh].listing.window.len();
+                assert!(held < 1000, "handle holds {held} entries");
+                // The guest consumed only part of the reply: resume inside it.
+                let take = batch.len().div_ceil(2);
+                offset = batch[take - 1].2;
+                seen.extend(batch.into_iter().take(take).map(|e| e.3));
+            }
+            seen.sort();
+            seen.dedup();
+            assert_eq!(seen.len(), total, "opcode {plus}");
+            // An offset before what the handle still holds starts a new pass.
+            let again = read_dir(&mut fsys, plus, ROOT, fh, 5, 4096);
+            assert_eq!(again[0].2, 6);
+            request(&mut fsys, FUSE_RELEASEDIR, ROOT, &fh.to_le_bytes());
+        }
+        // Each dirent carries the host inode number.
+        let fh = opendir(&mut fsys, ROOT);
+        let first = &read_dir(&mut fsys, FUSE_READDIRPLUS, ROOT, fh, 0, 4096)[0];
+        let md = fs::symlink_metadata(share.join(OsStr::from_bytes(&first.3))).unwrap();
+        assert_eq!(first.1, md.ino());
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn listed_directories_are_identified_as_a_lookup_would() {
+        let (base, share, _) = scratch("mountpoint");
+        fs::create_dir(share.join("m")).unwrap();
+        let mut fsys = writable(&share);
+        let m = lookup_in(&mut fsys, ROOT, b"m").unwrap();
+        let real = fs::symlink_metadata(share.join("m")).unwrap();
+        let covered = FuseStat {
+            ino: real.ino() + 1_000_000,
+            ..fstatat_cstr(core(&fsys).root_fd.as_raw_fd(), c"m").unwrap()
+        };
+        let root_fd = core(&fsys).root_fd.as_raw_fd();
+        // A mount point lists the covered directory's identity: look it up.
+        let entry = BulkDirEntry {
+            name: c"m".to_owned(),
+            stat: covered,
+            mount_point: true,
+        };
+        assert_eq!(
+            core(&fsys).listed_stat(ROOT, root_fd, &entry).ino,
+            real.ino()
+        );
+        // So does a directory bound to another identity than listed (a firmlink).
+        let entry = BulkDirEntry {
+            mount_point: false,
+            ..entry
+        };
+        assert_eq!(
+            core(&fsys).listed_stat(ROOT, root_fd, &entry).ino,
+            real.ino()
+        );
+        // Listing the parent leaves the directory's node (and subtree) alone.
+        let fh = opendir(&mut fsys, ROOT);
+        let listed = read_dir(&mut fsys, FUSE_READDIRPLUS, ROOT, fh, 0, 4096);
+        assert_eq!(listed[0].0, m);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn open_handles_are_bounded_and_counted() {
+        let (base, share, _) = scratch("handles");
+        fs::write(share.join("f"), b"x").unwrap();
+        fs::create_dir(share.join("d")).unwrap();
+        let metrics = Arc::new(FsMetrics::default());
+        let mut fsys = VirtioFs::new("workspace", share.clone(), false, metrics.clone()).unwrap();
+        let f = lookup_in(&mut fsys, ROOT, b"f").unwrap();
+        let d = lookup_in(&mut fsys, ROOT, b"d").unwrap();
+        {
+            let mut core = core(&fsys);
+            core.limits.handles = 3;
+            core.limits.dirs = 1;
+        }
+        let first = open(&mut fsys, f, 0);
+        assert_eq!(errno(&first), 0);
+        let dir_fh = opendir(&mut fsys, d);
+        assert_eq!(
+            errno(&request(&mut fsys, FUSE_OPENDIR, ROOT, &[0; 8])),
+            LINUX_ENFILE
+        );
+        assert_eq!(errno(&open(&mut fsys, f, 0)), 0);
+        assert_eq!(metrics.open_handles.load(Ordering::Relaxed), 3);
+        assert_eq!(errno(&open(&mut fsys, f, 0)), LINUX_ENFILE);
+        let reply = create_in(&mut fsys, ROOT, b"g", O_WRONLY_CREAT, 0o644);
+        assert_eq!(errno(&reply), LINUX_ENFILE);
+        assert!(!share.join("g").exists());
+        request(&mut fsys, FUSE_RELEASE, f, &first[16..24]);
+        request(&mut fsys, FUSE_RELEASEDIR, d, &dir_fh.to_le_bytes());
+        assert_eq!(metrics.open_handles.load(Ordering::Relaxed), 1);
+        assert_eq!(errno(&open(&mut fsys, f, 0)), 0);
+        // The default leaves the rest of the process's descriptors to others.
+        let limits = Limits::new();
+        assert!(limits.handles <= MAX_OPEN_HANDLES && limits.dirs <= limits.handles);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- nothing blocks the worker ----
+
+    /// Handle one request on another thread, failing if it does not finish.
+    fn request_within(fsys: &VirtioFs, opcode: u32, nodeid: u64, body: &[u8]) -> Vec<u8> {
+        let shared = fsys.shared.clone();
+        let req = request_bytes(opcode, nodeid, body);
+        let (tx, rx) = std::sync::mpsc::channel();
+        thread::spawn(move || {
+            let mut core = shared.core.lock().unwrap();
+            core.handle_fuse_into(&req);
+            let _ = tx.send(core.resp_buf.clone());
+        });
+        rx.recv_timeout(Duration::from_secs(5))
+            .unwrap_or_else(|_| panic!("opcode {opcode} blocked the worker"))
+    }
+
+    fn mkfifo(path: &Path) {
+        let c = path_to_cstr(path).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o644) }, 0);
+    }
+
+    #[test]
+    fn fifos_and_other_special_files_never_block_or_get_host_handles() {
+        let (base, share, _) = scratch("fifo");
+        mkfifo(&share.join("p"));
+        let caseless = ignores_case(&share);
+        let mut fsys = writable(&share);
+        let p = lookup_in(&mut fsys, ROOT, b"p").unwrap();
+        // An adversarial guest kernel opening the FIFO itself.
+        for flags in [0u32, 1, 2, 0o1001] {
+            let mut body = [0u8; 8];
+            body[..4].copy_from_slice(&flags.to_le_bytes());
+            assert_eq!(
+                errno(&request_within(&fsys, FUSE_OPEN, p, &body)),
+                LINUX_ENXIO
+            );
+        }
+        // FUSE_CREATE without O_EXCL on a name that is a FIFO.
+        for flags in [O_WRONLY_CREAT, 0o102, 0o100] {
+            let reply = request_within(&fsys, FUSE_CREATE, ROOT, &create_body(b"p", flags, 0o644));
+            assert_eq!(errno(&reply), LINUX_ENXIO);
+        }
+        assert!(matches!(
+            errno(&request_within(&fsys, FUSE_OPENDIR, p, &[0; 8])),
+            LINUX_ENOTDIR | LINUX_ENXIO
+        ));
+        let mut truncate = [0u8; 88];
+        truncate[..4].copy_from_slice(&FATTR_SIZE.to_le_bytes());
+        assert_eq!(
+            errno(&request_within(&fsys, FUSE_SETATTR, p, &truncate)),
+            LINUX_ENXIO
+        );
+        // A chmod needs no open at all.
+        assert_eq!(
+            errno(&request_within(
+                &fsys,
+                FUSE_SETATTR,
+                p,
+                &setattr_mode(0o600)
+            )),
+            0
+        );
+        assert_eq!(
+            fs::symlink_metadata(share.join("p")).unwrap().mode() & 0o777,
+            0o600
+        );
+        assert!(core(&fsys).open_files.is_empty());
+
+        // The alias route: `touch r; stat R; mv p r; cat R` within the guest's
+        // 20 ms attribute window. R is r's node, which the rename retires.
+        if caseless {
+            let r = entry_id(&create_in(&mut fsys, ROOT, b"r", O_WRONLY_CREAT, 0o644)).unwrap();
+            assert_eq!(lookup_in(&mut fsys, ROOT, b"R"), Ok(r));
+            assert_eq!(rename_in(&mut fsys, (ROOT, b"p"), (ROOT, b"r")), 0);
+            assert_eq!(
+                errno(&request_within(&fsys, FUSE_OPEN, r, &[0; 8])),
+                LINUX_ESTALE
+            );
+            assert_eq!(lookup_in(&mut fsys, ROOT, b"R"), Ok(p));
+        }
+
+        // A read-only share's fh-less READ of a FIFO.
+        mkfifo(&share.join("q"));
+        let mut ro = VirtioFs::new(
+            "oci-tools",
+            share.clone(),
+            true,
+            Arc::new(FsMetrics::default()),
+        )
+        .unwrap();
+        let q = lookup_in(&mut ro, ROOT, b"q").unwrap();
+        let mut read = [0u8; 24];
+        read[16..20].copy_from_slice(&64u32.to_le_bytes());
+        assert_eq!(
+            errno(&request_within(&ro, FUSE_READ, q, &read)),
+            LINUX_ENXIO
+        );
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- containment of cached directory descriptors ----
+
+    #[test]
+    fn a_directory_the_host_moves_out_of_the_share_is_not_served() {
+        let (base, share, outside) = scratch("moved-out");
+        let mut fsys = writable(&share);
+        let build = mkdir_in(&mut fsys, ROOT, b"build", 0o755).unwrap();
+        let sub = mkdir_in(&mut fsys, build, b"sub", 0o755).unwrap();
+        entry_id(&create_in(&mut fsys, build, b"a", O_WRONLY_CREAT, 0o644)).unwrap();
+        let fh = opendir(&mut fsys, build);
+        assert!(core(&fsys).dir_fds.contains_key(&build));
+        // `mv ~/proj/build /tmp/build.old` on the Mac.
+        fs::rename(share.join("build"), outside.join("build")).unwrap();
+        for cached in core(&fsys).dir_fds.values_mut() {
+            cached.checked_ms = 0;
+        }
+        core(&fsys).epoch -= Duration::from_millis(DIR_FD_RECHECK_MS + 1);
+        let results = [
+            entry_id(&create_in(&mut fsys, build, b"new", O_WRONLY_CREAT, 0o644)).err(),
+            mkdir_in(&mut fsys, build, b"dir", 0o755).err(),
+            lookup_in(&mut fsys, build, b"a").err(),
+            lookup_in(&mut fsys, sub, b"x").err(),
+            Some(errno(&request(&mut fsys, FUSE_UNLINK, build, b"a\0"))),
+        ];
+        assert!(
+            results.iter().all(|r| *r == Some(LINUX_ESTALE)),
+            "{results:?}"
+        );
+        let mut body = [0u8; 24];
+        body[..8].copy_from_slice(&fh.to_le_bytes());
+        body[16..20].copy_from_slice(&4096u32.to_le_bytes());
+        assert_eq!(
+            errno(&request(&mut fsys, FUSE_READDIRPLUS, build, &body)),
+            LINUX_ESTALE
+        );
+        assert_eq!(listing(&outside.join("build")), ["a", "sub"]);
+        // A directory moved within the share stays usable (its node follows it).
+        let kept = mkdir_in(&mut fsys, ROOT, b"kept", 0o755).unwrap();
+        assert_eq!(lookup_in(&mut fsys, kept, b"none"), Err(LINUX_ENOENT));
+        fs::rename(share.join("kept"), share.join("renamed")).unwrap();
+        core(&fsys).epoch -= Duration::from_millis(DIR_FD_RECHECK_MS + 1);
+        entry_id(&create_in(&mut fsys, kept, b"in", O_WRONLY_CREAT, 0o644)).unwrap();
+        assert_eq!(listing(&share.join("renamed")), ["in"]);
+        // The `..` walk used for paths F_GETPATH cannot return agrees.
+        #[cfg(target_vendor = "apple")]
+        {
+            let inside = open_dir_at(
+                libc::AT_FDCWD,
+                &path_to_cstr(&share.join("renamed")).unwrap(),
+                0,
+            )
+            .unwrap();
+            let out = open_dir_at(libc::AT_FDCWD, &path_to_cstr(&outside).unwrap(), 0).unwrap();
+            let core = core(&fsys);
+            assert!(core.fd_within_share_by_parents(inside.as_raw_fd()));
+            assert!(core.fd_within_share_by_parents(core.root_fd.as_raw_fd()));
+            assert!(!core.fd_within_share_by_parents(out.as_raw_fd()));
+        }
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- SETATTR without opening ----
+
+    #[test]
+    fn setattr_works_on_unreadable_entries_symlinks_and_unlinked_open_files() {
+        let (base, share, _) = scratch("setattr");
+        fs::write(share.join("f"), b"x").unwrap();
+        fs::create_dir(share.join("d")).unwrap();
+        std::os::unix::fs::symlink("f", share.join("lnk")).unwrap();
+        let mut fsys = writable(&share);
+        let f = lookup_in(&mut fsys, ROOT, b"f").unwrap();
+        let d = lookup_in(&mut fsys, ROOT, b"d").unwrap();
+        let lnk = lookup_in(&mut fsys, ROOT, b"lnk").unwrap();
+        // `chmod 000 f; chmod 644 f` (and the same for a directory).
+        for (id, name, back) in [(f, "f", 0o644), (d, "d", 0o755)] {
+            for mode in [0, back] {
+                let reply = request(&mut fsys, FUSE_SETATTR, id, &setattr_mode(mode));
+                assert_eq!(errno(&reply), 0, "{name} -> {mode:o}");
+                assert_eq!(attr_mode(&reply) & 0o777, mode);
+            }
+            assert_eq!(fs::metadata(share.join(name)).unwrap().mode() & 0o777, back);
+        }
+        // `touch -h -d @1600000000 lnk` changes the link, not its target.
+        let target_mtime = fs::metadata(share.join("f")).unwrap().mtime();
+        let mut times = [0u8; 88];
+        times[..4].copy_from_slice(&FATTR_MTIME.to_le_bytes());
+        times[40..48].copy_from_slice(&1_600_000_000i64.to_le_bytes());
+        assert_eq!(errno(&request(&mut fsys, FUSE_SETATTR, lnk, &times)), 0);
+        assert_eq!(
+            fs::symlink_metadata(share.join("lnk")).unwrap().mtime(),
+            1_600_000_000
+        );
+        assert_eq!(fs::metadata(share.join("f")).unwrap().mtime(), target_mtime);
+        // Out-of-range nanoseconds are refused.
+        times[60..64].copy_from_slice(&1_000_000_000u32.to_le_bytes());
+        assert_eq!(
+            errno(&request(&mut fsys, FUSE_SETATTR, lnk, &times)),
+            LINUX_EINVAL
+        );
+
+        // fchmod / futimens / fchown on a file unlinked while open.
+        let opened = open(&mut fsys, f, 2);
+        assert_eq!(errno(&opened), 0);
+        let held = core(&fsys).open_files[&u64::from_le_bytes(opened[16..24].try_into().unwrap())]
+            .file
+            .clone();
+        assert_eq!(errno(&request(&mut fsys, FUSE_UNLINK, ROOT, b"f\0")), 0);
+        assert!(!core(&fsys).nodes.contains_key(&f));
+        let reply = request(&mut fsys, FUSE_SETATTR, f, &setattr_mode(0o600));
+        assert_eq!(errno(&reply), 0);
+        assert_eq!(held.metadata().unwrap().mode() & 0o777, 0o600);
+        times[60..64].copy_from_slice(&0u32.to_le_bytes());
+        assert_eq!(errno(&request(&mut fsys, FUSE_SETATTR, f, &times)), 0);
+        assert_eq!(held.metadata().unwrap().mtime(), 1_600_000_000);
+        let reply = request_as(
+            &mut fsys,
+            FUSE_SETATTR,
+            f,
+            &setattr_owner(Some(9), Some(9)),
+            (0, 0),
+        );
+        assert_eq!(attr_owner(&reply, ATTR_OUT_ATTR), (9, 9));
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- guest-declared lengths ----
+
+    #[test]
+    fn descriptor_lengths_count_only_guest_memory_that_exists_and_are_capped() {
+        let (base, share, _) = scratch("desc-len");
+        let mut fsys = writable(&share);
+        let mut backing = vec![0u8; 2 * 1024 * 1024];
+        let ram = 0x4000_0000u64;
+        let mem = unsafe { GuestMemory::new(backing.as_mut_ptr(), ram, backing.len()) };
+        let req = request_bytes(FUSE_GETATTR, ROOT, &[0u8; 16]);
+        mem.write_slice(ram, req.len())
+            .unwrap()
+            .copy_from_slice(&req);
+        let reply_at = ram + 4096;
+        let header = DescBuf {
+            addr: ram,
+            len: req.len() as u32,
+            is_write: false,
+        };
+        let reply = DescBuf {
+            addr: reply_at,
+            len: 256,
+            is_write: true,
+        };
+        // Descriptors claiming 4 GiB outside guest RAM are not counted (and
+        // never reserved): the request is served from what exists.
+        let bogus = DescBuf {
+            addr: 0x10_0000_0000,
+            len: u32::MAX,
+            is_write: false,
+        };
+        let bufs = [header, bogus, bogus, bogus, reply];
+        assert!(fsys.handle_fuse_chain(&bufs, &mem) > 16);
+        assert_eq!(errno(mem.read_slice(reply_at, 16).unwrap()), 0);
+        // Real memory declared many times over beyond any request: refused.
+        let big = DescBuf {
+            addr: ram + 8192,
+            len: 1024 * 1024,
+            is_write: false,
+        };
+        let bufs = [header, big, big, reply];
+        assert_eq!(fsys.handle_fuse_chain(&bufs, &mem), 16);
+        assert_eq!(errno(mem.read_slice(reply_at, 16).unwrap()), LINUX_EINVAL);
         let _ = fs::remove_dir_all(base);
     }
 }

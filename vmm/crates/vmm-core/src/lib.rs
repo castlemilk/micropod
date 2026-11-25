@@ -93,6 +93,33 @@ fn sysctl_u64(name: &str) -> Option<u64> {
     if rc == 0 { Some(val) } else { None }
 }
 
+/// Raise this process's open-file limit to as many descriptors as macOS lets
+/// one process hold (launchd starts processes with 256). Every guest file a
+/// share has open, every vsock and published-port connection is one; each
+/// share then takes at most a quarter of the limit. Never lowers it. Returns
+/// the limit now in force.
+pub fn raise_open_file_limit() -> Option<u64> {
+    let mut rl = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut rl) } != 0 {
+        return None;
+    }
+    let per_proc = sysctl_u64("kern.maxfilesperproc").unwrap_or(rl.rlim_cur);
+    let target = rl.rlim_max.min(per_proc);
+    if rl.rlim_cur < target {
+        let raised = libc::rlimit {
+            rlim_cur: target,
+            rlim_max: rl.rlim_max,
+        };
+        if unsafe { libc::setrlimit(libc::RLIMIT_NOFILE, &raised) } == 0 {
+            rl.rlim_cur = target;
+        }
+    }
+    Some(rl.rlim_cur.min(per_proc))
+}
+
 pub fn host_cache_topology() -> (CacheTopology, u32) {
     let topo = CacheTopology {
         l1i_size: sysctl_u64("hw.perflevel0.l1icachesize").unwrap_or(196608) as u32,
@@ -547,6 +574,11 @@ pub struct VmRunReport {
     pub published_refused: u64,
     pub fs_requests: u64,
     pub fs_bytes_read: u64,
+    /// Most Virtio-FS nodes all shares held at once.
+    pub fs_nodes_peak: u64,
+    pub workspace_kicks: u64,
+    pub workspace_used_batches: u64,
+    pub workspace_irq_requests: u64,
     pub host_phys_footprint_mib: f64,
     pub host_peak_footprint_mib: f64,
     pub console_output: String,
@@ -1397,6 +1429,10 @@ pub fn run_vm_with_parent(
             published_refused: net_metrics.published_refused.load(Ordering::Relaxed),
             fs_requests: fs_metrics.requests.load(Ordering::Relaxed),
             fs_bytes_read: fs_metrics.bytes_read.load(Ordering::Relaxed),
+            fs_nodes_peak: fs_metrics.nodes_peak.load(Ordering::Relaxed),
+            workspace_kicks: fs_metrics.workspace_kicks.load(Ordering::Relaxed),
+            workspace_used_batches: fs_metrics.workspace_used_batches.load(Ordering::Relaxed),
+            workspace_irq_requests: fs_metrics.workspace_irq_requests.load(Ordering::Relaxed),
             host_phys_footprint_mib: (phys_b as f64) / (1024.0 * 1024.0),
             host_peak_footprint_mib: (peak_b as f64) / (1024.0 * 1024.0),
             console_output,

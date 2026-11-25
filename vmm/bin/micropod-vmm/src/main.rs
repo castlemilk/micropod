@@ -191,6 +191,8 @@ fn parse_vsock_expose(spec: &str) -> VsockExposeSpec {
 }
 
 fn main() {
+    // Before any share sizes its handle budget from it.
+    let _ = vmm_core::raise_open_file_limit();
     let args: Vec<String> = env::args().skip(1).collect();
     let mut kernel_path: Option<PathBuf> = None;
     let mut initrd_path: Option<PathBuf> = None;
@@ -456,7 +458,9 @@ fn main() {
                      \"balloon_reclaimed_bytes\":{},\"net_tx_packets\":{},\"net_tx_bytes\":{},\
                      \"net_rx_packets\":{},\"net_rx_bytes\":{},\"published_binds\":{},\"published_conns\":{},\
                      \"published_refused\":{},\
-                     \"fs_requests\":{},\"fs_bytes_read\":{},\"host_phys_footprint_mib\":{:.2},\
+                     \"fs_requests\":{},\"fs_bytes_read\":{},\"fs_nodes_peak\":{},\
+                     \"workspace_kicks\":{},\"workspace_used_batches\":{},\"workspace_irq_requests\":{},\
+                     \"host_phys_footprint_mib\":{:.2},\
                      \"host_peak_footprint_mib\":{:.2}}}",
                     rep.exit_reason,
                     code,
@@ -490,6 +494,10 @@ fn main() {
                     rep.published_refused,
                     rep.fs_requests,
                     rep.fs_bytes_read,
+                    rep.fs_nodes_peak,
+                    rep.workspace_kicks,
+                    rep.workspace_used_batches,
+                    rep.workspace_irq_requests,
                     rep.host_phys_footprint_mib,
                     rep.host_peak_footprint_mib,
                 );

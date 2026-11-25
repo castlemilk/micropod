@@ -9,10 +9,16 @@
 #   - a published port serves HTTP, under concurrency, for large up- and
 #     downloads, and for a container that only starts listening later;
 #   - bind mounts from the Mac (--workspace): read, write, :ro, non-root
-#     writes and chown semantics; a container cannot reach past its bind
-#     mount by renaming a directory and planting a symlink at its old name
-#     (hard link and lookup routes); a set-id binary on the workspace does
-#     not elevate a non-root user (rw and :ro binds);
+#     writes and chown semantics, and a postgres image initialising a
+#     bind-mounted data directory; a guest chown belongs to the host file, so
+#     a non-root user cannot get round it through a hard link or another
+#     spelling of the name; a FIFO in the workspace does not hang the share;
+#     a stat storm over many spellings of one name does not grow the VMM's
+#     node table, and nodes the guest forgets are freed (FORGET); a
+#     container cannot reach past its bind mount by renaming a directory and
+#     planting a symlink at its old name (hard link and lookup routes); a
+#     set-id binary on the workspace does not elevate a non-root user (rw and
+#     :ro binds);
 #   - SIGTERM is an orderly poweroff (exit 0); on the next boot the stopped
 #     container and a named volume are intact and ext4 needs no recovery;
 #   - kill -9 of the VMM is recovered: the stale socket is replaced and the
@@ -61,6 +67,7 @@ done
 # A short directory: Unix socket paths are limited to 103 bytes on macOS.
 WORK="$(mktemp -d /tmp/mpe2e.XXXXXX)"
 SOCK="$WORK/docker.sock"
+TSOCK="$WORK/telemetry.sock"
 WS="$WORK/ws"
 DISK="$WORK/disk.ext4"
 P_WEB=$PORT_BASE
@@ -108,10 +115,34 @@ boot() {
     local base="$WORK/boot$BOOTS"
     "$VMM" --kernel "$KERNEL" --initrd "$INITRD" --disk "$DISK" \
         --share "oci-tools:${OCI_TOOLS}:ro" --workspace "$WS" \
-        --vsock-expose "${SOCK}:2375" --published-net \
+        --vsock-expose "${SOCK}:2375" --published-net --telemetry-socket "$TSOCK" \
         --cpus 4 --memory-mib 4096 --quiet --json-summary \
         --console-log "$base.console" >"$base.summary" 2>"$base.stderr" &
     VM_PID=$!
+}
+
+# fs_nodes: Virtio-FS nodes the VMM holds now (all shares), from its telemetry.
+fs_nodes() {
+    curl -s -m 5 --unix-socket "$TSOCK" http://vmm/healthz |
+        python3 -c 'import json, sys; print(json.load(sys.stdin)["fs_nodes"])'
+}
+
+# within SECONDS CMD...: run CMD, killing it (status 124) if it outlives SECONDS.
+within() {
+    local secs=$1 pid rc
+    shift
+    "$@" &
+    pid=$!
+    for _ in $(seq 1 $((secs * 10))); do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            rc=0
+            wait "$pid" || rc=$?
+            return "$rc"
+        fi
+        sleep 0.1
+    done
+    kill -9 "$pid" 2>/dev/null || true
+    return 124
 }
 
 wait_api() {
@@ -255,8 +286,106 @@ docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c 'mkdir /w/data && chown 70:70 /w/
 [ "$(docker_ run --rm --user 70:70 -v "$WS:/w" alpine:3.20 sh -c 'touch /w/data/f && stat -c %u /w/data')" = 70 ] || fail "chown not honoured for its new owner"
 if docker_ run --rm --user 1000:1000 -v "$WS:/w" alpine:3.20 ls /w/data >/dev/null 2>&1; then fail "chmod 700 directory readable by another user"; fi
 pass "chown + chmod 700 behave as on Linux for container users"
+# The postgres entrypoint's own sequence: root chowns the data directory to
+# the user alone (`chown postgres`, the group left as it is), chmod 700, then
+# initdb runs as that user and the server checks it owns the directory.
+mkdir -p "$WS/pg"
+docker_ run -d --name e2e-pg -e POSTGRES_PASSWORD=e2e -v "$WS/pg:/var/lib/postgresql/data" postgres:17-alpine >/dev/null
+for _ in $(seq 1 600); do
+    docker_ exec e2e-pg pg_isready -U postgres -h 127.0.0.1 >/dev/null 2>&1 && break
+    sleep 0.1
+done
+[ "$(docker_ exec e2e-pg psql -U postgres -h 127.0.0.1 -tAc 'select 6*7' 2>&1)" = 42 ] ||
+    fail "postgres on a bind-mounted data directory: $(docker_ logs e2e-pg 2>&1 | tail -5)"
+[ "$(docker_ exec e2e-pg stat -c %u:%a /var/lib/postgresql/data)" = 70:700 ] || fail "postgres data directory owner/mode"
+docker_ rm -f e2e-pg >/dev/null
+pass "postgres initialises and serves a bind-mounted data directory it chowned"
 if docker_ run --rm -v "$WORK:/w" alpine:3.20 true 2>/dev/null; then fail "bind outside the workspace was accepted"; fi
 pass "binds outside the workspace are rejected"
+
+log "guest ownership belongs to the host file (hard links, other spellings)"
+touch "$WS/case-probe"
+CASELESS=0
+[ -e "$WS/CASE-PROBE" ] && CASELESS=1
+rm -f "$WS/case-probe"
+docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c '
+    mkdir /w/own && echo secret >/w/own/secret.key && chown 70:70 /w/own/secret.key &&
+    chmod 600 /w/own/secret.key && ln /w/own/secret.key /w/own/hl &&
+    echo tool >/w/own/tool && chown 70 /w/own/tool && chmod 770 /w/own/tool' || fail "pinning owners as root"
+names="secret.key hl"
+[ "$CASELESS" = 1 ] && names="$names SECRET.KEY Secret.Key HL"
+# shellcheck disable=SC2016 # expanded by the container's shell
+out=$(docker_ run --rm --user 1000:1000 -e NAMES="$names" -v "$WS:/w" alpine:3.20 sh -c '
+    for f in $NAMES; do
+        cat /w/own/$f >/dev/null 2>&1 && echo "read $f"
+        chmod 644 /w/own/$f 2>/dev/null && echo "chmod $f"
+        echo "$f $(stat -c %u:%g:%a:%i /w/own/$f)"
+    done
+    echo x >>/w/own/tool 2>/dev/null && echo "write tool"
+    echo "tool $(stat -c %u:%g /w/own/tool)"' 2>&1)
+case "$out" in
+*read* | *chmod\ * | *write*) fail "a non-root user got round a pinned owner: $out" ;;
+esac
+ino=$(stat -f %i "$WS/own/secret.key")
+for f in $names; do
+    printf '%s\n' "$out" | grep -qx "$f 70:70:600:$ino" || fail "$f is not 70:70 0600 inode $ino: $out"
+done
+printf '%s\n' "$out" | grep -qx "tool 70:0" || fail "chown 70 left the group floating: $out"
+[ "$(docker_ run --rm --user 70:70 -v "$WS:/w" alpine:3.20 cat /w/own/hl)" = secret ] || fail "the owner cannot read through a hard link"
+[ "$(stat -f %Lp "$WS/own/secret.key")" = 600 ] || fail "the Mac file lost its mode"
+pass "a pinned owner holds for every name of the file ($([ "$CASELESS" = 1 ] && echo "hard link and case spellings" || echo "hard link")), one inode number; chown of one field settles both"
+
+log "a FIFO in the workspace does not hang the share"
+mkdir -p "$WS/fifo"
+for i in $(seq 1 10); do mkfifo "$WS/fifo/p$i"; done
+# A container opens host FIFOs, and (case-insensitive Macs) reaches one
+# through a stale spelling of a name it just renamed the FIFO over, which
+# once had the VMM open the FIFO itself and block every container's share.
+# shellcheck disable=SC2016 # expanded by the container's shell
+docker_ run -d --name e2e-fifo -e CASELESS="$CASELESS" -v "$WS:/w" alpine:3.20 sh -c '
+    cd /w/fifo
+    for i in $(seq 1 10); do
+        if [ "$CASELESS" = 1 ]; then touch r$i && stat R$i >/dev/null && mv p$i r$i; t=R$i; else t=p$i; fi
+        cat $t >/dev/null 2>&1 & c=$!
+        echo hi >$t 2>/dev/null & w=$!
+        sleep 0.2; kill $c $w 2>/dev/null; wait $c $w 2>/dev/null
+    done
+    echo done >/w/fifo/finished; sleep 3600' >/dev/null
+for _ in $(seq 1 300); do [ -f "$WS/fifo/finished" ] && break; sleep 0.1; done
+[ -f "$WS/fifo/finished" ] || fail "the container using FIFOs did not finish within 30s"
+out=$(within 20 docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c 'echo ok >/w/fifo/after && cat /w/fifo/after && ls /w/fifo | wc -l') ||
+    fail "another container could not use the share after the FIFO opens (rc=$?)"
+[ "$(printf '%s\n' "$out" | head -1)" = ok ] || fail "share after the FIFO opens: $out"
+docker_ rm -f e2e-fifo >/dev/null
+pass "FIFOs opened in the workspace (directly and through a stale spelling) leave the share serving"
+
+log "the VMM's node table stays bounded"
+before=$(fs_nodes)
+[ -n "$before" ] || fail "no fs_nodes in the telemetry"
+mkdir -p "$WS/storm" && touch "$WS/storm/$(printf 'a%.0s' $(seq 1 48))"
+if [ "$CASELESS" = 1 ]; then
+    # shellcheck disable=SC2016 # expanded by the container's shell
+    inodes=$(docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c '
+        awk "BEGIN { srand(7); for (i = 0; i < 20000; i++) { s = \"\"; for (j = 0; j < 48; j++) s = s (rand() < 0.5 ? \"a\" : \"A\"); print \"/w/storm/\" s } }" |
+            xargs stat -c %i | sort -u | wc -l' | tr -d ' ')
+    [ "$inodes" = 1 ] || fail "20000 spellings of one name are $inodes files"
+    after=$(fs_nodes)
+    [ $((after - before)) -lt 200 ] || fail "a stat storm over 20000 spellings grew the node table by $((after - before)) (from $before)"
+    pass "20000 spellings of one name are one file and add $((after - before)) nodes (table: $after)"
+fi
+# A tree walk binds a node per file. When the files go on the Mac and the
+# guest looks at the old names, it drops those dentries and inodes and sends
+# FORGET, and the VMM frees the nodes.
+docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c 'mkdir /w/many && cd /w/many && seq 1 5000 | xargs touch && ls -l >/dev/null'
+walked=$(fs_nodes)
+[ $((walked - before)) -ge 4000 ] || fail "listing 5000 files bound only $((walked - before)) nodes"
+find "$WS/many" -type f -delete
+docker_ run --rm -v "$WS:/w" alpine:3.20 sh -c 'cd /w/many && seq 1 5000 | xargs stat >/dev/null 2>&1; true'
+for _ in $(seq 1 50); do [ "$(fs_nodes)" -lt $((before + 1000)) ] && break; sleep 0.1; done
+dropped=$(fs_nodes)
+[ "$dropped" -lt $((before + 1000)) ] || fail "the guest forgot 5000 files but the VMM still holds $dropped nodes (was $walked, $before before)"
+pass "5000 listed files: $before -> $walked nodes, $dropped once the guest forgot them"
+rm -rf "${WS:?}/own" "${WS:?}/fifo" "${WS:?}/storm" "${WS:?}/many" "${WS:?}/pg"
 
 log "bind mounts stay contained (rename + planted symlink)"
 mkdir -p "$WS/proj" "$WS/Library/LaunchAgents"

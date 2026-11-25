@@ -332,6 +332,9 @@ pub struct TelemetrySnapshot {
     pub blk_write_bytes: u64,
     pub fs_requests: u64,
     pub fs_bytes_read: u64,
+    pub fs_nodes: u64,
+    pub fs_nodes_peak: u64,
+    pub fs_open_handles: u64,
     pub net_tx_packets: u64,
     pub net_tx_bytes: u64,
     pub net_rx_packets: u64,
@@ -375,6 +378,9 @@ impl TelemetrySource {
             blk_write_bytes: self.blk.write_bytes.load(Ordering::Relaxed),
             fs_requests: self.fs.requests.load(Ordering::Relaxed),
             fs_bytes_read: self.fs.bytes_read.load(Ordering::Relaxed),
+            fs_nodes: self.fs.nodes.load(Ordering::Relaxed),
+            fs_nodes_peak: self.fs.nodes_peak.load(Ordering::Relaxed),
+            fs_open_handles: self.fs.open_handles.load(Ordering::Relaxed),
             net_tx_packets: self.net.tx_packets.load(Ordering::Relaxed),
             net_tx_bytes: self.net.tx_bytes.load(Ordering::Relaxed),
             net_rx_packets: self.net.rx_packets.load(Ordering::Relaxed),
@@ -479,6 +485,27 @@ impl TelemetrySource {
             "micropod_vmm_virtiofs_read_bytes_total {}\n",
             s.fs_bytes_read
         ));
+        for (name, help, value) in [
+            (
+                "micropod_vmm_virtiofs_nodes",
+                "Virtio-FS nodes the shares hold (files the guest references).",
+                s.fs_nodes,
+            ),
+            (
+                "micropod_vmm_virtiofs_nodes_peak",
+                "Most Virtio-FS nodes held at once.",
+                s.fs_nodes_peak,
+            ),
+            (
+                "micropod_vmm_virtiofs_open_handles",
+                "Virtio-FS open file and directory handles.",
+                s.fs_open_handles,
+            ),
+        ] {
+            out.push_str(&format!(
+                "# HELP {name} {help}\n# TYPE {name} gauge\n{name} {value}\n"
+            ));
+        }
         out.push_str("# HELP micropod_vmm_net_packets_total Virtio-Net packets processed.\n");
         out.push_str("# TYPE micropod_vmm_net_packets_total counter\n");
         out.push_str(&format!(
@@ -552,6 +579,7 @@ impl TelemetrySource {
              \"balloon_reclaimed_mib\":{:.2},\
              \"blk_read_ops\":{},\"blk_write_ops\":{},\"blk_read_bytes\":{},\"blk_write_bytes\":{},\
              \"fs_requests\":{},\"fs_bytes_read\":{},\
+             \"fs_nodes\":{},\"fs_nodes_peak\":{},\"fs_open_handles\":{},\
              \"net_tx_packets\":{},\"net_tx_bytes\":{},\"net_rx_packets\":{},\"net_rx_bytes\":{},\
              \"published_binds\":{},\"published_conns\":{},\
              \"mmio_exits\":{},\"wfi_exits\":{},\"tracing_enabled\":{},\"sampled_unix_secs\":{}}}\n",
@@ -574,6 +602,9 @@ impl TelemetrySource {
             s.blk_write_bytes,
             s.fs_requests,
             s.fs_bytes_read,
+            s.fs_nodes,
+            s.fs_nodes_peak,
+            s.fs_open_handles,
             s.net_tx_packets,
             s.net_tx_bytes,
             s.net_rx_packets,
@@ -729,6 +760,12 @@ impl TelemetrySource {
             sum_int("micropod.vmm.blk.read_ops", "{op}", s.blk_read_ops),
             sum_int("micropod.vmm.blk.write_ops", "{op}", s.blk_write_ops),
             sum_int("micropod.vmm.virtiofs.requests", "{request}", s.fs_requests),
+            gauge_int("micropod.vmm.virtiofs.nodes", "{node}", s.fs_nodes as i64),
+            gauge_int(
+                "micropod.vmm.virtiofs.open_handles",
+                "{handle}",
+                s.fs_open_handles as i64,
+            ),
             sum_int("micropod.vmm.net.tx_bytes", "By", s.net_tx_bytes),
             sum_int("micropod.vmm.net.rx_bytes", "By", s.net_rx_bytes),
             sum_int(
@@ -1231,6 +1268,8 @@ mod tests {
         blk.read_ops.store(42, Ordering::Relaxed);
         let fs = Arc::new(FsMetrics::default());
         fs.requests.store(99, Ordering::Relaxed);
+        fs.nodes.store(7, Ordering::Relaxed);
+        fs.nodes_peak.store(11, Ordering::Relaxed);
         Arc::new(TelemetrySource {
             pid: 1234,
             t0: Instant::now(),
@@ -1401,11 +1440,18 @@ mod tests {
         assert!(prom.contains("# TYPE micropod_vmm_up gauge"));
         assert!(prom.contains("micropod_vmm_blk_ops_total{op=\"read\"} 42"));
         assert!(prom.contains("micropod_vmm_virtiofs_requests_total 99"));
+        assert!(
+            prom.contains(
+                "# TYPE micropod_vmm_virtiofs_nodes gauge\nmicropod_vmm_virtiofs_nodes 7\n"
+            )
+        );
+        assert!(prom.contains("micropod_vmm_virtiofs_nodes_peak 11\n"));
         assert!(prom.contains("micropod_vmm_tracing_enabled 0"));
 
         let health = src.render_health_json();
         assert!(health.contains("\"state\":\"running\""));
         assert!(health.contains("\"blk_read_ops\":42"));
+        assert!(health.contains("\"fs_nodes\":7,\"fs_nodes_peak\":11,\"fs_open_handles\":0,"));
         assert!(health.contains("\"tracing_enabled\":false"));
 
         let otlp = src.render_otlp_json();
