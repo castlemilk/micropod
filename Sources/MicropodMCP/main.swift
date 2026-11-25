@@ -271,16 +271,17 @@ private actor MCPServer {
             "Run a container. Arguments: image (required), name (optional), memory (optional), "
                 + "command (optional, run by /bin/sh -c instead of the image's default command — e.g. "
                 + "`sleep infinity` keeps a sandbox up for exec), "
-                + "runtime (optional: apple | docker | sandbox; hvf is reported experimentally but cannot run containers yet)."
+                + "runtime (optional: apple | docker | sandbox | hvf; hvf is the shared Linux machine, "
+                + "started on first run once installed with `micropod machine install`)."
         ),
         (
             "runtimes",
-            "Execution engines micropod can drive or is integrating (apple VMs, docker, sandbox micro-VMs, experimental hvf): availability, "
-                + "enabled, default, capabilities. Needs the Micropod API daemon."
+            "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs, the shared hvf machine): "
+                + "availability, enabled, default, capabilities. Needs the Micropod API daemon."
         ),
         (
             "runtime_set_default",
-            "Set the default engine for new containers. Arguments: name (apple|docker|sandbox; hvf is not lifecycle-capable yet)."
+            "Set the default engine for new containers. Arguments: name (apple|docker|sandbox|hvf)."
         ),
         (
             "runtime_update",

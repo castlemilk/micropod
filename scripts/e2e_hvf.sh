@@ -1,0 +1,228 @@
+#!/bin/bash
+# scripts/e2e_hvf.sh — the shared hvf machine end to end through the CLI.
+#
+# Installs micropod-vmm, a kernel, the guest initrd, the guest tool bundle
+# and an APFS clone of an ext4 worker disk into a throwaway root, then drives
+# `micropod … --runtime hvf`:
+#   run (cold: starts the machine), ps, exec, logs, stats, stop, rm;
+#   a bind mount through the workspace share;
+#   `machine stop` + `machine start` keeps a retained container and volume;
+#   `kill -9` of the VMM is survived: the supervisor relaunches it and the
+#   Docker API comes back with the data intact;
+#   a published TCP port carries traffic and shows up in `ps`.
+# Only processes this script started are signalled, by pid.
+#
+# Usage: scripts/e2e_hvf.sh            (needs `swift build` first)
+#   HVF_E2E_ROOT   machine root (default /tmp/mphvf-swift; under /tmp, short
+#                  enough for run/docker.sock)
+#   HVF_VMM        signed micropod-vmm (default vmm/target/release/micropod-vmm)
+#   HVF_KERNEL     arm64 Image (default: newest ~/.micropod/kernels/*/Image)
+#   HVF_INITRD     guest initramfs (default vmm/target/mp-hvf-init.cpio)
+#   HVF_TOOLS      guest tool bundle containing runner/start.sh (required)
+#   HVF_DISK_FROM  ext4 disk to clone (default ~/.micropod/ci/worker.ext4)
+#   HVF_DISK_IMAGE OCI image (or `default`) to unpack into a fresh disk
+#                  instead of cloning HVF_DISK_FROM (pulls; ~1 min)
+#   HVF_PORT       host port for the published-port probe (default 18110)
+#   HVF_E2E_KEEP=1 keep the root (stopped) for inspection
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+M="$REPO/.build/debug/micropod"
+ROOT_DIR="${HVF_E2E_ROOT:-/tmp/mphvf-swift}"
+VMM="${HVF_VMM:-$REPO/vmm/target/release/micropod-vmm}"
+KERNEL="${HVF_KERNEL:-$(ls -t "$HOME"/.micropod/kernels/*/Image 2>/dev/null | head -1)}"
+INITRD="${HVF_INITRD:-$REPO/vmm/target/mp-hvf-init.cpio}"
+TOOLS="${HVF_TOOLS:-}"
+DISK_FROM="${HVF_DISK_FROM:-$HOME/.micropod/ci/worker.ext4}"
+DISK_IMAGE="${HVF_DISK_IMAGE:-}"
+PORT="${HVF_PORT:-18110}"
+WS="$ROOT_DIR-ws"
+TMP="$(mktemp -d)"
+S="$(date +%s)"
+PASS=0
+FAIL=0
+
+case "$ROOT_DIR" in
+/tmp/* | /private/tmp/*) ;;
+*)
+    echo "HVF_E2E_ROOT must be a throwaway directory under /tmp (got $ROOT_DIR)" >&2
+    exit 2
+    ;;
+esac
+for need in "$M" "$VMM"; do
+    [ -x "$need" ] || { echo "missing executable $need (swift build / vmm/build.sh)" >&2 && exit 2; }
+done
+for need in "$KERNEL" "$INITRD"; do
+    [ -f "$need" ] || { echo "missing file $need" >&2 && exit 2; }
+done
+if [ -n "$DISK_IMAGE" ]; then
+    DISK_ARGS=(--disk-image "$DISK_IMAGE" --disk-size 16g)
+else
+    [ -f "$DISK_FROM" ] || { echo "missing file $DISK_FROM" >&2 && exit 2; }
+    DISK_ARGS=(--disk-from "$DISK_FROM")
+fi
+[ -n "$TOOLS" ] && [ -f "$TOOLS/runner/start.sh" ] || {
+    echo "set HVF_TOOLS to a guest tool bundle (a directory with runner/start.sh)" >&2
+    exit 2
+}
+
+export MICROPOD_HVF_ROOT="$ROOT_DIR"
+export MICROPOD_RUNTIMES_CONFIG="$TMP/runtimes.json"  # never the user's engine config
+export MICROPOD_CLI="$M"                              # the binary that runs `machine serve`
+unset MICROPOD_DEFAULT_RUNTIME
+
+cleanup() {
+    if [ -S "$ROOT_DIR/run/docker.sock" ]; then
+        for name in keep vol2 bind port race; do
+            "$M" rm --force "e2e-$name-$S" >/dev/null 2>&1 || true
+        done
+    fi
+    "$M" machine stop >/dev/null 2>&1 || true
+    if [ "${HVF_E2E_KEEP:-0}" != 1 ]; then rm -rf "$ROOT_DIR" "$WS"; fi
+    rm -rf "$TMP"
+}
+trap cleanup EXIT
+
+check() { # check "label" actual expected
+    if [ "$2" == "$3" ]; then
+        PASS=$((PASS + 1))
+        echo "  ✓ $1"
+    else
+        FAIL=$((FAIL + 1))
+        echo "  ✗ $1 — got '$2', want '$3'"
+    fi
+}
+state() { python3 -c "import json; s=json.load(open('$ROOT_DIR/run/state.json')); print($1)"; }
+ps_field() { # ps_field <name> <python expr over c>
+    "$M" --json ps -a | python3 -c "import sys,json; print(next(($2 for c in json.load(sys.stdin) if c['id']=='$1'), 'absent'))"
+}
+wait_for() { # wait_for <seconds> <command…>: until the command succeeds
+    local deadline=$((SECONDS + $1))
+    shift
+    until "$@" >/dev/null 2>&1; do
+        [ "$SECONDS" -lt "$deadline" ] || return 1
+        sleep 0.25
+    done
+}
+
+echo "== install into $ROOT_DIR"
+if [ -e "$ROOT_DIR" ]; then
+    "$M" machine stop >/dev/null 2>&1 || true
+    rm -rf "$ROOT_DIR"
+fi
+rm -rf "$WS" && mkdir -p "$WS"
+"$M" machine install --vmm "$VMM" --kernel "$KERNEL" --initrd "$INITRD" --tools "$TOOLS" \
+    "${DISK_ARGS[@]}" --cpus 4 --memory-mib 4096 --workspace "$WS"
+check "copied VMM keeps the hypervisor entitlement" \
+    "$(codesign -d --entitlements - --xml "$ROOT_DIR/micropod-vmm" 2>/dev/null | grep -c com.apple.security.hypervisor)" "1"
+check "machine stopped after install" "$("$M" --json machine status | python3 -c 'import sys,json; print(json.load(sys.stdin)["phase"])')" "stopped"
+"$M" runtime enable hvf >/dev/null
+"$M" runtime use hvf >/dev/null  # a stopped Apple runtime must not break ps/stats
+check "hvf available while stopped" "$("$M" --json runtime ls | python3 -c 'import sys,json; print([r for r in json.load(sys.stdin) if r["name"]=="hvf"][0].get("available", False))')" "True"
+check "probe did not boot the machine" "$([ -e "$ROOT_DIR/run/state.json" ] && echo booted || echo cold)" "cold"
+
+echo "== lifecycle (the first run starts the machine)"
+NAME="e2e-life-$S"
+started=$SECONDS
+check "run" "$("$M" run --runtime hvf --name "$NAME" alpine:3.20 -- sh -c 'echo booted-hvf; i=0; while :; do echo tick $i; i=$((i+1)); sleep 1; done')" "$NAME"
+echo "    (cold run incl. machine boot + pull: $((SECONDS - started))s)"
+check "machine running" "$(state "s['phase']")" "running"
+check "listed with runtime hvf" "$(ps_field "$NAME" "c.get('runtime')")" "hvf"
+check "listed running" "$(ps_field "$NAME" "c.get('state')")" "running"
+check "exec" "$("$M" exec "$NAME" -- cat /etc/alpine-release | cut -d. -f1-2)" "3.20"
+set +e
+exec_err="$("$M" exec "$NAME" -- sh -c 'echo out; echo err >&2; exit 3' 2>&1 >/dev/null)"
+exec_code=$?
+set -e
+check "exec non-zero exit surfaces" "$exec_code" "1"
+check "exec reports the guest exit code" "$(echo "$exec_err" | grep -c 'exit 3')" "1"
+sleep 2
+check "logs from the start" "$("$M" logs -n 1000 "$NAME" | head -1)" "booted-hvf"
+check "logs tail" "$("$M" logs -n 1 "$NAME" | grep -c '^tick ')" "1"
+"$M" logs -f -n 1 "$NAME" >"$TMP/follow.log" 2>&1 &
+FOLLOW=$!
+sleep 2.5
+kill "$FOLLOW" 2>/dev/null || true
+wait "$FOLLOW" 2>/dev/null || true
+check "logs -f streams new lines" "$([ "$(grep -c '^tick ' "$TMP/follow.log")" -ge 2 ] && echo yes || echo no)" "yes"
+check "stats" "$("$M" --json stats | python3 -c "import sys,json; print(any(c['id']=='$NAME' for c in json.load(sys.stdin)['containers']))")" "True"
+"$M" restart "$NAME" >/dev/null
+check "restart (stop+start)" "$(ps_field "$NAME" "c.get('state')")" "running"
+check "copy refused (no archive API)" "$("$M" cp "$NAME:/etc/hosts" "$TMP/hosts" 2>&1 | grep -c "runtime 'hvf' does not support copy")" "1"
+"$M" stop --time 1 "$NAME" >/dev/null
+check "stopped" "$(ps_field "$NAME" "c.get('state')")" "exited"
+"$M" rm "$NAME" >/dev/null
+check "deleted" "$(ps_field "$NAME" "c.get('state')")" "absent"
+check "interactive run refused" "$("$M" run --runtime hvf -i alpine:3.20 2>&1 | grep -c 'interactive stdin')" "1"
+
+echo "== workspace bind mount"
+echo "from-host-$S" >"$WS/hello.txt"
+"$M" run --runtime hvf --name "e2e-bind-$S" -v "$WS:/w" alpine:3.20 -- sh -c 'sleep 600' >/dev/null
+check "guest reads the host file" "$("$M" exec "e2e-bind-$S" -- cat /w/hello.txt)" "from-host-$S"
+"$M" exec "e2e-bind-$S" -- sh -c "echo from-guest-$S > /w/guest.txt" >/dev/null
+check "host sees the guest write" "$(cat "$WS/guest.txt" 2>/dev/null)" "from-guest-$S"
+"$M" rm --force "e2e-bind-$S" >/dev/null
+
+echo "== retained container and volume across machine stop/start"
+"$M" run --runtime hvf --name "e2e-keep-$S" -v "e2evol-$S:/data" alpine:3.20 -- sleep 3600 >/dev/null
+"$M" exec "e2e-keep-$S" -- sh -c "echo marker-$S > /data/marker" >/dev/null
+"$M" machine stop >/dev/null
+check "machine stopped" "$(state "s['phase']")" "stopped"
+check "graceful poweroff" "$(state "'exit_reason=poweroff' in (s.get('lastExitReason') or '')")" "True"
+check "orderly exit code recorded" "$(state "(s.get('lastExitCode'), s.get('lastExitMeaning'))")" "(0, 'orderly guest poweroff')"
+check "stopped machine lists nothing" "$(ps_field "e2e-keep-$S" "c.get('state')")" "absent"
+check "reads did not boot it" "$("$M" --json machine status | python3 -c 'import sys,json; print(json.load(sys.stdin)["phase"])')" "stopped"
+"$M" machine start >/dev/null
+check "container retained" "$(ps_field "e2e-keep-$S" "c.get('runtime')")" "hvf"
+"$M" start "e2e-keep-$S" >/dev/null
+check "volume data retained" "$("$M" exec "e2e-keep-$S" -- cat /data/marker)" "marker-$S"
+"$M" run --runtime hvf --name "e2e-vol2-$S" -v "e2evol-$S:/data" alpine:3.20 -- sleep 600 >/dev/null
+check "volume shared by a new container" "$("$M" exec "e2e-vol2-$S" -- cat /data/marker)" "marker-$S"
+"$M" rm --force "e2e-vol2-$S" >/dev/null
+
+echo "== supervisor survives kill -9 of the VMM"
+VMM_PID="$(state "s['vmmPID']")"
+RESTARTS="$(state "s['restartCount']")"
+check "pid is this root's micropod-vmm" "$(ps -o command= -p "$VMM_PID" | grep -c -- "^$ROOT_DIR/micropod-vmm .*--disk $ROOT_DIR/disk.ext4")" "1"
+kill -9 "$VMM_PID"
+back_up() { [ "$(state "s['phase']=='running' and s['vmmPID']!=$VMM_PID")" == True ]; }
+if wait_for 120 back_up; then
+    check "relaunched and ready" "running" "running"
+else
+    check "relaunched and ready" "$(state "s['phase']")" "running"
+fi
+check "restart counted" "$(state "s['restartCount']")" "$((RESTARTS + 1))"
+check "last exit recorded" "$(state "'signal 9' in (s.get('lastExitReason') or '')")" "True"
+check "docker API answers" "$(curl -s -m 5 --unix-socket "$ROOT_DIR/run/docker.sock" http://d/v1.44/_ping)" "OK"
+"$M" start "e2e-keep-$S" >/dev/null
+check "volume data survived the abrupt stop" "$("$M" exec "e2e-keep-$S" -- cat /data/marker)" "marker-$S"
+
+echo "== concurrent starts from several processes share one supervisor"
+"$M" rm --force "e2e-keep-$S" >/dev/null
+"$M" machine stop >/dev/null
+for i in 1 2 3 4; do
+    ("$M" machine start >"$TMP/start-$i.log" 2>&1 && echo ok >>"$TMP/start-$i.log") &
+done
+"$M" run --runtime hvf --name "e2e-race-$S" alpine:3.20 -- sleep 600 >"$TMP/race-run.log" 2>&1 || true
+wait
+check "every starter succeeded" "$(cat "$TMP"/start-*.log | grep -c '^ok$')" "4"
+check "the racing run succeeded" "$(cat "$TMP/race-run.log")" "e2e-race-$S"
+check "one VMM for the root" "$(pgrep -f "^$ROOT_DIR/micropod-vmm " | wc -l | tr -d ' ')" "1"
+check "no restarts from the race" "$(state "s['restartCount']")" "0"
+"$M" rm --force "e2e-race-$S" >/dev/null
+
+echo "== published port"
+"$M" run --runtime hvf --name "e2e-port-$S" -p "$PORT:8080" alpine:3.20 -- sh -c \
+    "while true; do printf 'HTTP/1.0 200 OK\r\n\r\nport-ok' | nc -l -p 8080; done" >/dev/null
+served=""
+for _ in $(seq 1 20); do
+    served="$(curl -s -m 2 "http://127.0.0.1:$PORT/" || true)"
+    [ -n "$served" ] && break
+    sleep 0.5
+done
+check "127.0.0.1:$PORT reaches the container" "$served" "port-ok"
+check "ps shows the published port" "$(ps_field "e2e-port-$S" "[(p['hostPort'], p['containerPort']) for p in c.get('publishedPorts', [])]")" "[($PORT, 8080)]"
+
+echo
+echo "$PASS passed, $FAIL failed"
+[ "$FAIL" -eq 0 ]

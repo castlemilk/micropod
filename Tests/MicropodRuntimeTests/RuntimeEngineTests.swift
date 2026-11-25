@@ -20,13 +20,17 @@ final class RuntimeEngineTests: XCTestCase {
 
     private func registry(_ extra: [String: String] = [:]) -> EngineRegistry {
         EngineRegistry(
-            environment: ["MICROPOD_RUNTIMES_CONFIG": configURL.path, "DOCKER_HOST": "unix:///nonexistent.sock"]
-                .merging(extra) { _, new in new },
+            environment: [
+                "MICROPOD_RUNTIMES_CONFIG": configURL.path, "DOCKER_HOST": "unix:///nonexistent.sock",
+                // Never the developer's real machine: an empty, uninstalled root.
+                "MICROPOD_HVF_ROOT": "/nonexistent/micropod-hvf",
+            ]
+            .merging(extra) { _, new in new },
             sandbox: SandboxEngine(root: FileManager.default.temporaryDirectory.appendingPathComponent("sbx-\(UUID())"))
         )
     }
 
-    private func apple(_ containers: RecordingContainers = RecordingContainers(ids: ["web"])) -> AppleEngine {
+    private func apple(_ containers: any ContainerServing = RecordingContainers(ids: ["web"])) -> AppleEngine {
         AppleEngine(
             services: RuntimeServices(
                 kind: .cli, containers: containers, logs: NoLogs(), stats: NoStats(),
@@ -108,9 +112,27 @@ final class RuntimeEngineTests: XCTestCase {
         XCTAssertEqual(docker.reason, "Docker socket not found")
         XCTAssertTrue(response.runtimes[0].capabilities.contains("volumes"))
         XCTAssertFalse(response.runtimes[2].capabilities.contains("ports"))
-        XCTAssertEqual(response.runtimes[3].name, "hvf")
-        XCTAssertTrue(response.runtimes[3].capabilities.isEmpty)
-        XCTAssertFalse(response.runtimes[3].available)
+        let hvf = response.runtimes[3]
+        XCTAssertEqual(hvf.name, "hvf")
+        XCTAssertEqual(hvf.kind, "microvm")
+        XCTAssertEqual(hvf.capabilities, HVFEngine.supportedCapabilities)
+        XCTAssertFalse(hvf.capabilities.contains("copy"), "the guest engine has no archive API")
+        XCTAssertFalse(hvf.capabilities.contains("export"))
+        XCTAssertFalse(hvf.available, "nothing installed under the test root")
+        XCTAssertTrue(hvf.reason.contains("not installed"), hvf.reason)
+        XCTAssertEqual(hvf.endpoint, "unix:///nonexistent/micropod-hvf/run/docker.sock")
+        XCTAssertFalse(hvf.enabled, "hvf is opt-in like docker")
+    }
+
+    func testStoppedAppleRuntimeIsBestEffortOnlyWhenAnotherEngineIsDefault() async throws {
+        let failing = apple(FailingContainers())
+        do {
+            _ = try await RuntimeRouter(apple: failing, registry: registry()).list()
+            XCTFail("apple is the default: its failure is the listing's failure")
+        } catch {}
+        let router = RuntimeRouter(apple: failing, registry: registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"]))
+        let listed = try await router.list()
+        XCTAssertEqual(listed, [], "the default engine's (empty) listing survives a stopped Apple runtime")
     }
 
     // MARK: Routing
@@ -255,6 +277,26 @@ final class RuntimeEngineTests: XCTestCase {
 }
 
 // MARK: - Fakes
+
+/// An Apple runtime that is not running.
+struct FailingContainers: ContainerServing {
+    private var down: MicropodError { .runtimeNotRunning }
+    func list() async throws -> [Micropod_V1_Container] { throw down }
+    func inspect(_ id: String) async throws -> Data { throw down }
+    func create(_ request: ContainerRunRequest) async throws -> String { throw down }
+    func run(_ request: ContainerRunRequest) async throws -> String { throw down }
+    func exec(_ request: ContainerExecRequest) async throws -> String { throw down }
+    func start(_ id: String) async throws { throw down }
+    func stop(_ id: String, timeout: Int) async throws { throw down }
+    func restart(_ id: String) async throws { throw down }
+    func stopAll() async throws { throw down }
+    func kill(_ id: String, signal: String) async throws { throw down }
+    func delete(_ id: String, force: Bool) async throws { throw down }
+    func deleteAll(force: Bool) async throws { throw down }
+    func prune() async throws -> String { throw down }
+    func export(_ id: String, to outputPath: String) async throws { throw down }
+    func copy(from: String, to: String) async throws { throw down }
+}
 
 actor RecordingContainers: ContainerServing {
     let ids: [String]

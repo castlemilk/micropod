@@ -129,21 +129,33 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     public var schema: Int
     public var cpus: Int
     public var memoryMiB: Int
-    /// Absolute host directory shared as `workspace` and mounted at the same
-    /// path in the guest, so Docker bind mounts under it resolve.
+    /// Absolute host directory shared read-write and mounted at the same
+    /// path in the guest (`--workspace`): Docker bind mounts resolve only
+    /// under it. Defaults to the home directory; nil (saved as "") turns
+    /// host bind mounts off.
     public var workspace: String?
     /// The VMM's published-port network (`--published-net`).
     public var publishedNet: Bool
     /// Echo the guest serial console into `logs/console.log` (no `--quiet`).
     public var console: Bool
-    /// Appended to micropod-vmm's default kernel command line.
+    /// SIGTERM → orderly guest poweroff budget (`--shutdown-timeout`, 1...600).
+    public var shutdownTimeoutSeconds: Int
+    /// Appended to the VMM's kernel command line (`--cmdline-append`).
     public var kernelArguments: [String]
     /// Extra micropod-vmm flags, appended verbatim.
     public var extraArguments: [String]
 
+    public static var defaultWorkspace: String { HVFMachineLayout.canonicalPath(NSHomeDirectory()) }
+
+    enum CodingKeys: String, CodingKey {
+        case schema, cpus, memoryMiB, workspace, publishedNet, console, shutdownTimeoutSeconds, kernelArguments
+        case extraArguments
+    }
+
     public init(
-        schema: Int = HVFMachineConfig.currentSchema, cpus: Int = 4, memoryMiB: Int = 4096, workspace: String? = nil,
-        publishedNet: Bool = true, console: Bool = true, kernelArguments: [String] = [], extraArguments: [String] = []
+        schema: Int = HVFMachineConfig.currentSchema, cpus: Int = 4, memoryMiB: Int = 4096,
+        workspace: String? = HVFMachineConfig.defaultWorkspace, publishedNet: Bool = true, console: Bool = true,
+        shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = []
     ) {
         self.schema = schema
         self.cpus = cpus
@@ -151,6 +163,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         self.workspace = workspace
         self.publishedNet = publishedNet
         self.console = console
+        self.shutdownTimeoutSeconds = shutdownTimeoutSeconds
         self.kernelArguments = kernelArguments
         self.extraArguments = extraArguments
     }
@@ -161,11 +174,28 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         schema = try c.decodeIfPresent(Int.self, forKey: .schema) ?? defaults.schema
         cpus = try c.decodeIfPresent(Int.self, forKey: .cpus) ?? defaults.cpus
         memoryMiB = try c.decodeIfPresent(Int.self, forKey: .memoryMiB) ?? defaults.memoryMiB
-        workspace = try c.decodeIfPresent(String.self, forKey: .workspace)
+        // Absent → the default share; "" → deliberately none.
+        let workspace = try c.decodeIfPresent(String.self, forKey: .workspace) ?? defaults.workspace
+        self.workspace = workspace?.isEmpty == true ? nil : workspace
         publishedNet = try c.decodeIfPresent(Bool.self, forKey: .publishedNet) ?? defaults.publishedNet
         console = try c.decodeIfPresent(Bool.self, forKey: .console) ?? defaults.console
+        shutdownTimeoutSeconds =
+            try c.decodeIfPresent(Int.self, forKey: .shutdownTimeoutSeconds) ?? defaults.shutdownTimeoutSeconds
         kernelArguments = try c.decodeIfPresent([String].self, forKey: .kernelArguments) ?? []
         extraArguments = try c.decodeIfPresent([String].self, forKey: .extraArguments) ?? []
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(schema, forKey: .schema)
+        try c.encode(cpus, forKey: .cpus)
+        try c.encode(memoryMiB, forKey: .memoryMiB)
+        try c.encode(workspace ?? "", forKey: .workspace)
+        try c.encode(publishedNet, forKey: .publishedNet)
+        try c.encode(console, forKey: .console)
+        try c.encode(shutdownTimeoutSeconds, forKey: .shutdownTimeoutSeconds)
+        try c.encode(kernelArguments, forKey: .kernelArguments)
+        try c.encode(extraArguments, forKey: .extraArguments)
     }
 
     /// The saved config, or the defaults when `url` does not exist.
@@ -204,28 +234,32 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         guard (512...262_144).contains(memoryMiB) else {
             throw MicropodError.message("invalidArgument: hvf memoryMiB must be 512...262144, got \(memoryMiB)")
         }
+        guard (1...600).contains(shutdownTimeoutSeconds) else {
+            throw MicropodError.message(
+                "invalidArgument: hvf shutdownTimeoutSeconds must be 1...600, got \(shutdownTimeoutSeconds)")
+        }
         if let workspace {
-            let clean = URL(fileURLWithPath: workspace).standardizedFileURL.path
-            guard workspace.hasPrefix("/"), workspace != "/", clean == workspace else {
+            // Lexical, like the VMM's own check. (Foundation's standardizing
+            // would also strip a real `/private` prefix.)
+            let components = workspace.split(separator: "/", omittingEmptySubsequences: false).dropFirst()
+            guard workspace.hasPrefix("/"), workspace != "/",
+                !components.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." })
+            else {
                 throw MicropodError.message(
                     "invalidArgument: hvf workspace must be a canonical absolute directory, got '\(workspace)'")
             }
             try HVFMachineLayout.validateSpecPath(workspace, what: "workspace")
         }
     }
+
+    /// How long the supervisor waits after SIGTERM before SIGKILL: past the
+    /// VMM's own poweroff budget, so an orderly stop is never cut short.
+    public var stopGrace: Duration { .seconds(shutdownTimeoutSeconds + 5) }
 }
 
 // MARK: - VMM command line
 
 public enum HVFVMMCommand {
-    /// micropod-vmm's built-in kernel command line
-    /// (`vmm/bin/micropod-vmm/src/main.rs`). `--cmdline` replaces it rather
-    /// than appending, so extra parameters are appended to this copy.
-    public static let defaultKernelCommandLine =
-        "earlycon=pl011,mmio32,0x09000000 console=ttyAMA0 rcupdate.rcu_expedited=1 "
-        + "cgroup.memory=nokmem,nosocket slab_min_order=2 swiotlb=noforce "
-        + "workqueue.power_efficient=1 panic=-1"
-
     /// Guest vsock port of the Docker Engine API (`vmm/guest-init`).
     public static let dockerGuestPort = 2375
 
@@ -241,31 +275,18 @@ public enum HVFVMMCommand {
             "--disk", layout.disk.path,
             "--share", "oci-tools:\(layout.tools.path):ro",
         ]
-        var kernelArguments = config.kernelArguments
-        if let workspace = config.workspace {
-            args += ["--share", "workspace:\(workspace)"]
-            kernelArguments.append(workspaceKernelArgument(workspace))
-        }
+        // The VMM adds the share and the guest boot argument itself.
+        if let workspace = config.workspace { args += ["--workspace", workspace] }
         args += ["--vsock-expose", "\(layout.dockerSocket.path):\(dockerGuestPort)"]
         if config.publishedNet { args.append("--published-net") }
         args += ["--cpus", String(config.cpus), "--memory-mib", String(config.memoryMiB)]
-        if !kernelArguments.isEmpty {
-            args += ["--cmdline", ([defaultKernelCommandLine] + kernelArguments).joined(separator: " ")]
-        }
+        for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
         if !config.console { args.append("--quiet") }
-        args += ["--json-summary", "--parent-pid", String(parentPID)]
+        args += [
+            "--shutdown-timeout", String(config.shutdownTimeoutSeconds), "--json-summary",
+            "--parent-pid", String(parentPID),
+        ]
         return args + config.extraArguments
-    }
-
-    /// `mp.workspace=<path>` for plain paths; the guest's base64 form (with
-    /// its `.` completeness marker) for anything the command line would
-    /// split or quote.
-    static func workspaceKernelArgument(_ path: String) -> String {
-        let plain = path.unicodeScalars.allSatisfy { scalar in
-            (scalar.isASCII && CharacterSet.alphanumerics.contains(scalar)) || "/._-+@".unicodeScalars.contains(scalar)
-        }
-        if plain { return "mp.workspace=\(path)" }
-        return "mp.workspace_b64=\(Data(path.utf8).base64EncodedString())."
     }
 }
 
@@ -295,13 +316,20 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
     /// VMM relaunches after unexpected exits, this supervisor lifetime.
     public var restartCount: Int
     public var lastExitReason: String?
+    /// The last VMM exit status and what micropod-vmm defines it to mean
+    /// (nil after a signal or a failed launch).
+    public var lastExitCode: Int32?
+    public var lastExitMeaning: String?
     public var updatedAt: Date
 
     public init(
         phase: HVFMachinePhase, supervisorPID: Int32, supervisorStartSeconds: Int64? = nil, vmmPID: Int32? = nil,
         vmmStartSeconds: Int64? = nil, startedAt: Date? = nil, readyAt: Date? = nil, restartCount: Int = 0,
-        lastExitReason: String? = nil, updatedAt: Date = Date()
+        lastExitReason: String? = nil, lastExitCode: Int32? = nil, lastExitMeaning: String? = nil,
+        updatedAt: Date = Date()
     ) {
+        self.lastExitCode = lastExitCode
+        self.lastExitMeaning = lastExitMeaning
         schema = Self.currentSchema
         self.phase = phase
         self.supervisorPID = supervisorPID

@@ -80,13 +80,24 @@ Example tools/call (JSON-RPC over stdin/stdout):
 
 ## Runtimes (execution engines)
 
-Three lifecycle-capable engines sit behind the same API: `apple` (micro-VM
-per container, the default), `docker` (a Docker Engine socket — opt-in), and
-`sandbox` (ephemeral in-process micro-VM; fastest boot; tcp ports and bind
-mounts, no named volumes, not restartable). `hvf` is also listed as an
-experimental Rust Hypervisor.framework worker engine, but it has no container
-lifecycle control plane yet: do not select it for `run`, and treat its empty
-`capabilities`/`available: false` probe as authoritative.
+Four engines sit behind the same API: `apple` (micro-VM per container, the
+default), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
+in-process micro-VM; fastest boot; tcp ports and bind mounts, no named
+volumes, not restartable), and `hvf` (opt-in: one shared Linux machine on
+micropod's Hypervisor.framework VMM, OrbStack-style — containerd + crun
+behind a Docker API; named volumes, retained containers and logs survive a
+machine restart). `hvf` is `available` once `micropod machine install` has
+put its assets in `MICROPOD_HVF_ROOT` (default `~/.micropod/hvf`); the first
+`run`/`create`/`start` boots the machine (~2 s), reads never do (a stopped
+machine lists no containers). Published tcp ports work. Its exec is
+non-interactive, kill is SIGKILL only, and it has no `copy`/`export` (no
+archive API) — trust its `capabilities`. Containers that were running when
+the machine stopped come back as `dead`: `start` them again. Bind mounts work
+only under the machine's workspace (the home directory unless
+`micropod machine install --workspace <dir>` says otherwise). Machine
+control: `micropod machine start|stop|restart|status|logs`;
+`micropod machine docker-endpoint` prints a `DOCKER_HOST` for stock Docker
+clients.
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP

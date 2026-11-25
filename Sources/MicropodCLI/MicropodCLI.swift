@@ -61,6 +61,14 @@ struct MicropodCLI {
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
+        // `--json` may come before the command (`micropod --json machine status`).
+        let withoutJSON = args.filter { $0 != "--json" }
+        if withoutJSON.first == "machine" || withoutJSON.first == "machines" {
+            let machineArgs = Array(withoutJSON.dropFirst())
+            if MachineCommands.handles(machineArgs) {
+                exit(await MachineCommands.main(machineArgs, json: args.contains("--json")))
+            }
+        }
         if ProcessInfo.processInfo.environment["NO_COLOR"] != nil { Ansi.enabled = false }
         args.removeAll(where: { $0 == "--no-color" })
         jsonOutput = args.contains("--json")
@@ -211,6 +219,9 @@ struct MicropodCLI {
           sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
           runtime ls|use|enable|disable      execution engines: apple VMs, docker, sandbox micro-VMs
           machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
+          machine install|start|stop|restart|status|logs|serve|docker-endpoint
+                                             the shared hvf Linux machine behind --runtime hvf
+                                             (`micropod machine help`)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
