@@ -20,8 +20,20 @@ pub(super) fn cmdline(args: &str, now: SystemTime) -> Result<String, String> {
     }
 
     // Keep the host-generated field ahead of any user arguments the kernel truncates.
-    Ok(format!("{ARG}={unix_ns} {args}"))
+    let full = format!("{ARG}={unix_ns} {args}");
+    // arm64 COMMAND_LINE_SIZE: the kernel silently drops the tail beyond it,
+    // which would lose boot arguments such as the workspace path.
+    if full.len() >= MAX_CMDLINE {
+        return Err(format!(
+            "kernel command line is {} bytes; Linux arm64 accepts at most {}",
+            full.len(),
+            MAX_CMDLINE - 1
+        ));
+    }
+    Ok(full)
 }
+
+const MAX_CMDLINE: usize = 2048;
 
 #[cfg(test)]
 mod tests {
@@ -39,6 +51,8 @@ mod tests {
         for field in [ARG.to_string(), format!("{ARG}=0"), format!("\"{ARG}=0\"")] {
             assert!(cmdline(&format!("{args} {field}"), now).is_err());
         }
+        let long = "x".repeat(MAX_CMDLINE);
+        assert!(cmdline(&long, now).unwrap_err().contains("at most 2047"));
     }
 
     #[test]

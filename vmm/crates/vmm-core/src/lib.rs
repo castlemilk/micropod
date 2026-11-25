@@ -19,7 +19,7 @@ use hvf_sys::*;
 use vmm_fdt::{CacheTopology, VirtioMmioDesc, VmFdtConfig, build_arm64_fdt};
 use vmm_net::{NetConfig, NetMetrics, VirtioNetBridge};
 use vmm_virtio::virtiofs::{FsMetrics, VirtioFs};
-use vmm_virtio::vsock::{HostServiceHandler, VirtioVsock, VsockExposeSpec};
+use vmm_virtio::vsock::{ExposeListener, HostServiceHandler, VirtioVsock, VsockExposeSpec};
 use vmm_virtio::{
     BalloonMetrics, BlkMetrics, GuestMemory, VirtioBalloon, VirtioBlk, VirtioMmioDevice, VirtioRng,
 };
@@ -27,10 +27,11 @@ use vmm_virtio::{
 mod boot_clock;
 mod ctrl;
 mod disk;
+pub mod exit;
 pub mod snapshot;
 pub mod telemetry;
 
-pub use ctrl::VSOCK_PORT_CTRL;
+pub use ctrl::{DEFAULT_SHUTDOWN_TIMEOUT_SECS, VSOCK_PORT_CTRL};
 pub use snapshot::{Pl011Snapshot, VcpuSnapshot, VmSnapshot};
 pub use telemetry::TelemetryConfig;
 
@@ -153,6 +154,9 @@ pub fn host_phys_footprint_bytes() -> (u64, u64) {
     }
 }
 
+/// Longest console line scanned for the guest status marker.
+const CONSOLE_LINE_MAX: usize = 512;
+
 struct Pl011 {
     rx: VecDeque<u8>,
     imsc: u32,
@@ -162,7 +166,10 @@ struct Pl011 {
     ibrd: u32,
     fbrd: u32,
     echo_stdout: bool,
+    console_log: Option<io::BufWriter<std::fs::File>>,
     captured: Vec<u8>,
+    line: Vec<u8>,
+    guest_failure: Option<String>,
     t0: Instant,
     boot_start_unix_ns: u64,
     first_tx_ms: Option<f64>,
@@ -175,6 +182,7 @@ impl Pl011 {
         t0: Instant,
         boot_start_unix_ns: u64,
         echo_stdout: bool,
+        console_log: Option<std::fs::File>,
         tracer: Arc<telemetry::Tracer>,
     ) -> Self {
         Self {
@@ -186,12 +194,28 @@ impl Pl011 {
             ibrd: 0,
             fbrd: 0,
             echo_stdout,
+            console_log: console_log.map(io::BufWriter::new),
             captured: Vec::with_capacity(64 * 1024),
+            line: Vec::with_capacity(CONSOLE_LINE_MAX),
+            guest_failure: None,
             t0,
             boot_start_unix_ns,
             first_tx_ms: None,
             init_ms: None,
             tracer,
+        }
+    }
+
+    /// Track console lines over the VM's whole life (the capture buffer is
+    /// bounded) so a failure the guest reports late is still seen.
+    fn scan_line(&mut self, b: u8) {
+        if b == b'\n' {
+            if let Some(status) = exit::parse_guest_status(&self.line) {
+                self.guest_failure = Some(status);
+            }
+            self.line.clear();
+        } else if self.line.len() < CONSOLE_LINE_MAX {
+            self.line.push(b);
         }
     }
 
@@ -261,6 +285,13 @@ impl Pl011 {
                         let _ = std::io::stdout().flush();
                     }
                 }
+                if let Some(log) = self.console_log.as_mut() {
+                    let _ = log.write_all(&[b]);
+                    if b == b'\n' {
+                        let _ = log.flush();
+                    }
+                }
+                self.scan_line(b);
                 if self.captured.len() < 256 * 1024 {
                     self.captured.push(b);
                 }
@@ -472,11 +503,18 @@ pub struct VmConfig {
     pub snapshot_and_exit: bool,
     pub restore_from: Option<PathBuf>,
     pub telemetry: TelemetryConfig,
+    /// After SIGTERM/SIGINT, how long to wait for the guest to power off before
+    /// forcing the stop (the guest is told its share when it connects).
+    pub shutdown_timeout_secs: u64,
+    /// Append the guest console (kernel, init and engine output) to this file.
+    pub console_log: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
 pub struct VmRunReport {
     pub exit_reason: String,
+    /// Failure the guest reported before it stopped (`engine-exited ...`, `init-failed ...`).
+    pub guest_failure: Option<String>,
     pub ipa_granule: &'static str,
     pub num_vcpus: u32,
     pub vcpus_started: u32,
@@ -499,11 +537,19 @@ pub struct VmRunReport {
     pub net_rx_bytes: u64,
     pub published_binds: u64,
     pub published_conns: u64,
+    pub published_refused: u64,
     pub fs_requests: u64,
     pub fs_bytes_read: u64,
     pub host_phys_footprint_mib: f64,
     pub host_peak_footprint_mib: f64,
     pub console_output: String,
+}
+
+impl VmRunReport {
+    /// Process exit code for this run (see [`exit`]).
+    pub fn exit_code(&self) -> i32 {
+        exit::exit_code(&self.exit_reason, self.guest_failure.as_deref())
+    }
 }
 
 fn align_up(v: u64, align: u64) -> u64 {
@@ -662,6 +708,26 @@ pub fn run_vm_with_parent(
             })
         })
         .transpose()?;
+
+    // Bind every exposed host socket before the guest exists: an unusable path
+    // (too long, occupied by a live listener, or not a socket) fails startup.
+    let vsock_listeners = cfg
+        .vsock_exposes
+        .iter()
+        .map(ExposeListener::bind)
+        .collect::<Result<Vec<_>, _>>()?;
+    let console_log = cfg
+        .console_log
+        .as_deref()
+        .map(|path| {
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .map_err(|e| format!("open --console-log {}: {e}", path.display()))
+        })
+        .transpose()?;
+    let shutdown_timeout = Duration::from_secs(cfg.shutdown_timeout_secs);
 
     // 1. Create VM with 16 KiB Stage-2 IPA granule (macOS 26+)
     let vm_cfg = unsafe { hv_vm_config_create() };
@@ -870,11 +936,13 @@ pub fn run_vm_with_parent(
             push_dev(Box::new(net0));
         }
         if cfg.enable_published_net {
-            let net1 = VirtioNetBridge::new(
-                NetConfig::published_link(cfg.published_mtu),
-                net_metrics.clone(),
-            )
-            .map_err(|e| format!("init eth1 virtio-net: {e}"))?;
+            let mut link = NetConfig::published_link(cfg.published_mtu);
+            if cfg.enable_net {
+                // Engines that predate the dedicated link bind their port relay to eth0.
+                link = link.with_fallback_guest_ip(NetConfig::primary_egress().guest_ip);
+            }
+            let net1 = VirtioNetBridge::new(link, net_metrics.clone())
+                .map_err(|e| format!("init eth1 virtio-net: {e}"))?;
             if let Some(broker) = net1.port_broker() {
                 vsock_services.insert(VSOCK_PORT_BROKER, broker.vsock_handler());
             }
@@ -890,10 +958,12 @@ pub fn run_vm_with_parent(
             .map_err(|e| format!("init virtiofs {}: {e}", share.tag))?;
             push_dev(Box::new(vfs));
         }
-        let guest_ctrl = Arc::new(ctrl::GuestControl::new());
-        if cfg.enable_vsock || !cfg.vsock_exposes.is_empty() || !vsock_services.is_empty() {
+        let guest_ctrl = Arc::new(ctrl::GuestControl::with_shutdown_budget(
+            ctrl::guest_shutdown_budget(shutdown_timeout),
+        ));
+        if cfg.enable_vsock || !vsock_listeners.is_empty() || !vsock_services.is_empty() {
             vsock_services.insert(VSOCK_PORT_CTRL, guest_ctrl.vsock_handler());
-            let vsock = VirtioVsock::new(cfg.vsock_exposes.clone(), vsock_services);
+            let vsock = VirtioVsock::new(vsock_listeners, vsock_services);
             push_dev(Box::new(vsock));
         }
 
@@ -961,7 +1031,13 @@ pub fn run_vm_with_parent(
 
         // 6. Launch all vCPU threads behind a startup barrier so GICv3 topology is final
         let is_restore = restore_snap.is_some();
-        let mut pl011 = Pl011::new(t0, boot_start_unix_ns, cfg.echo_console, tracer.clone());
+        let mut pl011 = Pl011::new(
+            t0,
+            boot_start_unix_ns,
+            cfg.echo_console,
+            console_log,
+            tracer.clone(),
+        );
         if let Some((_, ref snap)) = restore_snap {
             pl011.restore(&snap.pl011);
         }
@@ -1066,8 +1142,7 @@ pub fn run_vm_with_parent(
                         match graceful_deadline {
                             None => {
                                 if wd_ctrl.request_poweroff() {
-                                    graceful_deadline =
-                                        Some(Instant::now() + Duration::from_secs(3));
+                                    graceful_deadline = Some(Instant::now() + shutdown_timeout);
                                 } else {
                                     wd_shared.request_shutdown("signal");
                                     return;
@@ -1238,18 +1313,23 @@ pub fn run_vm_with_parent(
         let vcpus_started = shared.vcpus_online.load(Ordering::Relaxed);
         let mmio_exits = shared.mmio_exits.load(Ordering::Relaxed);
         let wfi_exits = shared.wfi_exits.load(Ordering::Relaxed);
-        let (boot_to_first_uart_ms, boot_to_init_ms, console_output) = {
-            let uart = shared.uart.lock().unwrap();
+        let (boot_to_first_uart_ms, boot_to_init_ms, console_output, guest_failure) = {
+            let mut uart = shared.uart.lock().unwrap();
+            if let Some(log) = uart.console_log.as_mut() {
+                let _ = log.flush();
+            }
             (
                 uart.first_tx_ms,
                 uart.init_ms,
                 String::from_utf8_lossy(&uart.captured).into_owned(),
+                uart.guest_failure.clone(),
             )
         };
         drop(shared);
         drop(mem);
         Ok(VmRunReport {
             exit_reason,
+            guest_failure,
             ipa_granule,
             num_vcpus,
             vcpus_started,
@@ -1272,6 +1352,7 @@ pub fn run_vm_with_parent(
             net_rx_bytes: net_metrics.rx_bytes.load(Ordering::Relaxed),
             published_binds: net_metrics.published_binds.load(Ordering::Relaxed),
             published_conns: net_metrics.published_conns.load(Ordering::Relaxed),
+            published_refused: net_metrics.published_refused.load(Ordering::Relaxed),
             fs_requests: fs_metrics.requests.load(Ordering::Relaxed),
             fs_bytes_read: fs_metrics.bytes_read.load(Ordering::Relaxed),
             host_phys_footprint_mib: (phys_b as f64) / (1024.0 * 1024.0),
@@ -1852,6 +1933,8 @@ mod vcpu_lifecycle_tests {
                 snapshot_and_exit: false,
                 restore_from: None,
                 telemetry: TelemetryConfig::default(),
+                shutdown_timeout_secs: DEFAULT_SHUTDOWN_TIMEOUT_SECS,
+                console_log: None,
             };
             assert_eq!(run_vm(config).err().as_deref(), Some(expected));
         }

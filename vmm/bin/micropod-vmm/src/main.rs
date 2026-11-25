@@ -4,9 +4,101 @@
 //! Virtio-FS, Virtio-Vsock, and smoltcp zero-vmnet Virtio-Net port bridge).
 
 use std::env;
-use std::path::PathBuf;
-use vmm_core::{ShareSpec, TelemetryConfig, VmConfig, run_vm_with_parent};
+use std::path::{Component, Path, PathBuf};
+use vmm_core::exit::{EXIT_USAGE, EXIT_VMM_ERROR};
+use vmm_core::{
+    DEFAULT_SHUTDOWN_TIMEOUT_SECS, ShareSpec, TelemetryConfig, VmConfig, run_vm_with_parent,
+};
 use vmm_virtio::vsock::VsockExposeSpec;
+
+const USAGE: &str = "\
+Usage: micropod-vmm (--kernel <Image> | --restore-from <dir>) [--initrd <cpio>]
+  [--disk <raw> [--disk-ro]] [--share tag:path[:ro]] [--workspace <dir>]
+  [--vsock-expose unix_sock:guest_port] [--published-net] [--published-mtu 9000]
+  [--cpus N] [--memory-mib N] [--cmdline STR] [--cmdline-append STR]
+  [--snapshot-trigger <path> --snapshot-out <dir> [--snapshot-and-exit]]
+  [--quiet] [--console-log <path>] [--json-summary] [--timeout S]
+  [--shutdown-timeout S] [--parent-pid PID]
+
+Exit codes:
+  0  the guest powered off in an orderly way (also after SIGTERM/SIGINT)
+  1  VMM error: configuration, startup resource (kernel, disk, socket path), hypervisor
+  2  invalid command line
+  3  the guest crashed or reset (kernel panic, unhandled exception)
+  4  guest init or the container engine failed (see guest_failure in the summary)
+  5  --timeout elapsed
+  6  stopped by a signal without an orderly guest poweroff (--shutdown-timeout passed)
+  7  the --parent-pid process exited";
+
+/// virtio-fs tag guest init mounts at the path named by `mp.workspace[_b64]`.
+const WORKSPACE_TAG: &str = "workspace";
+
+fn usage_error(msg: &str) -> ! {
+    eprintln!("{msg}");
+    std::process::exit(EXIT_USAGE);
+}
+
+/// Standard base64 with padding (guest init decodes `mp.workspace_b64` strictly).
+fn base64_encode(data: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b = [
+            chunk[0],
+            chunk.get(1).copied().unwrap_or(0),
+            chunk.get(2).copied().unwrap_or(0),
+        ];
+        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
+        for i in 0..4 {
+            if i <= chunk.len() {
+                out.push(ALPHABET[((n >> (18 - 6 * i)) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+/// Validate `--workspace PATH` and return the boot argument that names it.
+/// The guest mounts the share at the same absolute path, so `docker run -v
+/// PATH/sub:/dst` resolves to the Mac directory; guest init accepts only a
+/// canonical absolute path other than `/`, without `:`.
+fn workspace_boot_arg(path: &Path) -> Result<String, String> {
+    let s = path
+        .to_str()
+        .ok_or("--workspace path must be valid UTF-8")?;
+    let canonical = path.is_absolute()
+        && path
+            .components()
+            .all(|c| matches!(c, Component::RootDir | Component::Normal(_)))
+        && !s.ends_with('/')
+        && !s.contains("//");
+    if !canonical || s == "/" || s.contains(['\0', ':']) {
+        return Err(format!(
+            "--workspace {s}: need a canonical absolute directory path other than / without ':'"
+        ));
+    }
+    if !path.is_dir() {
+        return Err(format!("--workspace {s}: not a directory"));
+    }
+    Ok(format!("mp.workspace_b64={}.", base64_encode(s.as_bytes())))
+}
+
+fn json_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
 
 fn parse_share(spec: &str) -> ShareSpec {
     // Format: tag:host_path[:ro]
@@ -65,10 +157,18 @@ fn main() {
     let mut snapshot_and_exit = false;
     let mut restore_from: Option<PathBuf> = None;
     let mut telemetry = TelemetryConfig::default();
+    let mut shutdown_timeout_secs = DEFAULT_SHUTDOWN_TIMEOUT_SECS;
+    let mut console_log: Option<PathBuf> = None;
+    let mut workspace: Option<PathBuf> = None;
+    let mut cmdline_appends: Vec<String> = Vec::new();
 
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--help" | "-h" => {
+                println!("{USAGE}");
+                return;
+            }
             "--kernel" => {
                 i += 1;
                 kernel_path = args.get(i).map(PathBuf::from);
@@ -178,6 +278,43 @@ fn main() {
                 i += 1;
                 telemetry.slow_op_threshold_ms = args[i].parse().expect("invalid --trace-slow-ms");
             }
+            "--shutdown-timeout" => {
+                i += 1;
+                shutdown_timeout_secs = args
+                    .get(i)
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .filter(|&s| (1..=600).contains(&s))
+                    .unwrap_or_else(|| {
+                        usage_error("Invalid --shutdown-timeout (expected 1-600 seconds)")
+                    });
+            }
+            "--console-log" => {
+                i += 1;
+                console_log = Some(
+                    args.get(i)
+                        .map(PathBuf::from)
+                        .unwrap_or_else(|| usage_error("--console-log needs a path")),
+                );
+            }
+            "--workspace" => {
+                i += 1;
+                if workspace.is_some() {
+                    usage_error("--workspace may be given once");
+                }
+                workspace = Some(
+                    args.get(i)
+                        .map(PathBuf::from)
+                        .unwrap_or_else(|| usage_error("--workspace needs a directory")),
+                );
+            }
+            "--cmdline-append" => {
+                i += 1;
+                cmdline_appends.push(
+                    args.get(i)
+                        .cloned()
+                        .unwrap_or_else(|| usage_error("--cmdline-append needs arguments")),
+                );
+            }
             other => {
                 eprintln!("Unknown argument: {other}");
                 std::process::exit(2);
@@ -186,18 +323,37 @@ fn main() {
         i += 1;
     }
 
+    if let Some(path) = &workspace {
+        if cmdline
+            .split_whitespace()
+            .chain(cmdline_appends.iter().flat_map(|a| a.split_whitespace()))
+            .any(|arg| arg.trim_matches('"').starts_with("mp.workspace"))
+        {
+            usage_error("--workspace conflicts with an mp.workspace boot argument");
+        }
+        if shares.iter().any(|s| s.tag == WORKSPACE_TAG) {
+            usage_error("--workspace conflicts with --share workspace:...");
+        }
+        let arg = workspace_boot_arg(path).unwrap_or_else(|e| usage_error(&e));
+        shares.push(ShareSpec {
+            tag: WORKSPACE_TAG.to_string(),
+            host_path: path.clone(),
+            read_only: false,
+        });
+        cmdline.push(' ');
+        cmdline.push_str(&arg);
+    }
+    for extra in &cmdline_appends {
+        cmdline.push(' ');
+        cmdline.push_str(extra);
+    }
+
     let kernel_path = match (kernel_path, &restore_from) {
         (Some(k), _) => k,
         (None, Some(_)) => PathBuf::new(),
         (None, None) => {
-            eprintln!(
-                "Usage: micropod-vmm (--kernel <Image> | --restore-from <dir>) [--initrd <cpio>] \
-                 [--disk <raw>] [--share tag:path[:ro]] [--vsock-expose unix_sock:guest_port] \
-                 [--published-net] [--published-mtu 9000] [--cpus N] [--memory-mib N] [--cmdline STR] \
-                 [--snapshot-trigger <path> --snapshot-out <dir> [--snapshot-and-exit]] \
-                 [--quiet] [--json-summary] [--timeout S] [--parent-pid PID]"
-            );
-            std::process::exit(2);
+            eprintln!("{USAGE}");
+            std::process::exit(EXIT_USAGE);
         }
     };
 
@@ -223,21 +379,30 @@ fn main() {
         snapshot_and_exit,
         restore_from,
         telemetry,
+        shutdown_timeout_secs,
+        console_log,
     };
 
     match run_vm_with_parent(cfg, expected_parent_pid) {
         Ok(rep) => {
+            let code = rep.exit_code();
             if json_summary {
                 println!(
-                    "{{\"exit_reason\":\"{}\",\"ipa_granule\":\"{}\",\"num_vcpus\":{},\"vcpus_started\":{},\
+                    "{{\"exit_reason\":\"{}\",\"exit_code\":{},\"guest_failure\":{},\
+                     \"ipa_granule\":\"{}\",\"num_vcpus\":{},\"vcpus_started\":{},\
                      \"memory_mib\":{},\"boot_to_first_uart_ms\":{},\"boot_to_init_ms\":{},\"total_wall_ms\":{:.2},\
                      \"mmio_exits\":{},\"wfi_exits\":{},\"blk_read_ops\":{},\"blk_write_ops\":{},\
                      \"blk_read_bytes\":{},\"blk_write_bytes\":{},\"balloon_kicks\":{},\"balloon_ranges\":{},\
                      \"balloon_reclaimed_bytes\":{},\"net_tx_packets\":{},\"net_tx_bytes\":{},\
                      \"net_rx_packets\":{},\"net_rx_bytes\":{},\"published_binds\":{},\"published_conns\":{},\
+                     \"published_refused\":{},\
                      \"fs_requests\":{},\"fs_bytes_read\":{},\"host_phys_footprint_mib\":{:.2},\
                      \"host_peak_footprint_mib\":{:.2}}}",
                     rep.exit_reason,
+                    code,
+                    rep.guest_failure
+                        .as_deref()
+                        .map_or("null".into(), json_string),
                     rep.ipa_granule,
                     rep.num_vcpus,
                     rep.vcpus_started,
@@ -262,6 +427,7 @@ fn main() {
                     rep.net_rx_bytes,
                     rep.published_binds,
                     rep.published_conns,
+                    rep.published_refused,
                     rep.fs_requests,
                     rep.fs_bytes_read,
                     rep.host_phys_footprint_mib,
@@ -269,10 +435,12 @@ fn main() {
                 );
             } else {
                 eprintln!(
-                    "\n[micropod-vmm] exit={} granule={} vcpus={}/{} wall={:.1}ms init={:?}ms \
+                    "\n[micropod-vmm] exit={} code={} guest_failure={} granule={} vcpus={}/{} wall={:.1}ms init={:?}ms \
                      blk=R:{}/W:{} fs_reqs={} balloon={:.1}MiB net_tx={}/rx={} pub_binds={} conns={} \
                      host_phys={:.1}MiB (peak {:.1}MiB)",
                     rep.exit_reason,
+                    code,
+                    rep.guest_failure.as_deref().unwrap_or("none"),
                     rep.ipa_granule,
                     rep.vcpus_started,
                     rep.num_vcpus,
@@ -290,10 +458,57 @@ fn main() {
                     rep.host_peak_footprint_mib,
                 );
             }
+            std::process::exit(code);
         }
         Err(e) => {
             eprintln!("micropod-vmm error: {e}");
-            std::process::exit(1);
+            std::process::exit(EXIT_VMM_ERROR);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn base64_matches_the_guest_decoder_alphabet_and_padding() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        // Same vector as guest-init's TestParseWorkspace.
+        assert_eq!(
+            base64_encode("/private/tmp/build \"two words\" µ".as_bytes()),
+            "L3ByaXZhdGUvdG1wL2J1aWxkICJ0d28gd29yZHMiIMK1"
+        );
+    }
+
+    #[test]
+    fn workspace_paths_must_be_canonical_existing_directories() {
+        let dir = std::env::temp_dir();
+        let dir = dir.to_str().unwrap().trim_end_matches('/').to_string();
+        let arg = workspace_boot_arg(Path::new(&dir)).unwrap();
+        assert_eq!(
+            arg,
+            format!("mp.workspace_b64={}.", base64_encode(dir.as_bytes()))
+        );
+        for bad in [
+            "relative/dir",
+            "/",
+            "/tmp/../etc",
+            "/tmp/./x",
+            "/tmp//x",
+            "/tmp/",
+            "/tmp/a:b",
+            "/definitely/not/a/dir/here",
+        ] {
+            assert!(workspace_boot_arg(Path::new(bad)).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn json_strings_are_escaped() {
+        assert_eq!(json_string("a\"b\\c\nd"), "\"a\\\"b\\\\c\\u000ad\"");
     }
 }

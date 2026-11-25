@@ -16,6 +16,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use vmm_virtio::vsock::HostServiceHandler;
 
 pub const VSOCK_PORT_CTRL: u32 = 2379;
+/// Default time the host waits for a requested guest poweroff before forcing a stop.
+pub const DEFAULT_SHUTDOWN_TIMEOUT_SECS: u64 = 10;
 const MIN_UNIX_SECS: u64 = 1_577_836_800; // 2020-01-01 UTC
 
 struct CtrlInner {
@@ -35,6 +37,15 @@ pub struct CtrlHealth {
 
 pub struct GuestControl {
     inner: Arc<Mutex<CtrlInner>>,
+    /// Time the guest may spend stopping after `POWEROFF`, announced on connect.
+    shutdown_budget: Duration,
+}
+
+/// Guest share of a host shutdown timeout: keep a margin for PSCI and teardown.
+pub fn guest_shutdown_budget(host_timeout: Duration) -> Duration {
+    host_timeout
+        .saturating_sub(Duration::from_secs(1))
+        .max(Duration::from_secs(1))
 }
 
 /// Convert `SystemTime` to a validated Unix nanosecond timestamp (`>= 2020-01-01 UTC`).
@@ -70,6 +81,12 @@ fn write_cmd(stream: &mut UnixStream, cmd: &str) -> bool {
 
 impl GuestControl {
     pub fn new() -> Self {
+        Self::with_shutdown_budget(guest_shutdown_budget(Duration::from_secs(
+            DEFAULT_SHUTDOWN_TIMEOUT_SECS,
+        )))
+    }
+
+    pub fn with_shutdown_budget(shutdown_budget: Duration) -> Self {
         Self {
             inner: Arc::new(Mutex::new(CtrlInner {
                 next_gen: 1,
@@ -78,6 +95,7 @@ impl GuestControl {
                 clock_sync_count: 0,
                 last_clock_sync_unix_secs: 0,
             })),
+            shutdown_budget,
         }
     }
 
@@ -133,6 +151,7 @@ impl GuestControl {
     /// Build the `VirtioVsock` host service handler for `VSOCK_PORT_CTRL`.
     pub fn vsock_handler(&self) -> HostServiceHandler {
         let inner = self.inner.clone();
+        let budget_cmd = format!("SHUTDOWN_BUDGET {}\n", self.shutdown_budget.as_millis());
         Arc::new(move |mut stream: UnixStream| {
             if stream
                 .set_write_timeout(Some(Duration::from_millis(500)))
@@ -153,6 +172,10 @@ impl GuestControl {
                     return;
                 }
                 synced_initial = true;
+            }
+            // Older guests ignore the unknown command and keep their fixed timings.
+            if !write_cmd(&mut stream, &budget_cmd) {
+                return;
             }
 
             let Ok(mut writer) = stream.try_clone() else {
@@ -236,6 +259,9 @@ mod tests {
         );
         let ns: i64 = line.trim().strip_prefix("CLOCK ").unwrap().parse().unwrap();
         assert!(ns >= (MIN_UNIX_SECS as i64) * 1_000_000_000);
+        line.clear();
+        reader.read_line(&mut line).unwrap();
+        assert_eq!(line, "SHUTDOWN_BUDGET 9000\n");
 
         // Wait briefly for handler to register active stream
         for _ in 0..50 {
@@ -264,7 +290,7 @@ mod tests {
 
     #[test]
     fn guest_control_delivers_pending_poweroff_on_connect() {
-        let ctrl = GuestControl::new();
+        let ctrl = GuestControl::with_shutdown_budget(Duration::from_millis(2500));
         assert!(!ctrl.request_poweroff());
 
         let handler = ctrl.vsock_handler();
@@ -273,15 +299,32 @@ mod tests {
         let t = thread::spawn(move || handler(host_end));
 
         let mut reader = BufReader::new(guest_end);
-        let mut line1 = String::new();
-        let mut line2 = String::new();
-        reader.read_line(&mut line1).unwrap();
-        reader.read_line(&mut line2).unwrap();
-        assert!(line1.starts_with("CLOCK "));
-        assert_eq!(line2, "POWEROFF\n");
+        let mut lines = [String::new(), String::new(), String::new()];
+        for line in &mut lines {
+            reader.read_line(line).unwrap();
+        }
+        assert!(lines[0].starts_with("CLOCK "));
+        assert_eq!(lines[1], "SHUTDOWN_BUDGET 2500\n");
+        assert_eq!(lines[2], "POWEROFF\n");
 
         drop(reader);
         t.join().unwrap();
+    }
+
+    #[test]
+    fn guest_shutdown_budget_keeps_a_margin_for_the_host() {
+        assert_eq!(
+            guest_shutdown_budget(Duration::from_secs(10)),
+            Duration::from_secs(9)
+        );
+        assert_eq!(
+            guest_shutdown_budget(Duration::from_secs(1)),
+            Duration::from_secs(1)
+        );
+        assert_eq!(
+            guest_shutdown_budget(Duration::ZERO),
+            Duration::from_secs(1)
+        );
     }
 
     #[test]

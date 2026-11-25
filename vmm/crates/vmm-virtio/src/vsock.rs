@@ -11,6 +11,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::os::fd::{AsRawFd, IntoRawFd, RawFd};
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -113,6 +114,105 @@ impl VsockHdr {
 pub struct VsockExposeSpec {
     pub host_unix_path: PathBuf,
     pub guest_port: u32,
+}
+
+/// Longest path that fits Darwin's `sockaddr_un.sun_path` (104 bytes) with its NUL.
+pub const MAX_UNIX_SOCKET_PATH: usize = 103;
+
+/// The host Unix listener for one `--vsock-expose` mapping.
+///
+/// It is bound before the guest boots so an unusable path is a startup error the
+/// supervisor sees, not a running VM without its API. Dropping it removes the
+/// socket file, but only while that path still names the socket bound here.
+pub struct ExposeListener {
+    listener: UnixListener,
+    path: PathBuf,
+    guest_port: u32,
+    identity: (u64, u64),
+}
+
+impl ExposeListener {
+    /// Bind `spec.host_unix_path` (mode 0600), replacing a stale socket file that
+    /// no process accepts on. A live socket or any other kind of file is an error.
+    pub fn bind(spec: &VsockExposeSpec) -> Result<Self, String> {
+        let path = &spec.host_unix_path;
+        let what = || format!("--vsock-expose {}", path.display());
+        let len = path.as_os_str().len();
+        if len == 0 {
+            return Err(format!("{}: empty socket path", what()));
+        }
+        if len > MAX_UNIX_SOCKET_PATH {
+            return Err(format!(
+                "{}: path is {len} bytes; macOS Unix socket paths are limited to {MAX_UNIX_SOCKET_PATH} bytes",
+                what()
+            ));
+        }
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("{}: create {}: {e}", what(), parent.display()))?;
+        }
+        remove_stale_socket(path).map_err(|e| format!("{}: {e}", what()))?;
+        let listener = UnixListener::bind(path).map_err(|e| format!("{}: bind: {e}", what()))?;
+        // Owner-only access, matching Micropod's socket security invariant.
+        std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(0o600))
+            .map_err(|e| format!("{}: chmod 0600: {e}", what()))?;
+        listener
+            .set_nonblocking(true)
+            .map_err(|e| format!("{}: set non-blocking: {e}", what()))?;
+        let md = std::fs::symlink_metadata(path).map_err(|e| format!("{}: stat: {e}", what()))?;
+        Ok(Self {
+            listener,
+            path: path.clone(),
+            guest_port: spec.guest_port,
+            identity: (md.dev(), md.ino()),
+        })
+    }
+
+    pub fn path(&self) -> &std::path::Path {
+        &self.path
+    }
+
+    pub fn guest_port(&self) -> u32 {
+        self.guest_port
+    }
+}
+
+impl Drop for ExposeListener {
+    fn drop(&mut self) {
+        // A successor may already have replaced a socket this process was told to
+        // abandon; never delete a file that is not the one bound here.
+        if let Ok(md) = std::fs::symlink_metadata(&self.path)
+            && (md.dev(), md.ino()) == self.identity
+        {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
+
+/// Remove `path` if it is a socket file nothing accepts connections on.
+fn remove_stale_socket(path: &std::path::Path) -> Result<(), String> {
+    let md = match std::fs::symlink_metadata(path) {
+        Ok(md) => md,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(format!("stat existing path: {e}")),
+    };
+    if !md.file_type().is_socket() {
+        return Err("path exists and is not a socket; refusing to replace it".into());
+    }
+    match UnixStream::connect(path) {
+        Ok(_) => Err("socket is in use: another process is accepting connections on it".into()),
+        Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => std::fs::remove_file(path)
+            .or_else(|e| {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    Ok(())
+                } else {
+                    Err(e)
+                }
+            })
+            .map_err(|e| format!("remove stale socket: {e}")),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("probe existing socket: {e}")),
+    }
 }
 
 /// Callback invoked when the guest opens a vsock stream to a registered host port.
@@ -672,7 +772,7 @@ impl MuxInner {
 fn run_vsock_io_loop(
     inner: Arc<Mutex<MuxInner>>,
     next_host_port: Arc<AtomicU32>,
-    expose_specs: Vec<VsockExposeSpec>,
+    listeners: Vec<ExposeListener>,
     shutdown: Arc<AtomicBool>,
 ) {
     unsafe {
@@ -680,40 +780,16 @@ fn run_vsock_io_loop(
     }
     let kq = inner.lock().unwrap().kq_fd;
 
-    let mut listeners: Vec<(UnixListener, u32)> = Vec::with_capacity(expose_specs.len());
-    for spec in &expose_specs {
-        let _ = std::fs::remove_file(&spec.host_unix_path);
-        if let Some(parent) = spec.host_unix_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        match UnixListener::bind(&spec.host_unix_path) {
-            Ok(listener) => {
-                // Owner-only 0600 permissions matching Micropod security invariant
-                let _ = std::fs::set_permissions(
-                    &spec.host_unix_path,
-                    std::os::unix::fs::PermissionsExt::from_mode(0o600),
-                );
-                if listener.set_nonblocking(true).is_err() {
-                    let _ = std::fs::remove_file(&spec.host_unix_path);
-                    continue;
-                }
-                let idx = listeners.len();
-                kq_ctl(
-                    kq,
-                    listener.as_raw_fd(),
-                    libc::EVFILT_READ,
-                    libc::EV_ADD | libc::EV_ENABLE,
-                    UDATA_LISTENER_TAG | idx,
-                );
-                listeners.push((listener, spec.guest_port));
-            }
-            Err(_) => {
-                eprintln!(
-                    "[micropod-vmm] vsock: failed to bind {}",
-                    spec.host_unix_path.display()
-                );
-            }
-        }
+    // Listeners were bound at startup; clients that connected before the guest
+    // driver came up wait in the backlog and are accepted on the first event.
+    for (idx, expose) in listeners.iter().enumerate() {
+        kq_ctl(
+            kq,
+            expose.listener.as_raw_fd(),
+            libc::EVFILT_READ,
+            libc::EV_ADD | libc::EV_ENABLE,
+            UDATA_LISTENER_TAG | idx,
+        );
     }
 
     let mut scratch = vec![0u8; MAX_PKT_PAYLOAD];
@@ -762,9 +838,10 @@ fn run_vsock_io_loop(
                 let udata = ev.udata as usize;
                 if (udata & UDATA_LISTENER_TAG) != 0 {
                     let l_idx = udata & !UDATA_LISTENER_TAG;
-                    if let Some((listener, guest_port)) = listeners.get(l_idx) {
+                    if let Some(expose) = listeners.get(l_idx) {
+                        let guest_port = &expose.guest_port;
                         while !shutdown.load(Ordering::Relaxed) {
-                            match listener.accept() {
+                            match expose.listener.accept() {
                                 Ok((unix_stream, _)) => {
                                     if unix_stream.set_nonblocking(true).is_err() {
                                         continue;
@@ -864,7 +941,8 @@ fn run_vsock_io_loop(
 pub struct VirtioVsock {
     inner: Arc<Mutex<MuxInner>>,
     next_host_port: Arc<AtomicU32>,
-    expose_specs: Vec<VsockExposeSpec>,
+    /// Bound host listeners, handed to the reactor when the guest driver starts.
+    exposes: Option<Vec<ExposeListener>>,
     reactor_handle: Option<thread::JoinHandle<()>>,
     shutdown: Arc<AtomicBool>,
     tx_scratch: Vec<u8>,
@@ -873,7 +951,7 @@ pub struct VirtioVsock {
 
 impl VirtioVsock {
     pub fn new(
-        expose_specs: Vec<VsockExposeSpec>,
+        exposes: Vec<ExposeListener>,
         host_services: HashMap<u32, HostServiceHandler>,
     ) -> Self {
         let kq_fd = unsafe { libc::kqueue() };
@@ -910,7 +988,7 @@ impl VirtioVsock {
                 rx_desc_scratch: Vec::with_capacity(8),
             })),
             next_host_port: Arc::new(AtomicU32::new(40_000)),
-            expose_specs,
+            exposes: Some(exposes),
             reactor_handle: None,
             shutdown: Arc::new(AtomicBool::new(false)),
             tx_scratch: vec![0u8; MAX_PKT_PAYLOAD],
@@ -924,11 +1002,11 @@ impl VirtioVsock {
         }
         let inner = self.inner.clone();
         let next_port = self.next_host_port.clone();
-        let specs = self.expose_specs.clone();
+        let exposes = self.exposes.take().unwrap_or_default();
         let shutdown = self.shutdown.clone();
         let handle = thread::Builder::new()
             .name("vmm-vsock-io".into())
-            .spawn(move || run_vsock_io_loop(inner, next_port, specs, shutdown))
+            .spawn(move || run_vsock_io_loop(inner, next_port, exposes, shutdown))
             .expect("spawn vmm-vsock-io reactor");
         self.reactor_handle = Some(handle);
     }
@@ -1403,11 +1481,10 @@ impl Drop for VirtioVsock {
             .kq_fd;
         if let Some(h) = self.reactor_handle.take() {
             trigger_kq_wake(kq);
+            // The reactor owns the listeners; they remove their socket files on exit.
             let _ = h.join();
-            for spec in &self.expose_specs {
-                let _ = std::fs::remove_file(&spec.host_unix_path);
-            }
         }
+        self.exposes = None;
         if kq >= 0 {
             unsafe { libc::close(kq) };
         }
@@ -1417,6 +1494,93 @@ impl Drop for VirtioVsock {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::Path;
+
+    struct TempDir(PathBuf);
+
+    impl TempDir {
+        fn new() -> Self {
+            let base = std::env::temp_dir().join(format!(
+                "mpvs-{}-{}",
+                std::process::id(),
+                NEXT_DIR.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir_all(&base).unwrap();
+            Self(base)
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    static NEXT_DIR: AtomicU32 = AtomicU32::new(0);
+
+    fn spec(path: &Path) -> VsockExposeSpec {
+        VsockExposeSpec {
+            host_unix_path: path.to_path_buf(),
+            guest_port: 2375,
+        }
+    }
+
+    #[test]
+    fn expose_binds_owner_only_and_removes_its_socket_on_drop() {
+        let dir = TempDir::new();
+        let path = dir.0.join("sub").join("docker.sock");
+        let expose = ExposeListener::bind(&spec(&path)).unwrap();
+        assert_eq!(expose.guest_port(), 2375);
+        let md = std::fs::symlink_metadata(&path).unwrap();
+        assert!(md.file_type().is_socket());
+        assert_eq!(md.permissions().mode() & 0o777, 0o600);
+        UnixStream::connect(&path).expect("clients reach the bound listener");
+        drop(expose);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn expose_replaces_a_stale_socket_but_not_a_live_one() {
+        let dir = TempDir::new();
+        let path = dir.0.join("docker.sock");
+        // A crashed VMM leaves its socket file behind with nothing accepting on it.
+        drop(UnixListener::bind(&path).unwrap());
+        assert!(path.exists());
+        let expose = ExposeListener::bind(&spec(&path)).expect("stale socket is replaced");
+
+        let err = ExposeListener::bind(&spec(&path)).err().unwrap();
+        assert!(err.contains("in use"), "{err}");
+        // The failed attempt left the live socket alone.
+        UnixStream::connect(&path).unwrap();
+        drop(expose);
+    }
+
+    #[test]
+    fn expose_rejects_long_paths_and_non_socket_files() {
+        let dir = TempDir::new();
+        let long = dir.0.join("x".repeat(MAX_UNIX_SOCKET_PATH));
+        let err = ExposeListener::bind(&spec(&long)).err().unwrap();
+        assert!(err.contains("limited to 103 bytes"), "{err}");
+
+        let file = dir.0.join("not-a-socket");
+        std::fs::write(&file, b"keep me").unwrap();
+        let err = ExposeListener::bind(&spec(&file)).err().unwrap();
+        assert!(err.contains("not a socket"), "{err}");
+        assert_eq!(std::fs::read(&file).unwrap(), b"keep me");
+    }
+
+    #[test]
+    fn expose_drop_leaves_a_successor_socket_in_place() {
+        let dir = TempDir::new();
+        let path = dir.0.join("docker.sock");
+        let old = ExposeListener::bind(&spec(&path)).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        let successor = UnixListener::bind(&path).unwrap();
+        drop(old);
+        assert!(path.exists(), "a newer machine's socket must survive");
+        drop(successor);
+    }
 
     #[test]
     fn vsock_hdr_roundtrip() {

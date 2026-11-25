@@ -11,8 +11,9 @@
 //! - Zero-copy `preadv`/`pwritev` directly into/from `GuestMemory` descriptors + reusable
 //!   response scratch buffer (zero heap allocations on hot paths).
 
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::ffi::{CString, OsStr};
+use std::ffi::{CStr, CString, OsStr};
 use std::fs::{self, File, FileTimes, OpenOptions};
 use std::io::ErrorKind;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
@@ -79,6 +80,8 @@ const FOPEN_NOFLUSH: u32 = 1 << 5;
 const FUSE_FSYNC_FDATASYNC: u32 = 1;
 
 const FATTR_MODE: u32 = 1 << 0;
+const FATTR_UID: u32 = 1 << 1;
+const FATTR_GID: u32 = 1 << 2;
 const FATTR_SIZE: u32 = 1 << 3;
 const FATTR_ATIME: u32 = 1 << 4;
 const FATTR_MTIME: u32 = 1 << 5;
@@ -314,7 +317,7 @@ fn fstat_fd(fd: RawFd) -> Result<FuseStat, i32> {
     }
 }
 
-fn fstatat_cstr(dirfd: RawFd, name: &CString) -> Result<FuseStat, i32> {
+fn fstatat_cstr(dirfd: RawFd, name: &CStr) -> Result<FuseStat, i32> {
     let mut st: libc::stat = unsafe { std::mem::zeroed() };
     if unsafe { libc::fstatat(dirfd, name.as_ptr(), &mut st, libc::AT_SYMLINK_NOFOLLOW) } == 0 {
         Ok(FuseStat::from_libc(&st))
@@ -635,9 +638,17 @@ struct FsCore {
     // Reusable scratch buffers (zero heap allocs on hot paths)
     read_buf: Vec<u8>,
     bulk_buf: Vec<u8>,
+    lookup_path: PathBuf,
     resp_buf: Vec<u8>,
     metrics: Arc<FsMetrics>,
+    /// Guest uid/gid of the request being handled (from `fuse_in_header`).
+    caller: (u32, u32),
+    /// Owners set by guest `chown`, by host (dev, ino), for this VMM's lifetime.
+    owners: HashMap<(u64, u64), (u32, u32)>,
 }
+
+/// Recorded `chown`s are bounded so a pathological workload cannot grow the map forever.
+const MAX_OWNER_OVERRIDES: usize = 1 << 20;
 
 struct FsQueueState {
     queues: [Option<VirtQueue>; 2],
@@ -709,8 +720,11 @@ impl VirtioFs {
             ro_file_cache: HashMap::new(),
             read_buf: vec![0u8; 256 * 1024],
             bulk_buf: Vec::new(),
+            lookup_path: PathBuf::new(),
             resp_buf: Vec::with_capacity(4096),
             metrics,
+            caller: (0, 0),
+            owners: HashMap::new(),
         };
 
         Ok(Self {
@@ -774,6 +788,10 @@ impl FsCore {
         if let Some(&id) = self.path_to_node.get(&path) {
             return id;
         }
+        self.insert_path(path)
+    }
+
+    fn insert_path(&mut self, path: PathBuf) -> u64 {
         let id = self.next_nodeid;
         self.next_nodeid += 1;
         self.node_to_path.insert(id, path.clone());
@@ -793,26 +811,28 @@ impl FsCore {
     // An editor can atomically replace a pathname. Linux keys its page cache by
     // FUSE node ID, so the replacement must receive a distinct ID while open
     // handles to the old inode continue to address their original contents.
-    fn observe_path_stat(&mut self, path: PathBuf, st: &FuseStat) -> u64 {
-        if self.read_only {
-            return self.intern_path(path);
-        }
+    fn observe_path_stat(&mut self, path: impl AsRef<Path> + Into<PathBuf>, st: &FuseStat) -> u64 {
         let identity = (st.dev, st.ino);
-        if self
-            .path_to_node
-            .get(&path)
-            .is_some_and(|id| !self.matches_stat(*id, st))
-        {
-            self.retire_path(&path);
+        if let Some(&id) = self.path_to_node.get(path.as_ref()) {
+            if self.read_only || *self.host_inodes.entry(id).or_insert(identity) == identity {
+                return id;
+            }
+            self.retire_path(path.as_ref());
         }
-        let id = self.intern_path(path);
-        self.host_inodes.entry(id).or_insert(identity);
+        let id = self.insert_path(path.into());
+        if !self.read_only {
+            self.host_inodes.insert(id, identity);
+        }
         id
     }
 
-    fn record_parent(&mut self, id: u64, parent_id: u64, cname: CString) {
-        if id != FUSE_ROOT_ID {
-            self.node_parent.insert(id, (parent_id, cname));
+    fn record_parent(&mut self, id: u64, parent_id: u64, cname: impl AsRef<CStr> + Into<CString>) {
+        if id != FUSE_ROOT_ID
+            && !self.node_parent.get(&id).is_some_and(|(parent, leaf)| {
+                *parent == parent_id && leaf.as_c_str() == cname.as_ref()
+            })
+        {
+            self.node_parent.insert(id, (parent_id, cname.into()));
         }
     }
 
@@ -1051,24 +1071,63 @@ impl FsCore {
     }
 
     fn child_path(&self, parent_id: u64, name: &[u8]) -> Result<PathBuf, i32> {
+        let mut path = PathBuf::new();
+        self.set_child_path(parent_id, name, &mut path)?;
+        Ok(path)
+    }
+
+    fn set_child_path(&self, parent_id: u64, name: &[u8], path: &mut PathBuf) -> Result<(), i32> {
         let parent = self.node_to_path.get(&parent_id).ok_or(LINUX_ENOENT)?;
         if name.is_empty() || name.contains(&b'/') || name.contains(&0) {
             return Err(LINUX_EINVAL);
         }
-        if name == b"." {
-            return Ok(parent.clone());
-        }
-        if name == b".." {
-            if parent == &self.root {
-                return Ok(self.root.clone());
+        path.clear();
+        if name == b".." && parent != &self.root {
+            path.push(parent.parent().unwrap_or(&self.root));
+        } else {
+            path.push(parent);
+            if name != b"." && name != b".." {
+                path.push(OsStr::from_bytes(name));
             }
-            return Ok(parent.parent().unwrap_or(&self.root).to_path_buf());
         }
-        let os = OsStr::from_bytes(name);
-        Ok(parent.join(os))
+        Ok(())
     }
 
-    fn encode_attr_stat(nodeid: u64, st: &FuseStat, out: &mut Vec<u8>) {
+    /// Owner the guest sees for a host file. Host uids mean nothing in the guest,
+    /// so a writable share presents each file as owned by the process asking (as
+    /// Docker Desktop does) unless the guest explicitly `chown`ed it; then the
+    /// recorded owner is reported, so images that chown a data directory before
+    /// dropping privileges (postgres, mysql, ...) see the ownership they set.
+    /// Read-only tool shares stay root-owned: their attributes are cached for an
+    /// hour and must not depend on who looked first.
+    fn owner_of(&self, st: &FuseStat) -> (u32, u32) {
+        if self.read_only {
+            return (0, 0);
+        }
+        self.owners
+            .get(&(st.dev, st.ino))
+            .copied()
+            .unwrap_or(self.caller)
+    }
+
+    fn record_owner(&mut self, md: &fs::Metadata, body: &[u8], valid: u32) {
+        if valid & (FATTR_UID | FATTR_GID) == 0 {
+            return;
+        }
+        let key = (md.dev(), md.ino());
+        let mut owner = self.owners.get(&key).copied().unwrap_or(self.caller);
+        if valid & FATTR_UID != 0 {
+            owner.0 = u32::from_le_bytes(body[76..80].try_into().unwrap());
+        }
+        if valid & FATTR_GID != 0 {
+            owner.1 = u32::from_le_bytes(body[80..84].try_into().unwrap());
+        }
+        if self.owners.len() < MAX_OWNER_OVERRIDES || self.owners.contains_key(&key) {
+            self.owners.insert(key, owner);
+        }
+    }
+
+    fn encode_attr_stat(nodeid: u64, st: &FuseStat, owner: (u32, u32), out: &mut Vec<u8>) {
         // fuse_attr (88 bytes)
         out.extend_from_slice(&nodeid.to_le_bytes()); // ino
         out.extend_from_slice(&st.size.to_le_bytes()); // size
@@ -1081,15 +1140,21 @@ impl FsCore {
         out.extend_from_slice(&(st.ctime_nsec as u32).to_le_bytes());
         out.extend_from_slice(&st.mode.to_le_bytes()); // mode (POSIX matches Linux!)
         out.extend_from_slice(&st.nlink.to_le_bytes());
-        // Map host owner UID/GID to root (0) inside guest CI worker so containerd/apk/crun work cleanly
-        out.extend_from_slice(&0u32.to_le_bytes()); // uid
-        out.extend_from_slice(&0u32.to_le_bytes()); // gid
+        // Guest-visible owner (see `FsCore::owner_of`); the host owner is meaningless in the guest.
+        out.extend_from_slice(&owner.0.to_le_bytes()); // uid
+        out.extend_from_slice(&owner.1.to_le_bytes()); // gid
         out.extend_from_slice(&(st.rdev as u32).to_le_bytes());
         out.extend_from_slice(&4096u32.to_le_bytes()); // blksize
         out.extend_from_slice(&0u32.to_le_bytes()); // flags
     }
 
-    fn encode_entry_out_stat(nodeid: u64, st: &FuseStat, read_only: bool, out: &mut Vec<u8>) {
+    fn encode_entry_out_stat(
+        nodeid: u64,
+        st: &FuseStat,
+        read_only: bool,
+        owner: (u32, u32),
+        out: &mut Vec<u8>,
+    ) {
         // fuse_entry_out (128 bytes); read-only tools shares get 3600s dentry/attr caching
         let (valid_secs, valid_nsecs) = cache_validity(read_only);
         out.extend_from_slice(&nodeid.to_le_bytes());
@@ -1098,7 +1163,7 @@ impl FsCore {
         out.extend_from_slice(&valid_secs.to_le_bytes()); // attr_valid
         out.extend_from_slice(&valid_nsecs.to_le_bytes()); // entry_valid_nsec
         out.extend_from_slice(&valid_nsecs.to_le_bytes()); // attr_valid_nsec
-        Self::encode_attr_stat(nodeid, st, out);
+        Self::encode_attr_stat(nodeid, st, owner, out);
     }
 
     #[inline]
@@ -1193,6 +1258,10 @@ impl FsCore {
         let opcode = u32::from_le_bytes(req[4..8].try_into().unwrap());
         let unique = u64::from_le_bytes(req[8..16].try_into().unwrap());
         let nodeid = u64::from_le_bytes(req[16..24].try_into().unwrap());
+        self.caller = (
+            u32::from_le_bytes(req[24..28].try_into().unwrap()),
+            u32::from_le_bytes(req[28..32].try_into().unwrap()),
+        );
         let body = &req[40..];
 
         match opcode {
@@ -1237,7 +1306,14 @@ impl FsCore {
             FUSE_DESTROY => self.write_ok_slice(unique, &[]),
             FUSE_FORGET | FUSE_BATCH_FORGET => false, // No reply for FORGET
             FUSE_LOOKUP => {
-                let (name, _) = Self::parse_cstr(body);
+                let cname = match CStr::from_bytes_until_nul(body) {
+                    Ok(name) => Cow::Borrowed(name),
+                    Err(_) => match CString::new(body) {
+                        Ok(name) => Cow::Owned(name),
+                        Err(_) => return self.write_err(unique, LINUX_EINVAL),
+                    },
+                };
+                let name = cname.to_bytes();
                 if self.read_only
                     && let Some(cached) =
                         self.ro_lookup_cache.get(&(nodeid, name.to_vec())).copied()
@@ -1246,7 +1322,13 @@ impl FsCore {
                         Ok(id) => {
                             if let Some(st) = self.ro_attr_cache.get(&id).copied() {
                                 self.begin_ok(unique);
-                                Self::encode_entry_out_stat(id, &st, true, &mut self.resp_buf);
+                                Self::encode_entry_out_stat(
+                                    id,
+                                    &st,
+                                    true,
+                                    self.owner_of(&st),
+                                    &mut self.resp_buf,
+                                );
                                 self.finish_ok()
                             } else {
                                 self.write_err(unique, LINUX_ENOENT)
@@ -1255,32 +1337,40 @@ impl FsCore {
                         Err(e) => self.write_err(unique, e),
                     };
                 }
-                let path = match self.child_path(nodeid, name) {
-                    Ok(p) => p,
-                    Err(e) => return self.write_err(unique, e),
-                };
-                let cname_opt = if name != b"." && name != b".." {
-                    name_to_cstr(name).ok()
-                } else {
-                    None
-                };
-                let stat_res = match (&cname_opt, self.ensure_dirfd(nodeid)) {
-                    (Some(cname), Some(pfd)) => fstatat_cstr(pfd, cname),
+                // Reuse the path allocation, but always stat mutable entries.
+                let mut path = std::mem::take(&mut self.lookup_path);
+                if let Err(errno) = self.set_child_path(nodeid, name, &mut path) {
+                    self.lookup_path = path;
+                    return self.write_err(unique, errno);
+                }
+                let child = name != b"." && name != b"..";
+                let stat = match (child, self.ensure_dirfd(nodeid)) {
+                    (true, Some(fd)) => fstatat_cstr(fd, &cname),
                     _ => lstat_path(&path),
                 };
-                match stat_res {
-                    Ok(st) => {
-                        let id = self.observe_path_stat(path, &st);
-                        if let Some(cname) = cname_opt {
-                            self.record_parent(id, nodeid, cname);
-                        }
+                let entry = stat.map(|st| {
+                    let id = self.observe_path_stat(path.as_path(), &st);
+                    if child {
+                        self.record_parent(id, nodeid, cname.as_ref());
+                    }
+                    (id, st)
+                });
+                self.lookup_path = path;
+                match entry {
+                    Ok((id, st)) => {
                         if self.read_only {
                             self.ro_lookup_cache.insert((nodeid, name.to_vec()), Ok(id));
                             self.ro_attr_cache.insert(id, st);
                         }
                         let ro = self.read_only;
                         self.begin_ok(unique);
-                        Self::encode_entry_out_stat(id, &st, ro, &mut self.resp_buf);
+                        Self::encode_entry_out_stat(
+                            id,
+                            &st,
+                            ro,
+                            self.owner_of(&st),
+                            &mut self.resp_buf,
+                        );
                         self.finish_ok()
                     }
                     Err(le) => {
@@ -1300,7 +1390,7 @@ impl FsCore {
                     self.resp_buf.extend_from_slice(&3600u64.to_le_bytes()); // attr_valid
                     self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
                     self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
-                    Self::encode_attr_stat(nodeid, &st, &mut self.resp_buf);
+                    Self::encode_attr_stat(nodeid, &st, self.owner_of(&st), &mut self.resp_buf);
                     return self.finish_ok();
                 }
                 match self.node_stat(nodeid, body) {
@@ -1313,7 +1403,7 @@ impl FsCore {
                         self.resp_buf.extend_from_slice(&valid_secs.to_le_bytes());
                         self.resp_buf.extend_from_slice(&valid_nsecs.to_le_bytes());
                         self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
-                        Self::encode_attr_stat(nodeid, &st, &mut self.resp_buf);
+                        Self::encode_attr_stat(nodeid, &st, self.owner_of(&st), &mut self.resp_buf);
                         self.finish_ok()
                     }
                     Err(errno) => self.write_err(unique, errno),
@@ -1329,13 +1419,14 @@ impl FsCore {
                 let valid = u32::from_le_bytes(body[0..4].try_into().unwrap());
                 match self.set_attributes(nodeid, body, valid) {
                     Ok(md) => {
+                        self.record_owner(&md, body, valid);
                         let st = FuseStat::from_metadata(&md);
                         let (secs, nsecs) = cache_validity(false);
                         self.begin_ok(unique);
                         self.resp_buf.extend_from_slice(&secs.to_le_bytes());
                         self.resp_buf.extend_from_slice(&nsecs.to_le_bytes());
                         self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
-                        Self::encode_attr_stat(nodeid, &st, &mut self.resp_buf);
+                        Self::encode_attr_stat(nodeid, &st, self.owner_of(&st), &mut self.resp_buf);
                         self.finish_ok()
                     }
                     Err(errno) => self.write_err(unique, errno),
@@ -1501,7 +1592,13 @@ impl FsCore {
                     );
                     let ro = self.read_only;
                     self.begin_ok(unique);
-                    Self::encode_entry_out_stat(id, &st, ro, &mut self.resp_buf);
+                    Self::encode_entry_out_stat(
+                        id,
+                        &st,
+                        ro,
+                        self.owner_of(&st),
+                        &mut self.resp_buf,
+                    );
                     self.resp_buf.extend_from_slice(&fh.to_le_bytes());
                     self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
                     self.resp_buf.extend_from_slice(&0i32.to_le_bytes());
@@ -1729,7 +1826,13 @@ impl FsCore {
                                 .insert((dir_nodeid, e.name.clone()), Ok(id));
                             self.ro_attr_cache.insert(id, e.stat);
                         }
-                        Self::encode_entry_out_stat(id, &e.stat, ro, &mut self.resp_buf);
+                        Self::encode_entry_out_stat(
+                            id,
+                            &e.stat,
+                            ro,
+                            self.owner_of(&e.stat),
+                            &mut self.resp_buf,
+                        );
                         id
                     } else {
                         self.intern_path(child_p)
@@ -1799,7 +1902,13 @@ impl FsCore {
                         self.record_parent(id, nodeid, cname);
                         let ro = self.read_only;
                         self.begin_ok(unique);
-                        Self::encode_entry_out_stat(id, &st, ro, &mut self.resp_buf);
+                        Self::encode_entry_out_stat(
+                            id,
+                            &st,
+                            ro,
+                            self.owner_of(&st),
+                            &mut self.resp_buf,
+                        );
                         self.finish_ok()
                     }
                     Err(e) => self.write_err(unique, e),
@@ -1966,7 +2075,13 @@ impl FsCore {
                         self.record_parent(id, nodeid, cname);
                         let ro = self.read_only;
                         self.begin_ok(unique);
-                        Self::encode_entry_out_stat(id, &st, ro, &mut self.resp_buf);
+                        Self::encode_entry_out_stat(
+                            id,
+                            &st,
+                            ro,
+                            self.owner_of(&st),
+                            &mut self.resp_buf,
+                        );
                         self.finish_ok()
                     }
                     Err(e) => self.write_err(unique, e),
@@ -2006,7 +2121,13 @@ impl FsCore {
                         self.record_parent(id, nodeid, cname);
                         let ro = self.read_only;
                         self.begin_ok(unique);
-                        Self::encode_entry_out_stat(id, &st, ro, &mut self.resp_buf);
+                        Self::encode_entry_out_stat(
+                            id,
+                            &st,
+                            ro,
+                            self.owner_of(&st),
+                            &mut self.resp_buf,
+                        );
                         self.finish_ok()
                     }
                     Err(e) => self.write_err(unique, e),
@@ -2351,10 +2472,18 @@ impl FsCore {
             }
         }
 
-        // Standard path: reuse `req_scratch` + `self.resp_buf` (0 heap allocations after warmup!)
+        // Small requests, including most metadata operations, are already assembled.
+        if hdr_copied == total_readable {
+            if self.handle_fuse_into(&hdr[..hdr_copied]) {
+                return scatter_writable(bufs, mem, &self.resp_buf);
+            }
+            return 0;
+        }
+
+        // Assemble the full request only when it did not fit in the prefix.
         req_scratch.clear();
         if req_scratch.capacity() < total_readable {
-            req_scratch.reserve(total_readable - req_scratch.capacity());
+            req_scratch.reserve(total_readable);
         }
         for b in bufs {
             if !b.is_write
@@ -2704,7 +2833,7 @@ impl Drop for VirtioFs {
 mod tests {
     use super::*;
 
-    fn request(fsys: &mut VirtioFs, opcode: u32, nodeid: u64, body: &[u8]) -> Vec<u8> {
+    fn request_bytes(opcode: u32, nodeid: u64, body: &[u8]) -> Vec<u8> {
         let mut req = vec![0; 40];
         let size = (req.len() + body.len()) as u32;
         req[0..4].copy_from_slice(&size.to_le_bytes());
@@ -2712,7 +2841,12 @@ mod tests {
         req[8..16].copy_from_slice(&1u64.to_le_bytes());
         req[16..24].copy_from_slice(&nodeid.to_le_bytes());
         req.extend_from_slice(body);
-        fsys.handle_fuse(&req).unwrap()
+        req
+    }
+
+    fn request(fsys: &mut VirtioFs, opcode: u32, nodeid: u64, body: &[u8]) -> Vec<u8> {
+        fsys.handle_fuse(&request_bytes(opcode, nodeid, body))
+            .unwrap()
     }
 
     fn errno(reply: &[u8]) -> i32 {
@@ -2736,6 +2870,103 @@ mod tests {
         body[..8].copy_from_slice(&fh.to_le_bytes());
         body[8..12].copy_from_slice(&flags.to_le_bytes());
         errno(&request(fsys, opcode, nodeid, &body))
+    }
+
+    fn request_as(
+        fsys: &mut VirtioFs,
+        opcode: u32,
+        nodeid: u64,
+        body: &[u8],
+        caller: (u32, u32),
+    ) -> Vec<u8> {
+        let mut req = request_bytes(opcode, nodeid, body);
+        req[24..28].copy_from_slice(&caller.0.to_le_bytes());
+        req[28..32].copy_from_slice(&caller.1.to_le_bytes());
+        fsys.handle_fuse(&req).unwrap()
+    }
+
+    /// (uid, gid) in a fuse_attr that starts at `attr` in `reply`.
+    fn attr_owner(reply: &[u8], attr: usize) -> (u32, u32) {
+        let uid = u32::from_le_bytes(reply[attr + 68..attr + 72].try_into().unwrap());
+        let gid = u32::from_le_bytes(reply[attr + 72..attr + 76].try_into().unwrap());
+        (uid, gid)
+    }
+
+    const ENTRY_ATTR: usize = 16 + 40; // fuse_out_header + fuse_entry_out prefix
+    const ATTR_OUT_ATTR: usize = 16 + 16; // fuse_out_header + fuse_attr_out prefix
+
+    #[test]
+    fn writable_shares_present_files_to_their_user_and_remember_chown() {
+        let dir = std::env::temp_dir().join(format!("mp-vfs-owner-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("data"), b"x").unwrap();
+        fs::write(dir.join("other"), b"y").unwrap();
+        let mut fsys = VirtioFs::new(
+            "workspace",
+            dir.clone(),
+            false,
+            Arc::new(FsMetrics::default()),
+        )
+        .unwrap();
+
+        // An unclaimed host file belongs to whichever guest user asks.
+        let reply = request_as(
+            &mut fsys,
+            FUSE_LOOKUP,
+            FUSE_ROOT_ID,
+            b"data\0",
+            (1000, 1000),
+        );
+        assert_eq!(errno(&reply), 0);
+        assert_eq!(attr_owner(&reply, ENTRY_ATTR), (1000, 1000));
+        let data = u64::from_le_bytes(reply[16..24].try_into().unwrap());
+
+        // Root chowns it (as an image entrypoint does before dropping privileges).
+        let mut setattr = [0u8; 88];
+        setattr[0..4].copy_from_slice(&(FATTR_UID | FATTR_GID).to_le_bytes());
+        setattr[76..80].copy_from_slice(&999u32.to_le_bytes());
+        setattr[80..84].copy_from_slice(&998u32.to_le_bytes());
+        let reply = request_as(&mut fsys, FUSE_SETATTR, data, &setattr, (0, 0));
+        assert_eq!(errno(&reply), 0);
+        assert_eq!(attr_owner(&reply, ATTR_OUT_ATTR), (999, 998));
+
+        // Every guest user now sees the recorded owner.
+        for caller in [(0, 0), (999, 998), (1000, 1000)] {
+            let reply = request_as(&mut fsys, FUSE_GETATTR, data, &[0u8; 16], caller);
+            assert_eq!(attr_owner(&reply, ATTR_OUT_ATTR), (999, 998), "{caller:?}");
+        }
+        // Changing only the group keeps the recorded user.
+        let mut chgrp = [0u8; 88];
+        chgrp[0..4].copy_from_slice(&FATTR_GID.to_le_bytes());
+        chgrp[80..84].copy_from_slice(&5u32.to_le_bytes());
+        let reply = request_as(&mut fsys, FUSE_SETATTR, data, &chgrp, (0, 0));
+        assert_eq!(attr_owner(&reply, ATTR_OUT_ATTR), (999, 5));
+
+        // Other files are unaffected; the host file itself keeps its real owner.
+        let reply = request_as(
+            &mut fsys,
+            FUSE_LOOKUP,
+            FUSE_ROOT_ID,
+            b"other\0",
+            (1234, 1234),
+        );
+        assert_eq!(attr_owner(&reply, ENTRY_ATTR), (1234, 1234));
+        assert_eq!(fs::metadata(dir.join("data")).unwrap().uid(), unsafe {
+            libc::getuid()
+        });
+
+        // Read-only tool shares stay root-owned whoever asks.
+        let mut ro = VirtioFs::new(
+            "oci-tools",
+            dir.clone(),
+            true,
+            Arc::new(FsMetrics::default()),
+        )
+        .unwrap();
+        let reply = request_as(&mut ro, FUSE_LOOKUP, FUSE_ROOT_ID, b"data\0", (1000, 1000));
+        assert_eq!(attr_owner(&reply, ENTRY_ATTR), (0, 0));
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -3173,6 +3404,78 @@ mod tests {
     }
 
     #[test]
+    fn mutable_lookup_over_split_descriptors_observes_host_changes() {
+        let dir = std::env::temp_dir().join(format!("mp-vfs-lookup-chain-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let long_name = c"long-filename-beyond-the-initial-request-prefix";
+        let short_path = dir.join("source");
+        fs::write(&short_path, b"same-size").unwrap();
+        fs::set_permissions(&short_path, fs::Permissions::from_mode(0o600)).unwrap();
+        fs::write(dir.join(OsStr::from_bytes(long_name.to_bytes())), b"long").unwrap();
+        let fsys = VirtioFs::new(
+            "workspace",
+            dir.clone(),
+            false,
+            Arc::new(FsMetrics::default()),
+        )
+        .unwrap();
+
+        let mut backing = vec![0u8; 1024];
+        let mem = unsafe { GuestMemory::new(backing.as_mut_ptr(), 0, backing.len()) };
+        let mut core = fsys.shared.core.lock().unwrap();
+        let mut scratch = Vec::new();
+        let mut lookup = |name: &CStr| {
+            let req = request_bytes(FUSE_LOOKUP, FUSE_ROOT_ID, name.to_bytes_with_nul());
+            let (header, rest) = req.split_at(24);
+            mem.write_slice(0, header.len())
+                .unwrap()
+                .copy_from_slice(header);
+            mem.write_slice(128, rest.len())
+                .unwrap()
+                .copy_from_slice(rest);
+            let bufs = [
+                DescBuf {
+                    addr: 0,
+                    len: header.len() as u32,
+                    is_write: false,
+                },
+                DescBuf {
+                    addr: 128,
+                    len: rest.len() as u32,
+                    is_write: false,
+                },
+                DescBuf {
+                    addr: 256,
+                    len: 16,
+                    is_write: true,
+                },
+                DescBuf {
+                    addr: 512,
+                    len: 128,
+                    is_write: true,
+                },
+            ];
+            assert_eq!(core.handle_fuse_chain(&bufs, &mem, &mut scratch), 144);
+            assert_eq!(errno(mem.read_slice(256, 16).unwrap()), 0);
+            let entry = mem.read_slice(512, 128).unwrap();
+            let nodeid = u64::from_le_bytes(entry[..8].try_into().unwrap());
+            let attr_ino = u64::from_le_bytes(entry[40..48].try_into().unwrap());
+            assert_eq!(nodeid, attr_ino);
+            let mode = u32::from_le_bytes(entry[100..104].try_into().unwrap());
+            (nodeid, mode & 0o777, scratch.capacity())
+        };
+
+        let (id, mode, scratch_capacity) = lookup(c"source");
+        assert_eq!((mode, scratch_capacity), (0o600, 0));
+        fs::set_permissions(&short_path, fs::Permissions::from_mode(0o640)).unwrap();
+        assert_eq!(lookup(c"source"), (id, 0o640, 0));
+        let (long_id, _, scratch_capacity) = lookup(long_name);
+        assert_ne!(long_id, id);
+        assert!(scratch_capacity >= 40 + long_name.to_bytes_with_nul().len());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn virtiofs_zero_copy_read_and_write_via_guest_memory() {
         let dir = std::env::temp_dir().join(format!("mp-vfs-zc-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
@@ -3323,7 +3626,16 @@ mod tests {
             if md.is_file() {
                 assert_eq!(e.stat.size, md.size(), "size mismatch for {name}");
             }
-            assert_eq!(e.stat.mtime, md.mtime(), "mtime mismatch for {name}");
+            assert_eq!(
+                (
+                    e.stat.mtime,
+                    e.stat.mtime_nsec,
+                    e.stat.ctime,
+                    e.stat.ctime_nsec
+                ),
+                (md.mtime(), md.mtime_nsec(), md.ctime(), md.ctime_nsec()),
+                "timestamp mismatch for {name}"
+            );
         }
         let _ = fs::remove_dir_all(&dir);
     }

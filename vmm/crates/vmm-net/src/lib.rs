@@ -19,7 +19,7 @@ use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
 use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex, mpsc};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -81,6 +81,8 @@ pub struct NetMetrics {
     pub rx_bytes: AtomicU64,
     pub published_binds: AtomicU64,
     pub published_conns: AtomicU64,
+    /// Published connections the guest never accepted within the handshake timeout.
+    pub published_refused: AtomicU64,
 }
 
 #[derive(Clone, Debug)]
@@ -91,6 +93,13 @@ pub struct NetConfig {
     pub guest_ip: Ipv4Addr,
     pub mtu: u16,
     pub enable_port_broker: bool,
+    /// Other guest addresses a published connection may be accepted on. The port
+    /// broker protocol names only the guest port, and guest engines differ in
+    /// which address listens: current engines use the published link address
+    /// (`guest_ip`), older ones bind their relay to the primary `eth0` address.
+    /// Linux accepts a segment for any local address on any interface, so the
+    /// handshake falls back to these when `guest_ip` refuses the connection.
+    pub fallback_guest_ips: Vec<Ipv4Addr>,
 }
 
 impl NetConfig {
@@ -102,6 +111,7 @@ impl NetConfig {
             guest_ip: Ipv4Addr::new(10, 42, 0, 2),
             mtu: 1500,
             enable_port_broker: false,
+            fallback_guest_ips: Vec::new(),
         }
     }
 
@@ -113,8 +123,136 @@ impl NetConfig {
             guest_ip: Ipv4Addr::new(10, 43, 0, 2),
             mtu,
             enable_port_broker: true,
+            fallback_guest_ips: Vec::new(),
         }
     }
+
+    /// Also offer published connections to `ip` (another address of the same guest).
+    pub fn with_fallback_guest_ip(mut self, ip: Ipv4Addr) -> Self {
+        if ip != self.guest_ip && !self.fallback_guest_ips.contains(&ip) {
+            self.fallback_guest_ips.push(ip);
+        }
+        self
+    }
+}
+
+/// Upper bound on guest addresses a published handshake alternates between.
+const MAX_SYN_TARGETS: usize = 4;
+/// Retransmit an unanswered SYN after this long (alternating guest addresses).
+const SYN_RTO: Duration = Duration::from_millis(200);
+/// Give up on a published connection the guest has not accepted within this long.
+/// A refusal (RST) from every candidate address is retried with backoff until
+/// then, so a client that connects just before the container starts listening
+/// is accepted once it does instead of being reset immediately.
+const SYN_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(3);
+const SYN_REFUSED_BACKOFF_MIN: Duration = Duration::from_millis(25);
+const SYN_REFUSED_BACKOFF_MAX: Duration = Duration::from_millis(250);
+
+/// What the published-port handshake should do next.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SynAction {
+    /// (Re)send the SYN to this guest address now.
+    Send(Ipv4Addr),
+    /// Nothing to send yet; check again on the next timer tick.
+    Wait,
+    /// The deadline passed: reset the host client.
+    GiveUp,
+}
+
+/// Host -> guest connection establishment for one published connection: which
+/// guest address to offer the SYN to, how to react to refusals, and when to
+/// stop. Pure state so the policy can be tested without a guest.
+#[derive(Debug, Clone)]
+struct SynHandshake {
+    targets: [Ipv4Addr; MAX_SYN_TARGETS],
+    count: usize,
+    current: usize,
+    refused_this_round: usize,
+    backoff: Duration,
+    retry_at: Option<Instant>,
+    deadline: Instant,
+}
+
+impl SynHandshake {
+    /// `preferred` goes first (the address that last accepted this port), then
+    /// the remaining candidates in configuration order.
+    fn new(preferred: Ipv4Addr, candidates: &[Ipv4Addr], now: Instant) -> Self {
+        let mut targets = [preferred; MAX_SYN_TARGETS];
+        let mut count = 1;
+        for &ip in candidates {
+            if count < MAX_SYN_TARGETS && !targets[..count].contains(&ip) {
+                targets[count] = ip;
+                count += 1;
+            }
+        }
+        Self {
+            targets,
+            count,
+            current: 0,
+            refused_this_round: 0,
+            backoff: SYN_REFUSED_BACKOFF_MIN,
+            retry_at: None,
+            deadline: now + SYN_HANDSHAKE_TIMEOUT,
+        }
+    }
+
+    fn target(&self) -> Ipv4Addr {
+        self.targets[self.current]
+    }
+
+    fn is_candidate(&self, ip: Ipv4Addr) -> bool {
+        self.targets[..self.count].contains(&ip)
+    }
+
+    /// `from` answered the current SYN with a reset: nothing listens there (yet).
+    fn on_refused(&mut self, from: Ipv4Addr, now: Instant) -> SynAction {
+        if from != self.target() || self.retry_at.is_some() {
+            return SynAction::Wait; // late reset for a SYN already superseded
+        }
+        self.refused_this_round += 1;
+        if self.refused_this_round < self.count {
+            self.current = (self.current + 1) % self.count;
+            return SynAction::Send(self.target());
+        }
+        // Every address refused: the listener is not up yet. Back off and retry.
+        self.refused_this_round = 0;
+        self.current = 0;
+        if now + self.backoff >= self.deadline {
+            return SynAction::GiveUp;
+        }
+        self.retry_at = Some(now + self.backoff);
+        self.backoff = (self.backoff * 2).min(SYN_REFUSED_BACKOFF_MAX);
+        SynAction::Wait
+    }
+
+    /// Periodic check: retry after backoff, retransmit an unanswered SYN, or give up.
+    fn on_timer(&mut self, now: Instant, last_syn: Instant) -> SynAction {
+        if now >= self.deadline {
+            return SynAction::GiveUp;
+        }
+        if let Some(at) = self.retry_at {
+            if now < at {
+                return SynAction::Wait;
+            }
+            self.retry_at = None;
+            return SynAction::Send(self.target());
+        }
+        if now.duration_since(last_syn) >= SYN_RTO {
+            // A silently dropped SYN says nothing about the address: try the next one.
+            self.current = (self.current + 1) % self.count;
+            self.refused_this_round = 0;
+            return SynAction::Send(self.target());
+        }
+        SynAction::Wait
+    }
+}
+
+/// Addressing of one published flow as seen from the guest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FlowPeer {
+    guest_ip: Ipv4Addr,
+    local_port: u16,
+    guest_port: u16,
 }
 
 enum BrokerCmd {
@@ -454,8 +592,7 @@ fn tcp_ipv4_pseudo_csum(src: Ipv4Addr, dst: Ipv4Addr, tcp_len: usize) -> u16 {
 fn encode_tcp_headers(
     cfg: &NetConfig,
     ip_id: u16,
-    local_port: u16,
-    guest_port: u16,
+    peer: FlowPeer,
     seq: u32,
     ack: u32,
     flags: u8,
@@ -483,20 +620,20 @@ fn encode_tcp_headers(
     hdr_buf[23] = 6; // TCP
     hdr_buf[24..26].copy_from_slice(&0u16.to_be_bytes());
     hdr_buf[26..30].copy_from_slice(&cfg.host_ip.octets());
-    hdr_buf[30..34].copy_from_slice(&cfg.guest_ip.octets());
+    hdr_buf[30..34].copy_from_slice(&peer.guest_ip.octets());
     let csum = ipv4_checksum(&hdr_buf[14..34]);
     hdr_buf[24..26].copy_from_slice(&csum.to_be_bytes());
 
     // TCP (20 bytes + optional 8 bytes SYN options)
-    hdr_buf[34..36].copy_from_slice(&local_port.to_be_bytes());
-    hdr_buf[36..38].copy_from_slice(&guest_port.to_be_bytes());
+    hdr_buf[34..36].copy_from_slice(&peer.local_port.to_be_bytes());
+    hdr_buf[36..38].copy_from_slice(&peer.guest_port.to_be_bytes());
     hdr_buf[38..42].copy_from_slice(&seq.to_be_bytes());
     hdr_buf[42..46].copy_from_slice(&ack.to_be_bytes());
     hdr_buf[46] = ((tcp_len / 4) as u8) << 4;
     hdr_buf[47] = flags;
     hdr_buf[48..50].copy_from_slice(&window.to_be_bytes());
     let tcp_csum = if needs_pseudo_csum {
-        tcp_ipv4_pseudo_csum(cfg.host_ip, cfg.guest_ip, tcp_len + payload_len)
+        tcp_ipv4_pseudo_csum(cfg.host_ip, peer.guest_ip, tcp_len + payload_len)
     } else {
         0 // Offloaded via VIRTIO_NET_HDR_F_DATA_VALID
     };
@@ -802,6 +939,10 @@ struct TcpFlow {
     host_port: u16,
     local_port: u16,
     guest_port: u16,
+    /// Guest address of this connection: the current SYN target until the
+    /// handshake completes, then the address that accepted it.
+    guest_ip: Ipv4Addr,
+    handshake: SynHandshake,
     host_fd: RawFd,
     state: TcpState,
     // Sequence numbers (Host -> Guest)
@@ -828,7 +969,6 @@ struct TcpFlow {
     guest_fin: bool,
     bytes_relayed: u64,
     last_tx: Instant,
-    syn_retries: u8,
     fin_time: Option<Instant>,
 }
 
@@ -840,12 +980,15 @@ impl TcpFlow {
         host_fd: RawFd,
         iss: u32,
         mtu: u16,
+        handshake: SynHandshake,
     ) -> Self {
         Self {
             slot,
             host_port,
             local_port: EPHEMERAL_BASE + slot as u16,
             guest_port,
+            guest_ip: handshake.target(),
+            handshake,
             host_fd,
             state: TcpState::SynSent,
             snd_una: iss,
@@ -868,14 +1011,53 @@ impl TcpFlow {
             guest_fin: false,
             bytes_relayed: 0,
             last_tx: Instant::now(),
-            syn_retries: 0,
             fin_time: None,
         }
     }
 
     #[inline]
+    fn peer(&self) -> FlowPeer {
+        FlowPeer {
+            guest_ip: self.guest_ip,
+            local_port: self.local_port,
+            guest_port: self.guest_port,
+        }
+    }
+
+    /// Close the host client with a reset (`SO_LINGER` 0) so a connection the
+    /// guest never accepted reads as refused rather than as an empty response.
+    fn reset_host(&mut self) {
+        if self.host_fd >= 0 {
+            let linger = libc::linger {
+                l_onoff: 1,
+                l_linger: 0,
+            };
+            unsafe {
+                libc::setsockopt(
+                    self.host_fd,
+                    libc::SOL_SOCKET,
+                    libc::SO_LINGER,
+                    (&linger as *const libc::linger).cast(),
+                    std::mem::size_of::<libc::linger>() as libc::socklen_t,
+                );
+            }
+        }
+        self.close_fd();
+    }
+
+    #[inline]
     fn is_fresh(&self) -> bool {
         self.bytes_relayed < FRESH_BYTE_THRESHOLD
+    }
+
+    /// Both directions finished and every byte acknowledged.
+    #[inline]
+    fn is_fully_closed(&self) -> bool {
+        self.guest_fin
+            && self.host_fin_sent
+            && self.pending_to_host.is_empty()
+            && self.tx_unacked.is_empty()
+            && self.snd_una == self.snd_nxt
     }
 
     #[inline]
@@ -930,12 +1112,98 @@ struct NetShared {
     active_slots: Mutex<HashSet<usize>>,
     next_slot: AtomicU32,
     next_iss: AtomicU32,
+    /// Guest address that last accepted each published guest port, and the most
+    /// recent such address overall (the first guess for a newly bound port).
+    accepted_targets: Mutex<(HashMap<u16, Ipv4Addr>, Ipv4Addr)>,
     metrics: Arc<NetMetrics>,
     paused: AtomicBool,
     shutdown: AtomicBool,
 }
 
 impl NetShared {
+    fn new_handshake(&self, guest_port: u16, now: Instant) -> SynHandshake {
+        let preferred = {
+            let g = self.accepted_targets.lock().unwrap();
+            g.0.get(&guest_port).copied().unwrap_or(g.1)
+        };
+        let mut candidates = [self.cfg.guest_ip; MAX_SYN_TARGETS];
+        let mut n = 1;
+        for &ip in self.cfg.fallback_guest_ips.iter().take(MAX_SYN_TARGETS - 1) {
+            candidates[n] = ip;
+            n += 1;
+        }
+        SynHandshake::new(preferred, &candidates[..n], now)
+    }
+
+    fn record_accepted_target(&self, guest_port: u16, ip: Ipv4Addr) {
+        let mut g = self.accepted_targets.lock().unwrap();
+        g.0.insert(guest_port, ip);
+        g.1 = ip;
+    }
+
+    /// Send a SYN for `flow` to `target` and make it the flow's current address.
+    fn send_syn(&self, flow: &mut TcpFlow, target: Ipv4Addr) -> u32 {
+        flow.guest_ip = target;
+        flow.last_tx = Instant::now();
+        let mss = self.cfg.mtu.saturating_sub(40).max(536);
+        self.send_tcp(
+            Some(flow.slot),
+            flow.peer(),
+            flow.snd_una,
+            0,
+            TCP_SYN,
+            u16::MAX,
+            &[],
+            Some(mss),
+            true,
+            false,
+        )
+    }
+
+    /// Tear down the flow in `slot` (closing its host socket) and reset the guest side.
+    fn abort_flow(&self, slot: usize, mut guard: MutexGuard<'_, Option<TcpFlow>>) -> u32 {
+        let Some(flow) = guard.take() else {
+            return 0;
+        };
+        drop(guard);
+        self.active_slots.lock().unwrap().remove(&slot);
+        self.send_tcp(
+            Some(slot),
+            flow.peer(),
+            flow.snd_nxt,
+            flow.rcv_nxt,
+            TCP_RST | TCP_ACK,
+            0,
+            &[],
+            None,
+            true,
+            false,
+        )
+    }
+
+    /// Drop the flow in `slot` without telling the guest (it already closed or reset).
+    fn release_flow(&self, slot: usize, mut guard: MutexGuard<'_, Option<TcpFlow>>) {
+        *guard = None;
+        drop(guard);
+        self.active_slots.lock().unwrap().remove(&slot);
+    }
+
+    /// Reset a guest-side segment that belongs to no live connection.
+    fn send_stray_rst(&self, slot: usize, peer: FlowPeer, seg_ack: u32) -> u32 {
+        self.send_tcp(
+            Some(slot),
+            peer,
+            seg_ack,
+            0,
+            TCP_RST,
+            0,
+            &[],
+            None,
+            true,
+            false,
+        )
+    }
+
     /// Dedicated fresh-connection RX steering:
     /// - Queue `0` is reserved for ARP, SYN, FIN, RST, fresh requests (`< 64 KiB`), and window-open ACKs.
     /// - Queues `1..(active_pairs)` shard established bulk flow traffic by flow slot (0 cross-queue contention!).
@@ -971,8 +1239,7 @@ impl NetShared {
     fn send_tcp_slices(
         &self,
         slot: Option<usize>,
-        local_port: u16,
-        guest_port: u16,
+        peer: FlowPeer,
         seq: u32,
         ack: u32,
         flags: u8,
@@ -991,8 +1258,7 @@ impl NetShared {
         let hlen = encode_tcp_headers(
             &self.cfg,
             ip_id,
-            local_port,
-            guest_port,
+            peer,
             seq,
             ack,
             flags,
@@ -1033,8 +1299,7 @@ impl NetShared {
     fn send_tcp(
         &self,
         slot: Option<usize>,
-        local_port: u16,
-        guest_port: u16,
+        peer: FlowPeer,
         seq: u32,
         ack: u32,
         flags: u8,
@@ -1046,8 +1311,7 @@ impl NetShared {
     ) -> u32 {
         self.send_tcp_slices(
             slot,
-            local_port,
-            guest_port,
+            peer,
             seq,
             ack,
             flags,
@@ -1165,8 +1429,7 @@ impl NetShared {
 
             pushed_mask |= self.send_tcp_slices(
                 Some(flow.slot),
-                flow.local_port,
-                flow.guest_port,
+                flow.peer(),
                 seq,
                 flow.rcv_nxt,
                 flags,
@@ -1193,8 +1456,7 @@ impl NetShared {
             flow.last_tx = Instant::now();
             pushed_mask |= self.send_tcp(
                 Some(flow.slot),
-                flow.local_port,
-                flow.guest_port,
+                flow.peer(),
                 seq,
                 flow.rcv_nxt,
                 TCP_FIN | TCP_ACK,
@@ -1290,8 +1552,7 @@ impl NetShared {
                 // across bulk RX queues 1..N so RX queue 0 stays dedicated to fresh traffic!
                 *irq_mask |= self.send_tcp(
                     Some(flow.slot),
-                    flow.local_port,
-                    flow.guest_port,
+                    flow.peer(),
                     flow.snd_nxt,
                     flow.rcv_nxt,
                     TCP_ACK,
@@ -1391,23 +1652,18 @@ impl NetShared {
             return 0;
         }
 
+        let src_ip = Ipv4Addr::new(eth[26], eth[27], eth[28], eth[29]);
+        let sender = FlowPeer {
+            guest_ip: src_ip,
+            local_port,
+            guest_port,
+        };
+
         let mut guard = self.flows[slot].lock().unwrap();
         let Some(flow) = guard.as_mut() else {
             // Unknown / already-closed flow -> reply RST if not RST
             if (flags & TCP_RST) == 0 && (flags & TCP_ACK) != 0 {
-                return self.send_tcp(
-                    Some(slot),
-                    local_port,
-                    guest_port,
-                    seg_ack,
-                    0,
-                    TCP_RST,
-                    0,
-                    &[],
-                    None,
-                    true,
-                    false,
-                );
+                return self.send_stray_rst(slot, sender, seg_ack);
             }
             return 0;
         };
@@ -1415,19 +1671,34 @@ impl NetShared {
             return 0;
         }
 
-        // RST from guest -> tear down immediately
-        if (flags & TCP_RST) != 0 {
-            *guard = None;
-            drop(guard);
-            self.active_slots.lock().unwrap().remove(&slot);
-            return 0;
-        }
-
         let mut irq_mask = 0u32;
 
-        // A. SYN-ACK handshake completion
+        // A. Handshake: the guest accepts (SYN-ACK) or refuses (RST) on some address.
         if flow.state == TcpState::SynSent {
+            if !flow.handshake.is_candidate(src_ip) {
+                return 0;
+            }
+            if (flags & TCP_RST) != 0 {
+                // RFC 9293: in SYN-SENT a reset is acceptable only if it acknowledges our SYN.
+                if (flags & TCP_ACK) == 0 || seg_ack != flow.snd_nxt {
+                    return 0;
+                }
+                return match flow.handshake.on_refused(src_ip, Instant::now()) {
+                    SynAction::Send(target) => self.send_syn(flow, target),
+                    SynAction::Wait => 0,
+                    SynAction::GiveUp => {
+                        flow.reset_host();
+                        self.release_flow(slot, guard);
+                        self.metrics
+                            .published_refused
+                            .fetch_add(1, Ordering::Relaxed);
+                        0
+                    }
+                };
+            }
             if (flags & (TCP_SYN | TCP_ACK)) == (TCP_SYN | TCP_ACK) && seg_ack == flow.snd_nxt {
+                flow.guest_ip = src_ip;
+                self.record_accepted_target(flow.guest_port, src_ip);
                 let (mss, p_ws, has_ws) = parse_tcp_syn_options(&eth[tcp_off + 20..tcp_off + thl]);
                 flow.peer_mss = mss.min((self.cfg.mtu as usize).saturating_sub(40));
                 if has_ws {
@@ -1448,33 +1719,14 @@ impl NetShared {
                 let before_nxt = flow.snd_nxt;
                 let fatal = self.pump_host_to_guest(flow, scratch, &mut irq_mask, false);
                 if fatal {
-                    let (lp, gp, sn, rn) =
-                        (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                    *guard = None;
-                    drop(guard);
-                    self.active_slots.lock().unwrap().remove(&slot);
-                    return irq_mask
-                        | self.send_tcp(
-                            Some(slot),
-                            lp,
-                            gp,
-                            sn,
-                            rn,
-                            TCP_RST | TCP_ACK,
-                            0,
-                            &[],
-                            None,
-                            true,
-                            false,
-                        );
+                    return irq_mask | self.abort_flow(slot, guard);
                 }
                 if flow.snd_nxt == before_nxt {
                     // No host payload sent yet -> emit pure ACK to complete 3-way handshake
                     let wnd = flow.encoded_rcv_wnd(self.max_rcv_buf);
                     irq_mask |= self.send_tcp(
                         Some(slot),
-                        flow.local_port,
-                        flow.guest_port,
+                        flow.peer(),
                         flow.snd_nxt,
                         flow.rcv_nxt,
                         TCP_ACK,
@@ -1487,6 +1739,21 @@ impl NetShared {
                 }
             }
             return irq_mask;
+        }
+
+        // A segment from another candidate address (e.g. a late SYN-ACK to a SYN
+        // that was superseded) belongs to no connection: reset its half-open socket.
+        if src_ip != flow.guest_ip {
+            if (flags & TCP_RST) == 0 {
+                return self.send_stray_rst(slot, sender, seg_ack);
+            }
+            return 0;
+        }
+
+        // RST from guest -> tear down immediately
+        if (flags & TCP_RST) != 0 {
+            self.release_flow(slot, guard);
+            return 0;
         }
 
         // B. Process ACK field (advance snd_una, drain tx_unacked, update peer snd_wnd)
@@ -1512,25 +1779,7 @@ impl NetShared {
             {
                 let fatal = self.pump_host_to_guest(flow, scratch, &mut irq_mask, false);
                 if fatal {
-                    let (lp, gp, sn, rn) =
-                        (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                    *guard = None;
-                    drop(guard);
-                    self.active_slots.lock().unwrap().remove(&slot);
-                    return irq_mask
-                        | self.send_tcp(
-                            Some(slot),
-                            lp,
-                            gp,
-                            sn,
-                            rn,
-                            TCP_RST | TCP_ACK,
-                            0,
-                            &[],
-                            None,
-                            true,
-                            false,
-                        );
+                    return irq_mask | self.abort_flow(slot, guard);
                 }
             }
         }
@@ -1657,24 +1906,7 @@ impl NetShared {
         }
 
         if abort_flow {
-            let (lp, gp, sn, rn) = (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-            *guard = None;
-            drop(guard);
-            self.active_slots.lock().unwrap().remove(&slot);
-            return irq_mask
-                | self.send_tcp(
-                    Some(slot),
-                    lp,
-                    gp,
-                    sn,
-                    rn,
-                    TCP_RST | TCP_ACK,
-                    0,
-                    &[],
-                    None,
-                    true,
-                    false,
-                );
+            return irq_mask | self.abort_flow(slot, guard);
         }
 
         if arm_write && !flow.write_ev_armed && flow.host_fd >= 0 {
@@ -1709,8 +1941,7 @@ impl NetShared {
             let wnd = flow.encoded_rcv_wnd(self.max_rcv_buf);
             irq_mask |= self.send_tcp(
                 Some(slot),
-                flow.local_port,
-                flow.guest_port,
+                flow.peer(),
                 flow.snd_nxt,
                 flow.rcv_nxt,
                 TCP_ACK,
@@ -1729,9 +1960,7 @@ impl NetShared {
             && flow.tx_unacked.is_empty()
             && flow.snd_una == flow.snd_nxt
         {
-            *guard = None;
-            drop(guard);
-            self.active_slots.lock().unwrap().remove(&slot);
+            self.release_flow(slot, guard);
         }
 
         irq_mask
@@ -1854,6 +2083,13 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                         let fd = entry.listener.as_raw_fd();
                         listener_by_fd.remove(&fd);
                         kq_ctl(kq, fd, libc::EVFILT_READ, libc::EV_DELETE, 0);
+                        // The guest may reuse the port for a listener on another address.
+                        shared
+                            .accepted_targets
+                            .lock()
+                            .unwrap()
+                            .0
+                            .remove(&entry.guest_port);
                     }
                     let slots: Vec<usize> = shared
                         .active_slots
@@ -1864,28 +2100,9 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                         .collect();
                     let mut irq_mask = 0u32;
                     for slot in slots {
-                        let mut g = shared.flows[slot].lock().unwrap();
-                        if let Some(flow) = g.as_ref()
-                            && flow.host_port == host_port
-                        {
-                            let (lp, gp, sn, rn) =
-                                (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                            *g = None;
-                            drop(g);
-                            shared.active_slots.lock().unwrap().remove(&slot);
-                            irq_mask |= shared.send_tcp(
-                                Some(slot),
-                                lp,
-                                gp,
-                                sn,
-                                rn,
-                                TCP_RST | TCP_ACK,
-                                0,
-                                &[],
-                                None,
-                                true,
-                                false,
-                            );
+                        let g = shared.flows[slot].lock().unwrap();
+                        if g.as_ref().is_some_and(|flow| flow.host_port == host_port) {
+                            irq_mask |= shared.abort_flow(slot, g);
                         }
                     }
                     if irq_mask != 0 {
@@ -2009,6 +2226,7 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                                         cfd,
                                         iss,
                                         shared.cfg.mtu,
+                                        shared.new_handshake(entry.guest_port, Instant::now()),
                                     ));
                                     chosen = Some(cand);
                                     break;
@@ -2030,25 +2248,10 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                                 libc::EV_ADD | libc::EV_ENABLE | libc::EV_CLEAR,
                                 UDATA_CONN_TAG | slot,
                             );
-                            let (lp, gp, iss) = {
-                                let g = shared.flows[slot].lock().unwrap();
-                                let f = g.as_ref().unwrap();
-                                (f.local_port, f.guest_port, f.snd_una)
-                            };
-                            let mss = shared.cfg.mtu.saturating_sub(40).max(536);
-                            accept_mask |= shared.send_tcp(
-                                Some(slot),
-                                lp,
-                                gp,
-                                iss,
-                                0,
-                                TCP_SYN,
-                                u16::MAX,
-                                &[],
-                                Some(mss),
-                                true,
-                                false,
-                            );
+                            if let Some(flow) = shared.flows[slot].lock().unwrap().as_mut() {
+                                let target = flow.handshake.target();
+                                accept_mask |= shared.send_syn(flow, target);
+                            }
                             shared
                                 .metrics
                                 .published_conns
@@ -2089,33 +2292,9 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                     let abort =
                         shared.pump_host_to_guest(flow, &mut scratch, &mut read_mask, false);
                     if abort {
-                        let (lp, gp, sn, rn) =
-                            (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                        *g = None;
-                        drop(g);
-                        shared.active_slots.lock().unwrap().remove(&slot);
-                        read_mask |= shared.send_tcp(
-                            Some(slot),
-                            lp,
-                            gp,
-                            sn,
-                            rn,
-                            TCP_RST | TCP_ACK,
-                            0,
-                            &[],
-                            None,
-                            true,
-                            false,
-                        );
-                    } else if flow.guest_fin
-                        && flow.host_fin_sent
-                        && flow.pending_to_host.is_empty()
-                        && flow.tx_unacked.is_empty()
-                        && flow.snd_una == flow.snd_nxt
-                    {
-                        *g = None;
-                        drop(g);
-                        shared.active_slots.lock().unwrap().remove(&slot);
+                        read_mask |= shared.abort_flow(slot, g);
+                    } else if flow.is_fully_closed() {
+                        shared.release_flow(slot, g);
                     }
                 }
                 if read_mask != 0 {
@@ -2133,33 +2312,9 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                     flow.host_writable = true;
                     let abort = shared.drain_pending_to_host(flow, &mut write_mask, false);
                     if abort {
-                        let (lp, gp, sn, rn) =
-                            (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                        *g = None;
-                        drop(g);
-                        shared.active_slots.lock().unwrap().remove(&slot);
-                        write_mask |= shared.send_tcp(
-                            Some(slot),
-                            lp,
-                            gp,
-                            sn,
-                            rn,
-                            TCP_RST | TCP_ACK,
-                            0,
-                            &[],
-                            None,
-                            true,
-                            false,
-                        );
-                    } else if flow.guest_fin
-                        && flow.host_fin_sent
-                        && flow.pending_to_host.is_empty()
-                        && flow.tx_unacked.is_empty()
-                        && flow.snd_una == flow.snd_nxt
-                    {
-                        *g = None;
-                        drop(g);
-                        shared.active_slots.lock().unwrap().remove(&slot);
+                        write_mask |= shared.abort_flow(slot, g);
+                    } else if flow.is_fully_closed() {
+                        shared.release_flow(slot, g);
                     }
                 }
                 if write_mask != 0 {
@@ -2186,31 +2341,19 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                     shared.active_slots.lock().unwrap().remove(&slot);
                     continue;
                 };
-                if flow.state == TcpState::SynSent
-                    && flow.last_tx.elapsed() >= Duration::from_millis(200)
-                {
-                    if flow.syn_retries >= 6 {
-                        *g = None;
-                        drop(g);
-                        shared.active_slots.lock().unwrap().remove(&slot);
-                        continue;
+                if flow.state == TcpState::SynSent {
+                    match flow.handshake.on_timer(Instant::now(), flow.last_tx) {
+                        SynAction::Send(target) => timer_mask |= shared.send_syn(flow, target),
+                        SynAction::Wait => {}
+                        SynAction::GiveUp => {
+                            flow.reset_host();
+                            shared.release_flow(slot, g);
+                            shared
+                                .metrics
+                                .published_refused
+                                .fetch_add(1, Ordering::Relaxed);
+                        }
                     }
-                    flow.syn_retries += 1;
-                    flow.last_tx = Instant::now();
-                    let mss = shared.cfg.mtu.saturating_sub(40).max(536);
-                    timer_mask |= shared.send_tcp(
-                        Some(slot),
-                        flow.local_port,
-                        flow.guest_port,
-                        flow.snd_una,
-                        0,
-                        TCP_SYN,
-                        u16::MAX,
-                        &[],
-                        Some(mss),
-                        true,
-                        false,
-                    );
                 } else if !flow.tx_unacked.is_empty()
                     && flow.last_tx.elapsed() >= Duration::from_millis(200)
                 {
@@ -2224,24 +2367,7 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                         let abort =
                             shared.pump_host_to_guest(flow, &mut scratch, &mut timer_mask, false);
                         if abort {
-                            let (lp, gp, sn, rn) =
-                                (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                            *g = None;
-                            drop(g);
-                            shared.active_slots.lock().unwrap().remove(&slot);
-                            timer_mask |= shared.send_tcp(
-                                Some(slot),
-                                lp,
-                                gp,
-                                sn,
-                                rn,
-                                TCP_RST | TCP_ACK,
-                                0,
-                                &[],
-                                None,
-                                true,
-                                false,
-                            );
+                            timer_mask |= shared.abort_flow(slot, g);
                             continue;
                         }
                     }
@@ -2250,24 +2376,7 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                         flow.host_writable = true;
                         let abort = shared.drain_pending_to_host(flow, &mut timer_mask, false);
                         if abort {
-                            let (lp, gp, sn, rn) =
-                                (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                            *g = None;
-                            drop(g);
-                            shared.active_slots.lock().unwrap().remove(&slot);
-                            timer_mask |= shared.send_tcp(
-                                Some(slot),
-                                lp,
-                                gp,
-                                sn,
-                                rn,
-                                TCP_RST | TCP_ACK,
-                                0,
-                                &[],
-                                None,
-                                true,
-                                false,
-                            );
+                            timer_mask |= shared.abort_flow(slot, g);
                             continue;
                         }
                     } else if flow.bytes_since_ack > 0
@@ -2278,8 +2387,7 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                         let wnd = flow.encoded_rcv_wnd(shared.max_rcv_buf);
                         timer_mask |= shared.send_tcp(
                             Some(slot),
-                            flow.local_port,
-                            flow.guest_port,
+                            flow.peer(),
                             flow.snd_nxt,
                             flow.rcv_nxt,
                             TCP_ACK,
@@ -2293,9 +2401,7 @@ fn run_net_io_loop(shared: Arc<NetShared>, cmd_rx: mpsc::Receiver<BrokerCmd>) {
                 } else if let Some(ft) = flow.fin_time
                     && ft.elapsed() >= Duration::from_secs(2)
                 {
-                    *g = None;
-                    drop(g);
-                    shared.active_slots.lock().unwrap().remove(&slot);
+                    shared.release_flow(slot, g);
                 }
             }
             if timer_mask != 0 {
@@ -2364,33 +2470,9 @@ fn run_write_drain_loop(shared: Arc<NetShared>, shard: usize) {
             }
             let abort = shared.drain_pending_to_host(flow, &mut write_mask, false);
             if abort {
-                let (lp, gp, sn, rn) =
-                    (flow.local_port, flow.guest_port, flow.snd_nxt, flow.rcv_nxt);
-                *g = None;
-                drop(g);
-                shared.active_slots.lock().unwrap().remove(&slot);
-                write_mask |= shared.send_tcp(
-                    Some(slot),
-                    lp,
-                    gp,
-                    sn,
-                    rn,
-                    TCP_RST | TCP_ACK,
-                    0,
-                    &[],
-                    None,
-                    true,
-                    false,
-                );
-            } else if flow.guest_fin
-                && flow.host_fin_sent
-                && flow.pending_to_host.is_empty()
-                && flow.tx_unacked.is_empty()
-                && flow.snd_una == flow.snd_nxt
-            {
-                *g = None;
-                drop(g);
-                shared.active_slots.lock().unwrap().remove(&slot);
+                write_mask |= shared.abort_flow(slot, g);
+            } else if flow.is_fully_closed() {
+                shared.release_flow(slot, g);
             }
         }
         if write_mask != 0 {
@@ -2710,6 +2792,7 @@ impl VirtioNetBridge {
             ));
         }
 
+        let accepted_targets = Mutex::new((HashMap::new(), cfg.guest_ip));
         let shared = Arc::new(NetShared {
             cfg,
             kq_fd,
@@ -2728,6 +2811,7 @@ impl VirtioNetBridge {
             active_slots: Mutex::new(HashSet::with_capacity(64)),
             next_slot: AtomicU32::new(0),
             next_iss: AtomicU32::new(0x1020_3040),
+            accepted_targets,
             metrics,
             paused: AtomicBool::new(false),
             shutdown: AtomicBool::new(false),
@@ -3144,6 +3228,243 @@ mod tests {
         q2.read_exact(&mut qrep).unwrap();
         assert_eq!(qrep[0], 0x52);
         qt2.join().unwrap();
+    }
+
+    const LINK_IP: Ipv4Addr = Ipv4Addr::new(10, 43, 0, 2);
+    const ETH0_IP: Ipv4Addr = Ipv4Addr::new(10, 42, 0, 2);
+
+    #[test]
+    fn syn_handshake_tries_every_address_then_backs_off_until_the_deadline() {
+        let t0 = Instant::now();
+        let mut hs = SynHandshake::new(LINK_IP, &[LINK_IP, ETH0_IP], t0);
+        assert_eq!(hs.target(), LINK_IP);
+        assert!(hs.is_candidate(ETH0_IP));
+        assert!(!hs.is_candidate(Ipv4Addr::new(10, 88, 0, 2)));
+
+        // The link address refuses: offer the same SYN to eth0 at once.
+        assert_eq!(hs.on_refused(LINK_IP, t0), SynAction::Send(ETH0_IP));
+        // A late reset from the superseded address changes nothing.
+        assert_eq!(hs.on_refused(LINK_IP, t0), SynAction::Wait);
+        // Both refused: nothing listens yet, so wait out the backoff.
+        assert_eq!(hs.on_refused(ETH0_IP, t0), SynAction::Wait);
+        assert_eq!(hs.on_timer(t0, t0), SynAction::Wait);
+        let retry = t0 + SYN_REFUSED_BACKOFF_MIN;
+        assert_eq!(hs.on_timer(retry, t0), SynAction::Send(LINK_IP));
+
+        // Keep refusing: the backoff doubles up to its cap, then the deadline ends it.
+        let mut now = retry;
+        let mut rounds = 0;
+        loop {
+            assert_eq!(hs.on_refused(LINK_IP, now), SynAction::Send(ETH0_IP));
+            match hs.on_refused(ETH0_IP, now) {
+                SynAction::GiveUp => break,
+                SynAction::Wait => {}
+                other => panic!("unexpected {other:?}"),
+            }
+            let at = hs.retry_at.expect("a retry is scheduled");
+            assert!(at - now <= SYN_REFUSED_BACKOFF_MAX);
+            now = at;
+            assert_eq!(hs.on_timer(now, now), SynAction::Send(LINK_IP));
+            rounds += 1;
+            assert!(rounds < 100, "handshake never gave up");
+        }
+        assert!(now + SYN_REFUSED_BACKOFF_MAX >= t0 + SYN_HANDSHAKE_TIMEOUT);
+        assert_eq!(
+            hs.on_timer(t0 + SYN_HANDSHAKE_TIMEOUT, now),
+            SynAction::GiveUp
+        );
+    }
+
+    #[test]
+    fn syn_handshake_retransmits_an_unanswered_syn_to_the_next_address() {
+        let t0 = Instant::now();
+        let mut hs = SynHandshake::new(ETH0_IP, &[LINK_IP, ETH0_IP], t0);
+        assert_eq!(hs.target(), ETH0_IP, "the learned address goes first");
+        assert_eq!(hs.on_timer(t0 + SYN_RTO / 2, t0), SynAction::Wait);
+        assert_eq!(hs.on_timer(t0 + SYN_RTO, t0), SynAction::Send(LINK_IP));
+        let single = SynHandshake::new(LINK_IP, &[LINK_IP], t0);
+        assert_eq!(single.count, 1);
+    }
+
+    fn published_bridge() -> VirtioNetBridge {
+        VirtioNetBridge::new(
+            NetConfig::published_link(1500).with_fallback_guest_ip(ETH0_IP),
+            Arc::new(NetMetrics::default()),
+        )
+        .unwrap()
+    }
+
+    /// A guest -> host TCP segment as the guest driver hands it to the TX queue.
+    fn guest_segment(
+        src: Ipv4Addr,
+        sport: u16,
+        dport: u16,
+        seq: u32,
+        ack: u32,
+        flags: u8,
+    ) -> Vec<u8> {
+        let cfg = NetConfig::published_link(1500);
+        let mut f = vec![0u8; VIRTIO_NET_HDR_LEN];
+        f.extend_from_slice(&cfg.host_mac);
+        f.extend_from_slice(&cfg.guest_mac);
+        f.extend_from_slice(&0x0800u16.to_be_bytes());
+        let mut ip = [0u8; 20];
+        ip[0] = 0x45;
+        ip[2..4].copy_from_slice(&40u16.to_be_bytes());
+        ip[8] = 64;
+        ip[9] = 6;
+        ip[12..16].copy_from_slice(&src.octets());
+        ip[16..20].copy_from_slice(&cfg.host_ip.octets());
+        f.extend_from_slice(&ip);
+        let mut tcp = [0u8; 20];
+        tcp[0..2].copy_from_slice(&sport.to_be_bytes());
+        tcp[2..4].copy_from_slice(&dport.to_be_bytes());
+        tcp[4..8].copy_from_slice(&seq.to_be_bytes());
+        tcp[8..12].copy_from_slice(&ack.to_be_bytes());
+        tcp[12] = 5 << 4;
+        tcp[13] = flags;
+        tcp[14..16].copy_from_slice(&65535u16.to_be_bytes());
+        f.extend_from_slice(&tcp);
+        f
+    }
+
+    /// (destination IP, TCP flags) of every frame queued for the guest so far.
+    fn take_frames_to_guest(bridge: &VirtioNetBridge) -> Vec<(Ipv4Addr, u8)> {
+        let mut rx = bridge.shared.rx_rings[0].lock().unwrap();
+        let rx = &mut *rx;
+        rx.overflow_prio
+            .drain(..)
+            .chain(rx.overflow_norm.drain(..))
+            .map(|f| {
+                let d = &f.data;
+                (Ipv4Addr::new(d[30], d[31], d[32], d[33]), d[47])
+            })
+            .collect()
+    }
+
+    #[test]
+    fn published_handshake_learns_the_guest_address_that_accepts() {
+        let bridge = published_bridge();
+        let shared = &bridge.shared;
+        let mut backing = vec![0u8; 4096];
+        let ram_base = 0x4000_0000u64;
+        let mem = unsafe { GuestMemory::new(backing.as_mut_ptr(), ram_base, backing.len()) };
+        let mut scratch = vec![0u8; 4096];
+        let mut deliver = |segment: Vec<u8>| {
+            mem.write_slice(ram_base, segment.len())
+                .unwrap()
+                .copy_from_slice(&segment);
+            let bufs = [DescBuf {
+                addr: ram_base,
+                len: segment.len() as u32,
+                is_write: false,
+            }];
+            shared.handle_guest_tx_chain(&bufs, &mem, segment.len(), &mut scratch);
+        };
+
+        let (client, host_end) = UnixStream::pair().unwrap();
+        host_end.set_nonblocking(true).unwrap();
+        let guest_port = 38759;
+        let iss = 1000;
+        let handshake = shared.new_handshake(guest_port, Instant::now());
+        let mut flow = TcpFlow::new(
+            0,
+            18080,
+            guest_port,
+            host_end.into_raw_fd(),
+            iss,
+            1500,
+            handshake,
+        );
+        let lport = flow.local_port;
+        shared.send_syn(&mut flow, LINK_IP);
+        *shared.flows[0].lock().unwrap() = Some(flow);
+        shared.active_slots.lock().unwrap().insert(0);
+        assert_eq!(take_frames_to_guest(&bridge), vec![(LINK_IP, TCP_SYN)]);
+
+        // A reset that does not acknowledge our SYN is not a refusal.
+        deliver(guest_segment(
+            LINK_IP,
+            guest_port,
+            lport,
+            0,
+            iss + 7,
+            TCP_RST | TCP_ACK,
+        ));
+        assert!(take_frames_to_guest(&bridge).is_empty());
+        // The engine's relay is not on the link address: retry on eth0's.
+        deliver(guest_segment(
+            LINK_IP,
+            guest_port,
+            lport,
+            0,
+            iss + 1,
+            TCP_RST | TCP_ACK,
+        ));
+        assert_eq!(take_frames_to_guest(&bridge), vec![(ETH0_IP, TCP_SYN)]);
+
+        deliver(guest_segment(
+            ETH0_IP,
+            guest_port,
+            lport,
+            5000,
+            iss + 1,
+            TCP_SYN | TCP_ACK,
+        ));
+        assert_eq!(take_frames_to_guest(&bridge), vec![(ETH0_IP, TCP_ACK)]);
+        {
+            let g = shared.flows[0].lock().unwrap();
+            let flow = g.as_ref().unwrap();
+            assert_eq!(flow.state, TcpState::Established);
+            assert_eq!(flow.guest_ip, ETH0_IP);
+            assert_eq!(flow.rcv_nxt, 5001);
+        }
+
+        // A late SYN-ACK from the other address is reset, not mixed into the flow.
+        deliver(guest_segment(
+            LINK_IP,
+            guest_port,
+            lport,
+            9000,
+            iss + 1,
+            TCP_SYN | TCP_ACK,
+        ));
+        assert_eq!(take_frames_to_guest(&bridge), vec![(LINK_IP, TCP_RST)]);
+        assert_eq!(
+            shared.flows[0].lock().unwrap().as_ref().unwrap().rcv_nxt,
+            5001
+        );
+
+        // The next connection to this port goes straight to the address that answered.
+        assert_eq!(
+            shared.new_handshake(guest_port, Instant::now()).target(),
+            ETH0_IP
+        );
+        drop(client);
+    }
+
+    #[test]
+    fn published_handshake_resets_the_client_when_no_address_accepts() {
+        let bridge = published_bridge();
+        let shared = &bridge.shared;
+        let (client, host_end) = UnixStream::pair().unwrap();
+        host_end.set_nonblocking(true).unwrap();
+        let start = Instant::now() - SYN_HANDSHAKE_TIMEOUT;
+        let handshake = shared.new_handshake(8080, start);
+        let mut flow = TcpFlow::new(3, 18081, 8080, host_end.into_raw_fd(), 77, 1500, handshake);
+        assert_eq!(
+            flow.handshake.on_timer(Instant::now(), flow.last_tx),
+            SynAction::GiveUp
+        );
+        flow.reset_host();
+        assert_eq!(flow.host_fd, -1);
+        let mut buf = [0u8; 1];
+        let mut client = client;
+        assert_eq!(
+            client.read(&mut buf).unwrap_or(0),
+            0,
+            "client sees the close"
+        );
     }
 
     #[test]

@@ -6,9 +6,20 @@
 // performs real switch_root so crun's pivot_root works cleanly.
 // Stage 2 (on real ext4 root): mounts /proc, /sys, /dev, /run, /tmp, cgroup2,
 // virtiofs shares (oci-tools -> /opt/micropod-oci, workspace -> host path),
-// configures eth0 + eth1 (MTU 9000), starts AF_VSOCK <-> Unix bridges for
-// docker.sock (2375), oci.sock (2376), buildkit.sock (2377), ports.sock (2378),
-// and supervises /opt/micropod-oci/runner/start.sh.
+// configures lo, eth0 and eth1 over rtnetlink (netconf_linux.go), starts
+// AF_VSOCK <-> Unix bridges for docker.sock (2375), oci.sock (2376),
+// buildkit.sock (2377), ports.sock (2378), and supervises
+// /opt/micropod-oci/runner/start.sh.
+//
+// Boot arguments: mp.workspace / mp.workspace_b64 (share mount point),
+// mp.mtu (published link MTU; default: the device's), mp.published_path
+// (macvlan | bridge | default), mp.worker / mp.instance (engine identity).
+//
+// Stopping: a host POWEROFF (or SIGTERM to PID 1) stops the engine within the
+// host's SHUTDOWN_BUDGET, remounts ext4 read-only and powers off (PSCI
+// SYSTEM_OFF). If the engine exits on its own, or init cannot start, the guest
+// prints "MICROPOD_VMM_GUEST_STATUS <kind> <detail>", flushes the disk and
+// resets (PSCI SYSTEM_RESET), so micropod-vmm exits 4 rather than 0.
 package main
 
 import (
@@ -197,6 +208,9 @@ func bridgeUnixToVsockHost(unixPath string, hostPort uint32) {
 	}
 }
 
+// budget is the shutdown time granted by the host (SHUTDOWN_BUDGET), or the default.
+var budget shutdownBudget
+
 func runHostControlLoop(poweroffCh chan<- struct{}) {
 	backoff := 10 * time.Millisecond
 	for {
@@ -209,20 +223,25 @@ func runHostControlLoop(poweroffCh chan<- struct{}) {
 			continue
 		}
 		backoff = 10 * time.Millisecond
-		_ = processCtrlStream(
-			fdRW{fd: vfd},
-			func(unixNs int64) error {
-				return setRealtimeClock(unixNs)
-			},
-			func() {
+		_ = processCtrlStream(fdRW{fd: vfd}, ctrlHandlers{
+			clock: setRealtimeClock,
+			poweroff: func() {
 				select {
 				case poweroffCh <- struct{}{}:
 				default:
 				}
 			},
-		)
+			budget: budget.Store,
+		})
 		_ = syscall.Close(vfd)
 	}
+}
+
+// reportGuestFailure prints the console marker micropod-vmm turns into a
+// failure exit code, on a line of its own.
+func reportGuestFailure(kind, detail string) {
+	fmt.Fprintf(os.Stderr, "[mp-hvf-init] %s: %s\n", kind, detail)
+	fmt.Printf("\n%s\n", guestFailureLine(kind, detail))
 }
 
 func reapChildrenUntil(deadline time.Time) bool {
@@ -244,22 +263,42 @@ func reapChildrenUntil(deadline time.Time) bool {
 	}
 }
 
-func gracefulPoweroff(workspace string) {
-	// Stop all remaining guest daemons (containerd, job engine, service) so BoltDB and
-	// container state flush cleanly before ext4 sync and PSCI_SYSTEM_OFF.
+// gracefulStop ends the guest within `total`: stop every remaining daemon
+// (containerd, job engine, service) so BoltDB and container state flush, sync,
+// and remount ext4 read-only so the next boot needs no journal recovery. An
+// orderly stop then powers off (PSCI SYSTEM_OFF); a failure stop resets (PSCI
+// SYSTEM_RESET) so the host never mistakes it for a requested poweroff.
+func gracefulStop(workspace string, total time.Duration, orderly bool) {
+	phases := splitShutdownBudget(total)
 	_ = syscall.Kill(-1, syscall.SIGTERM)
-	if !reapChildrenUntil(time.Now().Add(800 * time.Millisecond)) {
+	if !reapChildrenUntil(time.Now().Add(phases.term)) {
 		_ = syscall.Kill(-1, syscall.SIGKILL)
-		_ = reapChildrenUntil(time.Now().Add(200 * time.Millisecond))
+		_ = reapChildrenUntil(time.Now().Add(phases.kill))
 	}
 	syscall.Sync()
 	if workspace != "" {
 		_ = syscall.Unmount(workspace, syscall.MNT_DETACH)
 	}
 	_ = syscall.Unmount("/opt/micropod-oci", syscall.MNT_DETACH)
+	if err := syscall.Mount("", "/", "", syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] remount / read-only: %v (next boot replays the journal)\n", err)
+	}
+	syscall.Sync()
+	if orderly {
+		_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+	}
+	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
+}
+
+// fatalReset reports an init failure, flushes what it can and resets the VM.
+// PID 1 must never simply exit: the kernel would panic instead.
+func fatalReset(err error) {
+	reportGuestFailure("init-failed", err.Error())
+	syscall.Sync()
 	_ = syscall.Mount("", "/", "", syscall.MS_REMOUNT|syscall.MS_RDONLY, "")
 	syscall.Sync()
-	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
+	os.Exit(1)
 }
 
 func cmdlineParams(fields []string) map[string]string {
@@ -284,9 +323,7 @@ func mustMount(src, dst, fstype string, flags uintptr, data string) {
 func stage1SwitchRoot() {
 	mustMount("proc", "/proc", "proc", 0, "")
 	if err := initializeBootClock(); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] FATAL: boot clock: %v\n", err)
-		_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
-		os.Exit(1)
+		fatalReset(fmt.Errorf("boot clock: %w", err))
 	}
 	mustMount("sysfs", "/sys", "sysfs", 0, "")
 	mustMount("devtmpfs", "/dev", "devtmpfs", 0, "")
@@ -296,9 +333,7 @@ func stage1SwitchRoot() {
 		if err := syscall.Mount("/dev/vda", "/newroot", "ext4", syscall.MS_NOATIME, "max_batch_time=15000"); err == nil {
 			break
 		} else if i == 49 {
-			fmt.Fprintf(os.Stderr, "[mp-hvf-init] FATAL: failed mounting /dev/vda: %v\n", err)
-			_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
-			os.Exit(1)
+			fatalReset(fmt.Errorf("mount /dev/vda: %w", err))
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -306,12 +341,10 @@ func stage1SwitchRoot() {
 	// Copy ourselves into /newroot/run/mp-hvf-init before switch_root
 	selfBytes, err := os.ReadFile("/init")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] read /init: %v\n", err)
-		os.Exit(1)
+		fatalReset(fmt.Errorf("read /init: %w", err))
 	}
 	if err := os.WriteFile("/newroot/run/mp-hvf-init", selfBytes, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] write /newroot/run/mp-hvf-init: %v\n", err)
-		os.Exit(1)
+		fatalReset(fmt.Errorf("write /newroot/run/mp-hvf-init: %w", err))
 	}
 	// Move virtual filesystems onto /newroot
 	_ = os.MkdirAll("/newroot/proc", 0755)
@@ -323,35 +356,22 @@ func stage1SwitchRoot() {
 
 	// Standard Linux switch_root so / is ext4 (required for crun pivot_root!)
 	if err := syscall.Chdir("/newroot"); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] chdir /newroot: %v\n", err)
-		os.Exit(1)
+		fatalReset(fmt.Errorf("chdir /newroot: %w", err))
 	}
 	if err := syscall.Mount(".", "/", "", syscall.MS_MOVE, ""); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] MS_MOVE /: %v\n", err)
-		os.Exit(1)
+		fatalReset(fmt.Errorf("MS_MOVE /: %w", err))
 	}
 	if err := syscall.Chroot("."); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] chroot .: %v\n", err)
-		os.Exit(1)
+		fatalReset(fmt.Errorf("chroot .: %w", err))
 	}
 	_ = syscall.Chdir("/")
 	if err := syscall.Exec("/run/mp-hvf-init", []string{"/run/mp-hvf-init", "--stage2"}, os.Environ()); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] exec stage2: %v\n", err)
-		os.Exit(1)
+		fatalReset(fmt.Errorf("exec stage2: %w", err))
 	}
 }
 
-func runCmd(name string, args ...string) {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	_ = cmd.Run()
-}
-
 func stage2Fail(err error) {
-	fmt.Fprintf(os.Stderr, "[mp-hvf-init] FATAL: %v\n", err)
-	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
-	os.Exit(1)
+	fatalReset(err)
 }
 
 func stage2Supervise() {
@@ -378,11 +398,6 @@ func stage2Supervise() {
 	if instanceID == "" {
 		instanceID = "00000000-0000-4000-8000-000000000002"
 	}
-	mtu := params["mp.mtu"]
-	if mtu == "" {
-		mtu = "9000"
-	}
-
 	_ = syscall.Sethostname([]byte("micropod-hvf"))
 
 	// Mount Virtio-FS shares
@@ -396,17 +411,10 @@ func stage2Supervise() {
 		}
 	}
 
-	// Bring up loopback, eth0 (primary 10.42.0.2/24), and eth1 (published 10.43.0.2/24 MTU 9000)
-	runCmd("/sbin/ip", "link", "set", "lo", "up")
-	runCmd("/sbin/ip", "addr", "replace", "127.0.0.1/8", "dev", "lo")
-	runCmd("/sbin/ip", "link", "set", "eth0", "up")
-	runCmd("/sbin/ip", "addr", "replace", "10.42.0.2/24", "dev", "eth0")
-	runCmd("/sbin/ip", "route", "replace", "default", "via", "10.42.0.1", "dev", "eth0")
-	if _, err := os.Stat("/sys/class/net/eth1"); err == nil {
-		runCmd("/sbin/ip", "link", "set", "eth1", "mtu", mtu, "up")
-		runCmd("/sbin/ip", "addr", "replace", "10.43.0.2/24", "dev", "eth1")
-		runCmd("/sbin/ip", "neigh", "replace", "10.43.0.1", "lladdr", "52:54:00:ab:cd:02", "nud", "permanent", "dev", "eth1")
-	}
+	// Bring up loopback, eth0 (egress 10.42.0.2/24 via 10.42.0.1) and, with
+	// --published-net, eth1 (published link 10.43.0.2/24, permanent gateway
+	// neighbour) over rtnetlink; the image's BusyBox `ip` lacks `replace`.
+	publishedMTU := setupGuestNetwork(params["mp.mtu"])
 
 	// Delegate cgroup2 root: move PID 1 to /sys/fs/cgroup/init, enable controllers on root,
 	// and create /sys/fs/cgroup/worker so start.sh runs in a clean cgroup namespace (no kthreads).
@@ -440,16 +448,25 @@ func stage2Supervise() {
 		"MICROPOD_CI_INSTANCE=" + instanceID,
 		"MICROPOD_NATIVE_OCI=1",
 		"MICROPOD_ENGINE_API=1",
-		"MICROPOD_CI_PUBLISHED_PATH=macvlan",
-		"MICROPOD_CI_PORT_THROUGHPUT=1",
-		"MICROPOD_CI_PUBLISH_IPV4=10.43.0.2",
-		"MICROPOD_CI_PUBLISH_GATEWAY=10.43.0.1",
+	}
+	if publishedMTU > 0 {
+		// Engines with a dedicated published link serve ports on eth1; older ones
+		// ignore these and keep their relay on eth0 (the VMM handles both).
+		env = append(env,
+			"MICROPOD_CI_PORT_THROUGHPUT=1",
+			"MICROPOD_CI_PUBLISH_IPV4=10.43.0.2",
+			"MICROPOD_CI_PUBLISH_GATEWAY=10.43.0.1",
+			"MICROPOD_CI_PUBLISHED_MTU="+strconv.Itoa(publishedMTU),
+		)
+		if path, err := publishedPathEnv(params["mp.published_path"]); err != nil {
+			fmt.Fprintf(os.Stderr, "[mp-hvf-init] %v; using the default\n", err)
+			env = append(env, "MICROPOD_CI_PUBLISHED_PATH=macvlan")
+		} else if path != "" {
+			env = append(env, "MICROPOD_CI_PUBLISHED_PATH="+path)
+		}
 	}
 	if workspace != "" {
 		env = append(env, "MICROPOD_ENGINE_WORKSPACE="+workspace)
-	}
-	if _, err := strconv.Atoi(mtu); err == nil {
-		env = append(env, "MICROPOD_CI_PUBLISHED_MTU="+mtu)
 	}
 
 	fmt.Println("MICROPOD_VMM_INIT_READY")
@@ -458,48 +475,65 @@ func stage2Supervise() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] start.sh failed: %v\n", err)
-		gracefulPoweroff(workspace)
+		reportGuestFailure("engine-exited", fmt.Sprintf("start failed: %v", err))
+		gracefulStop(workspace, budget.Load(), false)
 		os.Exit(1)
 	}
 
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	// PID 1 reaps every orphan with wait4(-1), so it also collects start.sh: a
+	// separate cmd.Wait would race it and could lose the engine's exit status.
+	enginePID := cmd.Process.Pid
+	done := make(chan syscall.WaitStatus, 1)
+	reap := func() {
+		for {
+			var ws syscall.WaitStatus
+			pid, err := syscall.Wait4(-1, &ws, syscall.WNOHANG, nil)
+			if pid <= 0 || err != nil {
+				return
+			}
+			if pid == enginePID {
+				done <- ws
+			}
+		}
+	}
+	reap() // start.sh may already have exited before SIGCHLD was observed
 
 	var shutdownTimer *time.Timer
 	var shutdownTimeout <-chan time.Time
+	var stopBudget time.Duration
 	triggerShutdown := func() {
 		if shutdownTimer == nil {
 			_ = cmd.Process.Signal(syscall.SIGTERM)
-			shutdownTimer = time.NewTimer(1500 * time.Millisecond)
+			stopBudget = budget.Load()
+			shutdownTimer = time.NewTimer(engineStopGrace(stopBudget))
 			shutdownTimeout = shutdownTimer.C
 		}
 	}
 
 	for {
 		select {
-		case err := <-done:
+		case ws := <-done:
 			if shutdownTimer != nil {
+				// The host asked for this stop: power off in an orderly way.
 				shutdownTimer.Stop()
+				fmt.Fprintf(os.Stderr, "[mp-hvf-init] start.sh stopped: %s\n", waitDescription(ws))
+				gracefulStop(workspace, stopBudget, true)
+				return
 			}
-			fmt.Fprintf(os.Stderr, "[mp-hvf-init] start.sh exited: %v\n", err)
-			gracefulPoweroff(workspace)
+			// The engine died on its own. Keep the disk clean, then tell the host
+			// this was a failure rather than a requested poweroff.
+			reportGuestFailure("engine-exited", waitDescription(ws))
+			gracefulStop(workspace, budget.Load(), false)
 			return
 		case <-poweroffCh:
 			triggerShutdown()
 		case <-shutdownTimeout:
-			fmt.Fprintln(os.Stderr, "[mp-hvf-init] graceful shutdown timer elapsed; syncing and powering off")
-			gracefulPoweroff(workspace)
+			fmt.Fprintln(os.Stderr, "[mp-hvf-init] engine stop grace elapsed; stopping remaining processes")
+			gracefulStop(workspace, stopBudget, true)
 			return
 		case sig := <-sigCh:
 			if sig == syscall.SIGCHLD {
-				for {
-					var ws syscall.WaitStatus
-					pid, err := syscall.Wait4(-1, &ws, syscall.WNOHANG, nil)
-					if pid <= 0 || err != nil {
-						break
-					}
-				}
+				reap()
 			} else {
 				triggerShutdown()
 			}
