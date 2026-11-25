@@ -61,13 +61,9 @@ struct MicropodCLI {
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
-        // `--json` may come before the command (`micropod --json machine status`).
-        let withoutJSON = args.filter { $0 != "--json" }
-        if withoutJSON.first == "machine" || withoutJSON.first == "machines" {
-            let machineArgs = Array(withoutJSON.dropFirst())
-            if MachineCommands.handles(machineArgs) {
-                exit(await MachineCommands.main(machineArgs, json: args.contains("--json")))
-            }
+        // Global flags may come before the command (`micropod --json machine status`).
+        if let machine = MachineCommands.route(args) {
+            exit(await MachineCommands.main(machine.args, json: machine.json))
         }
         if ProcessInfo.processInfo.environment["NO_COLOR"] != nil { Ansi.enabled = false }
         args.removeAll(where: { $0 == "--no-color" })

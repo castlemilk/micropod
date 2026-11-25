@@ -49,19 +49,43 @@ public enum HVFMachineInstaller {
     public static let defaultDiskImage =
         "docker.io/library/docker:29.9.3-dind@sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b"
 
-    /// Installs into `layout`. Refuses while a supervisor runs (the VMM
-    /// has the disk and binaries open). Every source is checked before the
-    /// first copy, so a bad request changes nothing.
+    /// Installs into `layout`.
+    ///
+    /// Mutually exclusive with the machine: refuses while a supervisor runs
+    /// or is being started, and holds `run/install.lock` (which every
+    /// supervisor checks after taking its own lock) and `run/start.lock`
+    /// (which on-demand starters take) for its whole run, so nothing can
+    /// boot against a half-installed root.
+    ///
+    /// Every source is checked, and every fallible step — the disk pull and
+    /// unpack or clone, the copies, the copied VMM's signature — is staged
+    /// beside its target before anything installed is replaced: a bad
+    /// request or a failed pull changes nothing. Staging an interrupted
+    /// install left behind is removed by the next one.
     public static func install(
         _ request: HVFInstallRequest, layout: HVFMachineLayout, progress: @Sendable (String) -> Void
     ) async throws {
-        if HVFFileLock.isHeld(layout.supervisorLock) {
+        try layout.validatePaths()
+        try refuseWhileRunning(layout)
+        let fm = FileManager.default
+        guard let installing = try HVFFileLock.acquire(layout.installLock, wait: .zero) else {
             throw MicropodError.message(
-                "failedPrecondition: the hvf machine under \(layout.root.path) is running; "
+                "failedPrecondition: another `micropod machine install` is running on \(layout.root.path)")
+        }
+        defer { installing.release() }
+        // A starter holds start.lock only until its supervisor holds the
+        // supervisor lock; after that the check below sees the machine.
+        guard
+            let starting = try await HVFMachineClient.lock(
+                layout.startLock, until: ContinuousClock.now + HVFMachineClient.startHandoverWait)
+        else {
+            throw MicropodError.message(
+                "failedPrecondition: the hvf machine under \(layout.root.path) is being started; "
                     + "stop it first (`micropod machine stop`)")
         }
-        try layout.validatePaths()
-        let fm = FileManager.default
+        defer { starting.release() }
+        try refuseWhileRunning(layout)
+        removeLeftovers(in: layout)
 
         var config = try HVFMachineConfig.load(from: layout.config)
         if let cpus = request.cpus { config.cpus = cpus }
@@ -78,10 +102,15 @@ public enum HVFMachineInstaller {
         }
 
         // Validate every source, and that nothing stays missing, up front.
+        // Sources are read through symlinks (`copyfile` with COPYFILE_CLONE
+        // would copy a link as a link).
+        func resolved(_ url: URL?) -> URL? { url.map { URL(fileURLWithPath: HVFMachineLayout.canonicalPath($0.path)) } }
         let files: [(name: String, source: URL?, target: URL)] = [
-            ("micropod-vmm", request.vmm, layout.vmm), ("Image", request.kernel, layout.kernel),
-            ("mp-hvf-init.cpio", request.initrd, layout.initrd),
+            ("micropod-vmm", resolved(request.vmm), layout.vmm), ("Image", resolved(request.kernel), layout.kernel),
+            ("mp-hvf-init.cpio", resolved(request.initrd), layout.initrd),
         ]
+        let tools = resolved(request.tools)
+        let diskFrom = resolved(request.diskFrom)
         var unresolved: [String] = []
         for file in files {
             if let source = file.source {
@@ -92,8 +121,8 @@ public enum HVFMachineInstaller {
                 unresolved.append("--\(flag(for: file.name)) <\(file.name)>")
             }
         }
-        if let vmm = request.vmm { try verifyHypervisorEntitlement(vmm) }
-        if let tools = request.tools {
+        if let vmm = files[0].source { try verifyHypervisorEntitlement(vmm) }
+        if let tools {
             guard fm.fileExists(atPath: tools.appendingPathComponent("runner/start.sh").path) else {
                 throw MicropodError.message(
                     "invalidArgument: \(tools.path) is not a guest tool bundle (no runner/start.sh)")
@@ -101,17 +130,16 @@ public enum HVFMachineInstaller {
         } else if layout.missingAssets().contains(where: { $0.hasPrefix("tools/") }) {
             unresolved.append("--tools <dir>")
         }
-        if request.diskFrom != nil, request.diskImage != nil {
+        if diskFrom != nil, request.diskImage != nil {
             throw MicropodError.message("invalidArgument: pass either --disk-from or --disk-image, not both")
         }
-        if request.diskFrom != nil || request.diskImage != nil, HVFMachineLayout.isRegularFile(layout.disk),
-            !request.replaceDisk
-        {
+        let replacesDisk = diskFrom != nil || request.diskImage != nil
+        if replacesDisk, HVFMachineLayout.isRegularFile(layout.disk), !request.replaceDisk {
             throw MicropodError.message(
                 "failedPrecondition: \(layout.disk.path) already holds this machine's containers, images and "
                     + "volumes; pass --replace-disk to discard it")
         }
-        if let disk = request.diskFrom {
+        if let disk = diskFrom {
             guard HVFMachineLayout.isRegularFile(disk) else {
                 throw MicropodError.message("invalidArgument: disk source \(disk.path) is not a file")
             }
@@ -134,65 +162,116 @@ public enum HVFMachineInstaller {
         for directory in [layout.root, layout.runDirectory, layout.logsDirectory] {
             try fm.createDirectory(at: directory, withIntermediateDirectories: true)
         }
+        // Stage: everything that can fail, before anything is replaced.
+        var staged: [URL] = []
+        defer { for url in staged { try? fm.removeItem(at: url) } }
+        func stagingPath(for target: URL) -> URL {
+            let url = target.deletingLastPathComponent()
+                .appendingPathComponent(".install-\(UUID().uuidString)-\(target.lastPathComponent)")
+            staged.append(url)
+            return url
+        }
+        var stagedDisk: URL?
+        if let disk = diskFrom {
+            let into = stagingPath(for: layout.disk)
+            guard clonefile(disk.path, into.path, 0) == 0 else {
+                let code = errno
+                throw MicropodError.message(
+                    "failedPrecondition: cannot clone \(disk.path) into \(layout.root.path): "
+                        + "\(String(cString: strerror(code))). The disk must be on the same APFS volume "
+                        + "as the machine root (an instant `cp -c` copy-on-write clone)")
+            }
+            guard chmod(into.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(into.path)") }
+            stagedDisk = into
+        } else if let image = request.diskImage {
+            let into = stagingPath(for: layout.disk)
+            let store = stagingPath(for: layout.root.appendingPathComponent("images"))
+            try await provisionDisk(
+                image: image, bytes: request.diskBytes, store: store, into: into, progress: progress)
+            // The pulled blobs are only the unpack's input.
+            try? fm.removeItem(at: store)
+            stagedDisk = into
+        }
+        var stagedFiles: [(name: String, source: URL, staged: URL, target: URL)] = []
         for file in files {
             guard let source = file.source else { continue }
-            try replace(file.target) { staged in try copy(source, to: staged) }
-            progress("installed \(file.name) from \(source.path)")
+            let into = stagingPath(for: file.target)
+            try copy(source, to: into)
+            if file.target == layout.vmm {
+                // The copy must still carry the signature that grants HVF access.
+                try verifyHypervisorEntitlement(into)
+            }
+            stagedFiles.append((file.name, source, into, file.target))
         }
-        if request.vmm != nil {
-            // The copy must still carry the signature that grants HVF access.
-            try verifyHypervisorEntitlement(layout.vmm)
+        var stagedTools: URL?
+        if let tools {
+            let into = stagingPath(for: layout.tools)
+            try copy(tools, to: into)
+            stagedTools = into
         }
-        if let tools = request.tools {
-            try replace(layout.tools) { staged in try copy(tools.resolvingSymlinksInPath(), to: staged) }
+
+        // Commit: renames within the root, disk last, then the config.
+        for file in stagedFiles {
+            try commit(file.staged, to: file.target)
+            staged.removeAll { $0 == file.staged }
+            progress("installed \(file.name) from \(file.source.path)")
+        }
+        if let stagedTools, let tools {
+            try commit(stagedTools, to: layout.tools)
+            staged.removeAll { $0 == stagedTools }
             progress("installed tools/ from \(tools.path)")
         }
-        if let disk = request.diskFrom {
-            try replace(layout.disk) { staged in
-                guard clonefile(disk.path, staged.path, 0) == 0 else {
-                    let code = errno
-                    throw MicropodError.message(
-                        "failedPrecondition: cannot clone \(disk.path) into \(layout.root.path): "
-                            + "\(String(cString: strerror(code))). The disk must be on the same APFS volume "
-                            + "as the machine root (an instant `cp -c` copy-on-write clone)")
-                }
-                guard chmod(staged.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(staged.path)") }
+        if let stagedDisk {
+            try commit(stagedDisk, to: layout.disk)
+            staged.removeAll { $0 == stagedDisk }
+            // A new disk holds none of the old disk's containers.
+            try? HVFContainerIndexStore(layout: layout).reset()
+            if let disk = diskFrom {
+                progress("cloned disk.ext4 from \(disk.path)")
+            } else if let image = request.diskImage {
+                progress("created disk.ext4 from \(image)")
             }
-            progress("cloned disk.ext4 from \(disk.path)")
-        }
-        if let image = request.diskImage {
-            try await provisionDisk(image: image, bytes: request.diskBytes, layout: layout, progress: progress)
         }
         try config.save(to: layout.config)
         progress("wrote \(layout.config.path) (\(config.cpus) vCPU, \(config.memoryMiB) MiB)")
     }
 
-    /// Pulls `image` into a store under the root and unpacks it into a
-    /// fresh journaled ext4 `disk.ext4` of `bytes` (sparse). The guest
-    /// tools bring containerd and the engine; the image supplies the Linux
-    /// userland they run on.
+    private static func refuseWhileRunning(_ layout: HVFMachineLayout) throws {
+        if HVFFileLock.isHeld(layout.supervisorLock) {
+            throw MicropodError.message(
+                "failedPrecondition: the hvf machine under \(layout.root.path) is running; "
+                    + "stop it first (`micropod machine stop`)")
+        }
+    }
+
+    /// Staging (`.install-*`) and retired trees (`.retired-*`) an
+    /// interrupted install left in the root, and the pull store earlier
+    /// installers kept at `images/`. Only called under install.lock, so
+    /// none of it belongs to a live install.
+    static func removeLeftovers(in layout: HVFMachineLayout) {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: layout.root.path) else { return }
+        for name in names where name.hasPrefix(".install-") || name.hasPrefix(".retired-") || name == "images" {
+            try? fm.removeItem(at: layout.root.appendingPathComponent(name))
+        }
+    }
+
+    /// Pulls `image` for this Mac's platform only into the staging `store`
+    /// and unpacks it into a fresh journaled ext4 disk of `bytes` (sparse)
+    /// at `disk`. The guest tools bring containerd and the engine; the
+    /// image supplies the Linux userland they run on.
     static func provisionDisk(
-        image: String, bytes: UInt64, layout: HVFMachineLayout, progress: @Sendable (String) -> Void
+        image: String, bytes: UInt64, store storePath: URL, into disk: URL, progress: @Sendable (String) -> Void
     ) async throws {
         let reference = try SandboxVM.normalize(image)
-        let store = try ImageStore(path: layout.root.appendingPathComponent("images"))
+        let store = try ImageStore(path: storePath)
         progress("pulling \(reference)")
-        let pulled = try await store.get(reference: reference, pull: true)
+        let pulled = try await store.pull(reference: reference, platform: .current)
         progress("unpacking \(reference) into a \(bytes >> 30) GiB ext4 disk")
-        let staged = layout.root.appendingPathComponent(".install-\(UUID().uuidString)-disk.ext4")
-        do {
-            // A journal: the disk outlives every VMM, including killed ones.
-            _ = try await EXT4Unpacker(capacityInBytes: bytes, journal: .init(defaultMode: .ordered))
-                .unpack(pulled, for: .current, at: staged)
-            guard chmod(staged.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(staged.path)") }
-            guard rename(staged.path, layout.disk.path) == 0 else {
-                throw HVFFiles.posixError("install \(layout.disk.path)")
-            }
-        } catch {
-            try? FileManager.default.removeItem(at: staged)
-            throw error
-        }
-        progress("created disk.ext4 from \(reference)")
+        // A journal: the disk outlives every VMM, including killed ones.
+        _ = try await EXT4Unpacker(capacityInBytes: bytes, journal: .init(defaultMode: .ordered))
+            .unpack(pulled, for: .current, at: disk)
+        guard chmod(disk.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(disk.path)") }
     }
 
     private static func flag(for asset: String) -> String {
@@ -203,39 +282,29 @@ public enum HVFMachineInstaller {
         }
     }
 
-    /// Builds the replacement beside `target`, then swaps it in by rename:
-    /// a new inode, so the kernel never serves a stale code signature for
-    /// an executable rewritten in place.
-    private static func replace(_ target: URL, build: (URL) throws -> Void) throws {
+    /// Swaps a staged replacement in by rename: a new inode, so the kernel
+    /// never serves a stale code signature for an executable rewritten in
+    /// place. A staged item that is not swapped in stays the caller's to
+    /// remove.
+    private static func commit(_ staged: URL, to target: URL) throws {
         let fm = FileManager.default
-        let staged = target.deletingLastPathComponent()
-            .appendingPathComponent(".install-\(UUID().uuidString)-\(target.lastPathComponent)")
-        do {
-            try build(staged)
-        } catch {
-            try? fm.removeItem(at: staged)
-            throw error
-        }
         var isDirectory: ObjCBool = false
-        if fm.fileExists(atPath: target.path, isDirectory: &isDirectory), isDirectory.boolValue {
-            // rename(2) cannot replace a non-empty directory: move the old
-            // tree aside first.
-            let retired = target.deletingLastPathComponent()
-                .appendingPathComponent(".retired-\(UUID().uuidString)-\(target.lastPathComponent)")
-            try fm.moveItem(at: target, to: retired)
-            guard rename(staged.path, target.path) == 0 else {
-                let failure = HVFFiles.posixError("install \(target.path)")
-                try? fm.moveItem(at: retired, to: target)
-                throw failure
-            }
-            try fm.removeItem(at: retired)
-        } else {
-            guard rename(staged.path, target.path) == 0 else {
-                let failure = HVFFiles.posixError("install \(target.path)")
-                try? fm.removeItem(at: staged)
-                throw failure
-            }
+        guard fm.fileExists(atPath: target.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            guard rename(staged.path, target.path) == 0 else { throw HVFFiles.posixError("install \(target.path)") }
+            return
         }
+        // rename(2) cannot replace a non-empty directory: move the old tree
+        // aside first.
+        let retired = target.deletingLastPathComponent()
+            .appendingPathComponent(".retired-\(UUID().uuidString)-\(target.lastPathComponent)")
+        try fm.moveItem(at: target, to: retired)
+        guard rename(staged.path, target.path) == 0 else {
+            let failure = HVFFiles.posixError("install \(target.path)")
+            try? fm.moveItem(at: retired, to: target)
+            throw failure
+        }
+        // Left behind only if this fails; the next install removes it.
+        try? fm.removeItem(at: retired)
     }
 
     /// `copyfile(3)`: clones on APFS, copies elsewhere; recursive for trees.

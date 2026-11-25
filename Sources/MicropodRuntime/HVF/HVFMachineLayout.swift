@@ -16,7 +16,10 @@ import MicropodCore
 /// <root>/run/docker.sock     the guest Docker Engine API
 /// <root>/run/supervisor.lock held (flock) by the one live supervisor
 /// <root>/run/start.lock      serialises clients that launch a supervisor
+/// <root>/run/install.lock    held by `machine install` for its whole run
 /// <root>/run/state.json      HVFMachineState, written by the supervisor
+/// <root>/run/containers.json HVFContainerIndex: the machine's container ids
+///                            and names, so routing works while it is stopped
 /// <root>/logs/console.log    micropod-vmm stdout/stderr (guest console)
 /// <root>/logs/supervisor.log the detached supervisor's own output
 /// ```
@@ -46,7 +49,10 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var dockerSocket: URL { runDirectory.appendingPathComponent("docker.sock") }
     public var supervisorLock: URL { runDirectory.appendingPathComponent("supervisor.lock") }
     public var startLock: URL { runDirectory.appendingPathComponent("start.lock") }
+    public var installLock: URL { runDirectory.appendingPathComponent("install.lock") }
     public var state: URL { runDirectory.appendingPathComponent("state.json") }
+    public var containerIndex: URL { runDirectory.appendingPathComponent("containers.json") }
+    var containerIndexLock: URL { runDirectory.appendingPathComponent("containers.lock") }
     public var logsDirectory: URL { root.appendingPathComponent("logs") }
     public var consoleLog: URL { logsDirectory.appendingPathComponent("console.log") }
     public var supervisorLog: URL { logsDirectory.appendingPathComponent("supervisor.log") }
@@ -84,6 +90,16 @@ public struct HVFMachineLayout: Sendable, Equatable {
             return error.localizedDescription
         }
         return nil
+    }
+
+    /// True while `micropod machine install` runs against this root: no
+    /// supervisor may start until it finishes.
+    public var installInProgress: Bool { HVFFileLock.isHeld(installLock) }
+
+    func installInProgressError() -> MicropodError {
+        .message(
+            "unavailable: the hvf machine under \(root.path) is being installed; "
+                + "start it once `micropod machine install` finishes")
     }
 
     /// Unix socket path length, and paths the VMM parses as `a:b[:ro]`.
@@ -405,6 +421,25 @@ enum HVFFiles {
         closed = true
         guard close(fd) == 0 else { throw posixError("close \(temporary.path)") }
         guard rename(temporary.path, url.path) == 0 else { throw posixError("rename to \(url.path)") }
+    }
+
+    /// Writes all of `data` to `fd`, retrying `EINTR`; any other failure
+    /// (ENOSPC, EIO, EPIPE, EBADF) drops the rest. Never raises: unlike
+    /// `FileHandle.write(_:)` it cannot abort a long-lived process whose
+    /// log destination broke. False when not everything was written.
+    @discardableResult
+    static func writeBestEffort(_ data: Data, to fd: Int32) -> Bool {
+        data.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress else { return true }
+            var offset = 0
+            while offset < raw.count {
+                let n = write(fd, base.advanced(by: offset), raw.count - offset)
+                if n < 0, errno == EINTR { continue }
+                guard n > 0 else { return false }
+                offset += n
+            }
+            return true
+        }
     }
 
     static func posixError(_ what: String, _ code: Int32 = errno) -> MicropodError {

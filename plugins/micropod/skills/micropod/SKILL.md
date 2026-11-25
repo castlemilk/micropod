@@ -89,7 +89,10 @@ behind a Docker API; named volumes, retained containers and logs survive a
 machine restart). `hvf` is `available` once `micropod machine install` has
 put its assets in `MICROPOD_HVF_ROOT` (default `~/.micropod/hvf`); the first
 `run`/`create`/`start` boots the machine (~2 s), reads never do (a stopped
-machine lists no containers). Published tcp ports work. Its exec is
+machine lists no containers). While it is stopped its containers still route
+to `hvf`: `start`/`restart` of one boots the machine, any other call on one
+fails `failed_precondition` naming the stopped machine. `machine install` is
+refused while the machine runs. Published tcp ports work. Its exec is
 non-interactive, kill is SIGKILL only, and it has no `copy`/`export` (no
 archive API) — trust its `capabilities`. Containers that were running when
 the machine stopped come back as `dead`: `start` them again. Bind mounts work

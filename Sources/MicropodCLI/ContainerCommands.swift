@@ -271,8 +271,18 @@ enum ContainerCommands {
             user: parsed.value("--user"),
             workdir: parsed.value("--workdir"),
             env: parsed.values("--env"))
-        let output = try await services.containers.exec(request)
-        print(output.trimmingCharacters(in: .newlines))
+        if request.interactive || request.tty || request.detach {
+            let output = try await services.containers.exec(request)
+            if !request.detach || !output.isEmpty {
+                print(output.trimmingCharacters(in: .newlines))
+            }
+            return
+        }
+        let result = try await services.containers.execDetailed(request)
+        // ContainerExecResult carries text. Preserve its stream boundaries and newlines.
+        try FileHandle.standardOutput.write(contentsOf: Data(result.output.utf8))
+        try FileHandle.standardError.write(contentsOf: Data(result.error.utf8))
+        MicropodCLI.exitOverride = result.exitCode
     }
 
     static func logs(_ args: [String], _ services: Services) async throws {

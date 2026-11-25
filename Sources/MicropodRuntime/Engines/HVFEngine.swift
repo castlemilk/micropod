@@ -6,10 +6,13 @@ import MicropodCore
 /// VM (`HVFMachineSupervisor`) runs containerd + crun behind a Docker
 /// Engine API, and this engine drives that API over the machine's socket.
 ///
-/// The machine starts on demand: `run`, `create` and `start` boot it when
-/// it is stopped. Read-only calls (`probe`, `list`, `owns`, `inspect`,
-/// stats, logs) never do — a stopped machine simply has no containers to
-/// report, so routing stays cheap for every other engine.
+/// The machine starts on demand: `run`, `create`, and `start` or `restart`
+/// of one of its containers boot it when it is stopped. Read-only calls
+/// (`probe`, `list`, `owns`, `inspect`, stats, logs) never do — a stopped
+/// machine lists no containers, so routing stays cheap for every other
+/// engine. Its containers still route here while it is stopped: `owns`
+/// answers from `HVFContainerIndex` on the host, and every id-based call
+/// other than start/restart then reports that the machine is stopped.
 ///
 /// The guest engine implements non-interactive Docker semantics. Requests
 /// it cannot honour (interactive stdin, a TTY, archive copy/export,
@@ -77,16 +80,56 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
         }
     }
 
+    var index: HVFContainerIndexStore { HVFContainerIndexStore(layout: machine.layout) }
+
+    /// The guest decides while the machine serves; otherwise the host-side
+    /// index does, so a stopped machine's containers are never misrouted
+    /// to another engine (and never boot the machine).
     public func owns(_ id: String) async -> Bool {
-        guard machine.isServing else { return false }
+        guard machine.isServing else { return index.load().entry(for: id) != nil }
         return await docker.owns(id)
     }
 
-    private func requireServing() throws {
+    /// `id` names the container the failing call was about.
+    private func requireServing(_ id: String? = nil) throws {
         guard machine.isServing else {
+            let status = machine.status().summary
+            if let id {
+                throw MicropodError.message(
+                    "failedPrecondition: container '\(id)' is on the hvf machine, which is not running (\(status)); "
+                        + "run `micropod machine start` (`micropod start \(id)` also starts it)")
+            }
             throw MicropodError.message(
-                "failedPrecondition: the hvf machine is not running (\(machine.status().summary)); "
+                "failedPrecondition: the hvf machine is not running (\(status)); "
                     + "start it with `micropod machine start`")
+        }
+    }
+
+    /// Runs `body` on container `id`; a guest 404 also drops a stale index entry.
+    private func forgettingMissing<T>(_ id: String, _ body: () async throws -> T) async throws -> T {
+        do {
+            return try await body()
+        } catch {
+            if ConnectCodeMapping.code(for: error) == "not_found" { index.update { $0.remove(id) } }
+            throw error
+        }
+    }
+
+    /// Replaces the index from a fresh guest listing (best-effort).
+    private func refreshIndex() async {
+        let listedAt = Date()
+        guard let listed = try? await docker.listWithIDs() else { return }
+        index.update { $0.refresh(from: Self.indexEntries(listed), listedAt: listedAt) }
+    }
+
+    /// `list` names a container by its name when it has one, else its id.
+    static func indexEntries(_ listed: [(container: Micropod_V1_Container, engineID: String)])
+        -> [(id: String, name: String?)]
+    {
+        listed.compactMap { entry in
+            let id = entry.engineID.isEmpty ? entry.container.id : entry.engineID
+            guard !id.isEmpty else { return nil }
+            return (id, entry.container.id == id || entry.container.id.isEmpty ? nil : entry.container.id)
         }
     }
 
@@ -97,10 +140,14 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     // MARK: ContainerServing
 
     /// The guest's listing has no ports; a running container's come from
-    /// its inspect (one local round trip each, concurrently).
+    /// its inspect (one local round trip each, concurrently). Every listing
+    /// also refreshes the container index.
     public func list() async throws -> [Micropod_V1_Container] {
         guard machine.isServing else { return [] }
-        let listed = try await docker.list()
+        let listedAt = Date()
+        let entries = try await docker.listWithIDs()
+        index.update { $0.refresh(from: Self.indexEntries(entries), listedAt: listedAt) }
+        let listed = entries.map(\.container)
         let docker = self.docker
         let ports = await withTaskGroup(of: (String, [Micropod_V1_PortMapping]).self) { group in
             for container in listed where container.state == "running" {
@@ -145,8 +192,8 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     }
 
     public func inspect(_ id: String) async throws -> Data {
-        try requireServing()
-        return try await docker.inspect(id)
+        try requireServing(id)
+        return try await forgettingMissing(id) { try await docker.inspect(id) }
     }
 
     /// Refuses what the guest cannot do, and resolves host bind sources:
@@ -170,13 +217,23 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     public func create(_ request: ContainerRunRequest) async throws -> String {
         let request = try Self.admit(request)
         try await machine.ensureRunning()
-        return try await docker.create(request)
+        return try await createIndexed(request)
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
         let request = try Self.admit(request)
         try await machine.ensureRunning()
-        return try await docker.run(request)
+        // Indexed before the start: a container whose start fails still exists.
+        let handle = try await createIndexed(request)
+        try await docker.start(handle)
+        return handle
+    }
+
+    private func createIndexed(_ request: ContainerRunRequest) async throws -> String {
+        let created = try await docker.createContainer(request)
+        let id = created.engineID.isEmpty ? created.handle : created.engineID
+        index.update { $0.record(id: id, name: request.name) }
+        return created.handle
     }
 
     public func exec(_ request: ContainerExecRequest) async throws -> String {
@@ -190,25 +247,26 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
 
     public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
         if request.interactive || request.tty { throw unsupported("interactive exec (stdin or a TTY)") }
-        if request.detach { throw unsupported("detached exec") }
-        try requireServing()
+        try requireServing(request.containerID)
         return try await docker.execDetailed(request)
     }
 
+    /// Boots a stopped machine first: its containers survive a machine stop.
     public func start(_ id: String) async throws {
         try await machine.ensureRunning()
-        try await docker.start(id)
+        try await forgettingMissing(id) { try await docker.start(id) }
     }
 
     public func stop(_ id: String, timeout: Int) async throws {
-        try requireServing()
+        try requireServing(id)
         try await docker.stop(id, timeout: timeout)
     }
 
     /// The guest engine has no restart operation: stop (with grace), start.
+    /// Like `start`, boots a stopped machine.
     public func restart(_ id: String) async throws {
-        try requireServing()
-        try await docker.stop(id, timeout: 10)
+        try await machine.ensureRunning()
+        try await forgettingMissing(id) { try await docker.stop(id, timeout: 10) }
         try await docker.start(id)
     }
 
@@ -221,30 +279,58 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     public func kill(_ id: String, signal: String) async throws {
         let normalized = signal.uppercased().replacingOccurrences(of: "SIG", with: "")
         guard ["", "KILL", "9"].contains(normalized) else { throw unsupported("signal \(signal) (SIGKILL only)") }
-        try requireServing()
+        try requireServing(id)
         try await docker.kill(id, signal: "KILL")
     }
 
     public func delete(_ id: String, force: Bool) async throws {
-        try requireServing()
-        try await docker.delete(id, force: force)
+        try requireServing(id)
+        try await forgettingMissing(id) { try await docker.delete(id, force: force) }
+        index.update { $0.remove(id) }
     }
 
     public func deleteAll(force: Bool) async throws {
         guard machine.isServing else { return }
-        try await docker.deleteAll(force: force)
+        do {
+            try await docker.deleteAll(force: force)
+        } catch {
+            await refreshIndex()
+            throw error
+        }
+        await refreshIndex()
     }
 
     /// No `containers/prune` in the guest: remove every container that is
-    /// not running or starting.
+    /// not running or starting. Best-effort per container, like Docker's
+    /// prune: one that cannot be removed is reported, the rest still go,
+    /// and one already gone counts as pruned by someone else.
     public func prune() async throws -> String {
         guard machine.isServing else { return "" }
-        var removed = 0
+        var removed: [String] = []
+        var failures: [String] = []
         for container in try await docker.list() where !["running", "starting"].contains(container.state) {
-            try await docker.delete(container.id, force: false)
-            removed += 1
+            do {
+                try await docker.delete(container.id, force: false)
+                removed.append(container.id)
+            } catch {
+                if ConnectCodeMapping.code(for: error) == "not_found" {
+                    removed.append(container.id)  // removed by someone else meanwhile
+                } else {
+                    failures.append("\(container.id) (\(error.localizedDescription))")
+                }
+            }
         }
-        return removed == 0 ? "" : "removed \(removed) containers"
+        if !removed.isEmpty { index.update { index in removed.forEach { index.remove($0) } } }
+        return Self.pruneReport(removed: removed.count, failures: failures)
+    }
+
+    static func pruneReport(removed: Int, failures: [String]) -> String {
+        var parts: [String] = []
+        if removed > 0 { parts.append("removed \(removed) containers") }
+        if !failures.isEmpty {
+            parts.append("could not remove \(failures.count): \(failures.joined(separator: "; "))")
+        }
+        return parts.joined(separator: "; ")
     }
 
     public func export(_ id: String, to outputPath: String) async throws {
@@ -260,15 +346,14 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     /// The guest serves the whole log or nothing (no `tail`/`since`), so
     /// the tail is cut here.
     public func tail(id: String, lines: Int, boot: Bool) async throws -> [LogLine] {
-        try requireServing()
+        try requireServing(id)
         var splitter = LogFrameSplitter()
-        var kept: [String] = []
+        var kept = LogTailBuffer(limit: lines)
         for try await chunk in logChunks(id: id, follow: false) {
-            kept += splitter.feed(chunk)
-            if lines >= 0, kept.count > 2 * lines + 256 { kept.removeFirst(kept.count - lines) }
+            kept.append(splitter.feed(chunk))
         }
-        kept += splitter.flush()
-        return (lines >= 0 ? Array(kept.suffix(lines)) : kept).map { LogLine(text: $0) }
+        kept.append(splitter.flush())
+        return kept.lines.map { LogLine(text: $0) }
     }
 
     /// With `tail`, the existing log is read first and its last `tail`
@@ -279,18 +364,17 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    try requireServing()
+                    try requireServing(id)
                     var skip = 0
                     if let tail {
                         var splitter = LogFrameSplitter()
-                        var recent: [String] = []
+                        var recent = LogTailBuffer(limit: max(tail, 0))
                         for try await chunk in logChunks(id: id, follow: false) {
                             let lines = splitter.feed(chunk)
                             skip += lines.count
-                            recent += lines
-                            if recent.count > 2 * max(tail, 0) + 256 { recent.removeFirst(recent.count - max(tail, 0)) }
+                            recent.append(lines)
                         }
-                        for line in recent.suffix(max(tail, 0)) { continuation.yield(LogLine(text: line)) }
+                        for line in recent.lines { continuation.yield(LogLine(text: line)) }
                     }
                     var splitter = LogFrameSplitter()
                     for try await chunk in logChunks(id: id, follow: true) {
@@ -328,4 +412,29 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
         }
         return try await docker.snapshot(ids: ids)
     }
+}
+
+/// The last `limit` lines of a log that may be far longer, without holding
+/// all of it: trimmed back to `limit` whenever it grows past about twice
+/// that. A negative limit keeps every line. Any `limit` is safe, including
+/// `Int.max` from a client's `tail` parameter.
+struct LogTailBuffer {
+    let limit: Int
+    private var buffered: [String] = []
+
+    init(limit: Int) { self.limit = limit }
+
+    /// `2 * limit + 256`, saturating.
+    var trimThreshold: Int {
+        let (doubled, overflow) = limit.multipliedReportingOverflow(by: 2)
+        let (bound, overflowAgain) = doubled.addingReportingOverflow(256)
+        return overflow || overflowAgain ? Int.max : bound
+    }
+
+    mutating func append(_ lines: [String]) {
+        buffered += lines
+        if limit >= 0, buffered.count > trimThreshold { buffered.removeFirst(buffered.count - limit) }
+    }
+
+    var lines: [String] { limit >= 0 ? Array(buffered.suffix(limit)) : buffered }
 }

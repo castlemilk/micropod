@@ -408,6 +408,113 @@ final class HVFMachineTests: XCTestCase {
         _ = try await run.value
     }
 
+    func testAStopRequestedBeforeRunNeverLaunches() async throws {
+        let launcher = FakeLauncher([.healthy])
+        let supervisor = supervisor(launcher)
+        supervisor.requestStop()  // e.g. SIGTERM while orphans were being reaped
+        let outcome = try await supervisor.run()
+        XCTAssertEqual(outcome, .stopped)
+        XCTAssertEqual(launcher.launchCount, 0, "no VMM is booted only to be stopped")
+        let stopped = try state()
+        XCTAssertEqual(stopped.phase, .stopped)
+        XCTAssertEqual(stopped.supervisorPID, 4242)
+        XCTAssertEqual(stopped.lastExitReason, "stopped before launch")
+        XCTAssertFalse(HVFFileLock.isHeld(layout.supervisorLock))
+    }
+
+    func testAStopDuringAReadinessTimeoutPoweroffSendsNoSecondSIGTERM() async throws {
+        let launcher = FakeLauncher([.neverReadyIgnoresSIGTERM])
+        var policy = HVFSupervisorPolicy.fast
+        policy.readinessTimeout = .milliseconds(30)
+        policy.stopTimeout = .milliseconds(400)
+        let supervisor = supervisor(launcher, policy: policy)
+        let run = Task { try await supervisor.run() }
+        try await waitFor("the readiness timeout's SIGTERM") { launcher.processes.first?.signals == [SIGTERM] }
+        supervisor.requestStop()
+        let outcome = try await run.value
+        XCTAssertEqual(outcome, .stopped)
+        XCTAssertEqual(
+            launcher.processes.first?.signals, [SIGTERM, SIGKILL],
+            "micropod-vmm forces a stop on a second SIGTERM; only the scheduled SIGKILL follows")
+        XCTAssertEqual(launcher.launchCount, 1)
+    }
+
+    func testALaunchFailureOnARelaunchBacksOffInsteadOfFailing() async throws {
+        let launcher = FakeLauncher([.crashAfterReady(signal: SIGKILL), .unlaunchable, .healthy])
+        let supervisor = supervisor(launcher)
+        let run = Task { try await supervisor.run() }
+        try await waitFor("the third launch to become ready") {
+            launcher.launchCount == 3 && (try? HVFMachineState.load(from: layout.state))?.phase == .running
+        }
+        let recovered = try state()
+        XCTAssertEqual(recovered.restartCount, 2)
+        supervisor.requestStop()
+        let outcome = try await run.value
+        XCTAssertEqual(outcome, .stopped)
+    }
+
+    func testASupervisorRefusesToStartWhileAnInstallRuns() async throws {
+        let installing = try XCTUnwrap(try HVFFileLock.acquire(layout.installLock, wait: .zero))
+        defer { installing.release() }
+        let launcher = FakeLauncher([.healthy])
+        do {
+            _ = try await supervisor(launcher).run()
+            XCTFail("an install owns the root")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "unavailable")
+            XCTAssertTrue(error.localizedDescription.contains("being installed"), error.localizedDescription)
+        }
+        XCTAssertEqual(launcher.launchCount, 0)
+        XCTAssertFalse(HVFFileLock.isHeld(layout.supervisorLock), "released on refusal")
+    }
+
+    func testTheLogSinkNeverRaisesOnABrokenDestination() throws {
+        var fds: [Int32] = [-1, -1]
+        XCTAssertEqual(pipe(&fds), 0)
+        HVFMachineSupervisor.stderrLog("hello", to: fds[1])
+        close(fds[1])
+        var buffer = [UInt8](repeating: 0, count: 256)
+        let n = read(fds[0], &buffer, buffer.count)
+        close(fds[0])
+        XCTAssertTrue(String(decoding: buffer[0..<max(n, 0)], as: UTF8.self).hasSuffix(" hvf-supervisor: hello\n"))
+
+        // EBADF, and EPIPE with SIGPIPE ignored as `machine serve` runs:
+        // the line is lost, the process carries on (FileHandle.write raises).
+        XCTAssertFalse(HVFFiles.writeBestEffort(Data("x".utf8), to: -1))
+        HVFMachineSupervisor.stderrLog("lost", to: -1)
+        XCTAssertEqual(pipe(&fds), 0)
+        close(fds[0])
+        let previous = signal(SIGPIPE, SIG_IGN)
+        defer { signal(SIGPIPE, previous) }
+        XCTAssertFalse(HVFFiles.writeBestEffort(Data("x".utf8), to: fds[1]))
+        HVFMachineSupervisor.stderrLog("lost", to: fds[1])
+        close(fds[1])
+    }
+
+    func testADetachedSpawnDoesNotPinTheCallersDirectory() throws {
+        func pwd(newSession: Bool) throws -> String {
+            var fds: [Int32] = [-1, -1]
+            XCTAssertEqual(pipe(&fds), 0)
+            let pid = try HVFSpawn.spawn(
+                executable: "/bin/pwd", arguments: ["-P"], environment: [:], output: fds[1], newSession: newSession)
+            close(fds[1])
+            var output = Data()
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while true {
+                let n = read(fds[0], &buffer, buffer.count)
+                guard n > 0 else { break }
+                output.append(contentsOf: buffer[0..<n])
+            }
+            close(fds[0])
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            return String(decoding: output, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        XCTAssertEqual(try pwd(newSession: true), "/", "the detached supervisor (and so its VMM) runs in /")
+        XCTAssertEqual(
+            try pwd(newSession: false), HVFMachineLayout.canonicalPath(FileManager.default.currentDirectoryPath))
+    }
+
     // MARK: Orphans
 
     func testOrphanDecisionRequiresThisRootsBinaryAndDisk() {
@@ -561,6 +668,65 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(
             HVFMachineClient.supervisorExecutable(environment: ["MICROPOD_CLI": layout.vmm.path])?.path, layout.vmm.path
         )
+    }
+
+    func testEnsureRunningTreatsAStopOfItsOwnSupervisorAsFinal() {
+        func state(_ phase: HVFMachinePhase, pid: Int32 = 100) -> HVFMachineState {
+            HVFMachineState(phase: phase, supervisorPID: pid, lastExitReason: "why")
+        }
+        let mine: Set<Int32> = [100]
+        func step(_ state: HVFMachineState?, _ launched: Set<Int32>, _ launches: Int)
+            -> HVFMachineClient
+            .StepWithoutSupervisor
+        {
+            HVFMachineClient.stepWithoutSupervisor(state: state, launched: launched, launches: launches)
+        }
+        XCTAssertEqual(step(nil, [], 0), .launch)
+        XCTAssertEqual(step(state(.stopped), mine, 1), .stoppedWhileStarting, "an explicit stop is not undone")
+        XCTAssertEqual(step(state(.failed), mine, 1), .failedToStart("why"))
+        XCTAssertEqual(step(state(.stopped, pid: 7), mine, 1), .launch, "another supervisor's stop is history")
+        XCTAssertEqual(step(state(.running), mine, 1), .launch, "one that died without publishing gets a retry")
+        XCTAssertEqual(step(nil, mine, 2), .gaveUp)
+    }
+
+    func testEnsureRunningRefusesWhileAnInstallRuns() async throws {
+        try installPlaceholders()
+        let installing = try XCTUnwrap(try HVFFileLock.acquire(layout.installLock, wait: .zero))
+        defer { installing.release() }
+        do {
+            try await HVFMachineClient(layout: layout, environment: [:]).ensureRunning(timeout: .seconds(5))
+            XCTFail("an install owns the root")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "unavailable")
+            XCTAssertTrue(error.localizedDescription.contains("being installed"), error.localizedDescription)
+        }
+        XCTAssertFalse(HVFFileLock.isHeld(layout.supervisorLock), "nothing was launched")
+    }
+
+    func testStopWaitsForAStartInFlightAndIgnoresABrokenConfig() async throws {
+        try installPlaceholders()
+        try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
+        try Data(#"{"schema": 2}"#.utf8).write(to: layout.config)
+        let starting = try XCTUnwrap(try HVFFileLock.acquire(layout.startLock, wait: .zero))
+        let inspector = FakeInspector()
+        inspector.add(HVFProcessFacts(pid: 4343, executablePath: "/x", arguments: [], startSeconds: 1))
+        let client = HVFMachineClient(layout: layout, environment: [:], inspector: inspector)
+        let stop = Task { try await client.stop() }
+        try await Task.sleep(for: .milliseconds(150))
+        // The starter's supervisor takes its lock; then the starter lets go.
+        let supervisor = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        try supervisor.record(pid: 4343)
+        starting.release()
+        try await waitFor("the SIGTERM") { inspector.signalled[4343] == [SIGTERM] }
+        supervisor.release()
+        let stopped = try await stop.value
+        XCTAssertTrue(stopped, "a machine being started is stopped, not reported as not running")
+    }
+
+    func testStopOnARootThatNeverRanCreatesNothing() async throws {
+        let stopped = try await HVFMachineClient(layout: layout, environment: [:]).stop()
+        XCTAssertFalse(stopped)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
     }
 
     // MARK: Engine
@@ -811,6 +977,113 @@ final class HVFMachineTests: XCTestCase {
         let running = await installError(try sources())
         XCTAssertTrue(running?.contains("is running") ?? false, running ?? "installed")
     }
+
+    func testInstallCopiesThroughSymlinkedSources() async throws {
+        var request = try sources()
+        let fm = FileManager.default
+        let links = root.appendingPathComponent("links")
+        try fm.createDirectory(at: links, withIntermediateDirectories: true)
+        // Relative links, as Homebrew installs binaries.
+        for (name, target) in [
+            ("vmm", "../src/vmm-entitled"), ("Image", "../src/Image"), ("init", "../src/init.cpio"),
+            ("tools", "../src/tools"),
+        ] {
+            try fm.createSymbolicLink(atPath: links.appendingPathComponent(name).path, withDestinationPath: target)
+        }
+        request.vmm = links.appendingPathComponent("vmm")
+        request.kernel = links.appendingPathComponent("Image")
+        request.initrd = links.appendingPathComponent("init")
+        request.tools = links.appendingPathComponent("tools")
+        try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        for url in [layout.vmm, layout.kernel, layout.initrd] {
+            let type = try fm.attributesOfItem(atPath: url.path)[.type] as? FileAttributeType
+            XCTAssertEqual(type, .typeRegular, "\(url.lastPathComponent) is a copy, not a link")
+        }
+        XCTAssertEqual(try fm.attributesOfItem(atPath: layout.tools.path)[.type] as? FileAttributeType, .typeDirectory)
+        XCTAssertEqual(try String(contentsOf: layout.kernel, encoding: .utf8), "Image")
+        XCTAssertNoThrow(try HVFMachineInstaller.verifyHypervisorEntitlement(layout.vmm))
+        XCTAssertEqual(layout.missingAssets(), [])
+    }
+
+    func testAFailedDiskPullChangesNothingInstalled() async throws {
+        let request = try sources()
+        try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        let before = try [layout.kernel, layout.config, layout.disk].map { try Data(contentsOf: $0) }
+        let newKernel = root.appendingPathComponent("src/Image2")
+        XCTAssertTrue(FileManager.default.createFile(atPath: newKernel.path, contents: Data("new kernel".utf8)))
+        // A root that cannot take new entries fails the disk step locally (and
+        // at once): the pull store for --disk-image, the clone for --disk-from.
+        // run/ stays writable, so the locks are still taken.
+        XCTAssertEqual(chmod(root.path, 0o555), 0)
+        defer { chmod(root.path, 0o755) }
+        let pull = await installError(
+            HVFInstallRequest(kernel: newKernel, diskImage: "alpine:3.20", replaceDisk: true, cpus: 3))
+        XCTAssertNotNil(pull, "the pull store cannot be created")
+        var clone = try sources()
+        clone.kernel = newKernel
+        clone.replaceDisk = true
+        let cloned = await installError(clone)
+        XCTAssertTrue(cloned?.contains("cannot clone") ?? false, cloned ?? "installed")
+        chmod(root.path, 0o755)
+        XCTAssertEqual(
+            try [layout.kernel, layout.config, layout.disk].map { try Data(contentsOf: $0) }, before,
+            "the kernel and config are swapped only once the disk is ready")
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: root.path)
+            .filter { $0.hasPrefix(".install-") || $0.hasPrefix(".retired-") || $0 == "images" }
+        XCTAssertEqual(leftovers, [], "the staged disk and pull store are removed")
+    }
+
+    func testInstallIsExclusiveAndWaitsOutAStartInFlight() async throws {
+        let request = try sources()
+        let installing = try XCTUnwrap(try HVFFileLock.acquire(layout.installLock, wait: .zero))
+        let concurrent = await installError(request)
+        XCTAssertTrue(concurrent?.contains("another `micropod machine install`") ?? false, concurrent ?? "installed")
+        installing.release()
+
+        // A starter holds start.lock until its supervisor holds the
+        // supervisor lock: the install waits for that, then refuses.
+        let starting = try XCTUnwrap(try HVFFileLock.acquire(layout.startLock, wait: .zero))
+        let install = Task { [layout] in
+            do {
+                try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+                return "installed"
+            } catch {
+                return error.localizedDescription
+            }
+        }
+        try await Task.sleep(for: .milliseconds(150))
+        let supervisor = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { supervisor.release() }
+        starting.release()
+        let message = await install.value
+        XCTAssertTrue(message.contains("is running"), message)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.vmm.path), "nothing was installed")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.disk.path))
+    }
+
+    func testInstallClearsLeftoversAndANewDiskForgetsTheOldContainers() async throws {
+        var request = try sources()
+        try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        let fm = FileManager.default
+        let index = HVFContainerIndexStore(layout: layout)
+        index.update { $0.record(id: "abcdef123456", name: "keep") }
+        let leftovers = [".install-1-disk.ext4", ".retired-2-tools", "images"].map { root.appendingPathComponent($0) }
+        XCTAssertTrue(fm.createFile(atPath: leftovers[0].path, contents: Data("partial".utf8)))
+        try fm.createDirectory(at: leftovers[1].appendingPathComponent("runner"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: leftovers[2].appendingPathComponent("blobs"), withIntermediateDirectories: true)
+
+        let reconfigured = await installError(HVFInstallRequest(cpus: 3))
+        XCTAssertNil(reconfigured)
+        for leftover in leftovers {
+            XCTAssertFalse(fm.fileExists(atPath: leftover.path), "\(leftover.lastPathComponent) removed")
+        }
+        XCTAssertNotNil(index.load().entry(for: "keep"), "the same disk keeps its containers")
+
+        request.replaceDisk = true
+        let replaced = await installError(request)
+        XCTAssertNil(replaced)
+        XCTAssertNil(index.load().entry(for: "keep"), "a new disk holds none of the old containers")
+    }
 }
 
 // MARK: - Fakes
@@ -842,6 +1115,8 @@ final class FakeVMM: HVFVMMProcess, @unchecked Sendable {
         case neverReady
         /// Ready; only SIGKILL ends it.
         case ignoresSIGTERM
+        /// Never ready, and only SIGKILL ends it (a slow poweroff).
+        case neverReadyIgnoresSIGTERM
         /// The launcher throws.
         case unlaunchable
     }
@@ -897,7 +1172,7 @@ final class FakeVMM: HVFVMMProcess, @unchecked Sendable {
         }
         guard alive else { return }
         switch (script, signal) {
-        case (.ignoresSIGTERM, SIGTERM): break
+        case (.ignoresSIGTERM, SIGTERM), (.neverReadyIgnoresSIGTERM, SIGTERM): break
         case (_, SIGKILL): finish(HVFVMMExit(signal: SIGKILL))
         default: finish(HVFVMMExit(code: 0, summary: "poweroff"))
         }

@@ -253,8 +253,11 @@ enum HVFSpawn {
     /// `posix_spawn` with stdin from /dev/null and stdout+stderr on `output`.
     /// Close-on-exec by default: the child inherits nothing else.
     /// `newSession` detaches it from the caller's terminal and process
-    /// group; otherwise it gets a process group of its own so a terminal's
-    /// Ctrl-C reaches only the parent, which forwards one deliberate signal.
+    /// group, and starts it in `/` so a long-lived daemon never pins the
+    /// caller's working directory (and its volume) — every path the
+    /// supervisor and the VMM use is absolute. Otherwise it gets a process
+    /// group of its own so a terminal's Ctrl-C reaches only the parent,
+    /// which forwards one deliberate signal.
     static func spawn(
         executable: String, arguments: [String], environment: [String: String], output: Int32, newSession: Bool
     ) throws -> pid_t {
@@ -264,6 +267,7 @@ enum HVFSpawn {
         posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)
         posix_spawn_file_actions_adddup2(&actions, output, 1)
         posix_spawn_file_actions_adddup2(&actions, output, 2)
+        if newSession { posix_spawn_file_actions_addchdir_np(&actions, "/") }
 
         var attributes: posix_spawnattr_t?
         posix_spawnattr_init(&attributes)

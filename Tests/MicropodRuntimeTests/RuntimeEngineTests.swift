@@ -30,10 +30,12 @@ final class RuntimeEngineTests: XCTestCase {
         )
     }
 
-    private func apple(_ containers: any ContainerServing = RecordingContainers(ids: ["web"])) -> AppleEngine {
+    private func apple(
+        _ containers: any ContainerServing = RecordingContainers(ids: ["web"]), stats: any StatsSampling = NoStats()
+    ) -> AppleEngine {
         AppleEngine(
             services: RuntimeServices(
-                kind: .cli, containers: containers, logs: NoLogs(), stats: NoStats(),
+                kind: .cli, containers: containers, logs: NoLogs(), stats: stats,
                 volumes: VolumeService(
                     client: ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/true"))),
                 api: nil, health: nil, exitCodes: nil))
@@ -133,6 +135,67 @@ final class RuntimeEngineTests: XCTestCase {
         let router = RuntimeRouter(apple: failing, registry: registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"]))
         let listed = try await router.list()
         XCTAssertEqual(listed, [], "the default engine's (empty) listing survives a stopped Apple runtime")
+    }
+
+    /// Only "the Apple runtime is down" is tolerated when Apple is not the
+    /// default; every other Apple failure is still the caller's answer.
+    private static let runtimeDown: [(String, any Error)] = [
+        ("runtimeNotRunning", MicropodError.runtimeNotRunning),
+        ("transport", MicropodError.transport("com.apple.container.apiserver: connection invalidated")),
+        ("cliUnavailable", MicropodError.cliUnavailable("/usr/local/bin/container")),
+        (
+            "cli runtime-down output",
+            MicropodError.cliFailure(
+                command: "container list", exitCode: 1,
+                stderr: "Error: apiserver is not running and not registered with launchd")
+        ),
+    ]
+    private static let realFailures: [(String, any Error)] = [
+        ("internal", MicropodError.message("internal: decode failed")),
+        ("timeout", MicropodError.cliTimeout(command: "container list")),
+        ("cli failure", MicropodError.cliFailure(command: "container list", exitCode: 1, stderr: "Error: boom")),
+        ("decode", MicropodError.decode("bad json")),
+        ("cancellation", CancellationError()),
+    ]
+
+    func testANonDefaultAppleRuntimeToleratesOnlyBeingDown() async throws {
+        let others = registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"])
+        for (name, error) in Self.runtimeDown {
+            let router = RuntimeRouter(
+                apple: apple(FailingContainers(error: error), stats: FailingStats(error)), registry: others)
+            let listed = try await router.list()
+            XCTAssertEqual(listed, [], name)
+            let stats = try await router.snapshot(ids: [])
+            XCTAssertEqual(stats.containers, [], name)
+            XCTAssertFalse(stats.sampledAt.isEmpty, name)
+        }
+        for (name, error) in Self.realFailures {
+            let router = RuntimeRouter(
+                apple: apple(FailingContainers(error: error), stats: FailingStats(error)), registry: others)
+            do {
+                _ = try await router.list()
+                XCTFail("list swallowed \(name)")
+            } catch {}
+            do {
+                _ = try await router.snapshot(ids: [])
+                XCTFail("snapshot swallowed \(name)")
+            } catch {}
+        }
+    }
+
+    func testAnAppleDefaultSurfacesEveryAppleFailureAsBefore() async throws {
+        for (name, error) in Self.runtimeDown + Self.realFailures {
+            let router = RuntimeRouter(
+                apple: apple(FailingContainers(error: error), stats: FailingStats(error)), registry: registry())
+            do {
+                _ = try await router.list()
+                XCTFail("list swallowed \(name)")
+            } catch {}
+            do {
+                _ = try await router.snapshot(ids: [])
+                XCTFail("snapshot swallowed \(name)")
+            } catch {}
+        }
     }
 
     // MARK: Routing
@@ -278,9 +341,10 @@ final class RuntimeEngineTests: XCTestCase {
 
 // MARK: - Fakes
 
-/// An Apple runtime that is not running.
+/// An Apple runtime whose every call fails (by default: it is not running).
 struct FailingContainers: ContainerServing {
-    private var down: MicropodError { .runtimeNotRunning }
+    var error: any Error = MicropodError.runtimeNotRunning
+    private var down: any Error { error }
     func list() async throws -> [Micropod_V1_Container] { throw down }
     func inspect(_ id: String) async throws -> Data { throw down }
     func create(_ request: ContainerRunRequest) async throws -> String { throw down }
@@ -340,4 +404,11 @@ struct NoLogs: LogStreaming {
 struct NoStats: StatsSampling {
     func snapshot() async throws -> Micropod_V1_StatsSnapshot { .init() }
     func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot { .init() }
+}
+
+struct FailingStats: StatsSampling {
+    let error: any Error
+    init(_ error: any Error) { self.error = error }
+    func snapshot() async throws -> Micropod_V1_StatsSnapshot { throw error }
+    func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot { throw error }
 }

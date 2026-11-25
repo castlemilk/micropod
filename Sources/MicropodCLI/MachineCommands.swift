@@ -40,6 +40,22 @@ enum MachineCommands {
 
     static let hvfOnly: Set<String> = ["install", "start", "restart", "status", "serve", "docker-endpoint", "help"]
 
+    /// The hvf machine command in a whole `micropod` argv, if it is one: the
+    /// arguments after `machine` (or `machines`), with the global flags
+    /// (`--json`, `--no-color`, `--cli <path>`) removed wherever they sit,
+    /// the way the main dispatcher removes them.
+    static func route(_ argv: [String]) -> (args: [String], json: Bool)? {
+        var args = argv
+        let json = args.contains("--json")
+        args.removeAll { $0 == "--json" || $0 == "--no-color" }
+        if let index = args.firstIndex(of: "--cli"), index + 1 < args.count {
+            args.removeSubrange(index...index + 1)
+        }
+        guard args.first == "machine" || args.first == "machines" else { return nil }
+        let machineArgs = Array(args.dropFirst())
+        return handles(machineArgs) ? (machineArgs, json) : nil
+    }
+
     /// True when `args` (after `machine`) is an hvf machine command.
     static func handles(_ args: [String]) -> Bool {
         guard let sub = args.first else { return false }
@@ -139,7 +155,9 @@ enum MachineCommands {
         guard scale > 0, let count = UInt64(lower.dropLast()), count > 0 else {
             throw UsageError(message: "--disk-size wants a size such as 32g or 40960m, got '\(raw)'")
         }
-        return count * scale
+        let (bytes, overflow) = count.multipliedReportingOverflow(by: scale)
+        guard !overflow else { throw UsageError(message: "--disk-size '\(raw)' is too large") }
+        return bytes
     }
 
     // MARK: status
@@ -195,10 +213,19 @@ enum MachineCommands {
             aliases: ["-f": "--follow", "-n": "--tail"], commandName: "machine logs")
     }
 
+    /// `--tail N`: a non-negative line count (default 100).
+    static func tailLines(_ parsed: ParsedArgs) throws -> Int {
+        guard let raw = parsed.value("--tail") else { return 100 }
+        guard let lines = Int(raw), lines >= 0 else {
+            throw UsageError(message: "machine logs: --tail wants a non-negative integer, got '\(raw)'")
+        }
+        return lines
+    }
+
     static func logs(_ args: [String], layout: HVFMachineLayout) async throws {
         let parsed = try parseLogs(args)
         let url = parsed.has("--supervisor") ? layout.supervisorLog : layout.consoleLog
-        let lines = parsed.intValue("--tail", default: 100)
+        let lines = try tailLines(parsed)
         var offset: UInt64 = 0
         var inode: UInt64 = 0
         if let handle = try? FileHandle(forReadingFrom: url) {

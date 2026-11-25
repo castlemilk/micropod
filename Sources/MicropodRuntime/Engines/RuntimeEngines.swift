@@ -332,6 +332,16 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         return apple
     }
 
+    /// The Apple runtime is not running or cannot be reached: the errors
+    /// `ConnectCodeMapping` classifies `unavailable` (`runtimeNotRunning`,
+    /// a lost XPC channel, a missing `container` CLI, the CLI's own
+    /// runtime-down output). Timeouts, decode failures, refusals and
+    /// cancellation are not.
+    static func appleRuntimeIsDown(_ error: any Error) -> Bool {
+        if error is CancellationError { return false }
+        return ConnectCodeMapping.code(for: error) == "unavailable"
+    }
+
     static func require(_ engine: any RuntimeEngine, _ capability: String) throws {
         guard engine.capabilities.contains(capability) else {
             throw MicropodError.unsupported("runtime '\(engine.name)' does not support \(capability)")
@@ -351,8 +361,9 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         } catch {
             // With another engine as the default, a stopped Apple runtime is
             // just one more best-effort engine: its absence must not hide
-            // the default engine's containers.
-            guard registry.defaultName != "apple" else { throw error }
+            // the default engine's containers. Any other Apple failure is
+            // still the listing's failure.
+            guard registry.defaultName != "apple", Self.appleRuntimeIsDown(error) else { throw error }
         }
         // Other engines are best-effort: a stopped Docker Desktop must not
         // fail the listing of containers that are running fine elsewhere.
@@ -473,8 +484,9 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         do {
             merged = try await apple.stats?.snapshot(ids: ids) ?? merged
         } catch {
-            // As in `list`: Apple is best-effort when it is not the default.
-            guard registry.defaultName != "apple" else { throw error }
+            // As in `list`: a stopped Apple runtime is skipped when Apple is
+            // not the default; any other Apple failure still surfaces.
+            guard registry.defaultName != "apple", Self.appleRuntimeIsDown(error) else { throw error }
             merged.sampledAt = ISO8601DateFormatter().string(from: Date())
         }
         for engine in registry.extraEngines() {

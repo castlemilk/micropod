@@ -115,8 +115,11 @@ public struct HVFMachineClient: Sendable {
     // MARK: Start
 
     /// Returns once the guest Docker API answers, starting a detached
-    /// supervisor first when none is running.
+    /// supervisor first when none is running. Fails at once while
+    /// `machine install` runs, and when the supervisor it started is
+    /// stopped (`machine stop`) before the machine became ready.
     public func ensureRunning(timeout: Duration = .seconds(180)) async throws {
+        if layout.installInProgress { throw layout.installInProgressError() }
         let missing = layout.missingAssets()
         guard missing.isEmpty else {
             throw MicropodError.message(
@@ -140,20 +143,23 @@ public struct HVFMachineClient: Sendable {
                 // No supervisor. Either none was running, or the one this
                 // call waited on has finished — report how, or start one.
                 let state = try? HVFMachineState.load(from: layout.state)
-                if let state, launched.contains(state.supervisorPID), state.phase == .failed {
+                switch Self.stepWithoutSupervisor(state: state, launched: launched, launches: launches) {
+                case .launch:
+                    launches += 1
+                    if let pid = try await launchSupervisor(until: deadline) { launched.insert(pid) }
+                    continue
+                case .failedToStart(let reason):
                     throw MicropodError.message(
-                        "unavailable: hvf machine failed to start: \(state.lastExitReason ?? "unknown reason") "
-                            + "(see \(layout.consoleLog.path))")
-                }
-                guard launches < 2 else {
+                        "unavailable: hvf machine failed to start: \(reason) (see \(layout.consoleLog.path))")
+                case .stoppedWhileStarting:
+                    throw MicropodError.message(
+                        "unavailable: the hvf machine was stopped (`micropod machine stop`) before it became ready")
+                case .gaveUp:
                     throw MicropodError.message(
                         "unavailable: hvf machine supervisor exited before the machine became ready"
                             + (state.map { " (phase \($0.phase.rawValue): \($0.lastExitReason ?? "no reason"))" } ?? "")
                             + supervisorLogTail())
                 }
-                launches += 1
-                if let pid = try await launchSupervisor(until: deadline) { launched.insert(pid) }
-                continue
             }
             guard ContinuousClock.now < deadline else {
                 let status = status()
@@ -165,16 +171,53 @@ public struct HVFMachineClient: Sendable {
         }
     }
 
+    enum StepWithoutSupervisor: Equatable {
+        case launch
+        /// A supervisor this call launched gave up (`failed`).
+        case failedToStart(String)
+        /// A supervisor this call launched was asked to stop: an explicit
+        /// stop wins over the start that was waiting for it.
+        case stoppedWhileStarting
+        /// Launched twice and still nothing holds the lock.
+        case gaveUp
+    }
+
+    /// What `ensureRunning` does when no supervisor holds the lock, from
+    /// the last published state and the supervisors this call launched.
+    static func stepWithoutSupervisor(state: HVFMachineState?, launched: Set<Int32>, launches: Int)
+        -> StepWithoutSupervisor
+    {
+        if let state, launched.contains(state.supervisorPID) {
+            switch state.phase {
+            case .failed: return .failedToStart(state.lastExitReason ?? "unknown reason")
+            case .stopped: return .stoppedWhileStarting
+            default: break
+            }
+        }
+        return launches < 2 ? .launch : .gaveUp
+    }
+
     /// Launches `micropod machine serve` in its own session (so it outlives
     /// this process and its terminal) and waits for it to take the
     /// supervisor lock. nil when another starter's supervisor got there
     /// first.
     private func launchSupervisor(until deadline: ContinuousClock.Instant) async throws -> Int32? {
-        guard let start = try await Self.lock(layout.startLock, until: deadline) else {
-            throw MicropodError.message("deadlineExceeded: timed out waiting for \(layout.startLock.path)")
+        // `machine install` holds install.lock (and start.lock) for its whole
+        // run: refuse at once rather than queue behind minutes of unpacking.
+        var acquired: HVFFileLock?
+        while acquired == nil {
+            if layout.installInProgress { throw layout.installInProgressError() }
+            acquired = try HVFFileLock.acquire(layout.startLock, wait: .zero)
+            guard acquired == nil else { break }
+            guard ContinuousClock.now < deadline else {
+                throw MicropodError.message("deadlineExceeded: timed out waiting for \(layout.startLock.path)")
+            }
+            try await Task.sleep(for: .milliseconds(25))
         }
+        guard let start = acquired else { return nil }
         defer { start.release() }
         if HVFFileLock.isHeld(layout.supervisorLock) { return nil }
+        if layout.installInProgress { throw layout.installInProgressError() }
         guard let executable = Self.supervisorExecutable(environment: environment) else {
             throw MicropodError.message(
                 "failedPrecondition: cannot find the micropod CLI that runs the hvf machine supervisor "
@@ -235,18 +278,38 @@ public struct HVFMachineClient: Sendable {
 
     // MARK: Stop
 
+    /// How long `stop` waits for an in-flight start to hand over to its
+    /// supervisor (spawn + lock, normally well under a second).
+    static let startHandoverWait: Duration = .seconds(10)
+
     /// Asks the supervisor to power the guest off and waits for it to exit.
-    /// False when no supervisor was running.
+    /// False when no supervisor was running. A machine another process is
+    /// starting right now is waited for and stopped, not reported as not
+    /// running. The default `timeout` outlasts the configured guest
+    /// poweroff budget plus the supervisor's SIGKILL escalation, and does
+    /// not depend on machine.json still being valid: the running
+    /// supervisor loaded its configuration when it started.
     @discardableResult
-    /// The default `timeout` outlasts the configured guest poweroff budget
-    /// plus the supervisor's SIGKILL escalation.
     public func stop(timeout: Duration? = nil) async throws -> Bool {
+        // Nothing under this root has ever started (and nothing is created).
+        guard FileManager.default.fileExists(atPath: layout.runDirectory.path) else { return false }
+        // A starter holds start.lock until its supervisor holds the
+        // supervisor lock, so once start.lock is ours that supervisor is
+        // visible. Proceed regardless if a starter is wedged.
+        var start = try await Self.lock(layout.startLock, until: ContinuousClock.now + Self.startHandoverWait)
+        defer { start?.release() }
         guard HVFFileLock.isHeld(layout.supervisorLock) else { return false }
-        let timeout = try timeout ?? HVFMachineConfig.load(from: layout.config).stopGrace + .seconds(30)
+        let grace =
+            (try? HVFMachineConfig.load(from: layout.config))?.stopGrace
+            ?? HVFMachineConfig(shutdownTimeoutSeconds: 600).stopGrace
+        let timeout = timeout ?? grace + .seconds(30)
         let pid = try await supervisorPID()
         if let failure = inspector.signal(pid, SIGTERM), inspector.isAlive(pid) {
             throw MicropodError.message("internal: hvf: cannot signal supervisor pid \(pid): \(failure)")
         }
+        // Signalled: other starters may queue behind the stop now.
+        start?.release()
+        start = nil
         let deadline = ContinuousClock.now + timeout
         while HVFFileLock.isHeld(layout.supervisorLock) {
             guard ContinuousClock.now < deadline else {
@@ -269,7 +332,8 @@ public struct HVFMachineClient: Sendable {
         let deadline = ContinuousClock.now + .seconds(2)
         while true {
             if let pid = HVFFileLock.recordedPID(layout.supervisorLock), pid > 1 {
-                let state = try HVFMachineState.load(from: layout.state)
+                // An unreadable state file only skips the recycled-pid check.
+                let state = try? HVFMachineState.load(from: layout.state)
                 if let state, state.supervisorPID == pid, let recorded = state.supervisorStartSeconds,
                     let actual = inspector.facts(pid)?.startSeconds, recorded != actual
                 {

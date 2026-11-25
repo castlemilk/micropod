@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import MicropodCore
+import Synchronization
 
 // MARK: - VMM process seam
 
@@ -159,6 +160,9 @@ public actor HVFMachineSupervisor {
 
     private let events: AsyncStream<Event>
     private nonisolated let continuation: AsyncStream<Event>.Continuation
+    /// Set by `requestStop`, so `run` sees a stop that arrived during
+    /// start-up before it launches anything.
+    private nonisolated let stopRequestedEarly = Mutex(false)
 
     private var state: HVFMachineState
     /// Bumped per launch; events from an earlier launch are ignored.
@@ -167,6 +171,9 @@ public actor HVFMachineSupervisor {
     private var launchedAt: ContinuousClock.Instant?
     private var ready = false
     private var stopping = false
+    /// The generation already sent SIGTERM: micropod-vmm treats a second
+    /// SIGTERM as a forced stop, so one VMM gets at most one.
+    private var terminatedGeneration: Int?
     private var pendingFailure: String?
     private var rapidFailures = 0
     private var tasks: [Task<Void, Never>] = []
@@ -195,10 +202,14 @@ public actor HVFMachineSupervisor {
 
     /// Asks a running supervisor to power the guest off and return. Safe
     /// from a signal handler's queue and before `run()` starts.
-    public nonisolated func requestStop() { continuation.yield(.stopRequested) }
+    public nonisolated func requestStop() {
+        stopRequestedEarly.withLock { $0 = true }
+        continuation.yield(.stopRequested)
+    }
 
     /// Supervises until stopped or given up. Throws only for setup
-    /// failures (lock I/O, an orphaned VMM that will not die).
+    /// failures (lock I/O, an orphaned VMM that will not die, an install
+    /// in progress).
     public func run() async throws -> HVFSupervisorOutcome {
         guard let lock = try HVFFileLock.acquire(layout.supervisorLock, wait: policy.lockWait) else {
             let owner = try? HVFMachineState.load(from: layout.state)
@@ -213,9 +224,20 @@ public actor HVFMachineSupervisor {
             lock.release()
         }
         try lock.record(pid: pid)
+        // `machine install` holds install.lock while it swaps the disk and
+        // binaries; it checks this lock after taking its own, so one of the
+        // two always sees the other.
+        if layout.installInProgress {
+            log("not starting: `micropod machine install` is running on \(layout.root.path)")
+            throw layout.installInProgressError()
+        }
         try FileManager.default.createDirectory(at: layout.logsDirectory, withIntermediateDirectories: true)
         try await reapOrphans()
         log("supervising \(layout.root.path) (pid \(pid), \(config.cpus) vCPU, \(config.memoryMiB) MiB)")
+        if stopRequestedEarly.withLock({ $0 }) {
+            log("stop requested before the first launch")
+            return finishStopped(reason: "stopped before launch")
+        }
         persist()
         launch()
         for await event in events {
@@ -260,8 +282,14 @@ public actor HVFMachineSupervisor {
                 log("stop requested between launches")
                 return finishStopped(reason: "stopped before relaunch")
             }
-            log("stop requested: SIGTERM to micropod-vmm pid \(process.pid) for a graceful guest poweroff")
-            terminate(process)
+            if terminatedGeneration == generation {
+                // A readiness timeout already asked this VMM to power off; a
+                // second SIGTERM would force it. The scheduled SIGKILL stays.
+                log("stop requested: micropod-vmm pid \(process.pid) is already powering off")
+            } else {
+                log("stop requested: SIGTERM to micropod-vmm pid \(process.pid) for a graceful guest poweroff")
+                terminate(process)
+            }
         }
         return nil
     }
@@ -283,8 +311,12 @@ public actor HVFMachineSupervisor {
         pendingFailure = nil
         state.lastExitReason = reason
         removeSocket()
-        // A configuration that never booted fails the same way every time.
-        if exit.isConfigurationFailure, !ready {
+        // A first launch that fails on its configuration fails the same way
+        // every time. On a relaunch (the configuration has worked before) the
+        // same failure may be transient — posix_spawn EAGAIN, a full disk for
+        // the console log — so it backs off like any rapid failure, which
+        // still gives up after `maxRapidFailures`.
+        if exit.isConfigurationFailure, !ready, state.restartCount == 0 {
             state.phase = .failed
             persist()
             log("not relaunching after a configuration failure: \(reason)")
@@ -374,6 +406,7 @@ public actor HVFMachineSupervisor {
 
     /// SIGTERM now, SIGKILL if the process outlives `stopTimeout`.
     private func terminate(_ process: any HVFVMMProcess) {
+        terminatedGeneration = generation
         process.signal(SIGTERM)
         schedule(.stopTimeout(generation: generation), after: policy.stopTimeout)
     }
@@ -492,10 +525,7 @@ extension HVFMachineSupervisor {
         }
         if let problem = layout.configurationProblem() { throw MicropodError.message("failedPrecondition: \(problem)") }
         let config = try HVFMachineConfig.load(from: layout.config)
-        let log: @Sendable (String) -> Void = { line in
-            let stamp = ISO8601DateFormatter().string(from: Date())
-            FileHandle.standardError.write(Data("\(stamp) hvf-supervisor: \(line)\n".utf8))
-        }
+        let log: @Sendable (String) -> Void = { stderrLog($0) }
         var childEnvironment = environment
         childEnvironment[ParentDeathWatch.parentPIDEnv] = nil
         var policy = HVFSupervisorPolicy()
@@ -517,6 +547,14 @@ extension HVFMachineSupervisor {
         }
         defer { for source in sources { source.cancel() } }
         return try await supervisor.run()
+    }
+
+    /// The foreground supervisor's log sink: one timestamped line to stderr
+    /// (`logs/supervisor.log` when detached). A failed write — a full disk,
+    /// a closed pipe — loses the line and never aborts supervision.
+    static func stderrLog(_ line: String, to fd: Int32 = STDERR_FILENO) {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        HVFFiles.writeBestEffort(Data("\(stamp) hvf-supervisor: \(line)\n".utf8), to: fd)
     }
 }
 
@@ -542,7 +580,12 @@ public struct HVFDarwinLauncher: HVFVMMLaunching {
     public func launch(executable: URL, arguments: [String]) throws -> any HVFVMMProcess {
         let log = try HVFRotatingLog(url: consoleLog, maxBytes: maxBytes)
         let quoted = arguments.map { $0.contains(" ") ? "'\($0)'" : $0 }.joined(separator: " ")
-        try log.append(Data("\n=== \(Date()) launching \(executable.path) \(quoted)\n".utf8))
+        do {
+            // A header the log cannot take must not keep the machine down.
+            try log.append(Data("\n=== \(Date()) launching \(executable.path) \(quoted)\n".utf8))
+        } catch {
+            report("WARNING: console log: \(error.localizedDescription)")
+        }
         var fds: [Int32] = [-1, -1]
         guard pipe(&fds) == 0 else { throw HVFFiles.posixError("pipe") }
         _ = fcntl(fds[0], F_SETFD, FD_CLOEXEC)

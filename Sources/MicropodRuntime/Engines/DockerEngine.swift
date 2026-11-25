@@ -76,10 +76,16 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     // MARK: ContainerServing
 
     public func list() async throws -> [Micropod_V1_Container] {
+        try await listWithIDs().map(\.container)
+    }
+
+    /// The listing with each container's full engine id (`list` names a
+    /// container by its name when it has one).
+    func listWithIDs() async throws -> [(container: Micropod_V1_Container, engineID: String)] {
         let response = try api().check(
             try await api().request("GET", "/containers/json", query: ["all": "1"]))
         let entries = try response.json() as? [[String: Any]] ?? []
-        return entries.map(Self.container(from:))
+        return entries.map { (Self.container(from: $0), $0["Id"] as? String ?? "") }
     }
 
     static func container(from entry: [String: Any]) -> Micropod_V1_Container {
@@ -118,6 +124,11 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     }
 
     public func create(_ request: ContainerRunRequest) async throws -> String {
+        try await createContainer(request).handle
+    }
+
+    /// `create`, plus the engine's full id for the new container.
+    func createContainer(_ request: ContainerRunRequest) async throws -> (handle: String, engineID: String) {
         let docker = try api()
         var query: [String: String] = [:]
         if let name = request.name { query["name"] = name }
@@ -130,7 +141,7 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         }
         try docker.check(response)
         let id = (try response.json() as? [String: Any])?["Id"] as? String ?? ""
-        return request.name ?? String(id.prefix(12))
+        return (request.name ?? String(id.prefix(12)), id)
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
@@ -214,7 +225,8 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
         let docker = try api()
         var body: [String: Any] = [
-            "Cmd": request.arguments, "AttachStdout": true, "AttachStderr": true, "Tty": request.tty,
+            "Cmd": request.arguments, "AttachStdin": false, "AttachStdout": !request.detach,
+            "AttachStderr": !request.detach, "Tty": request.tty,
         ]
         if !request.env.isEmpty { body["Env"] = request.env }
         if let workdir = request.workdir { body["WorkingDir"] = workdir }
@@ -224,11 +236,16 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         guard let execID = (try created.json() as? [String: Any])?["Id"] as? String else {
             throw MicropodError.message("internal: docker exec: no id")
         }
-        // 101: an engine that always upgrades exec start to a raw stream
-        // (micropod's guest engine) still sends the framed output, then EOF.
+        let startPath = "/exec/\(execID)/start"
+        if request.detach {
+            // The acknowledgement is the result even if the process has already exited.
+            try await docker.startDetachedExec(startPath, tty: request.tty)
+            return ContainerExecResult(output: "", error: "", exitCode: 0)
+        }
+        // Older guests upgrade attached exec to a raw stream and send framed output, then EOF.
         let started = try docker.check(
             try await docker.request(
-                "POST", "/exec/\(execID)/start", json: ["Detach": request.detach, "Tty": request.tty],
+                "POST", startPath, json: ["Detach": false, "Tty": request.tty],
                 timeout: .seconds(3600)),
             also: [101])
         let (stdout, stderr) = request.tty ? (started.body, Data()) : DockerClient.demux(started.body)

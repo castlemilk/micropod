@@ -77,6 +77,18 @@ public struct DockerClient: Sendable {
         _ method: String, _ path: String, query: [String: String] = [:], json body: Any? = nil,
         timeout: Duration = .seconds(120)
     ) async throws -> Response {
+        try await request(method, path, query: query, json: body, timeout: timeout, detachedExec: false)
+    }
+
+    func startDetachedExec(_ path: String, tty: Bool) async throws {
+        try check(
+            try await request("POST", path, query: [:], json: ["Detach": true, "Tty": tty], detachedExec: true))
+    }
+
+    private func request(
+        _ method: String, _ path: String, query: [String: String], json body: Any?,
+        timeout: Duration = .seconds(120), detachedExec: Bool
+    ) async throws -> Response {
         let payload = try body.map { try JSONSerialization.data(withJSONObject: $0) }
         let endpoint = self.endpoint
         let head = Self.head(method, path, query: query, bodyLength: payload?.count, apiVersion: apiVersion)
@@ -88,7 +100,21 @@ public struct DockerClient: Sendable {
                     try socket.write(Data(head.utf8) + (payload ?? Data()))
                     var reader = HTTPReader(socket: socket)
                     let (status, headers) = try reader.readHead()
-                    let body = try reader.readBody(headers: headers)
+                    let successful = (200..<300).contains(status)
+                    if detachedExec {
+                        // An attached response may be a 101 upgrade or a 200 stream.
+                        // Detect it at the headers, before waiting for EOF.
+                        let mediaType = headers["content-type"]?.lowercased().split(separator: ";", maxSplits: 1)
+                            .first?.trimmingCharacters(in: .whitespaces)
+                        let attached =
+                            mediaType == "application/vnd.docker.raw-stream"
+                            || mediaType == "application/vnd.docker.multiplexed-stream"
+                        if status == 101 || (successful && attached) {
+                            throw MicropodError.unsupported(
+                                "docker engine returned an attached stream for detached exec")
+                        }
+                    }
+                    let body = detachedExec && successful ? Data() : try reader.readBody(headers: headers)
                     continuation.resume(returning: Response(status: status, body: body))
                 } catch {
                     continuation.resume(throwing: error)

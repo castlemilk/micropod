@@ -6,7 +6,10 @@
 # `micropod … --runtime hvf`:
 #   run (cold: starts the machine), ps, exec, logs, stats, stop, rm;
 #   a bind mount through the workspace share;
-#   `machine stop` + `machine start` keeps a retained container and volume;
+#   `machine install` is refused while the machine runs;
+#   a retained container and volume survive `machine stop`; while stopped,
+#   id calls on it name the stopped machine (not another engine) and
+#   `micropod start <id>` boots the machine and starts it;
 #   `kill -9` of the VMM is survived: the supervisor relaunches it and the
 #   Docker API comes back with the data intact;
 #   a published TCP port carries traffic and shows up in `ps`.
@@ -14,7 +17,8 @@
 #
 # Usage: scripts/e2e_hvf.sh            (needs `swift build` first)
 #   HVF_E2E_ROOT   machine root (default /tmp/mphvf-swift; under /tmp, short
-#                  enough for run/docker.sock)
+#                  enough for run/docker.sock). It and "$HVF_E2E_ROOT-ws" are
+#                  deleted only when empty, absent or marked by an earlier run.
 #   HVF_VMM        signed micropod-vmm (default vmm/target/release/micropod-vmm)
 #   HVF_KERNEL     arm64 Image (default: newest ~/.micropod/kernels/*/Image)
 #   HVF_INITRD     guest initramfs (default vmm/target/mp-hvf-init.cpio)
@@ -37,18 +41,31 @@ DISK_FROM="${HVF_DISK_FROM:-$HOME/.micropod/ci/worker.ext4}"
 DISK_IMAGE="${HVF_DISK_IMAGE:-}"
 PORT="${HVF_PORT:-18110}"
 WS="$ROOT_DIR-ws"
-TMP="$(mktemp -d)"
 S="$(date +%s)"
 PASS=0
 FAIL=0
 
+# A directory below /tmp, spelled plainly: no empty, `.` or `..` component and
+# no trailing slash, so `rm -rf` can only ever reach the throwaway root.
 case "$ROOT_DIR" in
-/tmp/* | /private/tmp/*) ;;
-*)
-    echo "HVF_E2E_ROOT must be a throwaway directory under /tmp (got $ROOT_DIR)" >&2
-    exit 2
-    ;;
+*/ | *//* | */./* | */. | */../* | */..) ROOT_OK=0 ;;
+/tmp/?* | /private/tmp/?*) ROOT_OK=1 ;;
+*) ROOT_OK=0 ;;
 esac
+if [ "$ROOT_OK" != 1 ]; then
+    echo "HVF_E2E_ROOT must be a throwaway directory under /tmp (got '$ROOT_DIR')" >&2
+    exit 2
+fi
+# Only a directory this script made (it carries the marker) or an empty one is
+# ever deleted.
+MARKER=.micropod-e2e-hvf
+ours() { [ ! -e "$1" ] || [ -f "$1/$MARKER" ] || [ -z "$(ls -A "$1" 2>/dev/null)" ]; }
+for dir in "$ROOT_DIR" "$WS"; do
+    ours "$dir" || {
+        echo "$dir exists and was not made by this script (no $MARKER); remove it or pick another HVF_E2E_ROOT" >&2
+        exit 2
+    }
+done
 for need in "$M" "$VMM"; do
     [ -x "$need" ] || { echo "missing executable $need (swift build / vmm/build.sh)" >&2 && exit 2; }
 done
@@ -66,6 +83,7 @@ fi
     exit 2
 }
 
+TMP="$(mktemp -d)"
 export MICROPOD_HVF_ROOT="$ROOT_DIR"
 export MICROPOD_RUNTIMES_CONFIG="$TMP/runtimes.json"  # never the user's engine config
 export MICROPOD_CLI="$M"                              # the binary that runs `machine serve`
@@ -78,7 +96,11 @@ cleanup() {
         done
     fi
     "$M" machine stop >/dev/null 2>&1 || true
-    if [ "${HVF_E2E_KEEP:-0}" != 1 ]; then rm -rf "$ROOT_DIR" "$WS"; fi
+    if [ "${HVF_E2E_KEEP:-0}" != 1 ]; then
+        for dir in "$ROOT_DIR" "$WS"; do
+            if [ -f "$dir/$MARKER" ]; then rm -rf "$dir"; fi
+        done
+    fi
     rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -108,9 +130,12 @@ wait_for() { # wait_for <seconds> <command…>: until the command succeeds
 echo "== install into $ROOT_DIR"
 if [ -e "$ROOT_DIR" ]; then
     "$M" machine stop >/dev/null 2>&1 || true
-    rm -rf "$ROOT_DIR"
 fi
-rm -rf "$WS" && mkdir -p "$WS"
+for dir in "$ROOT_DIR" "$WS"; do
+    rm -rf "$dir" # ours (checked above)
+    mkdir -p "$dir"
+    touch "$dir/$MARKER"
+done
 "$M" machine install --vmm "$VMM" --kernel "$KERNEL" --initrd "$INITRD" --tools "$TOOLS" \
     "${DISK_ARGS[@]}" --cpus 4 --memory-mib 4096 --workspace "$WS"
 check "copied VMM keeps the hypervisor entitlement" \
@@ -127,6 +152,12 @@ started=$SECONDS
 check "run" "$("$M" run --runtime hvf --name "$NAME" alpine:3.20 -- sh -c 'echo booted-hvf; i=0; while :; do echo tick $i; i=$((i+1)); sleep 1; done')" "$NAME"
 echo "    (cold run incl. machine boot + pull: $((SECONDS - started))s)"
 check "machine running" "$(state "s['phase']")" "running"
+set +e
+install_err="$("$M" machine install --cpus 2 2>&1 >/dev/null)"
+install_code=$?
+set -e
+check "install refused while the machine runs" "$install_code:$(echo "$install_err" | grep -c 'is running; stop it first')" "1:1"
+check "refused install changed nothing" "$(python3 -c "import json; print(json.load(open('$ROOT_DIR/machine.json'))['cpus'])")" "4"
 check "listed with runtime hvf" "$(ps_field "$NAME" "c.get('runtime')")" "hvf"
 check "listed running" "$(ps_field "$NAME" "c.get('state')")" "running"
 check "exec" "$("$M" exec "$NAME" -- cat /etc/alpine-release | cut -d. -f1-2)" "3.20"
@@ -134,8 +165,10 @@ set +e
 exec_err="$("$M" exec "$NAME" -- sh -c 'echo out; echo err >&2; exit 3' 2>&1 >/dev/null)"
 exec_code=$?
 set -e
-check "exec non-zero exit surfaces" "$exec_code" "1"
-check "exec reports the guest exit code" "$(echo "$exec_err" | grep -c 'exit 3')" "1"
+check "exec non-zero exit surfaces" "$([ "$exec_code" -ne 0 ] && echo yes || echo "no ($exec_code)")" "yes"
+# Either as micropod's own exit status or in its error message.
+check "exec reports the guest exit code" \
+    "$([ "$exec_code" -eq 3 ] || echo "$exec_err" | grep -q 'exit 3' && echo yes || echo "no ($exec_code: $exec_err)")" "yes"
 sleep 2
 check "logs from the start" "$("$M" logs -n 1000 "$NAME" | head -1)" "booted-hvf"
 check "logs tail" "$("$M" logs -n 1 "$NAME" | grep -c '^tick ')" "1"
@@ -171,10 +204,26 @@ check "machine stopped" "$(state "s['phase']")" "stopped"
 check "graceful poweroff" "$(state "'exit_reason=poweroff' in (s.get('lastExitReason') or '')")" "True"
 check "orderly exit code recorded" "$(state "(s.get('lastExitCode'), s.get('lastExitMeaning'))")" "(0, 'orderly guest poweroff')"
 check "stopped machine lists nothing" "$(ps_field "e2e-keep-$S" "c.get('state')")" "absent"
-check "reads did not boot it" "$("$M" --json machine status | python3 -c 'import sys,json; print(json.load(sys.stdin)["phase"])')" "stopped"
-"$M" machine start >/dev/null
-check "container retained" "$(ps_field "e2e-keep-$S" "c.get('runtime')")" "hvf"
-"$M" start "e2e-keep-$S" >/dev/null
+check "the stopped machine's containers are indexed on the host" \
+    "$(python3 -c "import json; print(any(c.get('name')=='e2e-keep-$S' for c in json.load(open('$ROOT_DIR/run/containers.json'))['containers']))")" "True"
+set +e
+stopped_exec="$("$M" exec "e2e-keep-$S" -- true 2>&1)"
+stopped_exec_code=$?
+stopped_stop="$("$M" stop "e2e-keep-$S" 2>&1)"
+stopped_stop_code=$?
+set -e
+check "exec on a stopped machine's container fails" "$stopped_exec_code" "1"
+check "…naming the stopped hvf machine" \
+    "$(echo "$stopped_exec" | grep -c "on the hvf machine, which is not running.*micropod machine start")" "1"
+check "stop on a stopped machine's container names it too" \
+    "$stopped_stop_code:$(echo "$stopped_stop" | grep -c 'on the hvf machine, which is not running')" "1:1"
+check "reads and refused calls did not boot it" "$("$M" --json machine status | python3 -c 'import sys,json; print(json.load(sys.stdin)["phase"])')" "stopped"
+# By the guest's id (a 12-character prefix, as `docker ps` shows it), which the
+# host index resolves the way the guest does.
+KEEP_ID="$(python3 -c "import json; print(next(c['id'][:12] for c in json.load(open('$ROOT_DIR/run/containers.json'))['containers'] if c.get('name')=='e2e-keep-$S'))")"
+check "start by id boots the machine" "$("$M" start "$KEEP_ID")" "Started $KEEP_ID"
+check "machine running after start" "$(state "s['phase']")" "running"
+check "container retained and running" "$(ps_field "e2e-keep-$S" "(c.get('runtime'), c.get('state'))")" "('hvf', 'running')"
 check "volume data retained" "$("$M" exec "e2e-keep-$S" -- cat /data/marker)" "marker-$S"
 "$M" run --runtime hvf --name "e2e-vol2-$S" -v "e2evol-$S:/data" alpine:3.20 -- sleep 600 >/dev/null
 check "volume shared by a new container" "$("$M" exec "e2e-vol2-$S" -- cat /data/marker)" "marker-$S"
