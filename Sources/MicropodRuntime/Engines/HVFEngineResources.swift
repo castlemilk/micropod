@@ -18,8 +18,10 @@ import MicropodCore
 /// | `GET /images/json`, `GET /images/{ref}/json` | 200 / 404 | list, inspect |
 /// | `POST /images/create` (linux/arm64 only) | 200, one status line | pull |
 /// | `DELETE /images/{ref}`, `POST /images/{ref}/tag`, `/images/prune`, push | 501 | unsupported |
-/// | `GET /images/get`, `POST /images/load` | 501 in current tool bundles | unsupported |
-/// | `GET /system/df`, `POST /build` | 501 | unsupported |
+/// | `GET /images/get`, `/images/{ref}/get`, `POST /images/load` | 200; 501 before this tree's guest | unsupported |
+/// | `GET /system/df`, `POST /build` | 501 (BuildKit has its own socket) | unsupported |
+///
+/// Save and load stay Apple's even though current tool bundles implement them.
 public struct HVFVolumeStore: EngineVolumeServing {
     let machine: HVFMachineClient
 

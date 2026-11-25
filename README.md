@@ -275,7 +275,9 @@ that keeps its own (Docker, the CI worker, the hvf machine) and name the runtime
 and `pull` take `--runtime` or the default runtime; `volume rm`, `rmi`, `tag` and `image inspect` go to the engine
 that has the name. The hvf guest engine lists, creates, inspects and removes volumes, and lists, inspects and pulls
 (linux/arm64) images; volume prune, volume sizes, image removal, tagging, save, load, push and build are refused as
-unsupported. `micropod machine status --json` reports the installed bundle's `capabilities` (BuildKit, the engine's
+unsupported. A tool bundle built from this tree (`ci/build-runner-tools.sh`) also serves networks, `docker save`
+and `docker load` to stock Docker clients on `micropod machine docker-endpoint`; micropod's own save, load and network
+commands stay with Apple. `micropod machine status --json` reports the installed bundle's `capabilities` (BuildKit, the engine's
 Docker API range, the published-port path); `micropod machine buildkit-endpoint` prints the BuildKit socket for a
 remote `docker buildx` builder, and fails when the tool bundle ships no `runner/bin/buildkitd`.
 

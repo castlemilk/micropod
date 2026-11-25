@@ -265,20 +265,40 @@ else
     ENDPOINT="$("$M" machine buildkit-endpoint)"
     check "buildkit-endpoint names the socket" "$ENDPOINT" "unix://$ROOT_DIR/run/buildkit.sock"
     # A throwaway builder; DOCKER_CONFIG keeps it out of the user's buildx state.
-    BUILDER="mphvf-e2e-$S"
     mkdir -p "$TMP/docker" "$TMP/ctx"
+    # That config dir also hides the user's CLI plugins (buildx among them),
+    # so it names their plugin directories and nothing else of their config.
+    python3 - "${DOCKER_CONFIG:-$HOME/.docker}" "$TMP/docker/config.json" <<'PY'
+import json, os, sys
+real, out = sys.argv[1], sys.argv[2]
+dirs = [os.path.join(real, "cli-plugins")]
+try:
+    with open(os.path.join(real, "config.json")) as f:
+        dirs += json.load(f).get("cliPluginsExtraDirs", [])
+except (OSError, ValueError):
+    pass
+with open(out, "w") as f:
+    json.dump({"cliPluginsExtraDirs": dirs}, f)
+PY
     printf 'FROM alpine:3.20\nARG RUN_ID\nRUN --mount=type=cache,target=/cache,id=mphvf-e2e sh -c "echo $RUN_ID >> /cache/runs; cat /cache/runs > /seen"\n' >"$TMP/ctx/Dockerfile"
-    DOCKER_CONFIG="$TMP/docker" docker buildx create --name "$BUILDER" --driver remote "$ENDPOINT" >/dev/null
+    if DOCKER_CONFIG="$TMP/docker" docker buildx create --name "mphvf-e2e-$S" --driver remote "$ENDPOINT" >/dev/null; then
+        BUILDER="mphvf-e2e-$S"
+        check "a remote buildx builder on the endpoint" "created" "created"
+    else
+        check "a remote buildx builder on the endpoint" "failed (is the docker buildx plugin installed?)" "created"
+    fi
     bx() { # bx <run id>: build, print what the cache mount held
         rm -rf "$TMP/out"
         DOCKER_CONFIG="$TMP/docker" docker buildx build --builder "$BUILDER" --build-arg "RUN_ID=$1" \
             --output "type=local,dest=$TMP/out" "$TMP/ctx" >/dev/null 2>&1 && tr '\n' ' ' <"$TMP/out/seen"
     }
-    check "first build fills the cache mount" "$(bx one)" "one "
-    check "second build reuses it" "$(bx two)" "one two "
-    "$M" machine restart >/dev/null
-    check "the cache survives a machine restart" "$(bx three)" "one two three "
-    DOCKER_CONFIG="$TMP/docker" docker buildx rm "$BUILDER" >/dev/null 2>&1 && BUILDER=""
+    if [ -n "${BUILDER:-}" ]; then
+        check "first build fills the cache mount" "$(bx one)" "one "
+        check "second build reuses it" "$(bx two)" "one two "
+        "$M" machine restart >/dev/null
+        check "the cache survives a machine restart" "$(bx three)" "one two three "
+        DOCKER_CONFIG="$TMP/docker" docker buildx rm "$BUILDER" >/dev/null 2>&1 && BUILDER=""
+    fi
 fi
 
 echo "== workspace bind mount"
