@@ -12,10 +12,15 @@ import Security
 /// 2. The DMG is checked against Sparkle's public key, the one baked into
 ///    the app — the channel can't hand out anything the release key didn't
 ///    sign.
-/// 3. `micropod-cli` and `MicropodMCP` are copied out of the signed app
-///    inside, and must carry the release's Developer ID signature.
-/// 4. They replace the installed files atomically, keeping `.bak`
-///    copies. A running `micropod` keeps its old image.
+/// 3. `micropod-cli`, `MicropodMCP` and `MicropodAPI` (those installed) are
+///    copied out of the signed app inside, and must carry the release's
+///    Developer ID signature; the new CLI must report the release version.
+/// 4. With an HVF machine installed, the app's HVF payload is staged (never
+///    activated: `micropod update hvf apply` boots and verifies it). A
+///    release without one, or a failed stage, fails the update.
+/// 5. Only then are the installed files replaced, each by a rename, keeping
+///    `.bak` copies; if one replacement fails, the ones made are undone and
+///    the HVF stage is dropped. A running `micropod` keeps its old image.
 enum SelfUpdate {
     static let feedURL = URL(string: "https://castlemilk.github.io/micropod/appcast.xml")!
     /// The app's `SUPublicEDKey` (scripts/package_app.sh).
@@ -105,16 +110,18 @@ enum SelfUpdate {
     // MARK: Installing
 
     /// The files a standalone install consists of: the CLI itself, and the
-    /// MCP server beside it when present (`micropod-mcp-bin` behind the
-    /// install.sh wrapper, or a plain `micropod-mcp` binary).
+    /// MCP and API servers beside it when present (`micropod-mcp-bin` behind
+    /// the install.sh wrapper or a plain `micropod-mcp` binary;
+    /// `micropod-api-bin` or `micropod-api`).
     static func installedFiles(cli: URL) -> [(bundled: String, path: URL)] {
         let dir = cli.deletingLastPathComponent()
         var files = [("micropod-cli", cli)]
-        for name in ["micropod-mcp-bin", "micropod-mcp"] {
-            let path = dir.appendingPathComponent(name)
-            if isMachO(path) {
-                files.append(("MicropodMCP", path))
-                break
+        for (bundled, names) in [
+            ("MicropodMCP", ["micropod-mcp-bin", "micropod-mcp"]),
+            ("MicropodAPI", ["micropod-api-bin", "micropod-api"]),
+        ] {
+            if let path = names.map(dir.appendingPathComponent).first(where: isMachO) {
+                files.append((bundled, path))
             }
         }
         return files
@@ -160,62 +167,113 @@ enum SelfUpdate {
             _ = try? run("/usr/bin/hdiutil", ["detach", "-quiet", "-force", mount.path])
             try? FileManager.default.removeItem(at: mount)
         }
-        let macOS = mount.appendingPathComponent("Micropod.app/Contents/MacOS")
+        try installRelease(
+            from: mount.appendingPathComponent("Micropod.app"), version: release.version,
+            revision: release.sourceRevision, files: files, hvf: HVFMachineLayout(), progress: progress)
+    }
+
+    /// How `installRelease` checks what it takes from a release; replaced in tests.
+    struct ReleaseChecks: Sendable {
+        /// The binary carries the release's Developer ID signature.
+        var signedByRelease: @Sendable (URL) -> Bool
+        /// What `<cli> version` prints.
+        var reportedVersion: @Sendable (URL) throws -> String
+        /// Require the hypervisor entitlement on the staged micropod-vmm.
+        var hvfEntitlement: Bool
+
+        static let live = ReleaseChecks(
+            signedByRelease: { SelfUpdate.hasValidSignature($0) },
+            reportedVersion: { try SelfUpdate.output($0.path, ["version"]) }, hvfEntitlement: true)
+    }
+
+    /// Whether `layout` holds an HVF machine whose payload this update must keep in step.
+    static func hvfInstalled(_ layout: HVFMachineLayout) -> Bool {
+        layout.resolvePayload().hasBootAssets || HVFPayloadStore.status(layout: layout).staged != nil
+    }
+
+    /// Replaces `files` from the app bundle `app` and stages its HVF payload
+    /// into `hvf` (when an HVF machine is installed there), all or nothing:
+    /// every binary is copied beside its target and checked, and the HVF
+    /// payload staged, before anything installed is replaced.
+    static func installRelease(
+        from app: URL, version: ReleaseVersion, revision: String?, files: [(bundled: String, path: URL)],
+        hvf: HVFMachineLayout?, checks: ReleaseChecks = .live, progress: @Sendable (String) -> Void
+    ) throws {
+        let fm = FileManager.default
+        let macOS = app.appendingPathComponent("Contents/MacOS")
         var staged: [(from: URL, to: URL)] = []
-        defer { for item in staged { try? FileManager.default.removeItem(at: item.from) } }
+        defer { for item in staged { try? fm.removeItem(at: item.from) } }
         for (bundled, target) in files {
             let source = macOS.appendingPathComponent(bundled)
-            guard FileManager.default.isExecutableFile(atPath: source.path) else {
-                throw MicropodError.message("Micropod \(release.version) doesn't carry \(bundled) in its app bundle")
+            guard fm.isExecutableFile(atPath: source.path) else {
+                throw MicropodError.message("Micropod \(version) doesn't carry \(bundled) in its app bundle")
             }
-            guard hasValidSignature(source) else {
-                throw MicropodError.message(
-                    "\(bundled) in Micropod \(release.version) isn't signed by micropod's Developer ID")
+            guard checks.signedByRelease(source) else {
+                throw MicropodError.message("\(bundled) in Micropod \(version) isn't signed by micropod's Developer ID")
             }
             // Staged beside the target (same volume), so the swap is a rename.
-            let staging = dir.appendingPathComponent(".\(target.lastPathComponent).update-\(getpid())")
-            try? FileManager.default.removeItem(at: staging)
-            try FileManager.default.copyItem(at: source, to: staging)
+            let staging = target.deletingLastPathComponent()
+                .appendingPathComponent(".\(target.lastPathComponent).update-\(getpid())")
+            try? fm.removeItem(at: staging)
+            try fm.copyItem(at: source, to: staging)
             staged.append((staging, target))
         }
-        let reported = try output(staged[0].from.path, ["version"])
-        guard reported.contains(release.version.description) else {
-            throw MicropodError.message(
-                "the new micropod reports \"\(reported.trimmingCharacters(in: .whitespacesAndNewlines))\", not \(release.version)"
-            )
-        }
-        for (from, to) in staged {
-            let backup = to.appendingPathExtension("bak")
-            try? FileManager.default.removeItem(at: backup)
-            try FileManager.default.copyItem(at: to, to: backup)
-            guard rename(from.path, to.path) == 0 else {
-                throw MicropodError.message("replacing \(to.path): \(String(cString: strerror(errno)))")
+        if let cli = staged.first {
+            let reported = try checks.reportedVersion(cli.from)
+            guard reported.contains(version.description) else {
+                throw MicropodError.message(
+                    "the new micropod reports \"\(reported.trimmingCharacters(in: .whitespacesAndNewlines))\", not \(version)"
+                )
             }
+        }
+
+        // The HVF payload is staged, never activated: `update hvf apply`
+        // boots and verifies it while the machine is idle.
+        var stagedHVF: HVFPayloadManifest?
+        if let hvf, hvfInstalled(hvf) {
+            do {
+                _ = try HVFPayloadStore.resolveAssets(from: .directory(app))
+            } catch {
+                throw MicropodError.message(
+                    "Micropod \(version) carries no HVF runtime payload (\(error.localizedDescription)); not "
+                        + "installing it, or this CLI would no longer match the HVF machine under \(hvf.root.path)")
+            }
+            stagedHVF = try HVFPayloadStore.stage(
+                from: .directory(app), version: version.description, revision: revision ?? "unknown", layout: hvf,
+                verifySignature: checks.hvfEntitlement, progress: progress)
+        }
+
+        var swapped: [(target: URL, backup: URL)] = []
+        do {
+            for (from, to) in staged {
+                let backup = to.appendingPathExtension("bak")
+                try? fm.removeItem(at: backup)
+                try fm.copyItem(at: to, to: backup)
+                guard rename(from.path, to.path) == 0 else {
+                    throw MicropodError.message("replacing \(to.path): \(String(cString: strerror(errno)))")
+                }
+                swapped.append((to, backup))
+            }
+        } catch {
+            // Back to the old set: never some binaries of each release.
+            for item in swapped.reversed() where rename(item.backup.path, item.target.path) != 0 {
+                progress("WARNING: could not restore \(item.target.path) from \(item.backup.path)")
+            }
+            if let hvf, let stagedHVF { try? HVFPayloadStore.unstage(layout: hvf, manifest: stagedHVF) }
+            throw error
         }
         staged.removeAll()
 
-        // If the release bundle ships HVF assets and an HVF machine root exists,
-        // atomically stage the immutable versioned payload without disrupting any running VM.
-        let appBundle = mount.appendingPathComponent("Micropod.app")
-        let hvfLayout = HVFMachineLayout()
-        if FileManager.default.fileExists(atPath: hvfLayout.root.path),
-            (try? HVFPayloadStore.resolveAssets(from: .directory(appBundle))) != nil
-        {
-            do {
-                let manifest = try HVFPayloadStore.stage(
-                    from: .directory(appBundle),
-                    version: release.version.description,
-                    revision: release.sourceRevision ?? "unknown",
-                    layout: hvfLayout,
-                    verifySignature: true,
-                    progress: progress)
-                progress(
-                    "staged HVF runtime payload \(manifest.version) — run `micropod update hvf apply` when idle to activate"
-                )
-            } catch {
-                progress("note: skipped HVF payload staging: \(error.localizedDescription)")
-            }
+        guard let hvf, let stagedHVF else { return }
+        do {
+            let removed = try HVFPayloadStore.pruneVersions(layout: hvf, keep: 2)
+            if !removed.isEmpty { progress("pruned old HVF payloads: \(removed.joined(separator: ", "))") }
+        } catch {
+            progress("note: old HVF payloads were not pruned: \(error.localizedDescription)")
         }
+        progress(
+            "staged HVF runtime payload \(stagedHVF.version) — `micropod update hvf apply` boots, verifies and "
+                + "activates it when the machine is idle")
     }
 
     @discardableResult
