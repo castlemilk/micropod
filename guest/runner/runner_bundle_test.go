@@ -28,3 +28,26 @@ func TestStartScriptStartsTheEngineBesideContainerd(t *testing.T) {
 		t.Fatalf("start.sh waits for containerd before it starts the engine:\n%s", between)
 	}
 }
+
+// containerd logs to the guest's serial console. At info level its start
+// alone (a line per plugin) cost every boot ~25 ms.
+func TestContainerdLogsOnlyWarningsAndErrors(t *testing.T) {
+	b, err := os.ReadFile("../../ci/runner/containerd.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	table, level := "", ""
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "[") {
+			table = line
+			continue
+		}
+		if key, value, ok := strings.Cut(line, "="); ok && table == "[debug]" && strings.TrimSpace(key) == "level" {
+			level = strings.Trim(strings.TrimSpace(value), `"`)
+		}
+	}
+	if level != "warn" && level != "error" {
+		t.Fatalf("containerd's [debug] level is %q, want warn", level)
+	}
+}
