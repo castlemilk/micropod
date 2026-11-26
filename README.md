@@ -361,7 +361,9 @@ most 64 such containers at a time, HTTP 409 past that), is in its cache scope (n
 (read-only where it reaches them only read-only, as under a read-only bind nested in a writable one; anything else, the rest of the workspace included, is refused, HTTP 403;
 the create, every start and a `docker cp` into it stopped decide this again by what the bind resolves to, against the running container's own
 binds, so a bind of a renamed parent of one of its read-only binds, or of a symlink to one, is refused while it would reach it writable; a request
-on its socket that needs this check while the container is not running is refused, HTTP 409), mounts a volume
+on its socket that needs this check while the container is not running is refused, HTTP 409; such a bind resolves
+below what the running container binds, whatever symlink the path of its own bind runs through, and the host's own
+start of the child while the container is stopped refuses one whose path does, HTTP 403), mounts a volume
 the container was given read-only only read-only, and cannot be given a socket in turn. What it created there goes
 with the container: its removal stops and removes those containers, then the networks and volumes it created there
 (data included) once nothing uses them, so the next job of the same compose project finds the names free (an engine

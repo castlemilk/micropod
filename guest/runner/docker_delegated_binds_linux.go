@@ -414,25 +414,40 @@ func (spec *dockerConfig) makeReadOnly(target string) {
 
 // openMountWithin opens path, a bind source of a container made through a
 // delegated socket, below base, its creator's bind source (delegatedBinds).
-// base is resolved below the workspace through no symlink at all, so nothing
-// that can write its parent can turn it into a way out; path then resolves
-// below base, so a symlink the creator plants in its own bind stays inside it.
-func openMountWithin(workspace, base, path string) (*os.File, error) {
+// held, when set, is the descriptor the running creator's start made that
+// bind from (creatorHold.rootOf): path resolves below it, as the creator
+// binds it, whatever symlinks led there in the workspace (openMount follows
+// relative ones beneath it). Without one (the host's own start of a child
+// whose creator is stopped) base is resolved below the workspace through no
+// symlink at all, so nothing that can write its parent can turn it into a
+// way out, and one that has a symlink is refused (403). Either way path then
+// resolves below base, so a symlink the creator plants in its own bind stays
+// inside it.
+func openMountWithin(workspace, base, path string, held *os.File) (*os.File, error) {
 	if workspace == "" {
 		return nil, errors.New("configure MICROPOD_CI_WORKSPACE for bind mounts")
 	}
 	if !pathWithin(workspace, base) || !pathWithin(base, path) {
 		return nil, errors.New("bind source is outside the creating container's binds")
 	}
-	ws, err := os.Open(workspace)
-	if err != nil {
-		return nil, err
-	}
-	defer ws.Close()
-	relBase, _ := filepath.Rel(workspace, base)
-	baseFD, err := unix.Openat2(int(ws.Fd()), relBase, &unix.OpenHow{Flags: unix.O_PATH | unix.O_CLOEXEC, Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS})
-	if err != nil {
-		return nil, fmt.Errorf("bind source %s: the creating container's bind %s must be a path with no symlink in the workspace: %w", path, base, err)
+	var baseFD int
+	var err error
+	if held != nil {
+		baseFD, err = unix.FcntlInt(held.Fd(), unix.F_DUPFD_CLOEXEC, 0)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		ws, err := os.Open(workspace)
+		if err != nil {
+			return nil, err
+		}
+		relBase, _ := filepath.Rel(workspace, base)
+		baseFD, err = unix.Openat2(int(ws.Fd()), relBase, &unix.OpenHow{Flags: unix.O_PATH | unix.O_CLOEXEC, Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS})
+		ws.Close()
+		if err != nil {
+			return nil, fail(http.StatusForbidden, fmt.Sprintf("bind source %s: the creating container's bind %s, which is not running to resolve it as it binds it, must then be a path with no symlink in the workspace: %v", path, base, err))
+		}
 	}
 	fd := baseFD
 	if rel, _ := filepath.Rel(base, path); rel != "." {
@@ -449,4 +464,21 @@ func openMountWithin(workspace, base, path string) (*os.File, error) {
 		return nil, errors.New("bind source must be a directory or regular file")
 	}
 	return f, nil
+}
+
+// rootOf is the descriptor the creator's running start made its bind of
+// source from; nil when it holds none (h nil included). Valid while s.mu,
+// under which h was made, is held.
+func (h *creatorHold) rootOf(source string) *os.File {
+	if h == nil {
+		return nil
+	}
+	for _, binds := range h.byID {
+		for _, b := range binds {
+			if b.source == source {
+				return b.f
+			}
+		}
+	}
+	return nil
 }

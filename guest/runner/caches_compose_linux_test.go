@@ -525,7 +525,7 @@ func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
 		t.Fatalf("restart lost the container's own directory: %v", err)
 	}
 	closeMounts(files)
-	f, cpPins, err := eng.openDockerMount(dockerMount{Type: "volume", Source: "micropod-ci-scoped-team-gomod", Target: "/go/pkg/mod"}, false, aliasWrite, privA)
+	f, cpPins, err := eng.openDockerMount(dockerMount{Type: "volume", Source: "micropod-ci-scoped-team-gomod", Target: "/go/pkg/mod"}, false, aliasWrite, privA, nil)
 	if err != nil || len(cpPins) != 0 || fdTarget(t, f) != gomod {
 		t.Fatalf("docker cp into the stopped container: %v %+v", err, cpPins)
 	}
@@ -640,7 +640,7 @@ func TestCacheAliasReaderNeverCreatesOrRepairsTheStore(t *testing.T) {
 	closeMounts(files)
 
 	// A docker cp out of a stopped container's alias volume reads the same way.
-	f, cpPins, err := eng.openDockerMount(dockerMount{Type: "volume", Source: "micropod-ci-scoped-other-npm", Target: "/n"}, false, aliasRead, priv)
+	f, cpPins, err := eng.openDockerMount(dockerMount{Type: "volume", Source: "micropod-ci-scoped-other-npm", Target: "/n"}, false, aliasRead, priv, nil)
 	if err != nil || len(cpPins) != 0 || exists(filepath.Join(cacheRoot, "scopes/other/npm")) {
 		t.Fatalf("docker cp out: %v %+v", err, cpPins)
 	}

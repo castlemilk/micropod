@@ -435,7 +435,7 @@ func TestDelegatedConfigProbesStayInsideTheCreatorsBinds(t *testing.T) {
 	ctx := withViewer(context.Background(), owner.ID)
 	spec := dockerConfig{Image: "node", WorkingDir: "/w", HostConfig: dockerHost{Binds: []string{ws + "/job:/w"}}}
 	roots := s.probeRoots(ctx, spec)
-	if roots["/w"] != ws+"/job" || len(spec.HostConfig.Mounts) != 0 {
+	if roots.roots["/w"] != ws+"/job" || len(spec.HostConfig.Mounts) != 0 {
 		t.Fatalf("roots %v", roots)
 	}
 	if s.projectNpmRegistry(spec, "", roots) {
@@ -475,5 +475,81 @@ func TestDelegatedConfigProbesStayInsideTheCreatorsBinds(t *testing.T) {
 	inVolume := dockerConfig{HostConfig: dockerHost{Binds: []string{"tc-data:/data"}}}
 	if s.mountedConfigSets(inVolume, []string{"/data/.npmrc"}, npmrcSetsRegistry, roots) || s.mountedConfigSets(inVolume, []string{"/data/.npmrc"}, npmrcSetsRegistry, nil) {
 		t.Error("a volume's .npmrc was read through a symlink into another volume")
+	}
+}
+
+// An owner whose bind's path runs through a relative symlink in the
+// workspace (~/code -> Developer/code) binds it, as openMount follows such a
+// link; its children's binds inside it resolve below what the running owner
+// binds there, at create, at start, through docker cp and for the config
+// probes, instead of failing on the symlink. With the owner stopped, the
+// host's start of such a child cannot resolve it as the owner binds it and
+// refuses it (403).
+func TestDelegatedBindsInsideAnOwnersBindReachedThroughASymlink(t *testing.T) {
+	ws := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(ws, "Developer/code/proj/db"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ws, "Developer/code/proj/db/.npmrc"), []byte("registry=https://npm.proj/\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("Developer/code", filepath.Join(ws, "code")); err != nil {
+		t.Fatal(err)
+	}
+	proj := ws + "/code/proj"
+	owner := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("a", 64), Name: "job", Phase: "running", Config: dockerConfig{Image: "golang:1", HostConfig: dockerHost{
+		Binds: []string{proj + ":" + proj, "/var/run/docker.sock:/var/run/docker.sock"}}}}}
+	s := &dockerEngine{workspace: ws, containers: map[string]*dockerContainer{owner.ID: owner}}
+	files, mounts, _, err := s.openMountsWith(owner.Config, cacheVolumeRules{}, false, mountSockets{engine: filepath.Join(t.TempDir(), "docker.sock")}, t.TempDir())
+	if err != nil {
+		t.Fatalf("the owner's own start: %v", err)
+	}
+	defer closeMounts(files)
+	owner.binds = &heldBinds{byTarget: mountFiles(files, mounts)}
+	spec := dockerConfig{Image: "postgres", WorkingDir: "/data", HostConfig: dockerHost{Binds: []string{proj + "/db:/data"}}}
+	roots, err := delegatedBinds(owner, &spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := func(viewer string) error {
+		t.Helper()
+		for _, create := range []bool{true, false} {
+			s.mu.Lock()
+			creator, err := s.creatorHoldLocked(owner.ID, viewer, roots)
+			if err == nil {
+				var files []*os.File
+				files, _, _, err = s.openMountsWith(spec, cacheVolumeRules{}, create, mountSockets{bindRoots: roots, creator: creator}, t.TempDir())
+				closeMounts(files)
+			}
+			s.mu.Unlock()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := open(owner.ID); err != nil {
+		t.Fatalf("a child's bind inside the owner's: %v", err)
+	}
+	ctx := withViewer(context.Background(), owner.ID)
+	stopped := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("c", 64), Phase: "created", CreatedBy: owner.ID, Config: spec, BindRoots: roots}, changed: make(chan struct{})}
+	for _, write := range []bool{false, true} {
+		if _, closeView, err := s.pinArchive(ctx, stopped, "/data/.npmrc", write); err != nil {
+			t.Errorf("docker cp (write %v) through the child's bind: %v", write, err)
+		} else {
+			closeView()
+		}
+	}
+	probe := s.probeRoots(ctx, spec)
+	if !s.mountedConfigSets(spec, []string{"/data/.npmrc"}, npmrcSetsRegistry, probe) || !s.projectNpmRegistry(spec, "", probe) {
+		t.Error("the child's own .npmrc, inside the owner's bind, was not read")
+	}
+
+	// The owner stopped: the host's start cannot resolve the symlink as the
+	// owner binds it.
+	owner.binds = nil
+	var api apiError
+	if err := open(""); !errors.As(err, &api) || api.code != 403 {
+		t.Fatalf("the host's start of the child with its owner stopped: %v, want 403", err)
 	}
 }

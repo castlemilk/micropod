@@ -812,9 +812,10 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	if user == "" {
 		user = facts.User
 	}
-	var roots map[string]string
+	var roots *childProbeRoots
 	if (pol.NpmRegistry != "" || pol.GoProxy != "") && !off {
 		roots = s.probeRoots(ctx, spec)
+		defer roots.close()
 	}
 	if pol.NpmRegistry != "" && !off {
 		wd := spec.WorkingDir
@@ -836,13 +837,30 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	return &plan, runAs, nil
 }
 
-// probeRoots is what holds the config probes of a create (projectNpmRegistry,
-// mountedConfigSets) to what its container may bind: nil for the host's
-// socket, whose binds resolve from the workspace, else the roots of a child
-// of a delegated socket (delegatedBinds on a copy of the request), empty when
-// its binds are not inside its creator's, so no probe reads outside them:
-// whether a probe found a setting shows in the child's environment.
-func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) map[string]string {
+// childProbeRoots holds the config probes of a create through a delegated
+// socket (projectNpmRegistry, mountedConfigSets) to what its child may bind:
+// each bind's root (delegatedBinds on a copy of the request; empty when its
+// binds are not inside its creator's, so no probe reads outside them:
+// whether a probe found a setting shows in the child's environment), and a
+// copy of the descriptor the running creator binds each root from, so a
+// probe resolves a root as the creator binds it (openMountWithin).
+type childProbeRoots struct {
+	roots map[string]string
+	held  map[string]*os.File
+}
+
+func (r *childProbeRoots) close() {
+	if r == nil {
+		return
+	}
+	for _, f := range r.held {
+		f.Close()
+	}
+}
+
+// probeRoots is the childProbeRoots of a create: nil for the host's socket,
+// whose binds resolve from the workspace. Close it once the probes are done.
+func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) *childProbeRoots {
 	viewer := viewerOf(ctx)
 	if viewer == "" || privateRootless() {
 		return nil
@@ -851,12 +869,28 @@ func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) map[st
 	spec.HostConfig.Mounts = slices.Clone(spec.HostConfig.Mounts)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if owner := s.containers[viewer]; owner != nil {
-		if roots, err := delegatedBinds(owner, &spec); err == nil {
-			return roots
+	probe := &childProbeRoots{roots: map[string]string{}, held: map[string]*os.File{}}
+	owner := s.containers[viewer]
+	if owner == nil {
+		return probe
+	}
+	roots, err := delegatedBinds(owner, &spec)
+	if err != nil {
+		return probe
+	}
+	probe.roots = roots
+	creator, err := s.creatorHoldLocked(viewer, viewer, roots)
+	if err != nil {
+		return probe
+	}
+	for _, root := range roots {
+		if f := creator.rootOf(root); f != nil && probe.held[root] == nil {
+			if fd, err := unix.FcntlInt(f.Fd(), unix.F_DUPFD_CLOEXEC, 0); err == nil {
+				probe.held[root] = os.NewFile(uintptr(fd), root)
+			}
 		}
 	}
-	return map[string]string{}
+	return probe
 }
 
 // openConfigFile opens the file at p, which the request mount m covers, for a
@@ -864,13 +898,14 @@ func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) map[st
 // for the host's), else below the workspace for a bind, and below the volume
 // itself for a named one, so a symlink a mount carries cannot lead a probe
 // into another job's files.
-func (s *dockerEngine) openConfigFile(m dockerMount, p string, roots map[string]string) (*os.File, error) {
+func (s *dockerEngine) openConfigFile(m dockerMount, p string, roots *childProbeRoots) (*os.File, error) {
 	switch {
 	case m.Type == "bind" && roots != nil:
-		if roots[m.Target] == "" {
+		root := roots.roots[m.Target]
+		if root == "" {
 			return nil, errors.New("bind source is outside the creating container's binds")
 		}
-		return openMountWithin(s.workspace, roots[m.Target], p)
+		return openMountWithin(s.workspace, root, p, roots.held[root])
 	case m.Type == "bind":
 		return openMount(s.workspace, p)
 	case m.Type == "volume" && dockerName.MatchString(m.Source):
@@ -885,7 +920,7 @@ func (s *dockerEngine) openConfigFile(m dockerMount, p string, roots map[string]
 // that the same workspace bind covers. Files are opened below the workspace
 // (below roots, openConfigFile) without following symlinks out of it; a
 // missing or unreadable file counts as no setting.
-func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string, roots map[string]string) bool {
+func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string, roots *childProbeRoots) bool {
 	wd := spec.WorkingDir
 	if wd == "" {
 		wd = imageWorkDir
@@ -941,7 +976,7 @@ var configVolumesDir = filepath.Join(engineRoot, "volumes")
 // without following symlinks out of it; a missing or unreadable file counts
 // as no setting. A file a step writes after create (a clone into a volume, a
 // cd into a subproject) is not seen: the policy's proxy then wins over it.
-func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, match func([]byte) bool, roots map[string]string) bool {
+func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, match func([]byte) bool, roots *childProbeRoots) bool {
 	mounts, _ := spec.mounts()
 	for _, p := range paths {
 		if !filepath.IsAbs(p) {

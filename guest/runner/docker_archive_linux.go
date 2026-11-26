@@ -342,13 +342,12 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 					return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is not inside the creating container's binds")
 				}
 			}
-			view.root, pins, err = s.openDockerMount(mount, false, access, filepath.Join(c.dir(), "shim"))
-			if err == nil && mount.root != "" {
-				// As its start would be: admitted to what its creator holds.
-				err = s.admitChildBind(ctx, c, mount, view.root, write, mounts)
-				if err != nil {
-					view.root.Close()
-				}
+			if mount.root != "" {
+				// As its start would be: resolved and admitted by what its
+				// creator holds.
+				view.root, err = s.openChildBind(ctx, c, mount, write, mounts)
+			} else {
+				view.root, pins, err = s.openDockerMount(mount, false, access, filepath.Join(c.dir(), "shim"), nil)
 			}
 		} else if c.retainsRootFS() {
 			view.root, err = s.openStoppedArchiveRoot(ctx, c)
@@ -373,17 +372,25 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 	}
 }
 
-// admitChildBind admits a docker cp through the bind m of c, a stopped child
-// of a delegated socket, opened as f, to what its creator holds
-// (creatorHold.admit), as a start of c would be; mounts are c's own.
-func (s *dockerEngine) admitChildBind(ctx context.Context, c *dockerContainer, m dockerMount, f *os.File, write bool, mounts []dockerMount) error {
+// openChildBind opens, for a docker cp, the bind m of c, a stopped child of
+// a delegated socket, as a start of c would: below what its creator holds,
+// and admitted to it (creatorHold.admit); mounts are c's own.
+func (s *dockerEngine) openChildBind(ctx context.Context, c *dockerContainer, m dockerMount, write bool, mounts []dockerMount) (*os.File, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	creator, err := s.creatorHoldLocked(c.CreatedBy, viewerOf(ctx), c.BindRoots)
-	if err != nil || creator == nil {
-		return err
+	if err != nil {
+		return nil, err
 	}
-	return creator.admit(m, f, write, mounts)
+	f, _, err := s.openDockerMount(m, false, aliasRead, filepath.Join(c.dir(), "shim"), creator)
+	if err != nil || creator == nil {
+		return f, err
+	}
+	if err := creator.admit(m, f, write, mounts); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
 }
 
 // guardMachineDir holds an archive view of a bind to what the container sees

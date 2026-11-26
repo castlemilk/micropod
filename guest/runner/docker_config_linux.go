@@ -1664,7 +1664,7 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 				}
 			}
 		}
-		f, mountPins, e := s.openDockerMount(m, createVolumes, access, privateRoot)
+		f, mountPins, e := s.openDockerMount(m, createVolumes, access, privateRoot, sockets.creator)
 		pins = append(pins, mountPins...)
 		if e != nil {
 			err = e
@@ -1725,13 +1725,15 @@ const (
 // is the container's own directory for private stand-ins (its shim directory;
 // "" at create, which only probes); the caller releases the returned pins once
 // nothing uses the descriptor any more.
-func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access aliasAccess, privateRoot string) (*os.File, []cachePin, error) {
+// creator, for a delegated child's bind, is what its running creator holds
+// (creatorHoldLocked; s.mu held), nil when it holds nothing.
+func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access aliasAccess, privateRoot string, creator *creatorHold) (*os.File, []cachePin, error) {
 	root, source := s.workspace, m.Source
 	if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
 		root = "/runner/externals"
 	}
 	if m.Type == "bind" && m.root != "" {
-		f, err := openMountWithin(s.workspace, m.root, m.Source)
+		f, err := openMountWithin(s.workspace, m.root, m.Source, creator.rootOf(m.root))
 		return f, nil, err
 	}
 	if m.Type == "volume" {
