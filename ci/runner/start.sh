@@ -4,6 +4,17 @@ set -eu
 umask 077
 tools=/opt/micropod-oci
 export PATH="$tools/runner/bin:/opt/kata/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# A `set -e` exit says nothing, and guest init can only report the status:
+# every exit that is not a success names the step it ended.
+step="starting"
+cleanup=
+on_exit() {
+    status=$?
+    eval "$cleanup" || true
+    [ "$status" = 0 ] || echo "start.sh: exited with status $status while $step" >&2
+}
+trap on_exit EXIT
+step="configuring the CI scheduler"
 # The trusted worker supervisor supplies this optional kernel command-line setting.
 configure_scheduler() (
     selection=$(tr ' ' '\n' </proc/cmdline | sed -n '/^micropod\.ci_sched=/p')
@@ -77,6 +88,7 @@ configure_scheduler() (
     fi
 )
 configure_scheduler
+step="applying the CI sysctl profile"
 configure_sysctls() (
     selection=$(tr ' ' '\n' </proc/cmdline | sed -n '/^micropod\.ci_sysctls=/p')
     [ -n "$selection" ] || exit 0
@@ -123,6 +135,7 @@ configure_sysctls() (
     echo "CI sysctl profile perf applied" >&2
 )
 configure_sysctls
+step="preparing the node"
 # Each containerd shim watches its cgroup's memory.events. The pause pods
 # and job containers share the same real UID on this dedicated Linux node.
 instances=/proc/sys/fs/inotify/max_user_instances
@@ -171,18 +184,31 @@ if [ -x /opt/kata/bin/containerd-shim-kata-v2 ]; then
         /opt/kata/share/defaults/kata-containers/configuration.toml > /etc/kata-containers/configuration.toml
 fi
 # Move the VM's initial processes into a leaf before enabling cgroup v2 delegation.
+# Guest init starts this script at the root of its own cgroup namespace (the
+# worker cgroup), where only this shell is listed. A process that exited after
+# the list was read needs no move; one that is still there and cannot be moved
+# (a kernel thread, if this ever runs at the real root) ends the boot, loudly.
+step="moving the worker's processes into a leaf cgroup"
 cg=/sys/fs/cgroup
 mkdir -p "$cg/init"
 while read -r pid; do
-    echo "$pid" > "$cg/init/cgroup.procs" 2>/dev/null || [ ! -e "/proc/$pid" ]
+    if ! echo "$pid" 2>/run/micropod-cgroup-move.err >"$cg/init/cgroup.procs" && [ -e "/proc/$pid" ]; then
+        echo "start.sh: cannot move process $pid ($(cat "/proc/$pid/comm" 2>/dev/null)) out of the cgroup root ($(cat /proc/self/cgroup)): $(cat /run/micropod-cgroup-move.err)" >&2
+        exit 1
+    fi
 done < "$cg/cgroup.procs"
+step="enabling the worker's cgroup controllers"
 for controller in cpu memory pids; do
-    grep -qw "$controller" "$cg/cgroup.controllers"
+    if ! grep -qw "$controller" "$cg/cgroup.controllers"; then
+        echo "start.sh: the worker cgroup has no $controller controller (it has: $(cat "$cg/cgroup.controllers"))" >&2
+        exit 1
+    fi
     echo "+$controller" > "$cg/cgroup.subtree_control"
 done
 if [ "${MICROPOD_ENGINE_API:-}" = 1 ] && grep -qw cpuset "$cg/cgroup.controllers"; then
     echo +cpuset > "$cg/cgroup.subtree_control" || echo "Container CPU placement is unavailable" >&2
 fi
+step="setting up the node's network"
 echo 1 > /proc/sys/net/ipv4/ip_forward
 # The VM owns a single uplink. One subnet rule amortizes NAT setup across jobs.
 iptables -w 5 -t nat -C POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE 2>/dev/null ||
@@ -190,11 +216,12 @@ iptables -w 5 -t nat -C POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE 2>/dev
 . "$tools/runner/published-ports.sh"
 # The snapshotter creates each container root with mode 0755. An inherited
 # 0077 umask makes / unsearchable after the image switches to a non-root UID.
+step="starting containerd and the engine"
 (umask 022; exec containerd --config "$tools/runner/containerd.toml") &
 engine=$!
 service=
 api=
-trap 'kill "$engine" ${service:+"$service"} ${api:+"$api"} 2>/dev/null || true' EXIT
+cleanup='kill "$engine" ${service:+"$service"} ${api:+"$api"} 2>/dev/null'
 trap 'exit 0' TERM INT
 # The engine starts beside containerd and waits for its CRI itself (every
 # 5 ms, for up to a minute), then recovers interrupted jobs and containers,
@@ -209,6 +236,7 @@ api=$!
 # starts only once the engine has recovered and bound its socket, as it did
 # when `job recover` ran here before either. The engine does not wait for
 # this loop: the first _ping is no later for it.
+step="waiting for the engine to open its socket"
 until [ -S /var/lib/micropod/docker.sock ]; do
     kill -0 "$engine" 2>/dev/null || exit 1
     kill -0 "$api" 2>/dev/null || exit 1
@@ -217,4 +245,5 @@ done
 "$tools/service" serve &
 service=$!
 # BusyBox ash waits for either critical process. The supervisor observes its exit.
+step="serving (containerd, the engine or the OCI service exited)"
 wait -n "$engine" "$service" "$api"

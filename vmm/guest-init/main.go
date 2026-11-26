@@ -33,6 +33,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -740,19 +741,53 @@ func stage2Supervise() {
 }
 
 func stage3LaunchWorker() {
-	// Move ourselves into /sys/fs/cgroup/worker, unshare cgroup + mount namespaces,
-	// remount /sys/fs/cgroup rooted at /worker (zero kernel threads visible!), and exec start.sh.
-	_ = os.WriteFile("/sys/fs/cgroup/worker/cgroup.procs", []byte(strconv.Itoa(os.Getpid())+"\n"), 0644)
+	err := launchWorker("/sys/fs/cgroup/worker/cgroup.procs", []string{"/bin/sh", "/opt/micropod-oci/runner/start.sh"}, workerCalls, func() {})
+	fmt.Fprintf(os.Stderr, "[mp-hvf-init] exec start.sh: %v\n", err)
+	os.Exit(1)
+}
+
+// workerSyscalls are the namespace system calls launchWorker makes and its
+// exec (tests record the thread each runs on).
+type workerSyscalls struct {
+	unshare func(flags int) error
+	mount   func(source, target, fstype string, flags uintptr, data string) error
+	unmount func(target string, flags int) error
+	exec    func(argv0 string, argv, envv []string) error
+}
+
+var workerCalls = workerSyscalls{unshare: syscall.Unshare, mount: syscall.Mount, unmount: syscall.Unmount, exec: syscall.Exec}
+
+// launchWorker moves this process into the worker cgroup (procs is its
+// cgroup.procs), unshares the cgroup and mount namespaces, remounts
+// /sys/fs/cgroup rooted at the worker cgroup (zero kernel threads visible)
+// and execs argv. It returns only an exec error. between runs between those
+// system calls; tests use it to move the goroutine to another thread.
+//
+// Namespaces belong to a thread, not to the process, and a goroutine can
+// resume on another thread after a system call or a preemption. So the
+// thread is locked before the unshare: an exec from a thread that never
+// unshared, or a mount from one, starts start.sh in guest init's namespaces,
+// where /sys/fs/cgroup is the real root. Its cgroup.procs lists the kernel
+// threads, start.sh cannot move them (kthreadd is EINVAL), and its `set -e`
+// ended the boot with status 1 and no message.
+func launchWorker(procs string, argv []string, sys workerSyscalls, between func()) error {
+	runtime.LockOSThread()
+	_ = os.WriteFile(procs, []byte(strconv.Itoa(os.Getpid())+"\n"), 0644)
+	between()
 	const cloneNewCgroup = 0x02000000
-	if err := syscall.Unshare(cloneNewCgroup | syscall.CLONE_NEWNS); err == nil {
-		_ = syscall.Mount("", "/", "", syscall.MS_REC|syscall.MS_SLAVE, "")
-		_ = syscall.Unmount("/sys/fs/cgroup", syscall.MNT_DETACH)
-		_ = syscall.Mount("cgroup2", "/sys/fs/cgroup", "cgroup2", syscall.MS_NOSUID|syscall.MS_NODEV|syscall.MS_NOEXEC, "")
+	if err := sys.unshare(cloneNewCgroup | syscall.CLONE_NEWNS); err != nil {
+		// start.sh then runs at the real root and says what it cannot move.
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] unshare the worker's cgroup and mount namespaces: %v\n", err)
+	} else {
+		between()
+		_ = sys.mount("", "/", "", syscall.MS_REC|syscall.MS_SLAVE, "")
+		between()
+		_ = sys.unmount("/sys/fs/cgroup", syscall.MNT_DETACH)
+		between()
+		_ = sys.mount("cgroup2", "/sys/fs/cgroup", "cgroup2", syscall.MS_NOSUID|syscall.MS_NODEV|syscall.MS_NOEXEC, "")
 	}
-	if err := syscall.Exec("/bin/sh", []string{"/bin/sh", "/opt/micropod-oci/runner/start.sh"}, os.Environ()); err != nil {
-		fmt.Fprintf(os.Stderr, "[mp-hvf-init] exec start.sh: %v\n", err)
-		os.Exit(1)
-	}
+	between()
+	return sys.exec(argv[0], argv, os.Environ())
 }
 
 func main() {
