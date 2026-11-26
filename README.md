@@ -549,6 +549,11 @@ window is open, every 30 s otherwise. It's rolled up as it's written:
 Old points are pruned by age. A container's or machine's history is
 deleted with it, including deletions made outside Micropod.
 
+`MICROPOD_METRICS_DB` names another database. Without it, a process whose
+`MICROPOD_API_SOCK` names a socket keeps `metrics.sqlite` beside that socket
+(an API started for a throwaway root never opens the rig's database); with
+the socket at its default that is the same `~/.micropod/metrics.sqlite`.
+
 - **In the app:** the dashboard, container and machine graphs open with
   that history, and add 6 h, 24 h and 7 d windows.
 - **API:** `SystemService.GetMetricsHistory` (kind + id + range) returns
