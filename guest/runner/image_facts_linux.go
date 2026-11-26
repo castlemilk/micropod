@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
@@ -20,7 +21,10 @@ import (
 	"sync"
 	"time"
 
+	leases "github.com/containerd/containerd/api/services/leases/v1"
+	snapshots "github.com/containerd/containerd/api/services/snapshots/v1"
 	"golang.org/x/sys/unix"
+	"google.golang.org/grpc/metadata"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
@@ -590,30 +594,88 @@ func (l *factsLoader) load(ctx context.Context, images cri.ImageServiceClient, i
 // sweepProbes removes probe views left by an engine that died mid-probe. /run
 // is a tmpfs, so after a reboot the directories are gone while containerd
 // still holds the lease and View snapshot; `unmount --rm` of the vanished
-// path removes both. Keys are read from containerd, not /proc/mounts.
-func sweepProbes(ctx context.Context) {
+// path removes both. Keys are read from containerd, not /proc/mounts, over
+// the engine's own connection: it runs before every engine opens its socket,
+// and two `ctr` runs (a cold start of a 20 MB binary from the tools share
+// each) cost every boot and payload switchover ~30 ms. ctr runs only for a
+// key to remove.
+func sweepProbes(ctx context.Context, keys probeKeyLister, unmount func(context.Context, string) error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	keys := map[string]bool{}
-	if out, err := runCtr(ctx, "leases", "ls", "-q"); err == nil {
-		for _, line := range strings.Split(string(out), "\n") {
-			if k := strings.TrimSpace(line); strings.HasPrefix(k, probeRoot+"/") {
-				keys[k] = true
-			}
+	ctx = metadata.AppendToOutgoingContext(ctx, "containerd-namespace", dockerRuntimeNamespace)
+	stale := map[string]bool{}
+	ids, err := keys.leaseIDs(ctx)
+	if err != nil {
+		log.Printf("image facts: list leases: %v", err)
+	}
+	names, err := keys.snapshotNames(ctx)
+	if err != nil {
+		log.Printf("image facts: list snapshots: %v", err)
+	}
+	for _, k := range append(ids, names...) {
+		if strings.HasPrefix(k, probeRoot+"/") {
+			stale[k] = true
 		}
 	}
-	if out, err := runCtr(ctx, "snapshots", "ls"); err == nil {
-		for _, line := range strings.Split(string(out), "\n") {
-			if f := strings.Fields(line); len(f) > 0 && strings.HasPrefix(f[0], probeRoot+"/") {
-				keys[f[0]] = true
-			}
-		}
-	}
-	for k := range keys {
-		if _, err := runCtr(ctx, "images", "unmount", "--rm", k); err != nil {
+	for _, k := range slices.Sorted(maps.Keys(stale)) {
+		if err := unmount(ctx, k); err != nil {
 			log.Printf("image facts: sweep %s: %v", k, err)
 		} else {
 			log.Printf("image facts: removed stale probe %s", k)
+		}
+	}
+}
+
+// unmountProbe removes a probe's View snapshot and lease (`ctr images
+// unmount --rm`).
+func unmountProbe(ctx context.Context, key string) error {
+	_, err := runCtr(ctx, "images", "unmount", "--rm", key)
+	return err
+}
+
+// probeKeyLister names containerd's leases and the snapshots of its default
+// (overlayfs) snapshotter, the two places a probe's key is held.
+type probeKeyLister interface {
+	leaseIDs(context.Context) ([]string, error)
+	snapshotNames(context.Context) ([]string, error)
+}
+
+type grpcProbeKeys struct {
+	leases    leases.LeasesClient
+	snapshots snapshots.SnapshotsClient
+}
+
+func (g grpcProbeKeys) leaseIDs(ctx context.Context) ([]string, error) {
+	r, err := g.leases.List(ctx, &leases.ListRequest{})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(r.GetLeases()))
+	for _, l := range r.GetLeases() {
+		ids = append(ids, l.GetID())
+	}
+	return ids, nil
+}
+
+// `ctr images mount` and `ctr snapshots ls` use the overlayfs snapshotter.
+const probeSnapshotter = "overlayfs"
+
+func (g grpcProbeKeys) snapshotNames(ctx context.Context) ([]string, error) {
+	stream, err := g.snapshots.List(ctx, &snapshots.ListSnapshotsRequest{Snapshotter: probeSnapshotter})
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for {
+		r, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return names, nil
+		}
+		if err != nil {
+			return names, err
+		}
+		for _, info := range r.GetInfo() {
+			names = append(names, info.GetName())
 		}
 	}
 }

@@ -84,6 +84,8 @@ type node struct {
 	tasks      taskWaitClient
 	execTasks  tasks.TasksClient
 	watchLog   func(string) (<-chan struct{}, func())
+	// probeKeys lists what sweepProbes looks for (image_facts_linux.go).
+	probeKeys probeKeyLister
 }
 
 func connect() (*grpc.ClientConn, node, error) {
@@ -93,6 +95,7 @@ func connect() (*grpc.ClientConn, node, error) {
 	}
 	taskClient := tasks.NewTasksClient(conn)
 	snapshotClient := snapshots.NewSnapshotsClient(conn)
+	leaseClient := leases.NewLeasesClient(conn)
 	return conn, node{
 		runtime: cri.NewRuntimeServiceClient(conn), images: cri.NewImageServiceClient(conn),
 		imageStore: images.NewImagesClient(conn),
@@ -101,9 +104,10 @@ func connect() (*grpc.ClientConn, node, error) {
 		containers: containers.NewContainersClient(conn),
 		snapshots:  snapshotClient,
 		imageUsage: snapshotClient,
-		leases:     leases.NewLeasesClient(conn),
+		leases:     leaseClient,
 		tasks:      taskClient,
 		execTasks:  taskClient,
+		probeKeys:  grpcProbeKeys{leases: leaseClient, snapshots: snapshotClient},
 	}, nil
 }
 

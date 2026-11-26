@@ -478,7 +478,7 @@ func serveEngine(ctx context.Context, n node) error {
 		// Before the socket opens, so no probe of this engine can be swept
 		// and no container of this engine holds a cache unit yet (a unit a
 		// scheduler job still holds is left alone).
-		sweepProbes(ctx)
+		sweepProbes(ctx, n.probeKeys, unmountProbe)
 		sweepCacheViews()
 		// The crash fence's recovery completes before the janitor exists:
 		// it discards what an unclean stop left marked, then empties .trash
