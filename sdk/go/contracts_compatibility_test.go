@@ -32,6 +32,12 @@ func TestGeneratedContractsRetainInitImageAndRootlessSandbox(t *testing.T) {
 			Components:  []*micropodv1.ComponentVersion{{Name: "kernel", Version: "6.18.35-197", Sha256: "ab", State: "installed"}},
 			UpdateState: &micropodv1.UpdateState{Kind: micropodv1.UpdateState_KIND_CURRENT, Scope: "desktop", AvailableVersion: "0.14.1"},
 		}, func() proto.Message { return &micropodv1.SystemSnapshot{} }},
+		{"engine of a listed image and of a pull", &micropodv1.Image{Id: "sha256:1", Runtime: "hvf"}, func() proto.Message { return &micropodv1.Image{} }},
+		{"pull into a named engine", &micropodv1.PullImageRequest{Reference: "alpine:3.20", Runtime: proto.String("hvf")}, func() proto.Message { return &micropodv1.PullImageRequest{} }},
+		{"a log tail that ends", &micropodv1.StreamLogsRequest{Id: "web", Tail: 3, NoFollow: true}, func() proto.Message { return &micropodv1.StreamLogsRequest{} }},
+		{"metrics peaks of every rate", &micropodv1.MetricsPoint{NetworkRxBytesPerSecondMax: 1, NetworkTxBytesPerSecondMax: 2, BlockReadBytesPerSecondMax: 3, BlockWriteBytesPerSecondMax: 4}, func() proto.Message { return &micropodv1.MetricsPoint{} }},
+		{"runtime dependency with its status", &micropodv1.RuntimeDependency{State: "stopped", CliVersion: "1.5.0", Status: &micropodv1.SystemStatus{Status: "stopped"}}, func() proto.Message { return &micropodv1.RuntimeDependency{} }},
+		{"sandbox status", &micropodv1.SandboxStatus{Root: "/tmp/s", KernelPath: proto.String("/k"), StandaloneReady: true}, func() proto.Message { return &micropodv1.SandboxStatus{} }},
 		{"typed update status", &micropodv1.UpdateStatus{
 			State: micropodv1.UpdateStatus_STATE_UPDATE_AVAILABLE, RestartBlockedReason: "no compatible payload",
 			RestartGuard: "idle", Channel: "stable", WorkloadProtocol: 1, CurrentSourceRevision: "unknown", DesktopAdmission: "open",
