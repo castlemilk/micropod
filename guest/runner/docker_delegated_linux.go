@@ -23,7 +23,8 @@ import (
 // caches, metrics, traces, the container summary) are refused (403), and any
 // other route this file does not name is answered as one the engine does not
 // implement (501). What the owner creates is capped at its tier
-// (cacheOrigin).
+// (cacheOrigin) and binds only paths inside the owner's own binds
+// (delegatedBinds).
 //
 // Images and the BuildKit cache are the machine's: a pull, build, load, tag
 // or image removal through the socket changes them for every job, as a
@@ -176,21 +177,27 @@ func delegatedRoute(method, raw string) bool {
 }
 
 // delegatedCreateLocked holds a create through viewer's socket to what the
-// owner may hand its children: networks it sees and volumes it sees (a new
-// one becomes its own). Call with s.mu held, after selectNetwork resolved
-// the networks.
-func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, network string, endpoints []dockerSecondaryEndpoint) error {
-	if s.containers[viewer] == nil {
-		return fail(http.StatusForbidden, "the container this Docker socket belongs to is gone")
+// owner may hand its children: networks it sees, volumes it sees (a new one
+// becomes its own) and binds inside its own (delegatedBinds, whose roots it
+// returns and which it may make read-only in spec). Call with s.mu held,
+// after selectNetwork resolved the networks.
+func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, network string, endpoints []dockerSecondaryEndpoint) (map[string]string, error) {
+	owner := s.containers[viewer]
+	if owner == nil {
+		return nil, fail(http.StatusForbidden, "the container this Docker socket belongs to is gone")
 	}
 	for _, id := range append([]string{network}, endpointNetworks(endpoints)...) {
 		if n := s.namedNetworks[id]; id != "" && (n == nil || !s.seesNetworkLocked(viewer, n)) {
-			return fail(http.StatusNotFound, "no such network")
+			return nil, fail(http.StatusNotFound, "no such network")
 		}
+	}
+	roots, err := delegatedBinds(owner, spec)
+	if err != nil {
+		return nil, err
 	}
 	mounts, err := spec.mounts()
 	if err != nil {
-		return fail(400, err.Error())
+		return nil, fail(400, err.Error())
 	}
 	for _, m := range mounts {
 		if _, _, alias := legacyCacheVolume(m.Source); m.Type != "volume" || alias {
@@ -199,16 +206,16 @@ func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, 
 		v, err := inspectVolume(m.Source)
 		switch {
 		case err == nil && !s.seesVolumeLocked(viewer, v):
-			return fail(http.StatusForbidden, "the volume "+m.Source+" was not created on this Docker socket")
+			return nil, fail(http.StatusForbidden, "the volume "+m.Source+" was not created on this Docker socket")
 		case errors.Is(err, os.ErrNotExist):
 			if err := ensureVolumeBy(m.Source, nil, viewer); err != nil {
-				return err
+				return nil, err
 			}
 		case err != nil:
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return roots, nil
 }
 
 func endpointNetworks(endpoints []dockerSecondaryEndpoint) []string {

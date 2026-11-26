@@ -73,6 +73,10 @@ type dockerRecord struct {
 	// CreatedBy is the container whose delegated socket created this one
 	// ("" for the host's): its family on that socket (docker_delegated_linux.go).
 	CreatedBy string `json:",omitempty"`
+	// BindRoots maps each bind target of a container made through a
+	// delegated socket to its creator's bind source it lies in; every open
+	// of the bind resolves below that root (openMountWithin).
+	BindRoots map[string]string `json:",omitempty"`
 }
 type dockerContainer struct {
 	outputBytes int64
@@ -637,9 +641,10 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	// A create through a container's delegated socket: its child sees only
 	// what that container may hand it (docker_delegated_linux.go).
 	var createdBy string
+	var bindRoots map[string]string
 	if viewer := viewerOf(ctx); viewer != "" && !privateRootless() {
 		createdBy = viewer
-		if err := s.delegatedCreateLocked(viewer, &spec, network, endpoints); err != nil {
+		if bindRoots, err = s.delegatedCreateLocked(viewer, &spec, network, endpoints); err != nil {
 			return nil, err
 		}
 	}
@@ -656,12 +661,12 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, _, err := s.openMounts(spec, volumeRules(s.cachePolicy.get(), spec, plan), true, "", "")
+	files, _, _, err := s.openMountsWith(spec, volumeRules(s.cachePolicy.get(), spec, plan), true, mountSockets{bindRoots: bindRoots}, "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy, BindRoots: bindRoots}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}
@@ -991,7 +996,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// table's exclusive kinds.
 	c.Cache.applyCurrentRules(pol)
 	files, mounts, aliasPins, err := s.openMountsWith(c.Config, volumeRules(pol, c.Config, c.Cache), false,
-		mountSockets{cleanup: socket, engine: engineSocket}, filepath.Join(c.dir(), "shim"))
+		mountSockets{cleanup: socket, engine: engineSocket, bindRoots: c.delegatedBindRoots()}, filepath.Join(c.dir(), "shim"))
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()

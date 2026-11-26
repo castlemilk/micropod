@@ -26,11 +26,12 @@ import (
 // is, and it cannot pass a socket on (a nested docker.sock bind is refused).
 //
 // The socket is the owner's alone (delegatedAPI, docker_delegated_linux.go):
-// through it the owner sees only itself and what it created there. Images
-// and the BuildKit cache stay the machine's, so only a trusted container
-// gets one: an untrusted or read-only container, or any container under an
-// untrusted policy default that the host did not label trusted, is refused
-// at create instead of being given it. The Testcontainers reaper's own bind
+// through it the owner sees only itself and what it created there, and its
+// children bind only paths inside the owner's own binds. Images and the
+// BuildKit cache stay the machine's, so only a trusted container gets one:
+// an untrusted or read-only container, or any container under an untrusted
+// policy default that the host did not label trusted, is refused at create
+// instead of being given it. The Testcontainers reaper's own bind
 // (cleanupMount) is unaffected: it still gets the session-scoped cleanup
 // socket.
 

@@ -32,6 +32,10 @@ type dockerMount struct {
 	Type, Source, Target string
 	ReadOnly             bool
 	tmpfs                *dockerTmpfsOptions
+	// root, when set, is the bind source of a delegated socket's owner that
+	// this child's bind lies in (dockerRecord.BindRoots): the bind resolves
+	// below it (openMountWithin), never from the workspace.
+	root string
 }
 type dockerHost struct {
 	PortBindings                          portMap
@@ -1519,8 +1523,11 @@ func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, cre
 // mountSockets are the per-start sockets a container's binds may name: the
 // Testcontainers reaper's session cleanup socket and the delegated engine
 // socket (docker_engine_socket_linux.go). "" when the start has none.
+// bindRoots holds a child of a delegated socket to its creator's binds
+// (dockerRecord.BindRoots): each of its binds resolves below its root.
 type mountSockets struct {
 	cleanup, engine string
+	bindRoots       map[string]string
 }
 
 // openMountsWith is openMounts with every per-start socket. A docker.sock bind
@@ -1578,6 +1585,12 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 				mounts = append(mounts, &cri.Mount{HostPath: cleanupSocket, ContainerPath: m.Target, Readonly: true})
 			}
 			continue
+		}
+		if m.Type == "bind" && sockets.bindRoots != nil {
+			if m.root = sockets.bindRoots[m.Target]; m.root == "" {
+				err = errors.New("bind source " + m.Source + " was not inside the creating container's binds at create")
+				break
+			}
 		}
 		// Only a start uses these descriptors; a create opens them to
 		// validate the request and closes them at once.
@@ -1651,6 +1664,10 @@ func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access 
 	root, source := s.workspace, m.Source
 	if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
 		root = "/runner/externals"
+	}
+	if m.Type == "bind" && m.root != "" {
+		f, err := openMountWithin(s.workspace, m.root, m.Source)
+		return f, nil, err
 	}
 	if m.Type == "volume" {
 		if createVolume {

@@ -323,6 +323,12 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 			if write {
 				access = aliasWrite
 			}
+			if roots := c.delegatedBindRoots(); roots != nil && mount.Type == "bind" {
+				// A child of a delegated socket: below its creator's bind.
+				if mount.root = roots[mount.Target]; mount.root == "" {
+					return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is not inside the creating container's binds")
+				}
+			}
 			view.root, pins, err = s.openDockerMount(mount, false, access, filepath.Join(c.dir(), "shim"))
 		} else if c.retainsRootFS() {
 			view.root, err = s.openStoppedArchiveRoot(ctx, c)
