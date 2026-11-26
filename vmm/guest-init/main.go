@@ -198,7 +198,7 @@ func bridgeVsockToUnix(guestPort uint32, unixPath string) {
 		}
 		go func(vsockFD int) {
 			defer syscall.Close(vsockFD)
-			uconn := dialEngineSocket(unixPath, engineDialBudget, engineDialInterval)
+			uconn := dialEngineSocket(unixPath, engineDialBudget, engineDialInterval, systemDialClock{})
 			if uconn == nil {
 				return
 			}

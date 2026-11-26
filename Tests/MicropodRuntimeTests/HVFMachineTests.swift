@@ -918,29 +918,31 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertTrue(stopped, "a machine being started is stopped, not reported as not running")
     }
 
-    func testStopReturnsSoonAfterTheSupervisorLetsGo() async throws {
+    func testStopReturnsAtItsFirstLookAfterTheSupervisorLetsGo() async throws {
         // An update's switchover waits here between the old VMM's exit and
         // the new supervisor's launch: a 50 ms poll cost 25 ms on average.
+        // The release lands during one of stop's waits; stop must return at
+        // its next look, and its waits must be short. Counted, not timed, so
+        // a loaded machine cannot fail it.
         try installPlaceholders()
         try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
         let inspector = FakeInspector()
         inspector.add(HVFProcessFacts(pid: 4343, executablePath: "/x", arguments: [], startSeconds: 1))
-        let client = HVFMachineClient(layout: layout, environment: [:], inspector: inspector)
-        var lags: [Duration] = []
-        for _ in 0..<8 {
+        for releaseDuring in [1, 2, 7] {
             let supervisor = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
             try supervisor.record(pid: 4343)
-            let stop = Task { () -> ContinuousClock.Instant in
-                _ = try await client.stop()
-                return .now
+            let waits = StopWaits()
+            var client = HVFMachineClient(layout: layout, environment: [:], inspector: inspector)
+            client.stopPollSleep = { duration in
+                if waits.record(duration) == releaseDuring { supervisor.release() }
             }
-            try await Task.sleep(for: .milliseconds(Int.random(in: 30...80)))
-            let released = ContinuousClock.now
-            supervisor.release()
-            lags.append(try await stop.value - released)
+            let stopped = try await client.stop()
+            XCTAssertTrue(stopped)
+            XCTAssertEqual(waits.durations.count, releaseDuring, "stop waited again after the lock was released")
+            XCTAssertTrue(
+                waits.durations.allSatisfy { $0 > .zero && $0 <= .milliseconds(5) },
+                "stop waited \(waits.durations) between looks")
         }
-        let mean = lags.reduce(Duration.zero, +) / lags.count
-        XCTAssertLessThan(mean, .milliseconds(12), "stop noticed the released lock after \(lags) (mean \(mean))")
     }
 
     func testTheOrphanScanCanonicalizesOnlySameNamedExecutables() {
@@ -2225,6 +2227,21 @@ final class FakeLauncher: HVFVMMLaunching, @unchecked Sendable {
     var executables: [URL] { lock.withLock { launchedExecutables } }
     var processes: [FakeVMM] { lock.withLock { launched } }
     var currentIsReady: Bool { lock.withLock { launched.last }?.ready ?? false }
+}
+
+/// The waits `stop` asked for, in order.
+final class StopWaits: @unchecked Sendable {
+    private let lock = NSLock()
+    private var seen: [Duration] = []
+
+    /// Records one wait; returns how many there have been.
+    func record(_ duration: Duration) -> Int {
+        lock.withLock {
+            seen.append(duration)
+            return seen.count
+        }
+    }
+    var durations: [Duration] { lock.withLock { seen } }
 }
 
 final class FakeInspector: HVFProcessInspecting, @unchecked Sendable {

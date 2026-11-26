@@ -16,18 +16,29 @@ const (
 	engineDialInterval = 5 * time.Millisecond
 )
 
+// dialClock is the time a dial retry sees; tests replace it.
+type dialClock interface {
+	Now() time.Time
+	Sleep(time.Duration)
+}
+
+type systemDialClock struct{}
+
+func (systemDialClock) Now() time.Time        { return time.Now() }
+func (systemDialClock) Sleep(d time.Duration) { time.Sleep(d) }
+
 // dialEngineSocket connects to the engine's Unix socket at path, retrying
 // within budget while it does not accept. Nil once the budget is spent.
-func dialEngineSocket(path string, budget, interval time.Duration) *net.UnixConn {
-	deadline := time.Now().Add(budget)
+func dialEngineSocket(path string, budget, interval time.Duration, clock dialClock) *net.UnixConn {
+	deadline := clock.Now().Add(budget)
 	for {
 		c, err := net.DialUnix("unix", nil, &net.UnixAddr{Name: path, Net: "unix"})
 		if err == nil {
 			return c
 		}
-		if !time.Now().Before(deadline) {
+		if !clock.Now().Before(deadline) {
 			return nil
 		}
-		time.Sleep(interval)
+		clock.Sleep(interval)
 	}
 }
