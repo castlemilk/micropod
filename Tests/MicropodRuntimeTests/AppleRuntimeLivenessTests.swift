@@ -201,6 +201,46 @@ final class AppleRuntimeLivenessTests: XCTestCase {
         XCTAssertTrue(never.runtimeIsKnownDown())
     }
 
+    /// A ping that hangs to its timeout (a registered but wedged
+    /// apiserver) answers `unknown` after `maxAge`. Stamped with its start,
+    /// that answer was already expired, so every gated command waited for
+    /// another probe. Now it stands, and the next probe runs in the
+    /// background.
+    func testATimedOutProbeIsNotWaitedOnAgain() async throws {
+        let probe = ScriptedProbe(.unknown, delay: .milliseconds(300))
+        let liveness = AppleRuntimeLiveness(maxAge: .milliseconds(200), probe: probe.answer)
+        let clock = ContinuousClock()
+        let first = await liveness.state()
+        XCTAssertEqual(first, .unknown)
+        XCTAssertEqual(probe.calls, 1)
+
+        var started = clock.now
+        let next = await liveness.state()
+        XCTAssertEqual(next, .unknown)
+        XCTAssertLessThan(clock.now - started, .milliseconds(100), "answered from the timeout, no new probe awaited")
+        XCTAssertEqual(probe.calls, 1)
+
+        // Older than maxAge: still answered at once; a new probe starts in
+        // the background, one at a time.
+        try await Task.sleep(for: .milliseconds(250))
+        started = clock.now
+        for _ in 0..<5 {
+            let stale = await liveness.state()
+            XCTAssertEqual(stale, .unknown)
+        }
+        XCTAssertLessThan(clock.now - started, .milliseconds(100), "never waits on a probe that may time out")
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(probe.calls, 2, "one background probe")
+
+        // Its answer, once in, is what the gate says.
+        probe.set(.down)
+        try await Task.sleep(for: .milliseconds(600))
+        _ = await liveness.state()
+        try await Task.sleep(for: .milliseconds(400))
+        let down = await liveness.state()
+        XCTAssertEqual(down, .down)
+    }
+
     func testAnExplicitCLIPathBypassesTheGate() async throws {
         let cli = try stoppedCLI()
         let client = ContainerCLIClient(executableURL: cli)
@@ -228,8 +268,13 @@ private final class ScriptedProbe: @unchecked Sendable {
     private let lock = NSLock()
     private var state: AppleRuntimeLiveness.State
     private var count = 0
+    private let delay: Duration
 
-    init(_ state: AppleRuntimeLiveness.State) { self.state = state }
+    /// `delay`: how long each probe takes to answer (a ping that hangs).
+    init(_ state: AppleRuntimeLiveness.State, delay: Duration = .zero) {
+        self.state = state
+        self.delay = delay
+    }
 
     var calls: Int { lock.withLock { count } }
 
@@ -237,10 +282,9 @@ private final class ScriptedProbe: @unchecked Sendable {
 
     var answer: @Sendable () async -> (AppleRuntimeLiveness.State, APIServerHealth?) {
         { [self] in
-            lock.withLock {
-                count += 1
-                return (state, nil)
-            }
+            lock.withLock { count += 1 }
+            if delay > .zero { try? await Task.sleep(for: delay) }
+            return lock.withLock { (state, nil) }
         }
     }
 }

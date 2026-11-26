@@ -23,6 +23,13 @@ import Synchronization
 /// (`knownState()`), treats it as unknown and spawns as before. `system
 /// start` and `system stop` through a gated client forget it at once
 /// (``runtimeMayHaveChanged()``). Probes are single-flight.
+///
+/// A probe that timed out (`unknown`) is stamped when it gave up, not when
+/// it began, and is never waited on again: it refuses nothing, so it stands
+/// until a new probe, started in the background once it is `maxAge` old,
+/// answers. A registered service whose ping hangs (a cold launchd
+/// activation, a wedged apiserver) then costs one probe every `maxAge` plus
+/// its timeout, and no command waits for one.
 public final class AppleRuntimeLiveness: ContainerRuntimeGate {
     public enum State: Sendable, Equatable {
         case up
@@ -33,7 +40,8 @@ public final class AppleRuntimeLiveness: ContainerRuntimeGate {
     private struct Observation {
         var state: State
         var health: APIServerHealth?
-        /// When the probe that produced it started.
+        /// When the probe that produced it started (`up`, `down`), or gave
+        /// up (`unknown`).
         var at: ContinuousClock.Instant
     }
 
@@ -124,8 +132,16 @@ public final class AppleRuntimeLiveness: ContainerRuntimeGate {
     /// background refresh once it is `refreshAfter` old.
     private func fresh() -> State? {
         let now = ContinuousClock.now
-        guard let observed = inner.withLock({ $0.observed }), now - observed.at < maxAge else { return nil }
-        if now - observed.at >= refreshAfter { _ = startProbe() }
+        guard let observed = inner.withLock({ $0.observed }) else { return nil }
+        let age = now - observed.at
+        if observed.state == .unknown {
+            // Refuses nothing: kept while the next probe runs in the
+            // background, at most one every `maxAge`.
+            if age >= maxAge { _ = startProbe() }
+            return .unknown
+        }
+        guard age < maxAge else { return nil }
+        if age >= refreshAfter { _ = startProbe() }
         return observed.state
     }
 
@@ -137,7 +153,11 @@ public final class AppleRuntimeLiveness: ContainerRuntimeGate {
             let task = Task { [weak self] in
                 let started = ContinuousClock.now
                 let (state, health) = await probe()
-                self?.record(state, health: health, at: started, generation: generation)
+                // A timeout's age counts from when it gave up: stamped with
+                // its start it would be `maxAge` old (the ping's own bound)
+                // on arrival, already expired.
+                let at = state == .unknown ? ContinuousClock.now : started
+                self?.record(state, health: health, at: at, generation: generation)
                 return state
             }
             inner.probe = (generation, task)
