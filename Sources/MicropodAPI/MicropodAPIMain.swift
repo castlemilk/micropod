@@ -116,7 +116,10 @@ struct MicropodAPI {
                     + (ownerSocket.map { ", unix://\($0)" } ?? "")
                     + " (cli: \(client.executableURL.path), backend: \(runtime.kind.rawValue))"
             )
-            await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
+            fflush(stdout)
+            // Serve until killed. A continuation that is never resumed would
+            // park this task too, but the runtime reports it as leaked.
+            while true { try await Task.sleep(for: .seconds(86_400)) }
         } catch {
             fputs("API failed to start: \(error)\n", stderr)
             exit(1)
