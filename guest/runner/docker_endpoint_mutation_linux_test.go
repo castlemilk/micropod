@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -495,5 +497,53 @@ func TestDockerBridgeRecoveryRejectsMismatchedOwnershipAndAllocations(t *testing
 	n = node{runtime: testBridgeRecoveryRuntime{byID: []*cri.PodSandbox{owned}}}
 	if err := n.removeOwnedPod(ctx, ownedJob, ownedPod); err == nil || !strings.Contains(err.Error(), "missing from its ownership scope") {
 		t.Fatalf("inconsistent sandbox inventory was considered retired: %v", err)
+	}
+}
+
+// A gateway relay connection admitted because its peer shared a network with
+// the published container ends when the peer is disconnected from that
+// network, as a direct connection over the removed interface would; a new
+// one is refused.
+func TestDockerDisconnectEndsTheRelayItAdmitted(t *testing.T) {
+	f := newDockerEndpointFixture(t)
+	ctx := context.Background()
+	f.simulateRunning(t, &testDockerBridgeOperations{
+		onAttach: func(context.Context, *workerNetwork, string) (string, error) { return "02:11:22:33:44:55", nil },
+		onDetach: func(*workerNetwork) error { return nil },
+	})
+	if err := f.connect(ctx, f.second.Name); err != nil {
+		t.Fatal(err)
+	}
+	// The peer dials from loopback in this test; the published container,
+	// another job's, is on the network the peer just joined.
+	f.mu.Lock()
+	f.container.IP = "127.0.0.1"
+	target := &dockerContainer{IP: "10.90.2.5", dockerRecord: dockerRecord{ID: strings.Repeat("e", 64), Phase: "running", NetworkID: f.second.ID}}
+	f.containers[target.ID] = target
+	f.mu.Unlock()
+	port := freePort(t)
+	p, err := openGatewayRelay(ctx, "127.0.0.1", port, holdTarget(t), f.relayAdmits(target), f.trackRelay(target))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.close()
+	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port)))
+	held := dialHeld(t, addr)
+	if closedSoon(held) {
+		t.Fatal("a peer on the published container's network was refused")
+	}
+	eventually(t, "the relayed connection was not tracked", func() bool {
+		f.relayed.mu.Lock()
+		defer f.relayed.mu.Unlock()
+		return len(f.relayed.conns) == 1
+	})
+	if err := f.disconnect(ctx, f.second.Name); err != nil {
+		t.Fatal(err)
+	}
+	if !closedSoon(held) {
+		t.Fatal("the relayed connection outlived the network it was admitted for")
+	}
+	if !closedSoon(dialHeld(t, addr)) {
+		t.Fatal("a disconnected peer was relayed again")
 	}
 }

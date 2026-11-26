@@ -112,7 +112,10 @@ type dockerEngine struct {
 	workspace      string
 	// machineDir guards the machine's own directory inside the workspace
 	// (docker_private_linux.go); nil when it is outside or unknown.
-	machineDir  *privateRoot
+	machineDir *privateRoot
+	// relayed are the gateway relays' connections, rechecked when a
+	// network change can withdraw their admission (recheckRelaysLocked).
+	relayed     relayedConns
 	events      dockerEventLog
 	mu          sync.Mutex
 	containers  map[string]*dockerContainer

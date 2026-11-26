@@ -238,12 +238,16 @@ func (f *familySlots) release(family string) {
 // (a refused one is closed before anything is dialed or reserved), with at
 // most pending connections waiting for it; slots and shared, when set, are
 // the listener's and the engine-wide connection limits, and families what
-// one family may hold of shared.
+// one family may hold of shared. track, when set, registers each accepted
+// connection, before it is admitted, with the function that ends it, so a
+// change that withdraws its admission ends it too (recheckRelaysLocked); it
+// returns the function that unregisters it.
 type relayGuard struct {
 	admit         func(peer netip.Addr) (family string, ok bool)
 	pending       chan struct{}
 	slots, shared chan struct{}
 	families      *familySlots
+	track         func(peer netip.Addr, end func()) (forget func())
 }
 
 // take reserves a connection of family in every limit, or reports one is full.
@@ -318,9 +322,14 @@ func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target st
 			go func() {
 				defer p.wg.Done()
 				defer in.Close()
+				connCtx, end := context.WithCancel(relayCtx)
+				defer end()
+				peer, _ := netip.ParseAddrPort(in.RemoteAddr().String())
+				if guard.track != nil {
+					defer guard.track(peer.Addr().Unmap(), end)()
+				}
 				family, ok := "", true
 				if guard.admit != nil {
-					peer, _ := netip.ParseAddrPort(in.RemoteAddr().String())
 					family, ok = guard.admit(peer.Addr().Unmap())
 				}
 				if guard.pending != nil {
@@ -334,12 +343,12 @@ func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target st
 					return
 				}
 				defer release()
-				out, err := dial.DialContext(relayCtx, "tcp4", target)
+				out, err := dial.DialContext(connCtx, "tcp4", target)
 				if err != nil {
 					return
 				}
 				defer out.Close()
-				stop := context.AfterFunc(relayCtx, func() { in.Close(); out.Close() })
+				stop := context.AfterFunc(connCtx, func() { in.Close(); out.Close() })
 				defer stop()
 				relayPipe(in, out.(*net.TCPConn))
 			}()
@@ -434,7 +443,7 @@ func relayGateways(network *workerNetwork) []string {
 // the FORWARD rules that keep networks apart; and the relay dials the target
 // from that namespace. So admit decides each peer (relayAdmits): only one
 // that could reach the target anyway or belongs to the same job is relayed.
-func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) (string, bool)) (*publishedPort, error) {
+func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) (string, bool), track func(netip.Addr, func()) func()) (*publishedPort, error) {
 	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(gateway), Port: int(port)})
 	if err != nil {
 		return nil, err
@@ -442,7 +451,7 @@ func openGatewayRelay(ctx context.Context, gateway string, port uint16, target s
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, cancel: cancel}
 	p.relay(relayCtx, l, target, relayGuard{admit: admit, pending: make(chan struct{}, relayPendingAdmissions),
-		slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots, families: gatewayRelayFamilies})
+		slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots, families: gatewayRelayFamilies, track: track})
 	return p, nil
 }
 
@@ -457,11 +466,66 @@ func (s *dockerEngine) relayAdmits(target *dockerContainer) func(netip.Addr) (st
 	return func(peer netip.Addr) (string, bool) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		from := s.containerAtLocked(peer)
-		if from == nil || from.family() != target.family() && !sharesNetwork(from, target) {
-			return "", false
+		return s.relayAdmitsLocked(target, peer)
+	}
+}
+
+// relayAdmitsLocked is relayAdmits with s.mu held.
+func (s *dockerEngine) relayAdmitsLocked(target *dockerContainer, peer netip.Addr) (string, bool) {
+	from := s.containerAtLocked(peer)
+	if from == nil || from.family() != target.family() && !sharesNetwork(from, target) {
+		return "", false
+	}
+	return from.family(), true
+}
+
+// relayedConn is a connection a gateway relay of target accepted from peer,
+// with the function that ends it.
+type relayedConn struct {
+	target *dockerContainer
+	peer   netip.Addr
+	end    func()
+}
+
+// relayedConns are the gateway relays' connections (relayGuard.track). Its
+// lock is taken after s.mu, never before.
+type relayedConns struct {
+	mu    sync.Mutex
+	conns map[*relayedConn]struct{}
+}
+
+// trackRelay is the relayGuard.track of target's gateway relays.
+func (s *dockerEngine) trackRelay(target *dockerContainer) func(netip.Addr, func()) func() {
+	return func(peer netip.Addr, end func()) func() {
+		rc := &relayedConn{target: target, peer: peer, end: end}
+		r := &s.relayed
+		r.mu.Lock()
+		if r.conns == nil {
+			r.conns = map[*relayedConn]struct{}{}
 		}
-		return from.family(), true
+		r.conns[rc] = struct{}{}
+		r.mu.Unlock()
+		return func() {
+			r.mu.Lock()
+			delete(r.conns, rc)
+			r.mu.Unlock()
+		}
+	}
+}
+
+// recheckRelaysLocked ends every gateway relay connection the rule would no
+// longer admit (relayAdmitsLocked): admission is decided when a connection
+// arrives, so a network disconnect that cuts a peer off from a published
+// container must also end what it already relays, as removing its interface
+// ends a direct connection. Call with s.mu held.
+func (s *dockerEngine) recheckRelaysLocked() {
+	r := &s.relayed
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for rc := range r.conns {
+		if _, ok := s.relayAdmitsLocked(rc.target, rc.peer); !ok {
+			rc.end()
+		}
 	}
 }
 
@@ -687,7 +751,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			}
 			for _, gateway := range gateways {
 				// Best effort: the Mac mapping stands without it.
-				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c)); err != nil {
+				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c), s.trackRelay(c)); err != nil {
 					log.Printf("published port %d of %.12s at gateway %s: %v", n, c.ID, gateway, err)
 				} else {
 					open = append(open, g)

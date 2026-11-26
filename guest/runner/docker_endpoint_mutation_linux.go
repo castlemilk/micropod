@@ -136,7 +136,10 @@ func (s *dockerEngine) changeDockerNetwork(ctx context.Context, c *dockerContain
 	if index < 0 {
 		return fail(http.StatusConflict, "container is not connected to network "+n.Name)
 	}
-	return s.disconnectDockerSecondaryLocked(ctx, c, b, dir, n, index)
+	err = s.disconnectDockerSecondaryLocked(ctx, c, b, dir, n, index)
+	// What the gateway relays admitted for the network it shared is cut too.
+	s.recheckRelaysLocked()
+	return err
 }
 
 // A late directory sync failure can follow a successful rename. Keep the live

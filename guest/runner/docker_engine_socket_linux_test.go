@@ -180,7 +180,7 @@ func TestOpenGatewayRelayReachesTheTarget(t *testing.T) {
 	}
 	port := uint16(probe.Addr().(*net.TCPAddr).Port)
 	probe.Close()
-	p, err := openGatewayRelay(context.Background(), "127.0.0.1", port, target.Addr().String(), nil)
+	p, err := openGatewayRelay(context.Background(), "127.0.0.1", port, target.Addr().String(), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -75,7 +75,7 @@ func TestGatewayRelayAdmitsOnlyWhatTheRuleAdmits(t *testing.T) {
 	p, err := openGatewayRelay(context.Background(), "127.0.0.1", port, target, func(peer netip.Addr) (string, bool) {
 		asked.Store(peer)
 		return "job", admit.Load()
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
