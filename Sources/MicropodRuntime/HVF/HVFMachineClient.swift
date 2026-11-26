@@ -78,8 +78,11 @@ public struct HVFMachineClient: Sendable {
     }
 
     /// Atomically links `canonical` (default `~/.micropod/docker.sock`) to this
-    /// machine's `run/docker.sock`, replacing a stale socket or older symlink.
-    /// Refuses only if another active daemon is currently listening on `canonical`.
+    /// machine's `run/docker.sock`, replacing a stale socket or a link to one.
+    /// Refuses, unless `force`, while another daemon answers on `canonical`:
+    /// a socket there, or a link to another machine's live socket (a
+    /// throwaway root started with `machine start` must not take over the
+    /// rig's Docker endpoint).
     @discardableResult
     public func linkCanonicalDockerSocket(canonical: URL? = nil, force: Bool = false) throws -> URL {
         let linkURL = (canonical ?? HVFMachineLayout.canonicalDockerSocket(environment: environment))
@@ -93,8 +96,12 @@ public struct HVFMachineClient: Sendable {
         if lstat(linkURL.path, &st) == 0 {
             let mode = st.st_mode & S_IFMT
             if mode == S_IFLNK {
-                if let dest = try? fm.destinationOfSymbolicLink(atPath: linkURL.path), dest == targetPath {
-                    return linkURL
+                let dest = try? fm.destinationOfSymbolicLink(atPath: linkURL.path)
+                if dest == targetPath { return linkURL }
+                if let dest, !force, Self.isUnixSocketListening(dest) {
+                    throw MicropodError.message(
+                        "failedPrecondition: \(linkURL.path) already points at \(dest), where another daemon is "
+                            + "listening; stop it or pass --force to point it at this machine")
                 }
             } else if mode == S_IFSOCK, !force, Self.isUnixSocketListening(linkURL.path) {
                 throw MicropodError.message(

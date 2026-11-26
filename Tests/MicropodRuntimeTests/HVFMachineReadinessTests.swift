@@ -205,6 +205,40 @@ final class HVFMachineReadinessTests: XCTestCase {
         }
     }
 
+    // MARK: The canonical Docker socket
+
+    /// `machine start` on a throwaway root must not take over the rig's
+    /// `~/.micropod/docker.sock` while it points at a machine that answers.
+    func testTheCanonicalLinkIsNotTakenFromAnotherLiveMachine() throws {
+        let other = URL(fileURLWithPath: root.path + "-o")
+        defer { try? FileManager.default.removeItem(at: other) }
+        let otherLayout = HVFMachineLayout(root: other)
+        try FileManager.default.createDirectory(at: otherLayout.runDirectory, withIntermediateDirectories: true)
+        let live = try FakeDockerServer(path: otherLayout.dockerSocket.path) { _ in (200, Data("OK".utf8)) }
+        defer { live.stop() }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let canonical = root.appendingPathComponent("canonical.sock")
+        try FileManager.default.createSymbolicLink(
+            atPath: canonical.path, withDestinationPath: otherLayout.dockerSocket.path)
+
+        XCTAssertThrowsError(try client.linkCanonicalDockerSocket(canonical: canonical)) { error in
+            XCTAssertTrue("\(error)".contains("already points at"), "\(error)")
+        }
+        XCTAssertEqual(
+            try FileManager.default.destinationOfSymbolicLink(atPath: canonical.path), otherLayout.dockerSocket.path)
+        _ = try client.linkCanonicalDockerSocket(canonical: canonical, force: true)
+        XCTAssertEqual(
+            try FileManager.default.destinationOfSymbolicLink(atPath: canonical.path), layout.dockerSocket.path)
+
+        // A link to a socket nobody serves is stale and replaced.
+        try FileManager.default.removeItem(at: canonical)
+        try FileManager.default.createSymbolicLink(
+            atPath: canonical.path, withDestinationPath: other.appendingPathComponent("gone.sock").path)
+        _ = try client.linkCanonicalDockerSocket(canonical: canonical)
+        XCTAssertEqual(
+            try FileManager.default.destinationOfSymbolicLink(atPath: canonical.path), layout.dockerSocket.path)
+    }
+
     func testAHostCacheDiskFileIsNotAMountedCacheDisk() async throws {
         try install()
         XCTAssertTrue(FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: Data("x".utf8)))

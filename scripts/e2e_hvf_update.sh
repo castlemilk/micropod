@@ -100,6 +100,9 @@ mkdir -p "$OUT"
 export MICROPOD_HVF_ROOT="$ROOT_DIR"
 export MICROPOD_RUNTIMES_CONFIG="$TMP/runtimes.json" # never the user's engine config
 export MICROPOD_CLI="$M"                             # the binary that runs `machine serve`
+# `machine start` links the canonical Docker socket; keep it inside this root,
+# never the rig's ~/.micropod/docker.sock.
+export MICROPOD_DOCKER_SOCK="$ROOT_DIR/canonical-docker.sock"
 unset MICROPOD_DEFAULT_RUNTIME
 SOCK="$ROOT_DIR/run/docker.sock"
 VOL="e2eupd-$S"
