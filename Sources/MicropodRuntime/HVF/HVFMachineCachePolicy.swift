@@ -65,6 +65,7 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     /// The guest engine's cache kinds, in its table order.
     public static let toolKinds = [
         "gomod", "gobuild", "npm", "pnpm", "yarn", "yarnberry", "pip", "uv", "cargo", "corepack",
+        "maven", "gradle", "bun", "sccache", "playwright",
     ]
     /// Names that stand for several kinds.
     public static let toolGroups: [String: [String]] = ["go": ["gomod", "gobuild"]]
@@ -335,7 +336,7 @@ extension HVFMachineCachePolicy {
         return policy
     }
 
-    static func write(_ policy: HVFMachineCachePolicy, layout: HVFMachineLayout) throws {
+    public static func write(_ policy: HVFMachineCachePolicy, layout: HVFMachineLayout) throws {
         let directory = layout.guestConfigDirectory
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         guard chmod(directory.path, 0o700) == 0 else { throw HVFFiles.posixError("chmod \(directory.path)") }

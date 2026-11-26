@@ -428,6 +428,36 @@ func mountHostConfig(params map[string]string) {
 	}
 }
 
+// mountPersistentCacheDisk mounts optional /dev/vdb (caches.ext4) onto
+// /var/lib/micropod/caches and bind-mounts /var/lib/micropod/caches/_buildkit
+// onto /var/lib/micropod/buildkit so dependency & BuildKit caches survive
+// disk.ext4 OS upgrades intact.
+func mountPersistentCacheDisk() {
+	const cacheDev = "/dev/vdb"
+	const cacheDir = "/var/lib/micropod/caches"
+	const buildkitSub = "/var/lib/micropod/caches/_buildkit"
+	const buildkitDir = "/var/lib/micropod/buildkit"
+	if _, err := os.Stat(cacheDev); err != nil {
+		return
+	}
+	if err := os.MkdirAll(cacheDir, 0711); err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] mkdir %s: %v\n", cacheDir, err)
+		return
+	}
+	if err := syscall.Mount(cacheDev, cacheDir, "ext4", syscall.MS_NOATIME, "max_batch_time=15000"); err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] mount %s -> %s failed (continuing on root disk): %v\n", cacheDev, cacheDir, err)
+		return
+	}
+	fmt.Printf("[mp-hvf-init] persistent cache disk mounted: %s -> %s\n", cacheDev, cacheDir)
+	if err := os.MkdirAll(buildkitSub, 0700); err == nil {
+		if err := os.MkdirAll(buildkitDir, 0700); err == nil {
+			if err := syscall.Mount(buildkitSub, buildkitDir, "", syscall.MS_BIND, ""); err != nil {
+				fmt.Fprintf(os.Stderr, "[mp-hvf-init] bind %s -> %s: %v\n", buildkitSub, buildkitDir, err)
+			}
+		}
+	}
+}
+
 func stage1SwitchRoot() {
 	mustMount("proc", "/proc", "proc", 0, "")
 	if err := initializeBootClock(); err != nil {
@@ -527,6 +557,7 @@ func stage2Supervise() {
 		}
 	}
 	mountHostConfig(params)
+	mountPersistentCacheDisk()
 
 	// Bring up loopback, eth0 (egress 10.42.0.2/24 via 10.42.0.1) and, with
 	// --published-net, eth1 (published link 10.43.0.2/24, permanent gateway
@@ -544,7 +575,7 @@ func stage2Supervise() {
 
 	// Minimal /etc/resolv.conf & /etc/hosts for job engine DNS startup
 	_ = os.WriteFile("/etc/resolv.conf", []byte("nameserver 10.42.0.1\n"), 0644)
-	_ = os.WriteFile("/etc/hosts", []byte("127.0.0.1 localhost micropod-hvf\n"), 0644)
+	_ = os.WriteFile("/etc/hosts", []byte("127.0.0.1 localhost micropod-hvf\n10.43.0.1 host.docker.internal host.micropod.internal\n"), 0644)
 
 	// Start AF_VSOCK <-> Unix bridges and host control channel BEFORE start.sh launches job engine!
 	poweroffCh := make(chan struct{}, 1)

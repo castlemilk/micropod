@@ -100,9 +100,24 @@ struct MicropodAPI {
                 await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
                 withExtendedLifetime(gateway) {}
             }
+            let unixSockEnv = ProcessInfo.processInfo.environment["MICROPOD_API_SOCK"]
+            let unixSockPath: String? =
+                unixSockEnv == "off"
+                ? nil
+                : (unixSockEnv?.isEmpty == false
+                    ? (unixSockEnv! as NSString).expandingTildeInPath
+                    : FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/api.sock").path)
+            if let unixSockPath {
+                try FileManager.default.createDirectory(
+                    at: URL(fileURLWithPath: unixSockPath).deletingLastPathComponent(),
+                    withIntermediateDirectories: true)
+                try? await server.startPrivateSocket(path: unixSockPath)
+            }
             try await server.run()
             print(
-                "Micropod API listening on http://127.0.0.1:\(port) and http://[::1]:\(port) (cli: \(client.executableURL.path), backend: \(runtime.kind.rawValue))"
+                "Micropod API listening on http://127.0.0.1:\(port), http://[::1]:\(port)"
+                    + (unixSockPath.map { ", unix://\($0)" } ?? "")
+                    + " (cli: \(client.executableURL.path), backend: \(runtime.kind.rawValue))"
             )
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
         } catch {
@@ -214,7 +229,7 @@ final class HTTPServer: @unchecked Sendable {
                 return
             }
             connection.start(queue: .global(qos: .userInitiated))
-            self.startReading(connection)
+            self.startReading(connection, isUnixSocket: true)
         }
         listeners.append(listener)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -306,7 +321,7 @@ final class HTTPServer: @unchecked Sendable {
         }
     }
 
-    private func startReading(_ connection: NWConnection) {
+    private func startReading(_ connection: NWConnection, isUnixSocket: Bool = false) {
         let pending = PendingRead()
         let queue = DispatchQueue.global(qos: .userInitiated)
         queue.asyncAfter(deadline: .now() + Self.requestDeadline) { [weak self] in
@@ -314,7 +329,7 @@ final class HTTPServer: @unchecked Sendable {
             self?.reject(connection, status: 408, reason: "request not received in time")
         }
         armIdleTimer(connection, pending: pending)
-        readRequest(connection, buffer: Data(), pending: pending)
+        readRequest(connection, buffer: Data(), pending: pending, isUnixSocket: isUnixSocket)
     }
 
     private func armIdleTimer(_ connection: NWConnection, pending: PendingRead) {
@@ -326,7 +341,9 @@ final class HTTPServer: @unchecked Sendable {
         }
     }
 
-    private func readRequest(_ connection: NWConnection, buffer: Data, pending: PendingRead) {
+    private func readRequest(
+        _ connection: NWConnection, buffer: Data, pending: PendingRead, isUnixSocket: Bool = false
+    ) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
             [weak self] data, _, isComplete, error in
             guard let self else { return }
@@ -337,7 +354,7 @@ final class HTTPServer: @unchecked Sendable {
                 switch HTTPParser.parse(newBuffer) {
                 case .request(let request):
                     guard pending.finish() else { return }
-                    self.dispatch(request, connection: connection)
+                    self.dispatch(request, connection: connection, isUnixSocket: isUnixSocket)
                     return
                 case .reject(let status, let reason):
                     guard pending.finish() else { return }
@@ -358,7 +375,7 @@ final class HTTPServer: @unchecked Sendable {
                 }
                 return
             }
-            self.readRequest(connection, buffer: newBuffer, pending: pending)
+            self.readRequest(connection, buffer: newBuffer, pending: pending, isUnixSocket: isUnixSocket)
         }
     }
 
@@ -369,25 +386,28 @@ final class HTTPServer: @unchecked Sendable {
             completion: .contentProcessed { _ in connection.cancel() })
     }
 
-    private func dispatch(_ request: HTTPRequest, connection: NWConnection) {
+    private func dispatch(_ request: HTTPRequest, connection: NWConnection, isUnixSocket: Bool = false) {
         // Browser-facing CORS/PNA headers — computed once per request so
         // normal, streaming, and preflight responses are all covered.
         let cors = CORSPolicy.responseHeaders(for: request)
         // Cross-site / DNS-rebinding defence, before any handler runs (see
         // LocalRequestGuard): loopback Host, a non-simple Content-Type on
-        // mutations, and an allowlisted Origin when one is sent.
-        let verdict = LocalRequestGuard.evaluateAPI(
-            method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
-            port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })
-        if case .reject(let status, let reason) = verdict {
-            let code = status == 415 ? "invalid_argument" : "permission_denied"
-            let body =
-                (try? JSONSerialization.data(
-                    withJSONObject: ["code": code, "message": reason, "error": reason])) ?? Data()
-            connection.send(
-                content: Self.serialize(.data(status, "application/json", body), extraHeaders: cors),
-                completion: .contentProcessed { _ in connection.cancel() })
-            return
+        // mutations, and an allowlisted Origin when one is sent. Local 0600
+        // Unix sockets are unreachable from browsers and carry no TCP port.
+        if !isUnixSocket {
+            let verdict = LocalRequestGuard.evaluateAPI(
+                method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
+                port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })
+            if case .reject(let status, let reason) = verdict {
+                let code = status == 415 ? "invalid_argument" : "permission_denied"
+                let body =
+                    (try? JSONSerialization.data(
+                        withJSONObject: ["code": code, "message": reason, "error": reason])) ?? Data()
+                connection.send(
+                    content: Self.serialize(.data(status, "application/json", body), extraHeaders: cors),
+                    completion: .contentProcessed { _ in connection.cancel() })
+                return
+            }
         }
         Task {
             let claim: RuntimeAdmissionClaim?
@@ -538,6 +558,7 @@ final class HTTPServer: @unchecked Sendable {
             return Data()
         }
         headers.append(contentsOf: extraHeaders)
+        headers.append(("X-Micropod-Codecs", "json,proto"))
 
         var head = "\(statusLine)\r\n"
         for (key, value) in headers {

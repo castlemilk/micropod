@@ -64,6 +64,9 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var initrd: URL { activePayloadRoot.appendingPathComponent("mp-hvf-init.cpio") }
     public var tools: URL { activePayloadRoot.appendingPathComponent("tools") }
     public var disk: URL { root.appendingPathComponent("disk.ext4") }
+    /// Optional persistent second VirtioBlk disk (`/dev/vdb` -> `/var/lib/micropod/caches`)
+    /// so dependency and BuildKit caches survive `disk.ext4` OS replacements.
+    public var cacheDisk: URL { root.appendingPathComponent("caches.ext4") }
     public var config: URL { root.appendingPathComponent("machine.json") }
     public var runDirectory: URL { root.appendingPathComponent("run") }
     public var dockerSocket: URL { dockerSocketOverride ?? runDirectory.appendingPathComponent("docker.sock") }
@@ -88,6 +91,17 @@ public struct HVFMachineLayout: Sendable, Equatable {
     /// A BuildKit address for `docker buildx create --driver remote` or
     /// `buildctl --addr`; served only when the tool bundle ships BuildKit.
     public var buildkitEndpoint: String { "unix://" + buildkitSocket.path }
+
+    /// Canonical `~/.micropod/docker.sock` symlink path that exposes the HVF
+    /// Docker Engine v1.47 socket to zero-config Docker/Testcontainers clients.
+    public static func canonicalDockerSocket(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL {
+        if let explicit = environment["MICROPOD_DOCKER_SOCK"], !explicit.isEmpty {
+            return URL(fileURLWithPath: NSString(string: explicit).expandingTildeInPath)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/docker.sock")
+    }
 
     /// `sockaddr_un.sun_path` is 104 bytes on Darwin, NUL included.
     public static let maxSocketPathBytes = 103
@@ -364,6 +378,11 @@ public enum HVFVMMCommand {
             "--kernel", layout.kernel.path,
             "--initrd", layout.initrd.path,
             "--disk", layout.disk.path,
+        ]
+        if HVFMachineLayout.isRegularFile(layout.cacheDisk) {
+            args += ["--cache-disk", layout.cacheDisk.path]
+        }
+        args += [
             "--share", "oci-tools:\(layout.tools.path):ro",
             "--share", "\(configShareTag):\(layout.guestConfigDirectory.path)",
         ]

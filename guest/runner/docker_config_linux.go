@@ -682,12 +682,59 @@ type cacheUnitPin struct {
 
 // cacheAttachment is what one start of a container gets from its plan.
 type cacheAttachment struct {
-	files   []*os.File // pinned bind sources and unit locks; closed when the container exits
-	mounts  []*cri.Mount
-	env     []string
-	units   []string          // locked and stamped unit names (kept for legacy callers)
-	pins    []cacheUnitPin    // exact (scope, unit) pairs locked and stamped
-	skipped map[string]string // tool -> reason, for this start only
+	files    []*os.File // pinned bind sources and unit locks; closed when the container exits
+	mounts   []*cri.Mount
+	overlays []string // ephemeral overlayfs merged mountpoints to detach on container exit
+	env      []string
+	units    []string       // locked and stamped unit names (kept for legacy callers)
+	pins     []cacheUnitPin // exact (scope, unit) pairs locked and stamped
+	skipped  map[string]string // tool -> reason, for this start only
+}
+
+func (a *cacheAttachment) close() {
+	for i := len(a.overlays) - 1; i >= 0; i-- {
+		_ = unix.Unmount(a.overlays[i], unix.MNT_DETACH)
+	}
+	a.overlays = nil
+	closeMounts(a.files)
+	a.files = nil
+}
+
+// cacheOverlayMount mounts an ephemeral per-container overlayfs over lowerDir
+// using upper/work/merged subdirs under baseDir. Swapped in unit tests to verify
+// CoW isolation and yarn concurrency behavior without CAP_SYS_ADMIN.
+var cacheOverlayMount = mountCacheOverlay
+
+func mountCacheOverlay(lowerDir, baseDir string) (string, error) {
+	upper := filepath.Join(baseDir, "upper")
+	work := filepath.Join(baseDir, "work")
+	merged := filepath.Join(baseDir, "merged")
+	for _, d := range []string{upper, work, merged} {
+		if err := os.MkdirAll(d, 0777); err != nil {
+			return "", err
+		}
+		_ = os.Chmod(d, 0777)
+	}
+	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upper, work)
+	if err := unix.Mount("overlay", merged, "overlay", 0, opts); err != nil {
+		return "", err
+	}
+	return merged, nil
+}
+
+func copyEphemeralCacheFile(src *os.File, dstPath string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(src.Name())
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(dstPath, data, 0666); err != nil {
+		return nil, err
+	}
+	_ = os.Chmod(dstPath, 0666)
+	return os.OpenFile(dstPath, os.O_RDWR, 0666)
 }
 
 func (a *cacheAttachment) touchAll() {
@@ -706,6 +753,10 @@ func (a *cacheAttachment) skip(kind, reason string) {
 // openCacheMounts replays a plan computed at create: it verifies each store,
 // takes the unit locks and opens every bind source. It never fails a start; a
 // store that cannot be prepared is dropped with its variables for this start.
+// When plan.ReadOnly is set (untrusted PRs / readonly), every cache mount is
+// isolated via an ephemeral per-container overlayfs upperdir (or fail-closed
+// read-only bind if overlayfs is unavailable). When an exclusive store (yarn v1)
+// is contended, concurrent containers fall back to a CoW overlayfs when available.
 func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	var a cacheAttachment
 	if !plan.attached() {
@@ -713,7 +764,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	}
 	dropAll := func(reason string, err error) cacheAttachment {
 		log.Printf("cache scope %s: %v", plan.Scope, err)
-		closeMounts(a.files)
+		a.close()
 		a = cacheAttachment{}
 		for _, st := range plan.Stores {
 			a.skip(st.Kind, reason)
@@ -746,6 +797,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		return dropAll(skipStoreFailed, err)
 	}
 	stores := map[string]*os.File{}
+	cowUnits := map[string]bool{}
 	for _, st := range plan.Stores {
 		storeScope := plan.scopeFor(st.Scope)
 		scopeDir, err := ensureScopeDir(storeScope)
@@ -754,31 +806,68 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			a.skip(st.Kind, skipStoreFailed)
 			continue
 		}
-		lock, err := unitLock(storeScope, st.Unit, st.Exclusive)
+		// Always pin the store with LOCK_SH on .lock so the janitor never evicts
+		// an active store. Exclusive stores (yarn v1) additionally serialize direct
+		// writers via .writer.lock; if contended, concurrent containers fall back
+		// to an ephemeral CoW overlayfs (or skipBusyExclusive when unprivileged).
+		lock, err := unitLock(storeScope, st.Unit, false)
 		if err != nil {
-			reason := skipStoreFailed
-			if errors.Is(err, unix.EWOULDBLOCK) {
-				reason = skipBusyExclusive
-			}
-			a.skip(st.Kind, reason)
+			a.skip(st.Kind, skipStoreFailed)
 			continue
+		}
+		var writerLock *os.File
+		if st.Exclusive && !plan.ReadOnly {
+			writerLock, err = unitWriterLock(storeScope, st.Unit)
+			if err != nil {
+				if errors.Is(err, unix.EWOULDBLOCK) {
+					if dir, dirErr := openStore(l, storeScope, scopeDir, st.Kind, st.UID); dirErr == nil {
+						ovlBase := filepath.Join(shimRoot, "cow-"+st.Unit)
+						if merged, ovlErr := cacheOverlayMount(dir.Name(), ovlBase); ovlErr == nil {
+							if mf, openErr := os.Open(merged); openErr == nil {
+								a.overlays = append(a.overlays, merged)
+								a.files = append(a.files, lock, dir, mf)
+								stores[storeScope+"/"+st.Unit] = mf
+								cowUnits[storeScope+"/"+st.Unit] = true
+								a.units = append(a.units, st.Unit)
+								a.pins = append(a.pins, cacheUnitPin{Scope: storeScope, Unit: st.Unit})
+								continue
+							}
+							_ = unix.Unmount(merged, unix.MNT_DETACH)
+						}
+						dir.Close()
+					}
+					lock.Close()
+					a.skip(st.Kind, skipBusyExclusive)
+					continue
+				}
+				lock.Close()
+				a.skip(st.Kind, skipStoreFailed)
+				continue
+			}
 		}
 		dir, err := openStore(l, storeScope, scopeDir, st.Kind, st.UID)
 		if err != nil {
 			log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
+			if writerLock != nil {
+				writerLock.Close()
+			}
 			lock.Close()
 			a.skip(st.Kind, skipStoreFailed)
 			continue
 		}
 		a.files = append(a.files, lock, dir)
+		if writerLock != nil {
+			a.files = append(a.files, writerLock)
+		}
 		stores[storeScope+"/"+st.Unit] = dir
 		a.units = append(a.units, st.Unit)
 		a.pins = append(a.pins, cacheUnitPin{Scope: storeScope, Unit: st.Unit})
 	}
 	type opened struct {
-		m     cacheMount
-		scope string
-		src   *os.File
+		m        cacheMount
+		scope    string
+		src      *os.File
+		readonly bool
 	}
 	var binds []opened
 	for i, m := range plan.Mounts {
@@ -790,6 +879,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		mountScope := plan.scopeFor(m.Scope)
 		var src *os.File
 		var err error
+		mountRO := false
 		switch {
 		case m.Shim:
 			dir := filepath.Join(shimRoot, strconv.Itoa(i))
@@ -810,6 +900,21 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			src = scopeDirs[mountScope]
 			if src == nil {
 				continue
+			}
+			if plan.ReadOnly {
+				ovlBase := filepath.Join(shimRoot, fmt.Sprintf("ro-scope-%d", i))
+				if merged, ovlErr := cacheOverlayMount(src.Name(), ovlBase); ovlErr == nil {
+					if mf, openErr := os.Open(merged); openErr == nil {
+						a.overlays = append(a.overlays, merged)
+						a.files = append(a.files, mf)
+						src = mf
+					} else {
+						_ = unix.Unmount(merged, unix.MNT_DETACH)
+						mountRO = true
+					}
+				} else {
+					mountRO = true
+				}
 			}
 		default:
 			base := stores[mountScope+"/"+m.Unit]
@@ -832,8 +937,32 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			if src != base {
 				a.files = append(a.files, src)
 			}
+			if plan.ReadOnly && !cowUnits[mountScope+"/"+m.Unit] {
+				if m.File {
+					if ephem, copyErr := copyEphemeralCacheFile(src, filepath.Join(shimRoot, fmt.Sprintf("ro-file-%d", i))); copyErr == nil {
+						a.files = append(a.files, ephem)
+						src = ephem
+					} else {
+						mountRO = true
+					}
+				} else {
+					ovlBase := filepath.Join(shimRoot, fmt.Sprintf("ro-unit-%d", i))
+					if merged, ovlErr := cacheOverlayMount(src.Name(), ovlBase); ovlErr == nil {
+						if mf, openErr := os.Open(merged); openErr == nil {
+							a.overlays = append(a.overlays, merged)
+							a.files = append(a.files, mf)
+							src = mf
+						} else {
+							_ = unix.Unmount(merged, unix.MNT_DETACH)
+							mountRO = true
+						}
+					} else {
+						mountRO = true
+					}
+				}
+			}
 		}
-		binds = append(binds, opened{m, mountScope, src})
+		binds = append(binds, opened{m, mountScope, src, mountRO})
 	}
 	usedScopes := map[string]bool{}
 	for _, st := range plan.Stores {
@@ -848,7 +977,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		if _, gone := a.skipped[b.m.Kind]; gone && b.m.Kind != "" {
 			continue
 		}
-		a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target})
+		a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target, Readonly: b.readonly})
 	}
 	a.env = plan.env(a.skipped)
 	for _, pin := range a.pins {

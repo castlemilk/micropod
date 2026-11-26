@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -63,6 +64,7 @@ func (b *buildkitService) dial(ctx context.Context) (*net.UnixConn, error) {
 			return nil, err
 		}
 		cmd := exec.CommandContext(b.lifetime, buildkitBinary, "--config", buildkitConfig)
+		cmd.Env = buildkitEnv()
 		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 		cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
 		if err := cmd.Start(); err != nil {
@@ -174,4 +176,25 @@ func serveBuildKit(ctx context.Context) (string, error) {
 		}
 	}()
 	return buildkitPublic, nil
+}
+
+// buildkitEnv wires the runtime's shared L0 cache directory and rig depproxy
+// settings (from cache-policy.json) into buildkitd so Docker builds reuse the
+// exact same host depproxy & L0 cache root as runtime containers.
+func buildkitEnv() []string {
+	env := append([]string(nil), os.Environ()...)
+	l0Dir := filepath.Join(cacheRoot, "scopes", cacheL0GlobalScope)
+	_ = os.MkdirAll(l0Dir, 0755)
+	env = append(env, "MICROPOD_CACHE_L0_DIR="+l0Dir)
+	if raw, err := os.ReadFile(cachePolicyFile); err == nil {
+		if pol, err := parseCachePolicy(raw); err == nil {
+			if pol.GoProxy != "" {
+				env = append(env, "GOPROXY="+pol.GoProxy)
+			}
+			if pol.NpmRegistry != "" {
+				env = append(env, "npm_config_registry="+pol.NpmRegistry)
+			}
+		}
+	}
+	return env
 }

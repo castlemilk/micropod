@@ -469,8 +469,8 @@ func ensureStore(scope, kind string, uid *uint32) (string, error) {
 }
 
 // unitLock pins a store for a running container. Shared holders block the
-// janitor's LOCK_EX|LOCK_NB eviction; exclusive kinds (yarn v1, unsafe for
-// concurrent cold writers) take LOCK_EX|LOCK_NB themselves and report busy.
+// janitor's LOCK_EX|LOCK_NB eviction; exclusive kinds take LOCK_EX|LOCK_NB
+// themselves (or use unitWriterLock when falling back to CoW overlayfs).
 func unitLock(scope, unit string, exclusive bool) (*os.File, error) {
 	path := filepath.Join(cacheRoot, ".meta", scope, unit+".lock")
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
@@ -482,6 +482,22 @@ func unitLock(scope, unit string, exclusive bool) (*os.File, error) {
 		how = unix.LOCK_EX | unix.LOCK_NB
 	}
 	if err := unix.Flock(int(f.Fd()), how); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+// unitWriterLock serializes direct writers to exclusive stores (e.g. yarn v1)
+// independently of the shared janitor pin (.lock), allowing concurrent readers
+// to pin the store with LOCK_SH on .lock and mount a CoW overlayfs upperdir.
+func unitWriterLock(scope, unit string) (*os.File, error) {
+	path := filepath.Join(cacheRoot, ".meta", scope, unit+".writer.lock")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return nil, err
+	}
+	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		f.Close()
 		return nil, err
 	}

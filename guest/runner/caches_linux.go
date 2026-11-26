@@ -94,6 +94,8 @@ type cacheMount struct {
 
 type cachePlan struct {
 	Scope        string                    `json:"scope"`
+	Trust        string                    `json:"trust,omitempty"`
+	ReadOnly     bool                      `json:"readOnly,omitempty"`
 	UID          uint32                    `json:"uid"`
 	GID          uint32                    `json:"gid"`
 	Home         string                    `json:"home,omitempty"`
@@ -375,6 +377,66 @@ var cacheTable = []*cacheTool{
 			return path.Join(x.cacheHome(), "node/corepack")
 		},
 		Markers: func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "v1"), false}} }},
+	// Extended CI ecosystems (path-mode with binary/dir presence probes so
+	// containers without these tools receive zero extra mounts or env vars).
+	{Kind: "maven", Layer: cacheLayerL0, Mode: "path",
+		DefaultPath: func(x toolCtx) string { return path.Join(x.home, ".m2/repository") },
+		Markers:     func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(x toolCtx, f *imageFacts) bool {
+			if f.Binaries["mvn"] {
+				return true
+			}
+			p, ok := f.Paths[path.Join(x.home, ".m2")]
+			return ok && p.Dir
+		}},
+	{Kind: "gradle", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"GRADLE_USER_HOME"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "GRADLE_USER_HOME"); v != "" {
+				return path.Join(v, "caches/modules-2")
+			}
+			return path.Join(x.home, ".gradle/caches/modules-2")
+		},
+		Markers: func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(x toolCtx, f *imageFacts) bool {
+			if f.Binaries["gradle"] {
+				return true
+			}
+			p, ok := f.Paths[path.Join(x.home, ".gradle")]
+			return ok && p.Dir
+		}},
+	{Kind: "bun", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"BUN_INSTALL_CACHE_DIR"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "BUN_INSTALL_CACHE_DIR"); v != "" {
+				return v
+			}
+			return path.Join(x.home, ".bun/install/cache")
+		},
+		Markers: func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(x toolCtx, f *imageFacts) bool {
+			if f.Binaries["bun"] {
+				return true
+			}
+			p, ok := f.Paths[path.Join(x.home, ".bun")]
+			return ok && p.Dir
+		}},
+	{Kind: "sccache", Layer: cacheLayerL1, Mode: "path", AltKeys: []string{"SCCACHE_DIR"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "SCCACHE_DIR"); v != "" {
+				return v
+			}
+			return path.Join(x.cacheHome(), "sccache")
+		},
+		Markers:  func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(_ toolCtx, f *imageFacts) bool { return f.Binaries["sccache"] }},
+	{Kind: "playwright", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"PLAYWRIGHT_BROWSERS_PATH"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "PLAYWRIGHT_BROWSERS_PATH"); v != "" {
+				return v
+			}
+			return path.Join(x.cacheHome(), "ms-playwright")
+		},
+		Markers:  func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(_ toolCtx, f *imageFacts) bool { return f.Binaries["playwright"] }},
 }
 
 func cacheToolByKind(kind string) *cacheTool {
@@ -942,6 +1004,32 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 		return plan, nil
 	}
 	plan.Scope = scope
+	// (1b) trust & read-only isolation: untrusted PR builds or explicit readonly
+	// requests get warm reads through an ephemeral per-container overlayfs upperdir
+	// (or fail-closed read-only bind), never mutating trusted stores.
+	trust, _ := cacheLabel(spec.Labels, "io.micropod.cache.trust", "com.micropod.cache.trust")
+	if trust == "" {
+		trust, _ = envLookup(spec.Env, "MICROPOD_CACHE_TRUST", false)
+	}
+	trust = strings.ToLower(strings.TrimSpace(trust))
+	switch trust {
+	case "", "trusted":
+	case "untrusted":
+		plan.Trust = "untrusted"
+		plan.ReadOnly = true
+	default:
+		return plan, fail(400, fmt.Sprintf("invalid cache trust %q (expected trusted or untrusted)", trust))
+	}
+	roVal, hasRO := cacheLabel(spec.Labels, "io.micropod.cache.readonly", "com.micropod.cache.readonly")
+	if !hasRO {
+		roVal, hasRO = envLookup(spec.Env, "MICROPOD_CACHE_READONLY", false)
+	}
+	if hasRO && truthy(roVal) {
+		plan.ReadOnly = true
+		if plan.Trust == "" {
+			plan.Trust = "readonly"
+		}
+	}
 	if !facts.OK {
 		plan.Reason = skipProbeFailed
 		for _, t := range cacheTable {
@@ -1071,7 +1159,8 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 			effectiveScope = storeScope
 		}
 		unit := cacheUnit(t.Kind, storeUID)
-		plan.Stores = append(plan.Stores, cacheStoreRef{Scope: storeScope, Kind: t.Kind, Unit: unit, UID: storeUID, Exclusive: t.Exclusive})
+		exclusive := t.Exclusive && !plan.ReadOnly
+		plan.Stores = append(plan.Stores, cacheStoreRef{Scope: storeScope, Kind: t.Kind, Unit: unit, UID: storeUID, Exclusive: exclusive})
 		var env []string
 		if useScope {
 			value := path.Join(mountRoot, cacheStoreSub(t.Kind, storeUID))

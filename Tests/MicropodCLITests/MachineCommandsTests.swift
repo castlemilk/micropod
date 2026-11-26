@@ -66,7 +66,7 @@ final class MachineCommandsTests: XCTestCase {
             (["--default-scope", "Proj"], "--default-scope 'Proj' must match"),
             (["--allow-scopes", "a*b"], "--allow-scopes entry 'a*b'"),
             (["--allow-scopes", "ci-*"], "default scope 'default' is not in the allowed scopes"),
-            (["--tools", "go,maven"], "unknown tool 'maven'"),
+            (["--tools", "go,bogus-tool"], "unknown tool 'bogus-tool'"),
             (["--go-trimpath", "maybe"], "--go-trimpath wants on or off"),
         ] {
             XCTAssertThrowsError(try policy(bad), "\(bad)") { error in

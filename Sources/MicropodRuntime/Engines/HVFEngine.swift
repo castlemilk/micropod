@@ -143,12 +143,16 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
 
     // MARK: ContainerServing
 
-    /// The guest's listing has no ports; a running container's come from
-    /// its inspect (one local round trip each, concurrently). Every listing
-    /// also refreshes the container index.
+    /// Prefers the guest's batched `/micropod/containers/summary` endpoint
+    /// (1 vsock RTT including published ports); falls back to Docker list +
+    /// per-container inspect on older guest bundles. Every listing also
+    /// refreshes the host-side container index.
     public func list() async throws -> [Micropod_V1_Container] {
         guard machine.isServing else { return [] }
         let listedAt = Date()
+        if let batched = await listBatchedSummary(listedAt: listedAt) {
+            return batched
+        }
         let entries = try await docker.listWithIDs()
         index.update { $0.refresh(from: Self.indexEntries(entries), listedAt: listedAt) }
         let listed = entries.map(\.container)
@@ -170,6 +174,55 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
             container.runtime = name
             if container.publishedPorts.isEmpty, let mapped = ports[container.id] { container.publishedPorts = mapped }
             return container
+        }
+    }
+
+    private func listBatchedSummary(listedAt: Date) async -> [Micropod_V1_Container]? {
+        guard let resp = try? await machine.docker.request("GET", "/micropod/containers/summary", timeout: .seconds(5)),
+            resp.status == 200
+        else { return nil }
+        struct SummaryPort: Decodable {
+            let hostIp: String?
+            let hostPort: UInt32
+            let containerPort: UInt32
+            let `protocol`: String
+        }
+        struct SummaryRow: Decodable {
+            let id: String
+            let name: String
+            let image: String
+            let state: String
+            let exitCode: Int?
+            let labels: [String: String]?
+            let ports: [SummaryPort]?
+        }
+        struct SummaryPayload: Decodable {
+            let containers: [SummaryRow]
+        }
+        guard let payload = try? JSONDecoder().decode(SummaryPayload.self, from: resp.body) else { return nil }
+        let idxEntries: [(id: String, name: String?)] = payload.containers.map { row in
+            (row.id, row.name.isEmpty || row.name == row.id ? nil : row.name)
+        }
+        index.update { $0.refresh(from: idxEntries, listedAt: listedAt) }
+        return payload.containers.map { row in
+            Micropod_V1_Container.with {
+                $0.id = row.name.isEmpty ? row.id : row.name
+                $0.image = row.image
+                $0.state = row.state == "exited" ? "stopped" : row.state
+                $0.runtime = name
+                if let labels = row.labels { $0.labels = labels }
+                if row.state == "exited", let code = row.exitCode { $0.exitCode = String(code) }
+                if let ports = row.ports {
+                    $0.publishedPorts = ports.map { p in
+                        Micropod_V1_PortMapping.with {
+                            $0.hostPort = p.hostPort
+                            $0.containerPort = p.containerPort
+                            $0.protocol = p.protocol
+                            $0.hostIp = p.hostIp ?? ""
+                        }
+                    }
+                }
+            }
         }
     }
 

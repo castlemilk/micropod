@@ -1292,7 +1292,7 @@ extension HVFMachineTests {
             (HVFMachineCachePolicy(allowedScopes: ["a*b"]), "allowed scope 'a*b'"),
             (HVFMachineCachePolicy(allowedScopes: ["**"]), "allowed scope '**'"),
             (HVFMachineCachePolicy(allowedScopes: ["ci-*"]), "default scope 'default' is not in the allowed scopes"),
-            (HVFMachineCachePolicy(tools: ["go", "maven"]), "unknown tool 'maven'"),
+            (HVFMachineCachePolicy(tools: ["go", "bogus-tool"]), "unknown tool 'bogus-tool'"),
         ]
         for (policy, message) in invalid {
             XCTAssertThrowsError(try policy.validate(), message) {
@@ -1333,7 +1333,12 @@ extension HVFMachineTests {
                 "pip",
                 "uv",
                 "cargo",
-                "corepack"
+                "corepack",
+                "maven",
+                "gradle",
+                "bun",
+                "sccache",
+                "playwright"
               ],
               "version" : 1
             }

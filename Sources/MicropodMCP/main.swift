@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import MicropodBuildInfo
 import MicropodCore
@@ -421,6 +422,44 @@ private actor MCPServer {
             """
         ),
         ("k8s_images", "List image refs present in the cluster's containerd (k8s.io namespace)."),
+        (
+            "cache_status",
+            "Live HVF guest dependency cache inventory: total/L0/L1 usage, per-unit sizes, lock state, budget & eviction counts."
+        ),
+        (
+            "cache_explain",
+            "Explain which caches attached or skipped (and why) for a container. Arguments: id (required)."
+        ),
+        (
+            "cache_dedupe",
+            "Sample cross-scope Go build-cache duplication to quantify reclaimable bytes. Arguments: buckets (optional 1-256, default 16)."
+        ),
+        (
+            "cache_prune",
+            "Run lock-safe bounded LRU / partial Go-build cache eviction. Arguments: dry_run (bool), scope, tool, max_bytes, older_than_secs, partial_go_build (bool)."
+        ),
+        (
+            "cache_policy",
+            "Show the active HVF machine dependency cache policy (sharedL0, goProxy, npmRegistry, tools, budget)."
+        ),
+        (
+            "cache_policy_set",
+            "Update HVF cache policy live. Arguments: mode (auto|off), shared_l0 (bool), go_proxy, npm_registry, default_scope, max_bytes, max_age_days."
+        ),
+        (
+            "runtime_mode",
+            "Show or switch Micropod execution mode: 'container' (fast shared HVF microVM) vs 'sandbox' (isolated 1-microVM-per-workload). Arguments: mode (optional: container|sandbox)."
+        ),
+        (
+            "rig_health",
+            "Combined rootless rig health: active mode, HVF machine status, cache disk & policy, staged payload updates, and local depproxy health."
+        ),
+        (
+            "update_hvf_status",
+            "Show active vs staged versioned HVF VMM/kernel/initrd/tools payload status and rollback history."
+        ),
+        ("update_hvf_rollback", "Atomically roll back HVF payload symlink to the previous verified release."),
+        ("sandbox_status", "Show standalone sandbox VM readiness (cached vminitd/kernel without Apple container CLI)."),
     ]
 
     /// Sandboxes boot in-process in whoever launches them, which needs the
@@ -1078,6 +1117,68 @@ private actor MCPServer {
                 let refs = try await k8s.listImages()
                 return toolResult(id, refs.isEmpty ? "(no images)" : refs.joined(separator: "\n"))
 
+            case "cache_status":
+                let reply = try await LocalAPI.callRaw("GET", "/v1/caches")
+                return toolResult(id, reply)
+
+            case "cache_explain":
+                let cid = string("id")
+                guard !cid.isEmpty else { return toolResult(id, "cache_explain requires id", isError: true) }
+                let reply = try await LocalAPI.callRaw("GET", "/v1/caches/explain/\(cid)")
+                return toolResult(id, reply)
+
+            case "cache_dedupe":
+                let buckets = Int(string("buckets")) ?? 16
+                let reply = try await LocalAPI.callRaw("GET", "/v1/caches/dedupe?buckets=\(max(1, min(256, buckets)))")
+                return toolResult(id, reply)
+
+            case "cache_prune":
+                var body: [String: Any] = ["dryRun": flag("dry_run")]
+                if !string("scope").isEmpty { body["scope"] = string("scope") }
+                if !string("tool").isEmpty { body["tool"] = string("tool") }
+                if let maxB = UInt64(string("max_bytes")), maxB > 0 { body["maxBytes"] = maxB }
+                if let older = Int64(string("older_than_secs")), older > 0 { body["olderThanSecs"] = older }
+                if args["partial_go_build"] != nil { body["partialGoBuild"] = flag("partial_go_build") }
+                body["reason"] = "mcp"
+                let reply = try await LocalAPI.callRaw("POST", "/v1/caches/prune", body)
+                return toolResult(id, reply)
+
+            case "cache_policy":
+                let reply = try await LocalAPI.callRaw("GET", "/v1/caches/policy")
+                return toolResult(id, reply)
+
+            case "cache_policy_set":
+                var body: [String: Any] = [:]
+                if !string("mode").isEmpty { body["mode"] = string("mode") }
+                if args["shared_l0"] != nil { body["sharedL0"] = flag("shared_l0") }
+                if args["go_proxy"] != nil { body["goProxy"] = string("go_proxy") }
+                if args["npm_registry"] != nil { body["npmRegistry"] = string("npm_registry") }
+                if !string("default_scope").isEmpty { body["defaultScope"] = string("default_scope") }
+                if let maxB = UInt64(string("max_bytes")) { body["maxBytes"] = maxB }
+                if let maxAge = Int(string("max_age_days")) { body["maxAgeDays"] = maxAge }
+                let reply = try await LocalAPI.callRaw("PUT", "/v1/caches/policy", body)
+                return toolResult(id, reply)
+
+            case "runtime_mode":
+                let targetMode = string("mode")
+                if targetMode.isEmpty {
+                    return toolResult(id, try await LocalAPI.callRaw("GET", "/v1/rig/mode"))
+                }
+                return toolResult(id, try await LocalAPI.callRaw("PUT", "/v1/rig/mode", ["mode": targetMode]))
+
+            case "rig_health":
+                return toolResult(id, try await LocalAPI.callRaw("GET", "/v1/rig/health"))
+
+            case "update_hvf_status":
+                return toolResult(id, try await LocalAPI.callRaw("GET", "/v1/rig/hvf/update"))
+
+            case "update_hvf_rollback":
+                return toolResult(id, try await LocalAPI.callRaw("POST", "/v1/rig/hvf/update/rollback", [:]))
+
+            case "sandbox_status":
+                let (code, output) = try await Self.runMicropod(["sandbox", "status", "--json"])
+                return toolResult(id, output.isEmpty ? "No output" : output, isError: code != 0)
+
             default:
                 return respondError(id: id, code: -32601, message: "Unknown tool: \(call.name)")
             }
@@ -1088,30 +1189,99 @@ private actor MCPServer {
 }
 
 /// The local Micropod API daemon — owner of engine config and sandbox VMs.
+/// Prefers the low-latency 0600 Unix domain socket (`~/.micropod/api.sock`,
+/// overridable via `MICROPOD_API_SOCK`), falling back transparently to loopback HTTP.
 enum LocalAPI {
     static var baseURL: URL {
         let port = ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454"
         return URL(string: "http://127.0.0.1:\(port)")!
     }
 
-    static func call(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> [String: Any] {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+    static var unixSocketPath: String? {
+        let env = ProcessInfo.processInfo.environment["MICROPOD_API_SOCK"]
+        if env == "off" { return nil }
+        let path =
+            (env?.isEmpty == false)
+            ? (env! as NSString).expandingTildeInPath
+            : FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/api.sock").path
+        return FileManager.default.fileExists(atPath: path) ? path : nil
+    }
+
+    static func callRaw(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> String {
+        let bodyData = try body.map { try JSONSerialization.data(withJSONObject: $0) }
+        if let sock = unixSocketPath, let (status, data) = try? await callUnixSocket(sock, method, path, bodyData) {
+            if (200..<300).contains(status) {
+                return String(decoding: data, as: UTF8.self)
+            }
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            throw MicropodError.message(
+                json["error"] as? String ?? json["message"] as? String ?? "API error (\(status))")
+        }
+        guard let url = URL(string: baseURL.absoluteString + path) else {
+            throw MicropodError.message("invalid API path: \(path)")
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 120
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+        request.httpBody = bodyData
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
-            throw MicropodError.message("Micropod API daemon not reachable at \(baseURL) — start the Micropod app")
+            throw MicropodError.message(
+                "Micropod API daemon not reachable at \(baseURL) — start MicropodAPI or Micropod.app")
         }
-        let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
             throw MicropodError.message(json["error"] as? String ?? json["message"] as? String ?? "API error")
         }
-        return json
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    static func call(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> [String: Any] {
+        let raw = try await callRaw(method, path, body)
+        return (try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any]) ?? [:]
+    }
+
+    private static func callUnixSocket(
+        _ socketPath: String, _ method: String, _ path: String, _ body: Data?
+    ) async throws -> (Int, Data) {
+        try await withCheckedThrowingContinuation { done in
+            DispatchQueue.global(qos: .userInitiated).async {
+                done.resume(
+                    with: Result {
+                        let fd = try RuntimeUnixSocket.connect(socketPath, expectedUID: getuid())
+                        defer { Darwin.close(fd) }
+                        try RuntimeUnixSocket.timeout(fd, seconds: 60)
+                        let payload = body ?? Data()
+                        var head = "\(method) \(path) HTTP/1.1\r\nHost: localhost\r\n"
+                        head += "Content-Type: application/json\r\n"
+                        head += "Content-Length: \(payload.count)\r\n"
+                        head += "Connection: close\r\n\r\n"
+                        try RuntimeUnixSocket.write(Data(head.utf8) + payload, to: fd)
+                        var response = Data()
+                        var buf = [UInt8](repeating: 0, count: 16384)
+                        while true {
+                            let n = Darwin.read(fd, &buf, buf.count)
+                            if n < 0 {
+                                if errno == EINTR { continue }
+                                throw MicropodError.message("unix socket read failed")
+                            }
+                            if n == 0 { break }
+                            response.append(contentsOf: buf.prefix(n))
+                        }
+                        guard let split = response.range(of: Data("\r\n\r\n".utf8)) else {
+                            throw MicropodError.message("malformed HTTP response over unix socket")
+                        }
+                        let headerText = String(decoding: response[..<split.lowerBound], as: UTF8.self)
+                        let statusLine = headerText.split(separator: "\r\n", maxSplits: 1).first ?? ""
+                        let status = Int(statusLine.split(separator: " ").dropFirst().first ?? "") ?? 500
+                        return (status, Data(response[split.upperBound...]))
+                    })
+            }
+        }
     }
 
     /// A Connect unary call on the daemon (`/api/micropod.v1.<service>/<method>`).

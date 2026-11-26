@@ -742,7 +742,10 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// Replay the create-time decision; never recompute it. The unit locks and
 	// pinned store directories stay open until the container exits.
 	caches := openCacheMounts(c.Cache, filepath.Join(c.dir(), "shim"))
-	files = append(files, caches.files...)
+	closeAllMounts := func() {
+		caches.close()
+		closeMounts(files)
+	}
 	mounts = append(mounts, caches.mounts...)
 	for _, reason := range caches.skipped {
 		s.metrics.cache.skip(reason)
@@ -759,7 +762,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
-		closeMounts(files)
+		closeAllMounts()
 		lease.Close()
 		return err
 	}
@@ -770,7 +773,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 			s.mu.Unlock()
 			closeSocket()
 			f.Close()
-			closeMounts(files)
+			closeAllMounts()
 			lease.Close()
 			return err
 		}
@@ -789,7 +792,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		s.mu.Unlock()
 		closeSocket()
 		f.Close()
-		closeMounts(files)
+		closeAllMounts()
 		lease.Close()
 		if console != nil {
 			_ = console.finish(context.Background())
@@ -806,7 +809,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	go func() {
 		defer lease.Close()
 		defer closeSocket()
-		defer closeMounts(files)
+		defer closeAllMounts()
 		defer f.Close()
 		defer cancel()
 		var forwards []*publishedPort

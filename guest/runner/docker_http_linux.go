@@ -119,6 +119,8 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		block := uint64(st.Bsize)
 		writeJSON(w, 200, map[string]uint64{"total_bytes": st.Blocks * block, "used_bytes": (st.Blocks - st.Bfree) * block, "available_bytes": st.Bavail * block})
 		return nil
+	case path == "micropod/containers/summary" && method == "GET":
+		return s.containersSummary(w, r)
 	case path == "info" && method == "GET":
 		info := s.info()
 		info["MicropodCapabilities"] = []string{"restart"}
@@ -332,6 +334,81 @@ func (s *dockerEngine) list(w http.ResponseWriter, r *http.Request) error {
 		return cmp.Compare(a.ID, b.ID)
 	})
 	writeJSON(w, 200, list)
+	return nil
+}
+
+// containersSummary returns every container with published ports and cache
+// metadata in a single vsock RTT, avoiding N+1 docker inspect calls on list.
+func (s *dockerEngine) containersSummary(w http.ResponseWriter, r *http.Request) error {
+	type summaryPort struct {
+		HostIP        string `json:"hostIp,omitempty"`
+		HostPort      uint32 `json:"hostPort"`
+		ContainerPort uint32 `json:"containerPort"`
+		Protocol      string `json:"protocol"`
+	}
+	type summaryRow struct {
+		ID            string              `json:"id"`
+		Name          string              `json:"name"`
+		Image         string              `json:"image"`
+		State         string              `json:"state"`
+		ExitCode      int32               `json:"exitCode"`
+		Created       int64               `json:"created"`
+		Labels        map[string]string   `json:"labels,omitempty"`
+		Ports         []summaryPort       `json:"ports,omitempty"`
+		MicropodCache map[string]any      `json:"micropodCache,omitempty"`
+		created       time.Time
+	}
+	s.mu.Lock()
+	rows := make([]summaryRow, 0, len(s.containers))
+	for _, c := range s.containers {
+		if c.removed {
+			continue
+		}
+		var ports []summaryPort
+		for key, bindings := range c.effectivePorts() {
+			pStr, proto, _ := strings.Cut(key, "/")
+			if proto == "" {
+				proto = "tcp"
+			}
+			cp, _ := strconv.ParseUint(pStr, 10, 32)
+			for _, b := range bindings {
+				hp, _ := strconv.ParseUint(b.HostPort, 10, 32)
+				if cp > 0 && hp > 0 {
+					ports = append(ports, summaryPort{
+						HostIP: b.HostIP, HostPort: uint32(hp), ContainerPort: uint32(cp), Protocol: proto,
+					})
+				}
+			}
+		}
+		row := summaryRow{
+			ID:       c.ID,
+			Name:     c.Name,
+			Image:    c.Config.Image,
+			State:    c.dockerStatus(),
+			ExitCode: c.Exit,
+			Created:  c.Created.Unix(),
+			Labels:   c.Config.Labels,
+			Ports:    ports,
+			created:  c.Created,
+		}
+		if c.Cache != nil {
+			row.MicropodCache = map[string]any{
+				"scope":    c.Cache.Scope,
+				"trust":    c.Cache.Trust,
+				"readOnly": c.Cache.ReadOnly,
+				"tools":    c.Cache.Tools,
+			}
+		}
+		rows = append(rows, row)
+	}
+	s.mu.Unlock()
+	slices.SortFunc(rows, func(a, b summaryRow) int {
+		if order := b.created.Compare(a.created); order != 0 {
+			return order
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
+	writeJSON(w, 200, map[string]any{"containers": rows})
 	return nil
 }
 func (s *dockerEngine) wait(w http.ResponseWriter, r *http.Request, c *dockerContainer) error {

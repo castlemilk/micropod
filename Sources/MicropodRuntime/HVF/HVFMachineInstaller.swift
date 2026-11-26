@@ -1,8 +1,10 @@
 import Containerization
+import ContainerizationEXT4
 import ContainerizationOCI
 import Darwin
 import Foundation
 import MicropodCore
+import SystemPackage
 
 /// What `micropod machine install` copies into a root. Any asset left nil
 /// keeps the root's existing copy; a root missing an asset needs its source.
@@ -16,6 +18,9 @@ public struct HVFInstallRequest: Sendable, Equatable {
     /// OCI image unpacked into a fresh `disk.ext4` (instead of `diskFrom`).
     public var diskImage: String?
     public var diskBytes: UInt64
+    /// Optional sparse ext4 cache disk size (`caches.ext4`, mounted at
+    /// `/var/lib/micropod/caches`). Created only if absent; never replaced by `--replace-disk`.
+    public var cacheDiskBytes: UInt64?
     /// Allows a new disk to discard an existing machine disk.
     public var replaceDisk: Bool
     public var cpus: Int?
@@ -24,8 +29,8 @@ public struct HVFInstallRequest: Sendable, Equatable {
 
     public init(
         vmm: URL? = nil, kernel: URL? = nil, initrd: URL? = nil, tools: URL? = nil, diskFrom: URL? = nil,
-        diskImage: String? = nil, diskBytes: UInt64 = 64 << 30, replaceDisk: Bool = false, cpus: Int? = nil,
-        memoryMiB: Int? = nil, workspace: String? = nil
+        diskImage: String? = nil, diskBytes: UInt64 = 64 << 30, cacheDiskBytes: UInt64? = nil,
+        replaceDisk: Bool = false, cpus: Int? = nil, memoryMiB: Int? = nil, workspace: String? = nil
     ) {
         self.vmm = vmm
         self.kernel = kernel
@@ -34,6 +39,7 @@ public struct HVFInstallRequest: Sendable, Equatable {
         self.diskFrom = diskFrom
         self.diskImage = diskImage
         self.diskBytes = diskBytes
+        self.cacheDiskBytes = cacheDiskBytes
         self.replaceDisk = replaceDisk
         self.cpus = cpus
         self.memoryMiB = memoryMiB
@@ -247,6 +253,19 @@ public enum HVFMachineInstaller {
             } else if let image = request.diskImage {
                 progress("created disk.ext4 from \(image)")
             }
+            if HVFMachineLayout.isRegularFile(layout.cacheDisk) {
+                progress("preserved persistent caches.ext4")
+            }
+        }
+        if let cacheBytes = request.cacheDiskBytes, !HVFMachineLayout.isRegularFile(layout.cacheDisk) {
+            guard cacheBytes >= 256 << 20 else {
+                throw MicropodError.message("invalidArgument: --cache-disk-size needs at least 256 MiB")
+            }
+            let stagedCache = stagingPath(for: layout.cacheDisk)
+            try provisionCacheDisk(bytes: cacheBytes, into: stagedCache)
+            try commit(stagedCache, to: layout.cacheDisk)
+            staged.removeAll { $0 == stagedCache }
+            progress("created persistent caches.ext4 (\(cacheBytes >> 20) MiB sparse ext4)")
         }
         try config.save(to: layout.config)
         progress("wrote \(layout.config.path) (\(config.cpus) vCPU, \(config.memoryMiB) MiB)")
@@ -311,6 +330,15 @@ public enum HVFMachineInstaller {
         // A journal: the disk outlives every VMM, including killed ones.
         _ = try await EXT4Unpacker(capacityInBytes: bytes, journal: .init(defaultMode: .ordered))
             .unpack(pulled, for: .current, at: disk)
+        guard chmod(disk.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(disk.path)") }
+    }
+
+    /// Formats a fresh sparse journaled ext4 disk for persistent dependency
+    /// and BuildKit caches (`caches.ext4`), mounted at `/var/lib/micropod/caches`.
+    public static func provisionCacheDisk(bytes: UInt64, into disk: URL) throws {
+        let formatter = try EXT4.Formatter(
+            FilePath(disk), minDiskSize: bytes, journal: .init(defaultMode: .ordered))
+        try formatter.close()
         guard chmod(disk.path, 0o600) == 0 else { throw HVFFiles.posixError("chmod \(disk.path)") }
     }
 

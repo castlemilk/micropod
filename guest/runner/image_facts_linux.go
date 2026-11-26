@@ -273,7 +273,7 @@ func rootfsFacts(dir string, f *imageFacts) error {
 		searchPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 	}
 	f.Binaries = map[string]bool{}
-	for _, name := range []string{"node", "yarn", "corepack", "cargo"} {
+	for _, name := range []string{"node", "yarn", "corepack", "cargo", "mvn", "gradle", "bun", "sccache", "playwright"} {
 		for _, d := range filepath.SplitList(searchPath) {
 			if !path.IsAbs(d) {
 				continue
