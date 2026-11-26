@@ -469,6 +469,25 @@ final class HTTPKeepAliveTests: XCTestCase {
         XCTAssertEqual(next.path, "/b")
         XCTAssertEqual(nextPersistence, .close)
     }
+
+    /// Transfer-Encoding with Content-Length: the chunks frame the body, and
+    /// the connection closes after the reply, so bytes a Content-Length
+    /// reader would take for the next request are never served.
+    func testARequestWithBothFramingsClosesItsConnection() throws {
+        let both =
+            "POST /a HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"
+        guard case .request(let request, let persistence, let consumed) = HTTPParser.parse(Data(both.utf8)) else {
+            return XCTFail("the request is complete")
+        }
+        XCTAssertEqual(request.body, Data())
+        XCTAssertEqual(consumed, both.utf8.count)
+        XCTAssertEqual(persistence, .close)
+        let chunkedOnly = "POST /a HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"
+        guard case .request(_, let kept, _) = HTTPParser.parse(Data(chunkedOnly.utf8)) else {
+            return XCTFail("the chunked request is complete")
+        }
+        XCTAssertEqual(kept, .persistent)
+    }
 }
 
 /// One raw client connection: writes bytes and reads replies framed by

@@ -972,13 +972,21 @@ enum HTTPParser {
                         kv.count > 1 ? String(kv[1]).removingPercentEncoding ?? String(kv[1]) : ""
                 }
             }
+            // A request with both Transfer-Encoding and Content-Length is
+            // read by its chunks, and its connection closes after the reply
+            // (RFC 9112 §6.1): the two framings disagree on where the next
+            // request starts, so nothing after it is served.
+            let ambiguousFraming =
+                head.headers["transfer-encoding"] != nil && head.headers["content-length"] != nil
             return .request(
                 HTTPRequest(method: method, path: path, query: query, body: body, headers: head.headers),
-                persistence: HTTPPersistence(
-                    version: head.version,
-                    // Every Connection field counts, not just the last.
-                    connection: head.fields.filter { $0.name.lowercased() == "connection" }.map(\.value)
-                        .joined(separator: ",")),
+                persistence: ambiguousFraming
+                    ? .close
+                    : HTTPPersistence(
+                        version: head.version,
+                        // Every Connection field counts, not just the last.
+                        connection: head.fields.filter { $0.name.lowercased() == "connection" }.map(\.value)
+                            .joined(separator: ",")),
                 consumed: consumed)
         }
     }

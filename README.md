@@ -654,6 +654,7 @@ after a reply framed by `Content-Length` (HTTP/1.1 persistence, pipelining
 included), so a client such as Go's `net/http` or URLSession pays one dial for
 many calls. A reply says `Connection: close` and the server closes instead
 when the request asked to close, is HTTP/1.0 without `Connection: keep-alive`,
+carries both `Transfer-Encoding` and `Content-Length`,
 or was refused before a handler ran (bad framing, the admission checks above);
 when 256 connections are already kept; or once the server is stopping.
 Streams (`text/event-stream`, Connect server streams), the vsock bridge and
