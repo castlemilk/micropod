@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_qos.py", line 227, in <module>
+    run(parser.parse_args())
+    ~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_qos.py", line 195, in run
+    previous_idle = measure(args, row, fixtures[arm], path, guard, previous_idle)
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_qos.py", line 69, in measure
+    receiver.await_idle(row, previous_idle, False, args.idle_wait_seconds, receiver.path_pilot.cpu_idle,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        guard, lambda: receiver.write(path, row))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_idle.py", line 89, in await_idle
+    raise IdleTimeout(message)
+local_idle.IdleTimeout: host idle admission timed out after 60.00s (28 observations, 0/2 consecutive eligible, last 86.63%, floor 90%, paired gap unpaired, limit 5 pp)

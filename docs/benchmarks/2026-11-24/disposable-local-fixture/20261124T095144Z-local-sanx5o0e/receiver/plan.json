@@ -1,0 +1,39 @@
+{
+  "tool_sha256": {
+    "fixed": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+    "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+  },
+  "mode": "workers",
+  "origin": "independent disposable local fixture",
+  "host": "Gamma-128GB.local",
+  "evidence": "local VM with stock idle gate",
+  "ambient_diagnostic": false,
+  "abbreviated_inventory": false,
+  "socket_evidence": "route",
+  "idle_floor_pct": 90,
+  "paired_idle_gap_max_pp": 5,
+  "idle_wait_seconds": 60,
+  "idle_policy": "two consecutive qualifying samples",
+  "minimum_free_GiB": 12.0,
+  "disk_path": "/private/tmp/mp-t-zr_n0upe",
+  "seed": 34199,
+  "order": {
+    "warmup": [
+      "AB",
+      "BA",
+      "BA"
+    ],
+    "scored": [
+      "BA",
+      "AB",
+      "BA",
+      "AB"
+    ]
+  },
+  "source_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "verifier_revision": "a5f0e19e1b416cf35552221d072383d4ec63b5f0",
+  "verifier_sha256": "e3782848f8f14a99b70c2857d36c3a56f248ac035d835b0b391cb0c5ef0af78b",
+  "adapter_sha256": "940d03667fde8485e0f77d6b9d14df73ea353ad30c9c8778b4ceb9b9bf8b714c",
+  "idle_verifier_sha256": "f4e589f00c33cd3ba5bf56388b7ebfabf919215262a4c100714b1e5d28abe29b",
+  "route_verifier_sha256": "1d0d0ad3d8478ddfedc4d6261e67b1cff2c3ecbb8229e0b702d246961dc3dfc0"
+}

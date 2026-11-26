@@ -1,0 +1,12 @@
+{
+  "timing_requested": true,
+  "error": null,
+  "error_kind": null,
+  "full_preflight_passed": true,
+  "timed_first_attempts": 22,
+  "scored_complete": true,
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "idle_wait_seconds": 60,
+  "idle_policy": "two consecutive qualifying samples"
+}

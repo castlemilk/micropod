@@ -1,0 +1,3345 @@
+{
+  "native_stress": {
+    "receipt": "core-native-stress/receipt.txt",
+    "sink_cancel_races": 7500,
+    "input_cancel_races": 6000
+  },
+  "reconstruction": {
+    "verified_files": 21,
+    "base": "76a329b6e464441ec1f6f0263940b0a327b7fa39",
+    "archive_sha256": "9e92d3bbd192a4adb194c5b6b1f4fbcd4b2a94909e95ed757d4c76dbc82a0503",
+    "patch_applied": true
+  },
+  "fixture_and_client": {
+    "supervisor": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/micropod",
+    "supervisor_sha": "4df1972040ed3389be44c6a0d39fd56f958f588c808e33e03ac106c5e89045f8",
+    "tested_cli": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/qualified-client/micropod",
+    "cli_sha": "3892941149a6ca89abfb56a57dc9aef0315c567283b450294017c0cd29f8b493"
+  },
+  "host": "Gamma-128GB.local",
+  "date_local": "2026-11-26",
+  "source_archive": {
+    "archive": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/core-engine-sources.tar.gz",
+    "sha256": "9e92d3bbd192a4adb194c5b6b1f4fbcd4b2a94909e95ed757d4c76dbc82a0503",
+    "members": 45,
+    "outer_head": "76a329b6e464441ec1f6f0263940b0a327b7fa39"
+  },
+  "qualified_release": {
+    "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-release-3892941149a6/micropod",
+    "sha256": "3892941149a6ca89abfb56a57dc9aef0315c567283b450294017c0cd29f8b493",
+    "reference_cli": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod"
+  },
+  "original_baseline": {
+    "original": {
+      "count": 24,
+      "mismatches": []
+    },
+    "preserved": {
+      "count": 24,
+      "mismatches": []
+    }
+  },
+  "release_window_host_idle_percent": {
+    "before": 84.96,
+    "after": 83.29
+  },
+  "tests": [
+    {
+      "count": 102,
+      "failures": 0,
+      "receipt": "core-fixed-swift-tests.log"
+    },
+    {
+      "count": 259,
+      "failures": 0,
+      "receipt": "core-fixed-shim-tests.log"
+    }
+  ],
+  "generic_docker_adapter_to_hvf": {
+    "original_forced_143": {
+      "argv": [
+        "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+        "exec",
+        "outer-proof-vnspnwov",
+        "--",
+        "sh",
+        "-c",
+        "printf \"\\000\\377\"; printf \"\\376Z\" >&2; exit 29"
+      ],
+      "exit": 1,
+      "out": "",
+      "err": "6572726f723a204572726f7220446f6d61696e3d4e53436f636f614572726f72446f6d61696e20436f64653d3420225468652066696c6520e2809c756e757365642d6170706c652d636f6e7461696e6572e2809d20646f65736ee28099742065786973742e222055736572496e666f3d7b4e5346696c65506174683d2f707269766174652f746d702f6d702d67616d6d612e4575517565322f686f6d652f6f757465722d6d616368696e652d766e73706e776f762f756e757365642d6170706c652d636f6e7461696e65727d0a"
+    },
+    "negotiated": {
+      "argv": [
+        "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/qualified-client/micropod",
+        "exec",
+        "outer-proof-vnspnwov",
+        "--",
+        "sh",
+        "-c",
+        "printf \"\\000\\377\"; printf \"\\376Z\" >&2; exit 29"
+      ],
+      "exit": 29,
+      "out": "00ff",
+      "err": "fe5a"
+    },
+    "pinned_144": {
+      "argv": [
+        "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/qualified-client/micropod",
+        "exec",
+        "outer-proof-vnspnwov",
+        "--",
+        "sh",
+        "-c",
+        "printf \"\\000\\377\"; printf \"\\376Z\" >&2; exit 29"
+      ],
+      "exit": 29,
+      "out": "00ff",
+      "err": "fe5a"
+    },
+    "server": {
+      "argv": [
+        "/usr/bin/curl",
+        "--silent",
+        "--unix-socket",
+        "/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/machine/run/docker.sock",
+        "http://docker/version"
+      ],
+      "exit": 0,
+      "out": "7b2241706956657273696f6e223a22312e3437222c2241726368223a2261726d3634222c224d696e41504956657273696f6e223a22312e3434222c224f73223a226c696e7578222c22506c6174666f726d223a7b224e616d65223a224d6963726f706f64227d2c2256657273696f6e223a226d6963726f706f64227d0a",
+      "err": ""
+    }
+  },
+  "development_same_build_mode": {
+    "HVF": {
+      "receipt": "core-fixed-debug-HVF.json",
+      "versions": {
+        "previous": {
+          "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+          "sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4"
+        },
+        "streaming": {
+          "binary": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/development/micropod",
+          "sha256": "d5d621f328c8305cf7511dce17b2e41dc0efe713ae2e49d5e1b1f59ecd7b1f9b"
+        },
+        "stock_docker": {
+          "binary": "/opt/homebrew/bin/docker",
+          "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8"
+        }
+      },
+      "semantics": {
+        "previous": {
+          "gate": {
+            "before_release": "",
+            "passed": false,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": false,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 8,
+              "stderr_bytes": 5,
+              "stdout_sha256": "c8beae2fecfd89eafda4134971f8009ee2f9407e7d5c226a73460c54923295af",
+              "stderr_sha256": "5d8a45718d814c5ceb5309ad26dce36cb4aca2f47c3d977de401391a789f0e69"
+            },
+            {
+              "passed": false,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            },
+            {
+              "passed": false,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            },
+            {
+              "passed": false,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": false,
+            "exit": 1,
+            "stdout_bytes": 0,
+            "stderr_bytes": 72,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+          },
+          "concurrent_8": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "duplex_backpressure": {
+            "passed": false,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "exit": 1
+          }
+        },
+        "streaming": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        },
+        "stock_docker": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        }
+      },
+      "passed": {
+        "previous": {
+          "passed": 0,
+          "total": 15
+        },
+        "streaming": {
+          "passed": 15,
+          "total": 15
+        },
+        "stock_docker": {
+          "passed": 15,
+          "total": 15
+        }
+      },
+      "performance": {
+        "4": {
+          "previous": {
+            "median_ms": 53.214,
+            "median_peak_rss_mib": 30.359,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 51.642,
+                "max_rss_bytes": 31834112,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 53.214,
+                "max_rss_bytes": 33718272,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 58.437,
+                "max_rss_bytes": 31768576,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 29.575,
+            "median_peak_rss_mib": 16.484,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 29.581,
+                "max_rss_bytes": 17301504,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 29.575,
+                "max_rss_bytes": 17285120,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 26.666,
+                "max_rss_bytes": 17219584,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 28.887,
+            "median_peak_rss_mib": 26.391,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 30.132,
+                "max_rss_bytes": 27803648,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 28.887,
+                "max_rss_bytes": 27672576,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 23.189,
+                "max_rss_bytes": 27475968,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        },
+        "32": {
+          "previous": {
+            "median_ms": 235.789,
+            "median_peak_rss_mib": 114.219,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 237.291,
+                "max_rss_bytes": 119996416,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 235.789,
+                "max_rss_bytes": 119750656,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 225.06,
+                "max_rss_bytes": 119767040,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 60.416,
+            "median_peak_rss_mib": 16.391,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 65.081,
+                "max_rss_bytes": 17285120,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 60.416,
+                "max_rss_bytes": 17186816,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 58.639,
+                "max_rss_bytes": 17186816,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 63.744,
+            "median_peak_rss_mib": 26.281,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 66.963,
+                "max_rss_bytes": 27557888,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 63.744,
+                "max_rss_bytes": 27869184,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 62.657,
+                "max_rss_bytes": 27492352,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Orb": {
+      "receipt": "core-fixed-debug-Orb.json",
+      "versions": {
+        "previous": {
+          "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+          "sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4"
+        },
+        "streaming": {
+          "binary": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/development/micropod",
+          "sha256": "d5d621f328c8305cf7511dce17b2e41dc0efe713ae2e49d5e1b1f59ecd7b1f9b"
+        },
+        "stock_docker": {
+          "binary": "/opt/homebrew/bin/docker",
+          "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8"
+        }
+      },
+      "semantics": {
+        "previous": {
+          "gate": {
+            "before_release": "",
+            "passed": false,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": false,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 8,
+              "stderr_bytes": 5,
+              "stdout_sha256": "c8beae2fecfd89eafda4134971f8009ee2f9407e7d5c226a73460c54923295af",
+              "stderr_sha256": "5d8a45718d814c5ceb5309ad26dce36cb4aca2f47c3d977de401391a789f0e69"
+            },
+            {
+              "passed": false,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 64,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "bd601b2d14197989c2ececc01c59b7673dbeeb5c60fed4a58c74ea7a03ed8188"
+            },
+            {
+              "passed": false,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 1,
+              "stderr_bytes": 0,
+              "stdout_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "passed": false,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 6,
+              "stderr_bytes": 0,
+              "stdout_sha256": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": false,
+            "exit": 1,
+            "stdout_bytes": 0,
+            "stderr_bytes": 64,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "9643e6e4ce22c5e23de1f0d5cf16a2ce09a188cefc96029af78fe14fc58697a7"
+          },
+          "concurrent_8": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "duplex_backpressure": {
+            "passed": false,
+            "bytes": 2097153,
+            "sha256": "725bc7e1bc7a47cad7c5be830f88c5462f5ba78fbf039a8eb120191c3bdf1bd4",
+            "exit": 0
+          }
+        },
+        "streaming": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        },
+        "stock_docker": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        }
+      },
+      "passed": {
+        "previous": {
+          "passed": 0,
+          "total": 15
+        },
+        "streaming": {
+          "passed": 15,
+          "total": 15
+        },
+        "stock_docker": {
+          "passed": 15,
+          "total": 15
+        }
+      },
+      "performance": {
+        "4": {
+          "previous": {
+            "median_ms": 53.968,
+            "median_peak_rss_mib": 29.703,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 68.222,
+                "max_rss_bytes": 31129600,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 53.128,
+                "max_rss_bytes": 31162368,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 53.968,
+                "max_rss_bytes": 31145984,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 33.335,
+            "median_peak_rss_mib": 15.875,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 35.314,
+                "max_rss_bytes": 16646144,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 32.823,
+                "max_rss_bytes": 16646144,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 33.335,
+                "max_rss_bytes": 16629760,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 28.538,
+            "median_peak_rss_mib": 26.219,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 28.538,
+                "max_rss_bytes": 27344896,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 27.263,
+                "max_rss_bytes": 27492352,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 28.541,
+                "max_rss_bytes": 27590656,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        },
+        "32": {
+          "previous": {
+            "median_ms": 233.171,
+            "median_peak_rss_mib": 113.781,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 233.171,
+                "max_rss_bytes": 119406592,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 231.884,
+                "max_rss_bytes": 119242752,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 236.512,
+                "max_rss_bytes": 119308288,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 57.12,
+            "median_peak_rss_mib": 15.891,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 57.12,
+                "max_rss_bytes": 16662528,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 56.475,
+                "max_rss_bytes": 16646144,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 60.813,
+                "max_rss_bytes": 16678912,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 62.9,
+            "median_peak_rss_mib": 26.219,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 59.137,
+                "max_rss_bytes": 27492352,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 62.9,
+                "max_rss_bytes": 27607040,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 64.873,
+                "max_rss_bytes": 27410432,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "optimized_cli": {
+    "HVF": {
+      "receipt": "core-fixed-CLI-HVF.json",
+      "versions": {
+        "previous": {
+          "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+          "sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4"
+        },
+        "streaming": {
+          "binary": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/qualified-client/micropod",
+          "sha256": "3892941149a6ca89abfb56a57dc9aef0315c567283b450294017c0cd29f8b493"
+        },
+        "stock_docker": {
+          "binary": "/opt/homebrew/bin/docker",
+          "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8"
+        }
+      },
+      "semantics": {
+        "previous": {
+          "gate": {
+            "before_release": "",
+            "passed": false,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": false,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 8,
+              "stderr_bytes": 5,
+              "stdout_sha256": "c8beae2fecfd89eafda4134971f8009ee2f9407e7d5c226a73460c54923295af",
+              "stderr_sha256": "5d8a45718d814c5ceb5309ad26dce36cb4aca2f47c3d977de401391a789f0e69"
+            },
+            {
+              "passed": false,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            },
+            {
+              "passed": false,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            },
+            {
+              "passed": false,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": false,
+            "exit": 1,
+            "stdout_bytes": 0,
+            "stderr_bytes": 72,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+          },
+          "concurrent_8": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "duplex_backpressure": {
+            "passed": false,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "exit": 1
+          }
+        },
+        "streaming": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        },
+        "stock_docker": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        }
+      },
+      "passed": {
+        "previous": {
+          "passed": 0,
+          "total": 15
+        },
+        "streaming": {
+          "passed": 15,
+          "total": 15
+        },
+        "stock_docker": {
+          "passed": 15,
+          "total": 15
+        }
+      },
+      "performance": {
+        "4": {
+          "previous": {
+            "median_ms": 44.014,
+            "median_peak_rss_mib": 30.297,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 44.014,
+                "max_rss_bytes": 31653888,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 40.29,
+                "max_rss_bytes": 31768576,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 46.266,
+                "max_rss_bytes": 31768576,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 20.639,
+            "median_peak_rss_mib": 14.875,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 20.639,
+                "max_rss_bytes": 15597568,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 19.829,
+                "max_rss_bytes": 15581184,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 22.832,
+                "max_rss_bytes": 15646720,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 20.255,
+            "median_peak_rss_mib": 26.125,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 20.255,
+                "max_rss_bytes": 27394048,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 19.377,
+                "max_rss_bytes": 27197440,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 22.041,
+                "max_rss_bytes": 27443200,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        },
+        "32": {
+          "previous": {
+            "median_ms": 220.807,
+            "median_peak_rss_mib": 114.219,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 220.807,
+                "max_rss_bytes": 119767040,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 219.529,
+                "max_rss_bytes": 119750656,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 229.247,
+                "max_rss_bytes": 119947264,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 48.353,
+            "median_peak_rss_mib": 14.891,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 47.119,
+                "max_rss_bytes": 15613952,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 48.353,
+                "max_rss_bytes": 15613952,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 48.767,
+                "max_rss_bytes": 15630336,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 53.965,
+            "median_peak_rss_mib": 26.062,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 54.259,
+                "max_rss_bytes": 27574272,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 53.965,
+                "max_rss_bytes": 27262976,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 52.674,
+                "max_rss_bytes": 27328512,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Orb": {
+      "receipt": "core-fixed-CLI-Orb.json",
+      "versions": {
+        "previous": {
+          "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+          "sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4"
+        },
+        "streaming": {
+          "binary": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/qualified-client/micropod",
+          "sha256": "3892941149a6ca89abfb56a57dc9aef0315c567283b450294017c0cd29f8b493"
+        },
+        "stock_docker": {
+          "binary": "/opt/homebrew/bin/docker",
+          "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8"
+        }
+      },
+      "semantics": {
+        "previous": {
+          "gate": {
+            "before_release": "",
+            "passed": false,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": false,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 8,
+              "stderr_bytes": 5,
+              "stdout_sha256": "c8beae2fecfd89eafda4134971f8009ee2f9407e7d5c226a73460c54923295af",
+              "stderr_sha256": "5d8a45718d814c5ceb5309ad26dce36cb4aca2f47c3d977de401391a789f0e69"
+            },
+            {
+              "passed": false,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 64,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "162cdb434872ffee06ff802c5e2f0e4c0001c5eacd0db834f377de60404838ab"
+            },
+            {
+              "passed": false,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 1,
+              "stderr_bytes": 0,
+              "stdout_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "passed": false,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 6,
+              "stderr_bytes": 0,
+              "stdout_sha256": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": false,
+            "exit": 1,
+            "stdout_bytes": 0,
+            "stderr_bytes": 64,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "5f03842b21717430aa9132434f277ae984ac91fd450fccbcb143ce3e3207405d"
+          },
+          "concurrent_8": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "duplex_backpressure": {
+            "passed": false,
+            "bytes": 2097153,
+            "sha256": "725bc7e1bc7a47cad7c5be830f88c5462f5ba78fbf039a8eb120191c3bdf1bd4",
+            "exit": 0
+          }
+        },
+        "streaming": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        },
+        "stock_docker": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        }
+      },
+      "passed": {
+        "previous": {
+          "passed": 0,
+          "total": 15
+        },
+        "streaming": {
+          "passed": 15,
+          "total": 15
+        },
+        "stock_docker": {
+          "passed": 15,
+          "total": 15
+        }
+      },
+      "performance": {
+        "4": {
+          "previous": {
+            "median_ms": 55.419,
+            "median_peak_rss_mib": 29.797,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 59.278,
+                "max_rss_bytes": 31244288,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 55.419,
+                "max_rss_bytes": 31244288,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 55.379,
+                "max_rss_bytes": 31227904,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 31.386,
+            "median_peak_rss_mib": 14.453,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 30.2,
+                "max_rss_bytes": 15122432,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 32.09,
+                "max_rss_bytes": 15155200,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 31.386,
+                "max_rss_bytes": 15171584,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 32.432,
+            "median_peak_rss_mib": 26.469,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 32.432,
+                "max_rss_bytes": 28360704,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 29.153,
+                "max_rss_bytes": 27475968,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 39.098,
+                "max_rss_bytes": 27754496,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        },
+        "32": {
+          "previous": {
+            "median_ms": 235.471,
+            "median_peak_rss_mib": 113.844,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 211.846,
+                "max_rss_bytes": 119308288,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 235.471,
+                "max_rss_bytes": 119504896,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 238.098,
+                "max_rss_bytes": 119373824,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 54.326,
+            "median_peak_rss_mib": 14.484,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 58.241,
+                "max_rss_bytes": 15187968,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 54.326,
+                "max_rss_bytes": 15204352,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 54.242,
+                "max_rss_bytes": 15138816,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 67.158,
+            "median_peak_rss_mib": 26.203,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 60.788,
+                "max_rss_bytes": 27639808,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 67.158,
+                "max_rss_bytes": 27475968,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 68.85,
+                "max_rss_bytes": 27246592,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "earlier_development_measurement": {
+    "HVF": {
+      "receipt": "core-final-CLI-HVF.json",
+      "versions": {
+        "previous": {
+          "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+          "sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4"
+        },
+        "streaming": {
+          "binary": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-wr0thavn/micropod",
+          "sha256": "138d87e0ae27c970585613db0e512ba599e6c0f2eebfbd7af8fbe83b3ebdd67b"
+        },
+        "stock_docker": {
+          "binary": "/opt/homebrew/bin/docker",
+          "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8"
+        }
+      },
+      "semantics": {
+        "previous": {
+          "gate": {
+            "before_release": "",
+            "passed": false,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": false,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 8,
+              "stderr_bytes": 5,
+              "stdout_sha256": "c8beae2fecfd89eafda4134971f8009ee2f9407e7d5c226a73460c54923295af",
+              "stderr_sha256": "5d8a45718d814c5ceb5309ad26dce36cb4aca2f47c3d977de401391a789f0e69"
+            },
+            {
+              "passed": false,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            },
+            {
+              "passed": false,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            },
+            {
+              "passed": false,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 72,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": false,
+            "exit": 1,
+            "stdout_bytes": 0,
+            "stderr_bytes": 72,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "299e0e4f48747657f834c477cc050a3c76a28497be1306faf5eddb8512921c01"
+          },
+          "concurrent_8": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "duplex_backpressure": {
+            "passed": false,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "exit": 1
+          }
+        },
+        "streaming": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        },
+        "stock_docker": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        }
+      },
+      "passed": {
+        "previous": {
+          "passed": 0,
+          "total": 15
+        },
+        "streaming": {
+          "passed": 15,
+          "total": 15
+        },
+        "stock_docker": {
+          "passed": 15,
+          "total": 15
+        }
+      },
+      "performance": {
+        "4": {
+          "previous": {
+            "median_ms": 50.199,
+            "median_peak_rss_mib": 30.266,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 50.23,
+                "max_rss_bytes": 31735808,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 48.744,
+                "max_rss_bytes": 31735808,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 50.199,
+                "max_rss_bytes": 33669120,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 28.687,
+            "median_peak_rss_mib": 16.156,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 31.057,
+                "max_rss_bytes": 16990208,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 28.687,
+                "max_rss_bytes": 16924672,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 28.367,
+                "max_rss_bytes": 16941056,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 24.305,
+            "median_peak_rss_mib": 26.188,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 24.305,
+                "max_rss_bytes": 27459584,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 27.195,
+                "max_rss_bytes": 27738112,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 23.312,
+                "max_rss_bytes": 27377664,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        },
+        "32": {
+          "previous": {
+            "median_ms": 252.945,
+            "median_peak_rss_mib": 114.359,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 252.002,
+                "max_rss_bytes": 119914496,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 272.318,
+                "max_rss_bytes": 120012800,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 252.945,
+                "max_rss_bytes": 119898112,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 75.186,
+            "median_peak_rss_mib": 16.219,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 75.186,
+                "max_rss_bytes": 17006592,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 85.143,
+                "max_rss_bytes": 17022976,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 74.691,
+                "max_rss_bytes": 17006592,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 79.528,
+            "median_peak_rss_mib": 26.328,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 87.437,
+                "max_rss_bytes": 27770880,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 79.528,
+                "max_rss_bytes": 27279360,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 73.61,
+                "max_rss_bytes": 27607040,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Orb": {
+      "receipt": "core-final-CLI-Orb.json",
+      "versions": {
+        "previous": {
+          "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+          "sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4"
+        },
+        "streaming": {
+          "binary": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-wr0thavn/micropod",
+          "sha256": "138d87e0ae27c970585613db0e512ba599e6c0f2eebfbd7af8fbe83b3ebdd67b"
+        },
+        "stock_docker": {
+          "binary": "/opt/homebrew/bin/docker",
+          "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8"
+        }
+      },
+      "semantics": {
+        "previous": {
+          "gate": {
+            "before_release": "",
+            "passed": false,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": false,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 8,
+              "stderr_bytes": 5,
+              "stdout_sha256": "c8beae2fecfd89eafda4134971f8009ee2f9407e7d5c226a73460c54923295af",
+              "stderr_sha256": "5d8a45718d814c5ceb5309ad26dce36cb4aca2f47c3d977de401391a789f0e69"
+            },
+            {
+              "passed": false,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 1,
+              "stdout_bytes": 0,
+              "stderr_bytes": 64,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "d152949b8c70fe5ba934c271e47a9a65e457597d97132f65932d198a4ec78bd8"
+            },
+            {
+              "passed": false,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 1,
+              "stderr_bytes": 0,
+              "stdout_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "passed": false,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 6,
+              "stderr_bytes": 0,
+              "stdout_sha256": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": false,
+            "exit": 1,
+            "stdout_bytes": 0,
+            "stderr_bytes": 64,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "2667241d84484a734d13650281767d0f43e89e3b910d963985966076a04ac53b"
+          },
+          "concurrent_8": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "duplex_backpressure": {
+            "passed": false,
+            "bytes": 2097153,
+            "sha256": "725bc7e1bc7a47cad7c5be830f88c5462f5ba78fbf039a8eb120191c3bdf1bd4",
+            "exit": 0
+          }
+        },
+        "streaming": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        },
+        "stock_docker": {
+          "gate": {
+            "before_release": "ready",
+            "passed": true,
+            "exit": 31,
+            "stdout_bytes": 5,
+            "stderr_bytes": 4,
+            "stdout_sha256": "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+            "stderr_sha256": "a4c3ed04a95a3da14a9d235c83d868bed7c0f45cf7f3faa751ee8f50598d2211"
+          },
+          "vectors": [
+            {
+              "passed": true,
+              "expected_out": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "expected_err": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae",
+              "exit": 37,
+              "stdout_bytes": 4,
+              "stderr_bytes": 3,
+              "stdout_sha256": "833f22e3dffcf69c7f0f3d82a5c22939910963b0902affcf7a8426f1e0aab3ad",
+              "stderr_sha256": "ed5a4058d144eb8c2b2d05036acbe294bb4d9a4800b939f879f18425a8d45fae"
+            },
+            {
+              "passed": true,
+              "expected_out": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "expected_err": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "exit": 27,
+              "stdout_bytes": 1048832,
+              "stderr_bytes": 1048832,
+              "stdout_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d",
+              "stderr_sha256": "dd7e5c49d123e860c8bb7016bada722b5d0baa37ef8b19d5e270cf2a3000c31d"
+            },
+            {
+              "passed": true,
+              "expected_out": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "expected_err": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab",
+              "exit": 0,
+              "stdout_bytes": 0,
+              "stderr_bytes": 3,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "22988607ff895660da293b4da1b2028cae8605fb65b3906c00ddec54b5c9c3ab"
+            },
+            {
+              "passed": true,
+              "expected_out": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "expected_err": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5",
+              "exit": 0,
+              "stdout_bytes": 5,
+              "stderr_bytes": 9472,
+              "stdout_sha256": "f39592393ef0859cb196a52693d2cea00fb2df784b3c04ae54aa7cadb8e562f8",
+              "stderr_sha256": "d554bb90fce077ba71e8ea19b5a159668330992ec689d6e487691ea9387113d5"
+            }
+          ],
+          "open_stdin_remote_exit": {
+            "passed": true,
+            "exit": 19,
+            "stdout_bytes": 5,
+            "stderr_bytes": 0,
+            "stdout_sha256": "f408830bcc7fab370819172244aa32e3ba66a848835911c02629d9a4dff77992",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "concurrent_8": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "duplex_backpressure": {
+            "passed": true,
+            "bytes": 4194304,
+            "sha256": "acd3b7ff8f7ca7906062d2949f090107a78e1c6077926f5996f37f48c2da82d9",
+            "exit": 0
+          }
+        }
+      },
+      "passed": {
+        "previous": {
+          "passed": 0,
+          "total": 15
+        },
+        "streaming": {
+          "passed": 15,
+          "total": 15
+        },
+        "stock_docker": {
+          "passed": 15,
+          "total": 15
+        }
+      },
+      "performance": {
+        "4": {
+          "previous": {
+            "median_ms": 66.68,
+            "median_peak_rss_mib": 31.469,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 65.103,
+                "max_rss_bytes": 31244288,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 74.543,
+                "max_rss_bytes": 32997376,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 66.68,
+                "max_rss_bytes": 33013760,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 45.815,
+            "median_peak_rss_mib": 15.828,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 45.815,
+                "max_rss_bytes": 16596992,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 44.848,
+                "max_rss_bytes": 16646144,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 49.502,
+                "max_rss_bytes": 16596992,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 37.852,
+            "median_peak_rss_mib": 26.312,
+            "samples": [
+              {
+                "mib": 4,
+                "ms": 35.59,
+                "max_rss_bytes": 27623424,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 45.392,
+                "max_rss_bytes": 27492352,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 4,
+                "ms": 37.852,
+                "max_rss_bytes": 27590656,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        },
+        "32": {
+          "previous": {
+            "median_ms": 274.204,
+            "median_peak_rss_mib": 113.984,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 274.204,
+                "max_rss_bytes": 119472128,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 271.245,
+                "max_rss_bytes": 119521280,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 322.884,
+                "max_rss_bytes": 121274368,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "streaming": {
+            "median_ms": 87.883,
+            "median_peak_rss_mib": 15.953,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 82.781,
+                "max_rss_bytes": 16728064,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 87.883,
+                "max_rss_bytes": 16646144,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 91.798,
+                "max_rss_bytes": 16728064,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          },
+          "stock_docker": {
+            "median_ms": 101.439,
+            "median_peak_rss_mib": 26.391,
+            "samples": [
+              {
+                "mib": 32,
+                "ms": 111.585,
+                "max_rss_bytes": 27967488,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 73.379,
+                "max_rss_bytes": 27672576,
+                "exit": 0,
+                "stderr": ""
+              },
+              {
+                "mib": 32,
+                "ms": 101.439,
+                "max_rss_bytes": 27459584,
+                "exit": 0,
+                "stderr": ""
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "prior_development_timeout": {
+    "receipt": "core-debug-current-Orb.json",
+    "failed_sample": {
+      "passed": false,
+      "error": "TimeoutExpired(['/usr/bin/time', '-lp', '-o', '/private/tmp/mp-gamma.EuQue2/home/outer-machine-mvhwsjpm/tmp0nfxw_hm', '/private/tmp/mp-gamma.EuQue2/home/outer-machine-mvhwsjpm/development/micropod', 'exec', 'mp-exec-qual-a94bca77b750', '--', 'sh', '-c', 'dd if=/dev/zero bs=65536 count=512 2>/dev/null'], 45)"
+    },
+    "diagnostic": "core-timed-out-client.sample",
+    "cleanup": {
+      "command": "/private/tmp/mp-gamma.EuQue2/home/outer-machine-mvhwsjpm/development/micropod exec mp-exec-qual-a94bca77b750 -- sh -c dd if=/dev/zero bs=65536 count=512 2>/dev/null",
+      "initial_cleanup_error": "RuntimeError(\"Scoped processes remain: {7662: {'parent': 1, 'start': 'Thu Nov 26 02:59:12 2026', 'command': '/private/tmp/mp-gamma.EuQue2/home/outer-machine-mvhwsjpm/development/micropod exec mp-exec-qual-a94bca77b750 -- sh -c dd if=/dev/zero bs=65536 count=512 2>/dev/null'}}\")",
+      "pid": 7662,
+      "sample": "core-timed-out-client.sample",
+      "signal": "SIGTERM",
+      "start": "Thu Nov 26 02:59:12 2026"
+    }
+  },
+  "output_only_repeats": {
+    "hvf": {
+      "runs": [
+        {
+          "run": 1,
+          "ms": 50.086,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 2,
+          "ms": 46.555,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 3,
+          "ms": 46.624,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 4,
+          "ms": 48.176,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 5,
+          "ms": 48.533,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 6,
+          "ms": 49.714,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 7,
+          "ms": 46.5,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 8,
+          "ms": 46.487,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 9,
+          "ms": 46.75,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 10,
+          "ms": 49.148,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 11,
+          "ms": 49.863,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 12,
+          "ms": 48.639,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 13,
+          "ms": 44.375,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 14,
+          "ms": 46.374,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 15,
+          "ms": 44.375,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 16,
+          "ms": 49.08,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 17,
+          "ms": 48.729,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 18,
+          "ms": 46.708,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 19,
+          "ms": 46.041,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 20,
+          "ms": 49.36,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 21,
+          "ms": 46.03,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 22,
+          "ms": 46.833,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 23,
+          "ms": 45.691,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 24,
+          "ms": 47.612,
+          "exit": 0,
+          "stderr": ""
+        }
+      ],
+      "cleaned": true,
+      "payload_bytes_per_run": 33554432
+    },
+    "orb": {
+      "runs": [
+        {
+          "run": 1,
+          "ms": 57.284,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 2,
+          "ms": 57.326,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 3,
+          "ms": 56.669,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 4,
+          "ms": 51.949,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 5,
+          "ms": 56.152,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 6,
+          "ms": 60.415,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 7,
+          "ms": 59.317,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 8,
+          "ms": 69.877,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 9,
+          "ms": 63.306,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 10,
+          "ms": 58.741,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 11,
+          "ms": 56.798,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 12,
+          "ms": 54.598,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 13,
+          "ms": 52.507,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 14,
+          "ms": 53.44,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 15,
+          "ms": 53.363,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 16,
+          "ms": 51.717,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 17,
+          "ms": 57.866,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 18,
+          "ms": 54.269,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 19,
+          "ms": 53.433,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 20,
+          "ms": 54.389,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 21,
+          "ms": 55.456,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 22,
+          "ms": 53.154,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 23,
+          "ms": 59.132,
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "run": 24,
+          "ms": 55.218,
+          "exit": 0,
+          "stderr": ""
+        }
+      ],
+      "cleaned": true,
+      "payload_bytes_per_run": 33554432
+    }
+  },
+  "eight_container_release": {
+    "schema": 1,
+    "run": "2c96ccf740534bbe",
+    "label": "micropod.qa.exec-density=2c96ccf740534bbe",
+    "image": "alpine:3.23",
+    "jobs": 8,
+    "bytes_per_job_each_direction": 2097152,
+    "endpoints": {
+      "hvf": {
+        "host": "unix:///private/tmp/mp-gamma.EuQue2/home/outer-machine-vnspnwov/machine/run/docker.sock",
+        "names": [
+          "mp-stream-2c96ccf740534bbe-0",
+          "mp-stream-2c96ccf740534bbe-1",
+          "mp-stream-2c96ccf740534bbe-2",
+          "mp-stream-2c96ccf740534bbe-3",
+          "mp-stream-2c96ccf740534bbe-4",
+          "mp-stream-2c96ccf740534bbe-5",
+          "mp-stream-2c96ccf740534bbe-6",
+          "mp-stream-2c96ccf740534bbe-7"
+        ],
+        "provision_ms": 529.277,
+        "busybox_and_release": "dd10691d81c84f0182f5af5f1583d566ddc0b9d0d9fc46b41b99b83c398306dd  /bin/busybox\ne3b966ee67a8a9ab92a5eaac0c5f1838e7848e1272cbeb9a43ffc879c71e2dcc  /etc/alpine-release\n",
+        "server": "{\"Platform\":{\"Name\":\"Micropod\"},\"Version\":\"micropod\",\"ApiVersion\":\"1.47\",\"MinAPIVersion\":\"1.44\",\"Os\":\"linux\",\"Arch\":\"arm64\",\"Components\":[{\"Name\":\"Engine\",\"Version\":\"micropod\",\"Details\":{\"ApiVersion\":\"1.47\",\"Arch\":\"arm64\",\"MinAPIVersion\":\"1.44\",\"Os\":\"linux\"}}]}"
+      },
+      "orb": {
+        "host": "unix:///Users/benebsworth/.orbstack/run/docker.sock",
+        "names": [
+          "mp-stream-2c96ccf740534bbe-0",
+          "mp-stream-2c96ccf740534bbe-1",
+          "mp-stream-2c96ccf740534bbe-2",
+          "mp-stream-2c96ccf740534bbe-3",
+          "mp-stream-2c96ccf740534bbe-4",
+          "mp-stream-2c96ccf740534bbe-5",
+          "mp-stream-2c96ccf740534bbe-6",
+          "mp-stream-2c96ccf740534bbe-7"
+        ],
+        "provision_ms": 1311.463,
+        "busybox_and_release": "dd10691d81c84f0182f5af5f1583d566ddc0b9d0d9fc46b41b99b83c398306dd  /bin/busybox\ne3b966ee67a8a9ab92a5eaac0c5f1838e7848e1272cbeb9a43ffc879c71e2dcc  /etc/alpine-release\n",
+        "server": "{\"Platform\":{\"Name\":\"Docker Engine - Community\"},\"Version\":\"29.8.2\",\"ApiVersion\":\"1.56\",\"MinAPIVersion\":\"1.40\",\"Os\":\"linux\",\"Arch\":\"arm64\",\"Components\":[{\"Name\":\"Engine\",\"Version\":\"29.8.2\",\"Details\":{\"ApiVersion\":\"1.56\",\"Arch\":\"arm64\",\"BuildTime\":\"Wed Sep 30 19:32:49 2026\",\"Experimental\":\"true\",\"GitCommit\":\"8af9fe3\",\"GoVersion\":\"go1.26.8\",\"KernelVersion\":\"7.2.12-orbstack-00394-gbecdd6130068\",\"MinAPIVersion\":\"1.40\",\"Module\":\"github.com/moby/moby/v2\",\"ModuleVersion\":\"v2.0.0+unknown\",\"Os\":\"linux\"}},{\"Name\":\"containerd\",\"Version\":\"v2.3.6\",\"Details\":{\"GitCommit\":\"ee2735368117d2eb259779949d5e75cdafec9761\"}},{\"Name\":\"runc\",\"Version\":\"1.5.2\",\"Details\":{\"GitCommit\":\"29dd3dc2b13b4123162e5fe132504bb4b15569f1\"}},{\"Name\":\"docker-init\",\"Version\":\"0.19.0\",\"Details\":{\"GitCommit\":\"de40ad0\"}}],\"GitCommit\":\"8af9fe3\",\"GoVersion\":\"go1.26.8\",\"KernelVersion\":\"7.2.12-orbstack-00394-gbecdd6130068\",\"Experimental\":true,\"BuildTime\":\"2026-09-30T19:32:49.000000000+00:00\"}"
+      }
+    },
+    "warmup": {
+      "hvf-micropod": {
+        "ms": 691.243,
+        "all_ready_ms": 22.592,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      },
+      "orb-micropod": {
+        "ms": 836.525,
+        "all_ready_ms": 60.303,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      },
+      "hvf-docker": {
+        "ms": 839.7,
+        "all_ready_ms": 24.665,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      },
+      "orb-docker": {
+        "ms": 936.502,
+        "all_ready_ms": 48.929,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      }
+    },
+    "rounds": [
+      {
+        "hvf-micropod": {
+          "ms": 731.26,
+          "all_ready_ms": 23.35,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-micropod": {
+          "ms": 852.732,
+          "all_ready_ms": 58.761,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-docker": {
+          "ms": 813.788,
+          "all_ready_ms": 37.047,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-docker": {
+          "ms": 728.327,
+          "all_ready_ms": 30.381,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      },
+      {
+        "orb-micropod": {
+          "ms": 796.648,
+          "all_ready_ms": 58.512,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-docker": {
+          "ms": 788.258,
+          "all_ready_ms": 25.229,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-micropod": {
+          "ms": 720.943,
+          "all_ready_ms": 26.663,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-docker": {
+          "ms": 851.604,
+          "all_ready_ms": 50.329,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      },
+      {
+        "hvf-docker": {
+          "ms": 775.596,
+          "all_ready_ms": 24.069,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-docker": {
+          "ms": 841.614,
+          "all_ready_ms": 50.754,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-micropod": {
+          "ms": 779.79,
+          "all_ready_ms": 42.512,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-micropod": {
+          "ms": 717.324,
+          "all_ready_ms": 24.765,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      },
+      {
+        "orb-docker": {
+          "ms": 853.185,
+          "all_ready_ms": 57.512,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-micropod": {
+          "ms": 591.016,
+          "all_ready_ms": 29.768,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-docker": {
+          "ms": 778.442,
+          "all_ready_ms": 30.131,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-micropod": {
+          "ms": 799.563,
+          "all_ready_ms": 58.192,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      }
+    ],
+    "integrity_32_mib": {
+      "hvf-micropod": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      },
+      "hvf-docker": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      },
+      "orb-micropod": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      },
+      "orb-docker": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      }
+    },
+    "cleanup": {
+      "hvf": {
+        "removed": 8,
+        "remaining": []
+      },
+      "orb": {
+        "removed": 8,
+        "remaining": []
+      }
+    },
+    "cli_sha256": "3892941149a6ca89abfb56a57dc9aef0315c567283b450294017c0cd29f8b493",
+    "median_ms": {
+      "hvf-micropod": 719.1334999999999,
+      "orb-micropod": 798.1055,
+      "hvf-docker": 777.019,
+      "orb-docker": 846.609
+    }
+  },
+  "cleanup": [
+    {
+      "clean_shutdown": true,
+      "supervisor_lock_released": true,
+      "socket_removed": true,
+      "scope_removed": true,
+      "defaults_unchanged": true,
+      "base_input_unchanged": true,
+      "receipt": "core-machine.json",
+      "volume": {
+        "APFSContainerReference": "disk14",
+        "APFSPhysicalStores": [
+          {
+            "APFSPhysicalStore": "disk13s2"
+          }
+        ],
+        "DeviceIdentifier": "disk14s1",
+        "DiskUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "FilesystemType": "apfs",
+        "MountPoint": "/private/tmp/mp-gamma.EuQue2/home",
+        "RemovableMediaOrExternalDevice": true,
+        "Size": 51329851392,
+        "VolumeUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "WritableVolume": true
+      },
+      "spotlight": "/System/Volumes/Data/private/tmp/mp-gamma.EuQue2/home:\n\tIndexing and searching disabled.\n"
+    },
+    {
+      "clean_shutdown": true,
+      "supervisor_lock_released": true,
+      "socket_removed": true,
+      "scope_removed": true,
+      "defaults_unchanged": true,
+      "base_input_unchanged": true,
+      "receipt": "core-negotiated-machine.json",
+      "volume": {
+        "APFSContainerReference": "disk14",
+        "APFSPhysicalStores": [
+          {
+            "APFSPhysicalStore": "disk13s2"
+          }
+        ],
+        "DeviceIdentifier": "disk14s1",
+        "DiskUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "FilesystemType": "apfs",
+        "MountPoint": "/private/tmp/mp-gamma.EuQue2/home",
+        "RemovableMediaOrExternalDevice": true,
+        "Size": 51329851392,
+        "VolumeUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "WritableVolume": true
+      },
+      "spotlight": "/System/Volumes/Data/private/tmp/mp-gamma.EuQue2/home:\n\tIndexing and searching disabled.\n"
+    },
+    {
+      "clean_shutdown": true,
+      "supervisor_lock_released": true,
+      "socket_removed": true,
+      "scope_removed": true,
+      "defaults_unchanged": true,
+      "base_input_unchanged": true,
+      "receipt": "core-release-machine.json",
+      "volume": {
+        "APFSContainerReference": "disk14",
+        "APFSPhysicalStores": [
+          {
+            "APFSPhysicalStore": "disk13s2"
+          }
+        ],
+        "DeviceIdentifier": "disk14s1",
+        "DiskUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "FilesystemType": "apfs",
+        "MountPoint": "/private/tmp/mp-gamma.EuQue2/home",
+        "RemovableMediaOrExternalDevice": true,
+        "Size": 51329851392,
+        "VolumeUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "WritableVolume": true
+      },
+      "spotlight": "/System/Volumes/Data/private/tmp/mp-gamma.EuQue2/home:\n\tIndexing and searching disabled.\n"
+    },
+    {
+      "clean_shutdown": true,
+      "supervisor_lock_released": true,
+      "socket_removed": true,
+      "scope_removed": true,
+      "defaults_unchanged": true,
+      "base_input_unchanged": true,
+      "receipt": "core-fixed-machine.json",
+      "volume": {
+        "APFSContainerReference": "disk14",
+        "APFSPhysicalStores": [
+          {
+            "APFSPhysicalStore": "disk13s2"
+          }
+        ],
+        "DeviceIdentifier": "disk14s1",
+        "DiskUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "FilesystemType": "apfs",
+        "MountPoint": "/private/tmp/mp-gamma.EuQue2/home",
+        "RemovableMediaOrExternalDevice": true,
+        "Size": 51329851392,
+        "VolumeUUID": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+        "WritableVolume": true
+      },
+      "spotlight": "/System/Volumes/Data/private/tmp/mp-gamma.EuQue2/home:\n\tIndexing and searching disabled.\n"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "round": "mp-gamma7.BMJh3u",
+  "retained": {
+    "control/vmm": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/micropod-vmm-f0747277714e",
+      "sha256": "f0747277714ef1520de32e7e5d398a0b88aded8a52c8f8076dc7daaafde1d3c4",
+      "bytes": 1536544,
+      "ready_receipt": "control-ready.json",
+      "strict_signature": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/micropod-vmm-f0747277714e: valid on disk\n/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/micropod-vmm-f0747277714e: satisfies its Designated Requirement\n"
+    },
+    "control/kernel": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/Image-61b4e143b260",
+      "sha256": "61b4e143b26039e4642f48b3819e0233f22b44f5c3e88e109cbc9c17508cc85f",
+      "bytes": 24238592,
+      "ready_receipt": "control-ready.json"
+    },
+    "control/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/runner-job-eb363bff62ac",
+      "sha256": "eb363bff62ac2349f37a71d6a7db3a6ec2b813b0c470adf44b60ef19f41d4ed4",
+      "bytes": 26647921,
+      "ready_receipt": "control-ready.json"
+    },
+    "event-on/vmm": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/micropod-vmm-30bf0392091e",
+      "sha256": "30bf0392091e1c536dc63fbe0310e161f4a03ba94c836e46360654ed371bef0f",
+      "bytes": 1589504,
+      "ready_receipt": "event-on-ready.json",
+      "strict_signature": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/micropod-vmm-30bf0392091e: valid on disk\n/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/micropod-vmm-30bf0392091e: satisfies its Designated Requirement\n"
+    },
+    "inline-on/kernel": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/Image-1cb0c4b4920d",
+      "sha256": "1cb0c4b4920dec191080746256c15952e6cedd147baa03c096deacd2691f457b",
+      "bytes": 24238592,
+      "ready_receipt": "inline-on-ready.json"
+    },
+    "archive-load/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/runner-job-5004945fa3ea",
+      "sha256": "5004945fa3eae40fc5be5a81c96b44097427191b260368e14601f1f8f09ad1dd",
+      "bytes": 26655033,
+      "ready_receipt": "archive-load-ready.json"
+    },
+    "archive-health/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/runner-job-375fd448fbf4",
+      "sha256": "375fd448fbf4c5343fa6af825853e0b244d81ee42fb860cb2f60f61ad15a347f",
+      "bytes": 27716720,
+      "ready_receipt": "archive-health-ready.json"
+    },
+    "stopped-health/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/runner-job-55f2ae080a60",
+      "sha256": "55f2ae080a601a84fd10123f6a717e880a0da6f1f2d9f827f7bf249fa79ca4d0",
+      "bytes": 27716920,
+      "ready_receipt": "stopped-health-ready.json"
+    }
+  },
+  "baseline_manifest": {
+    "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma6-x5vshe/manifest-buildkit-inventory.json",
+    "sha256": "cbf78f81bdc531f25bb467e8a7c0a52e2d2d7fbf901301cccea4e59414449403"
+  },
+  "verified_test_executables": {
+    "stopped-health": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/runner-linux-tests-9f60e3796c6a",
+      "sha256": "9f60e3796c6a54bd4670662e72e01db7a3b2ddc883abbdabbf0075bc41875f44",
+      "bytes": 30799807,
+      "successful_exit_receipt": "stopped-health-linux-exit.log",
+      "successful_exit_receipt_sha256": "49d57dc8a7015ea373b271b2a957560efd45795edda53ea440ddf88570d42889"
+    }
+  }
+}

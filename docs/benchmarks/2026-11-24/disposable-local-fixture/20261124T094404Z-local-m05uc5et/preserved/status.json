@@ -1,0 +1,48 @@
+{
+  "mode": "suite",
+  "action": "run",
+  "time": "2026-11-24T09:05:10.318895+00:00",
+  "plan": [
+    "baseline",
+    "host-role",
+    "workers"
+  ],
+  "stages": {
+    "baseline": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/inputs/baseline",
+      "state": "complete",
+      "idle_wait_seconds": 60,
+      "evidence": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/baseline",
+      "start": "2026-11-24T09:05:10.742102+00:00",
+      "result": {
+        "socket_evidence": "route",
+        "accepted_socket_reno_verified": false,
+        "idle_wait_seconds": 60,
+        "mib_s": 6573.335798495191,
+        "fresh_p95_us": 5871,
+        "fresh_p99_us": 9550
+      },
+      "end": "2026-11-24T09:05:47.593914+00:00"
+    },
+    "host-role": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/inputs/host-role",
+      "state": "failed",
+      "idle_wait_seconds": 60,
+      "evidence": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/host-role",
+      "start": "2026-11-24T09:05:47.593983+00:00",
+      "end": "2026-11-24T09:05:55.698664+00:00",
+      "error": "receiver exited 1: 'NoneType' object is not iterable (see /Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/host-role/receiver/status.json)"
+    },
+    "workers": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/inputs/workers",
+      "state": "inputs verified",
+      "idle_wait_seconds": 60
+    }
+  },
+  "complete": false,
+  "socket_evidence": "route",
+  "idle_wait_seconds": 60,
+  "busy_diagnostic": true,
+  "error": "host-role: receiver exited 1: 'NoneType' object is not iterable (see /Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/host-role/receiver/status.json)",
+  "end": "2026-11-24T09:05:55.698686+00:00"
+}

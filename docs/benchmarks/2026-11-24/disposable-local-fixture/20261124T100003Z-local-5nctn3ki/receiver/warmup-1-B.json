@@ -1,0 +1,195 @@
+{
+  "arm": "B",
+  "phase": "warmup",
+  "pair": 1,
+  "clean": false,
+  "started": false,
+  "fresh_failed": null,
+  "fixed_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+  "idle_observations": [
+    {
+      "elapsed_seconds": 1.005641542000376,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 3.0144439169998805,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 5.025383916999999,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 7.0381227920006495,
+      "idle_pct": 6.87,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 9.049112000000605,
+      "idle_pct": 18.9,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 11.05919545800134,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 13.072167250000348,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 15.082073875000788,
+      "idle_pct": 25.8,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 17.093938457999684,
+      "idle_pct": 44.18,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 19.097214208000878,
+      "idle_pct": 73.36,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 21.10600408299979,
+      "idle_pct": 79.77,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 23.116888583001128,
+      "idle_pct": 81.89,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 25.127940708000096,
+      "idle_pct": 84.72,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 27.141204625000682,
+      "idle_pct": 80.04,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 29.147901500000444,
+      "idle_pct": 77.42,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 31.155000124999788,
+      "idle_pct": 63.67,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 33.16437183299968,
+      "idle_pct": 69.41,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 35.16861204199995,
+      "idle_pct": 13.71,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 37.1744642499998,
+      "idle_pct": 2.58,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 39.189253624999765,
+      "idle_pct": 11.68,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 41.202171708000606,
+      "idle_pct": 18.97,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 43.21260629199969,
+      "idle_pct": 62.21,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 45.2251786249999,
+      "idle_pct": 5.09,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 47.230942457999845,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 49.24043187500138,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 51.259055833001185,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 53.266355667001335,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 55.28074354199998,
+      "idle_pct": 0.0,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 57.29181874999995,
+      "idle_pct": 69.38,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 59.29769250000027,
+      "idle_pct": 54.4,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    }
+  ],
+  "idle_pct": 54.4,
+  "paired_idle_gap_pp": null,
+  "idle_gate_passed": false,
+  "error": "host idle admission timed out after 60.00s (30 observations, 0/2 consecutive eligible, last 54.40%, floor 90%, paired gap unpaired, limit 5 pp)"
+}

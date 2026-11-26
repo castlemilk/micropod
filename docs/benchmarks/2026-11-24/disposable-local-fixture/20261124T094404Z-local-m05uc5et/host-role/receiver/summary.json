@@ -1,0 +1,51 @@
+{
+  "schedule_complete": false,
+  "arms": {
+    "A": {
+      "role": "Standard",
+      "admission_attempts": 1,
+      "client_attempts": 1,
+      "clean": 1,
+      "clean_median_MiB_s": 7901.713931982669,
+      "clean_median_by_process": {
+        "vmm": {
+          "cpu_s_per_gib": 0.3465119753216217,
+          "invocation_cpu_s_per_bulk_gib": 0.3433997520624303,
+          "runnable_s_per_s": 3.0073914913300346,
+          "wait_s_per_s": 0.3674347544892233
+        },
+        "relay": {
+          "cpu_s_per_gib": 0.22400313482341208,
+          "invocation_cpu_s_per_bulk_gib": 0.22199123389074693,
+          "runnable_s_per_s": 1.9982875045197204,
+          "wait_s_per_s": 0.29168390358602514
+        }
+      }
+    },
+    "B": {
+      "role": "Interactive",
+      "admission_attempts": 2,
+      "client_attempts": 1,
+      "clean": 1,
+      "clean_median_MiB_s": 6328.493103414642,
+      "clean_median_by_process": {
+        "vmm": {
+          "cpu_s_per_gib": 0.4101401880931675,
+          "invocation_cpu_s_per_bulk_gib": 0.40547375852253,
+          "runnable_s_per_s": 3.0554376337888627,
+          "wait_s_per_s": 0.5531570154408753
+        },
+        "relay": {
+          "cpu_s_per_gib": 0.19686942601104296,
+          "invocation_cpu_s_per_bulk_gib": 0.19462951551760047,
+          "runnable_s_per_s": 1.2759114520990964,
+          "wait_s_per_s": 0.07480372514593615
+        }
+      }
+    }
+  },
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "idle_wait_seconds": 60,
+  "idle_policy": "two consecutive qualifying samples"
+}

@@ -1,0 +1,3823 @@
+{
+  "as_of_utc": "2026-11-25T11:01:29.394258+00:00",
+  "verification": {
+    "rust_workspace_tests_network_build": 24,
+    "rust_workspace_tests_late_vmm": 25,
+    "rust_workspace_tests_async_workspace": 27,
+    "swift_xctest": 38,
+    "swift_testing": 15,
+    "python_tuning_tests": 10,
+    "linux_focused_tests_per_native_backend": 17,
+    "portable_go_race": true,
+    "linux_arm64_vet": true
+  },
+  "host": "Gamma-128GB.local",
+  "phase_checkout": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "frozen_project_sources": {
+    "vmm/Cargo.lock": "b84e57256cddf3dfded35f960bc77d6826d4eff5625a6917a62e8e556eeb11ff",
+    "vmm/Cargo.toml": "5104ffc96cf9fbc2eb4ff4ade29afcb71589f426582582af2f771066cd0cd0c8",
+    "vmm/bin/micropod-vmm/Cargo.toml": "18105782c4c1e3c0f5fb3041afad045c30fea370d265e8a6d80b455e7b05ae89",
+    "vmm/bin/micropod-vmm/src/main.rs": "0a787a67564fa8d317ef1bd1d6c942cf72abf96df56256c7029af6354344972b",
+    "vmm/bin/micropod-vmm/tests/parent_pid.rs": "824fe523889c9a605819e822bd2c436c6d2835c6d659e62cadc4dd21ca6d0f92",
+    "vmm/crates/hvf-sys/Cargo.toml": "34c32ae6f2366c65c88cc75a959dc8d634e407768292fdbcec61fb4ebb46b21e",
+    "vmm/crates/hvf-sys/src/lib.rs": "b9990d1df379f390b87124dea5ac0b3dd7ea24b93954a5ec2ad8c0eaff04e603",
+    "vmm/crates/vmm-core/Cargo.toml": "4d36103d2904782db9b30dd29d14de32e1a1eaa5c728763e27d567c31eec6f62",
+    "vmm/crates/vmm-core/src/boot_clock.rs": "8d3ed1fe833a475e90098cdfc379ff79bf5a700adea92a8a8ec48128bbf3ae7e",
+    "vmm/crates/vmm-core/src/disk.rs": "8e65800897953d47ac1a81c37ac42c6bd501b1bd18cb4a7579072e5cf46726b6",
+    "vmm/crates/vmm-core/src/lib.rs": "a36da954d2bf989b06f39752a5b355daacf136969f12ae17880e142ef5553486",
+    "vmm/crates/vmm-fdt/Cargo.toml": "e8fe986621102571d9976b017664fa6124aa5752a2d7a7b928b6f191424d555f",
+    "vmm/crates/vmm-fdt/src/lib.rs": "523b7ac5878d6b2bdf7ab81a1dde36499540c118b0107ec1db9efa1c6ba671cf",
+    "vmm/crates/vmm-net/Cargo.toml": "48735fa7adc55a501c2ec2b1841ea82ad3163ed020bbeed6cf03923fdc839622",
+    "vmm/crates/vmm-net/src/egress.rs": "a4297fcc780c383a25af5c7c079c12944d460e833a1cc5f97b102bcd4f86e84f",
+    "vmm/crates/vmm-net/src/lib.rs": "72d05989eb06e3ac261ee10adfe936974de92c29c3b40c4851ae8c5f1b82ec96",
+    "vmm/crates/vmm-virtio/Cargo.toml": "6ecaa7b8092cbb14ee8b5e7a13016074ac5afb1356c46bf0301eedb13d5e7009",
+    "vmm/crates/vmm-virtio/src/lib.rs": "b9728893c93cf4c9123fdda9ad5d24fc83774ee62197181db5bd8048de51909d",
+    "vmm/crates/vmm-virtio/src/virtiofs.rs": "d07e4cd805464672e2b1b33ab350c5cc1f1d46bac6226198f19ce181c72fab63",
+    "vmm/crates/vmm-virtio/src/vsock.rs": "cd22046ad86eeed5c96f35a4a2f9df4aa944fe9ee106842ac3941bab48a730b1",
+    "vmm/guest-init/boot_clock.go": "8e578abd719d71935421ec4f8503155e289d92913edcc641961079c35e6db69d",
+    "vmm/guest-init/boot_clock_linux_arm64.go": "82cb88352b6a17668e7e9c0517e656163fa9c9ab8e5d89398d1241a7196bc924",
+    "vmm/guest-init/boot_clock_test.go": "286f279bf9d775c31b3d832283d9e90970ab4848d8ad071e5578dc61004036c7",
+    "vmm/guest-init/main.go": "2dad50451151464d92c1a0d4f92ab3d7b179c6f6849b19d6778333fa7c702e6f",
+    "swift/MicropodRuntime/APIServerClient.swift": "f7fe9cc7446c08ff20d965cd9d722f08232b36aea90afc91c97eb122c2cdd77e",
+    "swift/MicropodRuntime/APIServerProtocol.swift": "5b6a7e9210d1928a984a8337e54600c699a20cdce7a2eeafc8a3dd988dc1768f",
+    "swift/MicropodRuntime/APIServerReads.swift": "33c84341aa68c50a2e83c5a604b07f8229739cac7c9b9e11a8111a08bbbcb087",
+    "swift/MicropodRuntime/CIWorker.swift": "9f7f3c1d2ed72081116e023475b7c799ad06e812e00e64030b35d82e3a35168b",
+    "swift/MicropodRuntime/CIWorkerCPUCount.swift": "3d4bde3012617d6c03d0fa3deffdef497326844ba4bb81fc6c08bdab5c42e535",
+    "swift/MicropodRuntime/CIWorkerMetrics.swift": "50f5ef829dcd7916c8245d99031b2a7ce0b5f35f69b9ad7d607ad906b8b0e6c2",
+    "swift/MicropodRuntime/CIWorkerNetwork.swift": "a8924bde2d822a685cc75fcb3640c037ec9d3664b7af792b2404be4dbcdd3515",
+    "swift/MicropodRuntime/CIWorkerPorts.swift": "cf11bd0fe54107ecf83fc89cc6cf1b1976ff52ed1e248c918e772e73bdf04a79",
+    "swift/MicropodRuntime/CIWorkerService.swift": "e418db018a96ce5c032616e008ad5ae2fc78a471c46ccafcca005d265af60ce5",
+    "swift/MicropodRuntime/ContainerExitWait.swift": "71969cc437e24c197c8e7de19e5f2ec296c6f6d8dfe49d1873beb6885424b96e",
+    "swift/MicropodRuntime/ContainerOperationQueue.swift": "48d222dc0ea61fd17c3ad51d383ba80d3482e6a572308ebb2679819ad6fe11b1",
+    "swift/MicropodRuntime/Engines/DockerClient.swift": "0b120aab7a2d3fc036e87f178ba7b14789e189f7be237057b67be428b9272bf8",
+    "swift/MicropodRuntime/Engines/DockerEngine.swift": "a540a8d56d56a2279dec8f40bd386865d1a81ec07a1b87bfce181ad6c803008e",
+    "swift/MicropodRuntime/Engines/RuntimeEngines.swift": "9b781f4979594b873783949d67955226c57e6211bb3745bfe660888bee1333b7",
+    "swift/MicropodRuntime/Engines/SandboxEngine+SDK.swift": "6367c3169a836744d23d530d99bf8aaefd2927e2e9698cd39e71197f77134bfb",
+    "swift/MicropodRuntime/Engines/SandboxEngine.swift": "d876bd38f39acb50c48206c027e102afe5f4aa337f7a637889bdd30ebe870149",
+    "swift/MicropodRuntime/ExecOutputCollector.swift": "f2131dd0fad9b0cf07163dbfe14bb46dcb8041fab19884b3228108ceb7851328",
+    "swift/MicropodRuntime/ExitCodeRegistry.swift": "fb08ecfbc9e35a1f3abc44041a245be72be125639e92599c276949b2e9b0a20c",
+    "swift/MicropodRuntime/GuestAgent.swift": "2da91947c76906bb5ee3e78d35d177c5be0dbacfff0f87d5bf9aa3ba71edebea",
+    "swift/MicropodRuntime/HVFWorker.swift": "feaeea228b02d6c1cae7174ba7266d71530cfcbf551fa5d0fbb1fb4dd63ef3e6",
+    "swift/MicropodRuntime/ImagesServiceClient.swift": "b7d7967ca46b926c6cd7c83a9abdd36b6b2be04751d39865684f15abf4665f0e",
+    "swift/MicropodRuntime/InFlightCreates.swift": "787e68ba7039c0cfaaa069c25feaef3680c94074c4aee81402bccda0363e4c6f",
+    "swift/MicropodRuntime/NativeConfigBuilder.swift": "5ff09dcea692c157e8f422911e971a4b623f2adb4db93294a4568ab8509192aa",
+    "swift/MicropodRuntime/NativeContainerService.swift": "1aa8c89c5d3913895e2f41bf3d45b3ad949e8f4c65f776f2954f1afd7743de39",
+    "swift/MicropodRuntime/NativeK8sVM.swift": "f4ff410119c646622f3e8d10ee87307339fbf6bd9c5d1d3155d1bc70fa771da2",
+    "swift/MicropodRuntime/NativeLifecycleOperations.swift": "742fef4cf5b3c5068353e9ba4caa43ee86f431456df4e3605f7e65ca64c5c68b",
+    "swift/MicropodRuntime/NativeLogStreamer.swift": "806d2dd3ea12e5e8783a368074e7df136fc41b682a188e51576e8a7f1ad6efc3",
+    "swift/MicropodRuntime/NativeLoopbackRelay.swift": "f4e49ebae5c3aa537108525c561c4c0ea30ed964e599e4e80f6dee1e90130ded",
+    "swift/MicropodRuntime/NativePendingState.swift": "eec2a0feae58366a759449e423ba11f9f3a30e5889f4ac6cf2125eb4ab270eb6",
+    "swift/MicropodRuntime/NativeStatsSampler.swift": "8e763804ca5a499da22006346a94e60e47447bed6fd5a3997f16d27f4da474d6",
+    "swift/MicropodRuntime/NativeVolumeService.swift": "9e15a82bc848d0154518bef839326a77713bd6bcebd827f7eb6c9902ac77ca8c",
+    "swift/MicropodRuntime/RuntimeBackend.swift": "f888a7776c15973fe490fd93e38eaa048b599e7980a857def6febd90f10ebc5b",
+    "swift/MicropodRuntime/RuntimeDTOs.swift": "bda3530f9301e66dfeb12be6e584a87b8bfca355b1585694835f82a76cc462c3",
+    "swift/MicropodRuntime/RuntimeDefaultInitImage.swift": "de9215ecab0c489aa0344199b7f79d25f88ea8cc10888395d29f053732f328d5",
+    "swift/MicropodRuntime/RuntimeDependencyProbe.swift": "840bfa72995200447a1f55abf84b8420b205b2c5829fd527597578634a19921d",
+    "swift/MicropodRuntime/RuntimeLifecycleDriver.swift": "86e3c7926b5ec02e1030a3d988475698e9db4df2df7a9cc35809ff4c406d6af7",
+    "swift/MicropodRuntime/RuntimeLifecycleManager.swift": "564cec8b7fb229b25fb84b953e97bf98c80c82b025950e270b1168bfac2fcbe7",
+    "swift/MicropodRuntime/SandboxCA.swift": "ea1ae5e22877c38ee94eef4ef63b9142a965d2995bfc6079e6ab66663025351d",
+    "swift/MicropodRuntime/SandboxEgress.swift": "3fb51247927262dc02da34422c1b0ec314a4374524ab982d068df95eb618e479",
+    "swift/MicropodRuntime/SandboxForwarding.swift": "c2a23b1cd45248af9fd3870f8e495b004c6d59a84e1882931a005d8fa9421377",
+    "swift/MicropodRuntime/SandboxGuestTool.swift": "35895146bb01ed91baa6e182a96a864edc8a17ee212f4ef115327c42aff49ce5",
+    "swift/MicropodRuntime/SandboxNetwork.swift": "2cf88cd93dd3449c12c4d9b083304d3ca239def7c986180074690c1a813dff7a",
+    "swift/MicropodRuntime/SandboxNetworkAnchor.swift": "89508a64074c0cef6a7794fddffce341802f4de413e98b6ed1c7f81bd66b2019",
+    "swift/MicropodRuntime/SandboxProcesses.swift": "db38fbf8b18165c7e337e170313186dc6ad6739facdaeffdd77c5c5d45d4b9f5",
+    "swift/MicropodRuntime/SandboxSecrets.swift": "dc042e898ce90be13bb04854cdedac72ca505c328e721eec115874d6c18bb1c0",
+    "swift/MicropodRuntime/SandboxVM.swift": "1ef3a7952c29254aa7931ba230743e599fb256238c423a27a8bef88e9708e847",
+    "swift/MicropodRuntime/SandboxVMStop.swift": "c5afa018abfc9611e421957ecb1a4f531e5e449b9a0cde0e2e2ebda8abf3c003",
+    "swift/MicropodRuntime/StartGate.swift": "0d2c569823a3b4afecb9873e528eb3ea02d02fb57ce8855874491a0815795e61",
+    "swift/MicropodRuntime/UnstartedCreates.swift": "1db111643b0ca1537b5a44fae65da7c2f08d76873370c6ee16bbbc29b433b23c",
+    "swift/MicropodRuntime/VsockBridge.swift": "36f06f75953c842cdc3fceb94b225b4bd89941a8d6339685433f87389143f1fc",
+    "swift/MicropodRuntime/XPCChannel.swift": "5eb13d3d0c18b7c7f15b66ab0aa9fa59f2b19aedf5f6b520b8e4b8cb82d80566",
+    "guest/buildkit_linux.go": "9b6dba1a5e29fcf18e5f3f75e43fc1efbb720d4ba01c1bf0f1646e959afaf7d4",
+    "guest/cmd/dontcache/main_linux.go": "899c43784ea713e379e4b8a4b4a454e87e18aebfcafa3abd634dcf9366b43a81",
+    "guest/cmd/dontcache/main_other.go": "a30fe1749a6d48ae1f3c64b29570b8198ce0d2108749d87f46cdbd73cbbc8dcc",
+    "guest/cmd/dontcache/probe.go": "472f9118c13ba4c2c03fbeb947941721de509db334a393738b361cec2c4a5d66",
+    "guest/cmd/dontcache/probe_test.go": "f9a2355b18a04faa5798e1ae4c54bccc6a33c87f21cac2aebf2c41eb4d2b9a77",
+    "guest/cmd/porttrace/main_linux.go": "d6e64ec51160df3951605807b84f03c5f131892a32c1d1e9826b1b253a175669",
+    "guest/cmd/porttrace/main_linux_test.go": "e26a51b12b53e7783114b3ae5c3d9444498df2ce1df59a19ae5106f1814c527a",
+    "guest/cri_log_follow_linux_test.go": "3c9bad0c1a38f2e013aa6ff5261f05cd273c93c1711cb4ed929eea1f8f14eeb6",
+    "guest/cri_log_watch_linux.go": "0594f5f6080f504203f71dcdeeb329e6551ca2019fde473019ffb12e0e1f0cfd",
+    "guest/cri_log_watch_linux_test.go": "5d1af735035ed66cc75f1614aaefdab6a41ede69941cd8170724604153c5bed8",
+    "guest/cri_output_linux_test.go": "8b572ba5bee17884403d8ff4837436c8b893dbe9aebec8d87613e3a5dd2614fc",
+    "guest/docker_config_linux.go": "b1c7e79d5112e5f05138fb0137cd60d2924f806bf111205b1984d84e19f31c1d",
+    "guest/docker_dns_answer.go": "691dcd911a2205ef5e530e027f711dd8953bd4385031b70e068b2503239bb647",
+    "guest/docker_dns_answer_test.go": "e8fb3f69995a9b14dbe1fe2d2b672d690c572f24d4eca95d2c7519b8222bf8b4",
+    "guest/docker_dns_directory.go": "9051a3849143970675017f6dba707131eed1151e9e92fbe5eab67eda0fd41fc2",
+    "guest/docker_dns_directory_test.go": "0310dcf9aaf4e28ca3185dcba374a21fe0ce7c24bf7faff1cb50a66a515c120e",
+    "guest/docker_dns_frame_linux_test.go": "b44e6557374b2fe1ce548333f9f00e19f1e6403cd29cf131b662298b840796dd",
+    "guest/docker_dns_linux.go": "60b9d7fcc72b358fe8366b7b0f8b2cc73ea0a1b13a082821b54015fa077f21a2",
+    "guest/docker_dns_multi_test.go": "f9f2d0cbc03ed62b594c0513f936052fa1b155b187928d8f0694fc01e448b68e",
+    "guest/docker_engine_linux.go": "902e3ca2d05e0273bdc6a6efabb2c90c2236805ad3032b007fd28f634b0445af",
+    "guest/docker_engine_linux_test.go": "6618132032d7bbaeb702ca036d4188ed9b69026f9ee58590dbfe0e8fcd39a046",
+    "guest/docker_exec_linux.go": "3874495c1bf4c686fb752e4f08c6e759296dd87b56a8093a67ab54ec33032990",
+    "guest/docker_http_linux.go": "34f69a3fe58788d58ac217e70cc4a646d2f7a02ad6b603e4f37244222380cf94",
+    "guest/docker_http_linux_test.go": "62b97bc77ee7d9965de681baf26f08ae19f22132024b3579c2bf7d2cde12a863",
+    "guest/docker_image_delete_linux.go": "1dbd9ba5edf2420b5b100f5a15f5d1eeacb7aaf1a336ccec78e24289e2e9af7a",
+    "guest/docker_image_delete_linux_test.go": "b2360ed3d70c01dcbc27f25980d8c50add5b688af119be203af464ecdd5346e4",
+    "guest/docker_image_transfer_linux.go": "4bf0a61823e855ec785ab727cf90bed547e8ea4dd7ef370a61534f5e0690d82e",
+    "guest/docker_job_parent_linux.go": "dcd1c4052ec8fb2eeccafd6e6a01833d80e8e617a94aa2e9339491f6f1308701",
+    "guest/docker_lifecycle_linux.go": "8a66970c411db44a286ddc7df15310402e0dde35d4dedb8d338c639e377285ef",
+    "guest/docker_lifecycle_linux_test.go": "ab63794338eb57170f5e3ef810db81d3ceb128fed9331909a6c0b4ead0a93ed5",
+    "guest/docker_links_linux.go": "ca4c06b2bb506e19c9996680461289b05513ed2c4290e147179825fe5205f8c8",
+    "guest/docker_metrics_linux.go": "3244709291205376ea4508c681bbc8131ab80b2472505d1abe53e94c752559f3",
+    "guest/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228",
+    "guest/docker_networks_linux.go": "7fed4276f9223a56a1264fc53a715d57ae4f0c85f38724e0cc9d5a3427a86369",
+    "guest/docker_networks_linux_test.go": "a33b01f3314d9ace536cfaa142c4bc388d20385635ec163631fefc62465629fe",
+    "guest/docker_offline_linux.go": "f7d9996935096961ffef4a7639b018769fe29e1ad1558154213e58f3d7b6c817",
+    "guest/docker_port_direct_linux.go": "c7f24e94e3f384cb8c8159f2ccfa64e2a8b939126fc5449f6fc99abab8276687",
+    "guest/docker_port_direct_linux_test.go": "08b534735194c48d55d8c0e7a0e05e93ce02f78b78513997ee1c50c1fabe9719",
+    "guest/docker_port_nat_linux.go": "6bd00ace83f05a0ae98a37bdd58d3352e94dbd831b2a91c8c47b77d50ec9ef3a",
+    "guest/docker_port_nat_linux_test.go": "a24b40686ebe214f2680a880dfdc46df58fa06473a75acb9974896d0d02506af",
+    "guest/docker_ports.go": "cdb2fa62cf023c52ab8170cb45ed975f96014649345c62fdba2d29cde4885b23",
+    "guest/docker_ports_linux.go": "cf529dab81afecc4ac18348f6563a149725603128c3ed99d6d8b988eedd5229f",
+    "guest/docker_ports_test.go": "f8f1c923dfb85ee297bd0063cfa220cc5fa9cf23ab9afc81100163e3982818dc",
+    "guest/docker_reaper_linux.go": "18187d2b649e5636d748f937f3942310314b02be00404948d274ecbb36ef09c9",
+    "guest/docker_rootfs.go": "7e82ab9e46d1995994812dc34debf8a8ff623ca5b2e21c27e513cbb3df7bd097",
+    "guest/docker_rootfs_linux.go": "91ea059a93a05cc13c97dec5830b3499f17db1eafd32ef89d5375ce5b3491fb6",
+    "guest/docker_rootfs_linux_test.go": "478d7893ccf7781959c6dc6877ff51fd78dd2f8f9391c1cda3d4584dd0572d2b",
+    "guest/docker_rootfs_test.go": "a8cfd441a7e7de02ec3e60db4fcd7ef647a727be0fdf91b15bd86378a4a45cff",
+    "guest/docker_stats_linux.go": "807a5ac9263d79ec0708a8dba0beea63de3c9af6da25359bd7d61c168a1589d3",
+    "guest/docker_stream_frames.go": "4fa5319e3294b0c335f9543bbbbc5315eb9497ef8f6dd7451e2e70229c408f2e",
+    "guest/docker_stream_frames_test.go": "a41cf6540f942261d3b373b7ec7c173c924ac865851202c8a42d36e3afd7470e",
+    "guest/docker_volumes_linux.go": "6ae4fde65af4f129cf39bd108db40651bb9a1f87e4bdd0bf8031f1bdb9284a85",
+    "guest/main_linux.go": "e8818a6538077436c698eb9000b976dba0d5e27d281b5acdc8fed452148d6c1f",
+    "guest/main_linux_test.go": "f10bb0b4a39684e96a299f5def20891d37e069669288c363005485a2fc5888e2",
+    "guest/netavark_bench_linux_test.go": "f5f1bb70435d3ffecc0f0f702cfad5c15ad8d687819ba632c704dbd94658640a",
+    "guest/output_linux.go": "95366dccae8b1ed6a7652a811965753da32e6a00552ce4d160ecaadd22d9f94e",
+    "guest/rootless_linux.go": "be8eaf3fc2c2bc0e2b1c7986e3b64c4869c144d4971621972b2aa4dd2aafae65",
+    "guest/standby_linux.go": "20ad393daa2162c570ab2dd2abd8c6a8b67129d3fe97429ad6f7d2b3d4fa122d",
+    "guest/testdata/published-service.go": "2295f0200e72ae70484b201cd5b4891c4a0ac7c033e4326aca51dcf9e68e2971",
+    "guest/start.sh": "236e9718b902e4810d3f604d3dfc9e9dbb2d771640485726faeb6bc6283c8384",
+    "guest/published-ports.sh": "719b2e856a508aad799d455086f3a9ed8649a61ef643beedb412544dc6d06c27"
+  },
+  "outer_checkout": "f43553d4544af0d54756eca542462d4235b5859d",
+  "source_sha256": {
+    "phase0/guest/runner/docker_rootfs_linux.go": "91ea059a93a05cc13c97dec5830b3499f17db1eafd32ef89d5375ce5b3491fb6",
+    "phase0/guest/runner/docker_rootfs.go": "7e82ab9e46d1995994812dc34debf8a8ff623ca5b2e21c27e513cbb3df7bd097",
+    "phase0/guest/runner/docker_rootfs_test.go": "a8cfd441a7e7de02ec3e60db4fcd7ef647a727be0fdf91b15bd86378a4a45cff",
+    "phase0/guest/runner/docker_rootfs_linux_test.go": "478d7893ccf7781959c6dc6877ff51fd78dd2f8f9391c1cda3d4584dd0572d2b",
+    "phase0/guest/runner/docker_lifecycle_linux.go": "8a66970c411db44a286ddc7df15310402e0dde35d4dedb8d338c639e377285ef",
+    "phase0/guest/runner/docker_lifecycle_linux_test.go": "ab63794338eb57170f5e3ef810db81d3ceb128fed9331909a6c0b4ead0a93ed5",
+    "phase0/guest/runner/docker_engine_linux.go": "902e3ca2d05e0273bdc6a6efabb2c90c2236805ad3032b007fd28f634b0445af",
+    "phase0/guest/runner/docker_config_linux.go": "b1c7e79d5112e5f05138fb0137cd60d2924f806bf111205b1984d84e19f31c1d",
+    "phase0/guest/runner/docker_links_linux.go": "ca4c06b2bb506e19c9996680461289b05513ed2c4290e147179825fe5205f8c8",
+    "phase0/guest/runner/docker_networks_linux.go": "7fed4276f9223a56a1264fc53a715d57ae4f0c85f38724e0cc9d5a3427a86369",
+    "phase0/guest/runner/docker_http_linux.go": "34f69a3fe58788d58ac217e70cc4a646d2f7a02ad6b603e4f37244222380cf94",
+    "phase0/guest/runner/main_linux.go": "e8818a6538077436c698eb9000b976dba0d5e27d281b5acdc8fed452148d6c1f",
+    "phase0/Sources/MicropodRuntime/HVFWorker.swift": "feaeea228b02d6c1cae7174ba7266d71530cfcbf551fa5d0fbb1fb4dd63ef3e6",
+    "phase0/Sources/MicropodRuntime/CIWorker.swift": "9f7f3c1d2ed72081116e023475b7c799ad06e812e00e64030b35d82e3a35168b",
+    "phase0/Sources/MicropodRuntime/Engines/RuntimeEngines.swift": "9b781f4979594b873783949d67955226c57e6211bb3745bfe660888bee1333b7",
+    "phase0/Sources/MicropodRuntime/Engines/DockerClient.swift": "0b120aab7a2d3fc036e87f178ba7b14789e189f7be237057b67be428b9272bf8",
+    "phase0/Sources/MicropodRuntime/Engines/SandboxEngine+SDK.swift": "6367c3169a836744d23d530d99bf8aaefd2927e2e9698cd39e71197f77134bfb",
+    "phase0/Sources/MicropodRuntime/Engines/SandboxEngine.swift": "d876bd38f39acb50c48206c027e102afe5f4aa337f7a637889bdd30ebe870149",
+    "phase0/Sources/MicropodRuntime/Engines/DockerEngine.swift": "a540a8d56d56a2279dec8f40bd386865d1a81ec07a1b87bfce181ad6c803008e",
+    "phase0/scripts/workspacebench/main.go": "8c6656236619ae66fc1b50d1b50922e2a9063b90f48daf46c689ae3e82f71294",
+    "phase0/scripts/netbench/main.go": "54dd2d8593151d1d618c215a2f8e804a7e84404243f55ea30dbda556a42fbf8d",
+    "phase0/scripts/bench_engine_tuning.py": "8a6d4c73ea0a1d6d867b1b739897ddd5f2a3237afc5c408a172c0223d27cbbeb",
+    "phase0/scripts/bench_workspace_edits.py": "ce7c5968cb705486b670c2dbd8dcd60b854642946c72dc720bf502405912c6b7",
+    "phase0/scripts/qualify_docker_restart.py": "cbd6f701fc698513f8708e0113eef86f720f8c643578fece19a09db8cb38a23e",
+    "phase0/scripts/sibling_dense_load.py": "8b97d4c2a68079b5a42fe5eb550100e1f8892bb9a67af6a07ad4eab6cd637b10",
+    "outer/vmm/crates/vmm-virtio/src/virtiofs.rs": "d07e4cd805464672e2b1b33ab350c5cc1f1d46bac6226198f19ce181c72fab63",
+    "outer/vmm/crates/vmm-core/src/lib.rs": "a36da954d2bf989b06f39752a5b355daacf136969f12ae17880e142ef5553486",
+    "outer/vmm/bin/micropod-vmm/src/main.rs": "0a787a67564fa8d317ef1bd1d6c942cf72abf96df56256c7029af6354344972b",
+    "outer/vmm/bin/micropod-vmm/tests/parent_pid.rs": "824fe523889c9a605819e822bd2c436c6d2835c6d659e62cadc4dd21ca6d0f92"
+  },
+  "release_binaries_sha256": {
+    "vmm-source-bin": "52153daa88bd215582f3477780c9f3a0cb481c3a4ba8b9893d38f5712ac7a3eb",
+    "Image-b4": "ec3297f36d9a8d9e14b9804d327a63cc1ba11118468845ddf6dbc4f97e79084b",
+    "initrd": "68c92b634f0ce4c97460d65c338ff7b27a9e0350689cea72ed8c4c6f07e40bf5",
+    "tools-source/runner/bin/job": "2849e26e9867d9fc1f6b01090ae3334cbd351cf623f5c32c8127f48f076a5182",
+    "micropod-source": "2f3224883705787868a4fa9aa3def6e82d779129c94d9a025c98b1bbd56743ee",
+    "worker_start_script": "236e9718b902e4810d3f604d3dfc9e9dbb2d771640485726faeb6bc6283c8384"
+  },
+  "matched_guest_policy": "mp.boot_realtime_ns=1795603508653330000 quiet console=ttyAMA0 rcupdate.rcu_expedited=1 psi=1 cgroup.memory=nokmem,nosocket slab_min_order=2 swiotlb=noforce workqueue.power_efficient=1 micropod.ci_sched=hrtick-250us micropod.ci_wakeup=next-buddy,sync-colocate micropod.ci_sysctls=perf micropod.ci_cc=cubic mp.worker=216D21A4-C375-43BB-8DCE-6F5FC456F3F0 mp.instance=7F06491F-8A17-4339-A85F-A22B4D33B966 mp.mtu=9000 mp.workspace=/private/tmp/mp-wsf-klnrvcq1/home/fixture panic=-1\ncubic\nreno bbr cubic\n",
+  "immutable_fixture": {
+    "archive_sha256": "9a23e438e1b1114171c93e0794080571eb2943dddb75f1270dd528324dd5be92",
+    "base": {
+      "config_digest": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856",
+      "tag": "alpine:3.23"
+    },
+    "binaries": {
+      "/mpw/compile": {
+        "sha256": "fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68",
+        "size": 24254837
+      },
+      "/mpw/netbench-linux": {
+        "sha256": "67fbc0eddccbf66d07cde228abee23dbb7c5a918926f4278a73edd8898213261",
+        "size": 9944549
+      },
+      "/mpw/quiet-http": {
+        "sha256": "dc212c1fe2ed9878302f88e1f35e588057a44837e015647af8e5b75a570a1f57",
+        "size": 9293061
+      }
+    },
+    "config_digest": "sha256:b800c38674459f194c75ea498f0f15d69cd5c937946bbc107985b80da249cd31",
+    "layers": [
+      {
+        "diff_id": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+        "digest": "sha256:0aeae9e5c96856ad8a51ac2a81bf4ce73766c2199992b92fd9302dd7ec7a38de",
+        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "size": 4190221
+      },
+      {
+        "diff_id": "sha256:6bc5c6d3f5ef654d948cbb1da0fbecc324fcf184ee1a46ecaf2233a92e33192c",
+        "digest": "sha256:b4f3d6a22f4f44e446e22896a19ed74fd28b76f60fe4953a10b5d2817dd8e431",
+        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "size": 18030884
+      }
+    ],
+    "manifest_digest": "sha256:032c81233018e1a11b101bf5d6a1f54e64a94d3e26cf9455c00b452b5d34328c",
+    "owner": "mp-opt-gamma-ptm9p92c",
+    "platform": {
+      "architecture": "arm64",
+      "os": "linux",
+      "variant": "v8"
+    },
+    "tag": "micropod-qa/staged-probes:ptm9p92c-b800c38674459f19"
+  },
+  "workspace_probe_sha256": "58afd65d14d264bf0c72303b581e70cef54bc44754e060cfa09da93c800ae793",
+  "kernel_config_sha256": "5278069144e928ffc0d0d2939696c6ba565c8c4d5c272fd12a677e40c83a5916",
+  "network": {
+    "cc-first": {
+      "pairs": 4,
+      "candidate_wins": 4,
+      "median_paired_gain_pct": 38.84,
+      "per_pair_gain_pct": [
+        37.8,
+        44.02,
+        39.88,
+        36.97
+      ],
+      "engines": {
+        "bbr": {
+          "sibling_6gib_bulk_mibs": 19376.2,
+          "quiet_unrestricted_p50_us": 33.585,
+          "quiet_unrestricted_p95_us": 57.875,
+          "quiet_pinned_p50_us": 12.315,
+          "dns1_p95_us": 52.0,
+          "dns32_p95_us": 362.5,
+          "socket_cc": [
+            "bbr"
+          ],
+          "socket_evidence": "probe verified requested algorithm"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 26781.3,
+          "quiet_unrestricted_p50_us": 30.645,
+          "quiet_unrestricted_p95_us": 54.415,
+          "quiet_pinned_p50_us": 12.77,
+          "dns1_p95_us": 53.0,
+          "dns32_p95_us": 386.0,
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "probe verified requested algorithm"
+        }
+      },
+      "initial_host": "CPU usage: 6.36% user, 4.88% sys, 88.74% idle"
+    },
+    "current-dense": {
+      "pairs": 4,
+      "candidate_wins": 1,
+      "median_paired_gain_pct": -31.07,
+      "per_pair_gain_pct": [
+        -42.31,
+        -41.61,
+        27.78,
+        -20.52
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 10679.85,
+          "quiet_unrestricted_p50_us": 15.645,
+          "quiet_unrestricted_p95_us": 38.17,
+          "quiet_pinned_p50_us": 12.5,
+          "dns1_p95_us": 42.5,
+          "dns32_p95_us": 2627.0,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            702,
+            693,
+            664,
+            658
+          ],
+          "rate_bounds_by_arm": [
+            [
+              115.02,
+              235.37
+            ],
+            [
+              111.73,
+              220.16
+            ],
+            [
+              78.02,
+              166.7
+            ],
+            [
+              123.35,
+              226.65
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 7537.65,
+          "quiet_unrestricted_p50_us": 23.5,
+          "quiet_unrestricted_p95_us": 79.5,
+          "quiet_pinned_p50_us": 18.48,
+          "dns1_p95_us": 123.5,
+          "dns32_p95_us": 1453.5,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            305,
+            294,
+            332,
+            322
+          ],
+          "rate_bounds_by_arm": [
+            [
+              71.97,
+              95.69
+            ],
+            [
+              64.57,
+              86.44
+            ],
+            [
+              107.33,
+              142.07
+            ],
+            [
+              108.87,
+              140.47
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 30.59% user, 35.85% sys, 33.54% idle"
+    },
+    "current-image-dense": {
+      "pairs": 4,
+      "candidate_wins": 0,
+      "median_paired_gain_pct": -11.66,
+      "per_pair_gain_pct": [
+        -4.86,
+        -12.34,
+        -10.97,
+        -33.94
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 9492.25,
+          "quiet_unrestricted_p50_us": 15.52,
+          "quiet_unrestricted_p95_us": 33.875,
+          "quiet_pinned_p50_us": 16.02,
+          "dns1_p95_us": 74.0,
+          "dns32_p95_us": 2606.5,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            669,
+            688,
+            649,
+            662
+          ],
+          "rate_bounds_by_arm": [
+            [
+              117.44,
+              237.65
+            ],
+            [
+              94.27,
+              194.23
+            ],
+            [
+              101.66,
+              200.46
+            ],
+            [
+              104.32,
+              216.55
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 7131.8,
+          "quiet_unrestricted_p50_us": 18.83,
+          "quiet_unrestricted_p95_us": 99.125,
+          "quiet_pinned_p50_us": 14.6,
+          "dns1_p95_us": 115.0,
+          "dns32_p95_us": 1358.0,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            457,
+            427,
+            456,
+            434
+          ],
+          "rate_bounds_by_arm": [
+            [
+              135.11,
+              199.72
+            ],
+            [
+              107.91,
+              154.25
+            ],
+            [
+              108.65,
+              154.06
+            ],
+            [
+              108.03,
+              151.95
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 2.79% user, 2.50% sys, 94.69% idle"
+    },
+    "current-quiet-scored": {
+      "pairs": 6,
+      "candidate_wins": 6,
+      "median_paired_gain_pct": 6.85,
+      "per_pair_gain_pct": [
+        4.95,
+        3.95,
+        8.75,
+        1.66,
+        10.44,
+        11.91
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 24832.25,
+          "quiet_unrestricted_p50_us": 12.58,
+          "quiet_unrestricted_p95_us": 23.54,
+          "quiet_pinned_p50_us": 11.48,
+          "dns1_p95_us": 35.5,
+          "dns32_p95_us": 653.0,
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 26631.25,
+          "quiet_unrestricted_p50_us": 31.42,
+          "quiet_unrestricted_p95_us": 56.71,
+          "quiet_pinned_p50_us": 13.125,
+          "dns1_p95_us": 49.5,
+          "dns32_p95_us": 376.0,
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 3.2% user, 4.84% sys, 92.13% idle"
+    },
+    "dense-cache": {
+      "pairs": 4,
+      "candidate_wins": 3,
+      "median_paired_gain_pct": 2.1,
+      "per_pair_gain_pct": [
+        2.68,
+        1.53,
+        2.87,
+        -7.09
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 11312.35,
+          "quiet_unrestricted_p50_us": 14.165,
+          "quiet_unrestricted_p95_us": 25.35,
+          "quiet_pinned_p50_us": 11.875,
+          "dns1_p95_us": 68.0,
+          "dns32_p95_us": 1835.5,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            690,
+            685,
+            689,
+            685
+          ],
+          "rate_bounds_by_arm": [
+            [
+              125.36,
+              226.0
+            ],
+            [
+              118.84,
+              234.17
+            ],
+            [
+              126.29,
+              230.74
+            ],
+            [
+              123.55,
+              233.41
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 11611.05,
+          "quiet_unrestricted_p50_us": 15.855,
+          "quiet_unrestricted_p95_us": 76.54,
+          "quiet_pinned_p50_us": 13.605,
+          "dns1_p95_us": 26.5,
+          "dns32_p95_us": 978.0,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            412,
+            420,
+            433,
+            439
+          ],
+          "rate_bounds_by_arm": [
+            [
+              156.86,
+              207.04
+            ],
+            [
+              155.49,
+              215.58
+            ],
+            [
+              153.79,
+              218.47
+            ],
+            [
+              158.46,
+              218.13
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 4.50% user, 3.1% sys, 92.48% idle"
+    },
+    "dense-paired": {
+      "pairs": 4,
+      "candidate_wins": 1,
+      "median_paired_gain_pct": -12.33,
+      "per_pair_gain_pct": [
+        -17.31,
+        -9.63,
+        -15.03,
+        8.59
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 11477.25,
+          "quiet_unrestricted_p50_us": 13.63,
+          "quiet_unrestricted_p95_us": 25.835,
+          "quiet_pinned_p50_us": 13.0,
+          "dns1_p95_us": 43.0,
+          "dns32_p95_us": 2196.0,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            689,
+            658,
+            685,
+            681
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 10188.9,
+          "quiet_unrestricted_p50_us": 22.625,
+          "quiet_unrestricted_p95_us": 94.27,
+          "quiet_pinned_p50_us": 14.56,
+          "dns1_p95_us": 75.5,
+          "dns32_p95_us": 1063.0,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            323,
+            320,
+            306,
+            309
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 2.83% user, 2.78% sys, 94.37% idle"
+    },
+    "dense-placement-accepted": {
+      "pairs": 4,
+      "candidate_wins": 2,
+      "median_paired_gain_pct": 3.97,
+      "per_pair_gain_pct": [
+        -14.1,
+        27.38,
+        9.48,
+        -1.54
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 8339.5,
+          "quiet_unrestricted_p50_us": 20.285,
+          "quiet_unrestricted_p95_us": 54.395,
+          "quiet_pinned_p50_us": 17.18,
+          "dns1_p95_us": 106.0,
+          "dns32_p95_us": 2481.5,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            618,
+            578,
+            601,
+            579
+          ],
+          "rate_bounds_by_arm": [
+            [
+              92.43,
+              181.04
+            ],
+            [
+              76.86,
+              169.8
+            ],
+            [
+              91.55,
+              190.24
+            ],
+            [
+              84.19,
+              171.43
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 8528.8,
+          "quiet_unrestricted_p50_us": 29.69,
+          "quiet_unrestricted_p95_us": 61.67,
+          "quiet_pinned_p50_us": 15.645,
+          "dns1_p95_us": 44.5,
+          "dns32_p95_us": 945.0,
+          "compiling_containers_per_arm": 32,
+          "all_compilers_advanced": true,
+          "completed_compiles_by_arm": [
+            229,
+            255,
+            222,
+            216
+          ],
+          "rate_bounds_by_arm": [
+            [
+              69.18,
+              91.47
+            ],
+            [
+              93.01,
+              124.84
+            ],
+            [
+              75.36,
+              95.05
+            ],
+            [
+              61.49,
+              82.48
+            ]
+          ],
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 11.70% user, 5.82% sys, 82.47% idle"
+    },
+    "direct-first": {
+      "pairs": 6,
+      "candidate_wins": 6,
+      "median_paired_gain_pct": 6.25,
+      "per_pair_gain_pct": [
+        7.74,
+        4.75,
+        8.86,
+        5.57,
+        6.94,
+        4.78
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 24754.2,
+          "quiet_unrestricted_p50_us": 12.355,
+          "quiet_unrestricted_p95_us": 24.29,
+          "quiet_pinned_p50_us": 11.31,
+          "dns1_p95_us": 34.5,
+          "dns32_p95_us": 825.0,
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 26260.05,
+          "quiet_unrestricted_p50_us": 36.415,
+          "quiet_unrestricted_p95_us": 59.33,
+          "quiet_pinned_p50_us": 12.27,
+          "dns1_p95_us": 53.0,
+          "dns32_p95_us": 425.0,
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 2.59% user, 2.50% sys, 94.90% idle"
+    },
+    "network-quiet-retry": {
+      "pairs": 6,
+      "candidate_wins": 5,
+      "median_paired_gain_pct": 5.75,
+      "per_pair_gain_pct": [
+        8.91,
+        6.91,
+        13.69,
+        4.58,
+        -4.45,
+        4.0
+      ],
+      "engines": {
+        "orbstack": {
+          "sibling_6gib_bulk_mibs": 24352.3,
+          "quiet_unrestricted_p50_us": 12.125,
+          "quiet_unrestricted_p95_us": 18.355,
+          "quiet_pinned_p50_us": 11.5,
+          "dns1_p95_us": 33.5,
+          "dns32_p95_us": 711.0,
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        },
+        "cubic": {
+          "sibling_6gib_bulk_mibs": 26550.75,
+          "quiet_unrestricted_p50_us": 34.0,
+          "quiet_unrestricted_p95_us": 57.085,
+          "quiet_pinned_p50_us": 12.94,
+          "dns1_p95_us": 50.0,
+          "dns32_p95_us": 388.0,
+          "socket_cc": [
+            "cubic"
+          ],
+          "socket_evidence": "all 32 accepted-socket values"
+        }
+      },
+      "initial_host": "CPU usage: 2.93% user, 2.64% sys, 94.42% idle"
+    }
+  },
+  "workspace": {
+    "ws-before": {
+      "complete": false,
+      "median_host_to_guest_ack_ms": {
+        "size": 1002.856,
+        "held": null,
+        "replace": null,
+        "unlink": 1001.976
+      },
+      "samples": {
+        "size": {
+          "observed": 4
+        },
+        "held": {
+          "timeout": 4
+        },
+        "replace": {
+          "old-handle-changed": 4
+        },
+        "unlink": {
+          "observed": 4
+        }
+      },
+      "max_observed_ms": {
+        "size": 1003.31,
+        "held": null,
+        "replace": null,
+        "unlink": 1003.587
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 3.499,
+          "read_ms": 26.946,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 4.66,
+          "read_ms": 48.221,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 5.811,
+          "read_ms": 48.661,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    },
+    "ws-reference": {
+      "complete": false,
+      "median_host_to_guest_ack_ms": {
+        "size": 2.277,
+        "held": 95.891,
+        "replace": null,
+        "unlink": 95.506
+      },
+      "samples": {
+        "size": {
+          "observed": 6
+        },
+        "held": {
+          "observed": 6
+        },
+        "replace": {
+          "old-handle-changed": 6
+        },
+        "unlink": {
+          "observed": 6
+        }
+      },
+      "max_observed_ms": {
+        "size": 5.261,
+        "held": 314.456,
+        "replace": null,
+        "unlink": 106.481
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 2.38,
+          "read_ms": 10.082,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 3.066,
+          "read_ms": 6.551,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 1.957,
+          "read_ms": 6.525,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    },
+    "ws-final": {
+      "complete": true,
+      "median_host_to_guest_ack_ms": {
+        "size": 10.656,
+        "held": 11.632,
+        "replace": 2.264,
+        "unlink": 11.916
+      },
+      "samples": {
+        "size": {
+          "observed": 6
+        },
+        "held": {
+          "observed": 6
+        },
+        "replace": {
+          "observed": 6
+        },
+        "unlink": {
+          "observed": 6
+        }
+      },
+      "max_observed_ms": {
+        "size": 11.516,
+        "held": 12.465,
+        "replace": 2.33,
+        "unlink": 12.753
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 4.795,
+          "read_ms": 108.461,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 10.84,
+          "read_ms": 69.953,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 3.676,
+          "read_ms": 31.04,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    },
+    "current-workspace": {
+      "complete": true,
+      "median_host_to_guest_ack_ms": {
+        "size": 11.351,
+        "held": 12.014,
+        "replace": 1.868,
+        "unlink": 9.683
+      },
+      "samples": {
+        "size": {
+          "observed": 6
+        },
+        "held": {
+          "observed": 6
+        },
+        "replace": {
+          "observed": 6
+        },
+        "unlink": {
+          "observed": 6
+        }
+      },
+      "max_observed_ms": {
+        "size": 12.617,
+        "held": 12.501,
+        "replace": 2.29,
+        "unlink": 12.321
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 5.151,
+          "read_ms": 51.392,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 4.741,
+          "read_ms": 51.898,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 6.584,
+          "read_ms": 53.281,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    },
+    "async-workspace": {
+      "complete": true,
+      "median_host_to_guest_ack_ms": {
+        "size": 11.463,
+        "held": 11.669,
+        "replace": 2.275,
+        "unlink": 9.969
+      },
+      "samples": {
+        "size": {
+          "observed": 6
+        },
+        "held": {
+          "observed": 6
+        },
+        "replace": {
+          "observed": 6
+        },
+        "unlink": {
+          "observed": 6
+        }
+      },
+      "max_observed_ms": {
+        "size": 12.069,
+        "held": 13.539,
+        "replace": 2.499,
+        "unlink": 12.649
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 5.504,
+          "read_ms": 51.404,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 5.351,
+          "read_ms": 50.651,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 5.458,
+          "read_ms": 47.998,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    }
+  },
+  "docker_lifecycle": {
+    "docker-hvf-release": {
+      "docker": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files",
+        "graceful_restart",
+        "clean_stop_exit"
+      ],
+      "compose": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files"
+      ],
+      "readonly": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "readonly_root"
+      ],
+      "image_id": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856",
+      "micropod_restart": {
+        "id": "515f44c695db4077dbef42a95e42a171bfd9ebd3a03bfbadcc3d6212827be8d7",
+        "first": "2026-11-25T10:36:37.280238542Z",
+        "second": "2026-11-25T10:36:47.434580214Z",
+        "marker_retained": true
+      },
+      "linux_tests_passed": 17
+    },
+    "docker-vz-release": {
+      "docker": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files",
+        "graceful_restart",
+        "clean_stop_exit"
+      ],
+      "compose": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files"
+      ],
+      "readonly": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "readonly_root"
+      ],
+      "image_id": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856",
+      "micropod_restart": {
+        "id": "d0480ee1fb1c21a3d8a54e164e1b196a8f390d31192a5259b51b744b22f55752",
+        "first": "2026-11-25T10:37:01.491033709Z",
+        "second": "2026-11-25T10:37:11.731884422Z",
+        "marker_retained": true
+      },
+      "linux_tests_passed": 17
+    },
+    "current-hvf": {
+      "docker": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files",
+        "graceful_restart",
+        "clean_stop_exit"
+      ],
+      "compose": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files"
+      ],
+      "readonly": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "readonly_root"
+      ],
+      "image_id": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856",
+      "micropod_restart": {
+        "id": "642dccba51d8a7d2ebcc9508d4c6bd319c8b5e37233f87bb92dc08cb5deaee5d",
+        "first": "2026-11-25T10:45:12.858045959Z",
+        "second": "2026-11-25T10:45:23.035841298Z",
+        "marker_retained": true
+      },
+      "linux_tests_passed": 17
+    },
+    "current-vz": {
+      "docker": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files",
+        "graceful_restart",
+        "clean_stop_exit"
+      ],
+      "compose": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files"
+      ],
+      "readonly": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "readonly_root"
+      ],
+      "image_id": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856",
+      "micropod_restart": {
+        "id": "051a0e6d6f1a0884d72f65886a70632f82ed667c3fcc173f907113e0c267d285",
+        "first": "2026-11-25T10:45:37.653708043Z",
+        "second": "2026-11-25T10:45:47.871717756Z",
+        "marker_retained": true
+      },
+      "linux_tests_passed": 17
+    },
+    "restart-orb-pid": {
+      "docker": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files",
+        "graceful_restart",
+        "clean_stop_exit"
+      ],
+      "compose": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "entrypoint_is_pid_1",
+        "writable_file_contents",
+        "file_mode_owner_group_mtime",
+        "hard_link_and_symlink",
+        "deleted_and_renamed_lower_files"
+      ],
+      "readonly": [
+        "stable_container_id",
+        "new_process_timestamp",
+        "readonly_root"
+      ],
+      "image_id": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2"
+    }
+  },
+  "pid1": {
+    "pid-before": {
+      "orbstack": "entrypoint PID: 1\nPID1 command: sh\npid1 affinity: 2-3\nshell affinity: 2-3\n/sys/fs/cgroup/cpuset.cpus 2-3\n/sys/fs/cgroup/cpuset.cpus.effective 2-3\n/sys/fs/cgroup/cpu.max 6250 100000\ntaskset: limit to CPU0: ",
+      "micropod": "entrypoint PID: 3\nPID1 command: pause\npid1 affinity: 0-3\nshell affinity: 2-3\n/sys/fs/cgroup/cpuset.cpus 2-3\n/sys/fs/cgroup/cpuset.cpus.effective 2-3\n/sys/fs/cgroup/cpu.max 6250 100000\ntaskset: limit to CPU0: "
+    },
+    "pid-after": {
+      "orbstack": "entrypoint PID: 1\nPID1 command: sh\npid1 affinity: 2-3\nshell affinity: 2-3\n/sys/fs/cgroup/cpuset.cpus 2-3\n/sys/fs/cgroup/cpuset.cpus.effective 2-3\n/sys/fs/cgroup/cpu.max 6250 100000\ntaskset: limit to CPU0: ",
+      "micropod": "entrypoint PID: 1\nPID1 command: sh\npid1 affinity: 2-3\nshell affinity: 2-3\n/sys/fs/cgroup/cpuset.cpus 2-3\n/sys/fs/cgroup/cpuset.cpus.effective 2-3\n/sys/fs/cgroup/cpu.max 6250 100000\ntaskset: limit to CPU0: "
+    }
+  },
+  "recovery": {
+    "recovery-before": {
+      "container": "fe44299ec6c2c70c1ccf2d2cc7252d9c951d6ab9a62b267e0c96ecb913200292",
+      "original_instance": "5452D2D1-F06E-41F3-B3F5-FE5D8DD4998F",
+      "after_clean_stop": {
+        "instance": "8F8261CC-501F-4308-B79D-B099F198D531",
+        "same_id": true,
+        "marker_matches": true
+      },
+      "supervisor_loss": {
+        "exit": -9,
+        "original_disk_holders": [
+          30918
+        ],
+        "orphan_disk_holders_after_3s": [
+          30918
+        ],
+        "required_test_cleanup": true
+      },
+      "recovered_state": "dead -1",
+      "after_supervisor_loss": {
+        "instance": "A5F2A719-9202-46D5-A228-0695C4E36F44",
+        "same_id": true,
+        "both_markers_match": true
+      },
+      "leftovers": ""
+    },
+    "recovery-parent": {
+      "container": "872245cb36e7d81b0b4af64d238101e8d568d71df20f5540da3de37af9ff7506",
+      "original_instance": "4C610E2C-E91A-467B-B17B-DD08E46633E0",
+      "after_clean_stop": {
+        "instance": "85CCB7AB-6D5F-4A5A-B771-D132D062BD01",
+        "same_id": true,
+        "marker_matches": true
+      },
+      "supervisor_loss": {
+        "exit": -9,
+        "original_disk_holders": [
+          63338
+        ],
+        "orphan_disk_holders_after_3s": []
+      },
+      "recovered_state": "dead -1",
+      "after_supervisor_loss": {
+        "instance": "7B8CFF23-A129-42F0-903D-C7FD37756E9D",
+        "same_id": true,
+        "both_markers_match": true
+      },
+      "leftovers": ""
+    },
+    "reboot-release": {
+      "container": "17bf3b1e6396d2260708a574136815023920679f3ddb23a513a99d46780730a8",
+      "original_instance": "81FA6E11-3886-4C10-B715-0C5F8555261B",
+      "after_clean_stop": {
+        "instance": "002CE0A1-4695-4E1D-BC2A-AC185F8D48D4",
+        "same_id": true,
+        "marker_matches": true
+      },
+      "supervisor_loss": {
+        "exit": -9,
+        "original_disk_holders": [
+          12614
+        ],
+        "orphan_disk_holders_after_3s": []
+      },
+      "recovered_state": "dead -1",
+      "after_supervisor_loss": {
+        "instance": "1C08F2E2-06C4-4775-A6BA-8384697E726A",
+        "same_id": true,
+        "both_markers_match": true
+      },
+      "leftovers": ""
+    },
+    "current-recovery": {
+      "container": "c71310a02c9ab862e73390d61e465732a5dbd78c3ccb556a2c440f5fb2fd4fec",
+      "original_instance": "BF938654-3648-4196-8011-FF56EDD2B559",
+      "after_clean_stop": {
+        "instance": "1F73EBC6-CD5D-4765-87F6-3E9A9C27FA40",
+        "same_id": true,
+        "marker_matches": true
+      },
+      "supervisor_loss": {
+        "exit": -9,
+        "original_disk_holders": [
+          34642
+        ],
+        "orphan_disk_holders_after_3s": []
+      },
+      "recovered_state": "dead -1",
+      "after_supervisor_loss": {
+        "instance": "E1A434A1-413A-43B7-AD17-0E0DC292CCA2",
+        "same_id": true,
+        "both_markers_match": true
+      },
+      "leftovers": ""
+    }
+  },
+  "buildkit": {
+    "check": "buildx-ci",
+    "passed": true,
+    "run": "mpci32e0c386bdb94c55b98ae0b4fbf98f60",
+    "builds": [
+      {
+        "attempt": "initial",
+        "seconds": 9.59,
+        "cached_steps": 0,
+        "image_id": "sha256:c7961f2521d2ea2cc53546d481e4108301b92c7d415dbba3fad9403c97cb4669"
+      },
+      {
+        "attempt": "repeat",
+        "seconds": 1.15,
+        "cached_steps": 3,
+        "image_id": "sha256:c7961f2521d2ea2cc53546d481e4108301b92c7d415dbba3fad9403c97cb4669"
+      }
+    ],
+    "expose_9090": "127.0.0.1:56722",
+    "parallel_compiles": {
+      "running": 32,
+      "ready": 32,
+      "exit_zero": 32,
+      "verified_outputs": 32
+    },
+    "tag_removal": {
+      "primary_removed": true,
+      "alias_preserved": true,
+      "in_use_conflict": true,
+      "final_alias_removed": true
+    },
+    "cleanup": {
+      "containers": 0,
+      "volumes": 0,
+      "tags": 0
+    }
+  },
+  "earlier_buildkit": {
+    "check": "buildx-ci",
+    "passed": true,
+    "run": "mpcid3fc0e33068a4c8abb5f71de519309f4",
+    "builds": [
+      {
+        "attempt": "initial",
+        "seconds": 9.82,
+        "cached_steps": 0,
+        "image_id": "sha256:4440c63ccfd430dece24904ffb3fad3ffd04697e7086fe489a481916e8014c32"
+      },
+      {
+        "attempt": "repeat",
+        "seconds": 1.1,
+        "cached_steps": 3,
+        "image_id": "sha256:4440c63ccfd430dece24904ffb3fad3ffd04697e7086fe489a481916e8014c32"
+      }
+    ],
+    "expose_9090": "127.0.0.1:63948",
+    "parallel_compiles": {
+      "running": 32,
+      "ready": 32,
+      "exit_zero": 32,
+      "verified_outputs": 32
+    },
+    "tag_removal": {
+      "primary_removed": true,
+      "alias_preserved": true,
+      "in_use_conflict": true,
+      "final_alias_removed": true
+    },
+    "cleanup": {
+      "containers": 0,
+      "volumes": 0,
+      "tags": 0
+    }
+  },
+  "snapshot_reclamation": {
+    "token": "mp-rootfs-gate-f0fb921b56f1",
+    "artifacts": {
+      "original_start_sha256": "366a5b4c1fb535ba6a2cde37398fc9ac77750083d9fc56ea831f896bca8f9d1b",
+      "observed_start_sha256": "4898037f0782d5754f029f232c5d581cd9aa16ebfe8be7ea7792ac6d2bf46edc",
+      "observer_sha256": "c3e869feb4cae73c63b8cc43f2b616747fbc92edd312ea7ce51d5025ce6b97c3",
+      "ctr_sha256": "820d3c1ca185d9e0d5204e6937a591b46b0cc8a7928642370872d5ff82f26987",
+      "runner_sha256": "2849e26e9867d9fc1f6b01090ae3334cbd351cf623f5c32c8127f48f076a5182"
+    },
+    "namespace": "k8s.io",
+    "snapshotter": "overlayfs",
+    "containers": {
+      "target": "39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c",
+      "sibling": "3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15"
+    },
+    "observations": {
+      "before": {
+        "at_unix_ns": 1795602997549869000,
+        "list": {
+          "code": 0,
+          "stdout": "KEY                                                                        PARENT                                                                  KIND      \nmp-rootfs-3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15 sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd Active    \nmp-rootfs-39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd Active    \nsha256:10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7                                                                            Committed \nsha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd                                                                            Committed \nsha256:addc0a7cfb7324e99fc484d4db469b496f9ea83a37a82383e2f31812b054a8ab                                                                            Committed \n",
+          "stderr": ""
+        },
+        "target": {
+          "code": 0,
+          "stdout": "{\n    \"Kind\": \"Active\",\n    \"Name\": \"mp-rootfs-39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c\",\n    \"Parent\": \"sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd\",\n    \"Labels\": {\n        \"containerd.io/gc.root\": \"2026-11-25T10:36:37.101415959Z\",\n        \"io.micropod.docker.rootfs\": \"39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c\"\n    },\n    \"Created\": \"2026-11-25T10:36:37.103349417Z\",\n    \"Updated\": \"2026-11-25T10:36:37.103349417Z\"\n}\n",
+          "stderr": ""
+        },
+        "sibling": {
+          "code": 0,
+          "stdout": "{\n    \"Kind\": \"Active\",\n    \"Name\": \"mp-rootfs-3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15\",\n    \"Parent\": \"sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd\",\n    \"Labels\": {\n        \"containerd.io/gc.root\": \"2026-11-25T10:36:37.246266751Z\",\n        \"io.micropod.docker.rootfs\": \"3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15\"\n    },\n    \"Created\": \"2026-11-25T10:36:37.249411251Z\",\n    \"Updated\": \"2026-11-25T10:36:37.249411251Z\"\n}\n",
+          "stderr": ""
+        }
+      },
+      "after-target": {
+        "at_unix_ns": 1795602997774658000,
+        "list": {
+          "code": 0,
+          "stdout": "KEY                                                                        PARENT                                                                  KIND      \nmp-rootfs-3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15 sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd Active    \nsha256:10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7                                                                            Committed \nsha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd                                                                            Committed \nsha256:addc0a7cfb7324e99fc484d4db469b496f9ea83a37a82383e2f31812b054a8ab                                                                            Committed \n",
+          "stderr": ""
+        },
+        "target": {
+          "code": 1,
+          "stdout": "",
+          "stderr": "ctr: snapshot mp-rootfs-39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c does not exist: not found\n"
+        },
+        "sibling": {
+          "code": 0,
+          "stdout": "{\n    \"Kind\": \"Active\",\n    \"Name\": \"mp-rootfs-3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15\",\n    \"Parent\": \"sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd\",\n    \"Labels\": {\n        \"containerd.io/gc.root\": \"2026-11-25T10:36:37.246266751Z\",\n        \"io.micropod.docker.rootfs\": \"3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15\"\n    },\n    \"Created\": \"2026-11-25T10:36:37.249411251Z\",\n    \"Updated\": \"2026-11-25T10:36:37.249411251Z\"\n}\n",
+          "stderr": ""
+        }
+      },
+      "after-sibling": {
+        "at_unix_ns": 1795602998001495000,
+        "list": {
+          "code": 0,
+          "stdout": "KEY                                                                     PARENT KIND      \nsha256:10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7        Committed \nsha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd        Committed \nsha256:addc0a7cfb7324e99fc484d4db469b496f9ea83a37a82383e2f31812b054a8ab        Committed \n",
+          "stderr": ""
+        },
+        "target": {
+          "code": 1,
+          "stdout": "",
+          "stderr": "ctr: snapshot mp-rootfs-39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c does not exist: not found\n"
+        },
+        "sibling": {
+          "code": 1,
+          "stdout": "",
+          "stderr": "ctr: snapshot mp-rootfs-3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15 does not exist: not found\n"
+        }
+      }
+    },
+    "removals": [
+      {
+        "container": "39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c",
+        "stdout": "39bbcaf57688c7ee7e0bd9ba8a223b047179621b8399ead1b83b6297ae79105c\n",
+        "stderr": ""
+      },
+      {
+        "container": "3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15",
+        "stdout": "3082439d3e0305455000beaf43216a56958465146885dc2052710d6c977a5c15\n",
+        "stderr": ""
+      }
+    ],
+    "guest_instance": "2E7D0DB9-118E-4E7E-83E2-5439204CD427",
+    "parent": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+    "passed": true,
+    "cleanup_container_ids": []
+  },
+  "hygiene": {
+    "verified_volumes": [
+      {
+        "run": "async-workspace",
+        "role": "drive",
+        "uuid": "466022BB-87EA-49D0-B853-8769A96E5B4F"
+      },
+      {
+        "run": "async-workspace",
+        "role": "workspace_drive",
+        "uuid": "0EBD391A-C16E-4D89-A8B0-023612D396A7"
+      },
+      {
+        "run": "buildx-release",
+        "role": "drive",
+        "uuid": "0F10048E-66C5-4703-AC36-9A6E1B5EAADB"
+      },
+      {
+        "run": "buildx-release",
+        "role": "workspace_drive",
+        "uuid": "39370D98-E22F-47B1-9CCA-C71ACBA30717"
+      },
+      {
+        "run": "cc-first",
+        "role": "drive",
+        "uuid": "51086A6F-0B03-45F5-8806-9B31F3CE1EF7"
+      },
+      {
+        "run": "cc-first",
+        "role": "workspace_drive",
+        "uuid": "0BDE7D3C-98E0-427B-99A4-3778A1BCCFA1"
+      },
+      {
+        "run": "cpu-evidence",
+        "role": "drive",
+        "uuid": "0889EF67-C875-428F-A219-5E6BF126C713"
+      },
+      {
+        "run": "cpu-evidence",
+        "role": "workspace_drive",
+        "uuid": "4BE727D5-6C30-4703-8501-3E6921B91C1B"
+      },
+      {
+        "run": "current-build",
+        "role": "drive",
+        "uuid": "66BADD62-5E75-414D-8536-4F0726709378"
+      },
+      {
+        "run": "current-build",
+        "role": "workspace_drive",
+        "uuid": "36B6C300-7178-44A5-9DFE-DEE3F43027E8"
+      },
+      {
+        "run": "current-dense",
+        "role": "drive",
+        "uuid": "4B701623-9745-44CB-A99B-2FB99FC72648"
+      },
+      {
+        "run": "current-dense",
+        "role": "workspace_drive",
+        "uuid": "8A9BFEED-A8BE-4CDA-9F20-F84A568D9D7F"
+      },
+      {
+        "run": "current-hvf",
+        "role": "drive",
+        "uuid": "A8C55FD9-F097-419F-8CE0-8444372ED9BA"
+      },
+      {
+        "run": "current-hvf",
+        "role": "workspace_drive",
+        "uuid": "2CAAB829-0741-4F2C-B988-858B39199BD7"
+      },
+      {
+        "run": "current-image-dense",
+        "role": "drive",
+        "uuid": "CCF50497-0F6E-445D-99BA-2386726BAAAC"
+      },
+      {
+        "run": "current-image-dense",
+        "role": "workspace_drive",
+        "uuid": "798371F7-B946-4DE8-89A2-4FC873857156"
+      },
+      {
+        "run": "current-published",
+        "role": "drive",
+        "uuid": "D94E9696-81AF-4208-9241-94B9373B3356"
+      },
+      {
+        "run": "current-published",
+        "role": "workspace_drive",
+        "uuid": "72FF2FE9-9562-4725-8613-1039EF4090FE"
+      },
+      {
+        "run": "current-quiet",
+        "role": "drive",
+        "uuid": "F41C61CD-47C0-4BCA-A380-7BC5F074146E"
+      },
+      {
+        "run": "current-quiet",
+        "role": "workspace_drive",
+        "uuid": "270549C0-1304-4F9C-83A1-162964ABE13A"
+      },
+      {
+        "run": "current-quiet-scored",
+        "role": "drive",
+        "uuid": "E042AF2C-F084-4402-9E19-83210DD0E6C9"
+      },
+      {
+        "run": "current-quiet-scored",
+        "role": "workspace_drive",
+        "uuid": "4CE2E138-E0C3-4AF5-A88D-4A381BCD8443"
+      },
+      {
+        "run": "current-recovery",
+        "role": "drive",
+        "uuid": "71765EAB-4855-40D5-824D-FB160FC85E6D"
+      },
+      {
+        "run": "current-recovery",
+        "role": "workspace_drive",
+        "uuid": "6495B1C3-1969-4C2F-AC81-6A9638B38358"
+      },
+      {
+        "run": "current-vz",
+        "role": "drive",
+        "uuid": "AB2B874B-94BD-4C23-81C7-FB0DA2FC50A5"
+      },
+      {
+        "run": "current-vz",
+        "role": "workspace_drive",
+        "uuid": "0F39C9B1-D31C-4EE3-8376-C29F06F1A315"
+      },
+      {
+        "run": "current-workspace",
+        "role": "drive",
+        "uuid": "7446F926-1AB9-49FF-9DEC-EEC850553EF2"
+      },
+      {
+        "run": "current-workspace",
+        "role": "workspace_drive",
+        "uuid": "93B97C77-1583-4460-8AA2-39D5D44EF498"
+      },
+      {
+        "run": "dense-cache",
+        "role": "drive",
+        "uuid": "D105BF96-BC79-4450-BFBE-2881EF0C11A1"
+      },
+      {
+        "run": "dense-cache",
+        "role": "workspace_drive",
+        "uuid": "FFB922F4-62AB-4C1B-B100-698C6639453D"
+      },
+      {
+        "run": "dense-paired",
+        "role": "drive",
+        "uuid": "16322BA0-AE23-46C0-B5F7-A7E0F082D629"
+      },
+      {
+        "run": "dense-paired",
+        "role": "workspace_drive",
+        "uuid": "55B20833-6921-4F8B-852F-87FCC60F5FB0"
+      },
+      {
+        "run": "dense-placement",
+        "role": "drive",
+        "uuid": "1FE73A43-9CB4-422A-9DFF-F923F50C3D43"
+      },
+      {
+        "run": "dense-placement",
+        "role": "workspace_drive",
+        "uuid": "0FA111BE-DB86-46A8-BADB-2577BE77D5BE"
+      },
+      {
+        "run": "dense-placement-accepted",
+        "role": "drive",
+        "uuid": "7D399123-7D84-4028-B1DE-86CF1F387C53"
+      },
+      {
+        "run": "dense-placement-accepted",
+        "role": "workspace_drive",
+        "uuid": "E60F9483-5D65-48BA-9CEB-245D6E265FB8"
+      },
+      {
+        "run": "direct-first",
+        "role": "drive",
+        "uuid": "BE312266-6342-47AC-988E-319E6C36BB90"
+      },
+      {
+        "run": "direct-first",
+        "role": "workspace_drive",
+        "uuid": "838C89E2-5935-4509-BC74-339EE725F56D"
+      },
+      {
+        "run": "docker-hvf-release",
+        "role": "drive",
+        "uuid": "428F702C-4505-42ED-A4A5-802707BC7CF1"
+      },
+      {
+        "run": "docker-hvf-release",
+        "role": "workspace_drive",
+        "uuid": "41E09DE9-8D24-4BE1-A4E8-18AB5EEC0380"
+      },
+      {
+        "run": "docker-vz-release",
+        "role": "drive",
+        "uuid": "3216915B-F572-46D4-8E4A-BB8D4ED0E9B4"
+      },
+      {
+        "run": "docker-vz-release",
+        "role": "workspace_drive",
+        "uuid": "4489DD3B-9240-4779-B399-3DDE48C406D3"
+      },
+      {
+        "run": "late-published",
+        "role": "drive",
+        "uuid": "39AB4B8C-04DD-4482-9A83-200002E0138B"
+      },
+      {
+        "run": "late-published",
+        "role": "workspace_drive",
+        "uuid": "87CB741E-62E0-4876-B5A3-51560E31AB76"
+      },
+      {
+        "run": "late-recovery",
+        "role": "drive",
+        "uuid": "9CB92692-0546-4B87-97F7-77770CCC8B13"
+      },
+      {
+        "run": "late-recovery",
+        "role": "workspace_drive",
+        "uuid": "317272A7-24AD-4C10-89DD-8D2DD78BB26E"
+      },
+      {
+        "run": "network-dense-final",
+        "role": "drive",
+        "uuid": "E69E4665-DB02-4B39-91EC-3FE22997CA42"
+      },
+      {
+        "run": "network-dense-final",
+        "role": "workspace_drive",
+        "uuid": "D95855B9-7141-4225-B8AF-98638C0AEDCB"
+      },
+      {
+        "run": "network-quiet-final",
+        "role": "drive",
+        "uuid": "77BDEC36-1E9D-41C6-B9D5-C361AB92F9C8"
+      },
+      {
+        "run": "network-quiet-final",
+        "role": "workspace_drive",
+        "uuid": "DA03F5AC-B431-4C54-9A53-3298FF829479"
+      },
+      {
+        "run": "network-quiet-retry",
+        "role": "drive",
+        "uuid": "774AB89C-F429-4123-928F-CCEFAB0AA7B4"
+      },
+      {
+        "run": "network-quiet-retry",
+        "role": "workspace_drive",
+        "uuid": "C703C209-7EA3-4E4E-8C89-3C7BC91F55AD"
+      },
+      {
+        "run": "pid-after",
+        "role": "drive",
+        "uuid": "52D7B4C8-27E1-43A2-A58C-3B4FAA3627B7"
+      },
+      {
+        "run": "pid-after",
+        "role": "workspace_drive",
+        "uuid": "E1872A10-02B8-4D40-8652-4BE355C70A61"
+      },
+      {
+        "run": "pid-before",
+        "role": "drive",
+        "uuid": "D45308AE-12BA-4A76-AA62-7108C8AAB457"
+      },
+      {
+        "run": "pid-before",
+        "role": "workspace_drive",
+        "uuid": "0018C9C3-BBE1-46B1-A37C-C6BF50198BC0"
+      },
+      {
+        "run": "qual-hvf",
+        "role": "drive",
+        "uuid": "3D99D79A-2182-4B80-B427-FC5A829D37CA"
+      },
+      {
+        "run": "qual-hvf",
+        "role": "workspace_drive",
+        "uuid": "EE352A52-CE1F-423E-8862-BD44134449A4"
+      },
+      {
+        "run": "qual-vz",
+        "role": "drive",
+        "uuid": "03A434E3-B6B2-4C01-B00F-BDFA98144458"
+      },
+      {
+        "run": "qual-vz",
+        "role": "workspace_drive",
+        "uuid": "BE71956E-E604-47DD-BCC4-724D52AE125F"
+      },
+      {
+        "run": "reboot-release",
+        "role": "drive",
+        "uuid": "90483A6E-76FD-4B47-A9C5-98692FDF3116"
+      },
+      {
+        "run": "reboot-release",
+        "role": "workspace_drive",
+        "uuid": "F7235950-6844-4C26-B9BB-4FE737AACC38"
+      },
+      {
+        "run": "recovery-before",
+        "role": "drive",
+        "uuid": "21057591-F0CD-4629-88F3-4ACA9B55CE85"
+      },
+      {
+        "run": "recovery-before",
+        "role": "workspace_drive",
+        "uuid": "220F8B79-C2AA-4BFC-A4D2-AB32F614618A"
+      },
+      {
+        "run": "recovery-parent",
+        "role": "drive",
+        "uuid": "60DB3C3F-656F-4AC9-B204-E4D2313F2218"
+      },
+      {
+        "run": "recovery-parent",
+        "role": "workspace_drive",
+        "uuid": "46CD24E6-7020-443C-9F36-B67B783E7751"
+      },
+      {
+        "run": "scan-base",
+        "role": "drive",
+        "uuid": "D5489B76-CB2D-4A58-A7BB-05C2112C68DC"
+      },
+      {
+        "run": "scan-base",
+        "role": "workspace_drive",
+        "uuid": "E330BDEF-75A5-4968-91BA-003CE6110A38"
+      },
+      {
+        "run": "scan-orb",
+        "role": "workspace_drive",
+        "uuid": "17C91B84-EC12-486A-9184-63EF79BFBEA3"
+      },
+      {
+        "run": "snapshots-release",
+        "role": "drive",
+        "uuid": "996733B3-03B6-4BA0-825B-22B730755C29"
+      },
+      {
+        "run": "snapshots-release",
+        "role": "workspace_drive",
+        "uuid": "B29B6DF9-E00A-40C2-80E5-386576493FEA"
+      },
+      {
+        "run": "storage-first",
+        "role": "drive",
+        "uuid": "8ADD7952-444B-489F-8B94-2ABAC520B879"
+      },
+      {
+        "run": "storage-first",
+        "role": "workspace_drive",
+        "uuid": "5830991E-B034-4C2B-8728-C5ADF03DA64C"
+      },
+      {
+        "run": "ws-accepted",
+        "role": "drive",
+        "uuid": "F985713E-01BE-4070-BE2F-DBB1F3E283F6"
+      },
+      {
+        "run": "ws-accepted",
+        "role": "workspace_drive",
+        "uuid": "DAFC177F-86E9-4834-BA2A-BBC6792FC251"
+      },
+      {
+        "run": "ws-baseline",
+        "role": "drive",
+        "uuid": "769AB11F-F6FC-4CCF-90F9-EC2DBC50448F"
+      },
+      {
+        "run": "ws-baseline",
+        "role": "workspace_drive",
+        "uuid": "99C06FC1-CFD8-4902-8D46-CEDC1C01684F"
+      },
+      {
+        "run": "ws-before",
+        "role": "drive",
+        "uuid": "9B85972E-DDE7-480F-9868-BE5F6DD2CEDE"
+      },
+      {
+        "run": "ws-before",
+        "role": "workspace_drive",
+        "uuid": "C82A2EEF-4AB7-486A-8E4A-C4D3E30F28B8"
+      },
+      {
+        "run": "ws-before-matched",
+        "role": "drive",
+        "uuid": "042C55C3-EAA5-4418-A5C8-864EEA86B422"
+      },
+      {
+        "run": "ws-before-matched",
+        "role": "workspace_drive",
+        "uuid": "6FD80D78-B064-4107-B3A9-7DD7184FEF96"
+      },
+      {
+        "run": "ws-candidate",
+        "role": "drive",
+        "uuid": "B709193C-12D4-45A1-9411-DED65BB28FB0"
+      },
+      {
+        "run": "ws-candidate",
+        "role": "workspace_drive",
+        "uuid": "3C69F8EC-7077-4EE5-BEB7-1CE484011224"
+      },
+      {
+        "run": "ws-final",
+        "role": "drive",
+        "uuid": "242888CF-D562-4FD6-8D7C-12BBCC838CEB"
+      },
+      {
+        "run": "ws-final",
+        "role": "workspace_drive",
+        "uuid": "1156EAAA-E387-449E-B67F-4BF6B4B7C9FC"
+      },
+      {
+        "run": "ws-orb",
+        "role": "workspace_drive",
+        "uuid": "94F0D90E-4C38-4AAA-8677-8A99B7104919"
+      },
+      {
+        "run": "ws-reference",
+        "role": "workspace_drive",
+        "uuid": "3FED6106-60C9-43E9-B96B-7B38C94E0A5D"
+      }
+    ],
+    "baseline_pairs": 24,
+    "baseline_manifest_sha256": "8e7826379b6ae9afd581d179a64b5a0aa11c1efa18f6ba30cd0ea13669f0163e"
+  },
+  "unscored_attempts": {
+    "current-quiet": "AssertionError()",
+    "dense-placement": "RuntimeError('dense compiler ab2fc501cc42 can run on CPUs 0-3, expected 2-3')",
+    "network-dense-final": "RuntimeError((['/Users/benebsworth/.pyenv/versions/3.14.7/bin/python3', '-B', PosixPath('/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py'), 'live-siblings', '--hvf-socket', PosixPath('/private/tmp/mp-tune-opt-hp6p5lk3/home/docker.sock'), '--workspace', PosixPath('/private/tmp/mp-wsf-2j6dxraj/home/fixture'), '--pairs', '6', '--out', PosixPath('/private/tmp/mp-opt-gamma-ptm9p92c/network-dense-final-direct.json'), '--dense'], 1, '', 'sers/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py\", line 533, in bench_in_guest_suite\\n    svc_ip = sibling_address(sock, svc_name, net_name)\\n  File \"/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py\", line 490, in sibling_address\\n    raise RuntimeError(f\"{container} has no IPv4 address on {network}: \"\\n                       f\"state={record[\\'State\\']}, endpoint={endpoint}, logs={(logs.stdout + logs.stderr)[-500:]}\")\\nRuntimeError: mpb-eb719de0-svc has no IPv4 address on mpb-eb719de0-net: state={\\'Status\\': \\'exited\\', \\'Running\\': False, \\'Paused\\': False, \\'Restarting\\': False, \\'OOMKilled\\': False, \\'Dead\\': False, \\'Pid\\': 0, \\'ExitCode\\': 2, \\'Error\\': \\'\\', \\'StartedAt\\': \\'2026-11-25T10:38:58.788236862Z\\', \\'FinishedAt\\': \\'2026-11-25T10:38:58.890768071Z\\'}, endpoint={\\'IPAMConfig\\': None, \\'Links\\': None, \\'Aliases\\': [\\'svc\\'], \\'DriverOpts\\': None, \\'GwPriority\\': 0, \\'NetworkID\\': \\'d56756538e04124f8f892c063c462357e51db866ad5b80c5addb8e288a408707\\', \\'EndpointID\\': \\'\\', \\'Gateway\\': \\'\\', \\'IPAddress\\': \\'\\', \\'MacAddress\\': \\'\\', \\'IPPrefixLen\\': 0, \\'IPv6Gateway\\': \\'\\', \\'GlobalIPv6Address\\': \\'\\', \\'GlobalIPv6PrefixLen\\': 0, \\'DNSNames\\': [\\'mpb-eb719de0-svc\\', \\'svc\\', \\'e5e135feb22e\\']}, logs=  -thread-probe string\\n    \\tinspect the warmed client\\'s Linux scheduling attributes before signaling ready\\n  -url string\\n    \\tbase HTTP URL of the sibling service\\n\\n'))",
+    "network-quiet-final": "RuntimeError((['/Users/benebsworth/.pyenv/versions/3.14.7/bin/python3', '-B', PosixPath('/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py'), 'live-siblings', '--hvf-socket', PosixPath('/private/tmp/mp-tune-opt-glxpe46u/home/docker.sock'), '--workspace', PosixPath('/private/tmp/mp-wsf-r6_turgt/home/fixture'), '--pairs', '6', '--out', PosixPath('/private/tmp/mp-opt-gamma-ptm9p92c/network-quiet-final-direct.json')], 1, '', ' args.workspace, args.driver, args.pairs,\\n                                        dense_compile=args.dense, compiler_cpus=args.compiler_cpus)\\n  File \"/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py\", line 735, in bench_live_sibling_pairs\\n    return _bench_sibling_pairs(workspace, net_driver, pairs, {\\n        \"orbstack\": (orbstack_socket, \"orbstack\", None), \"cubic\": (hvf_socket, \"micropod-hvf\", \"cubic\"),\\n    }, dense_load=dense_load)\\n  File \"/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py\", line 701, in _bench_sibling_pairs\\n    arms[name] = dense_load.measure(sock, measure) if dense_load is not None else measure()\\n                                                                                  ~~~~~~~^^\\n  File \"/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py\", line 696, in measure\\n    return bench_in_guest_suite(\\n        sock, engine, workspace, net_driver=net_driver, rounds=1,\\n        sibling_cc=expected_cc, report_congestion=True,\\n    )\\n  File \"/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_engine_tuning.py\", line 549, in bench_in_guest_suite\\n    raise RuntimeError(f\"{engine_label}: service did not become reachable at {svc_ip}\")\\nRuntimeError: orbstack: service did not become reachable at invalid IP\\n'))",
+    "ws-accepted": "RuntimeError('Traceback (most recent call last):\\n  File \"/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_workspace_edits.py\", line 221, in <module>\\n    result = run(args, Path(work))\\n  File \"/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/bench_workspace_edits.py\", line 191, in run\\n    if [(r[\"pass\"], r[\"scheduled_pause_ms\"]) for r in scans] != [(1, 0), (2, 0), (3, 50)]:\\n                    ~^^^^^^^^^^^^^^^^^^^^^^\\nKeyError: \\'scheduled_pause_ms\\'\\n')",
+    "ws-before-matched": "RuntimeError('worker opt exited early (1):\\nPreparing the CI disk at /tmp/mp-tune-opt-in1ddepf/home/worker.ext4\\nUnknown argument: --parent-pid\\nmicropod ci: micropod-vmm exited early (2)\\n')"
+  },
+  "excluded_cache_experiment": "dense-cache; unsafe concurrent mutable opens; removed",
+  "vmm_source_archive_sha256": "0952080cd93a56865e525930c966562ed9375912efa7dd67cc606a28ff1f766c",
+  "async_vmm_binary_sha256": "27f2b41c058fc2dd0e4b55b660f5815f2eb61c6aacf9e8a75b44aa45d79af5a9",
+  "later_vmm_binary_sha256": "a11f6e4a422d717fdee003b700d963534ed41394482c42d67462628d10229bf5",
+  "later_source_sha256": {
+    "crates/hvf-sys/src/lib.rs": "b9990d1df379f390b87124dea5ac0b3dd7ea24b93954a5ec2ad8c0eaff04e603",
+    "crates/vmm-core/src/boot_clock.rs": "8d3ed1fe833a475e90098cdfc379ff79bf5a700adea92a8a8ec48128bbf3ae7e",
+    "crates/vmm-core/src/disk.rs": "8e65800897953d47ac1a81c37ac42c6bd501b1bd18cb4a7579072e5cf46726b6",
+    "crates/vmm-core/src/lib.rs": "a36da954d2bf989b06f39752a5b355daacf136969f12ae17880e142ef5553486",
+    "crates/vmm-fdt/src/lib.rs": "523b7ac5878d6b2bdf7ab81a1dde36499540c118b0107ec1db9efa1c6ba671cf",
+    "crates/vmm-net/src/egress.rs": "a4297fcc780c383a25af5c7c079c12944d460e833a1cc5f97b102bcd4f86e84f",
+    "crates/vmm-net/src/lib.rs": "4d6c6145069163dd4c618ee3e9f1f168d5593b7070709aaa3f9ce74b3079bb7b",
+    "crates/vmm-virtio/src/lib.rs": "88a0cf5bce91313e3a0927ae6994958554e989d43b1751701400e3d5c53a1c27",
+    "crates/vmm-virtio/src/virtiofs.rs": "d07e4cd805464672e2b1b33ab350c5cc1f1d46bac6226198f19ce181c72fab63",
+    "crates/vmm-virtio/src/vsock.rs": "cd22046ad86eeed5c96f35a4a2f9df4aa944fe9ee106842ac3941bab48a730b1"
+  },
+  "later_published": [
+    {
+      "orbstack": {
+        "engine": "orbstack",
+        "median_mib_s": 7545.1,
+        "fresh_p50_ms": 2.548,
+        "fresh_p95_ms": 5.661,
+        "fresh_p99_ms": 7.898,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          7545.074947559284
+        ],
+        "raw_p95_ms": [
+          5.661
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 331079152,
+                "per_stream_bytes": [
+                  8388608,
+                  16340416,
+                  13676560,
+                  10844768,
+                  9650336,
+                  8388608,
+                  15062528,
+                  10490960,
+                  9025584,
+                  11382928,
+                  9662704,
+                  11956336,
+                  15816128,
+                  8388608,
+                  8961872,
+                  11492832,
+                  9662704,
+                  8388608,
+                  10490960,
+                  8388608,
+                  9153008,
+                  14793088,
+                  9981264,
+                  8388608,
+                  9344144,
+                  8388608,
+                  11097792,
+                  8388608,
+                  8388608,
+                  8388608,
+                  9917552,
+                  8388608
+                ]
+              },
+              "scored": {
+                "bytes": 47469537050,
+                "per_stream_bytes": [
+                  1477095696,
+                  1481609778,
+                  1485611872,
+                  1481966416,
+                  1490159392,
+                  1477477968,
+                  1486136352,
+                  1485230256,
+                  1487586944,
+                  1483190816,
+                  1491282240,
+                  1487969216,
+                  1474508024,
+                  1483912880,
+                  1485781840,
+                  1484861920,
+                  1480090304,
+                  1480217584,
+                  1485420736,
+                  1481937808,
+                  1482264464,
+                  1481182320,
+                  1484147152,
+                  1479134480,
+                  1488543280,
+                  1482511216,
+                  1485578448,
+                  1483594320,
+                  1481109552,
+                  1482192656,
+                  1478624928,
+                  1488606192
+                ]
+              },
+              "drain": {
+                "bytes": 123501302,
+                "per_stream_bytes": [
+                  7687920,
+                  3610638,
+                  2272400,
+                  361040,
+                  1751104,
+                  7305648,
+                  361952,
+                  5839616,
+                  4948304,
+                  6987088,
+                  615888,
+                  1635280,
+                  2848072,
+                  870736,
+                  6817120,
+                  5206080,
+                  3419216,
+                  4566032,
+                  5649136,
+                  2845808,
+                  1754752,
+                  5585424,
+                  7432416,
+                  5649136,
+                  3673408,
+                  2272400,
+                  4884592,
+                  1189296,
+                  3674064,
+                  2590960,
+                  4629744,
+                  4566032
+                ]
+              },
+              "invocation": {
+                "bytes": 47924117504,
+                "per_stream_bytes": [
+                  1493172224,
+                  1501560832,
+                  1501560832,
+                  1493172224,
+                  1501560832,
+                  1493172224,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1493172224,
+                  1493172224,
+                  1501560832,
+                  1501560832,
+                  1493172224,
+                  1493172224,
+                  1501560832,
+                  1493172224,
+                  1493172224,
+                  1501560832,
+                  1501560832,
+                  1493172224,
+                  1501560832,
+                  1493172224,
+                  1501560832,
+                  1493172224,
+                  1493172224,
+                  1493172224,
+                  1493172224,
+                  1501560832
+                ]
+              }
+            },
+            "bytes": 47469537050,
+            "dispatch_max_us": 221,
+            "dispatch_p95_us": 67,
+            "errors": null,
+            "fresh_p50_us": 2548,
+            "fresh_p95_us": 5661,
+            "fresh_p99_us": 7898,
+            "mib_s": 7545.074947559284,
+            "per_stream_bytes": [
+              1477095696,
+              1481609778,
+              1485611872,
+              1481966416,
+              1490159392,
+              1477477968,
+              1486136352,
+              1485230256,
+              1487586944,
+              1483190816,
+              1491282240,
+              1487969216,
+              1474508024,
+              1483912880,
+              1485781840,
+              1484861920,
+              1480090304,
+              1480217584,
+              1485420736,
+              1481937808,
+              1482264464,
+              1481182320,
+              1484147152,
+              1479134480,
+              1488543280,
+              1482511216,
+              1485578448,
+              1483594320,
+              1481109552,
+              1482192656,
+              1478624928,
+              1488606192
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000003792
+          }
+        ]
+      },
+      "hvf": {
+        "engine": "hvf",
+        "median_mib_s": 11819.9,
+        "fresh_p50_ms": 3.006,
+        "fresh_p95_ms": 3.593,
+        "fresh_p99_ms": 4.197,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          11819.942601374692
+        ],
+        "raw_p95_ms": [
+          3.593
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 321158848,
+                "per_stream_bytes": [
+                  8388608,
+                  8388608,
+                  8388608,
+                  13271552,
+                  8388608,
+                  8389120,
+                  8388608,
+                  13631232,
+                  13991680,
+                  8388608,
+                  8651264,
+                  8421888,
+                  8388608,
+                  8912752,
+                  14679808,
+                  14679808,
+                  8388608,
+                  8388608,
+                  14155520,
+                  8388608,
+                  8912752,
+                  8388608,
+                  8388608,
+                  8388608,
+                  8388608,
+                  13631232,
+                  8388608,
+                  8388608,
+                  14155520,
+                  14155632,
+                  8912752,
+                  8388608
+                ]
+              },
+              "scored": {
+                "bytes": 74365351136,
+                "per_stream_bytes": [
+                  2319974144,
+                  2323644416,
+                  2320498432,
+                  2319809792,
+                  2326265600,
+                  2335047680,
+                  2317876992,
+                  2326790256,
+                  2319613952,
+                  2331498880,
+                  2327575808,
+                  2323611136,
+                  2329935616,
+                  2332883952,
+                  2323120128,
+                  2318401648,
+                  2324692736,
+                  2316828528,
+                  2322595952,
+                  2330460016,
+                  2325217168,
+                  2317877104,
+                  2323644160,
+                  2326789888,
+                  2319974144,
+                  2326788480,
+                  2321480016,
+                  2317352704,
+                  2326790256,
+                  2327314432,
+                  2320498576,
+                  2320498544
+                ]
+              },
+              "drain": {
+                "bytes": 148261984,
+                "per_stream_bytes": [
+                  3670272,
+                  8388608,
+                  3145984,
+                  7340288,
+                  5767424,
+                  5373440,
+                  5767424,
+                  144,
+                  6816000,
+                  534144,
+                  4194560,
+                  8388608,
+                  2097408,
+                  7013536,
+                  2621696,
+                  7340176,
+                  7340288,
+                  6815888,
+                  3670160,
+                  1573008,
+                  6291712,
+                  5767312,
+                  256,
+                  5243136,
+                  3670272,
+                  1920,
+                  2164400,
+                  6291712,
+                  7864464,
+                  7340176,
+                  2621696,
+                  3145872
+                ]
+              },
+              "invocation": {
+                "bytes": 74834771968,
+                "per_stream_bytes": [
+                  2332033024,
+                  2340421632,
+                  2332033024,
+                  2340421632,
+                  2340421632,
+                  2348810240,
+                  2332033024,
+                  2340421632,
+                  2340421632,
+                  2340421632,
+                  2340421632,
+                  2340421632,
+                  2340421632,
+                  2348810240,
+                  2340421632,
+                  2340421632,
+                  2340421632,
+                  2332033024,
+                  2340421632,
+                  2340421632,
+                  2340421632,
+                  2332033024,
+                  2332033024,
+                  2340421632,
+                  2332033024,
+                  2340421632,
+                  2332033024,
+                  2332033024,
+                  2348810240,
+                  2348810240,
+                  2332033024,
+                  2332033024
+                ]
+              }
+            },
+            "bytes": 74365351136,
+            "dispatch_max_us": 188,
+            "dispatch_p95_us": 78,
+            "errors": null,
+            "fresh_p50_us": 3006,
+            "fresh_p95_us": 3593,
+            "fresh_p99_us": 4197,
+            "mib_s": 11819.942601374692,
+            "per_stream_bytes": [
+              2319974144,
+              2323644416,
+              2320498432,
+              2319809792,
+              2326265600,
+              2335047680,
+              2317876992,
+              2326790256,
+              2319613952,
+              2331498880,
+              2327575808,
+              2323611136,
+              2329935616,
+              2332883952,
+              2323120128,
+              2318401648,
+              2324692736,
+              2316828528,
+              2322595952,
+              2330460016,
+              2325217168,
+              2317877104,
+              2323644160,
+              2326789888,
+              2319974144,
+              2326788480,
+              2321480016,
+              2317352704,
+              2326790256,
+              2327314432,
+              2320498576,
+              2320498544
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000056667
+          }
+        ]
+      }
+    },
+    {
+      "hvf": {
+        "engine": "hvf",
+        "median_mib_s": 11715.4,
+        "fresh_p50_ms": 2.964,
+        "fresh_p95_ms": 3.64,
+        "fresh_p99_ms": 5.584,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          11715.433352574584
+        ],
+        "raw_p95_ms": [
+          3.64
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 360081152,
+                "per_stream_bytes": [
+                  8912752,
+                  18874112,
+                  9961328,
+                  10485616,
+                  8388608,
+                  10485504,
+                  17301360,
+                  9437040,
+                  8388608,
+                  10485616,
+                  8912752,
+                  9961328,
+                  16252784,
+                  8388608,
+                  10485616,
+                  16776960,
+                  9961328,
+                  24641280,
+                  9961328,
+                  9436928,
+                  8388608,
+                  8812288,
+                  16777216,
+                  8912752,
+                  8912752,
+                  9961216,
+                  8388608,
+                  15728384,
+                  8388608,
+                  8388608,
+                  9437040,
+                  10485616
+                ]
+              },
+              "scored": {
+                "bytes": 73707213824,
+                "per_stream_bytes": [
+                  2297428352,
+                  2307915776,
+                  2303721360,
+                  2303721360,
+                  2310012672,
+                  2297954416,
+                  2305294336,
+                  2303197072,
+                  2303721216,
+                  2305818512,
+                  2300149552,
+                  2296905616,
+                  2299003024,
+                  2310012672,
+                  2304770192,
+                  2310537328,
+                  2305286544,
+                  2294808576,
+                  2293759888,
+                  2303721584,
+                  2305294192,
+                  2304870400,
+                  2305818480,
+                  2295857040,
+                  2312634256,
+                  2301624320,
+                  2301624176,
+                  2303197184,
+                  2298478336,
+                  2310537072,
+                  2305292672,
+                  2304245648
+                ]
+              },
+              "drain": {
+                "bytes": 104776960,
+                "per_stream_bytes": [
+                  526096,
+                  5243136,
+                  1573120,
+                  1048832,
+                  5243136,
+                  6815888,
+                  1048720,
+                  2621696,
+                  3145984,
+                  7340288,
+                  6193504,
+                  256,
+                  8388608,
+                  5243136,
+                  8388608,
+                  4718736,
+                  7936,
+                  4194560,
+                  3145984,
+                  2097296,
+                  1573008,
+                  1573120,
+                  1048720,
+                  2097408,
+                  2097408,
+                  3670272,
+                  5243024,
+                  4718848,
+                  256,
+                  4718736,
+                  526096,
+                  524544
+                ]
+              },
+              "invocation": {
+                "bytes": 74172071936,
+                "per_stream_bytes": [
+                  2306867200,
+                  2332033024,
+                  2315255808,
+                  2315255808,
+                  2323644416,
+                  2315255808,
+                  2323644416,
+                  2315255808,
+                  2315255808,
+                  2323644416,
+                  2315255808,
+                  2306867200,
+                  2323644416,
+                  2323644416,
+                  2323644416,
+                  2332033024,
+                  2315255808,
+                  2323644416,
+                  2306867200,
+                  2315255808,
+                  2315255808,
+                  2315255808,
+                  2323644416,
+                  2306867200,
+                  2323644416,
+                  2315255808,
+                  2315255808,
+                  2323644416,
+                  2306867200,
+                  2323644416,
+                  2315255808,
+                  2315255808
+                ]
+              }
+            },
+            "bytes": 73707213824,
+            "dispatch_max_us": 212,
+            "dispatch_p95_us": 90,
+            "errors": null,
+            "fresh_p50_us": 2964,
+            "fresh_p95_us": 3640,
+            "fresh_p99_us": 5584,
+            "mib_s": 11715.433352574584,
+            "per_stream_bytes": [
+              2297428352,
+              2307915776,
+              2303721360,
+              2303721360,
+              2310012672,
+              2297954416,
+              2305294336,
+              2303197072,
+              2303721216,
+              2305818512,
+              2300149552,
+              2296905616,
+              2299003024,
+              2310012672,
+              2304770192,
+              2310537328,
+              2305286544,
+              2294808576,
+              2293759888,
+              2303721584,
+              2305294192,
+              2304870400,
+              2305818480,
+              2295857040,
+              2312634256,
+              2301624320,
+              2301624176,
+              2303197184,
+              2298478336,
+              2310537072,
+              2305292672,
+              2304245648
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000006542
+          }
+        ]
+      },
+      "orbstack": {
+        "engine": "orbstack",
+        "median_mib_s": 7489.8,
+        "fresh_p50_ms": 2.463,
+        "fresh_p95_ms": 4.385,
+        "fresh_p99_ms": 5.771,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          7489.793805157003
+        ],
+        "raw_p95_ms": [
+          4.385
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 826092792,
+                "per_stream_bytes": [
+                  27586736,
+                  8388608,
+                  24736536,
+                  28223856,
+                  25165824,
+                  31728016,
+                  27387200,
+                  24040240,
+                  24901920,
+                  29329504,
+                  31567000,
+                  24804784,
+                  26439920,
+                  26218496,
+                  23667264,
+                  24328512,
+                  25645088,
+                  27443616,
+                  24804784,
+                  28223856,
+                  23654512,
+                  26855616,
+                  27013328,
+                  26185072,
+                  29306960,
+                  25420528,
+                  23594256,
+                  23613080,
+                  26949616,
+                  30135216,
+                  24310336,
+                  24422512
+                ]
+              },
+              "scored": {
+                "bytes": 47123008270,
+                "per_stream_bytes": [
+                  1523978128,
+                  607993488,
+                  1522971160,
+                  1521141312,
+                  999806720,
+                  1513338224,
+                  1518983568,
+                  1516871280,
+                  1519366352,
+                  1514365360,
+                  1511799736,
+                  1520482880,
+                  1509248608,
+                  1519324016,
+                  1514304672,
+                  1504373728,
+                  1517624064,
+                  1516442384,
+                  1514770176,
+                  1509633424,
+                  1519804342,
+                  1525809216,
+                  1517032864,
+                  1518975168,
+                  1523413632,
+                  1510968832,
+                  1512603968,
+                  1515961880,
+                  1525133856,
+                  1515789568,
+                  1520786192,
+                  1519909472
+                ]
+              },
+              "drain": {
+                "bytes": 176343034,
+                "per_stream_bytes": [
+                  327616,
+                  4374896,
+                  4184784,
+                  2527312,
+                  6826240,
+                  6826240,
+                  5521712,
+                  2592352,
+                  7624208,
+                  8197616,
+                  137136,
+                  6604816,
+                  7815344,
+                  6349968,
+                  5531936,
+                  6413024,
+                  234720,
+                  8006480,
+                  3928912,
+                  5646592,
+                  45018,
+                  7616256,
+                  7846288,
+                  6732240,
+                  7560496,
+                  7114512,
+                  7305648,
+                  3928912,
+                  8197616,
+                  5967696,
+                  6795952,
+                  7560496
+                ]
+              },
+              "invocation": {
+                "bytes": 48125444096,
+                "per_stream_bytes": [
+                  1551892480,
+                  620756992,
+                  1551892480,
+                  1551892480,
+                  1031798784,
+                  1551892480,
+                  1551892480,
+                  1543503872,
+                  1551892480,
+                  1551892480,
+                  1543503872,
+                  1551892480,
+                  1543503872,
+                  1551892480,
+                  1543503872,
+                  1535115264,
+                  1543503872,
+                  1551892480,
+                  1543503872,
+                  1543503872,
+                  1543503872,
+                  1560281088,
+                  1551892480,
+                  1551892480,
+                  1560281088,
+                  1543503872,
+                  1543503872,
+                  1543503872,
+                  1560281088,
+                  1551892480,
+                  1551892480,
+                  1551892480
+                ]
+              }
+            },
+            "bytes": 47123008270,
+            "dispatch_max_us": 1509,
+            "dispatch_p95_us": 81,
+            "errors": null,
+            "fresh_p50_us": 2463,
+            "fresh_p95_us": 4385,
+            "fresh_p99_us": 5771,
+            "mib_s": 7489.793805157003,
+            "per_stream_bytes": [
+              1523978128,
+              607993488,
+              1522971160,
+              1521141312,
+              999806720,
+              1513338224,
+              1518983568,
+              1516871280,
+              1519366352,
+              1514365360,
+              1511799736,
+              1520482880,
+              1509248608,
+              1519324016,
+              1514304672,
+              1504373728,
+              1517624064,
+              1516442384,
+              1514770176,
+              1509633424,
+              1519804342,
+              1525809216,
+              1517032864,
+              1518975168,
+              1523413632,
+              1510968832,
+              1512603968,
+              1515961880,
+              1525133856,
+              1515789568,
+              1520786192,
+              1519909472
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000165541
+          }
+        ]
+      }
+    }
+  ],
+  "later_supervisor_recovery": {
+    "container": "e70c219698212dd09724a0631bc8224a6e804c16f213fcb578894faa1e7ea5c1",
+    "original_instance": "3DF58EFA-D088-49F6-9A7D-02BDFB0F978F",
+    "after_clean_stop": {
+      "instance": "8519C50F-314C-4CFB-828E-875219FC2C9B",
+      "same_id": true,
+      "marker_matches": true
+    },
+    "supervisor_loss": {
+      "exit": -9,
+      "original_disk_holders": [
+        61339
+      ],
+      "orphan_disk_holders_after_3s": []
+    },
+    "recovered_state": "dead -1",
+    "after_supervisor_loss": {
+      "instance": "F03BED34-3F72-47FE-A20F-1630B3D01B46",
+      "same_id": true,
+      "both_markers_match": true
+    },
+    "leftovers": ""
+  },
+  "host_audit": {
+    "removed_apfs_images": 87,
+    "recorded_sibling_scopes_absent": 76,
+    "recorded_dense_scopes_absent": 40,
+    "fixture_tags_absent": [
+      "micropod-qa/staged-probes:ptm9p92c-b800c38674459f19"
+    ],
+    "staging_open_files": 0,
+    "mount_table_clear": true
+  },
+  "published": [
+    {
+      "orbstack": {
+        "engine": "orbstack",
+        "median_mib_s": 7510.4,
+        "fresh_p50_ms": 2.598,
+        "fresh_p95_ms": 5.769,
+        "fresh_p99_ms": 6.74,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          7510.423488862039
+        ],
+        "raw_p95_ms": [
+          5.769
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 318233008,
+                "per_stream_bytes": [
+                  8388608,
+                  9662704,
+                  9790128,
+                  11774976,
+                  8388608,
+                  9790128,
+                  14122544,
+                  11892624,
+                  9726416,
+                  9481704,
+                  9303600,
+                  8770736,
+                  9853840,
+                  11828912,
+                  8388608,
+                  8452176,
+                  8388608,
+                  10587440,
+                  9235776,
+                  9853840,
+                  8388608,
+                  8834448,
+                  8388608,
+                  12180896,
+                  10618384,
+                  8452176,
+                  12338608,
+                  13358000,
+                  9555672,
+                  9726416,
+                  9089952,
+                  9619264
+                ]
+              },
+              "scored": {
+                "bytes": 47251521240,
+                "per_stream_bytes": [
+                  1487077104,
+                  1435471360,
+                  1485548160,
+                  1489042544,
+                  1487310784,
+                  1487395808,
+                  1483316728,
+                  1489590032,
+                  1433560656,
+                  1487831656,
+                  1491434512,
+                  1434069840,
+                  1385458272,
+                  1487332096,
+                  1434451968,
+                  1491919360,
+                  1488924752,
+                  1490973392,
+                  1487058848,
+                  1487174384,
+                  1482893488,
+                  1488541360,
+                  1485420592,
+                  1490016912,
+                  1498332896,
+                  1492134864,
+                  1490623744,
+                  1440006960,
+                  1483447304,
+                  1488096640,
+                  1482129088,
+                  1484935136
+                ]
+              },
+              "drain": {
+                "bytes": 144648056,
+                "per_stream_bytes": [
+                  6095120,
+                  6095120,
+                  6222544,
+                  743312,
+                  5861440,
+                  4374896,
+                  4121560,
+                  78176,
+                  7942112,
+                  4247472,
+                  822720,
+                  8388608,
+                  5585424,
+                  2399824,
+                  8388608,
+                  1189296,
+                  4247472,
+                  8388608,
+                  5266208,
+                  4532608,
+                  1890128,
+                  4185024,
+                  7751632,
+                  7751632,
+                  998160,
+                  973792,
+                  6987088,
+                  6252832,
+                  169248,
+                  3737776,
+                  1953184,
+                  7006432
+                ]
+              },
+              "invocation": {
+                "bytes": 47714402304,
+                "per_stream_bytes": [
+                  1501560832,
+                  1451229184,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1501560832,
+                  1451229184,
+                  1501560832,
+                  1501560832,
+                  1451229184,
+                  1400897536,
+                  1501560832,
+                  1451229184,
+                  1501560832,
+                  1501560832,
+                  1509949440,
+                  1501560832,
+                  1501560832,
+                  1493172224,
+                  1501560832,
+                  1501560832,
+                  1509949440,
+                  1509949440,
+                  1501560832,
+                  1509949440,
+                  1459617792,
+                  1493172224,
+                  1501560832,
+                  1493172224,
+                  1501560832
+                ]
+              }
+            },
+            "bytes": 47251521240,
+            "dispatch_max_us": 659,
+            "dispatch_p95_us": 65,
+            "errors": null,
+            "fresh_p50_us": 2598,
+            "fresh_p95_us": 5769,
+            "fresh_p99_us": 6740,
+            "mib_s": 7510.423488862039,
+            "per_stream_bytes": [
+              1487077104,
+              1435471360,
+              1485548160,
+              1489042544,
+              1487310784,
+              1487395808,
+              1483316728,
+              1489590032,
+              1433560656,
+              1487831656,
+              1491434512,
+              1434069840,
+              1385458272,
+              1487332096,
+              1434451968,
+              1491919360,
+              1488924752,
+              1490973392,
+              1487058848,
+              1487174384,
+              1482893488,
+              1488541360,
+              1485420592,
+              1490016912,
+              1498332896,
+              1492134864,
+              1490623744,
+              1440006960,
+              1483447304,
+              1488096640,
+              1482129088,
+              1484935136
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000002834
+          }
+        ]
+      },
+      "hvf": {
+        "engine": "hvf",
+        "median_mib_s": 10503.5,
+        "fresh_p50_ms": 10.197,
+        "fresh_p95_ms": 11.328,
+        "fresh_p99_ms": 12.136,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          10503.511297029656
+        ],
+        "raw_p95_ms": [
+          11.328
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 325228336,
+                "per_stream_bytes": [
+                  8388608,
+                  8388608,
+                  8388608,
+                  20971376,
+                  8388608,
+                  8388608,
+                  20971376,
+                  8388608,
+                  8388608,
+                  8388608,
+                  8388608,
+                  8388608,
+                  8388608,
+                  16777072,
+                  9104384,
+                  8388608,
+                  8388608,
+                  9259776,
+                  16777072,
+                  8388608,
+                  8388608,
+                  8388608,
+                  20971376,
+                  8388608,
+                  8388608,
+                  8388608,
+                  8388608,
+                  8815104,
+                  8642816,
+                  8388608,
+                  8388608,
+                  8388608
+                ]
+              },
+              "scored": {
+                "bytes": 66082447544,
+                "per_stream_bytes": [
+                  2063597424,
+                  2069888880,
+                  2063597568,
+                  2065694720,
+                  2065694576,
+                  2062906096,
+                  2067792016,
+                  2063597568,
+                  2066672536,
+                  2063420016,
+                  2063597568,
+                  2065694576,
+                  2063597568,
+                  2065694720,
+                  2064978800,
+                  2063597568,
+                  2063597312,
+                  2066920192,
+                  2061500416,
+                  2061500272,
+                  2067739904,
+                  2064905984,
+                  2066761456,
+                  2063597568,
+                  2067791728,
+                  2067791728,
+                  2065694576,
+                  2066294128,
+                  2067537520,
+                  2063597568,
+                  2063597568,
+                  2063597424
+                ]
+              },
+              "drain": {
+                "bytes": 155928600,
+                "per_stream_bytes": [
+                  144,
+                  2097296,
+                  8388608,
+                  2097296,
+                  6291600,
+                  691472,
+                  8388608,
+                  8388608,
+                  5313640,
+                  177552,
+                  8388608,
+                  6291600,
+                  8388608,
+                  6291600,
+                  6291600,
+                  8388608,
+                  256,
+                  4194816,
+                  2097296,
+                  2097296,
+                  4246272,
+                  7080192,
+                  1030560,
+                  8388608,
+                  4194448,
+                  4194448,
+                  6291600,
+                  5265552,
+                  4194448,
+                  8388608,
+                  8388608,
+                  144
+                ]
+              },
+              "invocation": {
+                "bytes": 66563604480,
+                "per_stream_bytes": [
+                  2071986176,
+                  2080374784,
+                  2080374784,
+                  2088763392,
+                  2080374784,
+                  2071986176,
+                  2097152000,
+                  2080374784,
+                  2080374784,
+                  2071986176,
+                  2080374784,
+                  2080374784,
+                  2080374784,
+                  2088763392,
+                  2080374784,
+                  2080374784,
+                  2071986176,
+                  2080374784,
+                  2080374784,
+                  2071986176,
+                  2080374784,
+                  2080374784,
+                  2088763392,
+                  2080374784,
+                  2080374784,
+                  2080374784,
+                  2080374784,
+                  2080374784,
+                  2080374784,
+                  2080374784,
+                  2080374784,
+                  2071986176
+                ]
+              }
+            },
+            "bytes": 66082447544,
+            "dispatch_max_us": 172,
+            "dispatch_p95_us": 73,
+            "errors": null,
+            "fresh_p50_us": 10197,
+            "fresh_p95_us": 11328,
+            "fresh_p99_us": 12136,
+            "mib_s": 10503.511297029656,
+            "per_stream_bytes": [
+              2063597424,
+              2069888880,
+              2063597568,
+              2065694720,
+              2065694576,
+              2062906096,
+              2067792016,
+              2063597568,
+              2066672536,
+              2063420016,
+              2063597568,
+              2065694576,
+              2063597568,
+              2065694720,
+              2064978800,
+              2063597568,
+              2063597312,
+              2066920192,
+              2061500416,
+              2061500272,
+              2067739904,
+              2064905984,
+              2066761456,
+              2063597568,
+              2067791728,
+              2067791728,
+              2065694576,
+              2066294128,
+              2067537520,
+              2063597568,
+              2063597568,
+              2063597424
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000006208
+          }
+        ]
+      }
+    },
+    {
+      "hvf": {
+        "engine": "hvf",
+        "median_mib_s": 10554.9,
+        "fresh_p50_ms": 10.128,
+        "fresh_p95_ms": 11.557,
+        "fresh_p99_ms": 12.281,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          10554.878294084256
+        ],
+        "raw_p95_ms": [
+          11.557
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 341793888,
+                "per_stream_bytes": [
+                  8388608,
+                  8388608,
+                  10485616,
+                  10485616,
+                  8388608,
+                  10903808,
+                  8388608,
+                  10485616,
+                  8388608,
+                  10485616,
+                  8388608,
+                  10485616,
+                  8388608,
+                  25165824,
+                  8388608,
+                  8388608,
+                  10485616,
+                  10485616,
+                  8388608,
+                  25165824,
+                  8454656,
+                  9437696,
+                  10485616,
+                  8388608,
+                  10485248,
+                  8388608,
+                  10485616,
+                  11009792,
+                  8388608,
+                  8388608,
+                  8388608,
+                  20971376
+                ]
+              },
+              "scored": {
+                "bytes": 66405727152,
+                "per_stream_bytes": [
+                  2071986032,
+                  2071986176,
+                  2074083328,
+                  2078277632,
+                  2078225664,
+                  2077859584,
+                  2074083184,
+                  2076180480,
+                  2071986032,
+                  2076180480,
+                  2080374640,
+                  2074083328,
+                  2074083184,
+                  2071986176,
+                  2076180336,
+                  2071985920,
+                  2074083216,
+                  2078277632,
+                  2071986176,
+                  2078277376,
+                  2076114288,
+                  2075131248,
+                  2078277776,
+                  2074083184,
+                  2074083696,
+                  2074083184,
+                  2078277632,
+                  2077753456,
+                  2074083184,
+                  2071986032,
+                  2076180336,
+                  2073506560
+                ]
+              },
+              "drain": {
+                "bytes": 118073328,
+                "per_stream_bytes": [
+                  144,
+                  8388608,
+                  4194448,
+                  144,
+                  2149120,
+                  8388608,
+                  6291600,
+                  2097296,
+                  144,
+                  2097296,
+                  144,
+                  4194448,
+                  6291600,
+                  8388608,
+                  4194448,
+                  256,
+                  4194560,
+                  144,
+                  8388608,
+                  2097408,
+                  4194448,
+                  4194448,
+                  8388608,
+                  6291600,
+                  4194448,
+                  6291600,
+                  144,
+                  144,
+                  6291600,
+                  144,
+                  4194448,
+                  2674064
+                ]
+              },
+              "invocation": {
+                "bytes": 66865594368,
+                "per_stream_bytes": [
+                  2080374784,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2097152000,
+                  2088763392,
+                  2088763392,
+                  2080374784,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2105540608,
+                  2088763392,
+                  2080374784,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2105540608,
+                  2088763392,
+                  2088763392,
+                  2097152000,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2088763392,
+                  2080374784,
+                  2088763392,
+                  2097152000
+                ]
+              }
+            },
+            "bytes": 66405727152,
+            "dispatch_max_us": 188,
+            "dispatch_p95_us": 73,
+            "errors": null,
+            "fresh_p50_us": 10128,
+            "fresh_p95_us": 11557,
+            "fresh_p99_us": 12281,
+            "mib_s": 10554.878294084256,
+            "per_stream_bytes": [
+              2071986032,
+              2071986176,
+              2074083328,
+              2078277632,
+              2078225664,
+              2077859584,
+              2074083184,
+              2076180480,
+              2071986032,
+              2076180480,
+              2080374640,
+              2074083328,
+              2074083184,
+              2071986176,
+              2076180336,
+              2071985920,
+              2074083216,
+              2078277632,
+              2071986176,
+              2078277376,
+              2076114288,
+              2075131248,
+              2078277776,
+              2074083184,
+              2074083696,
+              2074083184,
+              2078277632,
+              2077753456,
+              2074083184,
+              2071986032,
+              2076180336,
+              2073506560
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000015792
+          }
+        ]
+      },
+      "orbstack": {
+        "engine": "orbstack",
+        "median_mib_s": 7472.4,
+        "fresh_p50_ms": 2.426,
+        "fresh_p95_ms": 4.995,
+        "fresh_p99_ms": 7.077,
+        "fresh_failures": 0,
+        "bulk_reopens": 0,
+        "raw_mib_s": [
+          7472.395155086386
+        ],
+        "raw_p95_ms": [
+          4.995
+        ],
+        "samples": [
+          {
+            "arrivals": 240,
+            "bulk_body_bytes": {
+              "warmup": {
+                "bytes": 420825984,
+                "per_stream_bytes": [
+                  15939904,
+                  17575040,
+                  14632240,
+                  9788656,
+                  13837408,
+                  12211184,
+                  12243272,
+                  10002408,
+                  10196224,
+                  12150168,
+                  10312976,
+                  12009824,
+                  13358000,
+                  19677536,
+                  16449600,
+                  11000656,
+                  14485576,
+                  10745808,
+                  12466032,
+                  10682096,
+                  13231232,
+                  15466624,
+                  25453952,
+                  13770112,
+                  8961872,
+                  12945440,
+                  16347536,
+                  8388608,
+                  11033424,
+                  9853840,
+                  9796256,
+                  15812480
+                ]
+              },
+              "scored": {
+                "bytes": 47012276024,
+                "per_stream_bytes": [
+                  1515924288,
+                  1510362000,
+                  1508714972,
+                  1520730288,
+                  1514736752,
+                  1514515472,
+                  1518242248,
+                  1508293160,
+                  1502174128,
+                  1510364328,
+                  1517815200,
+                  1510979056,
+                  1517574160,
+                  1510999120,
+                  1514988976,
+                  1512625344,
+                  1518574616,
+                  1517254944,
+                  1515853280,
+                  1516045072,
+                  1513495424,
+                  1511026416,
+                  1513866160,
+                  1514773760,
+                  775128672,
+                  1510649142,
+                  1514647680,
+                  820479462,
+                  1523435664,
+                  1516256928,
+                  1510580432,
+                  1511168880
+                ]
+              },
+              "drain": {
+                "bytes": 147082568,
+                "per_stream_bytes": [
+                  3251072,
+                  7178224,
+                  3379444,
+                  4596320,
+                  6541104,
+                  8388608,
+                  4629744,
+                  42480,
+                  5967696,
+                  4212160,
+                  6987088,
+                  3737776,
+                  4183104,
+                  4438608,
+                  3676688,
+                  3100656,
+                  2055072,
+                  7114512,
+                  6795952,
+                  8388096,
+                  8388608,
+                  233616,
+                  4183760,
+                  6571392,
+                  4438608,
+                  3132074,
+                  4120048,
+                  1604122,
+                  646176,
+                  615888,
+                  6349968,
+                  8133904
+                ]
+              },
+              "invocation": {
+                "bytes": 47580184576,
+                "per_stream_bytes": [
+                  1535115264,
+                  1535115264,
+                  1526726656,
+                  1535115264,
+                  1535115264,
+                  1535115264,
+                  1535115264,
+                  1518338048,
+                  1518338048,
+                  1526726656,
+                  1535115264,
+                  1526726656,
+                  1535115264,
+                  1535115264,
+                  1535115264,
+                  1526726656,
+                  1535115264,
+                  1535115264,
+                  1535115264,
+                  1535115264,
+                  1535115264,
+                  1526726656,
+                  1543503872,
+                  1535115264,
+                  788529152,
+                  1526726656,
+                  1535115264,
+                  830472192,
+                  1535115264,
+                  1526726656,
+                  1526726656,
+                  1535115264
+                ]
+              }
+            },
+            "bytes": 47012276024,
+            "dispatch_max_us": 213,
+            "dispatch_p95_us": 67,
+            "errors": null,
+            "fresh_p50_us": 2426,
+            "fresh_p95_us": 4995,
+            "fresh_p99_us": 7077,
+            "mib_s": 7472.395155086386,
+            "per_stream_bytes": [
+              1515924288,
+              1510362000,
+              1508714972,
+              1520730288,
+              1514736752,
+              1514515472,
+              1518242248,
+              1508293160,
+              1502174128,
+              1510364328,
+              1517815200,
+              1510979056,
+              1517574160,
+              1510999120,
+              1514988976,
+              1512625344,
+              1518574616,
+              1517254944,
+              1515853280,
+              1516045072,
+              1513495424,
+              1511026416,
+              1513866160,
+              1514773760,
+              775128672,
+              1510649142,
+              1514647680,
+              820479462,
+              1523435664,
+              1516256928,
+              1510580432,
+              1511168880
+            ],
+            "period_us": 25000,
+            "published_ports": 1,
+            "reopened": 0,
+            "streams": 32,
+            "window_s": 6.000003917
+          }
+        ]
+      }
+    }
+  ],
+  "raw_archive_sha256": "2552527d38893a6eda4ddd3a2e277df0181fd7cd2db08f4cb5e5fb04fdafb3e6"
+}

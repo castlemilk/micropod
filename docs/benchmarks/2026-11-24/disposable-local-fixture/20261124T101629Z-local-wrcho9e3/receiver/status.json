@@ -1,0 +1,17 @@
+{
+  "completed_schedule": true,
+  "timed": true,
+  "started": 14,
+  "scored": 8,
+  "scored_clean": 8,
+  "error": null,
+  "error_kind": null,
+  "legacy_stock_qualification": false,
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "idle_wait_seconds": 0,
+  "idle_policy": "first observation",
+  "ambient_diagnostic": true,
+  "abbreviated_inventory": false,
+  "local_vm_idle_and_delivery_qualified": false
+}

@@ -1,0 +1,46 @@
+{
+  "source_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "worker_executable_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+  "worker_executable": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+  "recorded_utc": "2026-11-24T06:28:59.019189+00:00",
+  "commit_tree": "a2558901ba3b87b905ae52274b10bc5eb7e72906",
+  "command": "xcrun swift build --disable-sandbox --skip-update --only-use-versions-from-resolved-file --cache-path \"$scratch/cache\" --config-path \"$scratch/config\" --security-path \"$scratch/security\" --scratch-path \"$scratch/build\" -c release --jobs 6 --product micropod",
+  "source": "git archive of exact commit into isolated scratch",
+  "source_sha256": {
+    "Package.swift": "e210ceb792138fa6202b50895db83078e80326cddefc979ba4d55a7d48a7db7c",
+    "Package.resolved": "454d6842e3091abd3a0ce674f9ca320a6b802c899950b71f91bf3ba669a1cadf",
+    "signing/micropod-cli.entitlements": "5d95521eb14d3cce9af386b484a3c01d767df8681e56d277d999a8f2fa1aa85b",
+    "Sources/CPublishedTCP/PublishedTCP.c": "93d30bc14268a4d759d0ba2c79c6b4cae1665914f7699cdb799087b920f4b815",
+    "Sources/MicropodRuntime/CIWorkerPorts.swift": "cf11bd0fe54107ecf83fc89cc6cf1b1976ff52ed1e248c918e772e73bdf04a79",
+    "Sources/MicropodRuntime/CIWorkerService.swift": "2e018b20beeaaeafb96724e90c5b334a7013735e4df236b6ece53eef385c8454"
+  },
+  "dependencies": {
+    "count": 31,
+    "source": "private APFS copies of existing warm-CI package checkouts, repositories, artifacts and state; all 31 checked-out revisions match the pinned Package.resolved and are clean",
+    "git_allow_protocol": "file"
+  },
+  "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "sdk": "26.5",
+  "pre_sign_executable_sha256": "09ac16525588f1c45d8c5c121407a93b1f2b91282f35233f18d8b24c79cd57ff",
+  "signing": {
+    "identity": "ad hoc",
+    "entitlements": {
+      "com.apple.security.virtualization": true
+    },
+    "strict_verification_passed": true
+  },
+  "binary_format": "Mach-O 64-bit executable arm64",
+  "no_launch_smoke": {
+    "command": "ci launch-agent",
+    "process_type": "Interactive",
+    "environment": {
+      "MICROPOD_CI_PORT_RELAY_WORKERS": "2",
+      "MICROPOD_CI_PORT_RELAY": "kqueue-interactive",
+      "MICROPOD_CI_CPUS": "4",
+      "MICROPOD_CI_MEMORY_MIB": "4096"
+    }
+  },
+  "existing_oci_client_sha256": "369f9e2e0cee2dc53e63e3eb441ac029003506d75853398768824a3c667c7b97",
+  "compile_log": "/private/tmp/micropod-authorized-runtime-8YYEiYai/compile.log",
+  "compile_log_sha256": "1c608d6ced0feb25aac2fdd240e51ec02e8d17c7fb86bf1eac83f79131a1e7d4"
+}

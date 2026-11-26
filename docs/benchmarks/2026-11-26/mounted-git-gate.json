@@ -1,0 +1,214 @@
+{
+  "passed": true,
+  "load_class": "ambient",
+  "pre_idle_pct": [
+    89.81277533039648,
+    91.09020475926951
+  ],
+  "post_idle_pct": [
+    87.12162905888827,
+    89.99447208402432
+  ],
+  "material_host_idle_pct": 79.88269031544495,
+  "dirty_host_idle_pct": 78.93708479874951,
+  "medians_ms": {
+    "warm": {
+      "orbstack/stock": {
+        "guest_total": 664.081118,
+        "host_total": 872.5868545,
+        "git_status": 59.4668225,
+        "go_build": 347.0636405,
+        "go_test": 255.902043
+      },
+      "hvf/stock": {
+        "guest_total": 915.1318335,
+        "host_total": 1073.443458,
+        "git_status": 181.222812,
+        "go_build": 408.5259795,
+        "go_test": 328.617125
+      },
+      "orbstack/helper": {
+        "guest_total": 650.772958,
+        "host_total": 781.605812,
+        "git_status": 47.7764865,
+        "go_build": 345.7036245,
+        "go_test": 256.490321
+      },
+      "hvf/helper": {
+        "guest_total": 850.4246675,
+        "host_total": 937.754854,
+        "git_status": 103.617146,
+        "go_build": 407.687167,
+        "go_test": 336.714271
+      }
+    },
+    "incremental": {
+      "orbstack/stock": {
+        "guest_total": 1994.0606335,
+        "host_total": 2178.789042,
+        "git_status": 59.7460515,
+        "go_build": 840.5160065,
+        "go_test": 1096.3232065
+      },
+      "hvf/stock": {
+        "guest_total": 2109.1427725,
+        "host_total": 2265.80925,
+        "git_status": 175.328125,
+        "go_build": 858.251813,
+        "go_test": 1094.154355
+      },
+      "orbstack/helper": {
+        "guest_total": 2017.2040845,
+        "host_total": 2125.6895415,
+        "git_status": 100.828828,
+        "go_build": 831.2308235,
+        "go_test": 1076.850813
+      },
+      "hvf/helper": {
+        "guest_total": 2146.059397,
+        "host_total": 2233.152,
+        "git_status": 258.9700625,
+        "go_build": 834.720438,
+        "go_test": 1052.4635215
+      }
+    }
+  },
+  "cold_first_jobs_ms": {
+    "orbstack/stock": 14369.353167,
+    "hvf/stock": 13385.4755,
+    "orbstack/helper": 13955.439208,
+    "hvf/helper": 13688.359499
+  },
+  "pairs": {
+    "warm": {
+      "hvf": {
+        "sum_ns": {
+          "count": 4,
+          "helper_wins": 4,
+          "median_saving_ms": 61.946395
+        },
+        "host_total_ns": {
+          "count": 4,
+          "helper_wins": 4,
+          "median_saving_ms": 127.17195799999999
+        }
+      },
+      "orbstack": {
+        "sum_ns": {
+          "count": 4,
+          "helper_wins": 1,
+          "median_saving_ms": -3.7216945
+        },
+        "host_total_ns": {
+          "count": 4,
+          "helper_wins": 4,
+          "median_saving_ms": 86.5983335
+        }
+      }
+    },
+    "incremental": {
+      "hvf": {
+        "sum_ns": {
+          "count": 4,
+          "helper_wins": 1,
+          "median_saving_ms": -56.7377075
+        },
+        "host_total_ns": {
+          "count": 4,
+          "helper_wins": 2,
+          "median_saving_ms": 14.941229000000003
+        }
+      },
+      "orbstack": {
+        "sum_ns": {
+          "count": 4,
+          "helper_wins": 1,
+          "median_saving_ms": -14.434372499999998
+        },
+        "host_total_ns": {
+          "count": 4,
+          "helper_wins": 3,
+          "median_saving_ms": 44.0756665
+        }
+      }
+    }
+  },
+  "dirty_git": {
+    "hvf": {
+      "clean": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 165.449417,
+          "shards-4": 100.469563
+        },
+        "paired_penalty_ms": -65.3266875,
+        "illustrative_clean_share_break_even_pct": null
+      },
+      "tracked_start": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 164.4087085,
+          "shards-4": 260.8229795
+        },
+        "paired_penalty_ms": 96.414271,
+        "illustrative_clean_share_break_even_pct": 59.61030025675284
+      },
+      "tracked_end": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 161.6326465,
+          "shards-4": 253.435104
+        },
+        "paired_penalty_ms": 91.0629785,
+        "illustrative_clean_share_break_even_pct": 58.22825818938702
+      },
+      "untracked": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 159.2548965,
+          "shards-4": 259.220333
+        },
+        "paired_penalty_ms": 99.020291,
+        "illustrative_clean_share_break_even_pct": 60.250752343463375
+      }
+    },
+    "orbstack": {
+      "clean": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 50.645205,
+          "shards-4": 48.0550405
+        },
+        "paired_penalty_ms": -3.244305,
+        "illustrative_clean_share_break_even_pct": null
+      },
+      "tracked_start": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 52.7887615,
+          "shards-4": 96.3606985
+        },
+        "paired_penalty_ms": 43.571937,
+        "illustrative_clean_share_break_even_pct": 93.07012937945767
+      },
+      "tracked_end": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 52.1454135,
+          "shards-4": 96.546084
+        },
+        "paired_penalty_ms": 43.425471,
+        "illustrative_clean_share_break_even_pct": 93.04838103358371
+      },
+      "untracked": {
+        "pair_count": 4,
+        "median_ms": {
+          "stock": 54.665969,
+          "shards-4": 96.413306
+        },
+        "paired_penalty_ms": 41.6208085,
+        "illustrative_clean_share_break_even_pct": 92.76875784567001
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "type": "held service connection and guest return route",
+  "socket_congestion_controller": null,
+  "observations": [
+    {
+      "stage": "before_open",
+      "stdout": "{\"source\":\"proc_net_tcp\",\"connections\":[]}"
+    },
+    {
+      "stage": "first_marker",
+      "status": 200,
+      "body": "mp-t-pqwifw7d-b"
+    },
+    {
+      "stage": "first_socket",
+      "stdout": "{\"source\":\"proc_net_tcp\",\"connections\":[{\"local_ip\":\"10.88.0.2\",\"local_port\":8080,\"remote_ip\":\"192.168.129.1\",\"remote_port\":58452}]}"
+    },
+    {
+      "stage": "routes",
+      "stdout": "{\"eth0\":[{\"LinkIndex\":2,\"ILinkIndex\":0,\"Scope\":0,\"Dst\":{\"IP\":\"0.0.0.0\",\"Mask\":\"AAAAAA==\"},\"Src\":\"\",\"Gw\":\"10.88.0.1\",\"MultiPath\":null,\"Protocol\":3,\"Priority\":0,\"Family\":2,\"Table\":254,\"Type\":1,\"Tos\":0,\"Flags\":0,\"MPLSDst\":null,\"NewDst\":null,\"Encap\":null,\"Via\":null,\"Realm\":0,\"MTU\":0,\"MTULock\":false,\"Window\":0,\"Rtt\":0,\"RttVar\":0,\"Ssthresh\":0,\"Cwnd\":0,\"AdvMSS\":0,\"Reordering\":0,\"Hoplimit\":0,\"InitCwnd\":0,\"Features\":0,\"RtoMin\":0,\"RtoMinLock\":false,\"InitRwnd\":0,\"QuickACK\":0,\"Congctl\":\"\",\"FastOpenNoCookie\":0},{\"LinkIndex\":2,\"ILinkIndex\":0,\"Scope\":253,\"Dst\":{\"IP\":\"10.88.0.0\",\"Mask\":\"//8AAA==\"},\"Src\":\"10.88.0.2\",\"Gw\":\"\",\"MultiPath\":null,\"Protocol\":2,\"Priority\":0,\"Family\":2,\"Table\":254,\"Type\":1,\"Tos\":0,\"Flags\":0,\"MPLSDst\":null,\"NewDst\":null,\"Encap\":null,\"Via\":null,\"Realm\":0,\"MTU\":0,\"MTULock\":false,\"Window\":0,\"Rtt\":0,\"RttVar\":0,\"Ssthresh\":0,\"Cwnd\":0,\"AdvMSS\":0,\"Reordering\":0,\"Hoplimit\":0,\"InitCwnd\":0,\"Features\":0,\"RtoMin\":0,\"RtoMinLock\":false,\"InitRwnd\":0,\"QuickACK\":0,\"Congctl\":\"\",\"FastOpenNoCookie\":0}],\"http\":\"GET\",\"mppub0\":[{\"LinkIndex\":3,\"ILinkIndex\":0,\"Scope\":253,\"Dst\":{\"IP\":\"192.168.129.1\",\"Mask\":\"/////w==\"},\"Src\":\"10.88.0.2\",\"Gw\":\"\",\"MultiPath\":null,\"Protocol\":3,\"Priority\":0,\"Family\":2,\"Table\":254,\"Type\":1,\"Tos\":0,\"Flags\":0,\"MPLSDst\":null,\"NewDst\":null,\"Encap\":null,\"Via\":null,\"Realm\":0,\"MTU\":0,\"MTULock\":false,\"Window\":0,\"Rtt\":0,\"RttVar\":0,\"Ssthresh\":0,\"Cwnd\":0,\"AdvMSS\":0,\"Reordering\":0,\"Hoplimit\":0,\"InitCwnd\":0,\"Features\":0,\"RtoMin\":20,\"RtoMinLock\":true,\"InitRwnd\":0,\"QuickACK\":0,\"Congctl\":\"reno\",\"FastOpenNoCookie\":0}],\"release\":\"7.3.5-micropod\\n\"}"
+    },
+    {
+      "stage": "service_addresses",
+      "stdout": "{\"cap_effective\":\"00000000000000db\",\"cpu.max\":\"400000 100000\",\"cpuset.cpus.effective\":\"0-3\",\"interfaces\":{\"eth0\":{\"addr\":\"[10.88.0.2/16 fe80::880c:c4ff:fef3:81f8/64]\",\"mac\":\"8a:0c:c4:f3:81:f8\",\"rx_bytes\":1080,\"rx_dropped\":0,\"tx_bytes\":682,\"tx_dropped\":0},\"lo\":{\"addr\":\"[127.0.0.1/8 ::1/128]\",\"mac\":\"\",\"rx_bytes\":0,\"rx_dropped\":0,\"tx_bytes\":0,\"tx_dropped\":0},\"mppub0\":{\"addr\":\"[]\",\"mac\":\"3a:1e:8a:57:5f:68\",\"rx_bytes\":80793762,\"rx_dropped\":0,\"tx_bytes\":76415483552,\"tx_dropped\":0}},\"memory.max\":\"1073741824\",\"pids.max\":\"512\",\"release\":\"7.3.5-micropod\"}"
+    },
+    {
+      "stage": "second_marker",
+      "status": 200,
+      "body": "mp-t-pqwifw7d-b"
+    },
+    {
+      "stage": "second_socket",
+      "stdout": "{\"source\":\"proc_net_tcp\",\"connections\":[{\"local_ip\":\"10.88.0.2\",\"local_port\":8080,\"remote_ip\":\"192.168.129.1\",\"remote_port\":58452}]}"
+    },
+    {
+      "stage": "after_close",
+      "stdout": "{\"source\":\"proc_net_tcp\",\"connections\":[]}"
+    }
+  ],
+  "route": {
+    "LinkIndex": 3,
+    "ILinkIndex": 0,
+    "Scope": 253,
+    "Dst": {
+      "IP": "192.168.129.1",
+      "Mask": "/////w=="
+    },
+    "Src": "10.88.0.2",
+    "Gw": "",
+    "MultiPath": null,
+    "Protocol": 3,
+    "Priority": 0,
+    "Family": 2,
+    "Table": 254,
+    "Type": 1,
+    "Tos": 0,
+    "Flags": 0,
+    "MPLSDst": null,
+    "NewDst": null,
+    "Encap": null,
+    "Via": null,
+    "Realm": 0,
+    "MTU": 0,
+    "MTULock": false,
+    "Window": 0,
+    "Rtt": 0,
+    "RttVar": 0,
+    "Ssthresh": 0,
+    "Cwnd": 0,
+    "AdvMSS": 0,
+    "Reordering": 0,
+    "Hoplimit": 0,
+    "InitCwnd": 0,
+    "Features": 0,
+    "RtoMin": 20,
+    "RtoMinLock": true,
+    "InitRwnd": 0,
+    "QuickACK": 0,
+    "Congctl": "reno",
+    "FastOpenNoCookie": 0
+  },
+  "flow": {
+    "local_ip": "10.88.0.2",
+    "local_port": 8080,
+    "remote_ip": "192.168.129.1",
+    "remote_port": 58452
+  },
+  "passed": true
+}

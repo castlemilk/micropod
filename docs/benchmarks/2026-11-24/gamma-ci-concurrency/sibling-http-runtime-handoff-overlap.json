@@ -1,0 +1,1207 @@
+{
+  "schema": "micropod-http-handoff-overlap-v1",
+  "diagnostic_only": true,
+  "archive": "20261125T082308Z-sibling-http-runtime-handoff-6pk9n0ep",
+  "strict_replay_sha256": "7b9b86ca56d2d5343c72d5c2407f170133fb6ecc21d64416022cab79618ff0de",
+  "decoder_tolerance_ns": 2000,
+  "traces": {
+    "grouped-0-all-A.0": {
+      "origin_bounds_ns": [
+        46281529187,
+        46281529437
+      ],
+      "unassigned_cycles": {
+        "unclassified_select": 3001
+      },
+      "all_calls": {
+        "headers": {
+          "selected": 3000,
+          "matched": 3000,
+          "phase_ns": 59767124,
+          "blocked_ns_bounds": [
+            17815959,
+            25511923
+          ],
+          "runnable_ns_bounds": [
+            33124352,
+            41660544
+          ]
+        },
+        "body_eof": {
+          "selected": 3000,
+          "matched": 3000,
+          "phase_ns": 102766776,
+          "blocked_ns_bounds": [
+            42783776,
+            52749010
+          ],
+          "runnable_ns_bounds": [
+            47976416,
+            58276188
+          ]
+        },
+        "body_socket": {
+          "selected": 3000,
+          "matched": 0,
+          "phase_ns": 102766776,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "own_p95_band": {
+        "headers": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 7210123,
+          "blocked_ns_bounds": [
+            2805182,
+            2995279
+          ],
+          "runnable_ns_bounds": [
+            4173440,
+            4404890
+          ]
+        },
+        "body_eof": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 12205542,
+          "blocked_ns_bounds": [
+            1947552,
+            2203755
+          ],
+          "runnable_ns_bounds": [
+            9214432,
+            9496182
+          ]
+        },
+        "body_socket": {
+          "selected": 60,
+          "matched": 0,
+          "phase_ns": 12205542,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "median_return_minus_parsed_run_ns_at_gate_lower": {
+        "headers": 117.0,
+        "body_eof": 21.0
+      }
+    },
+    "grouped-0-all-B.0": {
+      "origin_bounds_ns": [
+        92560705920609,
+        92560705920817
+      ],
+      "unassigned_cycles": {
+        "unclassified_select": 2996
+      },
+      "all_calls": {
+        "headers": {
+          "selected": 3000,
+          "matched": 2987,
+          "phase_ns": 51634747,
+          "blocked_ns_bounds": [
+            6556036,
+            15026504
+          ],
+          "runnable_ns_bounds": [
+            33619616,
+            44427013
+          ]
+        },
+        "body_eof": {
+          "selected": 3000,
+          "matched": 3000,
+          "phase_ns": 49553615,
+          "blocked_ns_bounds": [
+            15765184,
+            27221332
+          ],
+          "runnable_ns_bounds": [
+            18698720,
+            30068489
+          ]
+        },
+        "body_socket": {
+          "selected": 3000,
+          "matched": 0,
+          "phase_ns": 49553615,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "own_p95_band": {
+        "headers": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 2552998,
+          "blocked_ns_bounds": [
+            330142,
+            549365
+          ],
+          "runnable_ns_bounds": [
+            1909280,
+            2222856
+          ]
+        },
+        "body_eof": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 2593829,
+          "blocked_ns_bounds": [
+            1020320,
+            1338227
+          ],
+          "runnable_ns_bounds": [
+            1180960,
+            1487033
+          ]
+        },
+        "body_socket": {
+          "selected": 60,
+          "matched": 0,
+          "phase_ns": 2593829,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "median_return_minus_parsed_run_ns_at_gate_lower": {
+        "headers": 140,
+        "body_eof": 14.0
+      }
+    },
+    "grouped-1-all-A.9": {
+      "origin_bounds_ns": [
+        51474054273,
+        51474054523
+      ],
+      "unassigned_cycles": {
+        "unclassified_select": 3001
+      },
+      "all_calls": {
+        "headers": {
+          "selected": 3000,
+          "matched": 3000,
+          "phase_ns": 58442057,
+          "blocked_ns_bounds": [
+            5041393,
+            12884516
+          ],
+          "runnable_ns_bounds": [
+            44021920,
+            53321112
+          ]
+        },
+        "body_eof": {
+          "selected": 3000,
+          "matched": 3000,
+          "phase_ns": 90735000,
+          "blocked_ns_bounds": [
+            23432672,
+            34392787
+          ],
+          "runnable_ns_bounds": [
+            54184800,
+            66260519
+          ]
+        },
+        "body_socket": {
+          "selected": 3000,
+          "matched": 0,
+          "phase_ns": 90735000,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "own_p95_band": {
+        "headers": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 5999458,
+          "blocked_ns_bounds": [
+            792843,
+            975768
+          ],
+          "runnable_ns_bounds": [
+            4970528,
+            5206615
+          ]
+        },
+        "body_eof": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 8340289,
+          "blocked_ns_bounds": [
+            1109504,
+            1372232
+          ],
+          "runnable_ns_bounds": [
+            6890560,
+            7209251
+          ]
+        },
+        "body_socket": {
+          "selected": 60,
+          "matched": 0,
+          "phase_ns": 8340289,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "median_return_minus_parsed_run_ns_at_gate_lower": {
+        "headers": 131.0,
+        "body_eof": 27.0
+      }
+    },
+    "grouped-1-all-B.9": {
+      "origin_bounds_ns": [
+        92573957025147,
+        92573957025397
+      ],
+      "unassigned_cycles": {
+        "unclassified_select": 3001
+      },
+      "all_calls": {
+        "headers": {
+          "selected": 3000,
+          "matched": 2999,
+          "phase_ns": 22860095,
+          "blocked_ns_bounds": [
+            1451225,
+            9787929
+          ],
+          "runnable_ns_bounds": [
+            11749472,
+            20954826
+          ]
+        },
+        "body_eof": {
+          "selected": 3000,
+          "matched": 3000,
+          "phase_ns": 27535356,
+          "blocked_ns_bounds": [
+            7641536,
+            17209413
+          ],
+          "runnable_ns_bounds": [
+            9210272,
+            18619913
+          ]
+        },
+        "body_socket": {
+          "selected": 3000,
+          "matched": 0,
+          "phase_ns": 27535356,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "own_p95_band": {
+        "headers": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 2878446,
+          "blocked_ns_bounds": [
+            280363,
+            508173
+          ],
+          "runnable_ns_bounds": [
+            1994784,
+            2319076
+          ]
+        },
+        "body_eof": {
+          "selected": 60,
+          "matched": 60,
+          "phase_ns": 2283622,
+          "blocked_ns_bounds": [
+            868992,
+            1185175
+          ],
+          "runnable_ns_bounds": [
+            1007136,
+            1304388
+          ]
+        },
+        "body_socket": {
+          "selected": 60,
+          "matched": 0,
+          "phase_ns": 2283622,
+          "blocked_ns_bounds": [
+            0,
+            0
+          ],
+          "runnable_ns_bounds": [
+            0,
+            0
+          ]
+        }
+      },
+      "median_return_minus_parsed_run_ns_at_gate_lower": {
+        "headers": 142,
+        "body_eof": 8.0
+      }
+    }
+  },
+  "same_offers": {
+    "builder": {
+      "tail_union_size": 295,
+      "tail_union_by_trace": {
+        "grouped-0-all-A.0": {
+          "headers": {
+            "selected": 295,
+            "matched": 295,
+            "phase_ns": 24683459,
+            "blocked_ns_bounds": [
+              12852297,
+              13721374
+            ],
+            "runnable_ns_bounds": [
+              10833984,
+              11830914
+            ]
+          },
+          "body_eof": {
+            "selected": 295,
+            "matched": 295,
+            "phase_ns": 65695922,
+            "blocked_ns_bounds": [
+              38262944,
+              39435101
+            ],
+            "runnable_ns_bounds": [
+              25185760,
+              26415760
+            ]
+          },
+          "body_socket": {
+            "selected": 295,
+            "matched": 0,
+            "phase_ns": 65695922,
+            "blocked_ns_bounds": [
+              0,
+              0
+            ],
+            "runnable_ns_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "grouped-0-all-B.0": {
+          "headers": {
+            "selected": 295,
+            "matched": 294,
+            "phase_ns": 16640651,
+            "blocked_ns_bounds": [
+              2965604,
+              3970547
+            ],
+            "runnable_ns_bounds": [
+              12121024,
+              13482670
+            ]
+          },
+          "body_eof": {
+            "selected": 295,
+            "matched": 295,
+            "phase_ns": 10090111,
+            "blocked_ns_bounds": [
+              3529888,
+              4849043
+            ],
+            "runnable_ns_bounds": [
+              4174304,
+              5433228
+            ]
+          },
+          "body_socket": {
+            "selected": 295,
+            "matched": 0,
+            "phase_ns": 10090111,
+            "blocked_ns_bounds": [
+              0,
+              0
+            ],
+            "runnable_ns_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "examples": [
+        {
+          "ranked_at_p95_in": "grouped-0-all-A.0",
+          "client_index": 1655,
+          "global_offer_ordinal": 52960,
+          "by_trace": {
+            "grouped-0-all-A.0": {
+              "arrival": {
+                "due_offset_ns": 827500000,
+                "dispatch_offset_ns": 827522250,
+                "completion_offset_ns": 828180250,
+                "latency_ns": 680250
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 3375,
+                "wrote_request_ns": 16375,
+                "first_response_byte_ns": 649500,
+                "do_return_ns": 653625,
+                "readall_return_ns": 657750,
+                "body_close_return_ns": 658000,
+                "total_ns": 658000
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 47109696960,
+                    "ready_trace_ns": 47109703936,
+                    "run_trace_ns": 47109704960,
+                    "blocked_ns_bounds": [
+                      749,
+                      4125
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      3376
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 102
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 47109706112,
+                    "ready_trace_ns": 47109707520,
+                    "run_trace_ns": 47109709184,
+                    "blocked_ns_bounds": [
+                      0,
+                      4125
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      3917
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 3
+                  }
+                ],
+                "body_socket": []
+              }
+            },
+            "grouped-0-all-B.0": {
+              "arrival": {
+                "due_offset_ns": 827500000,
+                "dispatch_offset_ns": 827559564,
+                "completion_offset_ns": 827842517,
+                "latency_ns": 342517
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 3124,
+                "wrote_request_ns": 61248,
+                "first_response_byte_ns": 226954,
+                "do_return_ns": 273453,
+                "readall_return_ns": 282661,
+                "body_close_return_ns": 282911,
+                "total_ns": 282953
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 92561533546240,
+                    "ready_trace_ns": 92561533709632,
+                    "run_trace_ns": 92561533753408,
+                    "blocked_ns_bounds": [
+                      297,
+                      4505
+                    ],
+                    "runnable_ns_bounds": [
+                      39776,
+                      46202
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 218
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 92561533754880,
+                    "ready_trace_ns": 92561533759040,
+                    "run_trace_ns": 92561533762752,
+                    "blocked_ns_bounds": [
+                      160,
+                      7414
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      6002
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 82
+                  }
+                ],
+                "body_socket": []
+              }
+            }
+          }
+        },
+        {
+          "ranked_at_p95_in": "grouped-0-all-B.0",
+          "client_index": 553,
+          "global_offer_ordinal": 17696,
+          "by_trace": {
+            "grouped-0-all-A.0": {
+              "arrival": {
+                "due_offset_ns": 276500000,
+                "dispatch_offset_ns": 276557750,
+                "completion_offset_ns": 276586042,
+                "latency_ns": 86042
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 2917,
+                "wrote_request_ns": 7458,
+                "first_response_byte_ns": 23042,
+                "do_return_ns": 25250,
+                "readall_return_ns": 28167,
+                "body_close_return_ns": 28292,
+                "total_ns": 28292
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 46558108160,
+                    "ready_trace_ns": 46558111104,
+                    "run_trace_ns": 46558112064,
+                    "blocked_ns_bounds": [
+                      0,
+                      2208
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      2208
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 123
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 46558112768,
+                    "ready_trace_ns": 46558113728,
+                    "run_trace_ns": 46558115072,
+                    "blocked_ns_bounds": [
+                      0,
+                      2917
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      2917
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 32
+                  }
+                ],
+                "body_socket": []
+              }
+            },
+            "grouped-0-all-B.0": {
+              "arrival": {
+                "due_offset_ns": 276500000,
+                "dispatch_offset_ns": 276901313,
+                "completion_offset_ns": 277324638,
+                "latency_ns": 824638
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 5375,
+                "wrote_request_ns": 146539,
+                "first_response_byte_ns": 271578,
+                "do_return_ns": 336410,
+                "readall_return_ns": 422742,
+                "body_close_return_ns": 423242,
+                "total_ns": 423325
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 92560983064320,
+                    "ready_trace_ns": 92560983096704,
+                    "run_trace_ns": 92560983157952,
+                    "blocked_ns_bounds": [
+                      996,
+                      5204
+                    ],
+                    "runnable_ns_bounds": [
+                      57248,
+                      63836
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 380
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 92560983159232,
+                    "ready_trace_ns": 92560983188992,
+                    "run_trace_ns": 92560983244416,
+                    "blocked_ns_bounds": [
+                      25760,
+                      32660
+                    ],
+                    "runnable_ns_bounds": [
+                      51424,
+                      57880
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 248
+                  }
+                ],
+                "body_socket": []
+              }
+            }
+          }
+        }
+      ]
+    },
+    "service_only": {
+      "tail_union_size": 290,
+      "tail_union_by_trace": {
+        "grouped-1-all-A.9": {
+          "headers": {
+            "selected": 290,
+            "matched": 290,
+            "phase_ns": 18037913,
+            "blocked_ns_bounds": [
+              3477449,
+              4313675
+            ],
+            "runnable_ns_bounds": [
+              13553600,
+              14555285
+            ]
+          },
+          "body_eof": {
+            "selected": 290,
+            "matched": 290,
+            "phase_ns": 40647376,
+            "blocked_ns_bounds": [
+              20619840,
+              21805843
+            ],
+            "runnable_ns_bounds": [
+              18536704,
+              19810659
+            ]
+          },
+          "body_socket": {
+            "selected": 290,
+            "matched": 0,
+            "phase_ns": 40647376,
+            "blocked_ns_bounds": [
+              0,
+              0
+            ],
+            "runnable_ns_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "grouped-1-all-B.9": {
+          "headers": {
+            "selected": 290,
+            "matched": 290,
+            "phase_ns": 7256315,
+            "blocked_ns_bounds": [
+              889460,
+              1853851
+            ],
+            "runnable_ns_bounds": [
+              4817344,
+              5999343
+            ]
+          },
+          "body_eof": {
+            "selected": 290,
+            "matched": 290,
+            "phase_ns": 9857081,
+            "blocked_ns_bounds": [
+              4069760,
+              5208120
+            ],
+            "runnable_ns_bounds": [
+              4317184,
+              5400466
+            ]
+          },
+          "body_socket": {
+            "selected": 290,
+            "matched": 0,
+            "phase_ns": 9857081,
+            "blocked_ns_bounds": [
+              0,
+              0
+            ],
+            "runnable_ns_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "examples": [
+        {
+          "ranked_at_p95_in": "grouped-1-all-A.9",
+          "client_index": 1774,
+          "global_offer_ordinal": 56777,
+          "by_trace": {
+            "grouped-1-all-A.9": {
+              "arrival": {
+                "due_offset_ns": 887140625,
+                "dispatch_offset_ns": 887196458,
+                "completion_offset_ns": 887658792,
+                "latency_ns": 518167
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 3750,
+                "wrote_request_ns": 7584,
+                "first_response_byte_ns": 28167,
+                "do_return_ns": 30542,
+                "readall_return_ns": 461750,
+                "body_close_return_ns": 462292,
+                "total_ns": 462334
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 52361276608,
+                    "ready_trace_ns": 52361280000,
+                    "run_trace_ns": 52361281088,
+                    "blocked_ns_bounds": [
+                      0,
+                      2375
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      2375
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 185
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 52361281728,
+                    "ready_trace_ns": 52361283392,
+                    "run_trace_ns": 52361712256,
+                    "blocked_ns_bounds": [
+                      0,
+                      4119
+                    ],
+                    "runnable_ns_bounds": [
+                      424864,
+                      431208
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 225
+                  }
+                ],
+                "body_socket": []
+              }
+            },
+            "grouped-1-all-B.9": {
+              "arrival": {
+                "due_offset_ns": 887140625,
+                "dispatch_offset_ns": 887196225,
+                "completion_offset_ns": 887228516,
+                "latency_ns": 87891
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 3334,
+                "wrote_request_ns": 6709,
+                "first_response_byte_ns": 26583,
+                "do_return_ns": 28958,
+                "readall_return_ns": 31958,
+                "body_close_return_ns": 32166,
+                "total_ns": 32291
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 92574844233024,
+                    "ready_trace_ns": 92574844249280,
+                    "run_trace_ns": 92574844250176,
+                    "blocked_ns_bounds": [
+                      0,
+                      2375
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      2375
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 154
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 92574844250816,
+                    "ready_trace_ns": 92574844251776,
+                    "run_trace_ns": 92574844253376,
+                    "blocked_ns_bounds": [
+                      0,
+                      3000
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      3000
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": -46
+                  }
+                ],
+                "body_socket": []
+              }
+            }
+          }
+        },
+        {
+          "ranked_at_p95_in": "grouped-1-all-B.9",
+          "client_index": 1791,
+          "global_offer_ordinal": 57321,
+          "by_trace": {
+            "grouped-1-all-A.9": {
+              "arrival": {
+                "due_offset_ns": 895640625,
+                "dispatch_offset_ns": 895696042,
+                "completion_offset_ns": 896330750,
+                "latency_ns": 690125
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 2750,
+                "wrote_request_ns": 6125,
+                "first_response_byte_ns": 160416,
+                "do_return_ns": 163458,
+                "readall_return_ns": 634041,
+                "body_close_return_ns": 634583,
+                "total_ns": 634708
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 52369905088,
+                    "ready_trace_ns": 52369912512,
+                    "run_trace_ns": 52369913664,
+                    "blocked_ns_bounds": [
+                      0,
+                      3042
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      3042
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 109
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 52369914560,
+                    "ready_trace_ns": 52369916096,
+                    "run_trace_ns": 52370384128,
+                    "blocked_ns_bounds": [
+                      0,
+                      4323
+                    ],
+                    "runnable_ns_bounds": [
+                      464032,
+                      470510
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 228
+                  }
+                ],
+                "body_socket": []
+              }
+            },
+            "grouped-1-all-B.9": {
+              "arrival": {
+                "due_offset_ns": 895640625,
+                "dispatch_offset_ns": 895942524,
+                "completion_offset_ns": 896315059,
+                "latency_ns": 674434
+              },
+              "clock_boundaries_ns": {
+                "got_conn_ns": 5500,
+                "wrote_request_ns": 18333,
+                "first_response_byte_ns": 362077,
+                "do_return_ns": 368077,
+                "readall_return_ns": 371993,
+                "body_close_return_ns": 372243,
+                "total_ns": 372535
+              },
+              "trace_cycles": {
+                "headers": [
+                  {
+                    "park_trace_ns": 92574852998784,
+                    "ready_trace_ns": 92574853332032,
+                    "run_trace_ns": 92574853335424,
+                    "blocked_ns_bounds": [
+                      34,
+                      4284
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      5966
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 324
+                  }
+                ],
+                "body_eof": [
+                  {
+                    "park_trace_ns": 92574853336640,
+                    "ready_trace_ns": 92574853337984,
+                    "run_trace_ns": 92574853339584,
+                    "blocked_ns_bounds": [
+                      0,
+                      3916
+                    ],
+                    "runnable_ns_bounds": [
+                      0,
+                      3916
+                    ],
+                    "return_minus_parsed_run_ns_at_gate_lower": 80
+                  }
+                ],
+                "body_socket": []
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "per_wave_observer_controls": {
+    "grouped-0-all-B.0": {
+      "post_dispatch_p95_ns": 423325,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 411242,
+      "ratio_to_sibling_median": 1.0293817265746203,
+      "this_client_traced": true,
+      "any_client_traced": true
+    },
+    "grouped-0-all-B.9": {
+      "post_dispatch_p95_ns": 326119,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 333660,
+      "ratio_to_sibling_median": 0.9773991488341426,
+      "this_client_traced": false,
+      "any_client_traced": true
+    },
+    "grouped-0-all-A.0": {
+      "post_dispatch_p95_ns": 658000,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 577125,
+      "ratio_to_sibling_median": 1.1401342863331168,
+      "this_client_traced": true,
+      "any_client_traced": true
+    },
+    "grouped-0-all-A.9": {
+      "post_dispatch_p95_ns": 371708,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 292167,
+      "ratio_to_sibling_median": 1.2722449831774294,
+      "this_client_traced": false,
+      "any_client_traced": true
+    },
+    "grouped-1-all-A.0": {
+      "post_dispatch_p95_ns": 457291,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 669083,
+      "ratio_to_sibling_median": 0.6834593017607681,
+      "this_client_traced": false,
+      "any_client_traced": true
+    },
+    "grouped-1-all-A.9": {
+      "post_dispatch_p95_ns": 462334,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 293167,
+      "ratio_to_sibling_median": 1.5770328856931373,
+      "this_client_traced": true,
+      "any_client_traced": true
+    },
+    "grouped-1-all-B.0": {
+      "post_dispatch_p95_ns": 491491,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 482866,
+      "ratio_to_sibling_median": 1.0178620983875444,
+      "this_client_traced": false,
+      "any_client_traced": true
+    },
+    "grouped-1-all-B.9": {
+      "post_dispatch_p95_ns": 372535,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 320078,
+      "ratio_to_sibling_median": 1.1638881772567937,
+      "this_client_traced": true,
+      "any_client_traced": true
+    },
+    "grouped-2-all-B.0": {
+      "post_dispatch_p95_ns": 370577,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 439034,
+      "ratio_to_sibling_median": 0.844073579722755,
+      "this_client_traced": false,
+      "any_client_traced": false
+    },
+    "grouped-2-all-B.9": {
+      "post_dispatch_p95_ns": 254037,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 252662,
+      "ratio_to_sibling_median": 1.005442053019449,
+      "this_client_traced": false,
+      "any_client_traced": false
+    },
+    "grouped-2-all-A.0": {
+      "post_dispatch_p95_ns": 2406875,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 2445333,
+      "ratio_to_sibling_median": 0.9842728986195336,
+      "this_client_traced": false,
+      "any_client_traced": false
+    },
+    "grouped-2-all-A.9": {
+      "post_dispatch_p95_ns": 2014375,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 1747666,
+      "ratio_to_sibling_median": 1.1526086792327597,
+      "this_client_traced": false,
+      "any_client_traced": false
+    },
+    "grouped-3-all-A.0": {
+      "post_dispatch_p95_ns": 2466250,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 2288583,
+      "ratio_to_sibling_median": 1.0776318796390605,
+      "this_client_traced": false,
+      "any_client_traced": false
+    },
+    "grouped-3-all-A.9": {
+      "post_dispatch_p95_ns": 1695500,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 1774375,
+      "ratio_to_sibling_median": 0.9555477280732653,
+      "this_client_traced": false,
+      "any_client_traced": false
+    },
+    "grouped-3-all-B.0": {
+      "post_dispatch_p95_ns": 1292893,
+      "same_vcpu_role_slots": [
+        4
+      ],
+      "same_vcpu_role_median_p95_ns": 1516723,
+      "ratio_to_sibling_median": 0.8524252615672078,
+      "this_client_traced": false,
+      "any_client_traced": false
+    },
+    "grouped-3-all-B.9": {
+      "post_dispatch_p95_ns": 1004982,
+      "same_vcpu_role_slots": [
+        13,
+        17,
+        21,
+        25,
+        29
+      ],
+      "same_vcpu_role_median_p95_ns": 955816,
+      "ratio_to_sibling_median": 1.0514387706420483,
+      "this_client_traced": false,
+      "any_client_traced": false
+    }
+  }
+}

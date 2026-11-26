@@ -1,0 +1,202 @@
+{
+  "archive": "20261125T082030Z-sibling-http-client-boundaries-2uje304h",
+  "diagnostic_only": true,
+  "metric": "Micropod minus OrbStack, mean microseconds, equally weighted slots and waves",
+  "selection": "within each of the 32 slots in each wave, union of offer ordinals ranked 2821 through 2880 by either engine out of 3000, ties by ordinal",
+  "raw_sha256": {
+    "grouped-0-all-A": "75e3af396a0cb001caf43d6c5cc80611f7fad21c31c7fe33a313de3afba99b9f",
+    "grouped-0-all-B": "3590b8d1e5ee28219aa1517afc6afad1c85ce32568d6c4d5476d59c0d6278a83",
+    "grouped-1-all-A": "a0adafc5f46a304bc44c81de7310cdea7670843ccdac97957548e231b8428054",
+    "grouped-1-all-B": "032869389cb692b1f48a20f13f9b174a7400985a7624d8d27064771bb5f6adab",
+    "grouped-2-all-A": "99458ca61dbc080e1863161a6d7c6eb1c6fe39b6c1a5a3ec35a442051df430c2",
+    "grouped-2-all-B": "4b9a095cc7da70dfcef588b98b09d53d738e58f7df1e648ece4194171a87d616",
+    "grouped-3-all-A": "f2c7dd501a2338b61bcc4e1bf53525a3da1b15e4678d8cb2d6cc7f8cf0948c75",
+    "grouped-3-all-B": "097c9b6819b8b1c582e3b448b9b719c7c0ca579c85963e86a27c8c08ec745568"
+  },
+  "requests": 768000,
+  "per_wave": [
+    {
+      "all": {
+        "matched_offers": 3796,
+        "mean_gap_us": {
+          "before_first_byte": -8.682079112311435,
+          "first_byte_to_do_return": 35.58841582438353,
+          "do_return_to_readall": 35.465271755319,
+          "readall_to_close": -0.029926127430982018,
+          "close_to_completion": 0.02479672358324352,
+          "after_first_byte": 71.04855817585478,
+          "total": 62.36647906354335
+        }
+      },
+      "builders": {
+        "matched_offers": 951,
+        "mean_gap_us": {
+          "before_first_byte": 21.33332700756253,
+          "first_byte_to_do_return": 50.529171746205115,
+          "do_return_to_readall": 45.0048841084555,
+          "readall_to_close": -0.08721886437598911,
+          "close_to_completion": -0.012446589586320823,
+          "after_first_byte": 95.43439040069829,
+          "total": 116.76771740826082
+        }
+      },
+      "service_only": {
+        "matched_offers": 2845,
+        "mean_gap_us": {
+          "before_first_byte": -18.687214485602755,
+          "first_byte_to_do_return": 30.608163850443002,
+          "do_return_to_readall": 32.28540097094017,
+          "readall_to_close": -0.01082854844931299,
+          "close_to_completion": 0.03721116130643163,
+          "after_first_byte": 62.91994743424028,
+          "total": 44.232732948637526
+        }
+      }
+    },
+    {
+      "all": {
+        "matched_offers": 3805,
+        "mean_gap_us": {
+          "before_first_byte": -19.69072464431474,
+          "first_byte_to_do_return": 39.882071801643264,
+          "do_return_to_readall": 32.46647837334458,
+          "readall_to_close": -0.17345445734308537,
+          "close_to_completion": -0.06504438058513373,
+          "after_first_byte": 72.11005133705962,
+          "total": 52.41932669274488
+        }
+      },
+      "builders": {
+        "matched_offers": 949,
+        "mean_gap_us": {
+          "before_first_byte": 33.677560626269795,
+          "first_byte_to_do_return": 47.50676209747195,
+          "do_return_to_readall": 44.2171147183245,
+          "readall_to_close": -0.4033633187056237,
+          "close_to_completion": -0.2740934285710193,
+          "after_first_byte": 91.04642006851981,
+          "total": 124.7239806947896
+        }
+      },
+      "service_only": {
+        "matched_offers": 2856,
+        "mean_gap_us": {
+          "before_first_byte": -37.48015306784292,
+          "first_byte_to_do_return": 37.34050836970037,
+          "do_return_to_readall": 28.5495995916846,
+          "readall_to_close": -0.09681817022223926,
+          "close_to_completion": 0.004638635410161458,
+          "after_first_byte": 65.7979284265729,
+          "total": 28.317775358729975
+        }
+      }
+    },
+    {
+      "all": {
+        "matched_offers": 3807,
+        "mean_gap_us": {
+          "before_first_byte": 35.39805053678536,
+          "first_byte_to_do_return": 45.45933341168687,
+          "do_return_to_readall": 66.80477363407431,
+          "readall_to_close": 0.13279698540025528,
+          "close_to_completion": -0.04374083716589092,
+          "after_first_byte": 112.35316319399554,
+          "total": 147.7512137307809
+        }
+      },
+      "builders": {
+        "matched_offers": 951,
+        "mean_gap_us": {
+          "before_first_byte": 4.772964526464108,
+          "first_byte_to_do_return": 55.127525230953964,
+          "do_return_to_readall": 57.79231400383328,
+          "readall_to_close": -0.3645998998958558,
+          "close_to_completion": -0.2062367283832264,
+          "after_first_byte": 112.34900260650817,
+          "total": 117.12196713297227
+        }
+      },
+      "service_only": {
+        "matched_offers": 2856,
+        "mean_gap_us": {
+          "before_first_byte": 45.60641254022578,
+          "first_byte_to_do_return": 42.2366028052645,
+          "do_return_to_readall": 69.80892684415466,
+          "readall_to_close": 0.2985959471656256,
+          "close_to_completion": 0.010424459906554247,
+          "after_first_byte": 112.35455005649135,
+          "total": 157.9609625967171
+        }
+      }
+    },
+    {
+      "all": {
+        "matched_offers": 3801,
+        "mean_gap_us": {
+          "before_first_byte": 14.269866992619189,
+          "first_byte_to_do_return": 33.10875975459141,
+          "do_return_to_readall": 48.37735063542731,
+          "readall_to_close": -0.004186132064340221,
+          "close_to_completion": -0.04581077797718036,
+          "after_first_byte": 81.43611347997721,
+          "total": 95.7059804725964
+        }
+      },
+      "builders": {
+        "matched_offers": 951,
+        "mean_gap_us": {
+          "before_first_byte": -21.964467966339075,
+          "first_byte_to_do_return": 43.598324975223136,
+          "do_return_to_readall": 37.35708044052367,
+          "readall_to_close": -0.6140872341309406,
+          "close_to_completion": -0.007717698096187625,
+          "after_first_byte": 80.33360048351967,
+          "total": 58.3691325171806
+        }
+      },
+      "service_only": {
+        "matched_offers": 2850,
+        "mean_gap_us": {
+          "before_first_byte": 26.347978645605277,
+          "first_byte_to_do_return": 29.612238014380836,
+          "do_return_to_readall": 52.05077403372852,
+          "readall_to_close": 0.1991142352911932,
+          "close_to_completion": -0.0585084712708446,
+          "after_first_byte": 81.8036178121297,
+          "total": 108.15159645773498
+        }
+      }
+    }
+  ],
+  "volume_uuid": "B14226CA-EBD2-4F72-81BA-2ACB6D9E0D3A",
+  "baseline_files_and_copies": 24,
+  "pooled": {
+    "all": {
+      "before_first_byte": 5.323778443194594,
+      "first_byte_to_do_return": 38.50964519807627,
+      "do_return_to_readall": 45.7784685995413,
+      "readall_to_close": -0.01869243285953808,
+      "close_to_completion": -0.03244981803624037,
+      "after_first_byte": 84.23697154672179,
+      "total": 89.56074998991639
+    },
+    "builders": {
+      "before_first_byte": 9.45484604848934,
+      "first_byte_to_do_return": 49.19044601246354,
+      "do_return_to_readall": 46.09284831778424,
+      "readall_to_close": -0.3673173292771023,
+      "close_to_completion": -0.12512361115918855,
+      "after_first_byte": 94.79085338981149,
+      "total": 104.24569943830082
+    },
+    "service_only": {
+      "before_first_byte": 3.946755908096346,
+      "first_byte_to_do_return": 34.94937825994718,
+      "do_return_to_readall": 45.673675360126985,
+      "readall_to_close": 0.09751586594631664,
+      "close_to_completion": -0.001558553661924317,
+      "after_first_byte": 80.71901093235856,
+      "total": 84.66576684045489
+    }
+  }
+}

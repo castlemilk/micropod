@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_qos.py", line 227, in <module>
+    run(parser.parse_args())
+    ~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_qos.py", line 178, in run
+    fixtures[arm], _ = receiver.scope_fixture(args, arm, process_type=process_type)
+                       ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 147, in scope_fixture
+    fixture = inspect(scope, 4, False, process_type=process_type)
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/relaybench/gamma_pilot.py", line 190, in inspect
+    mounts = [mount for mount in c["Mounts"] if mount["Destination"] == "/mpcheck"]
+                                 ~^^^^^^^^^^
+TypeError: 'NoneType' object is not iterable

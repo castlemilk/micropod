@@ -1,0 +1,3683 @@
+{
+  "material": {
+    "baseline-material": {
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "pairs": {
+        "warm": {
+          "n": 4,
+          "hvf_wins": 0,
+          "medians_total_ms": {
+            "hvf": 926.826563,
+            "orbstack": 825.831963
+          },
+          "median_hvf_orb_ratio": 1.1248721964219959,
+          "median_pair_difference_ms": 106.6059215,
+          "medians_by_phase_ms": {
+            "hvf": {
+              "git_status": 143.7195415,
+              "go_build": 431.264813,
+              "go_test": 361.0076465
+            },
+            "orbstack": {
+              "git_status": 63.8592535,
+              "go_build": 444.530585,
+              "go_test": 322.617024
+            }
+          }
+        },
+        "incremental": {
+          "n": 4,
+          "hvf_wins": 3,
+          "medians_total_ms": {
+            "hvf": 2490.259418,
+            "orbstack": 2531.9387075
+          },
+          "median_hvf_orb_ratio": 0.9720092166564283,
+          "median_pair_difference_ms": -71.463602,
+          "medians_by_phase_ms": {
+            "hvf": {
+              "git_status": 166.309292,
+              "go_build": 1050.94898,
+              "go_test": 1299.047855
+            },
+            "orbstack": {
+              "git_status": 64.342178,
+              "go_build": 1005.154636,
+              "go_test": 1429.244203
+            }
+          }
+        }
+      },
+      "load": {
+        "before": {
+          "idle_pct": 60.28,
+          "load_averages": [
+            9.41,
+            8.39,
+            8.0
+          ]
+        },
+        "after": {
+          "idle_pct": 60.98,
+          "load_averages": [
+            11.05,
+            9.14,
+            8.31
+          ]
+        }
+      },
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "limits": {
+        "orbstack": {
+          "cpu_quota_us": 200000,
+          "cpu_period_us": 100000,
+          "memory_bytes": 1610612736,
+          "network_interfaces": [
+            "lo"
+          ],
+          "source_read_only": true
+        },
+        "hvf": {
+          "cpu_quota_us": 200000,
+          "cpu_period_us": 100000,
+          "memory_bytes": 1610612736,
+          "network_interfaces": [
+            "lo"
+          ],
+          "source_read_only": true
+        }
+      }
+    },
+    "lookup-inline-measured-material": {
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "pairs": {
+        "warm": {
+          "n": 4,
+          "hvf_wins": 0,
+          "medians_total_ms": {
+            "hvf": 864.5130835,
+            "orbstack": 792.964968
+          },
+          "median_hvf_orb_ratio": 1.096130608609055,
+          "median_pair_difference_ms": 76.6008935,
+          "medians_by_phase_ms": {
+            "hvf": {
+              "git_status": 135.761875,
+              "go_build": 407.0450415,
+              "go_test": 321.7452295
+            },
+            "orbstack": {
+              "git_status": 64.334777,
+              "go_build": 416.551245,
+              "go_test": 328.050257
+            }
+          }
+        },
+        "incremental": {
+          "n": 4,
+          "hvf_wins": 4,
+          "medians_total_ms": {
+            "hvf": 2259.547396,
+            "orbstack": 2416.4601695
+          },
+          "median_hvf_orb_ratio": 0.9744651496859873,
+          "median_pair_difference_ms": -58.661273,
+          "medians_by_phase_ms": {
+            "hvf": {
+              "git_status": 142.0369995,
+              "go_build": 977.778771,
+              "go_test": 1170.074521
+            },
+            "orbstack": {
+              "git_status": 76.388277,
+              "go_build": 987.0740965,
+              "go_test": 1353.984655
+            }
+          }
+        }
+      },
+      "load": {
+        "before": {
+          "idle_pct": 83.96,
+          "load_averages": [
+            6.67,
+            8.27,
+            9.79
+          ]
+        },
+        "after": {
+          "idle_pct": 55.28,
+          "load_averages": [
+            8.76,
+            8.52,
+            9.78
+          ]
+        }
+      },
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "limits": {
+        "orbstack": {
+          "cpu_quota_us": 200000,
+          "cpu_period_us": 100000,
+          "memory_bytes": 1610612736,
+          "network_interfaces": [
+            "lo"
+          ],
+          "source_read_only": true
+        },
+        "hvf": {
+          "cpu_quota_us": 200000,
+          "cpu_period_us": 100000,
+          "memory_bytes": 1610612736,
+          "network_interfaces": [
+            "lo"
+          ],
+          "source_read_only": true
+        }
+      }
+    },
+    "lookup-off-measured-material": {
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "pairs": {
+        "warm": {
+          "n": 4,
+          "hvf_wins": 0,
+          "medians_total_ms": {
+            "hvf": 809.064583,
+            "orbstack": 669.48678
+          },
+          "median_hvf_orb_ratio": 1.2091854958134385,
+          "median_pair_difference_ms": 139.577803,
+          "medians_by_phase_ms": {
+            "hvf": {
+              "git_status": 129.328688,
+              "go_build": 369.5201455,
+              "go_test": 281.095583
+            },
+            "orbstack": {
+              "git_status": 59.063619,
+              "go_build": 348.632334,
+              "go_test": 260.512085
+            }
+          }
+        },
+        "incremental": {
+          "n": 4,
+          "hvf_wins": 4,
+          "medians_total_ms": {
+            "hvf": 2077.072522,
+            "orbstack": 2139.538641
+          },
+          "median_hvf_orb_ratio": 0.9691454821533518,
+          "median_pair_difference_ms": -66.452527,
+          "medians_by_phase_ms": {
+            "hvf": {
+              "git_status": 123.5250415,
+              "go_build": 881.896855,
+              "go_test": 1106.277709
+            },
+            "orbstack": {
+              "git_status": 65.2081325,
+              "go_build": 900.837064,
+              "go_test": 1181.0730995
+            }
+          }
+        }
+      },
+      "load": {
+        "before": {
+          "idle_pct": 78.29,
+          "load_averages": [
+            6.4,
+            8.58,
+            10.13
+          ]
+        },
+        "after": {
+          "idle_pct": 76.25,
+          "load_averages": [
+            7.08,
+            8.46,
+            9.98
+          ]
+        }
+      },
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "limits": {
+        "orbstack": {
+          "cpu_quota_us": 200000,
+          "cpu_period_us": 100000,
+          "memory_bytes": 1610612736,
+          "network_interfaces": [
+            "lo"
+          ],
+          "source_read_only": true
+        },
+        "hvf": {
+          "cpu_quota_us": 200000,
+          "cpu_period_us": 100000,
+          "memory_bytes": 1610612736,
+          "network_interfaces": [
+            "lo"
+          ],
+          "source_read_only": true
+        }
+      }
+    }
+  },
+  "git": {
+    "baseline-git": {
+      "load": {
+        "before": {
+          "idle_pct": 68.93,
+          "load_averages": [
+            12.37,
+            8.46,
+            8.0
+          ]
+        },
+        "after": {
+          "idle_pct": 55.54,
+          "load_averages": [
+            11.63,
+            8.66,
+            8.08
+          ]
+        }
+      },
+      "complete": true,
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "modes": {
+        "host-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 132.524417,
+              "orbstack": 57.770815
+            },
+            "edited": {
+              "hvf": 132.64610449999998,
+              "orbstack": 61.165485000000004
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 3693823214,
+              "min_ns": 116932917,
+              "max_ns": 181487500,
+              "p50_ns": 134471292,
+              "p95_ns": 168882459,
+              "p99_ns": 181487500
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 1737018938,
+              "min_ns": 51529739,
+              "max_ns": 77352276,
+              "p50_ns": 62020000,
+              "p95_ns": 76977975,
+              "p99_ns": 77352276
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 18.561,
+                "refresh": 110.557,
+                "untracked": 14.791
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 1.08,
+                "refresh": 47.93,
+                "untracked": 6.353
+              }
+            }
+          }
+        },
+        "guest-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 29.237104,
+              "orbstack": 10.4985325
+            },
+            "edited": {
+              "hvf": 31.289396000000004,
+              "orbstack": 13.3579955
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 581732461,
+              "min_ns": 18486625,
+              "max_ns": 31237459,
+              "p50_ns": 19530167,
+              "p95_ns": 29153792,
+              "p99_ns": 31237459
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 267855028,
+              "min_ns": 7688389,
+              "max_ns": 14050573,
+              "p50_ns": 9401522,
+              "p95_ns": 13690645,
+              "p99_ns": 14050573
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 13.209,
+                "refresh": 0.01,
+                "untracked": 14.773
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 1.149,
+                "refresh": 0.013,
+                "untracked": 7.668
+              }
+            }
+          }
+        },
+        "guest-clone": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 31.643937,
+              "orbstack": 9.810304
+            },
+            "edited": {
+              "hvf": 34.968458,
+              "orbstack": 14.939612
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 18,
+              "sum_ns": 477214835,
+              "min_ns": 19020375,
+              "max_ns": 48164334,
+              "p50_ns": 24226084,
+              "p95_ns": 48164334,
+              "p99_ns": 48164334
+            },
+            "orbstack": {
+              "count": 18,
+              "sum_ns": 256878753,
+              "min_ns": 8639916,
+              "max_ns": 23149503,
+              "p50_ns": 13625727,
+              "p95_ns": 23149503,
+              "p99_ns": 23149503
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 14.531,
+                "refresh": 0.012,
+                "untracked": 16.535999999999998
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 3.513,
+                "refresh": 0.011,
+                "untracked": 5.938
+              }
+            }
+          }
+        }
+      },
+      "ftrace_whole_control_window": {
+        "capture": {
+          "boot_id": "012c381e-723f-4a65-a081-aff9cebfd8ab",
+          "buffer_kib_per_cpu": "2048",
+          "clock": "mono",
+          "connection": "33",
+          "device": "0:33",
+          "kernel_release": "7.3.5-micropod-b5",
+          "kernel_work_event_filters": "3",
+          "max_capture_s": "30",
+          "observer_pid": "146",
+          "overwrite": "disabled",
+          "schema": "1",
+          "token": "e542e9e638d65456"
+        },
+        "complete": true,
+        "fuse_pairing": {
+          "observer_fuse_pairs_excluded": 9
+        },
+        "fuse_reply_errors": {
+          "IOCTL": {
+            "-38": 4
+          },
+          "LOOKUP": {
+            "-2": 109
+          }
+        },
+        "fuse_send_to_end": {
+          "CREATE": {
+            "count": 2,
+            "max_ns": 105000,
+            "min_ns": 105000,
+            "p50_ns": 105000,
+            "p95_ns": 105000,
+            "p99_ns": 105000,
+            "sum_ns": 210000
+          },
+          "GETATTR": {
+            "count": 24,
+            "max_ns": 117000,
+            "min_ns": 8000,
+            "p50_ns": 10000,
+            "p95_ns": 114000,
+            "p99_ns": 117000,
+            "sum_ns": 629000
+          },
+          "IOCTL": {
+            "count": 4,
+            "max_ns": 8000,
+            "min_ns": 7000,
+            "p50_ns": 7000,
+            "p95_ns": 8000,
+            "p99_ns": 8000,
+            "sum_ns": 29000
+          },
+          "LOOKUP": {
+            "count": 1370,
+            "max_ns": 102000,
+            "min_ns": 2000,
+            "p50_ns": 10000,
+            "p95_ns": 26000,
+            "p99_ns": 57000,
+            "sum_ns": 17139000
+          },
+          "OPEN": {
+            "count": 28,
+            "max_ns": 40000,
+            "min_ns": 14000,
+            "p50_ns": 16000,
+            "p95_ns": 39000,
+            "p99_ns": 40000,
+            "sum_ns": 539000
+          },
+          "OPENDIR": {
+            "count": 184,
+            "max_ns": 98000,
+            "min_ns": 13000,
+            "p50_ns": 15000,
+            "p95_ns": 29000,
+            "p99_ns": 64000,
+            "sum_ns": 3188000
+          },
+          "READ": {
+            "count": 29,
+            "max_ns": 28000,
+            "min_ns": 8000,
+            "p50_ns": 10000,
+            "p95_ns": 17000,
+            "p99_ns": 28000,
+            "sum_ns": 324000
+          },
+          "READDIRPLUS": {
+            "count": 369,
+            "max_ns": 429000,
+            "min_ns": 6000,
+            "p50_ns": 10000,
+            "p95_ns": 34000,
+            "p99_ns": 91000,
+            "sum_ns": 5342000
+          },
+          "RELEASE": {
+            "count": 30,
+            "max_ns": 28000,
+            "min_ns": 7000,
+            "p50_ns": 8000,
+            "p95_ns": 13000,
+            "p99_ns": 28000,
+            "sum_ns": 270000
+          },
+          "RELEASEDIR": {
+            "count": 184,
+            "max_ns": 34000,
+            "min_ns": 7000,
+            "p50_ns": 8000,
+            "p95_ns": 11000,
+            "p99_ns": 29000,
+            "sum_ns": 1501000
+          },
+          "RENAME": {
+            "count": 1,
+            "max_ns": 82000,
+            "min_ns": 82000,
+            "p50_ns": 82000,
+            "p95_ns": 82000,
+            "p99_ns": 82000,
+            "sum_ns": 82000
+          },
+          "UNLINK": {
+            "count": 1,
+            "max_ns": 45000,
+            "min_ns": 45000,
+            "p50_ns": 45000,
+            "p95_ns": 45000,
+            "p99_ns": 45000,
+            "sum_ns": 45000
+          },
+          "WRITE": {
+            "count": 1,
+            "max_ns": 33000,
+            "min_ns": 33000,
+            "p50_ns": 33000,
+            "p95_ns": 33000,
+            "p99_ns": 33000,
+            "sum_ns": 33000
+          }
+        },
+        "problems": [],
+        "raw_files_sha256": {
+          ".trace-events": "5accf0652070e66bb11680c082f7eee65049e8152833e1b7d0801d4743165779",
+          ".trace-observer.log": "f40e061730463672b07d7e7bdd863bb9f39df77f1f3258cc86ca32d66949fca2",
+          ".trace-stats": "aea0e0f9a61f1ccddc0a4372239574b3f25b802f9f159f62f6e17471ec507ec9"
+        },
+        "schema": 1,
+        "timestamp_resolution_ns": [
+          1000
+        ],
+        "trace_loss": {
+          "per_cpu": {
+            "cpu0": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu1": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu2": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu3": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            }
+          },
+          "reported_loss_lines": [],
+          "unparsed_lines": []
+        },
+        "window_ns": 153734000,
+        "work_enqueue_to_start_all_virtiofs": {
+          "count": 1966,
+          "max_ns": 30000,
+          "min_ns": 1000,
+          "p50_ns": 2000,
+          "p95_ns": 4000,
+          "p99_ns": 10000,
+          "sum_ns": 3699000
+        },
+        "work_enqueue_to_start_workspace": {
+          "count": 1955,
+          "max_ns": 30000,
+          "min_ns": 1000,
+          "p50_ns": 2000,
+          "p95_ns": 4000,
+          "p99_ns": 10000,
+          "sum_ns": 3658000
+        },
+        "work_pairing": {
+          "ambiguous_work_enqueues": 2,
+          "ambiguous_work_starts": 1,
+          "work_enqueues_without_start": 0,
+          "work_pairs_without_workspace_completion": 11,
+          "work_starts_without_end": 1,
+          "work_starts_without_enqueue": 1,
+          "workspace_completions_submitted_after_enqueue": 5,
+          "workspace_completions_without_queue_pair": 2
+        },
+        "workspace_completions_with_paired_work_by_opcode": {
+          "CREATE": 2,
+          "GETATTR": 24,
+          "IOCTL": 4,
+          "LOOKUP": 1368,
+          "OPEN": 28,
+          "OPENDIR": 184,
+          "READ": 29,
+          "READDIRPLUS": 369,
+          "RELEASE": 30,
+          "RELEASEDIR": 184,
+          "RENAME": 1,
+          "UNLINK": 1,
+          "WRITE": 1
+        }
+      },
+      "ftrace_git_command_window": {
+        "scope": "Request send and end timestamps both inside the monotonic guest git subprocess window",
+        "time_window_ns": [
+          145177782900,
+          145212217067
+        ],
+        "opcodes": {
+          "LOOKUP": {
+            "total": 1351,
+            "same_pid": 0,
+            "errors": {
+              "-2": 97
+            },
+            "send_to_end": {
+              "count": 1351,
+              "sum_ns": 16831000,
+              "min_ns": 2000,
+              "max_ns": 102000,
+              "p50_ns": 10000,
+              "p95_ns": 26000,
+              "p99_ns": 57000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 1351,
+              "sum_ns": 16831000,
+              "min_ns": 2000,
+              "max_ns": 102000,
+              "p50_ns": 10000,
+              "p95_ns": 26000,
+              "p99_ns": 57000
+            },
+            "workqueue_linked": 1349
+          },
+          "OPEN": {
+            "total": 16,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 16,
+              "sum_ns": 296000,
+              "min_ns": 14000,
+              "max_ns": 39000,
+              "p50_ns": 16000,
+              "p95_ns": 39000,
+              "p99_ns": 39000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 16,
+              "sum_ns": 296000,
+              "min_ns": 14000,
+              "max_ns": 39000,
+              "p50_ns": 16000,
+              "p95_ns": 39000,
+              "p99_ns": 39000
+            },
+            "workqueue_linked": 16
+          },
+          "READ": {
+            "total": 17,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 195000,
+              "min_ns": 8000,
+              "max_ns": 28000,
+              "p50_ns": 10000,
+              "p95_ns": 28000,
+              "p99_ns": 28000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 17,
+              "sum_ns": 195000,
+              "min_ns": 8000,
+              "max_ns": 28000,
+              "p50_ns": 10000,
+              "p95_ns": 28000,
+              "p99_ns": 28000
+            },
+            "workqueue_linked": 17
+          },
+          "RELEASE": {
+            "total": 17,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 141000,
+              "min_ns": 7000,
+              "max_ns": 11000,
+              "p50_ns": 8000,
+              "p95_ns": 11000,
+              "p99_ns": 11000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 17,
+              "sum_ns": 141000,
+              "min_ns": 7000,
+              "max_ns": 11000,
+              "p50_ns": 8000,
+              "p95_ns": 11000,
+              "p99_ns": 11000
+            },
+            "workqueue_linked": 17
+          },
+          "READDIRPLUS": {
+            "total": 367,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 367,
+              "sum_ns": 5300000,
+              "min_ns": 6000,
+              "max_ns": 429000,
+              "p50_ns": 10000,
+              "p95_ns": 33000,
+              "p99_ns": 91000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 367,
+              "sum_ns": 5300000,
+              "min_ns": 6000,
+              "max_ns": 429000,
+              "p50_ns": 10000,
+              "p95_ns": 33000,
+              "p99_ns": 91000
+            },
+            "workqueue_linked": 367
+          }
+        },
+        "linked_enqueue_to_work_start": {
+          "count": 1496,
+          "sum_ns": 2942000,
+          "min_ns": 1000,
+          "max_ns": 30000,
+          "p50_ns": 2000,
+          "p95_ns": 5000,
+          "p99_ns": 11000
+        }
+      }
+    },
+    "lookup-inline-measured-git": {
+      "load": {
+        "before": {
+          "idle_pct": 79.8,
+          "load_averages": [
+            8.03,
+            8.63,
+            9.96
+          ]
+        },
+        "after": {
+          "idle_pct": 84.29,
+          "load_averages": [
+            7.08,
+            8.38,
+            9.84
+          ]
+        }
+      },
+      "complete": true,
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "modes": {
+        "host-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 120.537917,
+              "orbstack": 52.372174
+            },
+            "edited": {
+              "hvf": 118.1173125,
+              "orbstack": 56.327901499999996
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 3128789376,
+              "min_ns": 106526833,
+              "max_ns": 158143667,
+              "p50_ns": 110535167,
+              "p95_ns": 140555916,
+              "p99_ns": 158143667
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 1403392859,
+              "min_ns": 49894255,
+              "max_ns": 71417148,
+              "p50_ns": 51008160,
+              "p95_ns": 57973466,
+              "p99_ns": 71417148
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 8.987,
+                "refresh": 90.60799999999999,
+                "untracked": 13.540999999999999
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 0.937,
+                "refresh": 42.765,
+                "untracked": 5.435
+              }
+            }
+          }
+        },
+        "guest-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 25.196688,
+              "orbstack": 9.079777499999999
+            },
+            "edited": {
+              "hvf": 25.066292,
+              "orbstack": 12.987879
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 536164044,
+              "min_ns": 16793375,
+              "max_ns": 29664334,
+              "p50_ns": 17786042,
+              "p95_ns": 28725417,
+              "p99_ns": 29664334
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 248960513,
+              "min_ns": 6633256,
+              "max_ns": 18386769,
+              "p50_ns": 7540696,
+              "p95_ns": 16728852,
+              "p99_ns": 18386769
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 9.048,
+                "refresh": 0.01,
+                "untracked": 13.642
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 0.988,
+                "refresh": 0.01,
+                "untracked": 6.122
+              }
+            }
+          }
+        },
+        "guest-clone": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 24.991478999999998,
+              "orbstack": 9.560581500000001
+            },
+            "edited": {
+              "hvf": 25.6471045,
+              "orbstack": 13.911153
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 18,
+              "sum_ns": 340037042,
+              "min_ns": 17009167,
+              "max_ns": 25428000,
+              "p50_ns": 17833334,
+              "p95_ns": 25428000,
+              "p99_ns": 25428000
+            },
+            "orbstack": {
+              "count": 18,
+              "sum_ns": 140610030,
+              "min_ns": 6852053,
+              "max_ns": 10885741,
+              "p50_ns": 7599531,
+              "p95_ns": 10885741,
+              "p99_ns": 10885741
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 8.469000000000001,
+                "refresh": 0.01,
+                "untracked": 13.463
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 4.909,
+                "refresh": 0.014,
+                "untracked": 12.852
+              }
+            }
+          }
+        }
+      },
+      "ftrace_whole_control_window": {
+        "capture": {
+          "boot_id": "1733282b-4c6c-451e-87b4-e7b0444f7c33",
+          "buffer_kib_per_cpu": "2048",
+          "clock": "mono",
+          "connection": "33",
+          "device": "0:33",
+          "kernel_release": "7.3.5-micropod-b5",
+          "kernel_work_event_filters": "3",
+          "max_capture_s": "30",
+          "observer_pid": "146",
+          "overwrite": "disabled",
+          "schema": "1",
+          "token": "5158a270e29ed4b3"
+        },
+        "complete": true,
+        "fuse_pairing": {
+          "observer_fuse_pairs_excluded": 7
+        },
+        "fuse_reply_errors": {
+          "IOCTL": {
+            "-38": 4
+          },
+          "LOOKUP": {
+            "-2": 109
+          }
+        },
+        "fuse_send_to_end": {
+          "CREATE": {
+            "count": 2,
+            "max_ns": 77000,
+            "min_ns": 69000,
+            "p50_ns": 69000,
+            "p95_ns": 77000,
+            "p99_ns": 77000,
+            "sum_ns": 146000
+          },
+          "GETATTR": {
+            "count": 23,
+            "max_ns": 42000,
+            "min_ns": 8000,
+            "p50_ns": 11000,
+            "p95_ns": 41000,
+            "p99_ns": 42000,
+            "sum_ns": 403000
+          },
+          "IOCTL": {
+            "count": 4,
+            "max_ns": 10000,
+            "min_ns": 7000,
+            "p50_ns": 7000,
+            "p95_ns": 10000,
+            "p99_ns": 10000,
+            "sum_ns": 31000
+          },
+          "LOOKUP": {
+            "count": 1368,
+            "max_ns": 45000,
+            "min_ns": 2000,
+            "p50_ns": 7000,
+            "p95_ns": 16000,
+            "p99_ns": 26000,
+            "sum_ns": 10606000
+          },
+          "OPEN": {
+            "count": 28,
+            "max_ns": 37000,
+            "min_ns": 13000,
+            "p50_ns": 15000,
+            "p95_ns": 36000,
+            "p99_ns": 37000,
+            "sum_ns": 533000
+          },
+          "OPENDIR": {
+            "count": 184,
+            "max_ns": 69000,
+            "min_ns": 12000,
+            "p50_ns": 13000,
+            "p95_ns": 17000,
+            "p99_ns": 41000,
+            "sum_ns": 2625000
+          },
+          "READ": {
+            "count": 29,
+            "max_ns": 34000,
+            "min_ns": 7000,
+            "p50_ns": 9000,
+            "p95_ns": 18000,
+            "p99_ns": 34000,
+            "sum_ns": 331000
+          },
+          "READDIRPLUS": {
+            "count": 369,
+            "max_ns": 390000,
+            "min_ns": 6000,
+            "p50_ns": 9000,
+            "p95_ns": 26000,
+            "p99_ns": 61000,
+            "sum_ns": 4519000
+          },
+          "RELEASE": {
+            "count": 30,
+            "max_ns": 28000,
+            "min_ns": 7000,
+            "p50_ns": 8000,
+            "p95_ns": 18000,
+            "p99_ns": 28000,
+            "sum_ns": 296000
+          },
+          "RELEASEDIR": {
+            "count": 184,
+            "max_ns": 14000,
+            "min_ns": 6000,
+            "p50_ns": 7000,
+            "p95_ns": 8000,
+            "p99_ns": 13000,
+            "sum_ns": 1359000
+          },
+          "RENAME": {
+            "count": 1,
+            "max_ns": 72000,
+            "min_ns": 72000,
+            "p50_ns": 72000,
+            "p95_ns": 72000,
+            "p99_ns": 72000,
+            "sum_ns": 72000
+          },
+          "UNLINK": {
+            "count": 1,
+            "max_ns": 47000,
+            "min_ns": 47000,
+            "p50_ns": 47000,
+            "p95_ns": 47000,
+            "p99_ns": 47000,
+            "sum_ns": 47000
+          },
+          "WRITE": {
+            "count": 1,
+            "max_ns": 30000,
+            "min_ns": 30000,
+            "p50_ns": 30000,
+            "p95_ns": 30000,
+            "p99_ns": 30000,
+            "sum_ns": 30000
+          }
+        },
+        "problems": [],
+        "raw_files_sha256": {
+          ".trace-events": "75dd5e53b75d7a0c4301f70b97248ae63f1e85a4b98e21123952c18b45154b20",
+          ".trace-observer.log": "f40e061730463672b07d7e7bdd863bb9f39df77f1f3258cc86ca32d66949fca2",
+          ".trace-stats": "7ba90fca5c7bc017a2f02b17a76be22689c23facc9669b8eb8749f8798580d0b"
+        },
+        "schema": 1,
+        "timestamp_resolution_ns": [
+          1000
+        ],
+        "trace_loss": {
+          "per_cpu": {
+            "cpu0": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu1": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu2": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu3": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            }
+          },
+          "reported_loss_lines": [],
+          "unparsed_lines": []
+        },
+        "window_ns": 102194000,
+        "work_enqueue_to_start_all_virtiofs": {
+          "count": 1822,
+          "max_ns": 38000,
+          "min_ns": 0,
+          "p50_ns": 1000,
+          "p95_ns": 2000,
+          "p99_ns": 7000,
+          "sum_ns": 2402000
+        },
+        "work_enqueue_to_start_workspace": {
+          "count": 1649,
+          "max_ns": 38000,
+          "min_ns": 0,
+          "p50_ns": 1000,
+          "p95_ns": 2000,
+          "p99_ns": 7000,
+          "sum_ns": 2288000
+        },
+        "work_pairing": {
+          "ambiguous_work_enqueues": 2,
+          "ambiguous_work_starts": 1,
+          "work_enqueues_without_start": 0,
+          "work_pairs_without_workspace_completion": 173,
+          "work_starts_without_end": 0,
+          "work_starts_without_enqueue": 1,
+          "workspace_completions_submitted_after_enqueue": 5,
+          "workspace_completions_without_queue_pair": 2
+        },
+        "workspace_completions_with_paired_work_by_opcode": {
+          "CREATE": 2,
+          "GETATTR": 23,
+          "IOCTL": 4,
+          "LOOKUP": 1203,
+          "OPEN": 28,
+          "OPENDIR": 184,
+          "READ": 29,
+          "READDIRPLUS": 369,
+          "RELEASE": 30,
+          "RELEASEDIR": 184,
+          "RENAME": 1,
+          "UNLINK": 1,
+          "WRITE": 1
+        }
+      },
+      "ftrace_git_command_window": {
+        "scope": "Request send and end timestamps both inside the monotonic guest git subprocess window",
+        "time_window_ns": [
+          10815700837,
+          10840181587
+        ],
+        "opcodes": {
+          "LOOKUP": {
+            "total": 1350,
+            "same_pid": 148,
+            "errors": {
+              "-2": 97
+            },
+            "send_to_end": {
+              "count": 1350,
+              "sum_ns": 10352000,
+              "min_ns": 2000,
+              "max_ns": 45000,
+              "p50_ns": 6000,
+              "p95_ns": 16000,
+              "p99_ns": 24000
+            },
+            "send_to_end_same_pid": {
+              "count": 148,
+              "sum_ns": 2020000,
+              "min_ns": 8000,
+              "max_ns": 32000,
+              "p50_ns": 12000,
+              "p95_ns": 18000,
+              "p99_ns": 27000
+            },
+            "send_to_end_other_pid": {
+              "count": 1202,
+              "sum_ns": 8332000,
+              "min_ns": 2000,
+              "max_ns": 45000,
+              "p50_ns": 6000,
+              "p95_ns": 14000,
+              "p99_ns": 23000
+            },
+            "workqueue_linked": 1200
+          },
+          "OPEN": {
+            "total": 16,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 16,
+              "sum_ns": 261000,
+              "min_ns": 13000,
+              "max_ns": 31000,
+              "p50_ns": 15000,
+              "p95_ns": 31000,
+              "p99_ns": 31000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 16,
+              "sum_ns": 261000,
+              "min_ns": 13000,
+              "max_ns": 31000,
+              "p50_ns": 15000,
+              "p95_ns": 31000,
+              "p99_ns": 31000
+            },
+            "workqueue_linked": 16
+          },
+          "READ": {
+            "total": 17,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 190000,
+              "min_ns": 7000,
+              "max_ns": 34000,
+              "p50_ns": 9000,
+              "p95_ns": 34000,
+              "p99_ns": 34000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 17,
+              "sum_ns": 190000,
+              "min_ns": 7000,
+              "max_ns": 34000,
+              "p50_ns": 9000,
+              "p95_ns": 34000,
+              "p99_ns": 34000
+            },
+            "workqueue_linked": 17
+          },
+          "RELEASE": {
+            "total": 17,
+            "same_pid": 4,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 146000,
+              "min_ns": 7000,
+              "max_ns": 12000,
+              "p50_ns": 8000,
+              "p95_ns": 12000,
+              "p99_ns": 12000
+            },
+            "send_to_end_same_pid": {
+              "count": 4,
+              "sum_ns": 44000,
+              "min_ns": 10000,
+              "max_ns": 12000,
+              "p50_ns": 11000,
+              "p95_ns": 12000,
+              "p99_ns": 12000
+            },
+            "send_to_end_other_pid": {
+              "count": 13,
+              "sum_ns": 102000,
+              "min_ns": 7000,
+              "max_ns": 9000,
+              "p50_ns": 8000,
+              "p95_ns": 9000,
+              "p99_ns": 9000
+            },
+            "workqueue_linked": 17
+          },
+          "READDIRPLUS": {
+            "total": 367,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 367,
+              "sum_ns": 4481000,
+              "min_ns": 6000,
+              "max_ns": 390000,
+              "p50_ns": 9000,
+              "p95_ns": 26000,
+              "p99_ns": 61000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 367,
+              "sum_ns": 4481000,
+              "min_ns": 6000,
+              "max_ns": 390000,
+              "p50_ns": 9000,
+              "p95_ns": 26000,
+              "p99_ns": 61000
+            },
+            "workqueue_linked": 367
+          }
+        },
+        "linked_enqueue_to_work_start": {
+          "count": 1209,
+          "sum_ns": 1651000,
+          "min_ns": 0,
+          "max_ns": 38000,
+          "p50_ns": 1000,
+          "p95_ns": 2000,
+          "p99_ns": 7000
+        }
+      }
+    },
+    "lookup-off-git": {
+      "load": {
+        "before": {
+          "idle_pct": 48.2,
+          "load_averages": [
+            8.41,
+            10.81,
+            11.18
+          ]
+        },
+        "after": {
+          "idle_pct": 72.9,
+          "load_averages": [
+            8.34,
+            10.63,
+            11.11
+          ]
+        }
+      },
+      "complete": true,
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "modes": {
+        "host-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 142.5054585,
+              "orbstack": 54.6920885
+            },
+            "edited": {
+              "hvf": 128.1298745,
+              "orbstack": 57.5740805
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 3421340458,
+              "min_ns": 110444208,
+              "max_ns": 161848958,
+              "p50_ns": 114749000,
+              "p95_ns": 156718250,
+              "p99_ns": 161848958
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 1584891036,
+              "min_ns": 50407102,
+              "max_ns": 77440680,
+              "p50_ns": 52548658,
+              "p95_ns": 76244607,
+              "p99_ns": 77440680
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 17.212999999999997,
+                "refresh": 129.64000000000001,
+                "untracked": 18.932000000000002
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 1.4,
+                "refresh": 51.486,
+                "untracked": 8.721
+              }
+            }
+          }
+        },
+        "guest-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 30.892313,
+              "orbstack": 10.602588
+            },
+            "edited": {
+              "hvf": 27.942521,
+              "orbstack": 11.4838405
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 609091084,
+              "min_ns": 17427500,
+              "max_ns": 35463833,
+              "p50_ns": 22428667,
+              "p95_ns": 30357667,
+              "p99_ns": 35463833
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 252428146,
+              "min_ns": 7273189,
+              "max_ns": 16460595,
+              "p50_ns": 8496221,
+              "p95_ns": 12056064,
+              "p99_ns": 16460595
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 15.028,
+                "refresh": 0.013,
+                "untracked": 17.514
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 1.118,
+                "refresh": 0.015000000000000001,
+                "untracked": 7.678
+              }
+            }
+          }
+        },
+        "guest-clone": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 29.034604,
+              "orbstack": 9.596437
+            },
+            "edited": {
+              "hvf": 29.7079375,
+              "orbstack": 13.0078175
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 18,
+              "sum_ns": 396339836,
+              "min_ns": 14683542,
+              "max_ns": 38015709,
+              "p50_ns": 19245875,
+              "p95_ns": 38015709,
+              "p99_ns": 38015709
+            },
+            "orbstack": {
+              "count": 18,
+              "sum_ns": 171387247,
+              "min_ns": 7831579,
+              "max_ns": 14033698,
+              "p50_ns": 8848105,
+              "p95_ns": 14033698,
+              "p99_ns": 14033698
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 16.779,
+                "refresh": 0.011,
+                "untracked": 20.017
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 3.747,
+                "refresh": 0.011,
+                "untracked": 7.941
+              }
+            }
+          }
+        }
+      },
+      "ftrace_whole_control_window": {
+        "capture": {
+          "boot_id": "e4a28afd-4f1b-42fe-88e3-343564836e0e",
+          "buffer_kib_per_cpu": "2048",
+          "clock": "mono",
+          "connection": "33",
+          "device": "0:33",
+          "kernel_release": "7.3.5-micropod-b5",
+          "kernel_work_event_filters": "3",
+          "max_capture_s": "30",
+          "observer_pid": "145",
+          "overwrite": "disabled",
+          "schema": "1",
+          "token": "6657e42ef0a3fa3f"
+        },
+        "complete": true,
+        "fuse_pairing": {
+          "observer_fuse_pairs_excluded": 11
+        },
+        "fuse_reply_errors": {
+          "IOCTL": {
+            "-38": 4
+          },
+          "LOOKUP": {
+            "-2": 109
+          }
+        },
+        "fuse_send_to_end": {
+          "CREATE": {
+            "count": 2,
+            "max_ns": 78000,
+            "min_ns": 77000,
+            "p50_ns": 77000,
+            "p95_ns": 78000,
+            "p99_ns": 78000,
+            "sum_ns": 155000
+          },
+          "GETATTR": {
+            "count": 23,
+            "max_ns": 164000,
+            "min_ns": 9000,
+            "p50_ns": 14000,
+            "p95_ns": 54000,
+            "p99_ns": 164000,
+            "sum_ns": 593000
+          },
+          "IOCTL": {
+            "count": 4,
+            "max_ns": 11000,
+            "min_ns": 8000,
+            "p50_ns": 10000,
+            "p95_ns": 11000,
+            "p99_ns": 11000,
+            "sum_ns": 40000
+          },
+          "LOOKUP": {
+            "count": 1371,
+            "max_ns": 208000,
+            "min_ns": 3000,
+            "p50_ns": 12000,
+            "p95_ns": 31000,
+            "p99_ns": 66000,
+            "sum_ns": 21139000
+          },
+          "OPEN": {
+            "count": 28,
+            "max_ns": 110000,
+            "min_ns": 16000,
+            "p50_ns": 23000,
+            "p95_ns": 73000,
+            "p99_ns": 110000,
+            "sum_ns": 906000
+          },
+          "OPENDIR": {
+            "count": 184,
+            "max_ns": 132000,
+            "min_ns": 18000,
+            "p50_ns": 22000,
+            "p95_ns": 40000,
+            "p99_ns": 85000,
+            "sum_ns": 4498000
+          },
+          "READ": {
+            "count": 29,
+            "max_ns": 62000,
+            "min_ns": 9000,
+            "p50_ns": 12000,
+            "p95_ns": 47000,
+            "p99_ns": 62000,
+            "sum_ns": 463000
+          },
+          "READDIRPLUS": {
+            "count": 369,
+            "max_ns": 438000,
+            "min_ns": 7000,
+            "p50_ns": 12000,
+            "p95_ns": 40000,
+            "p99_ns": 96000,
+            "sum_ns": 6284000
+          },
+          "RELEASE": {
+            "count": 30,
+            "max_ns": 39000,
+            "min_ns": 7000,
+            "p50_ns": 10000,
+            "p95_ns": 25000,
+            "p99_ns": 39000,
+            "sum_ns": 359000
+          },
+          "RELEASEDIR": {
+            "count": 184,
+            "max_ns": 46000,
+            "min_ns": 8000,
+            "p50_ns": 10000,
+            "p95_ns": 13000,
+            "p99_ns": 29000,
+            "sum_ns": 1910000
+          },
+          "RENAME": {
+            "count": 1,
+            "max_ns": 73000,
+            "min_ns": 73000,
+            "p50_ns": 73000,
+            "p95_ns": 73000,
+            "p99_ns": 73000,
+            "sum_ns": 73000
+          },
+          "UNLINK": {
+            "count": 1,
+            "max_ns": 58000,
+            "min_ns": 58000,
+            "p50_ns": 58000,
+            "p95_ns": 58000,
+            "p99_ns": 58000,
+            "sum_ns": 58000
+          },
+          "WRITE": {
+            "count": 1,
+            "max_ns": 40000,
+            "min_ns": 40000,
+            "p50_ns": 40000,
+            "p95_ns": 40000,
+            "p99_ns": 40000,
+            "sum_ns": 40000
+          }
+        },
+        "problems": [],
+        "raw_files_sha256": {
+          ".trace-events": "8cf0b94d0b74e3d734e79c9fa76506eb276c186bfda14e1241a4070212a8e837",
+          ".trace-observer.log": "f40e061730463672b07d7e7bdd863bb9f39df77f1f3258cc86ca32d66949fca2",
+          ".trace-stats": "a434caac9e15d27bf60c051618ed7e4a3a77393d13cce23d5d9c9c08d0d6c19b"
+        },
+        "schema": 1,
+        "timestamp_resolution_ns": [
+          1000
+        ],
+        "trace_loss": {
+          "per_cpu": {
+            "cpu0": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu1": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu2": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu3": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            }
+          },
+          "reported_loss_lines": [],
+          "unparsed_lines": []
+        },
+        "window_ns": 207424000,
+        "work_enqueue_to_start_all_virtiofs": {
+          "count": 1874,
+          "max_ns": 85000,
+          "min_ns": 1000,
+          "p50_ns": 2000,
+          "p95_ns": 5000,
+          "p99_ns": 14000,
+          "sum_ns": 4152000
+        },
+        "work_enqueue_to_start_workspace": {
+          "count": 1863,
+          "max_ns": 85000,
+          "min_ns": 1000,
+          "p50_ns": 2000,
+          "p95_ns": 5000,
+          "p99_ns": 14000,
+          "sum_ns": 4123000
+        },
+        "work_pairing": {
+          "ambiguous_work_enqueues": 14,
+          "ambiguous_work_starts": 7,
+          "work_enqueues_without_start": 0,
+          "work_pairs_without_workspace_completion": 11,
+          "work_starts_without_end": 1,
+          "work_starts_without_enqueue": 7,
+          "workspace_completions_submitted_after_enqueue": 8,
+          "workspace_completions_without_queue_pair": 19
+        },
+        "workspace_completions_with_paired_work_by_opcode": {
+          "CREATE": 2,
+          "GETATTR": 23,
+          "IOCTL": 4,
+          "LOOKUP": 1352,
+          "OPEN": 28,
+          "OPENDIR": 184,
+          "READ": 29,
+          "READDIRPLUS": 369,
+          "RELEASE": 30,
+          "RELEASEDIR": 184,
+          "RENAME": 1,
+          "UNLINK": 1,
+          "WRITE": 1
+        }
+      },
+      "ftrace_git_command_window": {
+        "scope": "Request send and end timestamps both inside the monotonic guest git subprocess window",
+        "time_window_ns": [
+          13316280171,
+          13357536755
+        ],
+        "opcodes": {
+          "LOOKUP": {
+            "total": 1352,
+            "same_pid": 0,
+            "errors": {
+              "-2": 97
+            },
+            "send_to_end": {
+              "count": 1352,
+              "sum_ns": 20795000,
+              "min_ns": 3000,
+              "max_ns": 208000,
+              "p50_ns": 12000,
+              "p95_ns": 31000,
+              "p99_ns": 64000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 1352,
+              "sum_ns": 20795000,
+              "min_ns": 3000,
+              "max_ns": 208000,
+              "p50_ns": 12000,
+              "p95_ns": 31000,
+              "p99_ns": 64000
+            },
+            "workqueue_linked": 1333
+          },
+          "OPEN": {
+            "total": 16,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 16,
+              "sum_ns": 479000,
+              "min_ns": 16000,
+              "max_ns": 66000,
+              "p50_ns": 24000,
+              "p95_ns": 66000,
+              "p99_ns": 66000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 16,
+              "sum_ns": 479000,
+              "min_ns": 16000,
+              "max_ns": 66000,
+              "p50_ns": 24000,
+              "p95_ns": 66000,
+              "p99_ns": 66000
+            },
+            "workqueue_linked": 16
+          },
+          "READ": {
+            "total": 17,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 212000,
+              "min_ns": 9000,
+              "max_ns": 30000,
+              "p50_ns": 11000,
+              "p95_ns": 30000,
+              "p99_ns": 30000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 17,
+              "sum_ns": 212000,
+              "min_ns": 9000,
+              "max_ns": 30000,
+              "p50_ns": 11000,
+              "p95_ns": 30000,
+              "p99_ns": 30000
+            },
+            "workqueue_linked": 17
+          },
+          "RELEASE": {
+            "total": 17,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 170000,
+              "min_ns": 7000,
+              "max_ns": 14000,
+              "p50_ns": 10000,
+              "p95_ns": 14000,
+              "p99_ns": 14000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 17,
+              "sum_ns": 170000,
+              "min_ns": 7000,
+              "max_ns": 14000,
+              "p50_ns": 10000,
+              "p95_ns": 14000,
+              "p99_ns": 14000
+            },
+            "workqueue_linked": 17
+          },
+          "READDIRPLUS": {
+            "total": 367,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 367,
+              "sum_ns": 6235000,
+              "min_ns": 7000,
+              "max_ns": 438000,
+              "p50_ns": 12000,
+              "p95_ns": 40000,
+              "p99_ns": 96000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 367,
+              "sum_ns": 6235000,
+              "min_ns": 7000,
+              "max_ns": 438000,
+              "p50_ns": 12000,
+              "p95_ns": 40000,
+              "p99_ns": 96000
+            },
+            "workqueue_linked": 367
+          }
+        },
+        "linked_enqueue_to_work_start": {
+          "count": 1405,
+          "sum_ns": 3206000,
+          "min_ns": 1000,
+          "max_ns": 85000,
+          "p50_ns": 2000,
+          "p95_ns": 6000,
+          "p99_ns": 14000
+        }
+      }
+    },
+    "lookup-off-measured-git": {
+      "load": {
+        "before": {
+          "idle_pct": 83.53,
+          "load_averages": [
+            6.22,
+            8.75,
+            10.23
+          ]
+        },
+        "after": {
+          "idle_pct": 82.28,
+          "load_averages": [
+            6.4,
+            8.58,
+            10.13
+          ]
+        }
+      },
+      "complete": true,
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "modes": {
+        "host-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 122.4978545,
+              "orbstack": 58.458728
+            },
+            "edited": {
+              "hvf": 121.882979,
+              "orbstack": 58.5666055
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 3320430084,
+              "min_ns": 108727208,
+              "max_ns": 163164709,
+              "p50_ns": 114289292,
+              "p95_ns": 156146000,
+              "p99_ns": 163164709
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 1386863428,
+              "min_ns": 49943131,
+              "max_ns": 56165210,
+              "p50_ns": 50710694,
+              "p95_ns": 55649905,
+              "p99_ns": 56165210
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 9.764,
+                "refresh": 92.604,
+                "untracked": 13.802999999999999
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 1058
+              },
+              "regions_ms": {
+                "preload": 0.985,
+                "refresh": 42.821999999999996,
+                "untracked": 6.2459999999999996
+              }
+            }
+          }
+        },
+        "guest-index": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 26.930999999999997,
+              "orbstack": 9.426182
+            },
+            "edited": {
+              "hvf": 26.9898545,
+              "orbstack": 14.0508025
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 27,
+              "sum_ns": 591006915,
+              "min_ns": 14006750,
+              "max_ns": 36896291,
+              "p50_ns": 19268041,
+              "p95_ns": 36401917,
+              "p99_ns": 36896291
+            },
+            "orbstack": {
+              "count": 27,
+              "sum_ns": 208920851,
+              "min_ns": 6916763,
+              "max_ns": 11533759,
+              "p50_ns": 7507445,
+              "p95_ns": 8628058,
+              "p99_ns": 11533759
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 10.342,
+                "refresh": 0.01,
+                "untracked": 13.903
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 0.998,
+                "refresh": 0.009000000000000001,
+                "untracked": 5.651
+              }
+            }
+          }
+        },
+        "guest-clone": {
+          "all_status_observations": 24,
+          "correct_observations": 24,
+          "median_ms": {
+            "warm": {
+              "hvf": 27.082895999999998,
+              "orbstack": 9.641020999999999
+            },
+            "edited": {
+              "hvf": 27.378750500000002,
+              "orbstack": 13.0401305
+            }
+          },
+          "batched_warm_ns": {
+            "hvf": {
+              "count": 18,
+              "sum_ns": 415375039,
+              "min_ns": 16982083,
+              "max_ns": 36243833,
+              "p50_ns": 19578333,
+              "p95_ns": 36243833,
+              "p99_ns": 36243833
+            },
+            "orbstack": {
+              "count": 18,
+              "sum_ns": 149554137,
+              "min_ns": 6852512,
+              "max_ns": 10262350,
+              "p50_ns": 7807953,
+              "p95_ns": 10262350,
+              "p99_ns": 10262350
+            }
+          },
+          "trace2": {
+            "hvf": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 9.837,
+                "refresh": 0.01,
+                "untracked": 13.568999999999999
+              }
+            },
+            "orbstack": {
+              "preload_config": "unset (Git default true)",
+              "counts": {
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_ms": {
+                "preload": 3.5959999999999996,
+                "refresh": 0.01,
+                "untracked": 5.45
+              }
+            }
+          }
+        }
+      },
+      "ftrace_whole_control_window": {
+        "capture": {
+          "boot_id": "cbaaacb1-4e24-4d5f-863d-da9a63c5e049",
+          "buffer_kib_per_cpu": "2048",
+          "clock": "mono",
+          "connection": "33",
+          "device": "0:33",
+          "kernel_release": "7.3.5-micropod-b5",
+          "kernel_work_event_filters": "3",
+          "max_capture_s": "30",
+          "observer_pid": "146",
+          "overwrite": "disabled",
+          "schema": "1",
+          "token": "f70d3ca435da9fac"
+        },
+        "complete": true,
+        "fuse_pairing": {
+          "observer_fuse_pairs_excluded": 9
+        },
+        "fuse_reply_errors": {
+          "IOCTL": {
+            "-38": 4
+          },
+          "LOOKUP": {
+            "-2": 109
+          }
+        },
+        "fuse_send_to_end": {
+          "CREATE": {
+            "count": 2,
+            "max_ns": 75000,
+            "min_ns": 74000,
+            "p50_ns": 74000,
+            "p95_ns": 75000,
+            "p99_ns": 75000,
+            "sum_ns": 149000
+          },
+          "GETATTR": {
+            "count": 22,
+            "max_ns": 57000,
+            "min_ns": 7000,
+            "p50_ns": 8000,
+            "p95_ns": 53000,
+            "p99_ns": 57000,
+            "sum_ns": 350000
+          },
+          "IOCTL": {
+            "count": 4,
+            "max_ns": 8000,
+            "min_ns": 6000,
+            "p50_ns": 7000,
+            "p95_ns": 8000,
+            "p99_ns": 8000,
+            "sum_ns": 28000
+          },
+          "LOOKUP": {
+            "count": 1369,
+            "max_ns": 62000,
+            "min_ns": 2000,
+            "p50_ns": 9000,
+            "p95_ns": 15000,
+            "p99_ns": 23000,
+            "sum_ns": 13846000
+          },
+          "OPEN": {
+            "count": 28,
+            "max_ns": 47000,
+            "min_ns": 13000,
+            "p50_ns": 14000,
+            "p95_ns": 46000,
+            "p99_ns": 47000,
+            "sum_ns": 526000
+          },
+          "OPENDIR": {
+            "count": 184,
+            "max_ns": 38000,
+            "min_ns": 12000,
+            "p50_ns": 13000,
+            "p95_ns": 17000,
+            "p99_ns": 23000,
+            "sum_ns": 2559000
+          },
+          "READ": {
+            "count": 29,
+            "max_ns": 32000,
+            "min_ns": 8000,
+            "p50_ns": 9000,
+            "p95_ns": 17000,
+            "p99_ns": 32000,
+            "sum_ns": 304000
+          },
+          "READDIRPLUS": {
+            "count": 369,
+            "max_ns": 374000,
+            "min_ns": 6000,
+            "p50_ns": 9000,
+            "p95_ns": 26000,
+            "p99_ns": 59000,
+            "sum_ns": 4388000
+          },
+          "RELEASE": {
+            "count": 30,
+            "max_ns": 27000,
+            "min_ns": 7000,
+            "p50_ns": 8000,
+            "p95_ns": 10000,
+            "p99_ns": 27000,
+            "sum_ns": 259000
+          },
+          "RELEASEDIR": {
+            "count": 184,
+            "max_ns": 15000,
+            "min_ns": 6000,
+            "p50_ns": 7000,
+            "p95_ns": 8000,
+            "p99_ns": 13000,
+            "sum_ns": 1345000
+          },
+          "RENAME": {
+            "count": 1,
+            "max_ns": 55000,
+            "min_ns": 55000,
+            "p50_ns": 55000,
+            "p95_ns": 55000,
+            "p99_ns": 55000,
+            "sum_ns": 55000
+          },
+          "UNLINK": {
+            "count": 1,
+            "max_ns": 49000,
+            "min_ns": 49000,
+            "p50_ns": 49000,
+            "p95_ns": 49000,
+            "p99_ns": 49000,
+            "sum_ns": 49000
+          },
+          "WRITE": {
+            "count": 1,
+            "max_ns": 38000,
+            "min_ns": 38000,
+            "p50_ns": 38000,
+            "p95_ns": 38000,
+            "p99_ns": 38000,
+            "sum_ns": 38000
+          }
+        },
+        "problems": [],
+        "raw_files_sha256": {
+          ".trace-events": "467d3dbcdada8f6bcc70fdc585389c27ba9e5251b9306285a2043b4678d20ecb",
+          ".trace-observer.log": "f40e061730463672b07d7e7bdd863bb9f39df77f1f3258cc86ca32d66949fca2",
+          ".trace-stats": "219565e3d1216f694e46bcdb643f2763eddbf06b626467fe172514e5e5967f74"
+        },
+        "schema": 1,
+        "timestamp_resolution_ns": [
+          1000
+        ],
+        "trace_loss": {
+          "per_cpu": {
+            "cpu0": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu1": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu2": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            },
+            "cpu3": {
+              "commit overrun": 0,
+              "dropped events": 0,
+              "overrun": 0
+            }
+          },
+          "reported_loss_lines": [],
+          "unparsed_lines": []
+        },
+        "window_ns": 152585000,
+        "work_enqueue_to_start_all_virtiofs": {
+          "count": 1801,
+          "max_ns": 52000,
+          "min_ns": 1000,
+          "p50_ns": 1000,
+          "p95_ns": 3000,
+          "p99_ns": 7000,
+          "sum_ns": 2942000
+        },
+        "work_enqueue_to_start_workspace": {
+          "count": 1789,
+          "max_ns": 52000,
+          "min_ns": 1000,
+          "p50_ns": 1000,
+          "p95_ns": 3000,
+          "p99_ns": 7000,
+          "sum_ns": 2912000
+        },
+        "work_pairing": {
+          "ambiguous_work_enqueues": 12,
+          "ambiguous_work_starts": 6,
+          "work_enqueues_without_start": 0,
+          "work_pairs_without_workspace_completion": 12,
+          "work_starts_without_end": 1,
+          "work_starts_without_enqueue": 6,
+          "workspace_completions_submitted_after_enqueue": 3,
+          "workspace_completions_without_queue_pair": 15
+        },
+        "workspace_completions_with_paired_work_by_opcode": {
+          "CREATE": 2,
+          "GETATTR": 22,
+          "IOCTL": 4,
+          "LOOKUP": 1354,
+          "OPEN": 28,
+          "OPENDIR": 184,
+          "READ": 29,
+          "READDIRPLUS": 369,
+          "RELEASE": 30,
+          "RELEASEDIR": 184,
+          "RENAME": 1,
+          "UNLINK": 1,
+          "WRITE": 1
+        }
+      },
+      "ftrace_git_command_window": {
+        "scope": "Request send and end timestamps both inside the monotonic guest git subprocess window",
+        "time_window_ns": [
+          11109358004,
+          11135532421
+        ],
+        "opcodes": {
+          "LOOKUP": {
+            "total": 1351,
+            "same_pid": 0,
+            "errors": {
+              "-2": 97
+            },
+            "send_to_end": {
+              "count": 1351,
+              "sum_ns": 13644000,
+              "min_ns": 2000,
+              "max_ns": 62000,
+              "p50_ns": 9000,
+              "p95_ns": 15000,
+              "p99_ns": 23000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 1351,
+              "sum_ns": 13644000,
+              "min_ns": 2000,
+              "max_ns": 62000,
+              "p50_ns": 9000,
+              "p95_ns": 15000,
+              "p99_ns": 23000
+            },
+            "workqueue_linked": 1336
+          },
+          "OPEN": {
+            "total": 16,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 16,
+              "sum_ns": 276000,
+              "min_ns": 13000,
+              "max_ns": 46000,
+              "p50_ns": 14000,
+              "p95_ns": 46000,
+              "p99_ns": 46000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 16,
+              "sum_ns": 276000,
+              "min_ns": 13000,
+              "max_ns": 46000,
+              "p50_ns": 14000,
+              "p95_ns": 46000,
+              "p99_ns": 46000
+            },
+            "workqueue_linked": 16
+          },
+          "READ": {
+            "total": 17,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 178000,
+              "min_ns": 8000,
+              "max_ns": 32000,
+              "p50_ns": 9000,
+              "p95_ns": 32000,
+              "p99_ns": 32000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 17,
+              "sum_ns": 178000,
+              "min_ns": 8000,
+              "max_ns": 32000,
+              "p50_ns": 9000,
+              "p95_ns": 32000,
+              "p99_ns": 32000
+            },
+            "workqueue_linked": 17
+          },
+          "RELEASE": {
+            "total": 17,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 17,
+              "sum_ns": 138000,
+              "min_ns": 7000,
+              "max_ns": 10000,
+              "p50_ns": 8000,
+              "p95_ns": 10000,
+              "p99_ns": 10000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 17,
+              "sum_ns": 138000,
+              "min_ns": 7000,
+              "max_ns": 10000,
+              "p50_ns": 8000,
+              "p95_ns": 10000,
+              "p99_ns": 10000
+            },
+            "workqueue_linked": 17
+          },
+          "READDIRPLUS": {
+            "total": 367,
+            "same_pid": 0,
+            "errors": {},
+            "send_to_end": {
+              "count": 367,
+              "sum_ns": 4348000,
+              "min_ns": 6000,
+              "max_ns": 374000,
+              "p50_ns": 9000,
+              "p95_ns": 24000,
+              "p99_ns": 59000
+            },
+            "send_to_end_same_pid": {
+              "count": 0
+            },
+            "send_to_end_other_pid": {
+              "count": 367,
+              "sum_ns": 4348000,
+              "min_ns": 6000,
+              "max_ns": 374000,
+              "p50_ns": 9000,
+              "p95_ns": 24000,
+              "p99_ns": 59000
+            },
+            "workqueue_linked": 367
+          }
+        },
+        "linked_enqueue_to_work_start": {
+          "count": 1333,
+          "sum_ns": 2271000,
+          "min_ns": 1000,
+          "max_ns": 52000,
+          "p50_ns": 1000,
+          "p95_ns": 3000,
+          "p99_ns": 8000
+        }
+      }
+    }
+  },
+  "mutable_edit_checks": {
+    "baseline-hvf-edits": {
+      "complete": true,
+      "median_observed_ms": {
+        "size": 23.502,
+        "held": 23.665,
+        "replace": 1.503,
+        "unlink": 21.476
+      },
+      "cases": {
+        "size": {
+          "observed": 4
+        },
+        "held": {
+          "observed": 4
+        },
+        "replace": {
+          "observed": 4
+        },
+        "unlink": {
+          "observed": 4
+        }
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 3.147,
+          "read_ms": 16.106,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 2.383,
+          "read_ms": 13.885,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 2.467,
+          "read_ms": 12.958,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    },
+    "baseline-orbstack-edits": {
+      "complete": false,
+      "median_observed_ms": {
+        "size": 2.267,
+        "held": 498.283,
+        "replace": null,
+        "unlink": 496.934
+      },
+      "cases": {
+        "size": {
+          "observed": 4
+        },
+        "held": {
+          "observed": 4
+        },
+        "replace": {
+          "old-handle-changed": 4
+        },
+        "unlink": {
+          "observed": 4
+        }
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 2.755,
+          "read_ms": 11.376,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 3.82,
+          "read_ms": 9.164,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 2.06,
+          "read_ms": 6.987,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    },
+    "lookup-inline-measured-edits": {
+      "complete": true,
+      "median_observed_ms": {
+        "size": 23.291,
+        "held": 23.756,
+        "replace": 1.724,
+        "unlink": 21.79
+      },
+      "cases": {
+        "size": {
+          "observed": 4
+        },
+        "held": {
+          "observed": 4
+        },
+        "replace": {
+          "observed": 4
+        },
+        "unlink": {
+          "observed": 4
+        }
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 5.025,
+          "read_ms": 35.503,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 3.621,
+          "read_ms": 33.28,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 3.677,
+          "read_ms": 31.503,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    },
+    "lookup-off-measured-edits": {
+      "complete": true,
+      "median_observed_ms": {
+        "size": 23.747,
+        "held": 24.139,
+        "replace": 1.917,
+        "unlink": 24.109
+      },
+      "cases": {
+        "size": {
+          "observed": 4
+        },
+        "held": {
+          "observed": 4
+        },
+        "replace": {
+          "observed": 4
+        },
+        "unlink": {
+          "observed": 4
+        }
+      },
+      "scans": [
+        {
+          "pass": 1,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 8.408,
+          "read_ms": 41.952,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 2,
+          "scheduled_pause_ms": 0,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 4.657,
+          "read_ms": 43.324,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        },
+        {
+          "pass": 3,
+          "scheduled_pause_ms": 50,
+          "files": 512,
+          "bytes": 20772,
+          "read_bytes": 20772,
+          "stat_ms": 4.997,
+          "read_ms": 53.449,
+          "sha256": "760cda3100af7b8d352897b31f3cce28cff7ac936856b69c2464fd1d0090f99c",
+          "path_sha256": "e64b63c69253b0a44b1ec5b497335b3236faf52fc25743c761718b3f110ca878"
+        }
+      ]
+    }
+  },
+  "private_index": {
+    "git-index-probe-material-measured": {
+      "complete": true,
+      "load": {
+        "before": {
+          "idle_pct": 79.88,
+          "load_averages": [
+            8.08,
+            8.37,
+            9.67
+          ]
+        },
+        "after": {
+          "idle_pct": 85.83,
+          "load_averages": [
+            7.51,
+            8.12,
+            9.45
+          ]
+        }
+      },
+      "pairs_recorded": 4,
+      "source": {
+        "files": 1058,
+        "bytes": 19326482,
+        "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+      },
+      "fixture_commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+      "image": {
+        "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+        "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921"
+      },
+      "preparation": {
+        "host_checkout_and_inventory_ms": 778.187167,
+        "host_bundle_pack_ms": 453.548583,
+        "bundle": {
+          "size": 3760128,
+          "sha256": "043515824919c42edf3615aab1e04ac7da331fad83addc067f04377350f2d096"
+        }
+      },
+      "medians_ms": {
+        "hvf/host-git": {
+          "guest_sum": 850.741208,
+          "guest_git": 149.2396045,
+          "host_wall": 907.403021
+        },
+        "orbstack/private-git": {
+          "guest_sum": 656.264351,
+          "guest_git": 8.344154,
+          "host_wall": 741.499604
+        },
+        "orbstack/host-git": {
+          "guest_sum": 701.056829,
+          "guest_git": 54.0985945,
+          "host_wall": 771.5259375
+        },
+        "hvf/private-git": {
+          "guest_sum": 716.12698,
+          "guest_git": 27.3498755,
+          "host_wall": 769.335979
+        }
+      },
+      "cold": {
+        "hvf/host-git": {
+          "first_ci_wall_ms": 14144.469917,
+          "first_ci_wall_with_bundle_pack_ms": 14144.469917,
+          "container_start_ms": 331.896417,
+          "mount_and_metadata_prepare_wall_ms": 537.409625,
+          "guest_bundle_and_index_init_ms": 0.0
+        },
+        "orbstack/private-git": {
+          "first_ci_wall_ms": 18928.563542,
+          "first_ci_wall_with_bundle_pack_ms": 19382.112125,
+          "container_start_ms": 168.060917,
+          "mount_and_metadata_prepare_wall_ms": 397.41625,
+          "guest_bundle_and_index_init_ms": 138.297387
+        },
+        "orbstack/host-git": {
+          "first_ci_wall_ms": 13877.990916,
+          "first_ci_wall_with_bundle_pack_ms": 13877.990916,
+          "container_start_ms": 340.349667,
+          "mount_and_metadata_prepare_wall_ms": 342.730458,
+          "guest_bundle_and_index_init_ms": 0.0
+        },
+        "hvf/private-git": {
+          "first_ci_wall_ms": 14630.344083,
+          "first_ci_wall_with_bundle_pack_ms": 15083.892666,
+          "container_start_ms": 954.503542,
+          "mount_and_metadata_prepare_wall_ms": 480.514583,
+          "guest_bundle_and_index_init_ms": 175.283459
+        }
+      },
+      "paired_private_index": {
+        "hvf": {
+          "wins": 4,
+          "median_private_over_host_git": 0.815004751272262,
+          "median_git_saving_ms": 122.4002915
+        },
+        "orbstack": {
+          "wins": 4,
+          "median_private_over_host_git": 0.9393257120212894,
+          "median_git_saving_ms": 46.258995
+        }
+      }
+    },
+    "git-index-probe-material-retry": {
+      "complete": false,
+      "load": {
+        "before": {
+          "idle_pct": 83.91,
+          "load_averages": [
+            8.49,
+            11.97,
+            10.69
+          ]
+        },
+        "after": {
+          "idle_pct": 74.35,
+          "load_averages": [
+            8.29,
+            11.87,
+            10.67
+          ]
+        }
+      },
+      "pairs_recorded": 0,
+      "error": "docker --host exited 137: "
+    },
+    "git-index-probe-material": {
+      "complete": false,
+      "load": {
+        "before": {
+          "idle_pct": 81.8,
+          "load_averages": [
+            10.43,
+            13.02,
+            10.96
+          ]
+        },
+        "after": {
+          "idle_pct": 76.26,
+          "load_averages": [
+            10.16,
+            12.92,
+            10.94
+          ]
+        }
+      },
+      "pairs_recorded": 0,
+      "error": "docker --host exited 137: "
+    }
+  },
+  "isolated_exec_failure_diagnostic": {
+    "original_failures": {
+      "first": {
+        "exec_id": "8e07202167377d44578dd7542ddc43675a1bb6d06d40b0febe75c55aaf53fcdd",
+        "exit": 137,
+        "guest_elapsed_ms": 753.223126
+      },
+      "retry": {
+        "exec_id": "fc136d7370442822cd20ac3c08490ca46624526077ee056ddcf1a2f81dea0e87",
+        "exit": 137,
+        "guest_elapsed_ms": 2253.873501
+      }
+    },
+    "retry_cgroup_memory_first_eight_lines": [
+      "low 0",
+      "high 0",
+      "max 0",
+      "oom 0",
+      "oom_kill 0",
+      "oom_group_kill 0",
+      "sock_throttled 0",
+      "362856448"
+    ],
+    "fresh_same_binary_repro_attempts": {
+      "direct": {
+        "build_ok": true,
+        "build_exec_id": "ee6555a197352c72215f290ddfa666906075eac346e8b2c55d92d14324f3164c",
+        "build_host_wall_ms": 14798.532625
+      },
+      "proxy": {
+        "build_ok": true,
+        "build_exec_id": "1b54ff3fadca5d557d13d1d56b9a74228c90022940ec9ce59e5ce972a050845e",
+        "build_host_wall_ms": 13118.207042
+      }
+    },
+    "sigkill_trace_records": [
+      {
+        "sender_pid": 5059,
+        "raw": "crun-1.31-arm64-5059    [002] d..1.    38.863013: signal_generate: sig=9 errno=0 code=0 comm=sleep pid=1207 grp=1 res=0"
+      },
+      {
+        "sender_pid": 5080,
+        "raw": "crun-1.31-arm64-5080    [003] d..1.    39.024653: signal_generate: sig=9 errno=0 code=0 comm=pause pid=1202 grp=1 res=0"
+      },
+      {
+        "sender_pid": 9033,
+        "raw": "crun-1.31-arm64-9033    [003] d..1.    55.862930: signal_generate: sig=9 errno=0 code=0 comm=sleep pid=5262 grp=1 res=0"
+      },
+      {
+        "sender_pid": 9066,
+        "raw": "crun-1.31-arm64-9066    [000] d..1.    56.387430: signal_generate: sig=9 errno=0 code=0 comm=pause pid=5252 grp=1 res=0"
+      }
+    ],
+    "nonzero_ppoll_returns": {
+      "0x1": 12061,
+      "0x2": 18,
+      "0xfffffffffffffdfe": 2
+    },
+    "runner_nonzero_ppoll_returns": {},
+    "physical_failure_sender": "unresolved; failures did not reproduce on the fresh traced worker"
+  },
+  "same_image_lookup_controls": {
+    "lookup-off-measured": {
+      "observed_parameter": "N",
+      "guest_kernel_release": "7.3.5-micropod-b5",
+      "startup_seconds": 0.9389,
+      "sha256": {
+        "cli": "b489425ac2c62dd562893885be4d9a37160660331be6cfb3f4ce587931c5a823",
+        "kernel": "b115ef1d632016e932a721ebe777d98974b5e44b0d250baa824328fc7734b31e",
+        "vmm": "18d85d4e18bf2fc49eb4610fdc6dcc52ce812b950e7a3dad28476b5f8e3fbbb7",
+        "initrd": "8ea81ca42c93b0a3a0b2d02eb994b2a5ba4888a30003d0eba4a29e5aa0c2e516",
+        "runner": "e0573601f2d0a4178b830186f7145dbc8f2d3c841e6f82c90f26f81b688d46f0",
+        "runner_start": "e3fab1084bbbb62ab447ca5b95ccf0f5fb09a41ca23e448ab9a1f338c09058ca"
+      }
+    },
+    "lookup-inline-measured": {
+      "observed_parameter": "Y",
+      "guest_kernel_release": "7.3.5-micropod-b5",
+      "startup_seconds": 0.8502,
+      "sha256": {
+        "cli": "b489425ac2c62dd562893885be4d9a37160660331be6cfb3f4ce587931c5a823",
+        "kernel": "b115ef1d632016e932a721ebe777d98974b5e44b0d250baa824328fc7734b31e",
+        "vmm": "18d85d4e18bf2fc49eb4610fdc6dcc52ce812b950e7a3dad28476b5f8e3fbbb7",
+        "initrd": "8ea81ca42c93b0a3a0b2d02eb994b2a5ba4888a30003d0eba4a29e5aa0c2e516",
+        "runner": "e0573601f2d0a4178b830186f7145dbc8f2d3c841e6f82c90f26f81b688d46f0",
+        "runner_start": "e3fab1084bbbb62ab447ca5b95ccf0f5fb09a41ca23e448ab9a1f338c09058ca"
+      }
+    }
+  },
+  "host": {
+    "macos": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+    "hardware": [
+      "Mac17,6",
+      "Apple M5 Max",
+      "18",
+      "137438953472"
+    ],
+    "python": "3.15.0 (main, Oct 14 2026, 00:56:12) [Clang 23.1.3 ]",
+    "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+    "go_host": "go version go1.27.2 darwin/arm64",
+    "go_build_flags": "-trimpath",
+    "orbstack_app_version": "2.2.5",
+    "orbstack_app_build": "21124",
+    "docker": {
+      "Client": {
+        "Platform": {
+          "Name": "Docker Engine - Community"
+        },
+        "Version": "29.7.2",
+        "ApiVersion": "1.55",
+        "DefaultAPIVersion": "1.55",
+        "GitCommit": "a7dcaa6fdb",
+        "GoVersion": "go1.26.5",
+        "Os": "darwin",
+        "Arch": "arm64",
+        "BuildTime": "Wed Aug  5 17:34:15 2026",
+        "Context": "default"
+      },
+      "Server": {
+        "Platform": {
+          "Name": "Docker Engine - Community"
+        },
+        "Version": "29.8.2",
+        "ApiVersion": "1.56",
+        "MinAPIVersion": "1.40",
+        "Os": "linux",
+        "Arch": "arm64",
+        "Components": [
+          {
+            "Name": "Engine",
+            "Version": "29.8.2",
+            "Details": {
+              "ApiVersion": "1.56",
+              "Arch": "arm64",
+              "BuildTime": "Wed Sep 30 19:32:49 2026",
+              "Experimental": "true",
+              "GitCommit": "8af9fe3",
+              "GoVersion": "go1.26.8",
+              "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+              "MinAPIVersion": "1.40",
+              "Module": "github.com/moby/moby/v2",
+              "ModuleVersion": "v2.0.0+unknown",
+              "Os": "linux"
+            }
+          },
+          {
+            "Name": "containerd",
+            "Version": "v2.3.6",
+            "Details": {
+              "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+            }
+          },
+          {
+            "Name": "runc",
+            "Version": "1.5.2",
+            "Details": {
+              "GitCommit": "29dd3dc2b13b4123162e5fe132504bb4b15569f1"
+            }
+          },
+          {
+            "Name": "docker-init",
+            "Version": "0.19.0",
+            "Details": {
+              "GitCommit": "de40ad0"
+            }
+          }
+        ],
+        "GitCommit": "8af9fe3",
+        "GoVersion": "go1.26.8",
+        "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+        "Experimental": true,
+        "BuildTime": "2026-09-30T19:32:49.000000000+00:00"
+      }
+    }
+  },
+  "artifacts": {
+    "vmm_git_commit": "7a30d9aebc0eb3235e680b257f775613e6ebe0f2",
+    "vmm_git_tree": "0d7055926b5a342ad6b1fb7b8ef037aa98aaaf67",
+    "vmm_frozen_source_sha256": {
+      ".gitignore": "306fd52e74fca6746e12acc750f232de15e71da917756a1270d74c91f5eb7368",
+      "Cargo.lock": "b84e57256cddf3dfded35f960bc77d6826d4eff5625a6917a62e8e556eeb11ff",
+      "Cargo.toml": "5104ffc96cf9fbc2eb4ff4ade29afcb71589f426582582af2f771066cd0cd0c8",
+      "bin/micropod-vmm/Cargo.toml": "18105782c4c1e3c0f5fb3041afad045c30fea370d265e8a6d80b455e7b05ae89",
+      "bin/micropod-vmm/src/main.rs": "1604fe3c1de33e9a9029f50ed9481c054b84dd04b3d6f5190bfe55a18a652c91",
+      "bin/micropod-vmm/tests/parent_pid.rs": "11a820e51ce28212e3f6f2d8b9bf4235e12ada9ea6c73d3936aa4f0818413f80",
+      "build.sh": "d17f93012100b567a64f642fad47423204dc684b5381725fe580e82f9fc249af",
+      "crates/hvf-sys/Cargo.toml": "34c32ae6f2366c65c88cc75a959dc8d634e407768292fdbcec61fb4ebb46b21e",
+      "crates/hvf-sys/build.rs": "4e43b6173bc4411079ef29d93b0f2fa0d7918012400927aaaf9a166a133254df",
+      "crates/hvf-sys/src/lib.rs": "7069bc5315600a978fc413494ef632ddbb9ebcc370de84ddece3f2e86a7cfb7a",
+      "crates/hvf-sys/src/simd_shim.c": "5c05bfd6060ba4bf142bd5f3cf93f37f1d2cc605cf06608e9a02ec327eae31f4",
+      "crates/hvf-sys/tests/simd_hardware.rs": "4ffd0cc2c91f7c2a8eecda0308d24b7eb4e0bcbca20dec177ea02230aa53501f",
+      "crates/vmm-core/Cargo.toml": "4d36103d2904782db9b30dd29d14de32e1a1eaa5c728763e27d567c31eec6f62",
+      "crates/vmm-core/src/boot_clock.rs": "70cc0729e51014976a13a88803991cf1a22f113d441a97fc799b727311fae7eb",
+      "crates/vmm-core/src/ctrl.rs": "b997ee0ddb33c8388f89570211d89ae97137610c7099839a0967a67a60548fde",
+      "crates/vmm-core/src/disk.rs": "8e65800897953d47ac1a81c37ac42c6bd501b1bd18cb4a7579072e5cf46726b6",
+      "crates/vmm-core/src/exit.rs": "def81ca523386f4e753b09ad2ad8b7b7b7b0abc091f404cf63a139c11f868078",
+      "crates/vmm-core/src/lib.rs": "05af3fc5a4cba9ab5ebe1b17e95f5fd15eae90af4bf1c122ba0d21706ae96040",
+      "crates/vmm-core/src/snapshot.rs": "45c878a45c52f38825a54c835a7489a695dd133420782876cf1aad971efaddf9",
+      "crates/vmm-core/src/telemetry.rs": "b7c0f2d5e2d99653fc7c16b582fad834a52be538d1df706a0d6f9b3dc029a84a",
+      "crates/vmm-fdt/Cargo.toml": "e8fe986621102571d9976b017664fa6124aa5752a2d7a7b928b6f191424d555f",
+      "crates/vmm-fdt/src/lib.rs": "60a215ac1b8528e98c77fe646421766398a08b1661774d0f8d6f16a55c50ef77",
+      "crates/vmm-net/Cargo.toml": "48735fa7adc55a501c2ec2b1841ea82ad3163ed020bbeed6cf03923fdc839622",
+      "crates/vmm-net/src/egress.rs": "7e17d7dbf215fa794287a1bdfa9f4385c95c591883bdcdff4a7f2cf378801a0d",
+      "crates/vmm-net/src/lib.rs": "ae2c47bcc54df4f33b5c1fd4035760acff14090b062ad3bceaed8e7928eb173d",
+      "crates/vmm-virtio/Cargo.toml": "6ecaa7b8092cbb14ee8b5e7a13016074ac5afb1356c46bf0301eedb13d5e7009",
+      "crates/vmm-virtio/src/lib.rs": "9c543ec55b180ca784b0eb729ef0df2f14bc13c1d2e0779a02a70b3c1bfbdce7",
+      "crates/vmm-virtio/src/virtiofs.rs": "f334fd0fae351ebaaa901d53ca50de9d2973411de38ae3583e30f0ebff21d0bb",
+      "crates/vmm-virtio/src/vsock.rs": "3c04136119449b996e02516bfe6213282174288db3c4baf5a4eeddf1d0ac8f0d",
+      "entitlements.plist": "35d4cf85dde95ca7c102cf0752ebece94bc7a7d1a7a022e7a60ef33bee9c57b6",
+      "guest-init/boot_clock.go": "8e578abd719d71935421ec4f8503155e289d92913edcc641961079c35e6db69d",
+      "guest-init/boot_clock_linux_arm64.go": "747d6d29fded30005d31a8d2c4bc23343dbd321a0045fb607faa6ba7328684de",
+      "guest-init/boot_clock_test.go": "286f279bf9d775c31b3d832283d9e90970ab4848d8ad071e5578dc61004036c7",
+      "guest-init/ctrl.go": "747d29530039c9f089c5f40068ca02eadac305f23d0d4b4ac0bcc76b43516be3",
+      "guest-init/ctrl_test.go": "02290e4af2d9c46503d325c6b33fd0698aa7c2974cba470c2f915efc84a3be18",
+      "guest-init/go.mod": "81301f404d06ac0224eb6d42ec7c26253cffc2ca2606a90fa4278f39c7ddc3d8",
+      "guest-init/main.go": "79c31a40fb9040d5b358f45bece2e175b01fa31ae65fb8605adc051556cba453",
+      "guest-init/netconf_linux.go": "d5f1787195edae1032fcf75ca791676fa65c3830d846f5a9ac2f6b96d561c93d",
+      "guest-init/netlink.go": "ecbc99b77938ce82c059911529bcb0b11ccb0829f08df7659cdc18ba9c19591e",
+      "guest-init/netlink_test.go": "770d4c55942174acd68549ebe5f737336ac4cd65b7e10ec4c1979691183ba6e6",
+      "guest-init/workspace.go": "95a62a12dc0de0083ce5054daa944c30e26859c65bdd2704788db3573039c123",
+      "guest-init/workspace_test.go": "19c361e21e19baaf2305b00e0a9985409189e44e32b027466fb5a737720b8553"
+    },
+    "vmm_built_sha256": "18d85d4e18bf2fc49eb4610fdc6dcc52ce812b950e7a3dad28476b5f8e3fbbb7",
+    "initrd_built_sha256": "8ea81ca42c93b0a3a0b2d02eb994b2a5ba4888a30003d0eba4a29e5aa0c2e516",
+    "kernel_bytes_sha256": "5eb46b31203fe4b4d53782f4ba7b216274ad5cd63424df711fc96fd36577e52b",
+    "managed_cli_sha256": "b489425ac2c62dd562893885be4d9a37160660331be6cfb3f4ce587931c5a823",
+    "managed_cli_matches_prior_guarded": true,
+    "runner_matches_prior": true,
+    "archived_final_runner_source_sha256": {
+      "buildkit_linux.go": "9b6dba1a5e29fcf18e5f3f75e43fc1efbb720d4ba01c1bf0f1646e959afaf7d4",
+      "cmd/dontcache/main_linux.go": "899c43784ea713e379e4b8a4b4a454e87e18aebfcafa3abd634dcf9366b43a81",
+      "cmd/dontcache/main_other.go": "a30fe1749a6d48ae1f3c64b29570b8198ce0d2108749d87f46cdbd73cbbc8dcc",
+      "cmd/dontcache/probe.go": "472f9118c13ba4c2c03fbeb947941721de509db334a393738b361cec2c4a5d66",
+      "cmd/dontcache/probe_test.go": "f9a2355b18a04faa5798e1ae4c54bccc6a33c87f21cac2aebf2c41eb4d2b9a77",
+      "cmd/porttrace/main_linux.go": "d6e64ec51160df3951605807b84f03c5f131892a32c1d1e9826b1b253a175669",
+      "cmd/porttrace/main_linux_test.go": "e26a51b12b53e7783114b3ae5c3d9444498df2ce1df59a19ae5106f1814c527a",
+      "cri_log_follow_linux_test.go": "3c9bad0c1a38f2e013aa6ff5261f05cd273c93c1711cb4ed929eea1f8f14eeb6",
+      "cri_log_watch_linux.go": "0594f5f6080f504203f71dcdeeb329e6551ca2019fde473019ffb12e0e1f0cfd",
+      "cri_log_watch_linux_test.go": "5d1af735035ed66cc75f1614aaefdab6a41ede69941cd8170724604153c5bed8",
+      "cri_output_linux_test.go": "8b572ba5bee17884403d8ff4837436c8b893dbe9aebec8d87613e3a5dd2614fc",
+      "docker_archive_io_linux.go": "21ab8daf156575c6e8882c587fa33e3297edc0eddd6bfa8b68263390acd6e5c7",
+      "docker_archive_linux.go": "cdcdd997b632572bd06eacfb8dc92abbc85e187d9341f5adc3673e2a145cdd95",
+      "docker_archive_linux_test.go": "81b409b1589ec920867fd3cdb1ee7160f0c54456d6a1e2412994760631faace0",
+      "docker_archive_readonly_linux.go": "8c8ae5670d859f6ed48ebb2ce3c9f569e39dddd1af45001a3a36d361cb4f2031",
+      "docker_archive_readonly_linux_test.go": "2f451bfc5eef42711cdf485c015688c2f90fa299353aaff3b9681e316cb65757",
+      "docker_config_linux.go": "e0cbc31695c9e8265e5cdaf6b6888558028c0cba86d7c1afd7f19f4fe3dc8c58",
+      "docker_dns_answer.go": "691dcd911a2205ef5e530e027f711dd8953bd4385031b70e068b2503239bb647",
+      "docker_dns_answer_test.go": "e8fb3f69995a9b14dbe1fe2d2b672d690c572f24d4eca95d2c7519b8222bf8b4",
+      "docker_dns_directory.go": "9051a3849143970675017f6dba707131eed1151e9e92fbe5eab67eda0fd41fc2",
+      "docker_dns_directory_test.go": "0310dcf9aaf4e28ca3185dcba374a21fe0ce7c24bf7faff1cb50a66a515c120e",
+      "docker_dns_frame_linux_test.go": "b44e6557374b2fe1ce548333f9f00e19f1e6403cd29cf131b662298b840796dd",
+      "docker_dns_linux.go": "60b9d7fcc72b358fe8366b7b0f8b2cc73ea0a1b13a082821b54015fa077f21a2",
+      "docker_dns_multi_test.go": "f9f2d0cbc03ed62b594c0513f936052fa1b155b187928d8f0694fc01e448b68e",
+      "docker_engine_linux.go": "b1286e30f036cb851715a22dbfe1fdd532500e86ce01c0f58965a8ffa08f5a03",
+      "docker_engine_linux_test.go": "eb89f773054b46445eb9109a0628ab5b299df7c3da0cbfcc76b55e440fffc903",
+      "docker_events.go": "48a6b066448499278637756c8f008d7cfe6dc57362387cc9e9679bad76af6712",
+      "docker_events_linux.go": "0d8a53eeab061d8701ebf6d11585e1a0f4a12ad6b38031ebaae46a8ea23faa36",
+      "docker_events_linux_test.go": "cbfbb815d9255bb3e437ca5d65ada1115beda9cca4b415ae2bf747f4d648de13",
+      "docker_events_test.go": "0db075e3cace55fc1870a495bf4d9adf4176d20d3a6ecddc6e1f27a7a3d3d520",
+      "docker_exec_linux.go": "8a13a36eaa76963e3fd125f1d7abee9216ac16d9afd6034893e2ecc6c1f76a79",
+      "docker_exec_linux_test.go": "1b93e5c3ffa73df4f31fb2373fd7d5b1a6e3d3469f0c6e8d982aa7c62d7dbe01",
+      "docker_exec_options_linux.go": "4041f7f7b3e5fc60ca0e3fbe6c8b257b9fb5d0cdce99fefe9e003175b1337dbd",
+      "docker_exec_options_linux_test.go": "d341604b2996e3e37b9122c1bb9a9d5fcfb6612685a62e54ca008dc09d780170",
+      "docker_exec_stream_linux.go": "62de617e78677457deeaf1ae7f6eff3955c7ac7e19c893bdd56953aa637bbca5",
+      "docker_exec_stream_linux_test.go": "bf4f5317aec5637f68b04d719d77ed8653e068d28e7f7bbd2afbe99ba6436a75",
+      "docker_http_linux.go": "de2dc14a508f1bfe5bf3ba3b7338b5e50216da728cd6ca74401b89d2f6eb1408",
+      "docker_http_linux_test.go": "4d59dcd9729b9b0e83d97126026d60b22d0e14bd9032f7a1082c85f8b6df7a75",
+      "docker_image_delete_linux.go": "1dbd9ba5edf2420b5b100f5a15f5d1eeacb7aaf1a336ccec78e24289e2e9af7a",
+      "docker_image_delete_linux_test.go": "b2360ed3d70c01dcbc27f25980d8c50add5b688af119be203af464ecdd5346e4",
+      "docker_image_transfer_linux.go": "4bf0a61823e855ec785ab727cf90bed547e8ea4dd7ef370a61534f5e0690d82e",
+      "docker_job_parent_linux.go": "dcd1c4052ec8fb2eeccafd6e6a01833d80e8e617a94aa2e9339491f6f1308701",
+      "docker_lifecycle_linux.go": "7460d6b3478f6e04090c725425a64c4222be03091bc99d16a564496703e8c679",
+      "docker_lifecycle_linux_test.go": "ab63794338eb57170f5e3ef810db81d3ceb128fed9331909a6c0b4ead0a93ed5",
+      "docker_links_linux.go": "ca4c06b2bb506e19c9996680461289b05513ed2c4290e147179825fe5205f8c8",
+      "docker_metrics_linux.go": "3244709291205376ea4508c681bbc8131ab80b2472505d1abe53e94c752559f3",
+      "docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228",
+      "docker_networks_linux.go": "7fed4276f9223a56a1264fc53a715d57ae4f0c85f38724e0cc9d5a3427a86369",
+      "docker_networks_linux_test.go": "a33b01f3314d9ace536cfaa142c4bc388d20385635ec163631fefc62465629fe",
+      "docker_offline_linux.go": "f7d9996935096961ffef4a7639b018769fe29e1ad1558154213e58f3d7b6c817",
+      "docker_port_direct_linux.go": "c7f24e94e3f384cb8c8159f2ccfa64e2a8b939126fc5449f6fc99abab8276687",
+      "docker_port_direct_linux_test.go": "08b534735194c48d55d8c0e7a0e05e93ce02f78b78513997ee1c50c1fabe9719",
+      "docker_port_nat_linux.go": "6bd00ace83f05a0ae98a37bdd58d3352e94dbd831b2a91c8c47b77d50ec9ef3a",
+      "docker_port_nat_linux_test.go": "a24b40686ebe214f2680a880dfdc46df58fa06473a75acb9974896d0d02506af",
+      "docker_ports.go": "cdb2fa62cf023c52ab8170cb45ed975f96014649345c62fdba2d29cde4885b23",
+      "docker_ports_linux.go": "cf529dab81afecc4ac18348f6563a149725603128c3ed99d6d8b988eedd5229f",
+      "docker_ports_test.go": "f8f1c923dfb85ee297bd0063cfa220cc5fa9cf23ab9afc81100163e3982818dc",
+      "docker_reaper_linux.go": "18187d2b649e5636d748f937f3942310314b02be00404948d274ecbb36ef09c9",
+      "docker_rootfs.go": "7e82ab9e46d1995994812dc34debf8a8ff623ca5b2e21c27e513cbb3df7bd097",
+      "docker_rootfs_linux.go": "91ea059a93a05cc13c97dec5830b3499f17db1eafd32ef89d5375ce5b3491fb6",
+      "docker_rootfs_linux_test.go": "478d7893ccf7781959c6dc6877ff51fd78dd2f8f9391c1cda3d4584dd0572d2b",
+      "docker_rootfs_test.go": "a8cfd441a7e7de02ec3e60db4fcd7ef647a727be0fdf91b15bd86378a4a45cff",
+      "docker_stats_linux.go": "b5e881e7a91e49e5a8bece36c86a381c63e9ae4bb8124dd51c85b45ce294ba92",
+      "docker_stats_parse.go": "a51fd21cf92de4ed36f909c1b87b4df922eb0b36f6d752f0d14af656a3b2cea9",
+      "docker_stats_parse_test.go": "72e28a298311d3de218a4ec3b998e2e2d642f05586fe296416df0c055c5575e4",
+      "docker_stream_frames.go": "4fa5319e3294b0c335f9543bbbbc5315eb9497ef8f6dd7451e2e70229c408f2e",
+      "docker_stream_frames_test.go": "a41cf6540f942261d3b373b7ec7c173c924ac865851202c8a42d36e3afd7470e",
+      "docker_volumes_linux.go": "6ae4fde65af4f129cf39bd108db40651bb9a1f87e4bdd0bf8031f1bdb9284a85",
+      "go.mod": "5c97fbb226ff104b4ba5e806df87fb7cdc189f8460937756660c8aacd036fcf5",
+      "go.sum": "86727dc8e56c7328abad85b97e34fab8fd5157f631bb79f55d522bc2789c5bf9",
+      "main_linux.go": "47a0d5c9147a66a0a7434a33480f72e6b0ff8e5c25086ee096331b879efeebbf",
+      "main_linux_test.go": "f10bb0b4a39684e96a299f5def20891d37e069669288c363005485a2fc5888e2",
+      "netavark_bench_linux_test.go": "f5f1bb70435d3ffecc0f0f702cfad5c15ad8d687819ba632c704dbd94658640a",
+      "output_linux.go": "95366dccae8b1ed6a7652a811965753da32e6a00552ce4d160ecaadd22d9f94e",
+      "rootless_linux.go": "be8eaf3fc2c2bc0e2b1c7986e3b64c4869c144d4971621972b2aa4dd2aafae65",
+      "standby_linux.go": "20ad393daa2162c570ab2dd2abd8c6a8b67129d3fe97429ad6f7d2b3d4fa122d",
+      "testdata/published-service.go": "2295f0200e72ae70484b201cd5b4891c4a0ac7c033e4326aca51dcf9e68e2971"
+    },
+    "prior_fixture": {
+      "vmm_sha256": "3a5ae9ef85f7160aa69e492434daf7ee24bcc98e745288ff7b74af0891078c7d",
+      "runner_sha256": "e0573601f2d0a4178b830186f7145dbc8f2d3c841e6f82c90f26f81b688d46f0",
+      "kernel_sha256": "5eb46b31203fe4b4d53782f4ba7b216274ad5cd63424df711fc96fd36577e52b",
+      "cli_sha256": "da7fb2d7cef79a504243777b99019d77df103dcb95e59bae78233203973acdb5",
+      "initrd_sha256": "2a109410ad36cb709face54616c3dc6fd7bf7589d52431f257f86fc0c3cf2a2c"
+    }
+  },
+  "historical_preservation": {
+    "baseline": {
+      "manifest_sha256": "8e7826379b6ae9afd581d179a64b5a0aa11c1efa18f6ba30cd0ea13669f0163e",
+      "original_files_verified": 24,
+      "preserved_files_verified": 24
+    },
+    "archives": {
+      "raw": {
+        "path": "managed-ci-git-and-exec-receipts.tar.gz",
+        "manifest_entries": 429,
+        "bytes": 1881760,
+        "sha256": "8d7f7a4c913785ec8fb34da605a848d0b04c37def248f2dd7cd763d6c1c53001",
+        "extracted_files_verified": 429
+      },
+      "sources": {
+        "path": "managed-ci-git-and-exec-sources.tar.gz",
+        "manifest_entries": 2179,
+        "bytes": 8100061,
+        "sha256": "052718b726d6d494c64e772615107df563472151042d6862b991d3d6f623b9e7",
+        "extracted_files_verified": 2179
+      }
+    },
+    "upstream_tool_files_verified": 37
+  },
+  "image": {
+    "tag": "micropod-qa/checkout:gamma-euque2",
+    "label": "io.micropod.checkout-image=gamma-euque2",
+    "name": "mp-checkout-builder-euque2",
+    "base": "micropod-gamma-bench:20261120",
+    "source_config": "sha256:c197a3a1748f629fcccda258ebffb2f7c1a1d3b05828e2fc2f24ff13e6f904f9",
+    "builder_container": "56e20703b6ed2e2fb714fdbffac5a1fedd8d4ae96eb0db9ccde397f12eed1c9a",
+    "config_digest": "sha256:c9932b6c0c5db3d541bd61b950d19f35933fb327d8ad92654d07e2e0de109711",
+    "versions": [
+      "go version go1.26.11 linux/arm64",
+      "git version 2.39.5",
+      "Python 3.12.16",
+      "aarch64",
+      "git version 2.39.5",
+      "cpu: aarch64",
+      "no commit associated with this build",
+      "sizeof-long: 8",
+      "sizeof-size_t: 8",
+      "shell-path: /bin/sh"
+    ],
+    "installed_git": [
+      "git\t1:2.39.5-0+deb12u3",
+      "git-man\t1:2.39.5-0+deb12u3",
+      "54af380ba6ca1b36305358e99427a31ae4b0af5dc5cb6d0198c6f2f16e97651d  /usr/bin/git",
+      "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb  /usr/local/go/bin/go",
+      "7863a4d5e03fde7791c7f8c2c304cf3522f435e19745364ad18a6b7a0458af57  /usr/local/bin/python3"
+    ],
+    "seed_sha256": "6743aafc3bb02de6cd80a50e646575d1d11aaef35295c61289c49d20d39f96d7",
+    "builder_removed": true,
+    "commit_reported_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921",
+    "manifest_digest": "sha256:35b78648666f568a792bb89c8c1ef421b4f132d59769442cf88ef2f5a0e28921",
+    "layers": [
+      "sha256:2d66c782e4847b8495b17a4b86be1159aa13d140fe4fd17cb1d536953d5114c6",
+      "sha256:be854b5286e5cbcf42b01e54b5ef98b3e80cc586e80fb695010a4d761a47099d",
+      "sha256:147b27d82adbb763d3c607d635efef4531ff4a61559dfa5d32f9996f48a7bca3",
+      "sha256:71cbc2473e6fbb6af0048cb7d7351ae3ce6fae71edd764a174d71719d03c122f",
+      "sha256:47602a0fa6cc9a18d788062b08325b3d6d0ac1e25eb76a377cc12eef45713319",
+      "sha256:0c3ec0c40b1e87e39c105520d3794ee7d5cca229ce071bcafac03c065143ec45",
+      "sha256:34c05778e7ae70b4bfdae753812c68997c5fb84b6a89e908e8d16cc6e5e29549",
+      "sha256:5586214b58a5503dc72e81fcb4516c83de43ee7d9330e30bad69017ce322d575"
+    ]
+  },
+  "cleanup": {
+    "owned_protected_workers": {
+      "baseline-trace": {
+        "image": "/private/tmp/mp-tune-gamma-baseline-trace-9v4gendl/worker.sparseimage",
+        "uuid": "CF225BCB-E36D-41CF-A18F-A595A0F2072A",
+        "retired": {
+          "pid": 76923,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "exec-signal-final": {
+        "image": "/private/tmp/mp-tune-gamma-exec-signal-final-ksyomg30/worker.sparseimage",
+        "uuid": "07FAF198-DD03-4927-A15D-D6E8EBAB6332",
+        "retired": {
+          "pid": 48029,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "exec-signal-repeat": {
+        "image": "/private/tmp/mp-tune-gamma-exec-signal-repeat-baqnxn3m/worker.sparseimage",
+        "uuid": "9C658CD6-72E9-42A5-B14C-52B332F72368",
+        "retired": {
+          "pid": 45663,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "exec-signal": {
+        "image": "/private/tmp/mp-tune-gamma-exec-signal-n4_xx4zp/worker.sparseimage",
+        "uuid": "36F87977-0482-40ED-8639-4270BF307ABF",
+        "retired": {
+          "pid": 41298,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "lookup-inline-measured": {
+        "image": "/private/tmp/mp-tune-gamma-lookup-inline-measured-kg1fqv64/worker.sparseimage",
+        "uuid": "75A0F469-87EE-4D1D-B663-8544A4F5026E",
+        "retired": {
+          "pid": 81670,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "lookup-inline": {
+        "image": "/private/tmp/mp-tune-gamma-lookup-inline-6lmz3j1f/worker.sparseimage",
+        "uuid": "6F21F0D2-C3A2-4AFC-A117-473CFC69BA4B",
+        "retired": {
+          "pid": 75228,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "lookup-off-final": {
+        "image": "/private/tmp/mp-tune-gamma-lookup-off-final-2l2ubtaz/worker.sparseimage",
+        "uuid": "0219D389-D21A-485E-997A-04A9866CA32A",
+        "retired": {
+          "pid": 74146,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "lookup-off-measured": {
+        "image": "/private/tmp/mp-tune-gamma-lookup-off-measured-1bx49ibu/worker.sparseimage",
+        "uuid": "34E7A2AC-1611-483A-8DF5-36322B2C64C4",
+        "retired": {
+          "pid": 77335,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "lookup-off": {
+        "image": "/private/tmp/mp-tune-gamma-lookup-off-iqi75rxg/worker.sparseimage",
+        "uuid": "37FA74A2-E5A7-451A-A6A9-A867560E56C9",
+        "retired": {
+          "pid": 64043,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      },
+      "pinned-index-measured": {
+        "image": "/private/tmp/mp-tune-gamma-pinned-index-measured-lxcn889u/worker.sparseimage",
+        "uuid": "D5977F09-00A1-44CF-A7A9-563E2BEC0EA4",
+        "retired": {
+          "pid": 85740,
+          "process_exit_code": 0,
+          "disk_query_timeouts": 1,
+          "process_group_absent": true,
+          "disk_present": true,
+          "disk_holders": []
+        },
+        "read_only_rechecked": true,
+        "drive_detached": true,
+        "image_removed": true,
+        "spotlight_disabled": true,
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0
+      }
+    },
+    "protected_hub_uuid": "6A8C0BEC-29A6-4C93-BB4A-0DF7082379B1",
+    "hub_read_only_rechecked": true,
+    "hub_image_removed": true,
+    "hub_spotlight_disabled": true,
+    "hub_suppression_markers_unchanged": true,
+    "hub_fsevents_journal_files": 0,
+    "hub_fsevents_journal_bytes": 0,
+    "all_owned_apfs_images_absent": true,
+    "none_of_owned_apfs_images_attached": true,
+    "orbstack_tag_removed": true,
+    "orbstack_builder_removed": true,
+    "orbstack_kernel_builder_absent": true,
+    "all_qualified_baseline_hashes_preserved": true,
+    "private_staging_directory_removed": true
+  },
+  "receipts": {
+    "path": "mounted-ci-gamma-receipts.tar.gz",
+    "entries": 352,
+    "bytes": 1099769,
+    "sha256": "774763ef36286b0d1c747c81a6c24354654e190d29a69b1f041cdcd7565f6eb0"
+  },
+  "date_melbourne": "2026-11-26"
+}

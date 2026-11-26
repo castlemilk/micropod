@@ -1,0 +1,873 @@
+{
+  "host": "Gamma-128GB.local",
+  "date_melbourne": "2026-11-26",
+  "worker": {
+    "path": "combined-ready.json",
+    "sha256": "7e01ac45b07cf8065c10ea30af15279a951d331992c5fb562755220aebf19d3b"
+  },
+  "runtime": {
+    "cli": {
+      "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/cli-baseline/micropod",
+      "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259"
+    },
+    "initrd": {
+      "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/mp-hvf-init.cpio",
+      "sha256": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615"
+    },
+    "job": {
+      "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/tools-combined/runner/bin/job",
+      "sha256": "e00d6da9b0b2f95fbc0cb9a5609972df2f479ddec8ffb3340e2f7cbb80db2072"
+    },
+    "kernel": {
+      "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/Image",
+      "sha256": "61b4e143b26039e4642f48b3819e0233f22b44f5c3e88e109cbc9c17508cc85f"
+    },
+    "vmm": {
+      "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/micropod-vmm",
+      "sha256": "4b25f7d3ae9a43ff4dbfdbfc13b30834e928fda7ac3b429ff4564a7cf3099264"
+    }
+  },
+  "lineage": {
+    "retained_manifest": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma4-vuwhjq/manifest.json",
+      "sha256": "663498e4addca168e129e01703a660e2422b624a6819f40f759eb013d8352a8f"
+    },
+    "artifacts": {
+      "vmm": {
+        "source": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma3-26gaz4/micropod-vmm-4b25f7d3ae9a",
+        "staged": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/micropod-vmm",
+        "sha256": "4b25f7d3ae9a43ff4dbfdbfc13b30834e928fda7ac3b429ff4564a7cf3099264"
+      },
+      "initrd": {
+        "source": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma2-fmdkh0/mp-hvf-init-50afc24231a7",
+        "staged": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/mp-hvf-init.cpio",
+        "sha256": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615"
+      },
+      "cli": {
+        "source": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod",
+        "staged": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/cli-baseline/micropod",
+        "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259"
+      },
+      "kernel": {
+        "source": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma4-vuwhjq/Image-release-ab-61b4e143b260",
+        "staged": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/Image",
+        "sha256": "61b4e143b26039e4642f48b3819e0233f22b44f5c3e88e109cbc9c17508cc85f"
+      },
+      "job": {
+        "source": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma4-vuwhjq/runner-job-e00d6da9b0b2",
+        "staged": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/tools-baseline/runner/bin/job",
+        "sha256": "e00d6da9b0b2f95fbc0cb9a5609972df2f479ddec8ffb3340e2f7cbb80db2072"
+      }
+    },
+    "source_archive": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-25/managed-ci-git-and-exec-sources.tar.gz",
+      "sha256": "052718b726d6d494c64e772615107df563472151042d6862b991d3d6f623b9e7",
+      "files": {
+        "final-harness/guest/files.go": "1b5f22b0ea588d13943f291b2b6fb9a25f26afc7bbe6c2d1d83f669e2d38d9b1",
+        "final-harness/guest/go.mod": "2e6ee9f5d1427c22432b245329d823449f3864b1f8e461228e0d0805903c7b8f",
+        "final-harness/guest/go.sum": "917e6c57a88ce408108820ce3aa8ff25dc665851031d708adb6aac1778a63aea",
+        "final-harness/guest/guest_test.go": "fa93abf141e13394c44f745da2556e11f7333d0f007d17795c8ec99be05a7f5e",
+        "final-harness/guest/idle.go": "b38ad28c4d3e02cd1e8a3347ed707124c267f0ae2565ce00d67f5ecd86cf3ae3",
+        "final-harness/guest/main.go": "1f10446acf0801ac35e2b35c24ac0cc921d10e383bb0e221097dd4af4fea8946",
+        "final-harness/guest/watch.go": "d5c687224a6c25d612b9a27a564c0a9393be3d7f80facfd86d1d206e1fd6faf2",
+        "final-harness/scripts/bench_workspace_checkout.py": "aeafda39ff303636ec58f02d6f4d55d55158720417ed62c06e65924232ceeb12",
+        "final-harness/scripts/bench_workspace_edits.py": "9bcf7bcefd19fe76f8e5697f360a0ffdbca05899d54f2886a39f2fce0d3d7023",
+        "final-harness/scripts/workspacebench/main.go": "8c6656236619ae66fc1b50d1b50922e2a9063b90f48daf46c689ae3e82f71294"
+      }
+    },
+    "drivers": {
+      "ci8": "aeafda39ff303636ec58f02d6f4d55d55158720417ed62c06e65924232ceeb12",
+      "ci16": "33ee9434bdc452785ca8cacb6bedbeaeceaa067ae0f3399de0b3e696f747c1ac"
+    },
+    "tool_bank_entries": 37,
+    "tool_bank_source": "/Users/benebsworth/.micropod/qualified/interactive-a41976076b67-2293dd639a7a/micropod-oci-tools",
+    "fsprobe": {
+      "source_sha256": "8c6656236619ae66fc1b50d1b50922e2a9063b90f48daf46c689ae3e82f71294",
+      "binary_sha256": "4a6b275cd44f0d59b9a4a5bc70cbcfb72acb4462d1740843036ff8e30f0f36b5"
+    }
+  },
+  "image": {
+    "tag": "micropod-qa/checkout:gamma5-ixyadt",
+    "label": "io.micropod.checkout-image=gamma5-ixyadt",
+    "name": "mp-checkout-builder-ixyadt",
+    "base": "micropod-gamma-bench:20261120",
+    "source_config": "sha256:c197a3a1748f629fcccda258ebffb2f7c1a1d3b05828e2fc2f24ff13e6f904f9",
+    "builder_container": "0884e45991d7040774f72f4be93438d2a3459f5849eb3fb003a571bb680adeac",
+    "commit_reported_digest": "sha256:2489aad5fa20d7cadf1a68f4b3b1d270fbfea64260f43ea59bee4a02ca8f0173",
+    "versions": [
+      "go version go1.26.11 linux/arm64",
+      "git version 2.39.5",
+      "Python 3.12.16",
+      "aarch64",
+      "git version 2.39.5",
+      "cpu: aarch64",
+      "no commit associated with this build",
+      "sizeof-long: 8",
+      "sizeof-size_t: 8",
+      "shell-path: /bin/sh"
+    ],
+    "installed_git": [
+      "git\t1:2.39.5-0+deb12u3",
+      "git-man\t1:2.39.5-0+deb12u3",
+      "54af380ba6ca1b36305358e99427a31ae4b0af5dc5cb6d0198c6f2f16e97651d  /usr/bin/git",
+      "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb  /usr/local/go/bin/go",
+      "7863a4d5e03fde7791c7f8c2c304cf3522f435e19745364ad18a6b7a0458af57  /usr/local/bin/python3"
+    ],
+    "preceding_benchmark_manifest": "sha256:d4d560fcd5ae0bf8d108e9f83479a4d2669ca0a9f1b10191a35f28a644422bb4",
+    "preceding_benchmark_config": "sha256:4dfd2db5b9b548ec1555dd7d3a44210d61ff7ab0920b34eada307f7a5f9b2941",
+    "tool_binaries_byte_identical_to_preceding_round": true,
+    "seed_sha256": "253fdcfc912d963d230c8da759a52caf964fe492261071e82aa53f66d86337b4",
+    "config_digest": "sha256:3a7ea9e4fb10e051dc916b3269af6fb70165c6ce41b42a94cfb9e7745a6d7ce7",
+    "manifest_digest": "sha256:2489aad5fa20d7cadf1a68f4b3b1d270fbfea64260f43ea59bee4a02ca8f0173",
+    "layers": [
+      "sha256:2d66c782e4847b8495b17a4b86be1159aa13d140fe4fd17cb1d536953d5114c6",
+      "sha256:be854b5286e5cbcf42b01e54b5ef98b3e80cc586e80fb695010a4d761a47099d",
+      "sha256:147b27d82adbb763d3c607d635efef4531ff4a61559dfa5d32f9996f48a7bca3",
+      "sha256:71cbc2473e6fbb6af0048cb7d7351ae3ce6fae71edd764a174d71719d03c122f",
+      "sha256:47602a0fa6cc9a18d788062b08325b3d6d0ac1e25eb76a377cc12eef45713319",
+      "sha256:0c3ec0c40b1e87e39c105520d3794ee7d5cca229ce071bcafac03c065143ec45",
+      "sha256:34c05778e7ae70b4bfdae753812c68997c5fb84b6a89e908e8d16cc6e5e29549",
+      "sha256:c8221787b70d6d8d7c63b6105172bea689c1d8a185dd759916c69061c7cb097d"
+    ],
+    "builder_removed": true
+  },
+  "kernel_args": [
+    "virtiofs.workspace_async_release=1"
+  ],
+  "async_release_sysfs": "Y",
+  "fixture_public_trust": {
+    "path": "tools-combined-lineage.json",
+    "sha256": "e24b2d3847cd0672818029143b8efb6188cf7f07f52d3e963ab1b16ddbe8dce4"
+  },
+  "ci": {
+    "8": {
+      "status": 0,
+      "driver": "aeafda39ff303636ec58f02d6f4d55d55158720417ed62c06e65924232ceeb12",
+      "host": {
+        "receipt": {
+          "path": "combined-ci8-host-load.jsonl",
+          "sha256": "40db079b6cc8930aade73331ce14acf0648ff59efd60dd0d563d010fd536c9e4"
+        },
+        "samples": 120,
+        "command_exit": 0,
+        "start_utc": "2026-11-25T20:00:06.115140+00:00",
+        "end_utc": "2026-11-25T20:02:06.012699+00:00",
+        "weighted_cpu_idle_pct": 81.43637166291039,
+        "window_cpu_idle_pct_min_median_max": [
+          64.321608040201,
+          84.68735702487965,
+          94.21579532814238
+        ],
+        "load_1_minimum_maximum": [
+          2.74462890625,
+          3.5419921875
+        ]
+      },
+      "receipt": {
+        "path": "combined-ci8.json",
+        "sha256": "09d6556f7ac7e69c9a6b12590d5b2010a85e9980496d1b6d292886e9a65423bc"
+      },
+      "fixture_commit": "a6c74dccdc296424dc3746e74acc0841d8e37f06",
+      "source_sha256": {
+        "files.go": "1b5f22b0ea588d13943f291b2b6fb9a25f26afc7bbe6c2d1d83f669e2d38d9b1",
+        "go.mod": "2e6ee9f5d1427c22432b245329d823449f3864b1f8e461228e0d0805903c7b8f",
+        "go.sum": "917e6c57a88ce408108820ce3aa8ff25dc665851031d708adb6aac1778a63aea",
+        "guest_test.go": "fa93abf141e13394c44f745da2556e11f7333d0f007d17795c8ec99be05a7f5e",
+        "idle.go": "b38ad28c4d3e02cd1e8a3347ed707124c267f0ae2565ce00d67f5ecd86cf3ae3",
+        "main.go": "1f10446acf0801ac35e2b35c24ac0cc921d10e383bb0e221097dd4af4fea8946",
+        "watch.go": "d5c687224a6c25d612b9a27a564c0a9393be3d7f80facfd86d1d206e1fd6faf2"
+      },
+      "image": {
+        "reference": "micropod-qa/checkout:gamma5-ixyadt",
+        "config_digest": "sha256:3a7ea9e4fb10e051dc916b3269af6fb70165c6ce41b42a94cfb9e7745a6d7ce7",
+        "manifest_digest": "sha256:2489aad5fa20d7cadf1a68f4b3b1d270fbfea64260f43ea59bee4a02ca8f0173"
+      },
+      "jobs": 8,
+      "cpus": "0.5",
+      "memory_mib": 384,
+      "go_parallelism": 1,
+      "timed_scope": {
+        "clock": "guest CLOCK_MONOTONIC nanoseconds with verified boot ID and namespace offset",
+        "makespan_ns": "first Git status start through last Go test finish in the same engine",
+        "scored_ns": "per job, sum of Git status, Go build and uncached Go test subprocess durations",
+        "all_jobs_overlap_ns": "time with all workers simultaneously in a measured subprocess",
+        "warm_state": "one unscored prime per fresh isolated guest-local build cache, retained across batches",
+        "incremental_state": "first batch after an atomic host-only main.go edit with a unique revision per pair",
+        "source": "real Micropod guest file helper with its five Linux tests, in one read-only host Git checkout"
+      },
+      "warm_binary_sha256": "51b1896898856067459ab1bc2aca459184968c3c48d5cbaa33c2ec727ec0a57b",
+      "cold": {
+        "orbstack": {
+          "groups": 1,
+          "max_simultaneous_jobs": 8,
+          "makespan_ms_by_group": [
+            16625.049609
+          ],
+          "measured_host_wall_ms": null
+        },
+        "hvf": {
+          "groups": 1,
+          "max_simultaneous_jobs": 8,
+          "makespan_ms_by_group": [
+            15972.755341
+          ],
+          "measured_host_wall_ms": null
+        }
+      },
+      "waves": {
+        "warm": {
+          "engines": {
+            "hvf": {
+              "wave_median_ms": 381.89881249999996,
+              "all_jobs_overlap_median_ms": 336.134523,
+              "all_jobs_overlap_minimum_ms": 322.504087,
+              "peak_overlap_by_wave": [
+                8,
+                8,
+                8,
+                8
+              ],
+              "job_phase_median_ms": {
+                "git_status": 10.4640625,
+                "go_build": 167.590896,
+                "go_test": 174.71939600000002
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 8.171541999999999,
+                "go_build": 135.40889650000003,
+                "go_test": 126.3496465
+              }
+            },
+            "orbstack": {
+              "wave_median_ms": 417.7305295,
+              "all_jobs_overlap_median_ms": 360.0123585,
+              "all_jobs_overlap_minimum_ms": 350.191755,
+              "peak_overlap_by_wave": [
+                8,
+                8,
+                8,
+                8
+              ],
+              "job_phase_median_ms": {
+                "git_status": 11.535367,
+                "go_build": 192.366395,
+                "go_test": 195.4915095
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 6.999772500000001,
+                "go_build": 157.181777,
+                "go_test": 123.911738
+              }
+            }
+          },
+          "hvf_wins": 4,
+          "paired_hvf_over_orbstack": [
+            0.905024897976551,
+            0.8973934288658412,
+            0.9313690261542781,
+            0.8763364313489976
+          ]
+        },
+        "incremental": {
+          "engines": {
+            "hvf": {
+              "wave_median_ms": 660.8236039999999,
+              "all_jobs_overlap_median_ms": 608.980166,
+              "all_jobs_overlap_minimum_ms": 577.26771,
+              "peak_overlap_by_wave": [
+                8,
+                8,
+                8,
+                8
+              ],
+              "job_phase_median_ms": {
+                "git_status": 11.323146,
+                "go_build": 247.09060399999998,
+                "go_test": 373.350979
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 8.782667,
+                "go_build": 220.74629149999998,
+                "go_test": 312.095417
+              }
+            },
+            "orbstack": {
+              "wave_median_ms": 737.9423435000001,
+              "all_jobs_overlap_median_ms": 658.6837575,
+              "all_jobs_overlap_minimum_ms": 640.221787,
+              "peak_overlap_by_wave": [
+                8,
+                8,
+                8,
+                8
+              ],
+              "job_phase_median_ms": {
+                "git_status": 10.367207,
+                "go_build": 279.435528,
+                "go_test": 398.40747
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 4.3133585,
+                "go_build": 254.67278449999998,
+                "go_test": 345.68336899999997
+              }
+            }
+          },
+          "hvf_wins": 4,
+          "paired_hvf_over_orbstack": [
+            0.8946291968327128,
+            0.8832067844409737,
+            0.9079717652575938,
+            0.918028851011144
+          ]
+        }
+      },
+      "cleanup": {
+        "orbstack": {
+          "owned_ids": [
+            "18af8ea3463420754f62a200c05d694a0a1f3fbba66f1227b758013a3a21405b",
+            "0ee9bb3f7cc970623b1911e31790ac84311509ca17dea3bf4719cc63c7e59cf2",
+            "75cae70a718a7fe15d00ff49b86e8f69bc7cf1d9e6e79bd9312ce32f07a2be1f",
+            "9bc6220a277ff2ed01d7c9f1e0d35fb07a279fef23de1908173cd251f7a573a3",
+            "b0e3ca93f7fdfdf2dfc9a4f09ec207e1360affeae158e6337a777a49f21f5b37",
+            "67acbb7c6112192d2711b96ec5b84937446fa6d1d209a5600ccc4c82fdd7f8b7",
+            "defcdb761f4a9d37ff1679f9f5e54615c4957de9a5faba08dfd9945a04131bed",
+            "4c63a4a186d8fde503dd7c0064b428abab320d616a4e77627ea30307ba0d6a08"
+          ],
+          "remaining": []
+        },
+        "hvf": {
+          "owned_ids": [
+            "28fc126e555d06c1f14432458ae7dfd0fbf583d3c84d1547f62f3abed8bab4d8",
+            "959a65003dae891206df39f29e30cca742b833ca993f0e05c299421b0a0d4a3a",
+            "1e095e15dd238d1c77d7bf52ed973e5b517c55e6024f34f40d4682dd03bfb53f",
+            "93b12e90fbdac0b59fd8f885b041c171878d000035651387335f39c5627d3e21",
+            "3bf75f9920e451e92a4d52d42bac0670dd9944a845754ea2a09176334459652e",
+            "e38672b665dda68af699c24ce98b10e46d99cc5a48e0b3d776b102677ad9379a",
+            "36acfb546d5c155fbcd898f83b08dc08ae861dfe7fae451d0113666950024218",
+            "34d8e95796852de2343dcdeab5c994dc89f1f43b7596541540b700c8996e33ad"
+          ],
+          "remaining": []
+        }
+      },
+      "sample_order": [
+        {
+          "warm": [
+            "orbstack",
+            "hvf"
+          ],
+          "incremental": [
+            "hvf",
+            "orbstack"
+          ]
+        },
+        {
+          "warm": [
+            "hvf",
+            "orbstack"
+          ],
+          "incremental": [
+            "orbstack",
+            "hvf"
+          ]
+        },
+        {
+          "warm": [
+            "orbstack",
+            "hvf"
+          ],
+          "incremental": [
+            "hvf",
+            "orbstack"
+          ]
+        },
+        {
+          "warm": [
+            "hvf",
+            "orbstack"
+          ],
+          "incremental": [
+            "orbstack",
+            "hvf"
+          ]
+        }
+      ],
+      "cleanup_receipt": {
+        "path": "combined-ci8-cleanup.json",
+        "sha256": "50150a3e454adf07efefa761e420351dcf7e2834c59d213084b570e428f7274f"
+      }
+    },
+    "16": {
+      "status": 0,
+      "driver": "33ee9434bdc452785ca8cacb6bedbeaeceaa067ae0f3399de0b3e696f747c1ac",
+      "host": {
+        "receipt": {
+          "path": "combined-ci16-host-load.jsonl",
+          "sha256": "79ca7461991dba447340f2bca92b5b5f0c9058fd3bdea2ce21d39909bc4d8003"
+        },
+        "samples": 264,
+        "command_exit": 0,
+        "start_utc": "2026-11-25T20:02:06.054203+00:00",
+        "end_utc": "2026-11-25T20:06:30.859386+00:00",
+        "weighted_cpu_idle_pct": 81.87859739472887,
+        "window_cpu_idle_pct_min_median_max": [
+          65.13303769401331,
+          80.62464705580368,
+          94.2084942084942
+        ],
+        "load_1_minimum_maximum": [
+          2.9521484375,
+          5.6201171875
+        ]
+      },
+      "receipt": {
+        "path": "combined-ci16.json",
+        "sha256": "0545de110a80e06a9c394bce58aa9706e04a1b5f21656518302aec344dbfe29b"
+      },
+      "fixture_commit": "a6c74dccdc296424dc3746e74acc0841d8e37f06",
+      "source_sha256": {
+        "files.go": "1b5f22b0ea588d13943f291b2b6fb9a25f26afc7bbe6c2d1d83f669e2d38d9b1",
+        "go.mod": "2e6ee9f5d1427c22432b245329d823449f3864b1f8e461228e0d0805903c7b8f",
+        "go.sum": "917e6c57a88ce408108820ce3aa8ff25dc665851031d708adb6aac1778a63aea",
+        "guest_test.go": "fa93abf141e13394c44f745da2556e11f7333d0f007d17795c8ec99be05a7f5e",
+        "idle.go": "b38ad28c4d3e02cd1e8a3347ed707124c267f0ae2565ce00d67f5ecd86cf3ae3",
+        "main.go": "1f10446acf0801ac35e2b35c24ac0cc921d10e383bb0e221097dd4af4fea8946",
+        "watch.go": "d5c687224a6c25d612b9a27a564c0a9393be3d7f80facfd86d1d206e1fd6faf2"
+      },
+      "image": {
+        "reference": "micropod-qa/checkout:gamma5-ixyadt",
+        "config_digest": "sha256:3a7ea9e4fb10e051dc916b3269af6fb70165c6ce41b42a94cfb9e7745a6d7ce7",
+        "manifest_digest": "sha256:2489aad5fa20d7cadf1a68f4b3b1d270fbfea64260f43ea59bee4a02ca8f0173"
+      },
+      "jobs": 16,
+      "cpus": "0.25",
+      "memory_mib": 384,
+      "go_parallelism": 1,
+      "timed_scope": {
+        "clock": "guest CLOCK_MONOTONIC nanoseconds with verified boot ID and namespace offset",
+        "makespan_ns": "first Git status start through last Go test finish in the same engine",
+        "scored_ns": "per job, sum of Git status, Go build and uncached Go test subprocess durations",
+        "all_jobs_overlap_ns": "time with all workers simultaneously in a measured subprocess",
+        "warm_state": "one unscored prime per fresh isolated guest-local build cache, retained across batches",
+        "incremental_state": "first batch after an atomic host-only main.go edit with a unique revision per pair",
+        "source": "real Micropod guest file helper with its five Linux tests, in one read-only host Git checkout"
+      },
+      "warm_binary_sha256": "51b1896898856067459ab1bc2aca459184968c3c48d5cbaa33c2ec727ec0a57b",
+      "cold": {
+        "orbstack": {
+          "groups": 2,
+          "max_simultaneous_jobs": 8,
+          "makespan_ms_by_group": [
+            32273.158814,
+            34080.181505
+          ],
+          "measured_host_wall_ms": 72627.103208
+        },
+        "hvf": {
+          "groups": 2,
+          "max_simultaneous_jobs": 8,
+          "makespan_ms_by_group": [
+            30726.509056,
+            31225.645849
+          ],
+          "measured_host_wall_ms": 68054.028042
+        }
+      },
+      "waves": {
+        "warm": {
+          "engines": {
+            "hvf": {
+              "wave_median_ms": 816.2466045,
+              "all_jobs_overlap_median_ms": 677.9710415,
+              "all_jobs_overlap_minimum_ms": 626.024543,
+              "peak_overlap_by_wave": [
+                16,
+                16,
+                16,
+                16
+              ],
+              "job_phase_median_ms": {
+                "git_status": 17.7644585,
+                "go_build": 342.786479,
+                "go_test": 366.70050000000003
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 11.9297085,
+                "go_build": 273.332729,
+                "go_test": 241.1149375
+              }
+            },
+            "orbstack": {
+              "wave_median_ms": 851.5813929999999,
+              "all_jobs_overlap_median_ms": 744.2687675,
+              "all_jobs_overlap_minimum_ms": 702.104341,
+              "peak_overlap_by_wave": [
+                16,
+                16,
+                16,
+                16
+              ],
+              "job_phase_median_ms": {
+                "git_status": 17.032384999999998,
+                "go_build": 399.610817,
+                "go_test": 400.995358
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 1.4727365,
+                "go_build": 334.60428449999995,
+                "go_test": 257.138463
+              }
+            }
+          },
+          "hvf_wins": 4,
+          "paired_hvf_over_orbstack": [
+            0.8818352455198605,
+            0.977443527154458,
+            0.9002993499880839,
+            0.9942114430329593
+          ]
+        },
+        "incremental": {
+          "engines": {
+            "hvf": {
+              "wave_median_ms": 1364.1988965,
+              "all_jobs_overlap_median_ms": 1215.234336,
+              "all_jobs_overlap_minimum_ms": 1174.474749,
+              "peak_overlap_by_wave": [
+                16,
+                16,
+                16,
+                16
+              ],
+              "job_phase_median_ms": {
+                "git_status": 20.0624375,
+                "go_build": 475.15333350000003,
+                "go_test": 757.371563
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 11.286999999999999,
+                "go_build": 429.1177295,
+                "go_test": 592.276417
+              }
+            },
+            "orbstack": {
+              "wave_median_ms": 1387.608011,
+              "all_jobs_overlap_median_ms": 1290.4082915,
+              "all_jobs_overlap_minimum_ms": 1240.232841,
+              "peak_overlap_by_wave": [
+                16,
+                16,
+                16,
+                16
+              ],
+              "job_phase_median_ms": {
+                "git_status": 16.055161,
+                "go_build": 533.687042,
+                "go_test": 792.569279
+              },
+              "wave_all_jobs_phase_overlap_median_ms": {
+                "git_status": 0.0,
+                "go_build": 476.9307425,
+                "go_test": 680.271763
+              }
+            }
+          },
+          "hvf_wins": 2,
+          "paired_hvf_over_orbstack": [
+            1.000942825155393,
+            1.0305582118963774,
+            0.9034109183876365,
+            0.9745814051832015
+          ]
+        }
+      },
+      "cleanup": {
+        "orbstack": {
+          "owned_ids": [
+            "777e42591e9f159bcafb25126020a3b1aadae66ad7e2c3bd224ae3a3729db4f7",
+            "e49e26c713344220fc7e25edd8b2e8afaa286aef255917b2f91a32ae983e64f0",
+            "75b631b6ccdf82b46c024ae294747d41b329b21e08405af895c0780eee73cb4e",
+            "69b8ff14ebd9b179c90d360a09e7c37067f63652788395772c294efa7f2c29d5",
+            "7acf9dcd247419441931e229d34a5ce2ba150f19fbd46f3e39acb7820eb6e924",
+            "30d5689aa370c53bb85264941b2bba64d4d41faa7bee67ec6e7373d2a4b0f1e0",
+            "fd4d0db0ea264c69354511d527894e2807e36ce523396771e7e5a403cd5c5664",
+            "f74ef097505f98b9fe786d73a92845d80d0874928f58c692a4a9ac68316f30ac",
+            "ecc12ec5353dddfd8152bda0836268e210789ccc6f676a4fb71369a83ddc9bbb",
+            "8c70eb7603193632bf3a60242616e56ef62ae66d8ee0edfd4dd197928f95a76d",
+            "58c46da6ff2824566227906339b1ef3406965731cd40b08d1fc97b032a0abe8c",
+            "240631d5036b30109200635fbbb8892cb412ea6f0346a360a992ca8f47c18c2c",
+            "c2d3495b78815ae3f6211abf0c7cacc6bd2e2c1b5b619205ba9e92d37aa2f4f1",
+            "35b3c4fafa2ca9bc500e93df9cbe60e299d904ca4c79e639e90f3182330b6f27",
+            "e0c760342bef94bbd56744cd4c4e7d3e9fdd8e3ef5945a151b9142f4b3c1cacb",
+            "d8dc148eac69189590cde48f1ba8346158d0e5c9805626240437a74ec70698d6"
+          ],
+          "remaining": []
+        },
+        "hvf": {
+          "owned_ids": [
+            "7ecdd6d52e286ab9962e5b7b34bdd194f4e84d5a76aad64b26c490a1d6c1dda0",
+            "bd8adfc80370035c2242c9504950c533f5124829a9b6f2e46122222f2260a7e7",
+            "aceff93280f2ae763ffc80e1902714def05307dddba76b2cdd8ccef6c1722e11",
+            "008ee2e76a6edcc4dac4485354f0a9c0f872c636a05823065e55f0c137fe5e28",
+            "3881a765abd2506b61610b10bdb5fcb7a580486ff15d3723022491ed78f551db",
+            "f127e0c4743559cf2bd560ef89ac7498fe357f1ce34504b059efa0cae1768908",
+            "265adf777746c8de0d25b870f0f06dbb89912b7713de5fd366d33245cccc2760",
+            "ac9843907af7ae58adc0ffe7228d68641d64bd74823cc59e3a7ff2aefbb951da",
+            "dd66571782447f206e895a6b5ce296679a9419c4d4d26662ddc86adfbdaf588a",
+            "a2b2b12308d968f4b13d8957742727e27e26f6cbda4974eef1b3dd7770078562",
+            "0750dc0fbac8189ec37e68f1359c9943f316e318637a188b8492f11727ebb792",
+            "e519a49d8eefe7c8d9962847f2446a64b083abb63c1a85ee6247d318738b1d55",
+            "021d4e1d2a4853bd98345f3cf93d93b2941066629859d24512496f6ea8d7d554",
+            "2cba63da12a5556730b3fdd834159e9726ed47e12be9ccacad8604876058d18a",
+            "0d51cdb1a0202988d4ea2e34b2df8940a5f43a1f76801a3bd4bab27c582dbdfe",
+            "2b949d066619b681b616217850a663b7ff7cdcafb082bfafb1c5a1b7bbee2c63"
+          ],
+          "remaining": []
+        }
+      },
+      "sample_order": [
+        {
+          "warm": [
+            "orbstack",
+            "hvf"
+          ],
+          "incremental": [
+            "hvf",
+            "orbstack"
+          ]
+        },
+        {
+          "warm": [
+            "hvf",
+            "orbstack"
+          ],
+          "incremental": [
+            "orbstack",
+            "hvf"
+          ]
+        },
+        {
+          "warm": [
+            "orbstack",
+            "hvf"
+          ],
+          "incremental": [
+            "hvf",
+            "orbstack"
+          ]
+        },
+        {
+          "warm": [
+            "hvf",
+            "orbstack"
+          ],
+          "incremental": [
+            "orbstack",
+            "hvf"
+          ]
+        }
+      ],
+      "cleanup_receipt": {
+        "path": "combined-ci16-cleanup.json",
+        "sha256": "2ce005e9986057beb4d197cfdabf3f63da2322cc3256ec682d6313e0b2fb41db"
+      }
+    }
+  },
+  "stock_filesystem": {
+    "combined-edits.json": {
+      "path": "combined-edits.json",
+      "sha256": "c31ce01e63b387a05b2786db0a01fb9f94c46cc07e7dddf7c7c1b7a6f6195fe2"
+    },
+    "combined-mmap-exact.json": {
+      "path": "combined-mmap-exact.json",
+      "sha256": "f4241bad5314748d273f77e8ee4cff3ae3d1982fd5e714fafed0da1190a796f2"
+    },
+    "combined-guest-splice.json": {
+      "path": "combined-guest-splice.json",
+      "sha256": "b8ad03f400b2fc530637b585347680582f88e2e5dd207905cda5af19a5904326"
+    },
+    "combined-stock-pid1.json": {
+      "path": "combined-stock-pid1.json",
+      "sha256": "d98dde6ee7d56048c1ca590e226673d7cc11aae4bf9a3ecbf891fde3023316c6"
+    },
+    "combined-correctness-exit.log": {
+      "path": "combined-correctness-exit.log",
+      "sha256": "f9a1166c138ec26e755b8216d70f97eafbbae96f07ac4844a8bd722dae6ae0b9"
+    }
+  },
+  "wire_and_stock": {
+    "run_combined_wire.py": {
+      "path": "run_combined_wire.py",
+      "sha256": "9bd592384c227ef377ff52b915b654b3266145788f85b6dc16972c8a7b357815"
+    },
+    "registry-fixture-removed.json": {
+      "path": "registry-fixture-removed.json",
+      "sha256": "8361d0efd6ae637a2223e38701040fab106553b2f670caf1e23dff05ecf94aac"
+    },
+    "registry-public-inputs.json": {
+      "path": "registry-public-inputs.json",
+      "sha256": "02fc10cac304e5944e317c840ade637137342d3ee08aa06c0266e08791c19f14"
+    },
+    "retire_combined_registry.py": {
+      "path": "retire_combined_registry.py",
+      "sha256": "54d75c4182d37cb0bf42ac999a12986bb6a08209acde1d64cdb88eda4865d138"
+    },
+    "docker-final01/ci_benchmark_store.py": {
+      "path": "docker-final01/ci_benchmark_store.py",
+      "sha256": "b74a08d90cf912ebec9fbfafc9147bea0e429ae5ab03fa58ffb29806ad08150a"
+    },
+    "docker-final01/live-combination.json": {
+      "path": "docker-final01/live-combination.json",
+      "sha256": "15298a108c12e6787768d5cc21ef0904c5b760b968016bd7cace6b597e119f9d"
+    },
+    "docker-final01/qualify_docker_image_history.py": {
+      "path": "docker-final01/qualify_docker_image_history.py",
+      "sha256": "4285f5a1e3af032c97a3cccaeeabf3587ac261bcea36e3c9a3e86d287bde0216"
+    },
+    "docker-final01/qualify_docker_image_id.py": {
+      "path": "docker-final01/qualify_docker_image_id.py",
+      "sha256": "1c6fd1a437224f80d56219234baa72ac633ebf4517854870a43ba1362a99c078"
+    },
+    "docker-final01/qualify_docker_push.py": {
+      "path": "docker-final01/qualify_docker_push.py",
+      "sha256": "5501be762c9d9dacf3284dd2294634ae135b1ceef19838dcbeaeec24b28364c3"
+    },
+    "docker-final01/qualify_engine_api.py": {
+      "path": "docker-final01/qualify_engine_api.py",
+      "sha256": "b0d7279e6e94df3a6138427c8e240ba64ab09e2a55fb84b328c5cf8df852675a"
+    },
+    "docker-final01/registry.json": {
+      "path": "docker-final01/registry.json",
+      "sha256": "7141d3683081ffd66c6774fe126eb4c0f65213693680626e0574bb9dd02120fd"
+    },
+    "docker-final01/registry.log": {
+      "path": "docker-final01/registry.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-final01/retention.json": {
+      "path": "docker-final01/retention.json",
+      "sha256": "f5973d05a7b64719ce3dbba19cd22a41ca6bcb8fec696004216613e9070cda5e"
+    },
+    "docker-final01/retention.log": {
+      "path": "docker-final01/retention.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "live_registry": {
+    "registry_receipt": {
+      "path": "docker-final01/registry.json",
+      "sha256": "7141d3683081ffd66c6774fe126eb4c0f65213693680626e0574bb9dd02120fd"
+    },
+    "retention_receipt": {
+      "path": "docker-final01/retention.json",
+      "sha256": "f5973d05a7b64719ce3dbba19cd22a41ca6bcb8fec696004216613e9070cda5e"
+    },
+    "live_combination_receipt": {
+      "path": "docker-final01/live-combination.json",
+      "sha256": "15298a108c12e6787768d5cc21ef0904c5b760b968016bd7cace6b597e119f9d"
+    },
+    "verified_registry_release": "distribution/v3.1.2",
+    "registry_api": "1.47",
+    "strict_tls_and_basic_auth": true,
+    "concurrent_push_overlap_ms": 39.059625,
+    "push_request_to_last_eof_ms": 155.548791,
+    "private_ids_removed": 9,
+    "registry_objects_absent": {
+      "containers_absent": true,
+      "networks_absent": true,
+      "named_tags_absent": true
+    },
+    "stock_retention_and_short_id_passed": true
+  },
+  "cleanup": {
+    "worker_volumes": {
+      "combined": {
+        "image": "/private/tmp/mpg5-combined-06ergti7/worker.sparseimage",
+        "uuid": "C527D872-3EE5-4F20-96DC-9AF751A7099F",
+        "clean_shutdown": true,
+        "read_only": true,
+        "spotlight_disabled": true,
+        "fsevents_files": 0,
+        "fsevents_bytes": 0,
+        "raw_identity_preserved": true,
+        "defaults_unchanged": true,
+        "removed": true,
+        "artifacts": {
+          "cli": {
+            "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/cli-baseline/micropod",
+            "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259"
+          },
+          "initrd": {
+            "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/mp-hvf-init.cpio",
+            "sha256": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615"
+          },
+          "job": {
+            "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/tools-combined/runner/bin/job",
+            "sha256": "e00d6da9b0b2f95fbc0cb9a5609972df2f479ddec8ffb3340e2f7cbb80db2072"
+          },
+          "kernel": {
+            "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/Image",
+            "sha256": "61b4e143b26039e4642f48b3819e0233f22b44f5c3e88e109cbc9c17508cc85f"
+          },
+          "vmm": {
+            "path": "/private/tmp/mp-gamma5.IXyADt/home/artifacts/micropod-vmm",
+            "sha256": "4b25f7d3ae9a43ff4dbfdbfc13b30834e928fda7ac3b429ff4564a7cf3099264"
+          }
+        }
+      }
+    },
+    "hub": {
+      "uuid": "B193B74E-D7B6-447A-B564-50C67C428941",
+      "read_only_remount": true,
+      "spotlight_disabled": true,
+      "fsevents_files": 0,
+      "fsevents_bytes": 0,
+      "image_removed": true
+    },
+    "owned_orbstack_tag_removed": true,
+    "owned_orbstack_builder_removed": true,
+    "preexisting_orbstack_base_preserved": true,
+    "private_stage_removed": true
+  },
+  "receipts": {
+    "path": "native-combined-integration-gamma-receipts.tar.gz",
+    "sha256": "526390f79c16d53a949104faeadef4512baab7b68b6e9a2fb80d0c20434ed1a6",
+    "bytes": 338543,
+    "entries": 98
+  },
+  "prior_preservation": {
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/native-push-and-fuse-gamma.json": "4f25412cb1d7bf9f51537aafcaddf7498f7b4459a9f29dae5696f17c1894e60b",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/native-push-and-fuse-gamma-receipts.tar.gz": "951a630fffc76a5ded5f13a9e8372effca3a645b69813c4e4ff4f6d53dd4c21a",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma3-26gaz4/micropod-vmm-4b25f7d3ae9a": "4b25f7d3ae9a43ff4dbfdbfc13b30834e928fda7ac3b429ff4564a7cf3099264",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma2-fmdkh0/mp-hvf-init-50afc24231a7": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma4-vuwhjq/Image-release-ab-61b4e143b260": "61b4e143b26039e4642f48b3819e0233f22b44f5c3e88e109cbc9c17508cc85f",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma4-vuwhjq/runner-job-e00d6da9b0b2": "e00d6da9b0b2f95fbc0cb9a5609972df2f479ddec8ffb3340e2f7cbb80db2072",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma4-vuwhjq/manifest.json": "663498e4addca168e129e01703a660e2422b624a6819f40f759eb013d8352a8f",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-25/managed-ci-git-and-exec-sources.tar.gz": "052718b726d6d494c64e772615107df563472151042d6862b991d3d6f623b9e7",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/native-storage-park-gamma.json": "0982a20340650f3e18e166d5f15b1a727f9835bad953b44642c1a6e202b492a6",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/native-storage-park-gamma-receipts.tar.gz": "c9cf3081b8268cde9a5b22e8ad53027e43ff091f020eac8fc776d77b59d9dce4",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/core-pid1-and-mutable-gamma.json": "f11cec70be533acc91a520324bcf094685a3f3581db674ba8892a121de68bf99",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/core-pid1-and-mutable-gamma-receipts.tar.gz": "98335ae5bcd1ef549799afd9e853e24e105e366e71fbc491afcb360c050147e1",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/mounted-ci-gamma.json": "a421bb49b422f344539857a0e8e6fe4599f4da840bbddba5ab9446fe1cc54b13",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/mounted-ci-gamma-receipts.tar.gz": "774763ef36286b0d1c747c81a6c24354654e190d29a69b1f041cdcd7565f6eb0",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma3-26gaz4/manifest.json": "88fded1ad1492f80a88c9e6470a6a5188dbfc7ae9b0cdf22c6e3e3fbbd26bd23",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-25/managed-ci-git-and-exec-receipts.tar.gz": "8d7f7a4c913785ec8fb34da605a848d0b04c37def248f2dd7cd763d6c1c53001",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma3-26gaz4/runner-job-5de5611a7371": "5de5611a7371bd542d92bd7c34a656431af9734f2c0e848a588fa692400248fd",
+    "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma2-fmdkh0/Image-dba972178942": "dba972178942b384b9eefd10dc1d92c0b9f063d5bcb2a9604e388400283f0ab6"
+  },
+  "archived_fixture_sources": {
+    "fixture-source/final-harness/guest/files.go": "1b5f22b0ea588d13943f291b2b6fb9a25f26afc7bbe6c2d1d83f669e2d38d9b1",
+    "fixture-source/final-harness/guest/go.mod": "2e6ee9f5d1427c22432b245329d823449f3864b1f8e461228e0d0805903c7b8f",
+    "fixture-source/final-harness/guest/go.sum": "917e6c57a88ce408108820ce3aa8ff25dc665851031d708adb6aac1778a63aea",
+    "fixture-source/final-harness/guest/guest_test.go": "fa93abf141e13394c44f745da2556e11f7333d0f007d17795c8ec99be05a7f5e",
+    "fixture-source/final-harness/guest/idle.go": "b38ad28c4d3e02cd1e8a3347ed707124c267f0ae2565ce00d67f5ecd86cf3ae3",
+    "fixture-source/final-harness/guest/main.go": "1f10446acf0801ac35e2b35c24ac0cc921d10e383bb0e221097dd4af4fea8946",
+    "fixture-source/final-harness/guest/watch.go": "d5c687224a6c25d612b9a27a564c0a9393be3d7f80facfd86d1d206e1fd6faf2",
+    "fixture-source/final-harness/scripts/bench_workspace_checkout.py": "aeafda39ff303636ec58f02d6f4d55d55158720417ed62c06e65924232ceeb12",
+    "fixture-source/final-harness/scripts/bench_workspace_edits.py": "9bcf7bcefd19fe76f8e5697f360a0ffdbca05899d54f2886a39f2fce0d3d7023",
+    "fixture-source/final-harness/scripts/workspacebench/main.go": "8c6656236619ae66fc1b50d1b50922e2a9063b90f48daf46c689ae3e82f71294",
+    "fixture-source/bounded-harness/scripts/bench_workspace_checkout.py": "33ee9434bdc452785ca8cacb6bedbeaeceaa067ae0f3399de0b3e696f747c1ac",
+    "fixture-source/tools-combined-start.sh": "23d87556cc6af876bcb231cf90731cb7e0e82fa4bc01200c675fb4adc0a238c6"
+  }
+}

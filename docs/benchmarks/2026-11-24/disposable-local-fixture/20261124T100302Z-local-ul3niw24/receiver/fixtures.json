@@ -1,0 +1,130 @@
+{
+  "A": {
+    "scope": "/private/tmp/mp-t-chbapacr/data/a",
+    "engine": "9C182E93-D75E-415B-BA21-991DF77BDC98",
+    "engine_version": "micropod",
+    "id": "92a6f2f38701f8b9f5f8d9ff9338b9ab570024daf9b59dc5b76517834dd72b31",
+    "name": "mp-t-chbapacr-a",
+    "address": "127.0.0.1:56205",
+    "cpus": 4,
+    "memory_bytes": 4116488192,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.3.5-micropod",
+    "pids": {
+      "vmm": 10154,
+      "relay": 10147
+    },
+    "vmm_executable": "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+    "process_type": "Interactive",
+    "spawn_type": "interactive (4)",
+    "job_controls_sha256": "9c5ad2f3f37ab936e9f4aa428a956bd2433169cd9b2af9c5df470d607431084b",
+    "relay_nice": 0,
+    "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "instance": "05D8F631-5AC7-4724-973A-741B0016F2FD",
+    "worker": "9C182E93-D75E-415B-BA21-991DF77BDC98",
+    "kernel": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+    "cli_sha256": "9618161826b37f5a3d7433c9d6a88fa3637e6a6fcc16cfd14b2a263dbcb89aeb",
+    "relay_workers": 2,
+    "callback_events": 128,
+    "read_bytes": 262144,
+    "route": {
+      "RtoMin": 20,
+      "RtoMinLock": true,
+      "QuickACK": 0,
+      "Congctl": "reno",
+      "MTU": 0
+    },
+    "service_env_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worker_disk_holder_check": "exact named VMM PID holds the worker disk",
+    "nic_offload_readback": "TSO and GRO in guest inventory",
+    "boot": "0913534e-8953-4699-8e9c-6f40f3eb42f1",
+    "guest_config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "guest_inventory_sha256": "99c44306c3202b297c29b78fa8b982ff580f94b597f79f1f8948b9427e93b971",
+    "guest_reported_sched_ext": false,
+    "callback_events_origin": "session and mapped build",
+    "read_bytes_origin": "mapped build",
+    "mapped_relay_build": {
+      "source_revision": "5b8ea1a6a79d1741e521c080f968fcf04c591e68",
+      "worker_executable_sha256": "9618161826b37f5a3d7433c9d6a88fa3637e6a6fcc16cfd14b2a263dbcb89aeb",
+      "mapped_device": 16777232,
+      "mapped_inode": 1221213827,
+      "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+    },
+    "socket_evidence": "route",
+    "accepted_socket_reno_verified": false,
+    "births": {
+      "10154": 292324193351,
+      "10147": 292318235974
+    }
+  },
+  "B": {
+    "scope": "/private/tmp/mp-t-chbapacr/data/b",
+    "engine": "129AB3C7-2038-4A71-AEEF-412C2AE48F1E",
+    "engine_version": "micropod",
+    "id": "c50ebe1b0a3c0d2d83ad2e3fe8f1dc0ce6a6e3c16e3ea9bc60138d8af169f9b2",
+    "name": "mp-t-chbapacr-b",
+    "address": "127.0.0.1:56207",
+    "cpus": 4,
+    "memory_bytes": 4116488192,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.3.5-micropod",
+    "pids": {
+      "vmm": 10321,
+      "relay": 10317
+    },
+    "vmm_executable": "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+    "process_type": "Interactive",
+    "spawn_type": "interactive (4)",
+    "job_controls_sha256": "9c5ad2f3f37ab936e9f4aa428a956bd2433169cd9b2af9c5df470d607431084b",
+    "relay_nice": 0,
+    "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "instance": "EAB25C18-82C9-4691-8079-4DFCAC1F6747",
+    "worker": "129AB3C7-2038-4A71-AEEF-412C2AE48F1E",
+    "kernel": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+    "cli_sha256": "9618161826b37f5a3d7433c9d6a88fa3637e6a6fcc16cfd14b2a263dbcb89aeb",
+    "relay_workers": 4,
+    "callback_events": 128,
+    "read_bytes": 262144,
+    "route": {
+      "RtoMin": 20,
+      "RtoMinLock": true,
+      "QuickACK": 0,
+      "Congctl": "reno",
+      "MTU": 0
+    },
+    "service_env_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worker_disk_holder_check": "exact named VMM PID holds the worker disk",
+    "nic_offload_readback": "TSO and GRO in guest inventory",
+    "boot": "e0224888-24c0-4a92-9073-4ce3de6c7e76",
+    "guest_config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "guest_inventory_sha256": "8d79ef4471ebcae1a69e0abf8dc170ac42618b88eaf0d3decfdaa99a78c0f998",
+    "guest_reported_sched_ext": false,
+    "callback_events_origin": "session and mapped build",
+    "read_bytes_origin": "mapped build",
+    "mapped_relay_build": {
+      "source_revision": "5b8ea1a6a79d1741e521c080f968fcf04c591e68",
+      "worker_executable_sha256": "9618161826b37f5a3d7433c9d6a88fa3637e6a6fcc16cfd14b2a263dbcb89aeb",
+      "mapped_device": 16777232,
+      "mapped_inode": 1221213827,
+      "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+    },
+    "socket_evidence": "route",
+    "accepted_socket_reno_verified": false,
+    "births": {
+      "10321": 292398903066,
+      "10317": 292392720005
+    }
+  }
+}

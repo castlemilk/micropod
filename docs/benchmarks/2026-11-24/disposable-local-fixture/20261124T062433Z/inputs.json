@@ -1,0 +1,68 @@
+{
+  "utc": "20261124T062433Z",
+  "authorization": "Disposable local four-vCPU/two-worker benchmark VM, Cuttlefish stopped. No warm-CI scope reused.",
+  "scope": "/private/tmp/mp-local-bv229a26",
+  "home": "/private/tmp/mp-local-bv229a26/a",
+  "workspace": "/private/tmp/mp-local-bv229a26/workspace",
+  "receipts": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T062433Z",
+  "kernel_and_tools": {
+    "netbench_image_tar": {
+      "path": "/private/tmp/micropod-replacement.ucZjIryF/netbench-v2.tar",
+      "sha256": "3989c7ced4264b60419fee78907861694ade6f8cb21b5034a6e4bc452bdb74d1",
+      "size": 5529088
+    },
+    "kernel": {
+      "path": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+      "sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+      "size": 29483520
+    },
+    "kernel_config": {
+      "path": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/config",
+      "sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+      "size": 98100
+    },
+    "fixed": {
+      "path": "/private/tmp/mp-priority.b3sbI7ym/fixed",
+      "sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+      "size": 9416274
+    },
+    "rusage": {
+      "path": "/private/tmp/mp-priority.b3sbI7ym/rusage",
+      "sha256": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c",
+      "size": 33896
+    }
+  },
+  "image_config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "image_ref": [
+    "micropod-qa/netbench:local"
+  ],
+  "disk_at_allocation": [
+    {
+      "path": "/private/tmp/mp-local-bv229a26",
+      "dev": 16777230,
+      "available": 312637014016
+    },
+    {
+      "path": "/private/tmp/mp-local-bv229a26/a",
+      "dev": 16777230,
+      "available": 312637014016
+    },
+    {
+      "path": "/private/tmp/mp-local-bv229a26/workspace",
+      "dev": 16777230,
+      "available": 312637014016
+    },
+    {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T062433Z",
+      "dev": 16777230,
+      "available": 312637014016
+    }
+  ],
+  "hv_support": "sysctl: sysctl fmt -1 1024 1: Operation not permitted",
+  "requested_disk_GiB": 6,
+  "requested_vcpus": 4,
+  "requested_memory_MiB": 4096,
+  "requested_workers": 2,
+  "uname": "arm64",
+  "scored_runs": 0
+}

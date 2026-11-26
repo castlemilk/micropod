@@ -1,0 +1,101 @@
+{
+  "label": "phase-b5-snapshot-fork",
+  "timestamp_utc": "2026-11-25T12:23:57Z",
+  "kernel": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261125-b5-16k/full-16k/Image",
+  "config": {
+    "cpus": 4,
+    "memory_mib": 4096,
+    "idle_poll_us": 150
+  },
+  "cold_boot": {
+    "vz_boot_to_ready_ms": 766.6,
+    "hvf_boot_to_docker_ping_ms": 302.09
+  },
+  "snapshot_save": {
+    "wall_ms": 160.89,
+    "vmm_internal_ms": 121.13,
+    "ram_written_mib": 261.9,
+    "ram_total_mib": 4096.0,
+    "vmstate_kib": 133.8
+  },
+  "serial_fork": {
+    "rounds": 5,
+    "restore_to_docker_ping_ms_median": 10.62,
+    "restore_to_docker_ping_ms_min": 10.0,
+    "restore_to_docker_ping_ms_max": 12.69,
+    "restore_to_first_container_ms_median": 109.37,
+    "host_rss_mib_median": 122.73,
+    "samples": [
+      {
+        "fork": 100,
+        "restore_to_docker_ping_ms": 12.69,
+        "restore_to_first_container_ms": 140.81,
+        "host_rss_mib": 124.92
+      },
+      {
+        "fork": 101,
+        "restore_to_docker_ping_ms": 11.17,
+        "restore_to_first_container_ms": 129.89,
+        "host_rss_mib": 122.83
+      },
+      {
+        "fork": 102,
+        "restore_to_docker_ping_ms": 10.62,
+        "restore_to_first_container_ms": 109.37,
+        "host_rss_mib": 121.06
+      },
+      {
+        "fork": 103,
+        "restore_to_docker_ping_ms": 10.0,
+        "restore_to_first_container_ms": 107.5,
+        "host_rss_mib": 122.22
+      },
+      {
+        "fork": 104,
+        "restore_to_docker_ping_ms": 10.46,
+        "restore_to_first_container_ms": 108.41,
+        "host_rss_mib": 122.73
+      }
+    ]
+  },
+  "parallel_fanout": {
+    "forks": 5,
+    "all_forks_ready_and_ran_container_wall_ms": 153.95,
+    "restore_to_docker_ping_ms_median": 13.38,
+    "restore_to_first_container_ms_median": 142.97,
+    "host_rss_mib_median": 123.2,
+    "cow_disk_isolation_verified": true,
+    "samples": [
+      {
+        "fork": 200,
+        "restore_to_docker_ping_ms": 15.56,
+        "restore_to_first_container_ms": 145.76,
+        "host_rss_mib": 122.78
+      },
+      {
+        "fork": 201,
+        "restore_to_docker_ping_ms": 14.49,
+        "restore_to_first_container_ms": 142.97,
+        "host_rss_mib": 123.88
+      },
+      {
+        "fork": 202,
+        "restore_to_docker_ping_ms": 10.41,
+        "restore_to_first_container_ms": 131.42,
+        "host_rss_mib": 125.17
+      },
+      {
+        "fork": 203,
+        "restore_to_docker_ping_ms": 10.34,
+        "restore_to_first_container_ms": 147.52,
+        "host_rss_mib": 123.2
+      },
+      {
+        "fork": 204,
+        "restore_to_docker_ping_ms": 13.38,
+        "restore_to_first_container_ms": 140.25,
+        "host_rss_mib": 122.92
+      }
+    ]
+  }
+}

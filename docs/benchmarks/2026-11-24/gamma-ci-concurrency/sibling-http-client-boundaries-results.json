@@ -1,0 +1,2932 @@
+{
+  "diagnostic_only": true,
+  "archive": "20261125T082030Z-sibling-http-client-boundaries-2uje304h",
+  "worker": "log-notify",
+  "runner_sha256": "58846d9c91426bf22efdb37752d1d0f6bb9014ab33e8fdd00f16e829fe96726a",
+  "boot_ids": {
+    "A": "fa0ed7c9-d159-4d4e-b725-011e052d9ae0",
+    "B": "3a9eb266-88f6-448f-8350-ce42b06c23fc"
+  },
+  "completed_offers": 768000,
+  "stock_build_jobs": 64,
+  "components": [
+    "total",
+    "dispatch_to_got_conn",
+    "got_conn_to_wrote_request",
+    "wrote_request_to_first_byte",
+    "first_byte_to_do_return",
+    "do_return_to_readall_return",
+    "readall_return_to_close_return",
+    "close_return_to_completion"
+  ],
+  "phase_selection": {
+    "own_p95_band": "Independent 94th\u201396th percentile by engine and group",
+    "same_offers_slowest_5pct_union": "Same offer ordinal in both engines, worst in either"
+  },
+  "aggregate": {
+    "paired_waves": 4,
+    "groups": {
+      "all": {
+        "median_p95_ns": {
+          "micropod": 426395.5,
+          "orbstack": 272141.0
+        },
+        "median_paired_p95_gap_ns": 145171.0,
+        "waves_with_higher_native_p95": 4,
+        "joint_slowest_5pct_requests": 1307,
+        "all_calls": {
+          "micropod": {
+            "requests": 384000,
+            "builder_requests": 96000,
+            "sum_ns": {
+              "total": 41308787105,
+              "dispatch_to_got_conn": 2719860362,
+              "got_conn_to_wrote_request": 4756512720,
+              "wrote_request_to_first_byte": 18844310918,
+              "first_byte_to_do_return": 6544127630,
+              "do_return_to_readall_return": 8328183798,
+              "readall_return_to_close_return": 91188533,
+              "close_return_to_completion": 24603144
+            }
+          },
+          "orbstack": {
+            "requests": 384000,
+            "builder_requests": 96000,
+            "sum_ns": {
+              "total": 36422220804,
+              "dispatch_to_got_conn": 1885028173,
+              "got_conn_to_wrote_request": 3354466007,
+              "wrote_request_to_first_byte": 25299928834,
+              "first_byte_to_do_return": 2866300462,
+              "do_return_to_readall_return": 2902451429,
+              "readall_return_to_close_return": 93746808,
+              "close_return_to_completion": 20299091
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 12725.433075520834,
+            "dispatch_to_got_conn": 2174.0421588541667,
+            "got_conn_to_wrote_request": 3651.1633151041665,
+            "wrote_request_to_first_byte": -16811.504989583333,
+            "first_byte_to_do_return": 9577.674916666667,
+            "do_return_to_readall_return": 14129.511377604167,
+            "readall_return_to_close_return": -6.662174479166667,
+            "close_return_to_completion": 11.208471354166667
+          }
+        },
+        "own_p95_band": {
+          "micropod": {
+            "requests": 7680,
+            "builder_requests": 1991,
+            "sum_ns": {
+              "total": 3298215116,
+              "dispatch_to_got_conn": 173306260,
+              "got_conn_to_wrote_request": 255405523,
+              "wrote_request_to_first_byte": 1284348660,
+              "first_byte_to_do_return": 776909737,
+              "do_return_to_readall_return": 803401845,
+              "readall_return_to_close_return": 3718689,
+              "close_return_to_completion": 1124402
+            }
+          },
+          "orbstack": {
+            "requests": 7680,
+            "builder_requests": 2157,
+            "sum_ns": {
+              "total": 2056633909,
+              "dispatch_to_got_conn": 53344609,
+              "got_conn_to_wrote_request": 263511835,
+              "wrote_request_to_first_byte": 1241320727,
+              "first_byte_to_do_return": 235746698,
+              "do_return_to_readall_return": 257777552,
+              "readall_return_to_close_return": 4244949,
+              "close_return_to_completion": 687539
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 161664.21966145834,
+            "dispatch_to_got_conn": 15620.006640625,
+            "got_conn_to_wrote_request": -1055.509375,
+            "wrote_request_to_first_byte": 5602.595442708333,
+            "first_byte_to_do_return": 70463.93736979166,
+            "do_return_to_readall_return": 71044.82981770833,
+            "readall_return_to_close_return": -68.5234375,
+            "close_return_to_completion": 56.883203125
+          }
+        },
+        "own_slowest_5pct": {
+          "micropod": {
+            "requests": 19200,
+            "builder_requests": 6153,
+            "sum_ns": {
+              "total": 19493055009,
+              "dispatch_to_got_conn": 389320779,
+              "got_conn_to_wrote_request": 3440978503,
+              "wrote_request_to_first_byte": 8230559759,
+              "first_byte_to_do_return": 2571973054,
+              "do_return_to_readall_return": 4850009694,
+              "readall_return_to_close_return": 8009084,
+              "close_return_to_completion": 2204136
+            }
+          },
+          "orbstack": {
+            "requests": 19200,
+            "builder_requests": 6242,
+            "sum_ns": {
+              "total": 16662736609,
+              "dispatch_to_got_conn": 268526346,
+              "got_conn_to_wrote_request": 1314688259,
+              "wrote_request_to_first_byte": 13205537283,
+              "first_byte_to_do_return": 956928573,
+              "do_return_to_readall_return": 903477552,
+              "readall_return_to_close_return": 10720893,
+              "close_return_to_completion": 2857703
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 147412.41666666666,
+            "dispatch_to_got_conn": 6291.37671875,
+            "got_conn_to_wrote_request": 110744.28354166666,
+            "wrote_request_to_first_byte": -259113.41270833334,
+            "first_byte_to_do_return": 84116.90005208334,
+            "do_return_to_readall_return": 205548.5490625,
+            "readall_return_to_close_return": -141.24005208333332,
+            "close_return_to_completion": -34.03994791666667
+          }
+        },
+        "same_offers_slowest_5pct_union": {
+          "micropod": {
+            "requests": 37093,
+            "builder_requests": 11911,
+            "sum_ns": {
+              "total": 20565764593,
+              "dispatch_to_got_conn": 502958050,
+              "got_conn_to_wrote_request": 3506347931,
+              "wrote_request_to_first_byte": 8754155527,
+              "first_byte_to_do_return": 2773723677,
+              "do_return_to_readall_return": 5013279836,
+              "readall_return_to_close_return": 12017818,
+              "close_return_to_completion": 3281754
+            }
+          },
+          "orbstack": {
+            "requests": 37093,
+            "builder_requests": 11911,
+            "sum_ns": {
+              "total": 17668818391,
+              "dispatch_to_got_conn": 349791432,
+              "got_conn_to_wrote_request": 1423433344,
+              "wrote_request_to_first_byte": 13810090635,
+              "first_byte_to_do_return": 1058232426,
+              "do_return_to_readall_return": 1008638635,
+              "readall_return_to_close_return": 14824053,
+              "close_return_to_completion": 3807866
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 78099.5390504947,
+            "dispatch_to_got_conn": 4129.259375084248,
+            "got_conn_to_wrote_request": 56153.845388617796,
+            "wrote_request_to_first_byte": -136304.29213059068,
+            "first_byte_to_do_return": 46248.38247108619,
+            "do_return_to_readall_return": 107962.18157064675,
+            "readall_return_to_close_return": -75.65403175801364,
+            "close_return_to_completion": -14.1835925915941
+          }
+        }
+      },
+      "builders": {
+        "median_p95_ns": {
+          "micropod": 556479.5,
+          "orbstack": 316077.5
+        },
+        "median_paired_p95_gap_ns": 239818.5,
+        "waves_with_higher_native_p95": 4,
+        "joint_slowest_5pct_requests": 326,
+        "all_calls": {
+          "micropod": {
+            "requests": 96000,
+            "builder_requests": 96000,
+            "sum_ns": {
+              "total": 12542939239,
+              "dispatch_to_got_conn": 448609844,
+              "got_conn_to_wrote_request": 1604349280,
+              "wrote_request_to_first_byte": 6078470664,
+              "first_byte_to_do_return": 2089009474,
+              "do_return_to_readall_return": 2291259269,
+              "readall_return_to_close_return": 24150671,
+              "close_return_to_completion": 7090037
+            }
+          },
+          "orbstack": {
+            "requests": 96000,
+            "builder_requests": 96000,
+            "sum_ns": {
+              "total": 14511918864,
+              "dispatch_to_got_conn": 720331195,
+              "got_conn_to_wrote_request": 1542349416,
+              "wrote_request_to_first_byte": 9748378387,
+              "first_byte_to_do_return": 1194951803,
+              "do_return_to_readall_return": 1261991901,
+              "readall_return_to_close_return": 34869549,
+              "close_return_to_completion": 9046613
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": -20510.204427083332,
+            "dispatch_to_got_conn": -2830.4307395833334,
+            "got_conn_to_wrote_request": 645.8319166666666,
+            "wrote_request_to_first_byte": -38228.20544791667,
+            "first_byte_to_do_return": 9313.100739583333,
+            "do_return_to_readall_return": 10721.535083333334,
+            "readall_return_to_close_return": -111.65497916666666,
+            "close_return_to_completion": -20.381
+          }
+        },
+        "own_p95_band": {
+          "micropod": {
+            "requests": 1920,
+            "builder_requests": 1920,
+            "sum_ns": {
+              "total": 1087145876,
+              "dispatch_to_got_conn": 23209576,
+              "got_conn_to_wrote_request": 136931574,
+              "wrote_request_to_first_byte": 453272082,
+              "first_byte_to_do_return": 237803488,
+              "do_return_to_readall_return": 235118403,
+              "readall_return_to_close_return": 644368,
+              "close_return_to_completion": 166385
+            }
+          },
+          "orbstack": {
+            "requests": 1920,
+            "builder_requests": 1920,
+            "sum_ns": {
+              "total": 618774775,
+              "dispatch_to_got_conn": 27079951,
+              "got_conn_to_wrote_request": 84256142,
+              "wrote_request_to_first_byte": 357069677,
+              "first_byte_to_do_return": 73168769,
+              "do_return_to_readall_return": 74595997,
+              "readall_return_to_close_return": 2133967,
+              "close_return_to_completion": 470272
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 243943.28177083333,
+            "dispatch_to_got_conn": -2015.8203125,
+            "got_conn_to_wrote_request": 27435.120833333334,
+            "wrote_request_to_first_byte": 50105.419270833336,
+            "first_byte_to_do_return": 85747.24947916667,
+            "do_return_to_readall_return": 83605.41979166666,
+            "readall_return_to_close_return": -775.8328125,
+            "close_return_to_completion": -158.27447916666668
+          }
+        },
+        "own_slowest_5pct": {
+          "micropod": {
+            "requests": 4800,
+            "builder_requests": 4800,
+            "sum_ns": {
+              "total": 6267949944,
+              "dispatch_to_got_conn": 50059292,
+              "got_conn_to_wrote_request": 1209481242,
+              "wrote_request_to_first_byte": 2731408398,
+              "first_byte_to_do_return": 801233757,
+              "do_return_to_readall_return": 1473669998,
+              "readall_return_to_close_return": 1628490,
+              "close_return_to_completion": 468767
+            }
+          },
+          "orbstack": {
+            "requests": 4800,
+            "builder_requests": 4800,
+            "sum_ns": {
+              "total": 8001148137,
+              "dispatch_to_got_conn": 145188584,
+              "got_conn_to_wrote_request": 626552508,
+              "wrote_request_to_first_byte": 6495815071,
+              "first_byte_to_do_return": 381953928,
+              "do_return_to_readall_return": 347381189,
+              "readall_return_to_close_return": 2993358,
+              "close_return_to_completion": 1263499
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": -361082.956875,
+            "dispatch_to_got_conn": -19818.6025,
+            "got_conn_to_wrote_request": 121443.48625,
+            "wrote_request_to_first_byte": -784251.3902083334,
+            "first_byte_to_do_return": 87349.964375,
+            "do_return_to_readall_return": 234643.501875,
+            "readall_return_to_close_return": -284.3475,
+            "close_return_to_completion": -165.56916666666666
+          }
+        },
+        "same_offers_slowest_5pct_union": {
+          "micropod": {
+            "requests": 9274,
+            "builder_requests": 9274,
+            "sum_ns": {
+              "total": 6582062637,
+              "dispatch_to_got_conn": 70744410,
+              "got_conn_to_wrote_request": 1230539409,
+              "wrote_request_to_first_byte": 2893288286,
+              "first_byte_to_do_return": 867484241,
+              "do_return_to_readall_return": 1516449222,
+              "readall_return_to_close_return": 2788973,
+              "close_return_to_completion": 768096
+            }
+          },
+          "orbstack": {
+            "requests": 9274,
+            "builder_requests": 9274,
+            "sum_ns": {
+              "total": 8327566362,
+              "dispatch_to_got_conn": 172881458,
+              "got_conn_to_wrote_request": 673150406,
+              "wrote_request_to_first_byte": 6658789377,
+              "first_byte_to_do_return": 423580990,
+              "do_return_to_readall_return": 392791044,
+              "readall_return_to_close_return": 4656461,
+              "close_return_to_completion": 1716626
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": -188214.76439508304,
+            "dispatch_to_got_conn": -11013.268061246496,
+            "got_conn_to_wrote_request": 60102.32941557041,
+            "wrote_request_to_first_byte": -406027.7216950615,
+            "first_byte_to_do_return": 47865.349471641144,
+            "do_return_to_readall_return": 121162.19301272374,
+            "readall_return_to_close_return": -201.36812594349794,
+            "close_return_to_completion": -102.27841276687514
+          }
+        }
+      },
+      "service_only": {
+        "median_p95_ns": {
+          "micropod": 400208.5,
+          "orbstack": 261370.5
+        },
+        "median_paired_p95_gap_ns": 130338.5,
+        "waves_with_higher_native_p95": 4,
+        "joint_slowest_5pct_requests": 964,
+        "all_calls": {
+          "micropod": {
+            "requests": 288000,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 28765847866,
+              "dispatch_to_got_conn": 2271250518,
+              "got_conn_to_wrote_request": 3152163440,
+              "wrote_request_to_first_byte": 12765840254,
+              "first_byte_to_do_return": 4455118156,
+              "do_return_to_readall_return": 6036924529,
+              "readall_return_to_close_return": 67037862,
+              "close_return_to_completion": 17513107
+            }
+          },
+          "orbstack": {
+            "requests": 288000,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 21910301940,
+              "dispatch_to_got_conn": 1164696978,
+              "got_conn_to_wrote_request": 1812116591,
+              "wrote_request_to_first_byte": 15551550447,
+              "first_byte_to_do_return": 1671348659,
+              "do_return_to_readall_return": 1640459528,
+              "readall_return_to_close_return": 58877259,
+              "close_return_to_completion": 11252478
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 23803.978909722224,
+            "dispatch_to_got_conn": 3842.1997916666664,
+            "got_conn_to_wrote_request": 4652.940447916667,
+            "wrote_request_to_first_byte": -9672.604836805556,
+            "first_byte_to_do_return": 9665.866309027777,
+            "do_return_to_readall_return": 15265.503475694444,
+            "readall_return_to_close_return": 28.335427083333332,
+            "close_return_to_completion": 21.73829513888889
+          }
+        },
+        "own_p95_band": {
+          "micropod": {
+            "requests": 5760,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 2295652247,
+              "dispatch_to_got_conn": 156445543,
+              "got_conn_to_wrote_request": 155819279,
+              "wrote_request_to_first_byte": 854518977,
+              "first_byte_to_do_return": 536192382,
+              "do_return_to_readall_return": 589080816,
+              "readall_return_to_close_return": 3032880,
+              "close_return_to_completion": 562370
+            }
+          },
+          "orbstack": {
+            "requests": 5760,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 1453993874,
+              "dispatch_to_got_conn": 27860052,
+              "got_conn_to_wrote_request": 179903879,
+              "wrote_request_to_first_byte": 908990667,
+              "first_byte_to_do_return": 160083031,
+              "do_return_to_readall_return": 174625310,
+              "readall_return_to_close_return": 2152023,
+              "close_return_to_completion": 378912
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 146121.2453125,
+            "dispatch_to_got_conn": 22323.86996527778,
+            "got_conn_to_wrote_request": -4181.354166666667,
+            "wrote_request_to_first_byte": -9456.890625,
+            "first_byte_to_do_return": 65296.76232638889,
+            "do_return_to_readall_return": 71954.08090277777,
+            "readall_return_to_close_return": 152.9265625,
+            "close_return_to_completion": 31.850347222222222
+          }
+        },
+        "own_slowest_5pct": {
+          "micropod": {
+            "requests": 14400,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 13093579573,
+              "dispatch_to_got_conn": 351321102,
+              "got_conn_to_wrote_request": 2198983565,
+              "wrote_request_to_first_byte": 5405334755,
+              "first_byte_to_do_return": 1748197340,
+              "do_return_to_readall_return": 3381631970,
+              "readall_return_to_close_return": 6369001,
+              "close_return_to_completion": 1741840
+            }
+          },
+          "orbstack": {
+            "requests": 14400,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 8613616401,
+              "dispatch_to_got_conn": 112459654,
+              "got_conn_to_wrote_request": 676066546,
+              "wrote_request_to_first_byte": 6713410622,
+              "first_byte_to_do_return": 561646639,
+              "do_return_to_readall_return": 541942825,
+              "readall_return_to_close_return": 6612845,
+              "close_return_to_completion": 1477270
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 311108.5536111111,
+            "dispatch_to_got_conn": 16587.600555555557,
+            "got_conn_to_wrote_request": 105758.12631944445,
+            "wrote_request_to_first_byte": -90838.601875,
+            "first_byte_to_do_return": 82399.35423611112,
+            "do_return_to_readall_return": 197200.63506944446,
+            "readall_return_to_close_return": -16.933611111111112,
+            "close_return_to_completion": 18.372916666666665
+          }
+        },
+        "same_offers_slowest_5pct_union": {
+          "micropod": {
+            "requests": 27836,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 13863147700,
+              "dispatch_to_got_conn": 448231344,
+              "got_conn_to_wrote_request": 2244241943,
+              "wrote_request_to_first_byte": 5769085280,
+              "first_byte_to_do_return": 1883505980,
+              "do_return_to_readall_return": 3506423291,
+              "readall_return_to_close_return": 9265106,
+              "close_return_to_completion": 2394756
+            }
+          },
+          "orbstack": {
+            "requests": 27836,
+            "builder_requests": 0,
+            "sum_ns": {
+              "total": 9277016523,
+              "dispatch_to_got_conn": 164293974,
+              "got_conn_to_wrote_request": 732970564,
+              "wrote_request_to_first_byte": 7154983873,
+              "first_byte_to_do_return": 616472929,
+              "do_return_to_readall_return": 597166000,
+              "readall_return_to_close_return": 9164957,
+              "close_return_to_completion": 1964226
+            }
+          },
+          "micropod_minus_orbstack_mean_ns": {
+            "total": 164755.39506394597,
+            "dispatch_to_got_conn": 10200.36535421756,
+            "got_conn_to_wrote_request": 54291.97366719356,
+            "wrote_request_to_first_byte": -49787.99371317718,
+            "first_byte_to_do_return": 45517.78455956316,
+            "do_return_to_readall_return": 104514.2007113091,
+            "readall_return_to_close_return": 3.5978229630694067,
+            "close_return_to_completion": 15.466661876706423
+          }
+        }
+      }
+    },
+    "fixed_8_to_24_role_mix_mean_gap_ns": {
+      "own_p95_band": {
+        "total": 170576.75442708333,
+        "dispatch_to_got_conn": 16238.947395833333,
+        "got_conn_to_wrote_request": 3722.7645833333336,
+        "wrote_request_to_first_byte": 5433.686848958334,
+        "first_byte_to_do_return": 70409.38411458334,
+        "do_return_to_readall_return": 74866.915625,
+        "readall_return_to_close_return": -79.26328125000002,
+        "close_return_to_completion": -15.680859375000004
+      },
+      "own_slowest_5pct": {
+        "total": 143060.67598958337,
+        "dispatch_to_got_conn": 7486.049791666666,
+        "got_conn_to_wrote_request": 109679.46630208334,
+        "wrote_request_to_first_byte": -264191.7989583333,
+        "first_byte_to_do_return": 83637.00677083334,
+        "do_return_to_readall_return": 206561.35177083334,
+        "readall_return_to_close_return": -83.78708333333334,
+        "close_return_to_completion": -27.612604166666667
+      }
+    }
+  },
+  "windows": [
+    {
+      "round": 0,
+      "engine_order": "BA",
+      "groups": {
+        "all": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 70551,
+              "client_slot": 23,
+              "duration_ns": {
+                "total": 373916,
+                "dispatch_to_got_conn": 3625,
+                "got_conn_to_wrote_request": 3000,
+                "wrote_request_to_first_byte": 16083,
+                "first_byte_to_do_return": 347417,
+                "do_return_to_readall_return": 3458,
+                "readall_return_to_close_return": 292,
+                "close_return_to_completion": 41
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 2908,
+              "client_slot": 28,
+              "duration_ns": {
+                "total": 275412,
+                "dispatch_to_got_conn": 4583,
+                "got_conn_to_wrote_request": 58499,
+                "wrote_request_to_first_byte": 113456,
+                "first_byte_to_do_return": 29083,
+                "do_return_to_readall_return": 69416,
+                "readall_return_to_close_return": 291,
+                "close_return_to_completion": 84
+              }
+            }
+          },
+          "service_p95_gap_ns": 98504,
+          "joint_slowest_5pct_requests": 336,
+          "all_calls": {
+            "micropod": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 9637533137,
+                "dispatch_to_got_conn": 568827720,
+                "got_conn_to_wrote_request": 1072649008,
+                "wrote_request_to_first_byte": 4342295519,
+                "first_byte_to_do_return": 1641810568,
+                "do_return_to_readall_return": 1982246505,
+                "readall_return_to_close_return": 23476362,
+                "close_return_to_completion": 6227455
+              }
+            },
+            "orbstack": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 9158765063,
+                "dispatch_to_got_conn": 474993969,
+                "got_conn_to_wrote_request": 911716851,
+                "wrote_request_to_first_byte": 6165019702,
+                "first_byte_to_do_return": 786987086,
+                "do_return_to_readall_return": 790808970,
+                "readall_return_to_close_return": 23171657,
+                "close_return_to_completion": 6066828
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 4987.1674375,
+              "dispatch_to_got_conn": 977.43490625,
+              "got_conn_to_wrote_request": 1676.3766354166667,
+              "wrote_request_to_first_byte": -18986.71023958333,
+              "first_byte_to_do_return": 8904.411270833334,
+              "do_return_to_readall_return": 12410.80765625,
+              "readall_return_to_close_return": 3.1740104166666665,
+              "close_return_to_completion": 1.6731979166666666
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1920,
+              "builder_requests": 506,
+              "sum_ns": {
+                "total": 732613271,
+                "dispatch_to_got_conn": 36213338,
+                "got_conn_to_wrote_request": 36869829,
+                "wrote_request_to_first_byte": 279935427,
+                "first_byte_to_do_return": 192883092,
+                "do_return_to_readall_return": 185471709,
+                "readall_return_to_close_return": 815145,
+                "close_return_to_completion": 424731
+              }
+            },
+            "orbstack": {
+              "requests": 1920,
+              "builder_requests": 463,
+              "sum_ns": {
+                "total": 531425284,
+                "dispatch_to_got_conn": 15203034,
+                "got_conn_to_wrote_request": 73946732,
+                "wrote_request_to_first_byte": 299833144,
+                "first_byte_to_do_return": 67249343,
+                "do_return_to_readall_return": 74006443,
+                "readall_return_to_close_return": 1078108,
+                "close_return_to_completion": 108480
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 104785.40989583333,
+              "dispatch_to_got_conn": 10942.866666666667,
+              "got_conn_to_wrote_request": -19310.886979166666,
+              "wrote_request_to_first_byte": -10363.394270833332,
+              "first_byte_to_do_return": 65434.24427083333,
+              "do_return_to_readall_return": 58054.82604166667,
+              "readall_return_to_close_return": -136.95989583333332,
+              "close_return_to_completion": 164.7140625
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 4800,
+              "builder_requests": 1782,
+              "sum_ns": {
+                "total": 4460912137,
+                "dispatch_to_got_conn": 85979387,
+                "got_conn_to_wrote_request": 749728925,
+                "wrote_request_to_first_byte": 1849346801,
+                "first_byte_to_do_return": 638758607,
+                "do_return_to_readall_return": 1134666327,
+                "readall_return_to_close_return": 1871870,
+                "close_return_to_completion": 560220
+              }
+            },
+            "orbstack": {
+              "requests": 4800,
+              "builder_requests": 1489,
+              "sum_ns": {
+                "total": 3892133500,
+                "dispatch_to_got_conn": 68052074,
+                "got_conn_to_wrote_request": 343650966,
+                "wrote_request_to_first_byte": 3001777051,
+                "first_byte_to_do_return": 254328591,
+                "do_return_to_readall_return": 220540393,
+                "readall_return_to_close_return": 2528048,
+                "close_return_to_completion": 1256377
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 118495.549375,
+              "dispatch_to_got_conn": 3734.856875,
+              "got_conn_to_wrote_request": 84599.57479166667,
+              "wrote_request_to_first_byte": -240089.63541666666,
+              "first_byte_to_do_return": 80089.58666666667,
+              "do_return_to_readall_return": 190442.90291666667,
+              "readall_return_to_close_return": -136.70375,
+              "close_return_to_completion": -145.03270833333335
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 9264,
+              "builder_requests": 3133,
+              "sum_ns": {
+                "total": 4720930226,
+                "dispatch_to_got_conn": 110937461,
+                "got_conn_to_wrote_request": 766210540,
+                "wrote_request_to_first_byte": 1973835895,
+                "first_byte_to_do_return": 691510072,
+                "do_return_to_readall_return": 1174560288,
+                "readall_return_to_close_return": 3058846,
+                "close_return_to_completion": 817124
+              }
+            },
+            "orbstack": {
+              "requests": 9264,
+              "builder_requests": 3133,
+              "sum_ns": {
+                "total": 4165617370,
+                "dispatch_to_got_conn": 88367991,
+                "got_conn_to_wrote_request": 375374153,
+                "wrote_request_to_first_byte": 3162307597,
+                "first_byte_to_do_return": 283765928,
+                "do_return_to_readall_return": 250914117,
+                "readall_return_to_close_return": 3454204,
+                "close_return_to_completion": 1433380
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 59943.097582038,
+              "dispatch_to_got_conn": 2436.255397236615,
+              "got_conn_to_wrote_request": 42188.729166666664,
+              "wrote_request_to_first_byte": -128289.25971502591,
+              "first_byte_to_do_return": 44013.83246977547,
+              "do_return_to_readall_return": 99702.7386658031,
+              "readall_return_to_close_return": -42.67681347150259,
+              "close_return_to_completion": -66.52158894645942
+            }
+          }
+        },
+        "builders": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 75969,
+              "client_slot": 1,
+              "duration_ns": {
+                "total": 604500,
+                "dispatch_to_got_conn": 2708,
+                "got_conn_to_wrote_request": 2667,
+                "wrote_request_to_first_byte": 44500,
+                "first_byte_to_do_return": 6541,
+                "do_return_to_readall_return": 547625,
+                "readall_return_to_close_return": 334,
+                "close_return_to_completion": 125
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 61728,
+              "client_slot": 0,
+              "duration_ns": {
+                "total": 315202,
+                "dispatch_to_got_conn": 2166,
+                "got_conn_to_wrote_request": 127790,
+                "wrote_request_to_first_byte": 109414,
+                "first_byte_to_do_return": 47416,
+                "do_return_to_readall_return": 28083,
+                "readall_return_to_close_return": 291,
+                "close_return_to_completion": 42
+              }
+            }
+          },
+          "service_p95_gap_ns": 289298,
+          "joint_slowest_5pct_requests": 83,
+          "all_calls": {
+            "micropod": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3224027139,
+                "dispatch_to_got_conn": 110691546,
+                "got_conn_to_wrote_request": 396367439,
+                "wrote_request_to_first_byte": 1545444197,
+                "first_byte_to_do_return": 579630162,
+                "do_return_to_readall_return": 583487099,
+                "readall_return_to_close_return": 6525539,
+                "close_return_to_completion": 1881157
+              }
+            },
+            "orbstack": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3512154056,
+                "dispatch_to_got_conn": 179505351,
+                "got_conn_to_wrote_request": 385388563,
+                "wrote_request_to_first_byte": 2311004546,
+                "first_byte_to_do_return": 312063311,
+                "do_return_to_readall_return": 313521819,
+                "readall_return_to_close_return": 7783018,
+                "close_return_to_completion": 2887448
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -12005.288208333333,
+              "dispatch_to_got_conn": -2867.241875,
+              "got_conn_to_wrote_request": 457.4531666666667,
+              "wrote_request_to_first_byte": -31898.347875,
+              "first_byte_to_do_return": 11148.618791666666,
+              "do_return_to_readall_return": 11248.553333333333,
+              "readall_return_to_close_return": -52.394958333333335,
+              "close_return_to_completion": -41.92879166666667
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 292630081,
+                "dispatch_to_got_conn": 3366323,
+                "got_conn_to_wrote_request": 37105882,
+                "wrote_request_to_first_byte": 126940877,
+                "first_byte_to_do_return": 62391170,
+                "do_return_to_readall_return": 62515911,
+                "readall_return_to_close_return": 239905,
+                "close_return_to_completion": 70013
+              }
+            },
+            "orbstack": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 153527793,
+                "dispatch_to_got_conn": 7281376,
+                "got_conn_to_wrote_request": 22213386,
+                "wrote_request_to_first_byte": 86648250,
+                "first_byte_to_do_return": 18342457,
+                "do_return_to_readall_return": 18593203,
+                "readall_return_to_close_return": 359358,
+                "close_return_to_completion": 89763
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 289796.43333333335,
+              "dispatch_to_got_conn": -8156.360416666666,
+              "got_conn_to_wrote_request": 31026.033333333333,
+              "wrote_request_to_first_byte": 83942.97291666667,
+              "first_byte_to_do_return": 91768.15208333333,
+              "do_return_to_readall_return": 91505.64166666666,
+              "readall_return_to_close_return": -248.86041666666668,
+              "close_return_to_completion": -41.145833333333336
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 1578684465,
+                "dispatch_to_got_conn": 11322376,
+                "got_conn_to_wrote_request": 291462801,
+                "wrote_request_to_first_byte": 680368725,
+                "first_byte_to_do_return": 231065137,
+                "do_return_to_readall_return": 363901842,
+                "readall_return_to_close_return": 431975,
+                "close_return_to_completion": 131609
+              }
+            },
+            "orbstack": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 1843741467,
+                "dispatch_to_got_conn": 35691970,
+                "got_conn_to_wrote_request": 148679576,
+                "wrote_request_to_first_byte": 1480351340,
+                "first_byte_to_do_return": 102477754,
+                "do_return_to_readall_return": 75253348,
+                "readall_return_to_close_return": 504978,
+                "close_return_to_completion": 782501
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -220880.835,
+              "dispatch_to_got_conn": -20307.995,
+              "got_conn_to_wrote_request": 118986.02083333333,
+              "wrote_request_to_first_byte": -666652.1791666667,
+              "first_byte_to_do_return": 107156.1525,
+              "do_return_to_readall_return": 240540.41166666665,
+              "readall_return_to_close_return": -60.83583333333333,
+              "close_return_to_completion": -542.41
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 2317,
+              "builder_requests": 2317,
+              "sum_ns": {
+                "total": 1662847503,
+                "dispatch_to_got_conn": 16285621,
+                "got_conn_to_wrote_request": 297313386,
+                "wrote_request_to_first_byte": 724616496,
+                "first_byte_to_do_return": 248443392,
+                "do_return_to_readall_return": 374982995,
+                "readall_return_to_close_return": 979126,
+                "close_return_to_completion": 226487
+              }
+            },
+            "orbstack": {
+              "requests": 2317,
+              "builder_requests": 2317,
+              "sum_ns": {
+                "total": 1926927275,
+                "dispatch_to_got_conn": 42647428,
+                "got_conn_to_wrote_request": 160527318,
+                "wrote_request_to_first_byte": 1522039986,
+                "first_byte_to_do_return": 113404428,
+                "do_return_to_readall_return": 86727235,
+                "readall_return_to_close_return": 742926,
+                "close_return_to_completion": 837954
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -113974.8692274493,
+              "dispatch_to_got_conn": -11377.560207164437,
+              "got_conn_to_wrote_request": 59035.85153215365,
+              "wrote_request_to_first_byte": -344162.0586965904,
+              "first_byte_to_do_return": 58281.81441519206,
+              "do_return_to_readall_return": 124409.0461804057,
+              "readall_return_to_close_return": 101.94216659473457,
+              "close_return_to_completion": -263.9046180405697
+            }
+          }
+        },
+        "service_only": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 47327,
+              "client_slot": 31,
+              "duration_ns": {
+                "total": 332792,
+                "dispatch_to_got_conn": 2542,
+                "got_conn_to_wrote_request": 3083,
+                "wrote_request_to_first_byte": 22917,
+                "first_byte_to_do_return": 34750,
+                "do_return_to_readall_return": 269250,
+                "readall_return_to_close_return": 208,
+                "close_return_to_completion": 42
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 22259,
+              "client_slot": 19,
+              "duration_ns": {
+                "total": 265912,
+                "dispatch_to_got_conn": 42458,
+                "got_conn_to_wrote_request": 47790,
+                "wrote_request_to_first_byte": 93957,
+                "first_byte_to_do_return": 39041,
+                "do_return_to_readall_return": 42291,
+                "readall_return_to_close_return": 292,
+                "close_return_to_completion": 83
+              }
+            }
+          },
+          "service_p95_gap_ns": 66880,
+          "joint_slowest_5pct_requests": 246,
+          "all_calls": {
+            "micropod": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 6413505998,
+                "dispatch_to_got_conn": 458136174,
+                "got_conn_to_wrote_request": 676281569,
+                "wrote_request_to_first_byte": 2796851322,
+                "first_byte_to_do_return": 1062180406,
+                "do_return_to_readall_return": 1398759406,
+                "readall_return_to_close_return": 16950823,
+                "close_return_to_completion": 4346298
+              }
+            },
+            "orbstack": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 5646611007,
+                "dispatch_to_got_conn": 295488618,
+                "got_conn_to_wrote_request": 526328288,
+                "wrote_request_to_first_byte": 3854015156,
+                "first_byte_to_do_return": 474923775,
+                "do_return_to_readall_return": 477287151,
+                "readall_return_to_close_return": 15388639,
+                "close_return_to_completion": 3179380
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 10651.319319444445,
+              "dispatch_to_got_conn": 2258.9938333333334,
+              "got_conn_to_wrote_request": 2082.684458333333,
+              "wrote_request_to_first_byte": -14682.831027777778,
+              "first_byte_to_do_return": 8156.342097222222,
+              "do_return_to_readall_return": 12798.22576388889,
+              "readall_return_to_close_return": 21.697,
+              "close_return_to_completion": 16.207194444444443
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 477312368,
+                "dispatch_to_got_conn": 33519881,
+                "got_conn_to_wrote_request": 20449631,
+                "wrote_request_to_first_byte": 169118948,
+                "first_byte_to_do_return": 127815561,
+                "do_return_to_readall_return": 125474988,
+                "readall_return_to_close_return": 685690,
+                "close_return_to_completion": 247669
+              }
+            },
+            "orbstack": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 384645098,
+                "dispatch_to_got_conn": 8816148,
+                "got_conn_to_wrote_request": 55760898,
+                "wrote_request_to_first_byte": 213476054,
+                "first_byte_to_do_return": 50198495,
+                "do_return_to_readall_return": 55542306,
+                "readall_return_to_close_return": 692870,
+                "close_return_to_completion": 158327
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 64352.270833333336,
+              "dispatch_to_got_conn": 17155.370138888888,
+              "got_conn_to_wrote_request": -24521.713194444445,
+              "wrote_request_to_first_byte": -30803.545833333334,
+              "first_byte_to_do_return": 53900.740277777775,
+              "do_return_to_readall_return": 48564.3625,
+              "readall_return_to_close_return": -4.986111111111111,
+              "close_return_to_completion": 62.043055555555554
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2808293886,
+                "dispatch_to_got_conn": 81984433,
+                "got_conn_to_wrote_request": 443250898,
+                "wrote_request_to_first_byte": 1115907995,
+                "first_byte_to_do_return": 396219857,
+                "do_return_to_readall_return": 769026030,
+                "readall_return_to_close_return": 1456527,
+                "close_return_to_completion": 448146
+              }
+            },
+            "orbstack": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2041820566,
+                "dispatch_to_got_conn": 29622437,
+                "got_conn_to_wrote_request": 194738805,
+                "wrote_request_to_first_byte": 1517811209,
+                "first_byte_to_do_return": 151102766,
+                "do_return_to_readall_return": 146109188,
+                "readall_return_to_close_return": 1962246,
+                "close_return_to_completion": 473915
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 212909.25555555554,
+              "dispatch_to_got_conn": 14544.99888888889,
+              "got_conn_to_wrote_request": 69031.13694444444,
+              "wrote_request_to_first_byte": -111639.78166666666,
+              "first_byte_to_do_return": 68088.08083333333,
+              "do_return_to_readall_return": 173032.45611111113,
+              "readall_return_to_close_return": -140.4775,
+              "close_return_to_completion": -7.158055555555555
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 6954,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2990151985,
+                "dispatch_to_got_conn": 101541639,
+                "got_conn_to_wrote_request": 454553681,
+                "wrote_request_to_first_byte": 1200605895,
+                "first_byte_to_do_return": 431631857,
+                "do_return_to_readall_return": 799071473,
+                "readall_return_to_close_return": 2137428,
+                "close_return_to_completion": 610012
+              }
+            },
+            "orbstack": {
+              "requests": 6954,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2225601992,
+                "dispatch_to_got_conn": 42554849,
+                "got_conn_to_wrote_request": 211777880,
+                "wrote_request_to_first_byte": 1637253719,
+                "first_byte_to_do_return": 167657528,
+                "do_return_to_readall_return": 163127914,
+                "readall_return_to_close_return": 2642716,
+                "close_return_to_completion": 587386
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 109943.91616335922,
+              "dispatch_to_got_conn": 8482.42594190394,
+              "got_conn_to_wrote_request": 34911.67687661778,
+              "wrote_request_to_first_byte": -62790.88639631867,
+              "first_byte_to_do_return": 37960.07031924072,
+              "do_return_to_readall_return": 91450.03724475122,
+              "readall_return_to_close_return": -72.66148979004889,
+              "close_return_to_completion": 3.253666954270923
+            }
+          }
+        }
+      }
+    },
+    {
+      "round": 1,
+      "engine_order": "AB",
+      "groups": {
+        "all": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 46296,
+              "client_slot": 24,
+              "duration_ns": {
+                "total": 342042,
+                "dispatch_to_got_conn": 3250,
+                "got_conn_to_wrote_request": 3250,
+                "wrote_request_to_first_byte": 329042,
+                "first_byte_to_do_return": 3250,
+                "do_return_to_readall_return": 3041,
+                "readall_return_to_close_return": 209,
+                "close_return_to_completion": 0
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 17695,
+              "client_slot": 31,
+              "duration_ns": {
+                "total": 268870,
+                "dispatch_to_got_conn": 1833,
+                "got_conn_to_wrote_request": 44916,
+                "wrote_request_to_first_byte": 138539,
+                "first_byte_to_do_return": 36333,
+                "do_return_to_readall_return": 46915,
+                "readall_return_to_close_return": 250,
+                "close_return_to_completion": 84
+              }
+            }
+          },
+          "service_p95_gap_ns": 73172,
+          "joint_slowest_5pct_requests": 336,
+          "all_calls": {
+            "micropod": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 9323774702,
+                "dispatch_to_got_conn": 414716144,
+                "got_conn_to_wrote_request": 1133579828,
+                "wrote_request_to_first_byte": 4178918436,
+                "first_byte_to_do_return": 1624167677,
+                "do_return_to_readall_return": 1942727362,
+                "readall_return_to_close_return": 22263579,
+                "close_return_to_completion": 7401676
+              }
+            },
+            "orbstack": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 8894873889,
+                "dispatch_to_got_conn": 472155128,
+                "got_conn_to_wrote_request": 835873256,
+                "wrote_request_to_first_byte": 6112803360,
+                "first_byte_to_do_return": 708290714,
+                "do_return_to_readall_return": 736961090,
+                "readall_return_to_close_return": 24036237,
+                "close_return_to_completion": 4754104
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 4467.716802083333,
+              "dispatch_to_got_conn": -598.32275,
+              "got_conn_to_wrote_request": 3101.110125,
+              "wrote_request_to_first_byte": -20144.634625,
+              "first_byte_to_do_return": 9540.38503125,
+              "do_return_to_readall_return": 12560.065333333334,
+              "readall_return_to_close_return": -18.4651875,
+              "close_return_to_completion": 27.578875
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1920,
+              "builder_requests": 513,
+              "sum_ns": {
+                "total": 658904600,
+                "dispatch_to_got_conn": 17561543,
+                "got_conn_to_wrote_request": 39880489,
+                "wrote_request_to_first_byte": 249827291,
+                "first_byte_to_do_return": 190050453,
+                "do_return_to_readall_return": 160307792,
+                "readall_return_to_close_return": 815692,
+                "close_return_to_completion": 461340
+              }
+            },
+            "orbstack": {
+              "requests": 1920,
+              "builder_requests": 483,
+              "sum_ns": {
+                "total": 519552214,
+                "dispatch_to_got_conn": 12592614,
+                "got_conn_to_wrote_request": 73079816,
+                "wrote_request_to_first_byte": 299988125,
+                "first_byte_to_do_return": 63300579,
+                "do_return_to_readall_return": 69319015,
+                "readall_return_to_close_return": 1094970,
+                "close_return_to_completion": 177095
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 72579.36770833333,
+              "dispatch_to_got_conn": 2587.983854166667,
+              "got_conn_to_wrote_request": -17291.316145833334,
+              "wrote_request_to_first_byte": -26125.434375,
+              "first_byte_to_do_return": 66015.559375,
+              "do_return_to_readall_return": 47389.988020833334,
+              "readall_return_to_close_return": -145.45729166666666,
+              "close_return_to_completion": 148.04427083333334
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 4800,
+              "builder_requests": 1698,
+              "sum_ns": {
+                "total": 4460661800,
+                "dispatch_to_got_conn": 53738468,
+                "got_conn_to_wrote_request": 812821679,
+                "wrote_request_to_first_byte": 1856074983,
+                "first_byte_to_do_return": 574966639,
+                "do_return_to_readall_return": 1160331258,
+                "readall_return_to_close_return": 1838965,
+                "close_return_to_completion": 889808
+              }
+            },
+            "orbstack": {
+              "requests": 4800,
+              "builder_requests": 1524,
+              "sum_ns": {
+                "total": 3990669978,
+                "dispatch_to_got_conn": 67663455,
+                "got_conn_to_wrote_request": 332272640,
+                "wrote_request_to_first_byte": 3113106535,
+                "first_byte_to_do_return": 234984740,
+                "do_return_to_readall_return": 239222402,
+                "readall_return_to_close_return": 2843576,
+                "close_return_to_completion": 576630
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 97914.96291666667,
+              "dispatch_to_got_conn": -2901.0389583333335,
+              "got_conn_to_wrote_request": 100114.383125,
+              "wrote_request_to_first_byte": -261881.57333333333,
+              "first_byte_to_do_return": 70829.56229166666,
+              "do_return_to_readall_return": 191897.67833333334,
+              "readall_return_to_close_return": -209.29395833333334,
+              "close_return_to_completion": 65.24541666666667
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 9264,
+              "builder_requests": 3087,
+              "sum_ns": {
+                "total": 4701970245,
+                "dispatch_to_got_conn": 71352754,
+                "got_conn_to_wrote_request": 829250790,
+                "wrote_request_to_first_byte": 1970114722,
+                "first_byte_to_do_return": 629145903,
+                "do_return_to_readall_return": 1198052429,
+                "readall_return_to_close_return": 2862035,
+                "close_return_to_completion": 1191612
+              }
+            },
+            "orbstack": {
+              "requests": 9264,
+              "builder_requests": 3087,
+              "sum_ns": {
+                "total": 4238679413,
+                "dispatch_to_got_conn": 88035012,
+                "got_conn_to_wrote_request": 358936583,
+                "wrote_request_to_first_byte": 3261936460,
+                "first_byte_to_do_return": 260129000,
+                "do_return_to_readall_return": 265029180,
+                "readall_return_to_close_return": 3753611,
+                "close_return_to_completion": 859567
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 50009.804835924006,
+              "dispatch_to_got_conn": -1800.7618739205527,
+              "got_conn_to_wrote_request": 50767.941170120896,
+              "wrote_request_to_first_byte": -139445.35168393783,
+              "first_byte_to_do_return": 39833.4308074266,
+              "do_return_to_readall_return": 100714.94484024179,
+              "readall_return_to_close_return": -96.24093264248705,
+              "close_return_to_completion": 35.84250863557858
+            }
+          }
+        },
+        "builders": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 31463,
+              "client_slot": 7,
+              "duration_ns": {
+                "total": 511167,
+                "dispatch_to_got_conn": 2708,
+                "got_conn_to_wrote_request": 2750,
+                "wrote_request_to_first_byte": 499375,
+                "first_byte_to_do_return": 3209,
+                "do_return_to_readall_return": 2833,
+                "readall_return_to_close_return": 208,
+                "close_return_to_completion": 84
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 58561,
+              "client_slot": 1,
+              "duration_ns": {
+                "total": 316953,
+                "dispatch_to_got_conn": 3709,
+                "got_conn_to_wrote_request": 4208,
+                "wrote_request_to_first_byte": 248245,
+                "first_byte_to_do_return": 55124,
+                "do_return_to_readall_return": 5375,
+                "readall_return_to_close_return": 250,
+                "close_return_to_completion": 42
+              }
+            }
+          },
+          "service_p95_gap_ns": 194214,
+          "joint_slowest_5pct_requests": 97,
+          "all_calls": {
+            "micropod": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3121952374,
+                "dispatch_to_got_conn": 96705618,
+                "got_conn_to_wrote_request": 434810531,
+                "wrote_request_to_first_byte": 1498538511,
+                "first_byte_to_do_return": 521056826,
+                "do_return_to_readall_return": 562662809,
+                "readall_return_to_close_return": 6081743,
+                "close_return_to_completion": 2096336
+              }
+            },
+            "orbstack": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3509692870,
+                "dispatch_to_got_conn": 183554567,
+                "got_conn_to_wrote_request": 359680522,
+                "wrote_request_to_first_byte": 2350890956,
+                "first_byte_to_do_return": 286784606,
+                "do_return_to_readall_return": 317480555,
+                "readall_return_to_close_return": 9071044,
+                "close_return_to_completion": 2230620
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -16155.854,
+              "dispatch_to_got_conn": -3618.7062083333335,
+              "got_conn_to_wrote_request": 3130.4170416666666,
+              "wrote_request_to_first_byte": -35514.685208333336,
+              "first_byte_to_do_return": 9761.3425,
+              "do_return_to_readall_return": 10215.92725,
+              "readall_return_to_close_return": -124.55420833333334,
+              "close_return_to_completion": -5.595166666666667
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 254747955,
+                "dispatch_to_got_conn": 3494756,
+                "got_conn_to_wrote_request": 34426455,
+                "wrote_request_to_first_byte": 107978669,
+                "first_byte_to_do_return": 51613913,
+                "do_return_to_readall_return": 57061876,
+                "readall_return_to_close_return": 135921,
+                "close_return_to_completion": 36365
+              }
+            },
+            "orbstack": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 154342385,
+                "dispatch_to_got_conn": 6749998,
+                "got_conn_to_wrote_request": 20833533,
+                "wrote_request_to_first_byte": 92236075,
+                "first_byte_to_do_return": 16304859,
+                "do_return_to_readall_return": 17464650,
+                "readall_return_to_close_return": 494652,
+                "close_return_to_completion": 258618
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 209178.27083333334,
+              "dispatch_to_got_conn": -6781.754166666667,
+              "got_conn_to_wrote_request": 28318.5875,
+              "wrote_request_to_first_byte": 32797.07083333333,
+              "first_byte_to_do_return": 73560.52916666666,
+              "do_return_to_readall_return": 82494.22083333334,
+              "readall_return_to_close_return": -747.35625,
+              "close_return_to_completion": -463.02708333333334
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 1600936384,
+                "dispatch_to_got_conn": 9320037,
+                "got_conn_to_wrote_request": 335078947,
+                "wrote_request_to_first_byte": 708743255,
+                "first_byte_to_do_return": 184056292,
+                "do_return_to_readall_return": 363236543,
+                "readall_return_to_close_return": 330955,
+                "close_return_to_completion": 170355
+              }
+            },
+            "orbstack": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 1894919526,
+                "dispatch_to_got_conn": 35635433,
+                "got_conn_to_wrote_request": 138551848,
+                "wrote_request_to_first_byte": 1542370435,
+                "first_byte_to_do_return": 86822431,
+                "do_return_to_readall_return": 90303098,
+                "readall_return_to_close_return": 944024,
+                "close_return_to_completion": 292257
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -244985.95166666666,
+              "dispatch_to_got_conn": -21929.496666666666,
+              "got_conn_to_wrote_request": 163772.5825,
+              "wrote_request_to_first_byte": -694689.3166666667,
+              "first_byte_to_do_return": 81028.2175,
+              "do_return_to_readall_return": 227444.5375,
+              "readall_return_to_close_return": -510.8908333333333,
+              "close_return_to_completion": -101.585
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 2303,
+              "builder_requests": 2303,
+              "sum_ns": {
+                "total": 1677298958,
+                "dispatch_to_got_conn": 13406660,
+                "got_conn_to_wrote_request": 339612903,
+                "wrote_request_to_first_byte": 745806097,
+                "first_byte_to_do_return": 203310211,
+                "do_return_to_readall_return": 374389966,
+                "readall_return_to_close_return": 541398,
+                "close_return_to_completion": 231723
+              }
+            },
+            "orbstack": {
+              "requests": 2303,
+              "builder_requests": 2303,
+              "sum_ns": {
+                "total": 1972731398,
+                "dispatch_to_got_conn": 42277648,
+                "got_conn_to_wrote_request": 149317685,
+                "wrote_request_to_first_byte": 1581845559,
+                "first_byte_to_do_return": 96712418,
+                "do_return_to_readall_return": 100899275,
+                "readall_return_to_close_return": 1212429,
+                "close_return_to_completion": 466384
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -128281.56317846288,
+              "dispatch_to_got_conn": -12536.25184541902,
+              "got_conn_to_wrote_request": 82629.27399044724,
+              "wrote_request_to_first_byte": -363021.9114198871,
+              "first_byte_to_do_return": 46286.492835432044,
+              "do_return_to_readall_return": 118754.09943551889,
+              "readall_return_to_close_return": -291.3725575336518,
+              "close_return_to_completion": -101.8936170212766
+            }
+          }
+        },
+        "service_only": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 32572,
+              "client_slot": 28,
+              "duration_ns": {
+                "total": 301209,
+                "dispatch_to_got_conn": 2500,
+                "got_conn_to_wrote_request": 2750,
+                "wrote_request_to_first_byte": 281834,
+                "first_byte_to_do_return": 11458,
+                "do_return_to_readall_return": 2417,
+                "readall_return_to_close_return": 208,
+                "close_return_to_completion": 42
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 10476,
+              "client_slot": 12,
+              "duration_ns": {
+                "total": 256829,
+                "dispatch_to_got_conn": 2375,
+                "got_conn_to_wrote_request": 58374,
+                "wrote_request_to_first_byte": 56540,
+                "first_byte_to_do_return": 40750,
+                "do_return_to_readall_return": 98415,
+                "readall_return_to_close_return": 333,
+                "close_return_to_completion": 42
+              }
+            }
+          },
+          "service_p95_gap_ns": 44380,
+          "joint_slowest_5pct_requests": 240,
+          "all_calls": {
+            "micropod": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 6201822328,
+                "dispatch_to_got_conn": 318010526,
+                "got_conn_to_wrote_request": 698769297,
+                "wrote_request_to_first_byte": 2680379925,
+                "first_byte_to_do_return": 1103110851,
+                "do_return_to_readall_return": 1380064553,
+                "readall_return_to_close_return": 16181836,
+                "close_return_to_completion": 5305340
+              }
+            },
+            "orbstack": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 5385181019,
+                "dispatch_to_got_conn": 288600561,
+                "got_conn_to_wrote_request": 476192734,
+                "wrote_request_to_first_byte": 3761912404,
+                "first_byte_to_do_return": 421506108,
+                "do_return_to_readall_return": 419480535,
+                "readall_return_to_close_return": 14965193,
+                "close_return_to_completion": 2523484
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 11342.240402777777,
+              "dispatch_to_got_conn": 408.4717361111111,
+              "got_conn_to_wrote_request": 3091.3411527777776,
+              "wrote_request_to_first_byte": -15021.284430555555,
+              "first_byte_to_do_return": 9466.732541666666,
+              "do_return_to_readall_return": 13341.444694444444,
+              "readall_return_to_close_return": 16.897819444444444,
+              "close_return_to_completion": 38.63688888888889
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 442123484,
+                "dispatch_to_got_conn": 14758950,
+                "got_conn_to_wrote_request": 19575763,
+                "wrote_request_to_first_byte": 147120614,
+                "first_byte_to_do_return": 144288907,
+                "do_return_to_readall_return": 115723123,
+                "readall_return_to_close_return": 520271,
+                "close_return_to_completion": 135856
+              }
+            },
+            "orbstack": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 372209205,
+                "dispatch_to_got_conn": 6286246,
+                "got_conn_to_wrote_request": 52398440,
+                "wrote_request_to_first_byte": 219004271,
+                "first_byte_to_do_return": 44588587,
+                "do_return_to_readall_return": 49222616,
+                "readall_return_to_close_return": 630384,
+                "close_return_to_completion": 78661
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 48551.58263888889,
+              "dispatch_to_got_conn": 5883.822222222222,
+              "got_conn_to_wrote_request": -22793.525694444445,
+              "wrote_request_to_first_byte": -49919.20625,
+              "first_byte_to_do_return": 69236.33333333333,
+              "do_return_to_readall_return": 46180.907638888886,
+              "readall_return_to_close_return": -76.46736111111112,
+              "close_return_to_completion": 39.71875
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2812825464,
+                "dispatch_to_got_conn": 44579921,
+                "got_conn_to_wrote_request": 466281207,
+                "wrote_request_to_first_byte": 1110229287,
+                "first_byte_to_do_return": 390110651,
+                "do_return_to_readall_return": 799455851,
+                "readall_return_to_close_return": 1462661,
+                "close_return_to_completion": 705886
+              }
+            },
+            "orbstack": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2086996746,
+                "dispatch_to_got_conn": 29886613,
+                "got_conn_to_wrote_request": 192751723,
+                "wrote_request_to_first_byte": 1565715328,
+                "first_byte_to_do_return": 147671782,
+                "do_return_to_readall_return": 148775607,
+                "readall_return_to_close_return": 1907954,
+                "close_return_to_completion": 287739
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 201619.08833333335,
+              "dispatch_to_got_conn": 4081.4744444444445,
+              "got_conn_to_wrote_request": 75980.41222222222,
+              "wrote_request_to_first_byte": -126523.90027777778,
+              "first_byte_to_do_return": 67344.13027777777,
+              "do_return_to_readall_return": 180744.51222222223,
+              "readall_return_to_close_return": -123.6925,
+              "close_return_to_completion": 116.15194444444444
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 6960,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2977860876,
+                "dispatch_to_got_conn": 58342141,
+                "got_conn_to_wrote_request": 477274620,
+                "wrote_request_to_first_byte": 1186405210,
+                "first_byte_to_do_return": 425921663,
+                "do_return_to_readall_return": 826693060,
+                "readall_return_to_close_return": 2310622,
+                "close_return_to_completion": 913560
+              }
+            },
+            "orbstack": {
+              "requests": 6960,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2250470296,
+                "dispatch_to_got_conn": 42708267,
+                "got_conn_to_wrote_request": 206803996,
+                "wrote_request_to_first_byte": 1675059243,
+                "first_byte_to_do_return": 161003471,
+                "do_return_to_readall_return": 162001684,
+                "readall_return_to_close_return": 2499006,
+                "close_return_to_completion": 394629
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 104510.1408045977,
+              "dispatch_to_got_conn": 2246.246264367816,
+              "got_conn_to_wrote_request": 38860.72183908046,
+              "wrote_request_to_first_byte": -70208.91278735633,
+              "first_byte_to_do_return": 38062.95862068966,
+              "do_return_to_readall_return": 95501.63448275861,
+              "readall_return_to_close_return": -27.066666666666666,
+              "close_return_to_completion": 74.55905172413793
+            }
+          }
+        }
+      }
+    },
+    {
+      "round": 2,
+      "engine_order": "AB",
+      "groups": {
+        "all": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 81717,
+              "client_slot": 21,
+              "duration_ns": {
+                "total": 495042,
+                "dispatch_to_got_conn": 3458,
+                "got_conn_to_wrote_request": 2875,
+                "wrote_request_to_first_byte": 97959,
+                "first_byte_to_do_return": 2375,
+                "do_return_to_readall_return": 388000,
+                "readall_return_to_close_return": 291,
+                "close_return_to_completion": 84
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 14089,
+              "client_slot": 9,
+              "duration_ns": {
+                "total": 232454,
+                "dispatch_to_got_conn": 2000,
+                "got_conn_to_wrote_request": 36457,
+                "wrote_request_to_first_byte": 110123,
+                "first_byte_to_do_return": 34208,
+                "do_return_to_readall_return": 49374,
+                "readall_return_to_close_return": 250,
+                "close_return_to_completion": 42
+              }
+            }
+          },
+          "service_p95_gap_ns": 262588,
+          "joint_slowest_5pct_requests": 309,
+          "all_calls": {
+            "micropod": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 11254895059,
+                "dispatch_to_got_conn": 857655723,
+                "got_conn_to_wrote_request": 1321039132,
+                "wrote_request_to_first_byte": 5168616275,
+                "first_byte_to_do_return": 1642350729,
+                "do_return_to_readall_return": 2237355835,
+                "readall_return_to_close_return": 22448290,
+                "close_return_to_completion": 5429075
+              }
+            },
+            "orbstack": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 8670646762,
+                "dispatch_to_got_conn": 463940437,
+                "got_conn_to_wrote_request": 724679576,
+                "wrote_request_to_first_byte": 6223694114,
+                "first_byte_to_do_return": 599090844,
+                "do_return_to_readall_return": 631872033,
+                "readall_return_to_close_return": 22497940,
+                "close_return_to_completion": 4871818
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 26919.25309375,
+              "dispatch_to_got_conn": 4101.200895833334,
+              "got_conn_to_wrote_request": 6212.078708333333,
+              "wrote_request_to_first_byte": -10990.39415625,
+              "first_byte_to_do_return": 10867.29046875,
+              "do_return_to_readall_return": 16723.789604166668,
+              "readall_return_to_close_return": -0.5171875,
+              "close_return_to_completion": 5.804760416666666
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1920,
+              "builder_requests": 484,
+              "sum_ns": {
+                "total": 970546057,
+                "dispatch_to_got_conn": 55730451,
+                "got_conn_to_wrote_request": 108506160,
+                "wrote_request_to_first_byte": 371001212,
+                "first_byte_to_do_return": 205544721,
+                "do_return_to_readall_return": 228770352,
+                "readall_return_to_close_return": 882672,
+                "close_return_to_completion": 110489
+              }
+            },
+            "orbstack": {
+              "requests": 1920,
+              "builder_requests": 686,
+              "sum_ns": {
+                "total": 451481029,
+                "dispatch_to_got_conn": 11764810,
+                "got_conn_to_wrote_request": 39000261,
+                "wrote_request_to_first_byte": 319471520,
+                "first_byte_to_do_return": 38652077,
+                "do_return_to_readall_return": 41653504,
+                "readall_return_to_close_return": 793037,
+                "close_return_to_completion": 145820
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 270346.36875,
+              "dispatch_to_got_conn": 22898.771354166667,
+              "got_conn_to_wrote_request": 36200.9890625,
+              "wrote_request_to_first_byte": 26838.38125,
+              "first_byte_to_do_return": 86923.25208333334,
+              "do_return_to_readall_return": 97456.69166666667,
+              "readall_return_to_close_return": 46.684895833333336,
+              "close_return_to_completion": -18.4015625
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 4800,
+              "builder_requests": 1343,
+              "sum_ns": {
+                "total": 5327738607,
+                "dispatch_to_got_conn": 128750631,
+                "got_conn_to_wrote_request": 973576798,
+                "wrote_request_to_first_byte": 2259892138,
+                "first_byte_to_do_return": 673947612,
+                "do_return_to_readall_return": 1288921238,
+                "readall_return_to_close_return": 2239863,
+                "close_return_to_completion": 410327
+              }
+            },
+            "orbstack": {
+              "requests": 4800,
+              "builder_requests": 1704,
+              "sum_ns": {
+                "total": 4204022587,
+                "dispatch_to_got_conn": 61664109,
+                "got_conn_to_wrote_request": 286636152,
+                "wrote_request_to_first_byte": 3448454127,
+                "first_byte_to_do_return": 196506391,
+                "do_return_to_readall_return": 208085747,
+                "readall_return_to_close_return": 2182014,
+                "close_return_to_completion": 494047
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 234107.50416666668,
+              "dispatch_to_got_conn": 13976.35875,
+              "got_conn_to_wrote_request": 143112.63458333333,
+              "wrote_request_to_first_byte": -247617.08104166668,
+              "first_byte_to_do_return": 99466.92104166666,
+              "do_return_to_readall_return": 225174.060625,
+              "readall_return_to_close_return": 12.051875,
+              "close_return_to_completion": -17.441666666666666
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 9291,
+              "builder_requests": 2940,
+              "sum_ns": {
+                "total": 5617584397,
+                "dispatch_to_got_conn": 165809669,
+                "got_conn_to_wrote_request": 991366654,
+                "wrote_request_to_first_byte": 2402298637,
+                "first_byte_to_do_return": 722285560,
+                "do_return_to_readall_return": 1332008062,
+                "readall_return_to_close_return": 3163651,
+                "close_return_to_completion": 652164
+              }
+            },
+            "orbstack": {
+              "requests": 9291,
+              "builder_requests": 2940,
+              "sum_ns": {
+                "total": 4430566369,
+                "dispatch_to_got_conn": 81289350,
+                "got_conn_to_wrote_request": 309640105,
+                "wrote_request_to_first_byte": 3587194428,
+                "first_byte_to_do_return": 218130947,
+                "do_return_to_readall_return": 230137462,
+                "readall_return_to_close_return": 3349361,
+                "close_return_to_completion": 824716
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 127759.98579270262,
+              "dispatch_to_got_conn": 9097.009902055754,
+              "got_conn_to_wrote_request": 73374.9380045205,
+              "wrote_request_to_first_byte": -127531.56721558498,
+              "first_byte_to_do_return": 54262.68571736089,
+              "do_return_to_readall_return": 118595.47949628673,
+              "readall_return_to_close_return": -19.988160585512862,
+              "close_return_to_completion": -18.571951350769563
+            }
+          }
+        },
+        "builders": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 65602,
+              "client_slot": 2,
+              "duration_ns": {
+                "total": 568917,
+                "dispatch_to_got_conn": 3250,
+                "got_conn_to_wrote_request": 2792,
+                "wrote_request_to_first_byte": 557792,
+                "first_byte_to_do_return": 2458,
+                "do_return_to_readall_return": 2417,
+                "readall_return_to_close_return": 125,
+                "close_return_to_completion": 83
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 79397,
+              "client_slot": 5,
+              "duration_ns": {
+                "total": 301203,
+                "dispatch_to_got_conn": 3958,
+                "got_conn_to_wrote_request": 53916,
+                "wrote_request_to_first_byte": 154039,
+                "first_byte_to_do_return": 50457,
+                "do_return_to_readall_return": 38541,
+                "readall_return_to_close_return": 250,
+                "close_return_to_completion": 42
+              }
+            }
+          },
+          "service_p95_gap_ns": 267714,
+          "joint_slowest_5pct_requests": 68,
+          "all_calls": {
+            "micropod": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3130719518,
+                "dispatch_to_got_conn": 113349790,
+                "got_conn_to_wrote_request": 402844593,
+                "wrote_request_to_first_byte": 1555525815,
+                "first_byte_to_do_return": 501517015,
+                "do_return_to_readall_return": 550678607,
+                "readall_return_to_close_return": 5531662,
+                "close_return_to_completion": 1272036
+              }
+            },
+            "orbstack": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3595231797,
+                "dispatch_to_got_conn": 183278371,
+                "got_conn_to_wrote_request": 378073225,
+                "wrote_request_to_first_byte": 2439432058,
+                "first_byte_to_do_return": 275996612,
+                "do_return_to_readall_return": 307468610,
+                "readall_return_to_close_return": 8843769,
+                "close_return_to_completion": 2139152
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -19354.678291666667,
+              "dispatch_to_got_conn": -2913.690875,
+              "got_conn_to_wrote_request": 1032.1403333333333,
+              "wrote_request_to_first_byte": -36829.426791666665,
+              "first_byte_to_do_return": 9396.683458333333,
+              "do_return_to_readall_return": 10133.749875,
+              "readall_return_to_close_return": -138.00445833333333,
+              "close_return_to_completion": -36.12983333333333
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 275424419,
+                "dispatch_to_got_conn": 7342866,
+                "got_conn_to_wrote_request": 38617868,
+                "wrote_request_to_first_byte": 103977463,
+                "first_byte_to_do_return": 69857561,
+                "do_return_to_readall_return": 55473701,
+                "readall_return_to_close_return": 128326,
+                "close_return_to_completion": 26634
+              }
+            },
+            "orbstack": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 148269260,
+                "dispatch_to_got_conn": 6771307,
+                "got_conn_to_wrote_request": 16567016,
+                "wrote_request_to_first_byte": 90529975,
+                "first_byte_to_do_return": 19130526,
+                "do_return_to_readall_return": 14893367,
+                "readall_return_to_close_return": 282734,
+                "close_return_to_completion": 94335
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 264906.58125,
+              "dispatch_to_got_conn": 1190.7479166666667,
+              "got_conn_to_wrote_request": 45939.275,
+              "wrote_request_to_first_byte": 28015.6,
+              "first_byte_to_do_return": 105681.32291666667,
+              "do_return_to_readall_return": 84542.3625,
+              "readall_return_to_close_return": -321.68333333333334,
+              "close_return_to_completion": -141.04375
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 1573042587,
+                "dispatch_to_got_conn": 14424966,
+                "got_conn_to_wrote_request": 304131705,
+                "wrote_request_to_first_byte": 707011758,
+                "first_byte_to_do_return": 194502396,
+                "do_return_to_readall_return": 352385625,
+                "readall_return_to_close_return": 511102,
+                "close_return_to_completion": 75035
+              }
+            },
+            "orbstack": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 2041244883,
+                "dispatch_to_got_conn": 39084477,
+                "got_conn_to_wrote_request": 162038021,
+                "wrote_request_to_first_byte": 1666308311,
+                "first_byte_to_do_return": 84724305,
+                "do_return_to_readall_return": 88451830,
+                "readall_return_to_close_return": 527302,
+                "close_return_to_completion": 110637
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -390168.58,
+              "dispatch_to_got_conn": -20549.5925,
+              "got_conn_to_wrote_request": 118411.40333333334,
+              "wrote_request_to_first_byte": -799413.7941666667,
+              "first_byte_to_do_return": 91481.7425,
+              "do_return_to_readall_return": 219944.82916666666,
+              "readall_return_to_close_return": -13.5,
+              "close_return_to_completion": -29.668333333333333
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 2332,
+              "builder_requests": 2332,
+              "sum_ns": {
+                "total": 1648409774,
+                "dispatch_to_got_conn": 20603090,
+                "got_conn_to_wrote_request": 309790112,
+                "wrote_request_to_first_byte": 747293083,
+                "first_byte_to_do_return": 208301204,
+                "do_return_to_readall_return": 361587533,
+                "readall_return_to_close_return": 711481,
+                "close_return_to_completion": 123271
+              }
+            },
+            "orbstack": {
+              "requests": 2332,
+              "builder_requests": 2332,
+              "sum_ns": {
+                "total": 2120288148,
+                "dispatch_to_got_conn": 45589228,
+                "got_conn_to_wrote_request": 173405945,
+                "wrote_request_to_first_byte": 1705180881,
+                "first_byte_to_do_return": 94974160,
+                "do_return_to_readall_return": 99749083,
+                "readall_return_to_close_return": 1096378,
+                "close_return_to_completion": 292473
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -202349.21698113208,
+              "dispatch_to_got_conn": -10714.467409948542,
+              "got_conn_to_wrote_request": 58483.77658662092,
+              "wrote_request_to_first_byte": -410758.0608919383,
+              "first_byte_to_do_return": 48596.5025728988,
+              "do_return_to_readall_return": 112280.63893653516,
+              "readall_return_to_close_return": -165.0501715265866,
+              "close_return_to_completion": -72.55660377358491
+            }
+          }
+        },
+        "service_only": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 73597,
+              "client_slot": 29,
+              "duration_ns": {
+                "total": 477333,
+                "dispatch_to_got_conn": 3375,
+                "got_conn_to_wrote_request": 2708,
+                "wrote_request_to_first_byte": 465542,
+                "first_byte_to_do_return": 3083,
+                "do_return_to_readall_return": 2333,
+                "readall_return_to_close_return": 209,
+                "close_return_to_completion": 83
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 11668,
+              "client_slot": 20,
+              "duration_ns": {
+                "total": 207163,
+                "dispatch_to_got_conn": 7084,
+                "got_conn_to_wrote_request": 6749,
+                "wrote_request_to_first_byte": 30375,
+                "first_byte_to_do_return": 4500,
+                "do_return_to_readall_return": 157872,
+                "readall_return_to_close_return": 500,
+                "close_return_to_completion": 83
+              }
+            }
+          },
+          "service_p95_gap_ns": 270170,
+          "joint_slowest_5pct_requests": 240,
+          "all_calls": {
+            "micropod": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 8124175541,
+                "dispatch_to_got_conn": 744305933,
+                "got_conn_to_wrote_request": 918194539,
+                "wrote_request_to_first_byte": 3613090460,
+                "first_byte_to_do_return": 1140833714,
+                "do_return_to_readall_return": 1686677228,
+                "readall_return_to_close_return": 16916628,
+                "close_return_to_completion": 4157039
+              }
+            },
+            "orbstack": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 5075414965,
+                "dispatch_to_got_conn": 280662066,
+                "got_conn_to_wrote_request": 346606351,
+                "wrote_request_to_first_byte": 3784262056,
+                "first_byte_to_do_return": 323094232,
+                "do_return_to_readall_return": 324403423,
+                "readall_return_to_close_return": 13654171,
+                "close_return_to_completion": 2732666
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 42343.89688888889,
+              "dispatch_to_got_conn": 6439.498152777778,
+              "got_conn_to_wrote_request": 7938.724833333334,
+              "wrote_request_to_first_byte": -2377.383277777778,
+              "first_byte_to_do_return": 11357.492805555556,
+              "do_return_to_readall_return": 18920.46951388889,
+              "readall_return_to_close_return": 45.311902777777775,
+              "close_return_to_completion": 19.782958333333333
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 700299429,
+                "dispatch_to_got_conn": 51430411,
+                "got_conn_to_wrote_request": 64725714,
+                "wrote_request_to_first_byte": 271143591,
+                "first_byte_to_do_return": 134967701,
+                "do_return_to_readall_return": 177202801,
+                "readall_return_to_close_return": 744278,
+                "close_return_to_completion": 84933
+              }
+            },
+            "orbstack": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 301131355,
+                "dispatch_to_got_conn": 5579993,
+                "got_conn_to_wrote_request": 17625449,
+                "wrote_request_to_first_byte": 240360847,
+                "first_byte_to_do_return": 17797123,
+                "do_return_to_readall_return": 19360464,
+                "readall_return_to_close_return": 344252,
+                "close_return_to_completion": 63227
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 277200.0513888889,
+              "dispatch_to_got_conn": 31840.568055555555,
+              "got_conn_to_wrote_request": 32708.51736111111,
+              "wrote_request_to_first_byte": 21376.905555555557,
+              "first_byte_to_do_return": 81368.45694444445,
+              "do_return_to_readall_return": 109612.73402777778,
+              "readall_return_to_close_return": 277.79583333333335,
+              "close_return_to_completion": 15.073611111111111
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 3748463857,
+                "dispatch_to_got_conn": 116306668,
+                "got_conn_to_wrote_request": 665645770,
+                "wrote_request_to_first_byte": 1550735211,
+                "first_byte_to_do_return": 471544168,
+                "do_return_to_readall_return": 942153783,
+                "readall_return_to_close_return": 1742051,
+                "close_return_to_completion": 336206
+              }
+            },
+            "orbstack": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2139660177,
+                "dispatch_to_got_conn": 18564811,
+                "got_conn_to_wrote_request": 117245521,
+                "wrote_request_to_first_byte": 1790716901,
+                "first_byte_to_do_return": 102358373,
+                "do_return_to_readall_return": 109260483,
+                "readall_return_to_close_return": 1250260,
+                "close_return_to_completion": 263828
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 446889.9111111111,
+              "dispatch_to_got_conn": 27150.515833333335,
+              "got_conn_to_wrote_request": 152333.4025,
+              "wrote_request_to_first_byte": -66661.58055555556,
+              "first_byte_to_do_return": 102551.60972222222,
+              "do_return_to_readall_return": 231359.25,
+              "readall_return_to_close_return": 136.60861111111112,
+              "close_return_to_completion": 20.105
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 6960,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 3963554040,
+                "dispatch_to_got_conn": 149078415,
+                "got_conn_to_wrote_request": 678124466,
+                "wrote_request_to_first_byte": 1650904669,
+                "first_byte_to_do_return": 505596309,
+                "do_return_to_readall_return": 976936525,
+                "readall_return_to_close_return": 2442182,
+                "close_return_to_completion": 471474
+              }
+            },
+            "orbstack": {
+              "requests": 6960,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2284648779,
+                "dispatch_to_got_conn": 31462015,
+                "got_conn_to_wrote_request": 128849917,
+                "wrote_request_to_first_byte": 1889182494,
+                "first_byte_to_do_return": 113153716,
+                "do_return_to_readall_return": 119740329,
+                "readall_return_to_close_return": 1848388,
+                "close_return_to_completion": 411920
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 241222.0202586207,
+              "dispatch_to_got_conn": 16898.908045977012,
+              "got_conn_to_wrote_request": 78918.75704022989,
+              "wrote_request_to_first_byte": -34235.31968390805,
+              "first_byte_to_do_return": 56385.43002873563,
+              "do_return_to_readall_return": 123160.37298850574,
+              "readall_return_to_close_return": 85.31522988505748,
+              "close_return_to_completion": 8.556609195402299
+            }
+          }
+        }
+      }
+    },
+    {
+      "round": 3,
+      "engine_order": "BA",
+      "groups": {
+        "all": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 77813,
+              "client_slot": 21,
+              "duration_ns": {
+                "total": 478875,
+                "dispatch_to_got_conn": 2708,
+                "got_conn_to_wrote_request": 2792,
+                "wrote_request_to_first_byte": 468458,
+                "first_byte_to_do_return": 2292,
+                "do_return_to_readall_return": 2292,
+                "readall_return_to_close_return": 250,
+                "close_return_to_completion": 83
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 31729,
+              "client_slot": 17,
+              "duration_ns": {
+                "total": 287037,
+                "dispatch_to_got_conn": 10167,
+                "got_conn_to_wrote_request": 3666,
+                "wrote_request_to_first_byte": 266496,
+                "first_byte_to_do_return": 3916,
+                "do_return_to_readall_return": 2458,
+                "readall_return_to_close_return": 209,
+                "close_return_to_completion": 125
+              }
+            }
+          },
+          "service_p95_gap_ns": 191838,
+          "joint_slowest_5pct_requests": 326,
+          "all_calls": {
+            "micropod": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 11092584207,
+                "dispatch_to_got_conn": 878660775,
+                "got_conn_to_wrote_request": 1229244752,
+                "wrote_request_to_first_byte": 5154480688,
+                "first_byte_to_do_return": 1635798656,
+                "do_return_to_readall_return": 2165854096,
+                "readall_return_to_close_return": 23000302,
+                "close_return_to_completion": 5544938
+              }
+            },
+            "orbstack": {
+              "requests": 96000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 9697935090,
+                "dispatch_to_got_conn": 473938639,
+                "got_conn_to_wrote_request": 882196324,
+                "wrote_request_to_first_byte": 6798411658,
+                "first_byte_to_do_return": 771931818,
+                "do_return_to_readall_return": 742809336,
+                "readall_return_to_close_return": 24040974,
+                "close_return_to_completion": 4606341
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 14527.59496875,
+              "dispatch_to_got_conn": 4215.855583333333,
+              "got_conn_to_wrote_request": 3615.087791666667,
+              "wrote_request_to_first_byte": -17124.2809375,
+              "first_byte_to_do_return": 8998.612895833334,
+              "do_return_to_readall_return": 14823.382916666667,
+              "readall_return_to_close_return": -10.840333333333334,
+              "close_return_to_completion": 9.777052083333333
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1920,
+              "builder_requests": 488,
+              "sum_ns": {
+                "total": 936151188,
+                "dispatch_to_got_conn": 63800928,
+                "got_conn_to_wrote_request": 70149045,
+                "wrote_request_to_first_byte": 383584730,
+                "first_byte_to_do_return": 188431471,
+                "do_return_to_readall_return": 228851992,
+                "readall_return_to_close_return": 1205180,
+                "close_return_to_completion": 127842
+              }
+            },
+            "orbstack": {
+              "requests": 1920,
+              "builder_requests": 525,
+              "sum_ns": {
+                "total": 554175382,
+                "dispatch_to_got_conn": 13784151,
+                "got_conn_to_wrote_request": 77485026,
+                "wrote_request_to_first_byte": 322027938,
+                "first_byte_to_do_return": 66544699,
+                "do_return_to_readall_return": 72798590,
+                "readall_return_to_close_return": 1278834,
+                "close_return_to_completion": 256144
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 198945.73229166667,
+              "dispatch_to_got_conn": 26050.4046875,
+              "got_conn_to_wrote_request": -3820.8234375,
+              "wrote_request_to_first_byte": 32060.829166666666,
+              "first_byte_to_do_return": 63482.69375,
+              "do_return_to_readall_return": 81277.81354166666,
+              "readall_return_to_close_return": -38.36145833333333,
+              "close_return_to_completion": -66.82395833333334
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 4800,
+              "builder_requests": 1330,
+              "sum_ns": {
+                "total": 5243742465,
+                "dispatch_to_got_conn": 120852293,
+                "got_conn_to_wrote_request": 904851101,
+                "wrote_request_to_first_byte": 2265245837,
+                "first_byte_to_do_return": 684300196,
+                "do_return_to_readall_return": 1266090871,
+                "readall_return_to_close_return": 2058386,
+                "close_return_to_completion": 343781
+              }
+            },
+            "orbstack": {
+              "requests": 4800,
+              "builder_requests": 1525,
+              "sum_ns": {
+                "total": 4575910544,
+                "dispatch_to_got_conn": 71146708,
+                "got_conn_to_wrote_request": 352128501,
+                "wrote_request_to_first_byte": 3642199570,
+                "first_byte_to_do_return": 271108851,
+                "do_return_to_readall_return": 235629010,
+                "readall_return_to_close_return": 3167255,
+                "close_return_to_completion": 530649
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 139131.65020833333,
+              "dispatch_to_got_conn": 10355.330208333333,
+              "got_conn_to_wrote_request": 115150.54166666667,
+              "wrote_request_to_first_byte": -286865.36104166665,
+              "first_byte_to_do_return": 86081.53020833334,
+              "do_return_to_readall_return": 214679.554375,
+              "readall_return_to_close_return": -231.014375,
+              "close_return_to_completion": -38.93083333333333
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 9274,
+              "builder_requests": 2751,
+              "sum_ns": {
+                "total": 5525279725,
+                "dispatch_to_got_conn": 154858166,
+                "got_conn_to_wrote_request": 919519947,
+                "wrote_request_to_first_byte": 2407906273,
+                "first_byte_to_do_return": 730782142,
+                "do_return_to_readall_return": 1308659057,
+                "readall_return_to_close_return": 2933286,
+                "close_return_to_completion": 620854
+              }
+            },
+            "orbstack": {
+              "requests": 9274,
+              "builder_requests": 2751,
+              "sum_ns": {
+                "total": 4833955239,
+                "dispatch_to_got_conn": 92099079,
+                "got_conn_to_wrote_request": 379482503,
+                "wrote_request_to_first_byte": 3798652150,
+                "first_byte_to_do_return": 296206551,
+                "do_return_to_readall_return": 262557876,
+                "readall_return_to_close_return": 4266877,
+                "close_return_to_completion": 690203
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 74544.3698511969,
+              "dispatch_to_got_conn": 6767.208000862626,
+              "got_conn_to_wrote_request": 58231.339659262456,
+              "wrote_request_to_first_byte": -149961.8155057149,
+              "first_byte_to_do_return": 46859.563403062326,
+              "do_return_to_readall_return": 112799.35098123788,
+              "readall_return_to_close_return": -143.79890015095967,
+              "close_return_to_completion": -7.47778736251887
+            }
+          }
+        },
+        "builders": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 1377,
+              "client_slot": 1,
+              "duration_ns": {
+                "total": 544042,
+                "dispatch_to_got_conn": 117250,
+                "got_conn_to_wrote_request": 4250,
+                "wrote_request_to_first_byte": 13542,
+                "first_byte_to_do_return": 405292,
+                "do_return_to_readall_return": 3416,
+                "readall_return_to_close_return": 250,
+                "close_return_to_completion": 42
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 14855,
+              "client_slot": 7,
+              "duration_ns": {
+                "total": 332119,
+                "dispatch_to_got_conn": 1666,
+                "got_conn_to_wrote_request": 84540,
+                "wrote_request_to_first_byte": 150373,
+                "first_byte_to_do_return": 48082,
+                "do_return_to_readall_return": 47083,
+                "readall_return_to_close_return": 333,
+                "close_return_to_completion": 42
+              }
+            }
+          },
+          "service_p95_gap_ns": 211923,
+          "joint_slowest_5pct_requests": 78,
+          "all_calls": {
+            "micropod": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3066240208,
+                "dispatch_to_got_conn": 127862890,
+                "got_conn_to_wrote_request": 370326717,
+                "wrote_request_to_first_byte": 1478962141,
+                "first_byte_to_do_return": 486805471,
+                "do_return_to_readall_return": 594430754,
+                "readall_return_to_close_return": 6011727,
+                "close_return_to_completion": 1840508
+              }
+            },
+            "orbstack": {
+              "requests": 24000,
+              "builder_requests": 24000,
+              "sum_ns": {
+                "total": 3894840141,
+                "dispatch_to_got_conn": 173992906,
+                "got_conn_to_wrote_request": 419207106,
+                "wrote_request_to_first_byte": 2647050827,
+                "first_byte_to_do_return": 320107274,
+                "do_return_to_readall_return": 323520917,
+                "readall_return_to_close_return": 9171718,
+                "close_return_to_completion": 1789393
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -34524.997208333334,
+              "dispatch_to_got_conn": -1922.084,
+              "got_conn_to_wrote_request": -2036.682875,
+              "wrote_request_to_first_byte": -48670.36191666667,
+              "first_byte_to_do_return": 6945.758208333334,
+              "do_return_to_readall_return": 11287.909875,
+              "readall_return_to_close_return": -131.66629166666667,
+              "close_return_to_completion": 2.1297916666666667
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 264343421,
+                "dispatch_to_got_conn": 9005631,
+                "got_conn_to_wrote_request": 26781369,
+                "wrote_request_to_first_byte": 114375073,
+                "first_byte_to_do_return": 53940844,
+                "do_return_to_readall_return": 60066915,
+                "readall_return_to_close_return": 140216,
+                "close_return_to_completion": 33373
+              }
+            },
+            "orbstack": {
+              "requests": 480,
+              "builder_requests": 480,
+              "sum_ns": {
+                "total": 162635337,
+                "dispatch_to_got_conn": 6277270,
+                "got_conn_to_wrote_request": 24642207,
+                "wrote_request_to_first_byte": 87655377,
+                "first_byte_to_do_return": 19390927,
+                "do_return_to_readall_return": 23644777,
+                "readall_return_to_close_return": 997223,
+                "close_return_to_completion": 27556
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 211891.84166666667,
+              "dispatch_to_got_conn": 5684.085416666667,
+              "got_conn_to_wrote_request": 4456.5875,
+              "wrote_request_to_first_byte": 55666.03333333333,
+              "first_byte_to_do_return": 71978.99375,
+              "do_return_to_readall_return": 75879.45416666666,
+              "readall_return_to_close_return": -1785.43125,
+              "close_return_to_completion": 12.11875
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 1515286508,
+                "dispatch_to_got_conn": 14991913,
+                "got_conn_to_wrote_request": 278807789,
+                "wrote_request_to_first_byte": 635284660,
+                "first_byte_to_do_return": 191609932,
+                "do_return_to_readall_return": 394145988,
+                "readall_return_to_close_return": 354458,
+                "close_return_to_completion": 91768
+              }
+            },
+            "orbstack": {
+              "requests": 1200,
+              "builder_requests": 1200,
+              "sum_ns": {
+                "total": 2221242261,
+                "dispatch_to_got_conn": 34776704,
+                "got_conn_to_wrote_request": 177283063,
+                "wrote_request_to_first_byte": 1806784985,
+                "first_byte_to_do_return": 107929438,
+                "do_return_to_readall_return": 93372913,
+                "readall_return_to_close_return": 1017054,
+                "close_return_to_completion": 78104
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -588296.4608333333,
+              "dispatch_to_got_conn": -16487.325833333332,
+              "got_conn_to_wrote_request": 84603.93833333334,
+              "wrote_request_to_first_byte": -976250.2708333334,
+              "first_byte_to_do_return": 69733.745,
+              "do_return_to_readall_return": 250644.22916666666,
+              "readall_return_to_close_return": -552.1633333333333,
+              "close_return_to_completion": 11.386666666666667
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 2322,
+              "builder_requests": 2322,
+              "sum_ns": {
+                "total": 1593506402,
+                "dispatch_to_got_conn": 20449039,
+                "got_conn_to_wrote_request": 283823008,
+                "wrote_request_to_first_byte": 675572610,
+                "first_byte_to_do_return": 207429434,
+                "do_return_to_readall_return": 405488728,
+                "readall_return_to_close_return": 556968,
+                "close_return_to_completion": 186615
+              }
+            },
+            "orbstack": {
+              "requests": 2322,
+              "builder_requests": 2322,
+              "sum_ns": {
+                "total": 2307619541,
+                "dispatch_to_got_conn": 42367154,
+                "got_conn_to_wrote_request": 189899458,
+                "wrote_request_to_first_byte": 1849722951,
+                "first_byte_to_do_return": 118489984,
+                "do_return_to_readall_return": 105415451,
+                "readall_return_to_close_return": 1604728,
+                "close_return_to_completion": 119815
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": -307542.2648578811,
+              "dispatch_to_got_conn": -9439.326012058571,
+              "got_conn_to_wrote_request": 40449.41860465116,
+              "wrote_request_to_first_byte": -505663.3682170543,
+              "first_byte_to_do_return": 38302.950043066325,
+              "do_return_to_readall_return": 129230.52411714039,
+              "readall_return_to_close_return": -451.2316968130922,
+              "close_return_to_completion": 28.76830318690784
+            }
+          }
+        },
+        "service_only": {
+          "service_p95_request": {
+            "micropod": {
+              "offer_ordinal": 80233,
+              "client_slot": 9,
+              "duration_ns": {
+                "total": 467625,
+                "dispatch_to_got_conn": 241500,
+                "got_conn_to_wrote_request": 2791,
+                "wrote_request_to_first_byte": 218042,
+                "first_byte_to_do_return": 2292,
+                "do_return_to_readall_return": 2791,
+                "readall_return_to_close_return": 209,
+                "close_return_to_completion": 0
+              }
+            },
+            "orbstack": {
+              "offer_ordinal": 17512,
+              "client_slot": 8,
+              "duration_ns": {
+                "total": 273828,
+                "dispatch_to_got_conn": 4125,
+                "got_conn_to_wrote_request": 2583,
+                "wrote_request_to_first_byte": 185497,
+                "first_byte_to_do_return": 55499,
+                "do_return_to_readall_return": 25666,
+                "readall_return_to_close_return": 375,
+                "close_return_to_completion": 83
+              }
+            }
+          },
+          "service_p95_gap_ns": 193797,
+          "joint_slowest_5pct_requests": 238,
+          "all_calls": {
+            "micropod": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 8026343999,
+                "dispatch_to_got_conn": 750797885,
+                "got_conn_to_wrote_request": 858918035,
+                "wrote_request_to_first_byte": 3675518547,
+                "first_byte_to_do_return": 1148993185,
+                "do_return_to_readall_return": 1571423342,
+                "readall_return_to_close_return": 16988575,
+                "close_return_to_completion": 3704430
+              }
+            },
+            "orbstack": {
+              "requests": 72000,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 5803094949,
+                "dispatch_to_got_conn": 299945733,
+                "got_conn_to_wrote_request": 462989218,
+                "wrote_request_to_first_byte": 4151360831,
+                "first_byte_to_do_return": 451824544,
+                "do_return_to_readall_return": 419288419,
+                "readall_return_to_close_return": 14869256,
+                "close_return_to_completion": 2816948
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 30878.45902777778,
+              "dispatch_to_got_conn": 6261.835444444445,
+              "got_conn_to_wrote_request": 5499.011347222222,
+              "wrote_request_to_first_byte": -6608.920611111111,
+              "first_byte_to_do_return": 9682.897791666666,
+              "do_return_to_readall_return": 16001.873930555555,
+              "readall_return_to_close_return": 29.43498611111111,
+              "close_return_to_completion": 12.326138888888888
+            }
+          },
+          "own_p95_band": {
+            "micropod": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 675916966,
+                "dispatch_to_got_conn": 56736301,
+                "got_conn_to_wrote_request": 51068171,
+                "wrote_request_to_first_byte": 267135824,
+                "first_byte_to_do_return": 129120213,
+                "do_return_to_readall_return": 170679904,
+                "readall_return_to_close_return": 1082641,
+                "close_return_to_completion": 93912
+              }
+            },
+            "orbstack": {
+              "requests": 1440,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 396008216,
+                "dispatch_to_got_conn": 7177665,
+                "got_conn_to_wrote_request": 54119092,
+                "wrote_request_to_first_byte": 236149495,
+                "first_byte_to_do_return": 47498826,
+                "do_return_to_readall_return": 50499924,
+                "readall_return_to_close_return": 484517,
+                "close_return_to_completion": 78697
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 194381.07638888888,
+              "dispatch_to_got_conn": 34415.71944444445,
+              "got_conn_to_wrote_request": -2118.695138888889,
+              "wrote_request_to_first_byte": 21518.28402777778,
+              "first_byte_to_do_return": 56681.51875,
+              "do_return_to_readall_return": 83458.31944444444,
+              "readall_return_to_close_return": 415.3638888888889,
+              "close_return_to_completion": 10.565972222222221
+            }
+          },
+          "own_slowest_5pct": {
+            "micropod": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 3723996366,
+                "dispatch_to_got_conn": 108450080,
+                "got_conn_to_wrote_request": 623805690,
+                "wrote_request_to_first_byte": 1628462262,
+                "first_byte_to_do_return": 490322664,
+                "do_return_to_readall_return": 870996306,
+                "readall_return_to_close_return": 1707762,
+                "close_return_to_completion": 251602
+              }
+            },
+            "orbstack": {
+              "requests": 3600,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2345138912,
+                "dispatch_to_got_conn": 34385793,
+                "got_conn_to_wrote_request": 171330497,
+                "wrote_request_to_first_byte": 1839167184,
+                "first_byte_to_do_return": 160513718,
+                "do_return_to_readall_return": 137797547,
+                "readall_return_to_close_return": 1492385,
+                "close_return_to_completion": 451788
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 383015.95944444445,
+              "dispatch_to_got_conn": 20573.413055555557,
+              "got_conn_to_wrote_request": 125687.55361111111,
+              "wrote_request_to_first_byte": -58529.145,
+              "first_byte_to_do_return": 91613.59611111111,
+              "do_return_to_readall_return": 203666.32194444444,
+              "readall_return_to_close_return": 59.82694444444444,
+              "close_return_to_completion": -55.60722222222222
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "requests": 6962,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 3931580799,
+                "dispatch_to_got_conn": 139269149,
+                "got_conn_to_wrote_request": 634289176,
+                "wrote_request_to_first_byte": 1731169506,
+                "first_byte_to_do_return": 520356151,
+                "do_return_to_readall_return": 903722233,
+                "readall_return_to_close_return": 2374874,
+                "close_return_to_completion": 399710
+              }
+            },
+            "orbstack": {
+              "requests": 6962,
+              "builder_requests": 0,
+              "sum_ns": {
+                "total": 2516295456,
+                "dispatch_to_got_conn": 47568843,
+                "got_conn_to_wrote_request": 185538771,
+                "wrote_request_to_first_byte": 1953488417,
+                "first_byte_to_do_return": 174658214,
+                "do_return_to_readall_return": 152296073,
+                "readall_return_to_close_return": 2174847,
+                "close_return_to_completion": 570291
+              }
+            },
+            "micropod_minus_orbstack_mean_ns": {
+              "total": 203287.17940247056,
+              "dispatch_to_got_conn": 13171.546394714163,
+              "got_conn_to_wrote_request": 64457.11074403907,
+              "wrote_request_to_first_byte": -31933.196064349326,
+              "first_byte_to_do_return": 49654.97515081873,
+              "do_return_to_readall_return": 107932.51364550416,
+              "readall_return_to_close_return": 28.731255386383225,
+              "close_return_to_completion": -24.50172364263143
+            }
+          }
+        }
+      }
+    }
+  ],
+  "raw_http_sha256": {
+    "grouped-0-one-B.json.gz": "b5e61563f690d3b121946881761020fd3f145334df5ce229ab596c55c2d1407c",
+    "grouped-0-one-A.json.gz": "06e46bc97e31ca36a39e96223042cbdbc81498cd8a8ae219339880e83b84f7a1",
+    "grouped-0-all-B.json.gz": "3590b8d1e5ee28219aa1517afc6afad1c85ce32568d6c4d5476d59c0d6278a83",
+    "grouped-0-all-A.json.gz": "75e3af396a0cb001caf43d6c5cc80611f7fad21c31c7fe33a313de3afba99b9f",
+    "grouped-1-one-A.json.gz": "6c971614b0eaa50061aa7aac010551c1942700f8aa4107ef721d1cc112751647",
+    "grouped-1-one-B.json.gz": "0ea031a375fcba00a75ab69a13241465a74905fb241c580696be00106abf590e",
+    "grouped-1-all-A.json.gz": "a0adafc5f46a304bc44c81de7310cdea7670843ccdac97957548e231b8428054",
+    "grouped-1-all-B.json.gz": "032869389cb692b1f48a20f13f9b174a7400985a7624d8d27064771bb5f6adab",
+    "grouped-2-one-A.json.gz": "774d51505109d9d318c13fdd99c2d5ff16710c505c157c1715a9331e512b8fb5",
+    "grouped-2-one-B.json.gz": "d0399366712173a97bd46544cb59ab3a48201da2ee91d5ec336f076c2dde6f84",
+    "grouped-2-all-A.json.gz": "99458ca61dbc080e1863161a6d7c6eb1c6fe39b6c1a5a3ec35a442051df430c2",
+    "grouped-2-all-B.json.gz": "4b9a095cc7da70dfcef588b98b09d53d738e58f7df1e648ece4194171a87d616",
+    "grouped-3-one-B.json.gz": "52203b208a90644a7ef636a5c598fdfd012d24ad59781715d6bc839be313958f",
+    "grouped-3-one-A.json.gz": "213ff6fc45b7be484b97ea695888a5ea79609b84c093e4d4d46590f264aa9014",
+    "grouped-3-all-B.json.gz": "097c9b6819b8b1c582e3b448b9b719c7c0ca579c85963e86a27c8c08ec745568",
+    "grouped-3-all-A.json.gz": "f2c7dd501a2338b61bcc4e1bf53525a3da1b15e4678d8cb2d6cc7f8cf0948c75"
+  }
+}

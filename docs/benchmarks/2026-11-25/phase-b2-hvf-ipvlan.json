@@ -1,0 +1,194 @@
+{
+  "label": "phase-b2-hvf-ipvlan-final",
+  "timestamp_utc": "2026-11-25T07:09:14Z",
+  "driver": "ipvlan",
+  "rounds": 3,
+  "rebuild_runner": true,
+  "micropod_bin": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+  "kernel": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T233020Z-ipvlan-my8pf7su/full-16k/Image",
+  "arms": {
+    "orbstack": {
+      "boot_s": null,
+      "guest_tuning": "init=/opt/orb/vinit workqueue.power_efficient=1 cgroup.memory=nokmem,nosocket swiotlb=noforce slab_min_order=2 cgroup_v1_proc=1 nbd.nbds_max=4 can.stats_timer=0 arm64.nosme id_aa64mmfr0.ecv=1 root=/dev/vda rootfstype=erofs ro console=hvc0 quiet ORB_S=AICSvVYAAAAAENVaAgAAAAAAABAAAAAAGgAFAAAAAAAAADI1RjgwDQAAAAAAAAAvZGV2L3Zwb3J0MnAyAQA earlycon=pl011,mmio32,0x40001000 \n---\nvm/compaction_proactiveness=0\nvm/watermark_boost_factor=0\nvm/overcommit_memory=1\nkernel/sched_rt_runtime_us=1000000\nnet/core/rmem_max=7500000\nnet/core/wmem_max=7500000\nnet/ipv4/tcp_rmem=4096\t131072\t32109184\nnet/ipv4/tcp_wmem=4096\t16384\t4194304",
+      "oom_check": {
+        "returncode": 137,
+        "oom_killed": true,
+        "exit_code": 137
+      },
+      "in_guest": {
+        "engine": "orbstack",
+        "net_driver": "ipvlan",
+        "quiet_unrestricted_p50_us": 12.88,
+        "quiet_unrestricted_p95_us": 22.54,
+        "quiet_pinned_p50_us": 11.38,
+        "quiet_pinned_p95_us": 16.29,
+        "dns1_p50_us": 21,
+        "dns1_p95_us": 33,
+        "dns32_p50_us": 189,
+        "dns32_p95_us": 730,
+        "sibling_6gib_bulk_mibs": 24036.8,
+        "raw": {
+          "quiet_unrestricted_p50_us": [
+            13.376,
+            11.376,
+            12.876
+          ],
+          "quiet_pinned_p50_us": [
+            11.292,
+            11.376,
+            11.585
+          ],
+          "dns1_p95_us": [
+            35,
+            31,
+            33
+          ],
+          "dns32_p95_us": [
+            730,
+            1287,
+            635
+          ],
+          "sibling_6gib_bulk_mibs": [
+            23370.582735438464,
+            24367.666394336313,
+            24036.809180871784
+          ]
+        }
+      },
+      "churn_32x8": {
+        "engine": "orbstack",
+        "containers": 32,
+        "concurrency": 8,
+        "median_wall_s": 1.8478,
+        "containers_per_s": 17.32,
+        "rounds_s": [
+          1.7993,
+          1.8792,
+          1.8478
+        ]
+      }
+    },
+    "micropod-vz-tuned": {
+      "boot_s": 0.6317,
+      "guest_tuning": "console=hvc0 tsc=reliable panic=0 rcupdate.rcu_expedited=1 psi=1 micropod.ci_sched=hrtick-250us micropod.ci_wakeup=next-buddy cgroup.memory=nokmem,nosocket slab_min_order=2 swiotlb=noforce workqueue.power_efficient=1 micropod.ci_sysctls=perf init=/sbin/vminitd ro rootfstype=ext4 root=/dev/vda\n---\nvm/compaction_proactiveness=0\nvm/watermark_boost_factor=0\nvm/overcommit_memory=1\nkernel/sched_rt_runtime_us=1000000\nnet/core/rmem_max=7500000\nnet/core/wmem_max=7500000\nnet/ipv4/tcp_rmem=16384\t131072\t32980992\nnet/ipv4/tcp_wmem=16384\t16384\t4194304",
+      "oom_check": {
+        "returncode": 137,
+        "oom_killed": true,
+        "exit_code": 137
+      },
+      "in_guest": {
+        "engine": "micropod-vz-tuned",
+        "net_driver": "ipvlan",
+        "quiet_unrestricted_p50_us": 43.75,
+        "quiet_unrestricted_p95_us": 59.54,
+        "quiet_pinned_p50_us": 12.83,
+        "quiet_pinned_p95_us": 19.38,
+        "dns1_p50_us": 46,
+        "dns1_p95_us": 60,
+        "dns32_p50_us": 135,
+        "dns32_p95_us": 384,
+        "sibling_6gib_bulk_mibs": 18185.9,
+        "raw": {
+          "quiet_unrestricted_p50_us": [
+            45.209,
+            40.0,
+            43.75
+          ],
+          "quiet_pinned_p50_us": [
+            12.833,
+            12.875,
+            12.791
+          ],
+          "dns1_p95_us": [
+            61,
+            57,
+            60
+          ],
+          "dns32_p95_us": [
+            368,
+            392,
+            384
+          ],
+          "sibling_6gib_bulk_mibs": [
+            18880.013275009336,
+            18185.885842239626,
+            18071.48957741251
+          ]
+        }
+      },
+      "churn_32x8": {
+        "engine": "micropod-vz-tuned",
+        "containers": 32,
+        "concurrency": 8,
+        "median_wall_s": 1.0447,
+        "containers_per_s": 30.63,
+        "rounds_s": [
+          1.0447,
+          0.9872,
+          1.0508
+        ]
+      }
+    },
+    "micropod-hvf": {
+      "boot_s": 0.3376,
+      "guest_tuning": "quiet console=ttyAMA0 rcupdate.rcu_expedited=1 psi=1 cgroup.memory=nokmem,nosocket slab_min_order=2 swiotlb=noforce workqueue.power_efficient=1 micropod.ci_sched=hrtick-250us micropod.ci_wakeup=next-buddy micropod.ci_sysctls=perf mp.workspace=/private/tmp/mp-tune-work-ay3cncyf mp.mtu=9000 panic=-1\n---\nvm/compaction_proactiveness=0\nvm/watermark_boost_factor=0\nvm/overcommit_memory=1\nkernel/sched_rt_runtime_us=1000000\nnet/core/rmem_max=7500000\nnet/core/wmem_max=7500000\nnet/ipv4/tcp_rmem=16384\t131072\t32964096\nnet/ipv4/tcp_wmem=16384\t16384\t4194304",
+      "oom_check": {
+        "returncode": 137,
+        "oom_killed": true,
+        "exit_code": 137
+      },
+      "in_guest": {
+        "engine": "micropod-hvf",
+        "net_driver": "ipvlan",
+        "quiet_unrestricted_p50_us": 43.62,
+        "quiet_unrestricted_p95_us": 59.79,
+        "quiet_pinned_p50_us": 12.96,
+        "quiet_pinned_p95_us": 19.08,
+        "dns1_p50_us": 45,
+        "dns1_p95_us": 57,
+        "dns32_p50_us": 132,
+        "dns32_p95_us": 406,
+        "sibling_6gib_bulk_mibs": 18793.8,
+        "raw": {
+          "quiet_unrestricted_p50_us": [
+            43.292,
+            43.625,
+            43.625
+          ],
+          "quiet_pinned_p50_us": [
+            13.167,
+            12.792,
+            12.958
+          ],
+          "dns1_p95_us": [
+            58,
+            57,
+            57
+          ],
+          "dns32_p95_us": [
+            379,
+            406,
+            421
+          ],
+          "sibling_6gib_bulk_mibs": [
+            17793.24688475839,
+            18793.840153709385,
+            19533.131390724207
+          ]
+        }
+      },
+      "churn_32x8": {
+        "engine": "micropod-hvf",
+        "containers": 32,
+        "concurrency": 8,
+        "median_wall_s": 1.3587,
+        "containers_per_s": 23.55,
+        "rounds_s": [
+          1.3587,
+          1.2798,
+          1.3745
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,1062 @@
+{
+  "label": "phase-b7-real-ci-and-caching",
+  "timestamp_utc": "2026-11-25T22:52:45Z",
+  "cli_binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/dist/micropod",
+  "zero_config_bundle_discovery": true,
+  "observability": {
+    "yaml_config_cli_managed": true,
+    "metric_files_on_disk": 0,
+    "prometheus_tcp_scrape_ok": true,
+    "prometheus_unified_cli_ok": true,
+    "otlp_unified_cli_ok": true,
+    "live_runtime_tracing_toggle_ok": true,
+    "otlp_live_metrics_batches_received": 28,
+    "otlp_live_trace_batches_received": 27,
+    "otlp_services_observed": [
+      "micropod-b7-e2e",
+      "micropod-b7-pool"
+    ],
+    "trace_bottleneck_spans_ms": {
+      "ci.worker.health": {
+        "count": 1,
+        "min_ms": 11.332,
+        "max_ms": 11.332,
+        "avg_ms": 11.332
+      },
+      "ci.worker.start": {
+        "count": 4,
+        "min_ms": 66.528,
+        "max_ms": 379.434,
+        "avg_ms": 145.555
+      },
+      "ci.worker.stop": {
+        "count": 4,
+        "min_ms": 107.872,
+        "max_ms": 318.017,
+        "avg_ms": 213.309
+      },
+      "telemetry.health": {
+        "count": 4,
+        "min_ms": 11.038,
+        "max_ms": 27.833,
+        "avg_ms": 20.649
+      },
+      "vmm.boot.kernel_load": {
+        "count": 1,
+        "min_ms": 1.458,
+        "max_ms": 1.458,
+        "avg_ms": 1.458
+      },
+      "vmm.boot.ram_alloc": {
+        "count": 1,
+        "min_ms": 0.082,
+        "max_ms": 0.082,
+        "avg_ms": 0.082
+      },
+      "vmm.boot.read_images": {
+        "count": 1,
+        "min_ms": 2.102,
+        "max_ms": 2.102,
+        "avg_ms": 2.102
+      },
+      "vmm.boot.setup": {
+        "count": 1,
+        "min_ms": 4.625,
+        "max_ms": 4.625,
+        "avg_ms": 4.625
+      },
+      "vmm.boot.to_first_uart": {
+        "count": 4,
+        "min_ms": 73.376,
+        "max_ms": 93.099,
+        "avg_ms": 88.067
+      },
+      "vmm.boot.to_init_ready": {
+        "count": 1,
+        "min_ms": 78.225,
+        "max_ms": 78.225,
+        "avg_ms": 78.225
+      },
+      "vmm.boot.virtio_attach": {
+        "count": 1,
+        "min_ms": 0.214,
+        "max_ms": 0.214,
+        "avg_ms": 0.214
+      },
+      "vmm.restore.cow_disk_clone": {
+        "count": 3,
+        "min_ms": 0.096,
+        "max_ms": 0.126,
+        "avg_ms": 0.11
+      },
+      "vmm.restore.cow_ram_map": {
+        "count": 3,
+        "min_ms": 0.661,
+        "max_ms": 0.685,
+        "avg_ms": 0.672
+      },
+      "vmm.restore.gic_and_virtio": {
+        "count": 3,
+        "min_ms": 1.611,
+        "max_ms": 1.642,
+        "avg_ms": 1.631
+      },
+      "vmm.restore.setup": {
+        "count": 3,
+        "min_ms": 2.495,
+        "max_ms": 2.554,
+        "avg_ms": 2.517
+      },
+      "vmm.restore.validate": {
+        "count": 3,
+        "min_ms": 0.807,
+        "max_ms": 0.815,
+        "avg_ms": 0.812
+      },
+      "vmm.restore.virtio_attach": {
+        "count": 3,
+        "min_ms": 0.219,
+        "max_ms": 0.231,
+        "avg_ms": 0.225
+      },
+      "vmm.session": {
+        "count": 4,
+        "min_ms": 3747.86,
+        "max_ms": 4355.462,
+        "avg_ms": 4049.507
+      },
+      "vmm.snapshot.cow_disk_clone": {
+        "count": 1,
+        "min_ms": 0.075,
+        "max_ms": 0.075,
+        "avg_ms": 0.075
+      },
+      "vmm.snapshot.gic_save": {
+        "count": 1,
+        "min_ms": 2.212,
+        "max_ms": 2.212,
+        "avg_ms": 2.212
+      },
+      "vmm.snapshot.save": {
+        "count": 1,
+        "min_ms": 92.088,
+        "max_ms": 92.088,
+        "avg_ms": 92.088
+      },
+      "vmm.snapshot.sparse_ram_write": {
+        "count": 1,
+        "min_ms": 88.806,
+        "max_ms": 88.806,
+        "avg_ms": 88.806
+      },
+      "vmm.snapshot.virtio_pause": {
+        "count": 1,
+        "min_ms": 0.041,
+        "max_ms": 0.041,
+        "avg_ms": 0.041
+      },
+      "vmm.snapshot.vmstate_write": {
+        "count": 1,
+        "min_ms": 0.856,
+        "max_ms": 0.856,
+        "avg_ms": 0.856
+      },
+      "vmm.tracing.enabled": {
+        "count": 1,
+        "min_ms": 0.0,
+        "max_ms": 0.0,
+        "avg_ms": 0.0
+      }
+    }
+  },
+  "cold_worker_start_ms": 1352.4,
+  "base_images_load_ms": 2046.7,
+  "kernel_metrics_available": true,
+  "buildkit_caching": {
+    "cold_build_s": 8.03,
+    "warm_hit_build_s": 1.015,
+    "warm_cached_steps": 6,
+    "warm_speedup_x": 7.91,
+    "partial_source_edit_build_s": 1.02,
+    "post_reboot_cached_build_s": 2.833,
+    "post_reboot_cached_steps": 6,
+    "ci_snapshot_cold_s": 2.174,
+    "ci_snapshot_warm_s": 1.028
+  },
+  "scoped_and_workspace_caching": {
+    "node_tests_passed": true,
+    "npm_scope_hit_ok": true,
+    "npm_cross_scope_isolated": true,
+    "python_scope_hit_ok": true,
+    "native_oci_primed_and_gocache_hit_ok": true,
+    "virtiofs_make_cold_17_files_ms": 211.4,
+    "virtiofs_make_noop_0_files_ms": 75.9,
+    "virtiofs_make_1_edited_file_ms": 125.7,
+    "metrics_usage_before_restart": {
+      "boot": "B2099D8F-4DF3-49DC-A814-35F2888B64C2",
+      "cacheStores": [
+        {
+          "activeContainers": 0,
+          "scope": "scope-alpha",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-alpha-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-beta",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-beta-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-py",
+          "store": "pycache",
+          "volume": "micropod-ci-scoped-scope-py-pycache"
+        }
+      ],
+      "nativeOCI": {
+        "activeSessions": 0,
+        "draining": false,
+        "openedSessions": 2,
+        "pid": 249,
+        "prepareHits": 0,
+        "prepareLoads": 0,
+        "sessionsByScope": {}
+      },
+      "runningContainers": 0,
+      "timestamp": "2026-11-25T22:52:37Z",
+      "worker": "B174E5B4-2A2F-4CED-8C5E-B1BAF43B780B"
+    }
+  },
+  "compose_postgres_api_integration": {
+    "passed": true,
+    "wall_ms": 2269.7,
+    "http_status": 200,
+    "sql_rows_verified": 2
+  },
+  "graceful_restart_persistence": {
+    "runner_stop_ms": 327.1,
+    "runner_restart_with_snapshot_ms": 402.3,
+    "all_4_caches_persisted": true
+  },
+  "managed_cow_snapshot_pool": {
+    "forks": 3,
+    "all_inherited_warm_caches": true,
+    "cow_cache_isolation_verified": true,
+    "total_parallel_wall_ms": 3551.0,
+    "samples": [
+      {
+        "fork": 0,
+        "managed_runner_start_ms": 91.9,
+        "buildkit_cached_rebuild_s": 3.022,
+        "buildkit_cached_steps": 6,
+        "health_verdict": "healthy",
+        "host_phys_footprint_mib": 353.85,
+        "clock_sync_count": 1
+      },
+      {
+        "fork": 1,
+        "managed_runner_start_ms": 90.6,
+        "buildkit_cached_rebuild_s": 3.071,
+        "buildkit_cached_steps": 6,
+        "health_verdict": "healthy",
+        "host_phys_footprint_mib": 345.94,
+        "clock_sync_count": 1
+      },
+      {
+        "fork": 2,
+        "managed_runner_start_ms": 90.6,
+        "buildkit_cached_rebuild_s": 3.023,
+        "buildkit_cached_steps": 6,
+        "health_verdict": "healthy",
+        "host_phys_footprint_mib": 344.81,
+        "clock_sync_count": 1
+      }
+    ]
+  },
+  "health_observability_timeline": {
+    "boot_idle": {
+      "cacheStores": [],
+      "engine": {
+        "boot": "B2099D8F-4DF3-49DC-A814-35F2888B64C2",
+        "buildkitAvailable": true,
+        "cgroupDriver": "cgroupfs",
+        "cpus": 4,
+        "engine": "containerd",
+        "engineVersion": "v2.4.2",
+        "instance": "5CC83077-B291-40C4-891A-6565E72444A3",
+        "memoryBytes": 4246290432,
+        "storageDriver": "overlayfs",
+        "vmm": "hvf",
+        "worker": "B174E5B4-2A2F-4CED-8C5E-B1BAF43B780B"
+      },
+      "hypervisor": {
+        "balloonReclaimedMib": 0,
+        "blkReadBytes": 9379840,
+        "blkReadOps": 438,
+        "blkWriteBytes": 12386304,
+        "blkWriteOps": 486,
+        "clockSyncCount": 1,
+        "fsBytesRead": 60454167,
+        "fsRequests": 684,
+        "guestCtrlConnected": true,
+        "hostPeakFootprintMib": 260.88,
+        "hostPhysFootprintMib": 260.88,
+        "ipaGranule": "16KiB",
+        "lastClockSyncUnixSecs": 1795647119,
+        "memoryMib": 4096,
+        "mmioExits": 50266,
+        "netRxBytes": 4572076,
+        "netRxPackets": 3083,
+        "netTxBytes": 12135,
+        "netTxPackets": 143,
+        "numVcpus": 4,
+        "pid": 34039,
+        "publishedBinds": 0,
+        "publishedConns": 0,
+        "sampledUnixSecs": 1795647121,
+        "state": "running",
+        "tracingEnabled": false,
+        "uptimeMs": 1355.4,
+        "vcpusOnline": 4,
+        "wfiExits": 0
+      },
+      "kernel": {
+        "availableBytes": 4093558784,
+        "cpuPressureSomeUsec": 6474,
+        "ioPressureSomeUsec": 5595,
+        "memoryBytes": 4246290432,
+        "memoryPressureSomeUsec": 0,
+        "memoryUsedPct": 3.6,
+        "oomKills": 0,
+        "uptimeSeconds": 1.28
+      },
+      "nativeOCI": {
+        "activeSessions": 0,
+        "draining": false,
+        "openedSessions": 0,
+        "pid": 249,
+        "prepareHits": 0,
+        "prepareLoads": 0,
+        "sessionsByScope": {}
+      },
+      "runtimeEngine": {
+        "containersCreated": 0,
+        "createMsTotal": 0,
+        "imageCacheHits": 0,
+        "network": {
+          "bridge": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "dnsForwarded": 0,
+          "dnsLocalAnswers": 0,
+          "dnsNameMisses": 0,
+          "dnsOverloadDrops": 0,
+          "dnsUpstreamFailures": 0,
+          "ipvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlanQuarantinedPorts": 0,
+          "publishedLink": {
+            "rxBytes": 0,
+            "rxDropped": 0,
+            "rxErrors": 0,
+            "txBytes": 356,
+            "txDropped": 0,
+            "txErrors": 0
+          },
+          "publishedTcp": {
+            "kernelLeases": 0,
+            "macvlanLeases": 0,
+            "relayLeases": 0,
+            "rootlessLeases": 0
+          }
+        },
+        "podMsTotal": 0,
+        "preparedPodsUsed": 0,
+        "runsFinished": 0,
+        "runtimeFailures": 0,
+        "setupSlotsInUse": 0,
+        "setupWaitUsecTotal": 0,
+        "sharedCacheAttachments": 0,
+        "startMsTotal": 0,
+        "startParallelismLimit": 0
+      },
+      "storage": {
+        "availableBytes": 33781137408,
+        "totalBytes": 33818648576,
+        "usedBytes": 20733952
+      },
+      "timestamp": "2026-11-25T22:52:01Z",
+      "verdict": "healthy",
+      "warnings": [],
+      "workloads": {
+        "items": [],
+        "runningCount": 0,
+        "totalCount": 0
+      }
+    },
+    "compose_active": {
+      "cacheStores": [
+        {
+          "activeContainers": 0,
+          "scope": "scope-alpha",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-alpha-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-beta",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-beta-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-py",
+          "store": "pycache",
+          "volume": "micropod-ci-scoped-scope-py-pycache"
+        }
+      ],
+      "engine": {
+        "boot": "B2099D8F-4DF3-49DC-A814-35F2888B64C2",
+        "buildkitAvailable": true,
+        "cgroupDriver": "cgroupfs",
+        "cpus": 4,
+        "engine": "containerd",
+        "engineVersion": "v2.4.2",
+        "instance": "5CC83077-B291-40C4-891A-6565E72444A3",
+        "memoryBytes": 4246290432,
+        "storageDriver": "overlayfs",
+        "vmm": "hvf",
+        "worker": "B174E5B4-2A2F-4CED-8C5E-B1BAF43B780B"
+      },
+      "hypervisor": {
+        "balloonReclaimedMib": 3616,
+        "blkReadBytes": 21413888,
+        "blkReadOps": 1176,
+        "blkWriteBytes": 2071724032,
+        "blkWriteOps": 60135,
+        "clockSyncCount": 1,
+        "fsBytesRead": 137093320,
+        "fsRequests": 2745,
+        "guestCtrlConnected": true,
+        "hostPeakFootprintMib": 2351.29,
+        "hostPhysFootprintMib": 2351.29,
+        "ipaGranule": "16KiB",
+        "lastClockSyncUnixSecs": 1795647119,
+        "memoryMib": 4096,
+        "mmioExits": 411226,
+        "netRxBytes": 85403667,
+        "netRxPackets": 57194,
+        "netTxBytes": 164433,
+        "netTxPackets": 1780,
+        "numVcpus": 4,
+        "pid": 34039,
+        "publishedBinds": 1,
+        "publishedConns": 1,
+        "sampledUnixSecs": 1795647146,
+        "state": "running",
+        "tracingEnabled": false,
+        "uptimeMs": 26759.2,
+        "vcpusOnline": 4,
+        "wfiExits": 0
+      },
+      "kernel": {
+        "availableBytes": 3835183104,
+        "cpuPressureSomeUsec": 868884,
+        "ioPressureSomeUsec": 310897,
+        "memoryBytes": 4246290432,
+        "memoryPressureSomeUsec": 0,
+        "memoryUsedPct": 9.7,
+        "oomKills": 0,
+        "uptimeSeconds": 26.69
+      },
+      "nativeOCI": {
+        "activeSessions": 0,
+        "draining": false,
+        "openedSessions": 2,
+        "pid": 249,
+        "prepareHits": 0,
+        "prepareLoads": 0,
+        "sessionsByScope": {}
+      },
+      "runtimeEngine": {
+        "containersCreated": 11,
+        "createMsTotal": 35,
+        "imageCacheHits": 9,
+        "network": {
+          "bridge": {
+            "attachAttempts": 2,
+            "attachErrors": 0,
+            "attachUsecTotal": 2121
+          },
+          "dnsForwarded": 0,
+          "dnsLocalAnswers": 2,
+          "dnsNameMisses": 0,
+          "dnsOverloadDrops": 0,
+          "dnsUpstreamFailures": 0,
+          "ipvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlanQuarantinedPorts": 0,
+          "publishedLink": {
+            "rxBytes": 403,
+            "rxDropped": 0,
+            "rxErrors": 0,
+            "txBytes": 1264,
+            "txDropped": 0,
+            "txErrors": 0
+          },
+          "publishedTcp": {
+            "kernelLeases": 0,
+            "macvlanLeases": 1,
+            "relayLeases": 0,
+            "rootlessLeases": 0
+          }
+        },
+        "podMsTotal": 86,
+        "preparedPodsUsed": 2,
+        "runsFinished": 9,
+        "runtimeFailures": 0,
+        "setupSlotsInUse": 0,
+        "setupWaitUsecTotal": 0,
+        "sharedCacheAttachments": 3,
+        "startMsTotal": 47,
+        "startParallelismLimit": 0
+      },
+      "storage": {
+        "availableBytes": 32190881792,
+        "totalBytes": 33818648576,
+        "usedBytes": 1610989568
+      },
+      "timestamp": "2026-11-25T22:52:26Z",
+      "verdict": "healthy",
+      "warnings": [],
+      "workloads": {
+        "items": [
+          {
+            "cpuKernelNs": 6575000,
+            "cpuThrottledNs": 0,
+            "cpuThrottledPeriods": 0,
+            "cpuUsageNs": 36162000,
+            "cpuUserNs": 29587000,
+            "id": "bd754c6a7b19",
+            "image": "node:24-alpine",
+            "memoryLimitBytes": 1073741824,
+            "memoryOomKills": 0,
+            "memoryPeakBytes": 21250048,
+            "memoryUsageBytes": 20152320,
+            "memoryWorkingSetBytes": 20135936,
+            "name": "repo-compose-pg-api-1",
+            "netRxBytes": 1123,
+            "netTxBytes": 1492,
+            "pids": 11,
+            "pidsLimit": 512,
+            "ports": [
+              "127.0.0.1:58075->8080/tcp"
+            ],
+            "psiCpuSomeUsec": 679,
+            "psiIoSomeUsec": 14,
+            "psiMemorySomeUsec": 0,
+            "state": "running",
+            "status": "running"
+          },
+          {
+            "cpuKernelNs": 91044000,
+            "cpuThrottledNs": 4037000,
+            "cpuThrottledPeriods": 1,
+            "cpuUsageNs": 273133000,
+            "cpuUserNs": 182088000,
+            "id": "b5c75f8be20a",
+            "image": "postgres:16-alpine",
+            "memoryLimitBytes": 1073741824,
+            "memoryOomKills": 0,
+            "memoryPeakBytes": 93863936,
+            "memoryUsageBytes": 78397440,
+            "memoryWorkingSetBytes": 32931840,
+            "name": "repo-compose-pg-db-1",
+            "netRxBytes": 1682,
+            "netTxBytes": 856,
+            "pids": 6,
+            "pidsLimit": 512,
+            "ports": [
+              "5432/tcp"
+            ],
+            "psiCpuSomeUsec": 2610,
+            "psiIoSomeUsec": 6819,
+            "psiMemorySomeUsec": 0,
+            "state": "running",
+            "status": "running"
+          }
+        ],
+        "runningCount": 2,
+        "totalCount": 2
+      }
+    },
+    "after_compose_down": {
+      "cacheStores": [
+        {
+          "activeContainers": 0,
+          "scope": "scope-alpha",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-alpha-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-beta",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-beta-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-py",
+          "store": "pycache",
+          "volume": "micropod-ci-scoped-scope-py-pycache"
+        }
+      ],
+      "engine": {
+        "boot": "B2099D8F-4DF3-49DC-A814-35F2888B64C2",
+        "buildkitAvailable": true,
+        "cgroupDriver": "cgroupfs",
+        "cpus": 4,
+        "engine": "containerd",
+        "engineVersion": "v2.4.2",
+        "instance": "5CC83077-B291-40C4-891A-6565E72444A3",
+        "memoryBytes": 4246290432,
+        "storageDriver": "overlayfs",
+        "vmm": "hvf",
+        "worker": "B174E5B4-2A2F-4CED-8C5E-B1BAF43B780B"
+      },
+      "hypervisor": {
+        "balloonReclaimedMib": 3616,
+        "blkReadBytes": 21463040,
+        "blkReadOps": 1179,
+        "blkWriteBytes": 2077392896,
+        "blkWriteOps": 61149,
+        "clockSyncCount": 1,
+        "fsBytesRead": 137093320,
+        "fsRequests": 2783,
+        "guestCtrlConnected": true,
+        "hostPeakFootprintMib": 2351.35,
+        "hostPhysFootprintMib": 2351.3,
+        "ipaGranule": "16KiB",
+        "lastClockSyncUnixSecs": 1795647119,
+        "memoryMib": 4096,
+        "mmioExits": 429136,
+        "netRxBytes": 85403709,
+        "netRxPackets": 57195,
+        "netTxBytes": 164615,
+        "netTxPackets": 1783,
+        "numVcpus": 4,
+        "pid": 34039,
+        "publishedBinds": 1,
+        "publishedConns": 1,
+        "sampledUnixSecs": 1795647156,
+        "state": "running",
+        "tracingEnabled": false,
+        "uptimeMs": 37067.5,
+        "vcpusOnline": 4,
+        "wfiExits": 0
+      },
+      "kernel": {
+        "availableBytes": 3978838016,
+        "cpuPressureSomeUsec": 887009,
+        "ioPressureSomeUsec": 315145,
+        "memoryBytes": 4246290432,
+        "memoryPressureSomeUsec": 0,
+        "memoryUsedPct": 6.3,
+        "oomKills": 0,
+        "uptimeSeconds": 37.01
+      },
+      "nativeOCI": {
+        "activeSessions": 0,
+        "draining": false,
+        "openedSessions": 2,
+        "pid": 249,
+        "prepareHits": 0,
+        "prepareLoads": 0,
+        "sessionsByScope": {}
+      },
+      "runtimeEngine": {
+        "containersCreated": 11,
+        "createMsTotal": 43,
+        "imageCacheHits": 11,
+        "network": {
+          "bridge": {
+            "attachAttempts": 2,
+            "attachErrors": 0,
+            "attachUsecTotal": 2121
+          },
+          "dnsForwarded": 0,
+          "dnsLocalAnswers": 2,
+          "dnsNameMisses": 0,
+          "dnsOverloadDrops": 0,
+          "dnsUpstreamFailures": 0,
+          "ipvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlanQuarantinedPorts": 0,
+          "publishedLink": {
+            "rxBytes": 445,
+            "rxDropped": 0,
+            "rxErrors": 0,
+            "txBytes": 1376,
+            "txDropped": 0,
+            "txErrors": 0
+          },
+          "publishedTcp": {
+            "kernelLeases": 0,
+            "macvlanLeases": 1,
+            "relayLeases": 0,
+            "rootlessLeases": 0
+          }
+        },
+        "podMsTotal": 109,
+        "preparedPodsUsed": 2,
+        "runsFinished": 11,
+        "runtimeFailures": 0,
+        "setupSlotsInUse": 0,
+        "setupWaitUsecTotal": 0,
+        "sharedCacheAttachments": 3,
+        "startMsTotal": 57,
+        "startParallelismLimit": 0
+      },
+      "storage": {
+        "availableBytes": 32239398912,
+        "totalBytes": 33818648576,
+        "usedBytes": 1562472448
+      },
+      "timestamp": "2026-11-25T22:52:36Z",
+      "verdict": "healthy",
+      "warnings": [],
+      "workloads": {
+        "items": [],
+        "runningCount": 0,
+        "totalCount": 0
+      }
+    },
+    "after_oom_fault": {
+      "cacheStores": [
+        {
+          "activeContainers": 0,
+          "scope": "scope-alpha",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-alpha-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-beta",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-beta-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-py",
+          "store": "pycache",
+          "volume": "micropod-ci-scoped-scope-py-pycache"
+        }
+      ],
+      "engine": {
+        "boot": "B2099D8F-4DF3-49DC-A814-35F2888B64C2",
+        "buildkitAvailable": true,
+        "cgroupDriver": "cgroupfs",
+        "cpus": 4,
+        "engine": "containerd",
+        "engineVersion": "v2.4.2",
+        "instance": "5CC83077-B291-40C4-891A-6565E72444A3",
+        "memoryBytes": 4246290432,
+        "storageDriver": "overlayfs",
+        "vmm": "hvf",
+        "worker": "B174E5B4-2A2F-4CED-8C5E-B1BAF43B780B"
+      },
+      "hypervisor": {
+        "balloonReclaimedMib": 3616,
+        "blkReadBytes": 21463040,
+        "blkReadOps": 1179,
+        "blkWriteBytes": 2081734656,
+        "blkWriteOps": 61670,
+        "clockSyncCount": 1,
+        "fsBytesRead": 137093320,
+        "fsRequests": 2794,
+        "guestCtrlConnected": true,
+        "hostPeakFootprintMib": 2351.35,
+        "hostPhysFootprintMib": 2351.3,
+        "ipaGranule": "16KiB",
+        "lastClockSyncUnixSecs": 1795647119,
+        "memoryMib": 4096,
+        "mmioExits": 441616,
+        "netRxBytes": 85403709,
+        "netRxPackets": 57195,
+        "netTxBytes": 164615,
+        "netTxPackets": 1783,
+        "numVcpus": 4,
+        "pid": 34039,
+        "publishedBinds": 1,
+        "publishedConns": 1,
+        "sampledUnixSecs": 1795647157,
+        "state": "running",
+        "tracingEnabled": false,
+        "uptimeMs": 37203.8,
+        "vcpusOnline": 4,
+        "wfiExits": 0
+      },
+      "kernel": {
+        "availableBytes": 3948527616,
+        "cpuPressureSomeUsec": 891933,
+        "ioPressureSomeUsec": 317302,
+        "memoryBytes": 4246290432,
+        "memoryPressureSomeUsec": 21,
+        "memoryUsedPct": 7,
+        "oomKills": 1,
+        "uptimeSeconds": 37.14
+      },
+      "nativeOCI": {
+        "activeSessions": 0,
+        "draining": false,
+        "openedSessions": 2,
+        "pid": 249,
+        "prepareHits": 0,
+        "prepareLoads": 0,
+        "sessionsByScope": {}
+      },
+      "runtimeEngine": {
+        "containersCreated": 12,
+        "createMsTotal": 47,
+        "imageCacheHits": 12,
+        "network": {
+          "bridge": {
+            "attachAttempts": 2,
+            "attachErrors": 0,
+            "attachUsecTotal": 2121
+          },
+          "dnsForwarded": 0,
+          "dnsLocalAnswers": 2,
+          "dnsNameMisses": 0,
+          "dnsOverloadDrops": 0,
+          "dnsUpstreamFailures": 0,
+          "ipvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlanQuarantinedPorts": 0,
+          "publishedLink": {
+            "rxBytes": 445,
+            "rxDropped": 0,
+            "rxErrors": 0,
+            "txBytes": 1376,
+            "txDropped": 0,
+            "txErrors": 0
+          },
+          "publishedTcp": {
+            "kernelLeases": 0,
+            "macvlanLeases": 1,
+            "relayLeases": 0,
+            "rootlessLeases": 0
+          }
+        },
+        "podMsTotal": 121,
+        "preparedPodsUsed": 2,
+        "runsFinished": 12,
+        "runtimeFailures": 0,
+        "setupSlotsInUse": 0,
+        "setupWaitUsecTotal": 0,
+        "sharedCacheAttachments": 3,
+        "startMsTotal": 62,
+        "startParallelismLimit": 0
+      },
+      "storage": {
+        "availableBytes": 32239345664,
+        "totalBytes": 33818648576,
+        "usedBytes": 1562525696
+      },
+      "timestamp": "2026-11-25T22:52:37Z",
+      "verdict": "degraded",
+      "warnings": [
+        "Guest kernel recorded 1 OOM kill(s) since boot"
+      ],
+      "workloads": {
+        "items": [],
+        "runningCount": 0,
+        "totalCount": 0
+      }
+    },
+    "post_reboot": {
+      "cacheStores": [
+        {
+          "activeContainers": 0,
+          "scope": "scope-alpha",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-alpha-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-beta",
+          "store": "npm",
+          "volume": "micropod-ci-scoped-scope-beta-npm"
+        },
+        {
+          "activeContainers": 0,
+          "scope": "scope-py",
+          "store": "pycache",
+          "volume": "micropod-ci-scoped-scope-py-pycache"
+        }
+      ],
+      "engine": {
+        "boot": "4EF45EC0-CA4A-47D4-AD3D-931DC4AE8BA8",
+        "buildkitAvailable": true,
+        "cgroupDriver": "cgroupfs",
+        "cpus": 4,
+        "engine": "containerd",
+        "engineVersion": "v2.4.2",
+        "instance": "FC13792C-4974-460F-A371-38805AD8A1C9",
+        "memoryBytes": 4246290432,
+        "storageDriver": "overlayfs",
+        "vmm": "hvf",
+        "worker": "B174E5B4-2A2F-4CED-8C5E-B1BAF43B780B"
+      },
+      "hypervisor": {
+        "balloonReclaimedMib": 0,
+        "blkReadBytes": 15437824,
+        "blkReadOps": 2037,
+        "blkWriteBytes": 143360,
+        "blkWriteOps": 32,
+        "clockSyncCount": 1,
+        "fsBytesRead": 60405015,
+        "fsRequests": 682,
+        "guestCtrlConnected": true,
+        "hostPeakFootprintMib": 247.84,
+        "hostPhysFootprintMib": 247.84,
+        "ipaGranule": "16KiB",
+        "lastClockSyncUnixSecs": 1795647157,
+        "memoryMib": 4096,
+        "mmioExits": 44855,
+        "netRxBytes": 0,
+        "netRxPackets": 0,
+        "netTxBytes": 90,
+        "netTxPackets": 1,
+        "numVcpus": 4,
+        "pid": 34935,
+        "publishedBinds": 0,
+        "publishedConns": 0,
+        "sampledUnixSecs": 1795647157,
+        "state": "running",
+        "tracingEnabled": true,
+        "uptimeMs": 464.7,
+        "vcpusOnline": 4,
+        "wfiExits": 0
+      },
+      "kernel": {
+        "availableBytes": 4099080192,
+        "cpuPressureSomeUsec": 7428,
+        "ioPressureSomeUsec": 6698,
+        "memoryBytes": 4246290432,
+        "memoryPressureSomeUsec": 0,
+        "memoryUsedPct": 3.5,
+        "oomKills": 0,
+        "uptimeSeconds": 0.4
+      },
+      "nativeOCI": {
+        "activeSessions": 0,
+        "draining": false,
+        "openedSessions": 0,
+        "pid": 242,
+        "prepareHits": 0,
+        "prepareLoads": 0,
+        "sessionsByScope": {}
+      },
+      "runtimeEngine": {
+        "containersCreated": 0,
+        "createMsTotal": 0,
+        "imageCacheHits": 0,
+        "network": {
+          "bridge": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "dnsForwarded": 0,
+          "dnsLocalAnswers": 0,
+          "dnsNameMisses": 0,
+          "dnsOverloadDrops": 0,
+          "dnsUpstreamFailures": 0,
+          "ipvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlan": {
+            "attachAttempts": 0,
+            "attachErrors": 0,
+            "attachUsecTotal": 0
+          },
+          "macvlanQuarantinedPorts": 0,
+          "publishedLink": {
+            "rxBytes": 0,
+            "rxDropped": 0,
+            "rxErrors": 0,
+            "txBytes": 90,
+            "txDropped": 0,
+            "txErrors": 0
+          },
+          "publishedTcp": {
+            "kernelLeases": 0,
+            "macvlanLeases": 0,
+            "relayLeases": 0,
+            "rootlessLeases": 0
+          }
+        },
+        "podMsTotal": 0,
+        "preparedPodsUsed": 0,
+        "runsFinished": 0,
+        "runtimeFailures": 0,
+        "setupSlotsInUse": 0,
+        "setupWaitUsecTotal": 0,
+        "sharedCacheAttachments": 0,
+        "startMsTotal": 0,
+        "startParallelismLimit": 0
+      },
+      "storage": {
+        "availableBytes": 32239476736,
+        "totalBytes": 33818648576,
+        "usedBytes": 1562394624
+      },
+      "timestamp": "2026-11-25T22:52:37Z",
+      "verdict": "healthy",
+      "warnings": [],
+      "workloads": {
+        "items": [],
+        "runningCount": 0,
+        "totalCount": 0
+      }
+    }
+  }
+}
