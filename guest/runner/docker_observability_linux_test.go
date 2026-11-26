@@ -23,6 +23,11 @@ func TestNormalizeDockerRoute(t *testing.T) {
 		"/v1.47/exec/exec123/start":             "/exec/{id}/start",
 		"/_ping":                                "/_ping",
 		"/v1.47/micropod/metrics":               "/micropod/metrics",
+		"/v1.47/micropod/containers/summary":    "/micropod/containers/summary",
+		"/micropod/caches/prune":                "/micropod/caches/prune",
+		"/micropod/caches/":                     "/micropod/caches",
+		"/micropod/containers/abc123":           "/micropod/other",
+		"/micropod/made-up":                     "/micropod/other",
 	}
 	for in, want := range cases {
 		if got := normalizeDockerRoute(in); got != want {
@@ -88,6 +93,67 @@ func TestAPIMetricsCapturesIssuesAndTracesWithoutPollingNoise(t *testing.T) {
 	_ = json.Unmarshal(raw2, &parsed)
 	if len(parsed.ResourceSpans[0].ScopeSpans[0].Spans) != 0 {
 		t.Fatalf("expected 0 spans after clearTraces")
+	}
+}
+
+// The batched container listing the host's list uses
+// (/micropod/containers/summary) is one counted request, so one listing is
+// one guest request on the guest's own counter (B24). Reading that counter
+// (/micropod/metrics, the traces) does not change it, and made-up /micropod
+// paths share one route key.
+func TestAPIMetricsCountTheBatchedListingButNotTheirOwnReads(t *testing.T) {
+	s := &dockerEngine{}
+	serve := func(method, target string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, httptest.NewRequest(method, target, nil))
+		return rec
+	}
+	type apiSnap struct {
+		RequestsTotal uint64                `json:"requests_total"`
+		Routes        map[string]routeStats `json:"routes"`
+	}
+	read := func() apiSnap {
+		t.Helper()
+		rec := serve("GET", "/v1.47/micropod/metrics")
+		var v struct{ API apiSnap }
+		if err := json.Unmarshal(rec.Body.Bytes(), &v); rec.Code != 200 || err != nil {
+			t.Fatalf("metrics: %d %s %v", rec.Code, rec.Body, err)
+		}
+		return v.API
+	}
+	before := read()
+	if rec := serve("GET", "/v1.47/micropod/containers/summary"); rec.Code != 200 {
+		t.Fatalf("summary: %d %s", rec.Code, rec.Body)
+	}
+	after := read()
+	if got := after.RequestsTotal - before.RequestsTotal; got != 1 {
+		t.Fatalf("one listing counted as %d requests: %+v", got, after)
+	}
+	if got := after.Routes["GET /micropod/containers/summary"].Count; got != 1 {
+		t.Fatalf("summary route count %d: %v", got, after.Routes)
+	}
+	serve("GET", "/micropod/traces")
+	serve("POST", "/micropod/traces/clear")
+	if again := read(); again.RequestsTotal != after.RequestsTotal {
+		t.Fatalf("reading the metrics and traces counted: %d then %d", after.RequestsTotal, again.RequestsTotal)
+	}
+	for _, target := range []string{"/micropod/x1", "/v1.47/micropod/x2/y", "/micropod"} {
+		serve("GET", target)
+	}
+	last := read()
+	if got := last.RequestsTotal - after.RequestsTotal; got != 3 {
+		t.Fatalf("made-up /micropod paths counted as %d requests", got)
+	}
+	for route := range last.Routes {
+		switch route {
+		case "GET /micropod/containers/summary", "GET /micropod/other":
+		default:
+			t.Fatalf("route key %q (keys %v)", route, last.Routes)
+		}
+	}
+	if got := last.Routes["GET /micropod/other"].Count; got != 3 {
+		t.Fatalf("made-up paths under %d keys: %v", got, last.Routes)
 	}
 }
 
