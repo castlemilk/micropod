@@ -163,7 +163,18 @@ final class HVFPayloadUpdateTests: XCTestCase {
         do {
             try await HVFMachineInstaller.install(HVFInstallRequest(kernel: newKernel), layout: layout) { _ in }
             XCTFail("machine install wrote into a versioned payload")
-        } catch {}
+        } catch {
+            // Refused up front, naming the way that does work.
+            XCTAssertTrue(error.localizedDescription.contains("update hvf stage"), error.localizedDescription)
+        }
+        // And never alongside a payload transaction.
+        held.append(try XCTUnwrap(try HVFFileLock.acquire(layout.updateLock, wait: .zero)))
+        do {
+            try await HVFMachineInstaller.install(HVFInstallRequest(cpus: 2), layout: layout) { _ in }
+            XCTFail("machine install ran during a payload update")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("payload update"), error.localizedDescription)
+        }
         XCTAssertEqual(try String(contentsOf: layout.kernel, encoding: .utf8), "kernel-v1", "nothing changed")
         try HVFPayloadStore.verify(payloadDirectory: dir(legacy))
     }
@@ -315,7 +326,12 @@ final class HVFPayloadUpdateTests: XCTestCase {
         XCTAssertEqual(result.action, .rolledBack, result.detail)
         XCTAssertEqual(current, legacy)
         XCTAssertEqual(knownGood, legacy)
-        XCTAssertNil(staged, "a payload that failed is not pending")
+        // It stays staged with why it failed: the release that staged it is
+        // still ahead of what runs, and a transient failure can be retried.
+        XCTAssertEqual(staged, v2)
+        let status = HVFPayloadStore.status(layout: layout)
+        XCTAssertTrue(status.updatePending)
+        XCTAssertTrue(status.lastActivationFailure?.contains("VMM error") ?? false, "\(status)")
         XCTAssertTrue(machine.isRunning())
         XCTAssertEqual(machine.loadedPayloadPath(), canonical(legacy))
         XCTAssertEqual(machine.boots, [v2, legacy])
@@ -603,6 +619,137 @@ final class HVFPayloadUpdateTests: XCTestCase {
         }
     }
 
+    // MARK: Stores the updater before known-good wrote
+
+    /// Its `stage` moved `current` straight to the new payload, kept the old
+    /// one at `previous`, recorded no staged or known-good payload, and left
+    /// the version directories writable.
+    private func oldUpdaterStore() throws -> (ran: String, pending: String) {
+        let ran = try stage("w1")
+        let pending = try stage("x2")
+        unlink(layout.stagedLink.path)
+        try HVFPayloadStore.atomicSymlink(destination: "versions/\(pending)", at: layout.currentLink)
+        try HVFPayloadStore.atomicSymlink(destination: "versions/\(ran)", at: layout.previousLink)
+        HVFPayloadStore.setReadOnly(dir(ran), false)
+        HVFPayloadStore.setReadOnly(dir(pending), false)
+        XCTAssertNil(knownGood)
+        return (ran, pending)
+    }
+
+    func testAPayloadTheOldUpdaterLeftPendingIsAppliedThroughTheProbe() async throws {
+        let (ran, pending) = try oldUpdaterStore()
+        try publishRunning(dir(ran))
+        let machine = FakeUpdateMachine(layout: layout, runningOn: dir(ran))
+        let probe = FakeProbe(machine: machine)
+        XCTAssertTrue(HVFPayloadStore.status(layout: layout).updatePending, "status points at apply")
+        let result = try await HVFPayloadStore.activate(layout: layout, environment: environment(machine, probe: probe))
+        XCTAssertEqual(result.action, .activated, result.detail)
+        XCTAssertEqual(machine.boots, [pending])
+        XCTAssertEqual(probe.probed, [pending])
+        XCTAssertEqual(current, pending)
+        XCTAssertEqual(knownGood, pending)
+        var info = stat()
+        for id in [ran, pending] {
+            XCTAssertEqual(stat(dir(id).path, &info), 0)
+            XCTAssertEqual(info.st_mode & 0o222, 0, "\(id) is read-only once migrated")
+        }
+    }
+
+    func testRollbackOnAnOldStoreReturnsToWhatRanAndKeepsThePendingPayloadStaged() async throws {
+        let (ran, pending) = try oldUpdaterStore()
+        try publishRunning(dir(ran))
+        let machine = FakeUpdateMachine(layout: layout, runningOn: dir(ran))
+        let result = try await HVFPayloadStore.rollback(layout: layout, environment: environment(machine))
+        XCTAssertEqual(result.action, .noop, "the machine already runs what is now known-good: \(result.detail)")
+        XCTAssertEqual(machine.stops, 0)
+        XCTAssertEqual(current, ran)
+        XCTAssertEqual(knownGood, ran)
+        XCTAssertEqual(staged, pending)
+    }
+
+    func testAStoppedOldStoreBootsWhatLastRanNotTheUnverifiedPayload() throws {
+        let (ran, pending) = try oldUpdaterStore()
+        try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
+        try HVFMachineState(
+            phase: .stopped, supervisorPID: 1, loadedPayloadPath: HVFMachineLayout.canonicalPath(dir(ran).path)
+        ).save(to: layout.state)
+        XCTAssertEqual(layout.resolvePayload().id, pending, "before: a start would boot the unverified payload")
+        HVFPayloadStore.migrateLegacyStoreBeforeBoot(layout: layout)
+        XCTAssertEqual(layout.resolvePayload().id, ran)
+        XCTAssertEqual(knownGood, ran)
+        XCTAssertEqual(staged, pending)
+        XCTAssertTrue(HVFPayloadStore.status(layout: layout).updatePending)
+    }
+
+    func testAnOldStoreWithNoRecordFallsBackToPreviousAndOneThatRunsCurrentKeepsIt() throws {
+        let (ran, pending) = try oldUpdaterStore()
+        try HVFPayloadStore.pruneVersions(layout: layout, keep: 5)
+        XCTAssertEqual(current, ran, "nothing recorded what ran: previous")
+        XCTAssertEqual(staged, pending)
+        try HVFPayloadStore.removeTree(root)
+
+        let (_, runs) = try oldUpdaterStore()
+        try publishRunning(dir(runs))
+        try HVFPayloadStore.pruneVersions(layout: layout, keep: 5)
+        XCTAssertEqual(current, runs)
+        XCTAssertEqual(knownGood, runs, "what the rig serves with")
+        XCTAssertNil(staged)
+    }
+
+    // MARK: Leaving the machine as it was found
+
+    func testAMachineSomeoneStartsUsingDuringTheProbeBootIsLeftRunning() async throws {
+        try installFlat("v1")
+        let machine = FakeUpdateMachine(layout: layout)
+        let v2 = try stage("v2")
+        // Stopped at the start, so the first drain check is the one before stopping it again.
+        let busy = FakeDrain([.success(HVFWorkloads(containers: 1))])
+        let result = try await HVFPayloadStore.activate(layout: layout, environment: environment(machine, drain: busy))
+        XCTAssertEqual(result.action, .activated, result.detail)
+        XCTAssertTrue(result.detail.contains("left running"), result.detail)
+        XCTAssertTrue(machine.isRunning())
+        XCTAssertEqual(machine.stops, 0)
+        XCTAssertEqual(current, v2)
+    }
+
+    func testAMachineThatCameUpOnTheFallbackIsProbedNotRestarted() async throws {
+        try installFlat("v1")
+        let machine = FakeUpdateMachine(layout: layout, runningOn: root)
+        machine.ignoresTrial = true  // a supervisor that started before `trial` existed
+        let v2 = try stage("v2")
+        let legacy = try XCTUnwrap(current)
+        let probe = FakeProbe(machine: machine)
+        let result = try await HVFPayloadStore.activate(layout: layout, environment: environment(machine, probe: probe))
+        XCTAssertEqual(result.action, .rolledBack, result.detail)
+        XCTAssertTrue(result.detail.contains("not "), result.detail)
+        XCTAssertEqual(machine.boots, [legacy], "one boot, onto the fallback; no second restart")
+        XCTAssertEqual(machine.stops, 1)
+        XCTAssertEqual(probe.probed, [legacy])
+        XCTAssertEqual(staged, v2)
+    }
+
+    func testRollbackPreviousGoesBackPastKnownGoodThroughTheProbe() async throws {
+        try installFlat("v1")
+        let machine = FakeUpdateMachine(layout: layout, runningOn: root)
+        let probe = FakeProbe(machine: machine)
+        let v2 = try stage("v2")
+        let legacy = try XCTUnwrap(current)
+        _ = try await HVFPayloadStore.activate(layout: layout, environment: environment(machine, probe: probe))
+        XCTAssertEqual(knownGood, v2)
+        let noop = try await HVFPayloadStore.rollback(layout: layout, environment: environment(machine, probe: probe))
+        XCTAssertEqual(noop.action, .noop, "known-good is v2 now")
+
+        let manifest = try HVFPayloadStore.restagePrevious(layout: layout)
+        XCTAssertEqual(manifest.origin, HVFPayloadManifest.flatOrigin)
+        XCTAssertEqual(staged, legacy)
+        let back = try await HVFPayloadStore.activate(layout: layout, environment: environment(machine, probe: probe))
+        XCTAssertEqual(back.action, .activated, back.detail)
+        XCTAssertEqual(current, legacy)
+        XCTAssertEqual(knownGood, legacy)
+        XCTAssertEqual(probe.probed.last, legacy)
+        XCTAssertEqual(HVFPayloadStore.status(layout: layout).previousPath.map(lastComponent), v2)
+    }
+
     // MARK: One transaction at a time; prune
 
     func testStageIsBusyWhileAnotherTransactionHoldsTheLock() throws {
@@ -661,6 +808,7 @@ final class FakeUpdateMachine: HVFUpdateMachine, @unchecked Sendable {
     let stopDelay: Duration
     private let lock = NSLock()
     private var running: String?
+    private var trialIgnored = false
     private var stopCount = 0
     private var startCount = 0
     private var booted: [String] = []
@@ -675,6 +823,12 @@ final class FakeUpdateMachine: HVFUpdateMachine, @unchecked Sendable {
     var failingBoots: Set<String> {
         get { lock.withLock { failing } }
         set { lock.withLock { failing = newValue } }
+    }
+    /// Boots `current` even during an activation, as a supervisor that
+    /// resolved its payload before `trial` existed does.
+    var ignoresTrial: Bool {
+        get { lock.withLock { trialIgnored } }
+        set { lock.withLock { trialIgnored = newValue } }
     }
     var stops: Int { lock.withLock { stopCount } }
     var starts: Int { lock.withLock { startCount } }
@@ -693,7 +847,10 @@ final class FakeUpdateMachine: HVFUpdateMachine, @unchecked Sendable {
     }
 
     func start() async throws {
-        let payload = layout.resolvePayload()
+        var payload = layout.resolvePayload()
+        if ignoresTrial, let current = HVFPayloadStore.resolveVersion(layout.currentLink, in: layout) {
+            payload = HVFMachinePayload(directory: current, isVersioned: true)
+        }
         let fails = lock.withLock { () -> Bool in
             startCount += 1
             booted.append(payload.isVersioned ? payload.id : HVFMachinePayload.flatID)

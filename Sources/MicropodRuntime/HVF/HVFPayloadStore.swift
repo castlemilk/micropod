@@ -121,6 +121,27 @@ public struct HVFPayloadStatus: Codable, Sendable, Equatable {
     /// stopped, a staged payload differs from `current`.
     public var updatePending: Bool
     public var availableVersions: [String]
+    /// Why the last `update hvf apply` of the payload still staged failed;
+    /// nil when it has not failed (or something else is staged now).
+    public var lastActivationFailure: String?
+}
+
+/// The last activation that failed, kept so `status` can say why the
+/// payload is still staged (`<root>/activation-failure.json`).
+struct HVFActivationFailureRecord: Codable, Equatable {
+    var stagedID: String
+    var version: String?
+    var failure: String
+    var at: Date
+
+    static func load(_ layout: HVFMachineLayout) -> HVFActivationFailureRecord? {
+        guard let data = try? Data(contentsOf: layout.activationFailureRecord) else { return nil }
+        return try? HVFPayloadManifest.decoder.decode(Self.self, from: data)
+    }
+
+    func save(_ layout: HVFMachineLayout) throws {
+        try HVFFiles.writeAtomically(try HVFPayloadManifest.encoder.encode(self), to: layout.activationFailureRecord)
+    }
 }
 
 /// Outcome of activating a staged HVF payload, or of a rollback.
@@ -439,6 +460,10 @@ public enum HVFPayloadStore {
             .filter { !$0.hasPrefix(".") }
             .sorted()
 
+        let failure = HVFActivationFailureRecord.load(layout).flatMap { record in
+            record.stagedID == staged?.id ? "\(record.failure) (\(record.at.formatted(.iso8601)))" : nil
+        }
+
         return HVFPayloadStatus(
             currentPath: current?.canonicalPath,
             previousPath: previous?.canonicalPath,
@@ -452,7 +477,8 @@ public enum HVFPayloadStore {
             runningVersion: state?.loadedPayloadVersion,
             runningRevision: state?.loadedPayloadRevision,
             updatePending: updatePending,
-            availableVersions: versions)
+            availableVersions: versions,
+            lastActivationFailure: failure)
     }
 
     // MARK: Stage
@@ -485,6 +511,7 @@ public enum HVFPayloadStore {
         let lock = try transactionLock(layout)
         defer { lock.release() }
 
+        try migrateLegacyStore(layout: layout, loaded: recordedLoadedPath(layout), progress: progress)
         try importFlatInstallIfNeeded(layout: layout, progress: progress)
         progress("staging HVF payload \(sanitizeVersionID(version: version, revision: revision))…")
         let (name, manifest) = try commit(
@@ -512,9 +539,18 @@ public enum HVFPayloadStore {
     /// `known-good` at it. The copies are byte-identical to what a running
     /// flat machine loaded, so nothing that runs changes.
     static func importFlatInstallIfNeeded(layout: HVFMachineLayout, progress: @Sendable (String) -> Void) throws {
-        guard pointed(layout.currentLink, layout) == nil else { return }
+        guard pointed(layout.currentLink, layout) == nil, let imported = try importFlat(layout: layout) else { return }
+        try atomicSymlink(destination: "versions/\(imported.id)", at: layout.currentLink)
+        try atomicSymlink(destination: "versions/\(imported.id)", at: layout.knownGoodLink)
+        progress(
+            "imported the flat install as \(imported.id) (current and known-good), so this update can roll back to it")
+    }
+
+    /// A read-only `versions/legacy-<digest>` copy of a complete flat
+    /// install (the same directory again for the same bytes); nil without one.
+    private static func importFlat(layout: HVFMachineLayout) throws -> HVFMachinePayload? {
         let flat = HVFMachinePayload(directory: layout.root, isVersioned: false)
-        guard flat.hasBootAssets else { return }
+        guard flat.hasBootAssets else { return nil }
         var hasher = SHA256()
         for file in [flat.vmm, flat.kernel, flat.initrd] { hasher.update(data: Data(try sha256File(file).utf8)) }
         let short = String(hasher.finalize().map { String(format: "%02x", $0) }.joined().prefix(12))
@@ -522,9 +558,112 @@ public enum HVFPayloadStore {
         let (name, _) = try commit(
             assets, version: "legacy-flat", revision: short, origin: HVFPayloadManifest.flatOrigin,
             id: "legacy-\(short)", layout: layout, verifySignature: false)
-        try atomicSymlink(destination: "versions/\(name)", at: layout.currentLink)
-        try atomicSymlink(destination: "versions/\(name)", at: layout.knownGoodLink)
-        progress("imported the flat install as \(name) (current and known-good), so this update can roll back to it")
+        return HVFMachinePayload(directory: layout.versionsDirectory.appendingPathComponent(name), isVersioned: true)
+    }
+
+    // MARK: Stores written by the updater before known-good
+
+    /// Brings a store the earlier updater wrote under the current rules.
+    /// That updater's `stage` moved `current` straight to the new payload
+    /// and kept no `staged` or `known-good`, and its version directories are
+    /// writable. Here:
+    ///
+    /// - every version directory is made read-only;
+    /// - a `current` that the machine runs (or, stopped, last ran) becomes
+    ///   known-good: it is what the rig serves with;
+    /// - a `current` that never booted becomes the staged payload, so only a
+    ///   probed `update hvf apply` boots it, and what ran before it (the
+    ///   loaded payload, else `previous`, else the flat install, imported)
+    ///   becomes `current` and known-good.
+    ///
+    /// Does nothing once known-good exists, so it runs once. `loaded` is the
+    /// payload the machine runs, or last ran; nil when that is not known.
+    /// Callers hold `update.lock`.
+    static func migrateLegacyStore(
+        layout: HVFMachineLayout, loaded: String?, progress: @Sendable (String) -> Void = { _ in }
+    ) throws {
+        guard pointed(layout.knownGoodLink, layout) == nil, let current = pointed(layout.currentLink, layout),
+            current.manifest()?.origin != HVFPayloadManifest.flatOrigin
+        else { return }
+        for dir in versionDirectories(layout) { setReadOnly(dir, true) }
+        if let loaded, runs(loaded, current, layout: layout) {
+            try atomicSymlink(destination: "versions/\(current.id)", at: layout.knownGoodLink)
+            progress("recorded \(current.label), which the machine runs, as known-good")
+            return
+        }
+        let loadedPayload = loaded.flatMap { payload(atLoadedPath: $0, layout: layout) }
+        let previous = pointed(layout.previousLink, layout).flatMap { $0 == current ? nil : $0 }
+        guard let fallback = try loadedPayload ?? previous ?? importFlat(layout: layout), fallback != current else {
+            // Nothing else to boot: current stays, with no known-good, until
+            // an activation passes.
+            return
+        }
+        if pointed(layout.stagedLink, layout) == nil {
+            try atomicSymlink(destination: "versions/\(current.id)", at: layout.stagedLink)
+        }
+        try atomicSymlink(destination: "versions/\(fallback.id)", at: layout.currentLink)
+        try atomicSymlink(destination: "versions/\(fallback.id)", at: layout.knownGoodLink)
+        progress(
+            "\(current.label) was staged by an earlier updater and never verified: it is staged again for "
+                + "`micropod update hvf apply`, and \(fallback.label) is current and known-good")
+    }
+
+    /// The version directory, or imported flat install, a machine that
+    /// loaded `path` booted; nil when it no longer exists.
+    private static func payload(atLoadedPath path: String, layout: HVFMachineLayout) -> HVFMachinePayload? {
+        let canonical = HVFMachineLayout.canonicalPath(path)
+        if canonical == HVFMachineLayout.canonicalPath(layout.root.path) { return try? importFlat(layout: layout) }
+        let dir = URL(fileURLWithPath: canonical)
+        guard
+            HVFMachineLayout.canonicalPath(dir.deletingLastPathComponent().path)
+                == HVFMachineLayout.canonicalPath(layout.versionsDirectory.path),
+            HVFPayloadManifest.load(from: dir) != nil
+        else { return nil }
+        return HVFMachinePayload(directory: dir, isVersioned: true)
+    }
+
+    private static func versionDirectories(_ layout: HVFMachineLayout) -> [URL] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: layout.versionsDirectory.path)) ?? [])
+            .filter { !$0.hasPrefix(".") }
+            .map { layout.versionsDirectory.appendingPathComponent($0) }
+    }
+
+    /// What the live supervisor loaded (the flat root for one that predates
+    /// the record), else what the last one recorded; nil when unknown.
+    static func recordedLoadedPath(_ layout: HVFMachineLayout) -> String? {
+        let state = try? HVFMachineState.load(from: layout.state)
+        if HVFFileLock.isHeld(layout.supervisorLock) { return state?.loadedPayloadPath ?? layout.root.path }
+        return state?.loadedPayloadPath
+    }
+
+    /// `migrateLegacyStore` before a supervisor starts, so a payload the
+    /// earlier updater staged never boots unprobed. Skipped while another
+    /// transaction holds `update.lock`: an activation migrated first.
+    public static func migrateLegacyStoreBeforeBoot(layout: HVFMachineLayout) {
+        guard FileManager.default.fileExists(atPath: layout.currentLink.path),
+            !FileManager.default.fileExists(atPath: layout.knownGoodLink.path),
+            let lock = try? HVFFileLock.acquire(layout.updateLock, wait: .zero)
+        else { return }
+        defer { lock.release() }
+        try? migrateLegacyStore(layout: layout, loaded: recordedLoadedPath(layout))
+    }
+
+    /// Points `staged` at `previous`, so `activate` boots, probes and
+    /// commits it like any other payload: the way back to the release
+    /// before the one an activation made known-good.
+    @discardableResult
+    public static func restagePrevious(layout: HVFMachineLayout) throws -> HVFPayloadManifest {
+        let lock = try transactionLock(layout)
+        defer { lock.release() }
+        guard let previous = pointed(layout.previousLink, layout) else {
+            throw MicropodError.message("failedPrecondition: no previous HVF payload under \(layout.root.path)")
+        }
+        guard previous != pointed(layout.currentLink, layout) else {
+            throw MicropodError.message("failedPrecondition: the previous HVF payload \(previous.label) is current")
+        }
+        try verify(payloadDirectory: previous.directory)
+        try atomicSymlink(destination: "versions/\(previous.id)", at: layout.stagedLink)
+        return try loadManifest(previous.directory)
     }
 
     /// Copies `assets` into a fresh directory beside the versions, records
@@ -654,10 +793,12 @@ public enum HVFPayloadStore {
         let lock = try transactionLock(layout)
         defer { lock.release() }
 
-        let current = pointed(layout.currentLink, layout)
-        let knownGood = pointed(layout.knownGoodLink, layout)
         let wasRunning = env.machine.isRunning()
         let loaded = wasRunning ? env.machine.loadedPayloadPath() : nil
+        try migrateLegacyStore(
+            layout: layout, loaded: wasRunning ? loaded : recordedLoadedPath(layout), progress: progress)
+        let current = pointed(layout.currentLink, layout)
+        let knownGood = pointed(layout.knownGoodLink, layout)
         let before = describe(running: loaded, current: current)
         guard let target = pointed(layout.stagedLink, layout) else {
             return HVFActivationResult(
@@ -704,17 +845,22 @@ public enum HVFPayloadStore {
             try point(layout.currentLink, at: target, layout: layout)
             try atomicSymlink(destination: "versions/\(target.id)", at: layout.knownGoodLink)
             unlink(layout.stagedLink.path)
+            unlink(layout.activationFailureRecord.path)
             var detail = "activated \(target.label): booted and passed the health probes"
             detail += switchover.map { " (switchover \($0) ms)" } ?? ""
-            if !wasRunning { detail += await stopAgain(env) }
+            if !wasRunning { detail += await stopAgain(env, force: force) }
             return HVFActivationResult(
                 action: .activated, fromVersion: before, toVersion: target.label, detail: detail,
                 targetVersion: target.label, switchoverMilliseconds: switchover)
         }
 
         progress("\(target.label) failed: \(failure)")
-        // A payload that failed is no longer pending.
-        unlink(layout.stagedLink.path)
+        // It stays staged, with why it failed, so the skew between the
+        // release that staged it and the payload that runs stays visible
+        // (`updatePending`) and a transient failure can be retried.
+        try? HVFActivationFailureRecord(
+            stagedID: target.id, version: target.manifest()?.version, failure: failure, at: Date()
+        ).save(layout)
         guard let fallback = knownGood ?? current else {
             _ = try? await env.machine.stop()
             return HVFActivationResult(
@@ -724,7 +870,16 @@ public enum HVFPayloadStore {
         }
         try point(layout.currentLink, at: fallback, layout: layout)
         progress("rolling back to known-good \(fallback.label)…")
-        if let rollbackFailure = await reboot(env, onto: fallback, layout: layout) {
+        // A machine that came up on the fallback (a supervisor that started
+        // before `trial` existed) needs no second restart, only the probes.
+        let onFallback =
+            env.machine.isRunning()
+            && (env.machine.loadedPayloadPath().map { runs($0, fallback, layout: layout) } ?? false)
+        let rollbackFailure =
+            onFallback
+            ? await bootFailure(env, expected: fallback, layout: layout)
+            : await reboot(env, onto: fallback, layout: layout)
+        if let rollbackFailure {
             return HVFActivationResult(
                 action: .failedRollback, fromVersion: before, toVersion: nil,
                 detail: "\(target.label) failed (\(failure)); the rollback to \(fallback.label) failed too "
@@ -735,8 +890,8 @@ public enum HVFPayloadStore {
         if knownGood == nil { try atomicSymlink(destination: "versions/\(fallback.id)", at: layout.knownGoodLink) }
         var detail =
             "\(target.label) failed (\(failure)); rolled back to known-good \(fallback.label), which passed the "
-        detail += "health probes again"
-        if !wasRunning { detail += await stopAgain(env) }
+        detail += "health probes again; it stays staged (`micropod update hvf status` shows why it failed)"
+        if !wasRunning { detail += await stopAgain(env, force: force) }
         return HVFActivationResult(
             action: .rolledBack, fromVersion: before, toVersion: fallback.label, detail: detail,
             targetVersion: target.label)
@@ -765,14 +920,16 @@ public enum HVFPayloadStore {
         let lock = try transactionLock(layout)
         defer { lock.release() }
 
+        let running = env.machine.isRunning()
+        let loaded = running ? env.machine.loadedPayloadPath() : nil
+        try migrateLegacyStore(
+            layout: layout, loaded: running ? loaded : recordedLoadedPath(layout), progress: progress)
         guard let knownGood = pointed(layout.knownGoodLink, layout) else {
             throw MicropodError.message(
                 "failedPrecondition: no known-good HVF payload under \(layout.root.path) to roll back to")
         }
         try verify(payloadDirectory: knownGood.directory)
         let current = pointed(layout.currentLink, layout)
-        let running = env.machine.isRunning()
-        let loaded = running ? env.machine.loadedPayloadPath() : nil
         let before = describe(running: loaded, current: current)
         let restart = running && !(loaded.map { runs($0, knownGood, layout: layout) } ?? false)
         if current == knownGood, !restart {
@@ -821,6 +978,8 @@ public enum HVFPayloadStore {
         let lock = try transactionLock(layout)
         defer { lock.release() }
 
+        // Before choosing what to keep: a migrated store protects its known-good.
+        try migrateLegacyStore(layout: layout, loaded: recordedLoadedPath(layout))
         let entries = try fm.contentsOfDirectory(atPath: layout.versionsDirectory.path)
         // Under the lock no stage is live, so a stage directory is a leftover.
         for name in entries where name.hasPrefix(".stage-") {
@@ -933,8 +1092,13 @@ public enum HVFPayloadStore {
         return await bootFailure(env, expected: expected, layout: layout)
     }
 
-    /// Leaves a machine an activation booted only for its probes as it found it.
-    private static func stopAgain(_ env: HVFUpdateEnvironment) async -> String {
+    /// Leaves a machine an activation booted only for its probes as it found
+    /// it — unless something started using it meanwhile (a runner that saw
+    /// the Docker socket answer): then it is left running, unless `force`.
+    private static func stopAgain(_ env: HVFUpdateEnvironment, force: Bool) async -> String {
+        if !force, let busy = await busyWorkloads(env, waitingUpTo: .zero, progress: { _ in }) {
+            return "; the machine was stopped before, but is left running: \(busy.reason)"
+        }
         do {
             try await env.machine.stop()
             return "; the machine was stopped and is stopped again"

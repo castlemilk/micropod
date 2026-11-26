@@ -46,7 +46,7 @@ final class SelfUpdateTransactionTests: XCTestCase {
     private func fixture(withHVF: Bool = true) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: install, withIntermediateDirectories: true)
-        for name in ["micropod", "micropod-mcp-bin", "micropod-api-bin"] {
+        for name in ["micropod", "micropod-mcp-bin", "micropod-api-bin", "micropod-docker-shim", "micropod-sharedfs"] {
             try (machO + Data("old \(name)".utf8)).write(to: install.appendingPathComponent(name))
         }
         let macOS = app.appendingPathComponent("Contents/MacOS")
@@ -54,7 +54,7 @@ final class SelfUpdateTransactionTests: XCTestCase {
         try fm.createDirectory(at: macOS, withIntermediateDirectories: true)
         try fm.createDirectory(
             at: resources.appendingPathComponent("micropod-oci-tools/runner"), withIntermediateDirectories: true)
-        var executables = ["micropod-cli", "MicropodMCP", "MicropodAPI"]
+        var executables = ["micropod-cli", "MicropodMCP", "MicropodAPI", "micropod-docker-shim", "micropod-sharedfs"]
         if withHVF {
             executables.append("micropod-vmm")
             try Data("kernel-new".utf8).write(to: resources.appendingPathComponent("vmlinux-hvf"))
@@ -82,7 +82,9 @@ final class SelfUpdateTransactionTests: XCTestCase {
 
     private func installRelease() throws {
         let files = SelfUpdate.installedFiles(cli: install.appendingPathComponent("micropod"))
-        XCTAssertEqual(files.map(\.bundled), ["micropod-cli", "MicropodMCP", "MicropodAPI"])
+        XCTAssertEqual(
+            files.map(\.bundled),
+            ["micropod-cli", "MicropodMCP", "MicropodAPI", "micropod-docker-shim", "micropod-sharedfs"])
         try SelfUpdate.installRelease(
             from: app, version: try XCTUnwrap(ReleaseVersion("9.9.9")), revision: nil, files: files, hvf: hvf,
             checks: checks, progress: { _ in })
@@ -103,6 +105,8 @@ final class SelfUpdateTransactionTests: XCTestCase {
         XCTAssertEqual(try installed("micropod-mcp-bin"), "new MicropodMCP")
         XCTAssertEqual(try installed("micropod-api-bin"), "new MicropodAPI", "the API server updates too")
         XCTAssertEqual(try installed("micropod-api-bin.bak"), "old micropod-api-bin")
+        XCTAssertEqual(try installed("micropod-docker-shim"), "new micropod-docker-shim", "and the Docker shim")
+        XCTAssertEqual(try installed("micropod-sharedfs"), "new micropod-sharedfs")
         XCTAssertEqual(try leftovers(), [])
         let status = HVFPayloadStore.status(layout: hvf)
         XCTAssertEqual(status.staged?.version, "9.9.9")
@@ -111,6 +115,32 @@ final class SelfUpdateTransactionTests: XCTestCase {
         XCTAssertTrue(status.updatePending)
         XCTAssertEqual(
             try String(contentsOf: hvf.kernel, encoding: .utf8), "kernel-old", "nothing boots the release yet")
+    }
+
+    /// A daemon started from a file the update replaced keeps the old
+    /// release in memory: the update names it.
+    func testAProcessStillRunningAReplacedBinaryIsNamed() throws {
+        try fixture()
+        let shim = install.appendingPathComponent("micropod-docker-shim")
+        try FileManager.default.removeItem(at: shim)
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: "/bin/sleep"), to: shim)
+        let process = Process()
+        process.executableURL = shim
+        process.arguments = ["30"]
+        try process.run()
+        defer {
+            process.terminate()
+            process.waitUntilExit()
+        }
+        let messages = UpdateFlagLog()
+        let files = SelfUpdate.installedFiles(cli: install.appendingPathComponent("micropod"))
+        try SelfUpdate.installRelease(
+            from: app, version: try XCTUnwrap(ReleaseVersion("9.9.9")), revision: nil, files: files, hvf: hvf,
+            checks: checks, progress: { messages.append($0) })
+        XCTAssertTrue(
+            messages.lines.contains { $0.contains("restart micropod-docker-shim (pid \(process.processIdentifier))") },
+            "\(messages.lines)")
+        XCTAssertEqual(try installed("micropod-docker-shim"), "new micropod-docker-shim")
     }
 
     func testAReleaseWithoutTheHVFPayloadInstallsNothing() throws {
@@ -170,6 +200,15 @@ final class SelfUpdateTransactionTests: XCTestCase {
         XCTAssertEqual(UpdateCommands.hvfExitCode(.failed), 1)
     }
 
+    /// For `update hvf rollback`, reaching known-good is the success.
+    func testARollbackThatReachedKnownGoodExitsZero() {
+        XCTAssertEqual(UpdateCommands.hvfRollbackExitCode(.rolledBack), 0)
+        XCTAssertEqual(UpdateCommands.hvfRollbackExitCode(.noop), 0)
+        XCTAssertEqual(UpdateCommands.hvfRollbackExitCode(.deferred), 75)
+        XCTAssertEqual(UpdateCommands.hvfRollbackExitCode(.failedRollback), 1)
+        XCTAssertEqual(UpdateCommands.hvfRollbackExitCode(.failed), 1)
+    }
+
     func testTheStatusLineNamesTheStagedVersionWhilePending() {
         let current = HVFPayloadManifest(version: "0.14.0")
         let staged = HVFPayloadManifest(version: "0.15.0")
@@ -181,8 +220,21 @@ final class SelfUpdateTransactionTests: XCTestCase {
         XCTAssertEqual(
             UpdateCommands.hvfStatusLine(status),
             "HVF runtime — running 0.14.0, 0.15.0 staged (update pending: `micropod update hvf apply`)")
+        status.lastActivationFailure = "GET /micropod/caches answered HTTP 500"
+        XCTAssertEqual(
+            UpdateCommands.hvfStatusLine(status),
+            "HVF runtime — running 0.14.0, 0.15.0 staged (update pending: `micropod update hvf apply`; its last "
+                + "apply failed: GET /micropod/caches answered HTTP 500)")
+        status.lastActivationFailure = nil
         status.updatePending = false
         status.staged = nil
         XCTAssertEqual(UpdateCommands.hvfStatusLine(status), "HVF runtime — 0.14.0 (running 0.14.0)")
     }
+}
+
+private final class UpdateFlagLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [String] = []
+    func append(_ line: String) { lock.withLock { stored.append(line) } }
+    var lines: [String] { lock.withLock { stored } }
 }

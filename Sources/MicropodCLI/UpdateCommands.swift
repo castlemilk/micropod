@@ -50,9 +50,11 @@ enum UpdateCommands {
                                        boot the staged payload, probe it and make it current;
                                        returns to known-good on any failure. Deferred
                                        (exit 75) while containers run, unless --force
-          micropod update hvf rollback [--force]
+          micropod update hvf rollback [--force] [--previous]
                                        return to the last known-good HVF payload; deferred
-                                       (exit 75) while containers run, unless --force
+                                       (exit 75) while containers run, unless --force.
+                                       --previous boots, probes and activates the payload
+                                       before the current one, as `apply` would
           micropod update hvf prune [--keep N]
                                        remove old HVF payload versions (never current,
                                        staged, known-good or the running one)
@@ -348,6 +350,7 @@ enum UpdateCommands {
     /// workloads run: EX_TEMPFAIL, so a script can retry once idle.
     static let deferredExitCode: Int32 = 75
 
+    /// `update hvf apply`: a rollback means the staged payload failed.
     static func hvfExitCode(_ action: HVFActivationResult.Action) -> Int32 {
         switch action {
         case .noop, .activated: return ExitCode.ok
@@ -355,6 +358,19 @@ enum UpdateCommands {
         case .rolledBack, .failedRollback, .failed: return ExitCode.failure
         }
     }
+
+    /// `update hvf rollback`: reaching known-good is what it is for.
+    static func hvfRollbackExitCode(_ action: HVFActivationResult.Action) -> Int32 {
+        switch action {
+        case .noop, .rolledBack, .activated: return ExitCode.ok
+        case .deferred: return deferredExitCode
+        case .failedRollback, .failed: return ExitCode.failure
+        }
+    }
+
+    static let transactionNotice =
+        "micropod: finishing the HVF payload transaction first (stopping half way could leave an unverified "
+        + "payload running); exiting when it is done"
 
     static func hvfStatusLine(_ status: HVFPayloadStatus) -> String? {
         guard
@@ -367,7 +383,9 @@ enum UpdateCommands {
         let running = status.runningVersion ?? (status.runningPath != nil ? "flat" : "stopped")
         if status.updatePending {
             let target = status.staged?.version ?? active
-            return "HVF runtime — running \(running), \(target) staged (update pending: `micropod update hvf apply`)"
+            let failed = status.lastActivationFailure.map { "; its last apply failed: \($0)" } ?? ""
+            return
+                "HVF runtime — running \(running), \(target) staged (update pending: `micropod update hvf apply`\(failed))"
         }
         return "HVF runtime — \(active) (\(running == "stopped" ? "stopped" : "running \(running)"))"
     }
@@ -410,6 +428,9 @@ enum UpdateCommands {
                 "Running VM:       \(st.runningVersion ?? (st.runningPath != nil ? "running (legacy flat)" : "stopped"))"
             )
             print("Update pending:   \(st.updatePending ? "yes — run `micropod update hvf apply`" : "no")")
+            if let failure = st.lastActivationFailure {
+                print("Last apply:       failed — \(failure)")
+            }
             if !st.availableVersions.isEmpty {
                 print("Versions on disk: \(st.availableVersions.joined(separator: ", "))")
             }
@@ -452,22 +473,37 @@ enum UpdateCommands {
                 }
                 return seconds
             }
-            let result = try await HVFPayloadStore.activate(
-                layout: layout,
-                force: parsed.has("--force"),
-                drainTimeout: .seconds(drainSeconds ?? 0),
-                progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
+            let (result, signal) = try await withSignalsDeferred(notice: Self.transactionNotice) {
+                try await HVFPayloadStore.activate(
+                    layout: layout,
+                    force: parsed.has("--force"),
+                    drainTimeout: .seconds(drainSeconds ?? 0),
+                    progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
+            }
             try printHVFResult(result, json: json)
-            return hvfExitCode(result.action)
+            return signal.map { 128 + $0 } ?? hvfExitCode(result.action)
 
         case "rollback":
-            let parsed = try parseArgs(rest, boolFlags: ["--force"], valueFlags: [], commandName: "update hvf rollback")
-            let result = try await HVFPayloadStore.rollback(
-                layout: layout,
-                force: parsed.has("--force"),
-                progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
+            let parsed = try parseArgs(
+                rest, boolFlags: ["--force", "--previous"], valueFlags: [], commandName: "update hvf rollback")
+            let progress: @Sendable (String) -> Void = {
+                if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) }
+            }
+            if parsed.has("--previous") {
+                // Back past known-good, through the same probed activation.
+                let manifest = try HVFPayloadStore.restagePrevious(layout: layout)
+                progress("staged the previous payload \(manifest.version) (\(manifest.revision)); activating it…")
+                let (result, signal) = try await withSignalsDeferred(notice: Self.transactionNotice) {
+                    try await HVFPayloadStore.activate(layout: layout, force: parsed.has("--force"), progress: progress)
+                }
+                try printHVFResult(result, json: json)
+                return signal.map { 128 + $0 } ?? hvfExitCode(result.action)
+            }
+            let (result, signal) = try await withSignalsDeferred(notice: Self.transactionNotice) {
+                try await HVFPayloadStore.rollback(layout: layout, force: parsed.has("--force"), progress: progress)
+            }
             try printHVFResult(result, json: json)
-            return hvfExitCode(result.action)
+            return signal.map { 128 + $0 } ?? hvfRollbackExitCode(result.action)
 
         case "prune":
             let parsed = try parseArgs(rest, boolFlags: [], valueFlags: ["--keep"], commandName: "update hvf prune")

@@ -30,7 +30,9 @@ public struct HVFMachineStatus: Sendable, Equatable {
         if !installed { return "not installed: missing \(missing.joined(separator: ", "))" }
         if let problem { return problem }
         if let stateError { return "\(phase.rawValue) (\(stateError))" }
-        let pending = updatePending ? ", update pending -> \(payload?.current?.version ?? "staged")" : ""
+        // Staging never moves `current`: the pending target is what is staged.
+        let target = payload?.staged?.version ?? payload?.current?.version
+        let pending = updatePending ? ", update pending -> \(target ?? "staged")" : ""
         switch phase {
         case .running:
             return
@@ -211,6 +213,9 @@ public struct HVFMachineClient: Sendable {
                 let state = try? HVFMachineState.load(from: layout.state)
                 switch Self.stepWithoutSupervisor(state: state, launched: launched, launches: launches) {
                 case .launch:
+                    // Before the first supervisor resolves its payload: a store
+                    // the earlier updater left pending boots only once probed.
+                    if launches == 0 { HVFPayloadStore.migrateLegacyStoreBeforeBoot(layout: layout) }
                     launches += 1
                     if let pid = try await launchSupervisor(until: deadline) { launched.insert(pid) }
                     continue

@@ -71,6 +71,8 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var trialLink: URL { root.appendingPathComponent("trial") }
     /// Held (flock) across every stage, activation, rollback and prune.
     public var updateLock: URL { root.appendingPathComponent("update.lock") }
+    /// Why the last activation of the staged payload failed.
+    public var activationFailureRecord: URL { root.appendingPathComponent("activation-failure.json") }
 
     /// The payload a supervisor started now would boot, resolved once: the
     /// trial of a live activation, else `current`, else the legacy flat
@@ -229,7 +231,7 @@ public struct HVFMachineLayout: Sendable, Equatable {
 
     /// `realpath(3)`, or the standardized path when it does not resolve:
     /// the kernel reports `/private/tmp/...` for a root spelled `/tmp/...`.
-    static func canonicalPath(_ path: String) -> String {
+    public static func canonicalPath(_ path: String) -> String {
         guard let resolved = realpath(path, nil) else { return URL(fileURLWithPath: path).standardizedFileURL.path }
         defer { free(resolved) }
         return String(cString: resolved)

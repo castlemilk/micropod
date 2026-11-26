@@ -109,16 +109,21 @@ enum SelfUpdate {
 
     // MARK: Installing
 
-    /// The files a standalone install consists of: the CLI itself, and the
-    /// MCP and API servers beside it when present (`micropod-mcp-bin` behind
-    /// the install.sh wrapper or a plain `micropod-mcp` binary;
-    /// `micropod-api-bin` or `micropod-api`).
+    /// The files a standalone install consists of: the CLI itself, and
+    /// every other release binary beside it when present — the MCP server
+    /// (`micropod-mcp-bin` behind the install.sh wrapper, or a plain
+    /// `micropod-mcp`), the API server (`micropod-api-bin` or `micropod-api`),
+    /// the Docker shim (`micropod-docker-shim-bin` or `micropod-docker-shim`)
+    /// and the shared-filesystem helper (`micropod-sharedfs`). One release
+    /// replaces them together, so none is left on the old one.
     static func installedFiles(cli: URL) -> [(bundled: String, path: URL)] {
         let dir = cli.deletingLastPathComponent()
         var files = [("micropod-cli", cli)]
         for (bundled, names) in [
             ("MicropodMCP", ["micropod-mcp-bin", "micropod-mcp"]),
             ("MicropodAPI", ["micropod-api-bin", "micropod-api"]),
+            ("micropod-docker-shim", ["micropod-docker-shim-bin", "micropod-docker-shim"]),
+            ("micropod-sharedfs", ["micropod-sharedfs"]),
         ] {
             if let path = names.map(dir.appendingPathComponent).first(where: isMachO) {
                 files.append((bundled, path))
@@ -243,6 +248,18 @@ enum SelfUpdate {
                 verifySignature: checks.hvfEntitlement, progress: progress)
         }
 
+        // Processes started from a file this replaces keep running the old
+        // release in memory; they are named once the swap is done (this one
+        // excepted), so none is mistaken for updated.
+        let inspector = HVFDarwinProcessInspector()
+        let stillOld = staged.map { item in
+            (
+                name: item.to.lastPathComponent,
+                pids: inspector.processes(executable: HVFMachineLayout.canonicalPath(item.to.path))
+                    .filter { $0 != getpid() }
+            )
+        }.filter { !$0.pids.isEmpty }
+
         var swapped: [(target: URL, backup: URL)] = []
         do {
             for (from, to) in staged {
@@ -263,6 +280,11 @@ enum SelfUpdate {
             throw error
         }
         staged.removeAll()
+        for process in stillOld {
+            progress(
+                "restart \(process.name) (pid \(process.pids.map(String.init).joined(separator: ", "))): it still runs "
+                    + "the release it started with")
+        }
 
         guard let hvf, let stagedHVF else { return }
         do {

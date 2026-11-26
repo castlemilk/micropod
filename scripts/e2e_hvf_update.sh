@@ -16,8 +16,18 @@
 #   4. stages a broken payload (its micropod-vmm exits 1) and applies it: the
 #      activation rolls back to known-good by itself; current, known-good and
 #      the running payload are the pre-update id, the guest answers again, and
-#      the volume, the cache marker and the cache unit list are unchanged;
-#   5. a repeated `update hvf rollback` changes nothing.
+#      the volume, the cache marker and the cache unit list are unchanged; the
+#      broken payload stays staged and status says why its apply failed;
+#   5. `update hvf rollback --previous` boots, probes and activates the payload
+#      before known-good: the imported flat install;
+#   6. with `current` moved behind the updater's back and the machine
+#      restarted onto it, `update hvf rollback` defers (exit 75) while a
+#      container runs and restarts nothing, and `--force` restarts onto
+#      known-good (exit 0, rolled_back);
+#   7. a store as the earlier updater left it (current on a payload that
+#      never booted, no known-good, writable versions) is migrated by the next
+#      `update hvf apply`, which then activates that payload through the probe;
+#   8. a repeated `update hvf rollback` changes nothing.
 # Only processes this script started are signalled, by pid.
 #
 # Usage: scripts/e2e_hvf_update.sh            (needs `swift build` and vmm/build.sh first)
@@ -100,7 +110,7 @@ remove_tree() { [ ! -e "$1" ] || { chmod -R u+w "$1" && rm -rf "$1"; }; }
 
 cleanup() {
     if [ -S "$SOCK" ]; then
-        for name in vol cache busy check; do "$M" rm --force "e2eupd-$name-$S" >/dev/null 2>&1 || true; done
+        for name in vol cache busy busy2 check; do "$M" rm --force "e2eupd-$name-$S" >/dev/null 2>&1 || true; done
         "$M" volume rm --runtime hvf "$VOL" >/dev/null 2>&1 || true
     fi
     "$M" machine stop >/dev/null 2>&1 || true
@@ -168,6 +178,16 @@ apply_json() { # apply_json <file> [args…]: runs `update hvf apply`, prints it
     echo "$code"
 }
 field() { python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('$2'))" "$1"; }
+rollback_json() { # rollback_json <file> [args…]: runs `update hvf rollback`, prints its exit code
+    local out="$1"
+    shift
+    set +e
+    "$M" update hvf rollback --json "$@" >"$out" 2>"$out.err"
+    local code=$?
+    set -e
+    echo "$code"
+}
+writable() { [ -w "$1" ] && echo yes || echo no; }
 
 echo "== install a flat machine into $ROOT_DIR"
 if [ -e "$ROOT_DIR" ]; then "$M" machine stop >/dev/null 2>&1 || true; fi
@@ -252,6 +272,7 @@ cp -cR "$ROOT_DIR/tools" "$BROKEN/tools"
 printf '#!/bin/sh\necho "broken micropod-vmm for the update gate" >&2\nexit 1\n' >"$BROKEN/micropod-vmm"
 chmod 755 "$BROKEN/micropod-vmm"
 "$M" update hvf stage --from "$BROKEN" --version 9.0.1-broken --revision "$S" --no-verify >/dev/null
+BROKEN_ID="$(link_id staged)"
 check "the broken payload is staged, not current" "$(link_id current)" "$V2"
 PRE_UPDATE="$(loaded_id)"
 code="$(apply_json "$OUT/apply-broken.json")"
@@ -261,7 +282,8 @@ check "current is known-good again" "$(link_id current)" "$V2"
 check "known-good unchanged" "$(link_id known-good)" "$V2"
 check "the running payload is the pre-update one" "$(loaded_id)" "$PRE_UPDATE"
 check "the guest answers" "$(running && echo yes || echo no)" "yes"
-check "nothing pending (the broken payload is no longer staged)" "$(hvf_status "s['updatePending']"):$(link_id staged)" "False:none"
+check "the broken payload stays staged, still pending" "$(hvf_status "s['updatePending']"):$(link_id staged)" "True:$BROKEN_ID"
+check "…and status says why its apply failed" "$(hvf_status "bool(s.get('lastActivationFailure'))")" "True"
 "$M" run --runtime hvf --name "e2eupd-check-$S" -v "$VOL:/data" --label "io.micropod.cache=+gomod" \
     --label "io.micropod.cache.scope=$SCOPE" "$IMAGE" -- \
     sh -c "cat /data/marker; cat \"\$GOMODCACHE/e2eupd-marker\"; sleep 600" >/dev/null
@@ -271,12 +293,43 @@ check "the cache disk kept the marker" "$("$M" exec "e2eupd-check-$S" -- sh -c '
 read -r CACHE_AFTER _ < <(cache_units)
 check "the cache inventory is unchanged" "$CACHE_AFTER" "$CACHE_BEFORE"
 
+echo "== rollback --previous returns to the imported flat install through the probe"
+code="$(rollback_json "$OUT/rollback-previous.json" --previous)"
+check "rollback --previous activates the previous payload (exit 0)" "$code:$(field "$OUT/rollback-previous.json" action)" "0:activated"
+check "current and known-good are the imported flat install" "$(link_id current):$(link_id known-good)" "$LEGACY:$LEGACY"
+check "the machine runs it" "$(loaded_id)" "$LEGACY"
+check "…from its own VMM binary" "$(vmm_exe)" "$(canon "$ROOT_DIR")/versions/$LEGACY/micropod-vmm"
+check "the broken payload is no longer staged" "$(link_id staged)" "none"
+
+echo "== a rollback that restarts: deferred while a container runs, then forced"
+"$M" machine stop >/dev/null
+ln -sfn "versions/$V2" "$ROOT_DIR/current" # current moved behind the updater's back
+"$M" machine start >/dev/null
+check "the machine runs a payload that is not known-good" "$(loaded_id):$(link_id known-good)" "$V2:$LEGACY"
+"$M" run --runtime hvf --name "e2eupd-busy2-$S" "$IMAGE" -- sleep 600 >/dev/null
+VMM_BEFORE="$(state "s['vmmPID']")"
+code="$(rollback_json "$OUT/rollback-busy.json")"
+check "rollback with a running container defers (exit 75)" "$code:$(field "$OUT/rollback-busy.json" action)" "75:deferred"
+check "…and restarted nothing" "$(state "s['vmmPID']")" "$VMM_BEFORE"
+code="$(rollback_json "$OUT/rollback-force.json" --force)"
+check "rollback --force restarts onto known-good (exit 0)" "$code:$(field "$OUT/rollback-force.json" action)" "0:rolled_back"
+check "the machine runs known-good" "$(loaded_id):$(link_id current)" "$LEGACY:$LEGACY"
+check "the guest answers" "$(running && echo yes || echo no)" "yes"
+"$M" rm --force "e2eupd-busy2-$S" >/dev/null 2>&1 || true
+
+echo "== a store the earlier updater left is migrated, then applied through the probe"
+ln -sfn "versions/$V2" "$ROOT_DIR/current"
+rm -f "$ROOT_DIR/known-good" "$ROOT_DIR/staged"
+chmod -R u+w "$ROOT_DIR/versions/$V2" "$ROOT_DIR/versions/$LEGACY"
+check "status points at apply" "$(hvf_status "s['updatePending']")" "True"
+code="$(apply_json "$OUT/apply-migrated.json")"
+check "apply migrates the store and activates the pending payload" "$code:$(field "$OUT/apply-migrated.json" action)" "0:activated"
+check "known-good is that payload, after its probe" "$(link_id known-good):$(loaded_id)" "$V2:$V2"
+check "the version directories are read-only again" "$(writable "$ROOT_DIR/versions/$V2"):$(writable "$ROOT_DIR/versions/$LEGACY")" "no:no"
+
 echo "== rollback by name is idempotent"
 for attempt in 1 2; do
-    set +e
-    "$M" update hvf rollback --json >"$OUT/rollback-$attempt.json" 2>/dev/null
-    code=$?
-    set -e
+    code="$(rollback_json "$OUT/rollback-$attempt.json")"
     check "rollback #$attempt on known-good changes nothing" "$code:$(field "$OUT/rollback-$attempt.json" action)" "0:noop"
 done
 check "still on known-good" "$(link_id current):$(loaded_id)" "$V2:$V2"
