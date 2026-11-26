@@ -612,7 +612,10 @@ enum MachineCommands {
         print("tools:           \(kinds.joined(separator: ", "))")
         print("go -trimpath:    \(onOff(policy.goTrimpath))")
         print("pnpm legacy env: \(onOff(policy.pnpmLegacyEnv)) (npm_config_store_dir for pnpm 9 and 10)")
-        print("shared L0 tier:  \(onOff(policy.sharedL0)) (share verified downloads in scope 'global')")
+        print(
+            "shared L0 tier:  \(onOff(policy.sharedL0)) "
+                + "(\(HVFMachineCachePolicy.globalKinds.joined(separator: ", ")) shared in scope 'global'; "
+                + "every other store stays per scope)")
         if let gp = policy.goProxy { print("go proxy (L0):   \(gp)") }
         if let nr = policy.npmRegistry { print("npm proxy (L0):  \(nr)") }
         if let maxB = policy.maxBytes { print("budget ceiling:  \(CacheCommands.formatBytes(maxB))") }

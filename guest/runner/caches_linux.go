@@ -256,7 +256,13 @@ type cacheTarget struct {
 
 type cacheTool struct {
 	Kind, Group string
-	Layer       string   // cacheLayerL0 (verified downloads) or cacheLayerL1 (build artifacts)
+	Layer       string // cacheLayerL0 (downloads) or cacheLayerL1 (build artifacts)
+	// Global: the tool itself verifies the store's contents by content hash
+	// every time it reads them, so one project cannot substitute an entry
+	// another project then uses. Only such stores move to the shared scope
+	// "global" under sharedL0; every other store stays in the container's
+	// scope (see the rule above cacheTable).
+	Global      bool
 	Mode        string   // "env": a variable points into /micropod/cache; "path": bind at a fixed path
 	EnvKey      string   // env mode: the variable the engine sets
 	AltKeys     []string // other variables that select the same location
@@ -347,8 +353,19 @@ func cargoSrcSub(uid uint32) string { return "src/u" + strconv.FormatUint(uint64
 // whom. Order is the attach and env order. Partition flags are the measured
 // S2 matrix: pip < 25 writes 0600 HTTP-cache files (silent miss for the other
 // uid) and yarn v1 creates 0755 dirs (0777 & ~umask) that defeat the ACL.
+//
+// Sharing across projects (sharedL0, scope "global"): a store may be shared
+// read-write by every project only when the tool verifies what it reads from
+// it by content hash on every read, so a project that plants an entry cannot
+// change what another project builds. That is gomod (go.sum and the checksum
+// database decide every module zip; the store is keyed by those hashes), npm
+// (cacache: every entry is addressed and checked by its integrity hash) and
+// pnpm (a content-addressable store checked against the lockfile integrity).
+// Every other store (yarn, yarnberry, pip, uv, cargo, corepack, maven,
+// gradle, bun, playwright, and the L1 build caches) is trusted as written:
+// it stays in the container's own scope whatever sharedL0 says.
 var cacheTable = []*cacheTool{
-	{Kind: "gomod", Group: "go", Layer: cacheLayerL0, Mode: "env", EnvKey: "GOMODCACHE",
+	{Kind: "gomod", Group: "go", Layer: cacheLayerL0, Global: true, Mode: "env", EnvKey: "GOMODCACHE",
 		DefaultPath: func(x toolCtx) string {
 			if v := firstEnv(x, false, "GOMODCACHE"); v != "" {
 				return v
@@ -370,7 +387,7 @@ var cacheTable = []*cacheTool{
 		},
 		// Go creates all 256 two-hex shard directories when it opens a cache.
 		Markers: func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "00"), false}} }},
-	{Kind: "npm", Layer: cacheLayerL0, Mode: "env", EnvKey: "npm_config_cache", Fold: true,
+	{Kind: "npm", Layer: cacheLayerL0, Global: true, Mode: "env", EnvKey: "npm_config_cache", Fold: true,
 		DefaultPath: func(x toolCtx) string {
 			if v := firstEnv(x, true, "npm_config_cache"); v != "" {
 				return v
@@ -382,7 +399,7 @@ var cacheTable = []*cacheTool{
 	// pnpm_config_store_dir (measured), so both are set. npm 11 prints
 	// `npm warn Unknown env config "store-dir"` for the legacy key (npm 10 is
 	// silent); revisit when npm 12 ships.
-	{Kind: "pnpm", Layer: cacheLayerL0, Mode: "env", EnvKey: "pnpm_config_store_dir", AltKeys: []string{"npm_config_store_dir"}, Fold: true,
+	{Kind: "pnpm", Layer: cacheLayerL0, Global: true, Mode: "env", EnvKey: "pnpm_config_store_dir", AltKeys: []string{"npm_config_store_dir"}, Fold: true,
 		Extra: func(pol cachePolicy, value string) [][2]string {
 			if pol.PnpmLegacyEnv {
 				return [][2]string{{"npm_config_store_dir", value}}
@@ -471,7 +488,12 @@ var cacheTable = []*cacheTool{
 		Markers: func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "v1"), false}} }},
 	// Extended CI ecosystems (path-mode with binary/dir presence probes so
 	// containers without these tools receive zero extra mounts or env vars).
-	{Kind: "maven", Layer: cacheLayerL0, Mode: "path",
+	// None of them verifies its store on read, so none is Global. Maven's
+	// local repository is not safe for concurrent writers (two builds
+	// resolving one artifact write the same files without a lock unless the
+	// named-locks resolver is configured), so one writer at a time: the
+	// others read it copy-on-write, as yarn v1 does.
+	{Kind: "maven", Layer: cacheLayerL0, Mode: "path", Exclusive: true,
 		DefaultPath: func(x toolCtx) string { return path.Join(x.home, ".m2/repository") },
 		Markers:     func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
 		Presence: func(x toolCtx, f *imageFacts) bool {
@@ -559,8 +581,9 @@ type cachePolicy struct {
 	GoTrimpath    bool     `json:"goTrimpath"`
 	PnpmLegacyEnv bool     `json:"pnpmLegacyEnv"`
 	// Fleet-aligned extensions (all omitempty so default policy JSON/digest is unchanged):
-	// SharedL0 shares verified content-addressed downloads (L0) in scope "global"
-	// even when containers name a project scope, keeping L1 build caches scoped.
+	// SharedL0 shares the stores their tools verify on read (cacheTool.Global)
+	// in scope "global" even when containers name a project scope; every other
+	// store, L1 build caches included, stays in the container's scope.
 	SharedL0     bool   `json:"sharedL0,omitempty"`
 	GoProxy      string `json:"goProxy,omitempty"`
 	NpmRegistry  string `json:"npmRegistry,omitempty"`
@@ -1233,12 +1256,13 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 			u := uid
 			storeUID = &u
 		}
-		// Fleet L0 sharing: verified content-addressed tools resolve into the
-		// shared "global" store when SharedL0 is enabled, even for named project
-		// scopes, while L1 build artifacts stay in the container's scope.
+		// Fleet sharing: only a store its tool verifies on every read (Global)
+		// resolves into the shared "global" scope when SharedL0 is enabled,
+		// even for named project scopes; everything else stays in the
+		// container's scope.
 		storeScope := ""
 		mountRoot := cacheMountRoot
-		if pol.SharedL0 && t.Layer == cacheLayerL0 && scope != cacheL0GlobalScope {
+		if pol.SharedL0 && t.Global && scope != cacheL0GlobalScope {
 			storeScope = cacheL0GlobalScope
 			mountRoot = cacheMountL0Root
 		}

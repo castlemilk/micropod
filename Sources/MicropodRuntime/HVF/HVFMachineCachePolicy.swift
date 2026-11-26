@@ -67,6 +67,12 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         "gomod", "gobuild", "npm", "pnpm", "yarn", "yarnberry", "pip", "uv", "cargo", "corepack",
         "maven", "gradle", "bun", "sccache", "playwright",
     ]
+    /// The kinds `sharedL0` shares across projects in scope `global`: the
+    /// stores whose tools verify what they read by content hash on every
+    /// read (Go's module cache against go.sum and the checksum database,
+    /// npm's cacache and pnpm's store against their integrity hashes). Every
+    /// other store stays in the container's own scope (guest cacheTable).
+    public static let globalKinds = ["gomod", "npm", "pnpm"]
     /// Names that stand for several kinds.
     public static let toolGroups: [String: [String]] = ["go": ["gomod", "gobuild"]]
     /// Every name a tool list may use: the kinds and the groups.
@@ -88,9 +94,9 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     /// Also set `npm_config_store_dir`, which pnpm 9 and 10 read (pnpm 11
     /// and later read only `pnpm_config_store_dir`).
     public var pnpmLegacyEnv: Bool
-    /// Fleet L0 sharing: share verified content-addressed downloads (gomod,
-    /// npm, pnpm, yarn, pip, uv, cargo, corepack) in scope `global` even when
-    /// containers specify a project scope, keeping L1 build caches scoped.
+    /// Fleet sharing: share the stores in `globalKinds` (gomod, npm, pnpm)
+    /// in scope `global` even when containers name a project scope; every
+    /// other store, L1 build caches included, stays in the container's scope.
     public var sharedL0: Bool
     /// Optional L0 rig Go proxy list, a `GOPROXY` value (e.g.
     /// `http://10.42.0.1:7677/go|direct`). A gateway URL opens a host port

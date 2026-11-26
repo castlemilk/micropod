@@ -27,9 +27,12 @@ import (
 // its configured Env/User/WorkingDir (from CRI) and a handful of rootfs facts
 // (passwd/group, whether candidate cache paths exist and hold content, which
 // tool binaries are on PATH). They are probed once per image ID through a
-// read-only `ctr images mount` view and cached on disk.
+// read-only `ctr images mount` view and cached on disk. factsVersion changes
+// whenever the probe learns something new (version 2: the mvn, gradle, bun,
+// sccache and playwright binaries), so facts an older engine cached are
+// probed again.
 
-const factsVersion = 1
+const factsVersion = 2
 const probeRoot = "/run/micropod/probe"
 
 var imageFactsDir = filepath.Join(engineRoot, "image-facts")
