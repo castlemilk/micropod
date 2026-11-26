@@ -754,3 +754,24 @@ final class FileDescriptorLimitTests: XCTestCase {
         XCTAssertEqual(FileDescriptorLimit.raise(to: 300), raised)
     }
 }
+
+/// What every request used to rebuild `ProcessInfo.environment` (a dictionary
+/// of the whole environment) to learn: read once when the server starts.
+final class PerRequestEnvironmentTests: XCTestCase {
+    func testTheIsolatedRuntimeFlagAndTheCORSOriginsAreReadOnce() {
+        let before = CORSPolicy.configuredOrigins
+        setenv("MICROPOD_ISOLATED_RUNTIME", "1", 1)
+        setenv("MICROPOD_API_CORS_ORIGINS", "https://later.example", 1)
+        defer {
+            unsetenv("MICROPOD_ISOLATED_RUNTIME")
+            unsetenv("MICROPOD_API_CORS_ORIGINS")
+        }
+        let started = HTTPServer(port: 45454, isolatedRuntime: false) { _ in .text(200, "ok") }
+        XCTAssertFalse(started.isolatedRuntime, "fixed when the server is made, whatever the environment says later")
+        XCTAssertTrue(HTTPServer(port: 45454) { _ in .text(200, "ok") }.isolatedRuntime, "the default reads it")
+        XCTAssertEqual(CORSPolicy.configuredOrigins, before, "kept from start-up")
+        XCTAssertEqual(
+            CORSPolicy.origins(from: ["MICROPOD_API_CORS_ORIGINS": "a, b"]), ["a", "b"])
+        XCTAssertEqual(CORSPolicy.origins(from: [:]), [CORSPolicy.hostedDocsOrigin])
+    }
+}

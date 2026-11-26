@@ -101,7 +101,7 @@ struct MicropodAPI {
 
         let server = HTTPServer(
             port: port, policy: .init(environment: ProcessInfo.processInfo.environment, fileLimit: fileLimit),
-            handler: api.handle)
+            isolatedRuntime: isolated, handler: api.handle)
         do {
             if let identity {
                 let gateway = IsolatedRuntimeGateway(identity: identity)
@@ -222,12 +222,21 @@ final class HTTPServer: @unchecked Sendable {
     private let kept: KeptConnections
     private let ownerKept: KeptConnections
 
+    /// This is the dedicated runtime account's API
+    /// (`MICROPOD_ISOLATED_RUNTIME=1`): requests other than `/health` and
+    /// maintenance go through `RuntimeAdmission`. Read once, at start-up,
+    /// not from a freshly built environment per request.
+    let isolatedRuntime: Bool
+
     init(
-        port: UInt16, policy: ConnectionPolicy = .live, handler: @escaping (HTTPRequest) async -> HTTPResponse
+        port: UInt16, policy: ConnectionPolicy = .live,
+        isolatedRuntime: Bool = getenv("MICROPOD_ISOLATED_RUNTIME").map { String(cString: $0) } == "1",
+        handler: @escaping (HTTPRequest) async -> HTTPResponse
     ) {
         self.port = port
         self.handler = handler
         self.policy = policy
+        self.isolatedRuntime = isolatedRuntime
         self.kept = KeptConnections(limit: policy.maxKeptConnections)
         self.ownerKept = KeptConnections(limit: policy.maxKeptConnections)
     }
@@ -692,8 +701,7 @@ final class HTTPServer: @unchecked Sendable {
             let claim: RuntimeAdmissionClaim?
             do {
                 claim =
-                    ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1"
-                        && !["/health", "/v1/managed/maintenance"].contains(request.path)
+                    self.isolatedRuntime && !["/health", "/v1/managed/maintenance"].contains(request.path)
                     ? try RuntimeAdmission.shared.claim("managed-api:" + request.path) : nil
             } catch {
                 connection.send(
