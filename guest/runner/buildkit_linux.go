@@ -179,9 +179,10 @@ func serveBuildKit(ctx context.Context) (string, error) {
 
 // buildkitEnv gives buildkitd the rig depproxy settings (from
 // cache-policy.json). BuildKit stays outside the shared stores: its own state
-// (RUN --mount=type=cache contents included) is its root, which guest init
-// binds from the cache disk's _buildkit directory, beside scopes/ and never
-// below it, and nothing hands it a path into scopes/. A build step that wrote
+// (RUN --mount=type=cache records included) is its root on the OS disk, with
+// the containerd snapshots that state refers to (vmm/guest-init cachedisk.go:
+// both survive a restart and both go with a replaced OS disk), and nothing
+// hands it a path into scopes/. A build step that wrote
 // a store would bypass the crash fence (no unit lock, no dirty mark) and the
 // janitor's in-use test, so no such path is exported. (An earlier version set
 // MICROPOD_CACHE_L0_DIR to scopes/global and created that directory outside

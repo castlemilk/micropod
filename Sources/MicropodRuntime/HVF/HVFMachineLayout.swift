@@ -111,7 +111,9 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var tools: URL { resolvePayload().tools }
     public var disk: URL { root.appendingPathComponent("disk.ext4") }
     /// Optional persistent second VirtioBlk disk (`/dev/vdb` -> `/var/lib/micropod/caches`)
-    /// so dependency and BuildKit caches survive `disk.ext4` OS replacements.
+    /// so dependency caches survive `disk.ext4` OS replacements. BuildKit's state
+    /// (`RUN --mount=type=cache` included) stays on `disk.ext4` with the containerd
+    /// snapshots it refers to, so a replaced OS disk starts it empty and consistent.
     public var cacheDisk: URL { root.appendingPathComponent("caches.ext4") }
     public var config: URL { root.appendingPathComponent("machine.json") }
     public var runDirectory: URL { root.appendingPathComponent("run") }

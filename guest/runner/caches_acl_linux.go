@@ -33,9 +33,9 @@ import (
 //	  .meta/<scope>/<unit>.dirty        the crash fence's mark (caches_dirty_linux.go)
 //	  .meta/<scope>/<unit>.used         mtime = last container start or exit
 //	  .meta/clean-stop                  boot id of the last stop that synced everything (guest init)
-//	  .trash/                           root 0700
-//	  _buildkit/                        BuildKit's own state, bound at /var/lib/micropod/buildkit by
-//	                                    guest init; outside every store, never locked or marked
+//	  .trash/                           root 0700; also where guest init moves the _buildkit/ an
+//	                                    earlier version kept here (BuildKit's root is on the OS disk,
+//	                                    with the containerd snapshots it refers to)
 //
 // A variable only so tests can point it at a temporary directory.
 var cacheRoot = "/var/lib/micropod/caches"

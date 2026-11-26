@@ -444,14 +444,15 @@ func mountHostConfig(params map[string]string) {
 // (cacheDiskNone, cacheDiskMounted or cacheDiskUnavailable).
 var cacheDisk = cacheDiskNone
 
-// mountPersistentCacheDisk mounts /dev/vdb (caches.ext4) at cacheDiskMount
-// and binds its _buildkit directory over BuildKit's root, so dependency and
-// BuildKit caches survive a replaced disk.ext4. It runs before the engine
-// starts, so the engine's crash recovery reads the dirty marks and the
-// clean-stop record on the disk that holds the stores. A disk the host
-// attached that is missing or does not mount leaves shared caches off for the
-// boot (reported as a guest failure, the boot goes on); nothing then writes
-// stores below the mount point on the OS disk.
+// mountPersistentCacheDisk mounts /dev/vdb (caches.ext4) at cacheDiskMount,
+// so dependency caches survive a replaced disk.ext4 (BuildKit's state stays
+// on the OS disk with the containerd snapshots it refers to; see
+// cachedisk.go). It runs before the engine starts, so the engine's crash
+// recovery reads the dirty marks and the clean-stop record on the disk that
+// holds the stores. A disk the host attached that is missing or does not
+// mount leaves shared caches off for the boot (reported as a guest failure,
+// the boot goes on); nothing then writes stores below the mount point on the
+// OS disk.
 func mountPersistentCacheDisk(params map[string]string) string {
 	requested, err := cacheDiskRequested(params)
 	if err != nil {
@@ -473,28 +474,23 @@ func mountPersistentCacheDisk(params map[string]string) string {
 		return cacheDiskUnavailable
 	}
 	fmt.Printf("[mp-hvf-init] persistent cache disk mounted: %s -> %s\n", cacheDiskDevice, cacheDiskMount)
-	// BuildKit's state is its own (no store, never locked or marked); it
-	// stays on the OS disk if the bind fails.
-	if err := os.MkdirAll(buildkitStateSub, 0700); err == nil {
-		if err := os.MkdirAll(buildkitRoot, 0700); err == nil {
-			if err := syscall.Mount(buildkitStateSub, buildkitRoot, "", syscall.MS_BIND, ""); err != nil {
-				fmt.Fprintf(os.Stderr, "[mp-hvf-init] bind %s -> %s: %v\n", buildkitStateSub, buildkitRoot, err)
-			}
-		}
+	if dest, err := retireSplitBuildkit(); err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] retire %s: %v (it is never mounted)\n", splitBuildkitDir, err)
+	} else if dest != "" {
+		fmt.Printf("[mp-hvf-init] retired an earlier BuildKit root on the cache disk to %s\n", dest)
 	}
 	return cacheDiskMounted
 }
 
 // stopCacheDisk leaves the cache disk clean at a stop, after the final sync
-// and the clean-stop record: BuildKit's bind goes, then the disk is remounted
-// read-only, which commits its journal, so the next boot mounts it without a
-// replay. It is best effort: a process that would not die keeps it writable,
-// and the next mount replays the journal.
+// and the clean-stop record: the disk is remounted read-only, which commits
+// its journal, so the next boot mounts it without a replay. It is best
+// effort: a process that would not die keeps it writable, and the next mount
+// replays the journal.
 func stopCacheDisk() {
 	if cacheDisk != cacheDiskMounted {
 		return
 	}
-	_ = syscall.Unmount(buildkitRoot, syscall.MNT_DETACH)
 	if err := syscall.Mount("", cacheDiskMount, "", syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
 		fmt.Fprintf(os.Stderr, "[mp-hvf-init] remount %s read-only: %v (next boot replays its journal)\n", cacheDiskMount, err)
 	}

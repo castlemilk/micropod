@@ -4,23 +4,58 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
 // The persistent cache disk (caches.ext4): the host attaches it as the second
 // virtio-blk device (/dev/vdb) and passes mp.cache_disk=1. Guest init mounts
 // it at cacheDiskMount before it starts the engine, so the engine's crash
-// recovery and every store it creates are on that disk, and binds its
-// _buildkit directory over BuildKit's root. It tells the engine the outcome in
-// MICROPOD_CACHE_DISK (guest/runner caches_linux.go, cacheDiskUnavailable).
+// recovery and every store it creates are on that disk. It tells the engine
+// the outcome in MICROPOD_CACHE_DISK (guest/runner caches_linux.go,
+// cacheDiskUnavailable).
+//
+// BuildKit's state is not on it. BuildKit runs on the containerd worker: its
+// metadata (cache.db, the records of every RUN --mount=type=cache) refers to
+// containerd snapshots and content under /var/lib/containerd on the OS disk.
+// Both stay on the OS disk together, so replacing disk.ext4 (machine install
+// --replace-disk) starts BuildKit empty and consistent instead of leaving it
+// metadata whose snapshots are gone. An earlier version bound the cache
+// disk's _buildkit directory over BuildKit's root; retireSplitBuildkit moves
+// what that left into .trash, which the engine empties.
 const (
-	cacheDiskArg     = "mp.cache_disk"
-	cacheDiskDevice  = "/dev/vdb"
-	cacheDiskMount   = "/var/lib/micropod/caches"
-	buildkitStateSub = cacheDiskMount + "/_buildkit"
-	buildkitRoot     = "/var/lib/micropod/buildkit"
-	cacheDiskEnv     = "MICROPOD_CACHE_DISK"
+	cacheDiskArg    = "mp.cache_disk"
+	cacheDiskDevice = "/dev/vdb"
+	cacheDiskMount  = "/var/lib/micropod/caches"
+	cacheDiskEnv    = "MICROPOD_CACHE_DISK"
 )
+
+// splitBuildkitDir is where that earlier version kept BuildKit's root on the
+// cache disk (overridable in tests).
+var splitBuildkitDir = cacheDiskMount + "/_buildkit"
+
+// retireSplitBuildkit moves an earlier boot's BuildKit root on the cache disk
+// (splitBuildkitDir) into the cache disk's .trash, where the engine's crash
+// fence deletes it in the background (guest/runner emptyCacheTrash). Its
+// metadata names snapshots of an OS disk that may be gone, so nothing may
+// mount or read it again. It returns where the directory went ("" when there
+// was none).
+func retireSplitBuildkit() (string, error) {
+	if _, err := os.Lstat(splitBuildkitDir); errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	} else if err != nil {
+		return "", err
+	}
+	trash := filepath.Join(filepath.Dir(splitBuildkitDir), ".trash")
+	if err := os.MkdirAll(trash, 0700); err != nil {
+		return "", err
+	}
+	dest := filepath.Join(trash, fmt.Sprintf("buildkit-split-%d", time.Now().UnixNano()))
+	if err := os.Rename(splitBuildkitDir, dest); err != nil {
+		return "", err
+	}
+	return dest, nil
+}
 
 // What became of the cache disk this boot.
 const (

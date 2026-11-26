@@ -351,7 +351,8 @@ public enum HVFMachineInstaller {
     }
 
     /// Formats a fresh sparse journaled ext4 disk for persistent dependency
-    /// and BuildKit caches (`caches.ext4`), mounted at `/var/lib/micropod/caches`.
+    /// caches (`caches.ext4`), mounted at `/var/lib/micropod/caches`. BuildKit's
+    /// state stays on the OS disk with the containerd snapshots it refers to.
     public static func provisionCacheDisk(bytes: UInt64, into disk: URL) throws {
         let formatter = try EXT4.Formatter(
             FilePath(disk), minDiskSize: bytes, journal: .init(defaultMode: .ordered))

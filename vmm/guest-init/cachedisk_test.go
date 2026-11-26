@@ -67,3 +67,37 @@ func TestRecordCleanStopLivesWithTheStores(t *testing.T) {
 		t.Fatalf("empty boot id: %v %q", err, readBootID(cleanStopRecord))
 	}
 }
+
+// BuildKit's root stays on the OS disk; a root an earlier version kept on the
+// cache disk is moved into .trash once, never left where it could be mounted.
+func TestRetireSplitBuildkit(t *testing.T) {
+	dir := t.TempDir()
+	old := splitBuildkitDir
+	t.Cleanup(func() { splitBuildkitDir = old })
+	splitBuildkitDir = filepath.Join(dir, "_buildkit")
+	if dest, err := retireSplitBuildkit(); dest != "" || err != nil {
+		t.Fatalf("nothing to retire: %q %v", dest, err)
+	}
+	if err := os.MkdirAll(filepath.Join(splitBuildkitDir, "runc-overlayfs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(splitBuildkitDir, "runc-overlayfs", "cache.db"), []byte("records"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	dest, err := retireSplitBuildkit()
+	if err != nil || filepath.Dir(dest) != filepath.Join(dir, ".trash") {
+		t.Fatalf("retired to %q: %v", dest, err)
+	}
+	if _, err := os.Lstat(splitBuildkitDir); !os.IsNotExist(err) {
+		t.Fatalf("the split root is still there: %v", err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dest, "runc-overlayfs", "cache.db")); err != nil || string(b) != "records" {
+		t.Fatalf("trash holds %q: %v", b, err)
+	}
+	if st, err := os.Stat(filepath.Join(dir, ".trash")); err != nil || st.Mode().Perm() != 0700 {
+		t.Fatalf(".trash %v %v", st, err)
+	}
+	if dest, err := retireSplitBuildkit(); dest != "" || err != nil {
+		t.Fatalf("a second boot: %q %v", dest, err)
+	}
+}
