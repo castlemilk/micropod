@@ -37,6 +37,8 @@
 #   HVF_DISK_IMAGE OCI image (or `default`) to unpack into a fresh disk
 #                  instead of cloning HVF_DISK_FROM (pulls; ~1 min)
 #   HVF_PORT       host port for the published-port probe (default 18110)
+#   HVF_CACHE_DISK_SIZE  install a persistent cache disk (caches.ext4) of this
+#                  size, e.g. 4g, and check the guest mounted it (default: none)
 #   HVF_E2E_KEEP=1 keep the root (stopped) for inspection
 set -euo pipefail
 
@@ -50,6 +52,7 @@ TOOLS="${HVF_TOOLS:-}"
 DISK_FROM="${HVF_DISK_FROM:-$HOME/.micropod/ci/worker.ext4}"
 DISK_IMAGE="${HVF_DISK_IMAGE:-}"
 PORT="${HVF_PORT:-18110}"
+CACHE_DISK_SIZE="${HVF_CACHE_DISK_SIZE:-}"
 WS="$ROOT_DIR-ws"
 S="$(date +%s)"
 PASS=0
@@ -88,6 +91,7 @@ else
     [ -f "$DISK_FROM" ] || { echo "missing file $DISK_FROM" >&2 && exit 2; }
     DISK_ARGS=(--disk-from "$DISK_FROM")
 fi
+[ -z "$CACHE_DISK_SIZE" ] || DISK_ARGS+=(--cache-disk-size "$CACHE_DISK_SIZE")
 [ -n "$TOOLS" ] && [ -f "$TOOLS/runner/start.sh" ] || {
     echo "set HVF_TOOLS to a guest tool bundle (a directory with runner/start.sh)" >&2
     exit 2
@@ -170,6 +174,11 @@ check "run" "$("$M" run --runtime hvf --name "$NAME" alpine:3.20 -- sh -c 'echo 
 echo "    (cold run incl. machine boot + pull: $((SECONDS - started))s)"
 check "machine running" "$(state "s['phase']")" "running"
 check "an on-demand start links no Docker socket" "$([ -L "$ROOT_DIR/canonical-docker.sock" ] && echo linked || echo none)" "none"
+if [ -n "$CACHE_DISK_SIZE" ]; then
+    check "the guest mounted the cache disk, shared caches on (machine status)" \
+        "$("$M" --json machine status | python3 -c "import sys,json; d=json.load(sys.stdin)['cacheDisk']; print((d.get('state'), d.get('mounted'), d.get('sharedCaches')))")" \
+        "('mounted', True, 'on')"
+fi
 set +e
 install_err="$("$M" machine install --cpus 2 2>&1 >/dev/null)"
 install_code=$?
