@@ -75,12 +75,14 @@ public struct HVFCachePruneRequest: Encodable, Sendable, Equatable {
     public var partialGoBuild: Bool?
     public var safetyCutoffSecs: Int64?
     public var maxUnits: Int?
+    /// Required, never defaulted: a caller that forgets it must not evict.
+    /// Always encoded, so the guest never falls back to its own default.
     public var dryRun: Bool
     public var reason: String?
 
     public init(
         scope: String? = nil, tool: String? = nil, olderThanSecs: Int64? = nil, maxBytes: UInt64? = nil,
-        partialGoBuild: Bool? = nil, safetyCutoffSecs: Int64? = nil, maxUnits: Int? = nil, dryRun: Bool = false,
+        partialGoBuild: Bool? = nil, safetyCutoffSecs: Int64? = nil, maxUnits: Int? = nil, dryRun: Bool,
         reason: String? = nil
     ) {
         self.scope = scope
@@ -193,12 +195,18 @@ extension HVFMachineClient {
     }
 
     /// Inspect a container's `MicropodCache` attach/skip decision plan.
+    /// A Docker container id or name, as one request path segment.
+    public static let containerReference = "^[A-Za-z0-9][A-Za-z0-9_.-]{0,254}$"
+
     public func explainContainerCache(_ container: String, timeout: Duration = .seconds(5)) async throws
         -> HVFContainerCacheExplain
     {
+        // One path segment: '/', '?' or '#' would name another guest route.
+        guard container.range(of: Self.containerReference, options: .regularExpression) != nil else {
+            throw MicropodError.message("invalidArgument: '\(container)' is not a container id or name")
+        }
         try ensureSocketReachable()
-        let encoded = container.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? container
-        let resp = try await docker.request("GET", "/containers/\(encoded)/json", timeout: timeout)
+        let resp = try await docker.request("GET", "/containers/\(container)/json", timeout: timeout)
         guard resp.status == 200 else {
             throw MicropodError.message(
                 "container '\(container)' not found or inspect failed (HTTP \(resp.status))")

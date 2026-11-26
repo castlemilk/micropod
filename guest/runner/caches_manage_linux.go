@@ -112,6 +112,8 @@ type cacheInspection struct {
 	Budget       cacheBudgetStatus    `json:"budget"`
 	Evictions    cacheEvictionSummary `json:"evictions"`
 	Metrics      map[string]any       `json:"metrics"`
+	// CacheDisk is nil only when the guest cannot tell (mountinfo unreadable).
+	CacheDisk *cacheDiskState `json:"cacheDisk"`
 }
 
 // isUnitInUse probes unitLock non-blockingly with LOCK_EX|LOCK_NB. Because
@@ -293,6 +295,7 @@ func (s *dockerEngine) inspectCaches(includeStats bool) cacheInspection {
 		Budget:       budget,
 		Evictions:    s.metrics.cache.evictionSummary(),
 		Metrics:      s.metrics.cache.snapshot(),
+		CacheDisk:    observeCacheDisk(),
 	}
 }
 
@@ -415,8 +418,13 @@ type cachePruneResult struct {
 	Actions      []cachePruneAction `json:"actions"`
 }
 
+// handleCachePrune serves POST /micropod/caches/prune and DELETE
+// /micropod/caches. It evicts only when the caller says so: a request that
+// names no dryRun (an empty body, or JSON without the key, and no dry_run
+// query) is a dry run, so a caller that forgets the field never wipes units.
 func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) error {
 	var req cachePruneRequest
+	explicit := false
 	if r.Body != nil && r.ContentLength != 0 {
 		b, err := readBody(w, r)
 		if err != nil {
@@ -426,9 +434,22 @@ func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) 
 			if err := json.Unmarshal(b, &req); err != nil {
 				return fail(400, "invalid cache prune request JSON")
 			}
+			var named struct {
+				DryRun *bool `json:"dryRun"`
+			}
+			if err := json.Unmarshal(b, &named); err == nil && named.DryRun != nil {
+				explicit = true
+			}
 		}
 	}
 	q := r.URL.Query()
+	if q.Has("dry_run") {
+		explicit = true
+		req.DryRun = truth(q.Get("dry_run"))
+	}
+	if !explicit {
+		req.DryRun = true
+	}
 	if v := q.Get("scope"); v != "" && req.Scope == "" {
 		req.Scope = v
 	}
@@ -448,9 +469,6 @@ func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) 
 			return fail(400, "invalid max_bytes")
 		}
 		req.MaxBytes = n
-	}
-	if truth(q.Get("dry_run")) {
-		req.DryRun = true
 	}
 	if v := q.Get("partial"); v != "" && req.PartialGoBuild == nil {
 		b := truth(v)
