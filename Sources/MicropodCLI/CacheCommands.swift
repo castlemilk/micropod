@@ -454,6 +454,9 @@ enum CacheCommands {
         case "image-off": return "disabled by image MICROPOD_CACHE=off"
         case "rootless": return "private rootless containers do not attach shared caches"
         case "no-scope": return "no default scope set; pass --cache-scope <name> or set --default-scope"
+        case "no-store-to-read":
+            return "an untrusted or read-only container only reads, and no trusted container has filled this store yet"
+        case "scope-not-allowed": return "the policy's default scope is not in its allowed scopes"
         default: return reason
         }
     }

@@ -66,6 +66,12 @@ func TestOpenCacheMounts_UntrustedCoWOverlayAndFailClosedReadOnly(t *testing.T) 
 			"io.micropod.cache.trust": "untrusted",
 		},
 	}, facts)
+	// A trusted writer made the gomod store before (an untrusted reader of
+	// an env-mode store that does not exist yet gets none: see
+	// TestCacheReaderOfAMissingEnvStoreLeavesItOut).
+	if err := os.MkdirAll(filepath.Join(cacheRoot, "scopes", "default", "gomod"), 0777); err != nil {
+		t.Fatal(err)
+	}
 
 	// 1. When overlay mount succeeds (simulated in unprivileged test via hook),
 	//    untrusted container mounts ephemeral merged dir and never writes lower.

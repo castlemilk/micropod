@@ -969,11 +969,21 @@ type cacheUnitView struct {
 // untrusted or read-only plan fails closed to the store bound read-only; a
 // trusted container that lost an exclusive kind's writer slot is skipped as
 // busy-exclusive, as before the copy-on-write fallback.
+//
+// An env-mode unit with no store yet is left out of the start (skipNoStore):
+// its bind would go below the scope's read-only bind at /micropod/cache,
+// where the runtime cannot create the mount point (the container would fail
+// to start with EROFS), a reader may not create the store, and there is
+// nothing warm to read. A path-mode unit is bound at a path of the
+// container's own rootfs, so it still gets a view over an empty lower.
 func (a *cacheAttachment) openReaderView(plan *cachePlan, scopeDir *os.File, st cacheStoreRef, storeScope, shimRoot string) (cacheUnitView, string) {
 	lower, err := openExistingStore(scopeDir, st.Kind, st.UID)
 	if err != nil {
 		log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
 		return cacheUnitView{}, skipStoreFailed
+	}
+	if lower == nil && plan.Tools[st.Kind].Mode == "env" {
+		return cacheUnitView{}, skipNoStore
 	}
 	if lower != nil {
 		a.files = append(a.files, lower)

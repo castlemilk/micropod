@@ -57,6 +57,9 @@ const (
 	// The plan was made in a boot with the cache disk; this start's boot has
 	// none mounted (cacheDiskUnavailable), so no store is reachable.
 	skipNoCacheDisk = "cache-disk-unavailable"
+	// A reader (untrusted or read-only) of an env-mode store that does not
+	// exist yet: nothing to read, and a reader never creates a store.
+	skipNoStore = "no-store-to-read"
 )
 
 // Plan-level reasons for attaching nothing.

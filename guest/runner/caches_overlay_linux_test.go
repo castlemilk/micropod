@@ -192,3 +192,44 @@ func treeBytes(t *testing.T, root string) int64 {
 	}
 	return n
 }
+
+// An untrusted container in a scope whose env-mode stores no writer made yet
+// gets none of them: their binds would need mount points below the scope's
+// read-only bind (the runtime fails the start with EROFS), and a reader never
+// creates a store. Its variables go too; a store that exists is still read.
+func TestCacheReaderOfAMissingEnvStoreLeavesItOut(t *testing.T) {
+	useFence(t, "boot-a")
+	useOverlay(t)
+	fillStore(t, "marker", "trusted") // default/gomod (and gobuild) exist
+	plan := decide(t, defaultCachePolicy(), dockerConfig{Labels: map[string]string{
+		"io.micropod.cache": "gomod,pip", "io.micropod.cache.trust": "untrusted",
+	}}, testFacts(golangEnv, nil))
+	a := openCacheMounts(&plan, filepath.Join(filepath.Dir(cacheRoot), "c4", "shim"))
+	defer a.close()
+	if a.skipped["pip"] != skipNoStore || a.skipped["gomod"] != "" {
+		t.Fatalf("skipped %v", a.skipped)
+	}
+	if _, set := envLookup(a.env, "PIP_CACHE_DIR", false); set {
+		t.Fatalf("PIP_CACHE_DIR kept without its store: %v", a.env)
+	}
+	if v, _ := envLookup(a.env, "GOMODCACHE", false); v != cacheMountRoot+"/gomod" {
+		t.Fatalf("GOMODCACHE %q", v)
+	}
+	for _, m := range a.mounts {
+		if strings.HasPrefix(m.ContainerPath, cacheMountRoot+"/pip") {
+			t.Fatalf("a mount for the missing store: %+v", m)
+		}
+	}
+	if exists(filepath.Join(cacheRoot, "scopes/default/pip")) {
+		t.Fatal("the reader created the store")
+	}
+	// No env-mode store at all: not even the scope is bound.
+	fresh := decide(t, defaultCachePolicy(), dockerConfig{Labels: map[string]string{
+		"io.micropod.cache": "pip", "io.micropod.cache.trust": "untrusted", "io.micropod.cache.scope": "fresh",
+	}}, testFacts(golangEnv, nil))
+	b := openCacheMounts(&fresh, filepath.Join(filepath.Dir(cacheRoot), "c5", "shim"))
+	defer b.close()
+	if len(b.mounts) != 0 || b.skipped["pip"] != skipNoStore {
+		t.Fatalf("fresh scope: mounts %+v skipped %v", b.mounts, b.skipped)
+	}
+}
