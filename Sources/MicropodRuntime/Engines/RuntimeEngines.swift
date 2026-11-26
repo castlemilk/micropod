@@ -219,6 +219,15 @@ public final class EngineRegistry: Sendable {
 
     public var activeMode: RuntimeMode? { RuntimeMode(engineName: defaultName) }
 
+    /// Whether a merged listing leaves Apple's runtime out without asking
+    /// it: another engine is the default and Apple's is disabled or not
+    /// installed. With Apple the default, or enabled and installed, it is
+    /// asked as before (a stopped runtime is then skipped by its error, which
+    /// a gated client answers without spawning).
+    public func skipsApple(installed: @autoclosure () -> Bool) -> Bool {
+        defaultName != "apple" && (!isEnabled("apple") || !installed())
+    }
+
     public func isEnabled(_ rawName: String) -> Bool {
         let name = Self.canonicalName(rawName)
         if name == defaultName { return true }
@@ -340,6 +349,8 @@ public final class EngineRegistry: Sendable {
 /// The existing backend (native XPC or CLI) presented as an engine.
 public struct AppleEngine: RuntimeEngine {
     public let services: RuntimeServices
+    /// Whether the `container` CLI is on disk; injectable for tests.
+    private let cliInstalled: @Sendable () -> Bool
     public var name: String { "apple" }
     public var kind: String { "vm" }
     public var summary: String { "Apple container runtime — one micro-VM per container" }
@@ -356,7 +367,19 @@ public struct AppleEngine: RuntimeEngine {
     public var logs: any LogStreaming { services.logs }
     public var stats: (any StatsSampling)? { services.stats }
 
-    public init(services: RuntimeServices) { self.services = services }
+    public init(services: RuntimeServices, cliInstalled: @escaping @Sendable () -> Bool = AppleEngine.cliIsInstalled) {
+        self.services = services
+        self.cliInstalled = cliInstalled
+    }
+
+    /// The `container` CLI the default client would run is on disk.
+    @Sendable public static func cliIsInstalled() -> Bool {
+        ContainerExecutableLocator.isExecutableFile(ContainerExecutableLocator.resolve().path)
+    }
+
+    /// Reachable without a local CLI over XPC (native) or the managed
+    /// gateway, else only through the CLI.
+    public var isInstalled: Bool { services.kind != .cli || cliInstalled() }
 
     public func probe() async -> EngineProbe {
         let version = services.health?.apiServerVersion ?? ""
@@ -461,10 +484,12 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     public func list() async throws -> [Micropod_V1_Container] {
         var all: [Micropod_V1_Container] = []
         do {
-            all = try await apple.containers.list().map { container in
-                var container = container
-                container.runtime = "apple"
-                return container
+            if !registry.skipsApple(installed: apple.isInstalled) {
+                all = try await apple.containers.list().map { container in
+                    var container = container
+                    container.runtime = "apple"
+                    return container
+                }
             }
         } catch {
             // With another engine as the default, a stopped Apple runtime is
@@ -608,7 +633,11 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     public func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot {
         var merged = Micropod_V1_StatsSnapshot()
         do {
-            merged = try await apple.stats?.snapshot(ids: ids) ?? merged
+            if registry.skipsApple(installed: apple.isInstalled) {
+                merged.sampledAt = ISO8601DateFormatter().string(from: Date())
+            } else {
+                merged = try await apple.stats?.snapshot(ids: ids) ?? merged
+            }
         } catch {
             // As in `list`: a stopped Apple runtime is skipped when Apple is
             // not the default; any other Apple failure still surfaces.

@@ -155,7 +155,10 @@ struct ResourceRouting<Store: Sendable>: Sendable {
         }
         var all: [(runtime: String, item: Item)] = []
         do {
-            all = try await apple().map { ("apple", $0) }
+            // Another default engine and Apple's disabled: nothing to ask.
+            if registry?.skipsApple(installed: true) != true {
+                all = try await apple().map { ("apple", $0) }
+            }
         } catch {
             guard defaultName != "apple", RuntimeRouter.appleRuntimeIsDown(error) else { throw error }
         }
