@@ -201,7 +201,11 @@ enum HTTPResponse {
 /// request per connection (the managed runtime's internal socket); when the
 /// server already keeps `ConnectionPolicy.maxKeptConnections`; or once it is
 /// stopping. Streams, the vsock bridge and relays are delimited by the close
-/// that ends them, as before. See `ConnectionPolicy` for the timeouts.
+/// that ends them, as before — except a stream whose request asks for
+/// chunked framing (`X-Micropod-Stream-Framing: chunked`, see
+/// `HTTPStreamFraming`) on a connection that may persist: its body is sent
+/// in chunks, ends with the zero-length chunk, and the connection then serves
+/// the next request. See `ConnectionPolicy` for the timeouts.
 final class HTTPServer: @unchecked Sendable {
     let port: UInt16
     let handler: (HTTPRequest) async -> HTTPResponse
@@ -526,38 +530,47 @@ final class HTTPServer: @unchecked Sendable {
                 connection.cancel()
                 return
             }
-            var newBuffer = buffer
-            if let data, !data.isEmpty {
-                switch pending.arrive() {
-                case .finished:
-                    // A watchdog settled this read first (408, or an idle close).
-                    return
-                case .began:
-                    // The next request on a kept connection: no longer idle,
-                    // and its own clocks start at this first byte.
-                    self.kept.release(connection)
-                    self.armRequestTimers(peer, pending: pending)
-                case .continuing:
-                    self.armIdleTimer(connection, pending: pending)
-                }
-                newBuffer.append(data)
-                if self.handleBuffered(peer, newBuffer, pending: pending) { return }
-            }
-            if isComplete || error != nil || data == nil || data?.isEmpty == true {
-                // Peer closed (or the read failed) before a full request
-                // arrived: say so if we can, then close. A kept connection
-                // the client closed while idle just closes.
-                guard pending.finish() else { return }
-                self.kept.release(connection)
-                if !newBuffer.isEmpty && error == nil {
-                    self.reject(connection, status: 400, reason: "request truncated")
-                } else {
-                    connection.cancel()
-                }
-                return
-            }
-            self.readRequest(peer, buffer: newBuffer, pending: pending)
+            self.received(
+                peer, buffer: buffer, data: data, isComplete: isComplete, failed: error != nil, pending: pending)
         }
+    }
+
+    /// One receive's worth of a request: bytes to parse, or the peer gone.
+    private func received(
+        _ peer: Peer, buffer: Data, data: Data?, isComplete: Bool, failed: Bool, pending: PendingRead
+    ) {
+        let connection = peer.connection
+        var newBuffer = buffer
+        if let data, !data.isEmpty {
+            switch pending.arrive() {
+            case .finished:
+                // A watchdog settled this read first (408, or an idle close).
+                return
+            case .began:
+                // The next request on a kept connection: no longer idle,
+                // and its own clocks start at this first byte.
+                kept.release(connection)
+                armRequestTimers(peer, pending: pending)
+            case .continuing:
+                armIdleTimer(connection, pending: pending)
+            }
+            newBuffer.append(data)
+            if handleBuffered(peer, newBuffer, pending: pending) { return }
+        }
+        if isComplete || failed || data == nil || data?.isEmpty == true {
+            // Peer closed (or the read failed) before a full request
+            // arrived: say so if we can, then close. A kept connection
+            // the client closed while idle just closes.
+            guard pending.finish() else { return }
+            kept.release(connection)
+            if !newBuffer.isEmpty && !failed {
+                reject(connection, status: 400, reason: "request truncated")
+            } else {
+                connection.cancel()
+            }
+            return
+        }
+        readRequest(peer, buffer: newBuffer, pending: pending)
     }
 
     /// Parses what has arrived of the current request: true once it is
@@ -650,6 +663,15 @@ final class HTTPServer: @unchecked Sendable {
                             withExtendedLifetime(claim) {}
                         }
                     })
+            case .stream(let status, let contentType, let events)
+            where peer.keepAlive && persistence != .close && leftover.isEmpty
+                && HTTPStreamFraming.wantsChunks(request.headers) && kept.reserve(connection):
+                streamChunked(
+                    status: status, contentType: contentType, events: events, cors: cors, peer: peer
+                ) {
+                    try? claim?.completed()
+                    withExtendedLifetime(claim) {}
+                }
             case .stream(let status, let contentType, let events):
                 // SSE/connect-stream: write the head without Content-Length,
                 // then stream each event on the live connection. Every send
@@ -709,6 +731,93 @@ final class HTTPServer: @unchecked Sendable {
         }
     }
 
+    /// A stream on a connection that persists, for a client that asked for
+    /// chunked framing: the head says `Transfer-Encoding: chunked`, every
+    /// event goes out as one chunk (each send awaited, as for a closing
+    /// stream), the zero-length chunk ends the body, and the connection then
+    /// waits for the next request as after any kept reply. The client
+    /// closing its side, or failing a send, stops the stream and the
+    /// connection. A client that sends anything before the stream ended
+    /// (this server does not pipeline behind a stream) has the connection
+    /// closed after it. `finished` runs once the source is done or abandoned.
+    private func streamChunked(
+        status: Int, contentType: String, events: AsyncStream<Data>, cors: [(String, String)], peer: Peer,
+        finished: @escaping @Sendable () -> Void
+    ) {
+        let connection = peer.connection
+        let head = Self.streamHead(
+            status: status, contentType: contentType,
+            extraHeaders: cors + [("Transfer-Encoding", "chunked"), (HTTPStreamFraming.header, "chunked")],
+            closing: false)
+        let watch = StreamWatch()
+        connection.send(
+            content: head,
+            completion: .contentProcessed { [weak self] _ in
+                let pump = Task {
+                    func send(_ bytes: Data) async -> Bool {
+                        await withCheckedContinuation { (c: CheckedContinuation<Bool, Never>) in
+                            connection.send(
+                                content: bytes, completion: .contentProcessed { c.resume(returning: $0 == nil) })
+                        }
+                    }
+                    for await chunk in events where !chunk.isEmpty {
+                        guard await send(HTTPStreamFraming.chunk(chunk)) else { break }
+                    }
+                    finished()
+                    guard !Task.isCancelled, await send(HTTPStreamFraming.lastChunk), let self else {
+                        self?.kept.release(connection)
+                        connection.cancel()
+                        return
+                    }
+                    self.resumeAfterStream(peer, watch: watch)
+                }
+                Self.watchStream(connection, watch: watch) { pump.cancel() }
+            })
+    }
+
+    /// The chunked stream ended: wait for the next request, as `readNext`
+    /// does on an empty buffer. Its first bytes arrive through the receive
+    /// the stream's watch already has outstanding.
+    private func resumeAfterStream(_ peer: Peer, watch: StreamWatch) {
+        guard kept.park(peer.connection) else {
+            peer.connection.cancel()
+            return
+        }
+        let pending = PendingRead(idle: true)
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.keepAliveIdle) {
+            [weak self] in
+            guard pending.finishIdle() else { return }
+            self?.kept.release(peer.connection)
+            peer.connection.cancel()
+        }
+        let resumed = watch.end { [weak self] data, isComplete, failed in
+            guard let self else {
+                peer.connection.cancel()
+                return
+            }
+            self.received(peer, buffer: Data(), data: data, isComplete: isComplete, failed: failed, pending: pending)
+        }
+        if !resumed {
+            // The client sent before the stream ended, or already closed.
+            guard pending.finish() else { return }
+            kept.release(peer.connection)
+            peer.connection.cancel()
+        }
+    }
+
+    /// While a chunked stream runs, its connection's one reader: the client
+    /// closing stops the stream. After the stream ended the bytes go to the
+    /// next request (`StreamWatch.end`).
+    static func watchStream(_ connection: NWConnection, watch: StreamWatch, onHangup: @escaping @Sendable () -> Void) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, isComplete, error in
+            switch watch.received(data, closed: isComplete || error != nil, failed: error != nil) {
+            case .hangUp: onHangup()
+            case .handedOff: break
+            case .watch: watchStream(connection, watch: watch, onHangup: onHangup)
+            }
+        }
+    }
+
     /// Writes a reply framed by Content-Length, then serves the
     /// connection's next request when the listener, the request and the
     /// server's bound all allow it; otherwise says `Connection: close` and
@@ -748,15 +857,18 @@ final class HTTPServer: @unchecked Sendable {
     }
 
     static func streamHead(
-        status: Int, contentType: String, extraHeaders: [(String, String)] = []
+        status: Int, contentType: String, extraHeaders: [(String, String)] = [], closing: Bool = true
     ) -> Data {
-        var head = "HTTP/1.1 \(status) \(reasonLine(for: status))\r\n"
+        // A closing stream's status line keeps the bytes it has always had
+        // (the reason phrase repeats the version and code; clients read only
+        // the code). A chunked stream is new and says it plainly.
+        var head = closing ? "HTTP/1.1 \(status) \(reasonLine(for: status))\r\n" : "\(reasonLine(for: status))\r\n"
         head += "Content-Type: \(contentType)\r\n"
         for (key, value) in extraHeaders {
             head += "\(key): \(value)\r\n"
         }
         head += "Cache-Control: no-cache\r\n"
-        head += "Connection: close\r\n\r\n"
+        head += closing ? "Connection: close\r\n\r\n" : "\r\n"
         return Data(head.utf8)
     }
 

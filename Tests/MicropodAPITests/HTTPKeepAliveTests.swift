@@ -588,6 +588,28 @@ final class RawConnection: @unchecked Sendable {
                 in: .whitespaces)
         }
         let status = Int(lines[0].split(separator: " ").dropFirst().first ?? "") ?? 0
+        if headers["transfer-encoding"] == "chunked" {
+            // Chunks up to the zero-length one; the connection stays open.
+            var body = Data()
+            let crlf = Data("\r\n".utf8)
+            while true {
+                while buffer.range(of: crlf) == nil {
+                    guard read(until: deadline) == .data else { throw Failure(description: "chunk size cut short") }
+                }
+                let line = buffer.range(of: crlf)!
+                let size =
+                    Int(String(decoding: buffer[buffer.startIndex..<line.lowerBound], as: UTF8.self), radix: 16) ?? -1
+                guard size >= 0 else { throw Failure(description: "malformed chunk size") }
+                _ = take(buffer.distance(from: buffer.startIndex, to: line.upperBound))
+                while buffer.count < size + 2 {
+                    guard read(until: deadline) == .data else { throw Failure(description: "chunk cut short") }
+                }
+                body.append(take(size))
+                guard take(2) == crlf else { throw Failure(description: "a chunk without its CRLF") }
+                if size == 0 { break }
+            }
+            return Reply(statusLine: lines[0], status: status, headers: headers, body: body)
+        }
         if let length = headers["content-length"].flatMap({ Int($0) }) {
             while buffer.count < length {
                 guard read(until: deadline) == .data else {

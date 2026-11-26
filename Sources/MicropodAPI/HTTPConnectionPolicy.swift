@@ -136,3 +136,67 @@ extension HTTPServer {
         }
     }
 }
+
+/// Chunked framing for a stream on a connection that persists, which a
+/// client asks for with `X-Micropod-Stream-Framing: chunked` (the server
+/// echoes it). Without it a stream is delimited by the close that ends it,
+/// byte for byte as before; clients that never ask see no change.
+enum HTTPStreamFraming {
+    static let header = "X-Micropod-Stream-Framing"
+
+    static func wantsChunks(_ headers: [String: String]) -> Bool {
+        headers[header.lowercased()]?.lowercased().split(separator: ",")
+            .contains { $0.trimmingCharacters(in: .whitespaces) == "chunked" } == true
+    }
+
+    /// One chunk: its size in hex, the bytes. Never called with no bytes,
+    /// which would end the body.
+    static func chunk(_ bytes: Data) -> Data {
+        Data((String(bytes.count, radix: 16) + "\r\n").utf8) + bytes + Data("\r\n".utf8)
+    }
+
+    /// The last chunk: the end of the body (no trailer fields).
+    static let lastChunk = Data("0\r\n\r\n".utf8)
+}
+
+/// What a chunked stream's connection reader saw: the client closing while
+/// the stream runs stops it; once the stream ended, the bytes go to whoever
+/// `end` names (the next request's reader). Bytes before the end mark the
+/// connection as unusable after the stream.
+final class StreamWatch: @unchecked Sendable {
+    enum Verdict { case watch, hangUp, handedOff }
+
+    private let lock = NSLock()
+    private var early = false
+    private var closed = false
+    private var next: (@Sendable (Data?, Bool, Bool) -> Void)?
+
+    /// One receive: `data`, and whether the peer closed or the read failed.
+    func received(_ data: Data?, closed: Bool, failed: Bool) -> Verdict {
+        lock.lock()
+        if let next {
+            lock.unlock()
+            next(data, closed, failed)
+            return .handedOff
+        }
+        if closed {
+            self.closed = true
+            lock.unlock()
+            return .hangUp
+        }
+        if let data, !data.isEmpty { early = true }
+        lock.unlock()
+        return .watch
+    }
+
+    /// The stream ended: later bytes go to `next`. False when the
+    /// connection cannot serve another request (the client closed it or
+    /// sent before the end).
+    func end(_ next: @escaping @Sendable (Data?, Bool, Bool) -> Void) -> Bool {
+        lock.withLock {
+            guard !early, !closed else { return false }
+            self.next = next
+            return true
+        }
+    }
+}
