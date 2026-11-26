@@ -30,6 +30,13 @@
 #   T5 restart: machine stop/start, then kill -9 of the VMM mid-download
 #   T6 builds with the stock docker CLI (isolated DOCKER_CONFIG, DOCKER_HOST only)
 #   T7 create-to-start latency, auto vs io.micropod.cache=off, interleaved
+#   T8 trust and sharing: under defaultTrust=untrusted an unlabeled container
+#      writes nothing into a store and no container gets a socket that can
+#      create another; allowedScopes holds for labels, untrusted readers and
+#      alias volumes; with sharedL0 on, maven and gradle stay per scope
+#   T9 BuildKit across `machine install --replace-disk` (throwaway installs
+#      only): the next cache-mount build succeeds, BuildKit holds no record
+#      of a lost snapshot, and the cache disk's stores survive
 #
 # Each check names what it needs: auto (a cache hit that needs the engine to
 # attach), engine (an attach decision visible in inspect or create), build (the
@@ -64,7 +71,7 @@
 #                    without one, the stores then live on the OS disk)
 #   QUAL_MICROPOD    micropod CLI (default .build/debug/micropod)
 #   QUAL_DOCKER      docker CLI (default /opt/homebrew/bin/docker, else PATH)
-#   QUAL_SECTIONS    default "T0 T1 NC T2 T3 T4 T5 T6 T7"
+#   QUAL_SECTIONS    default "T0 T1 NC T2 T3 T4 T5 T6 T7 T8 T9"
 #   QUAL_TOOLSET     default "go npm pnpm yarn1 yarn4 pip uv cargo corepack"
 #   QUAL_PNPM_T1     pnpm majors in T1 (default "9 10 11 12"); QUAL_PNPM_T2 ("10 12")
 #   QUAL_PIP_IMAGES  T2 pip images (default python:3.12, 3.10 and 3.11 alpine)
@@ -83,7 +90,7 @@ M="${QUAL_MICROPOD:-$REPO/.build/debug/micropod}"
 ROOT_DIR="${QUAL_ROOT:-/tmp/mpq-caches}"
 INSTALL="${QUAL_INSTALL:-1}"
 MANUAL="${QUAL_MANUAL_WIRING:-0}"
-SECTIONS=" ${QUAL_SECTIONS:-T0 T1 NC T2 T3 T4 T5 T6 T7} "
+SECTIONS=" ${QUAL_SECTIONS:-T0 T1 NC T2 T3 T4 T5 T6 T7 T8 T9} "
 TOOLSET=" ${QUAL_TOOLSET:-go npm pnpm yarn1 yarn4 pip uv cargo corepack} "
 PNPM_T1="${QUAL_PNPM_T1:-9 10 11 12}"
 PNPM_T2="${QUAL_PNPM_T2:-10 12}"
@@ -556,6 +563,7 @@ want_tool uv && images="$images $IMG_UV"
 want_tool cargo && images="$images $IMG_RUST"
 want_tool pip && want_section T2 && images="$images $PIP_IMAGES"
 want_section T3 && images="$images $IMG_PG"
+want_section T8 && images="$images $IMG_PY"
 want_section T7 && images="$images $T7_FIRST"
 for img in $(echo "$images" | tr ' ' '\n' | sort -u); do
     "$DOCKER" image inspect "$img" >/dev/null 2>&1 && continue
@@ -1505,6 +1513,161 @@ print(('qm-default:/micropod/cache' in ((i.get('HostConfig') or {}).get('Binds')
 if want_section T7; then
     section T7 "create-to-start latency"
     t7
+fi
+
+# --- T8 trust tier, scope allow-list and the shared scope ------------------------------------
+# qsh NAME IMAGE [docker args…] -- SCRIPT: runs SCRIPT under sh; the key=value
+# lines it appends to $RES become /qr/NAME.res, sealed with the sentinel.
+qsh() {
+    local name=$1 image=$2
+    shift 2
+    local args=()
+    while [ "$#" -gt 0 ] && [ "$1" != -- ]; do args+=("$1") && shift; done
+    shift
+    run_container "$name" "$image" "${args[@]}" -- sh -c "RES=/qr/.$name.tmp; : >\$RES; $1; echo 'QUAL-SENTINEL $name' >>\$RES; mv \$RES /qr/$name.res"
+    sentinel "$name"
+}
+create_err() { # create_err [docker create args…]: the refused create's last line, "" when it was created (then removed)
+    local out cid
+    out=$("$DOCKER" create --label "qual-run=$S" "$@" 2>&1)
+    cid=$(echo "$out" | grep -E '^[0-9a-f]{64}$')
+    [ -n "$cid" ] && "$DOCKER" rm -f "$cid" >/dev/null 2>&1
+    [ -n "$cid" ] || echo "$out" | tail -1
+}
+setpol() { # setpol FLAG…: a live machine cache policy edit; the engine re-reads it within 2 s
+    "$M" machine cache policy "$@" >>"$QR/t8-policy.log" 2>&1
+    local rc=$?
+    sleep 3
+    return $rc
+}
+trust_of() { echo "trust=$(insp "$1" "(c.get('MicropodCache') or {}).get('trust')") from=$(insp "$1" "(c.get('MicropodCache') or {}).get('trustFrom')")"; }
+t8() {
+    local sc=q8-$S mark=qual-t8-$S err cmd
+    local G=/micropod/cache/gomod
+    # (a) defaultTrust=untrusted: a container that names no tier only reads.
+    qsh t8-seed "$IMG_BASE" --label "io.micropod.cache.scope=$sc" -- "echo trusted >$G/$mark-seed && echo seed=ok >>\$RES"
+    check safety "t8-seed: a trusted container (the shipped default) writes the scope's gomod store" "$(r t8-seed seed)" ok
+    setpol --default-trust untrusted
+    check cli "t8: machine cache policy --default-trust untrusted is applied live" "$?" 0
+    qsh t8-unlabeled "$IMG_BASE" --label "io.micropod.cache.scope=$sc" -- \
+        "echo poisoned >$G/$mark-seed 2>/dev/null && echo overwrote=yes >>\$RES; echo planted >$G/$mark-planted 2>/dev/null && echo planted=yes >>\$RES; echo seen=\$(cat $G/$mark-seed) >>\$RES"
+    check engine "t8-unlabeled: under defaultTrust=untrusted an unlabeled container is untrusted by the policy default, gomod copy-on-write" \
+        "$(trust_of t8-unlabeled) gomod=$(mc t8-unlabeled gomod access)" "trust=untrusted from=policy-default gomod=copy-on-write"
+    check safety "t8-unlabeled: its writes land in its own view (it saw its own overwrite)" \
+        "overwrote=$(r t8-unlabeled overwrote) planted=$(r t8-unlabeled planted) seen=$(r t8-unlabeled seen)" "overwrote=yes planted=yes seen=poisoned"
+    qsh t8-trusted "$IMG_BASE" --label "io.micropod.cache.scope=$sc" --label io.micropod.cache.trust=trusted -- \
+        "echo seed=\$(cat $G/$mark-seed) >>\$RES; if [ -e $G/$mark-planted ]; then echo planted=yes; else echo planted=no; fi >>\$RES"
+    check safety "t8: the unlabeled container wrote nothing into the store (a trusted reader sees the seed, no planted file)" \
+        "seed=$(r t8-trusted seed) planted=$(r t8-trusted planted)" "seed=trusted planted=no"
+    check engine "t8-trusted: on the host-facing socket a container may still claim trusted under that default" "$(trust_of t8-trusted)" "trust=None from=label"
+    # (b) A container created from inside it: the engine gives no container
+    # a socket that can create one. A docker.sock bind is refused, and the
+    # engine's vsock port is unreachable from a container (a container may
+    # not even open an AF_VSOCK socket; past that, the kernel has no vsock
+    # loopback and the host answers only its own services).
+    err=$(create_err -v /var/run/docker.sock:/var/run/docker.sock "$IMG_BASE" true)
+    checkp engine "t8: no container gets the engine's socket (a /var/run/docker.sock bind is refused)" "$err" "a refused create" "$(ok test -n "$err")"
+    cmd="import errno, socket
+for cid in (1, 2):
+    try:
+        s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
+        s.settimeout(3)
+        s.connect((cid, 2375))
+        r = 'connected'
+    except OSError as e:
+        r = errno.errorcode.get(e.errno, 'timeout') if e.errno else 'timeout'
+    print('vsock%d=%s' % (cid, r))"
+    qsh t8-vsock "$IMG_PY" -- "python3 -c \"$cmd\" >>\$RES 2>&1"
+    checkp engine "t8-vsock: an untrusted container cannot reach the engine's vsock port 2375 (guest loopback or host)" \
+        "vsock1=$(r t8-vsock vsock1) vsock2=$(r t8-vsock vsock2)" "neither connected" \
+        "$(ok test -n "$(r t8-vsock vsock1)" -a "$(r t8-vsock vsock1)" != connected -a -n "$(r t8-vsock vsock2)" -a "$(r t8-vsock vsock2)" != connected -a "$(r t8-vsock vsock1)" != missing)"
+    # (c) allowedScopes holds for labels, untrusted readers and alias volumes.
+    setpol --default-trust trusted --allow-scopes "q8-*,default"
+    err=$(create_err --label "io.micropod.cache.scope=other-$S" "$IMG_BASE" true)
+    checkp engine "t8: a scope label outside allowedScopes is refused (400)" "$err" "contains 'not allowed'" "$(ok test "$(echo "$err" | grep -c 'not allowed')" -ge 1)"
+    err=$(create_err --label "io.micropod.cache.scope=other-$S" --label io.micropod.cache.trust=untrusted "$IMG_BASE" true)
+    checkp engine "t8: an untrusted container may not even read a scope outside allowedScopes" "$err" "contains 'not allowed'" "$(ok test "$(echo "$err" | grep -c 'not allowed')" -ge 1)"
+    err=$(create_err -v "micropod-ci-scoped-other$S-gomod:/go/pkg/mod:ro" "$IMG_BASE" true)
+    checkp engine "t8: a legacy alias volume naming a scope outside allowedScopes is refused" "$err" "contains 'does not allow'" "$(ok test "$(echo "$err" | grep -c 'does not allow')" -ge 1)"
+    echo "micropod-ci-scoped-$sc-gomod" >>"$QW/volumes.list"
+    err=$(create_err -v "micropod-ci-scoped-$sc-gomod:/go/pkg/mod:ro" "$IMG_BASE" true)
+    check engine "t8: an alias volume of an allowed scope is still accepted" "${err:-created}" created
+    setpol --allow-scopes '*'
+    # (d) sharedL0 shares gomod, npm and pnpm only: maven and gradle stay in
+    # each container's scope.
+    setpol --share-l0 on
+    check cli "t8: machine cache policy --share-l0 on" "$?" 0
+    qsh t8-mvn-a "$IMG_BASE" --label "io.micropod.cache.scope=q8a-$S" --label "io.micropod.cache=+maven,+gradle" -- \
+        "mkdir -p /root/.m2/repository/qual /root/.gradle/caches/modules-2/qual && echo a >/root/.m2/repository/qual/$mark && echo a >/root/.gradle/caches/modules-2/qual/$mark && echo wrote=yes >>\$RES"
+    qsh t8-mvn-b "$IMG_BASE" --label "io.micropod.cache.scope=q8b-$S" --label "io.micropod.cache=+maven,+gradle" -- \
+        "for k in maven:/root/.m2/repository gradle:/root/.gradle/caches/modules-2; do if [ -e \${k#*:}/qual/$mark ]; then echo \${k%%:*}=shared; else echo \${k%%:*}=separate; fi; done >>\$RES"
+    qsh t8-mvn-a2 "$IMG_BASE" --label "io.micropod.cache.scope=q8a-$S" --label "io.micropod.cache=+maven,+gradle" -- \
+        "for k in maven:/root/.m2/repository gradle:/root/.gradle/caches/modules-2; do if [ -e \${k#*:}/qual/$mark ]; then echo \${k%%:*}=kept; else echo \${k%%:*}=lost; fi; done >>\$RES"
+    check engine "t8-mvn-a: scope A's maven and gradle stores take its entries (maven, gradle path-mode in q8a-$S; gomod in global)" \
+        "wrote=$(r t8-mvn-a wrote) $(mc t8-mvn-a maven scope) $(mc t8-mvn-a gradle scope) $(mc t8-mvn-a gomod scope)" "wrote=yes q8a-$S q8a-$S global"
+    check engine "t8-mvn-b: with sharedL0 on, scope B does not see scope A's maven or gradle entries" \
+        "maven=$(r t8-mvn-b maven) gradle=$(r t8-mvn-b gradle) scopes=$(mc t8-mvn-b maven scope),$(mc t8-mvn-b gradle scope)" \
+        "maven=separate gradle=separate scopes=q8b-$S,q8b-$S"
+    check auto "t8-mvn-a2: …while scope A keeps them for its next container" "maven=$(r t8-mvn-a2 maven) gradle=$(r t8-mvn-a2 gradle)" "maven=kept gradle=kept"
+    setpol --share-l0 off
+}
+if want_section T8; then
+    section T8 "trust tier, scope allow-list and what sharedL0 shares"
+    if [ "$MANUAL" = 1 ]; then
+        echo "  - T8 checks the engine's trust and scope decisions; hand wiring has nothing to stand in for (not run)"
+        SKIP=$((SKIP + 1))
+    else
+        t8
+    fi
+fi
+
+# --- T9 BuildKit across a replaced OS disk -------------------------------------------------------
+# BuildKit's metadata and the containerd snapshots it refers to both live on
+# the OS disk: replacing disk.ext4 starts BuildKit empty and consistent (no
+# record whose snapshot is gone, no failed build), and the cache disk's
+# dependency stores survive. The cache mounts themselves do not.
+t9() {
+    local B="$TMP/build9" tag="qual-b9-$S" before after du rc
+    ctx_copy "$B/r1" r1
+    bx -t "$tag:1" "$B/r1" >"$QR/t9-b1.log" 2>&1
+    ctx_copy "$B/r2" r2
+    bx -t "$tag:2" "$B/r2" >"$QR/t9-b2.log" 2>&1
+    check buildhit "t9-b2: before the OS disk is replaced the cache-mount build hits" "$(counts_of "$QR/t9-b2.log")" "compiles=1 downloads=0 rc=0"
+    before=$(cm_count)
+    "$M" machine stop >"$QR/t9-stop.log" 2>&1
+    "$M" machine install --replace-disk "${DISK_ARGS[@]}" >"$QR/t9-install.log" 2>&1
+    check cli "t9: machine install --replace-disk replaces disk.ext4 and keeps caches.ext4" \
+        "rc=$? cache-disk=$([ -f "$ROOT_DIR/caches.ext4" ] && echo kept || echo gone)" "rc=0 cache-disk=kept"
+    "$M" machine start >"$QR/t9-start.log" 2>&1
+    wait_engine 180
+    "$DOCKER" buildx du >"$QR/t9-du.log" 2>&1
+    du=$?
+    after=$(cm_count)
+    checkp build "t9: after the replaced OS disk BuildKit starts empty and consistent (buildx du answers, no cache-mount record left)" \
+        "du=$du records before=$before after=$after" "du=0, after=0" "$(ok test "$du" = 0 -a "$after" = 0 -a "$(gt0 "$before" && echo y)" = y)"
+    ctx_copy "$B/r3" r3
+    bx -t "$tag:3" "$B/r3" >"$QR/t9-b3.log" 2>&1
+    rc=$?
+    check build "t9-b3: the cache-mount build on the new OS disk succeeds and no step misses a snapshot" \
+        "rc=$rc missing=$(grep -c 'does not exist' "$QR/t9-b3.log")" "rc=0 missing=0"
+    echo "    t9-b3 counts (the cache mounts start empty with the OS disk): $(counts_of "$QR/t9-b3.log")"
+    ctx_copy "$B/r4" r4
+    bx -t "$tag:4" "$B/r4" >"$QR/t9-b4.log" 2>&1
+    check buildhit "t9-b4: …and the next one hits its cache mounts again" "$(counts_of "$QR/t9-b4.log")" "compiles=1 downloads=0 rc=0"
+    if want_section T8; then
+        "$DOCKER" pull -q "$IMG_BASE" >>"$OUT/pull.log" 2>&1
+        qsh t9-store "$IMG_BASE" --label "io.micropod.cache.scope=q8-$S" -- "echo seed=\$(cat /micropod/cache/gomod/qual-t8-$S-seed) >>\$RES"
+        check auto "t9-store: the cache disk's stores survive the replaced OS disk (T8's seed is still there)" "$(r t9-store seed)" trusted
+    fi
+}
+if want_section T9; then
+    section T9 "BuildKit state across machine install --replace-disk"
+    if [ "$INSTALL" != 1 ] || [ "$MANUAL" = 1 ] || [ ! -x "$ROOT_DIR/tools/runner/bin/buildkitd" ]; then
+        echo "  - T9 replaces the OS disk of a throwaway install with BuildKit on the stock path (not run here)"
+        SKIP=$((SKIP + 1))
+    else
+        t9
+    fi
 fi
 
 # --- summary --------------------------------------------------------------------------------
