@@ -134,3 +134,105 @@ extension HVFMachineClient {
             caches: HVFToolsManifest.load(bundle: layout.tools)?.caches == true)
     }
 }
+
+// MARK: - Starting a default machine that is down
+
+extension HVFMachineClient {
+    /// `readiness()` for a machine that is the default runtime: one that is
+    /// down without having been stopped on request (never started since
+    /// the Mac booted, its supervisor gone, or given up after crashes) is
+    /// started in the background and reported `starting` until the guest
+    /// answers. That is when a runner would have booted it with its first
+    /// job; reporting `stopped` instead would leave a rig controller that
+    /// treats only `running` as leasable waiting on a machine nothing
+    /// starts.
+    ///
+    /// A machine stopped on request (`machine stop`, or an update that left
+    /// it as it found it) stays `stopped`: only `machine start` or a
+    /// container call boots it. Starts are single-flight per root, and one
+    /// that failed is not retried for `HVFMachineAutostart.retryAfter`.
+    /// `MICROPOD_HVF_AUTOSTART=0` turns this off (plain `readiness()`).
+    public func readinessStartingWhenDown(
+        start: (@Sendable () async throws -> Void)? = nil
+    ) async -> HVFMachineReadiness {
+        let ready = await readiness()
+        guard environment["MICROPOD_HVF_AUTOSTART"] != "0", [.stopped, .failed].contains(ready.status),
+            !stoppedOnRequest
+        else { return ready }
+        guard HVFMachineAutostart.begin(layout.root.path) else {
+            if let failure = HVFMachineAutostart.lastFailure(layout.root.path) {
+                var failed = ready
+                failed.detail = "\(ready.detail); the last start on demand failed: \(failure)"
+                return failed
+            }
+            return HVFMachineReadiness(
+                status: .starting, detail: "starting on demand (\(ready.detail))", version: ready.version,
+                revision: ready.revision)
+        }
+        let client = self
+        let root = layout.root.path
+        let start = start ?? { try await client.ensureRunning() }
+        Task.detached {
+            do {
+                try await start()
+                HVFMachineAutostart.finish(root, failure: nil)
+            } catch {
+                HVFMachineAutostart.finish(root, failure: error.localizedDescription)
+            }
+        }
+        return HVFMachineReadiness(
+            status: .starting, detail: "starting on demand (\(ready.detail))", version: ready.version,
+            revision: ready.revision)
+    }
+
+    /// No supervisor, and the last one recorded a stop it was asked for.
+    var stoppedOnRequest: Bool {
+        guard !HVFFileLock.isHeld(layout.supervisorLock) else { return false }
+        return (try? HVFMachineState.load(from: layout.state))?.phase == .stopped
+    }
+}
+
+/// Single-flight bookkeeping for `readinessStartingWhenDown`.
+public enum HVFMachineAutostart {
+    /// How long a failed start on demand is not retried.
+    public static let retryAfter: Duration = .seconds(60)
+
+    private struct Entry {
+        var inFlight = false
+        var failedAt: ContinuousClock.Instant?
+        var failure: String?
+    }
+
+    private static let entries = Mutex<[String: Entry]>([:])
+
+    /// True when the caller should start the machine now.
+    static func begin(_ root: String, now: ContinuousClock.Instant = .now) -> Bool {
+        entries.withLock { all in
+            var entry = all[root] ?? Entry()
+            if entry.inFlight { return false }
+            if let failedAt = entry.failedAt, now - failedAt < retryAfter { return false }
+            entry.inFlight = true
+            all[root] = entry
+            return true
+        }
+    }
+
+    static func finish(_ root: String, failure: String?, now: ContinuousClock.Instant = .now) {
+        entries.withLock { all in
+            all[root] = Entry(inFlight: false, failedAt: failure == nil ? nil : now, failure: failure)
+        }
+    }
+
+    /// Why the last start on demand failed, while it is not retried.
+    static func lastFailure(_ root: String, now: ContinuousClock.Instant = .now) -> String? {
+        entries.withLock { all in
+            guard let entry = all[root], !entry.inFlight, let at = entry.failedAt, now - at < retryAfter else {
+                return nil
+            }
+            return entry.failure
+        }
+    }
+
+    /// Tests: forget every root.
+    static func reset() { entries.withLock { $0.removeAll() } }
+}

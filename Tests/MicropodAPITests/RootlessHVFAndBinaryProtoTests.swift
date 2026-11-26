@@ -110,6 +110,8 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
             "MICROPOD_HVF_ROOT": dir.path,
             "MICROPOD_DEFAULT_RUNTIME": "hvf",
             "MICROPOD_RUNTIMES_CONFIG": dir.appendingPathComponent("runtimes.json").path,
+            // Stub assets: never start them on demand (HVFMachineReadinessTests covers that).
+            "MICROPOD_HVF_AUTOSTART": "0",
         ])
         let api = await makeHandlers(engineRegistry: registry)
         let pingResp = await api.connectRPC(
@@ -184,6 +186,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
             "MICROPOD_HVF_ROOT": dir.path,
             "MICROPOD_DEFAULT_RUNTIME": "hvf",
             "MICROPOD_RUNTIMES_CONFIG": dir.appendingPathComponent("runtimes.json").path,
+            "MICROPOD_HVF_AUTOSTART": "0",
         ])
         let api = await makeHandlers(engineRegistry: registry)
 

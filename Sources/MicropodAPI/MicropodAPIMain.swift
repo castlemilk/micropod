@@ -97,8 +97,12 @@ struct MicropodAPI {
                 try await server.startPrivateSocket()
                 try gateway.start()
                 // launchd owns this service; the GUI and root helper may exit.
-                await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
-                withExtendedLifetime(gateway) {}
+                // Parked like the owner path below: a continuation that is
+                // never resumed is reported as leaked.
+                while true {
+                    try await Task.sleep(for: .seconds(86_400))
+                    withExtendedLifetime(gateway) {}
+                }
             }
             let unixSockEnv = ProcessInfo.processInfo.environment["MICROPOD_API_SOCK"]
             let unixSockPath: String? =

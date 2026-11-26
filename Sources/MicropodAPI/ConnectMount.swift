@@ -45,7 +45,7 @@ extension APIHandlers {
                     return reply(try await dedicatedSystem())
                 }
                 if let machine = defaultHVFMachine {
-                    let readiness = await machine.readiness()
+                    let readiness = await machine.readinessStartingWhenDown()
                     var snapshot = Micropod_V1_SystemSnapshot()
                     var status = Micropod_V1_SystemStatus()
                     status.status = readiness.status.rawValue
@@ -769,7 +769,9 @@ extension APIHandlers {
         // `not-ready`, `not-installed`, …), with the why in the
         // `hvf-machine` component.
         if let machine = defaultHVFMachine {
-            let readiness = await machine.readiness()
+            // The default machine, down without a stop being asked for, is
+            // started (and reported `starting`), as its first job would have.
+            let readiness = await machine.readinessStartingWhenDown()
             response.runtimeBackend = "hvf"
             response.status = readiness.status.rawValue
             response.apiServerVersion = readiness.version

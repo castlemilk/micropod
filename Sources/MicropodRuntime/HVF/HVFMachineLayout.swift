@@ -193,6 +193,15 @@ public struct HVFMachineLayout: Sendable, Equatable {
         } catch {
             return error.localizedDescription
         }
+        // A machine.json that does not load or validate (a control port in
+        // allowHostPorts, a goProxy that is not a URL) keeps the supervisor
+        // from starting: say so, never show the defaults as the config.
+        do {
+            _ = try HVFMachineConfig.load(from: config)
+        } catch {
+            let message = error.localizedDescription
+            return message.contains(config.path) ? message : "\(config.path): \(message)"
+        }
         return nil
     }
 
@@ -399,14 +408,24 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         }
         let control = HVFHostPortAllowlist.controlPorts()
         for port in allowHostPorts {
-            guard port > 0 else {
-                throw MicropodError.message("invalidArgument: hvf allowHostPorts entries must be 1...65535")
+            guard port >= HVFHostPortAllowlist.minimumPolicyPort else {
+                throw MicropodError.message(
+                    "invalidArgument: hvf allowHostPorts entries must be \(HVFHostPortAllowlist.minimumPolicyPort)"
+                        + "...65535, got \(port): ports below it are privileged host services (sshd, CUPS, SMB)")
             }
             guard !control.contains(port) else {
                 throw MicropodError.message(
                     "invalidArgument: hvf allowHostPorts must not include \(port): it is a Micropod control port, "
                         + "and every container in the machine would reach it as a local client")
             }
+        }
+        // The VMM opens host ports only through allowHostPorts and the
+        // policy: an extra argument would bypass the control-port denylist
+        // and never show in `machine status`.
+        if let flag = extraArguments.first(where: { $0 == "--allow-host-port" || $0.hasPrefix("--allow-host-port=") }) {
+            throw MicropodError.message(
+                "invalidArgument: hvf extraArguments must not contain \(flag): list host ports in allowHostPorts, "
+                    + "which refuses Micropod's control ports")
         }
         if depproxyPort != 0 {
             guard depproxyPort >= HVFHostPortAllowlist.minimumPolicyPort, !control.contains(depproxyPort) else {

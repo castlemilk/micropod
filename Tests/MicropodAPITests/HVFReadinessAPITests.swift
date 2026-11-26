@@ -56,6 +56,8 @@ final class HVFReadinessAPITests: XCTestCase {
         var environment = [
             "MICROPOD_HVF_ROOT": root.path, "DOCKER_HOST": "unix:///nonexistent.sock",
             "MICROPOD_RUNTIMES_CONFIG": root.appendingPathComponent("runtimes.json").path,
+            // Placeholder assets: never started on demand here.
+            "MICROPOD_HVF_AUTOSTART": "0",
         ]
         environment["MICROPOD_DEFAULT_RUNTIME"] = defaultRuntime
         return EngineRegistry(

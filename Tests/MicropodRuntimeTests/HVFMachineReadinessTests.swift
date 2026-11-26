@@ -140,6 +140,71 @@ final class HVFMachineReadinessTests: XCTestCase {
 
     // MARK: Cache disk
 
+    // MARK: Starting a default machine that is down
+
+    /// Down without a stop being asked for (no state since boot, or a
+    /// supervisor that gave up): started once, reported `starting`. Stopped
+    /// on request: left stopped, nothing started.
+    func testADownMachineIsStartedOnceUnlessItWasStoppedOnRequest() async throws {
+        try install()
+        HVFMachineAutostart.reset()
+        defer { HVFMachineAutostart.reset() }
+        let starts = LockedCount()
+        let gate = UpdateFlag(false)
+        let start: @Sendable () async throws -> Void = {
+            starts.increment()
+            while !gate.value { try await Task.sleep(for: .milliseconds(5)) }
+        }
+        let first = await client.readinessStartingWhenDown(start: start)
+        XCTAssertEqual(first.status, .starting, first.detail)
+        XCTAssertFalse(first.isReady)
+        let second = await client.readinessStartingWhenDown(start: start)
+        XCTAssertEqual(second.status, .starting)
+        gate.value = true
+        try await waitUntil { starts.value == 1 }
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(starts.value, 1, "single-flight")
+
+        // A machine `machine stop` stopped stays stopped.
+        HVFMachineAutostart.reset()
+        try HVFMachineState(phase: .stopped, supervisorPID: 1, lastExitReason: "stopped on request").save(
+            to: layout.state)
+        let asked = await client.readinessStartingWhenDown(start: start)
+        XCTAssertEqual(asked.status, .stopped)
+        // And MICROPOD_HVF_AUTOSTART=0 turns it off.
+        try FileManager.default.removeItem(at: layout.state)
+        let off = HVFMachineClient(layout: layout, environment: ["MICROPOD_HVF_AUTOSTART": "0"])
+        let plain = await off.readinessStartingWhenDown(start: start)
+        XCTAssertEqual(plain.status, .stopped)
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(starts.value, 1)
+    }
+
+    func testAFailedStartOnDemandIsNotRetriedAtOnceAndSaysWhy() async throws {
+        try install()
+        HVFMachineAutostart.reset()
+        defer { HVFMachineAutostart.reset() }
+        let starts = LockedCount()
+        let start: @Sendable () async throws -> Void = {
+            starts.increment()
+            throw MicropodError.message("unavailable: micropod-vmm exited with status 1")
+        }
+        _ = await client.readinessStartingWhenDown(start: start)
+        try await waitUntil { HVFMachineAutostart.lastFailure(layout.root.path) != nil }
+        let after = await client.readinessStartingWhenDown(start: start)
+        XCTAssertEqual(after.status, .stopped)
+        XCTAssertTrue(after.detail.contains("exited with status 1"), after.detail)
+        XCTAssertEqual(starts.value, 1)
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while !condition() {
+            guard ContinuousClock.now < deadline else { return XCTFail("timed out") }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
     func testAHostCacheDiskFileIsNotAMountedCacheDisk() async throws {
         try install()
         XCTAssertTrue(FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: Data("x".utf8)))
@@ -197,4 +262,11 @@ final class LockedValue<Value: Sendable>: @unchecked Sendable {
         get { lock.withLock { stored } }
         set { lock.withLock { stored = newValue } }
     }
+}
+
+private final class LockedCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func increment() { lock.withLock { count += 1 } }
+    var value: Int { lock.withLock { count } }
 }

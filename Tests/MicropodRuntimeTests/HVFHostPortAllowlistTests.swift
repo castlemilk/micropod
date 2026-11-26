@@ -138,11 +138,18 @@ final class HVFHostPortAllowlistTests: XCTestCase {
     }
 
     func testConfigRefusesControlPortsAndKeepsTheDepproxyPort() throws {
-        for port: UInt16 in [45454, 45455, 0] {
+        // Control ports, and privileged ports (sshd, CUPS, SMB) even when named.
+        for port: UInt16 in [45454, 45455, 0, 22, 80, 1023] {
             XCTAssertThrowsError(try HVFMachineConfig(allowHostPorts: [8080, port]).validate(), "\(port)")
         }
-        XCTAssertNoThrow(
-            try HVFMachineConfig(allowHostPorts: [8080, 80]).validate(), "an explicit low port is allowed")
+        XCTAssertNoThrow(try HVFMachineConfig(allowHostPorts: [8080, 1024]).validate())
+        // The VMM flag itself cannot be smuggled past the denylist.
+        for extra in [["--allow-host-port", "45454"], ["--allow-host-port=45454"]] {
+            XCTAssertThrowsError(try HVFMachineConfig(extraArguments: extra).validate(), "\(extra)") { error in
+                XCTAssertTrue(error.localizedDescription.contains("allowHostPorts"), error.localizedDescription)
+            }
+        }
+        XCTAssertNoThrow(try HVFMachineConfig(extraArguments: ["--balloon"]).validate())
         for port: UInt16 in [80, 1023, 45454, 45455] {
             XCTAssertThrowsError(try HVFMachineConfig(depproxyPort: port).validate(), "\(port)")
         }
@@ -159,6 +166,19 @@ final class HVFHostPortAllowlistTests: XCTestCase {
         XCTAssertThrowsError(try HVFMachineConfig.load(from: url)) { error in
             XCTAssertTrue(error.localizedDescription.contains("control port"), error.localizedDescription)
         }
+    }
+
+    /// A machine.json that no longer validates is the machine's problem in
+    /// `machine status` and readiness, never replaced by the defaults.
+    func testAMachineConfigThatFailsValidationIsTheMachinesProblem() throws {
+        let layout = HVFMachineLayout(root: root)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data(#"{"allowHostPorts": [45454]}"#.utf8).write(to: layout.config)
+        let problem = try XCTUnwrap(layout.configurationProblem())
+        XCTAssertTrue(problem.contains("control port"), problem)
+        XCTAssertTrue(problem.contains(layout.config.path), problem)
+        try HVFMachineConfig().save(to: layout.config)
+        XCTAssertNil(layout.configurationProblem())
     }
 
     // MARK: What is open now and at the next start
