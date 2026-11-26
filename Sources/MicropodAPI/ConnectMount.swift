@@ -172,7 +172,8 @@ extension APIHandlers {
                 let req = try decodeReq(Micropod_V1_DeleteContainerRequest.self, body)
                 try check(req)
                 try await services.containers.delete(req.id, force: req.force)
-                MetricsStore.shared?.remove(.container, req.id)
+                // Only a database that already exists has a series to drop.
+                MetricsStore.existing(at: metricsDatabase)?.remove(.container, req.id)
                 return reply(Micropod_V1_Empty())
 
             case "StreamContainerLogs":
@@ -642,7 +643,10 @@ extension APIHandlers {
                         code: .invalidArgument, message: "kind must be system, container or machine")
                 }
                 if kind != .system { try required(req.id, "id") }
-                guard let metricsStore = MetricsStore.shared else {
+                guard
+                    let metricsStore = metricsDatabase == MetricsStore.sharedURL
+                        ? MetricsStore.shared : try? MetricsStore(url: metricsDatabase)
+                else {
                     throw ConnectDecodeError(code: .unavailable, message: "the metrics store can't be opened")
                 }
                 let range = TimeInterval(req.rangeSeconds == 0 ? 3600 : min(req.rangeSeconds, 30 * 86400))

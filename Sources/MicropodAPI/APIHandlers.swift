@@ -38,6 +38,9 @@ final class APIHandlers: Sendable {
     let initImage: RuntimeDefaultInitImage
     /// Engine registry consulted by `Ping`, `GetSystem` and runtime management.
     let engineRegistry: EngineRegistry
+    /// The metrics history `GetMetricsHistory` reads and `DeleteContainer`
+    /// prunes (`MetricsStore.url(environment:)`: beside this API's socket).
+    let metricsDatabase: URL
 
     init(
         client: ContainerCLIClient,
@@ -50,9 +53,11 @@ final class APIHandlers: Sendable {
             try await ManagedRuntimeControl.request($0)
         },
         versionEnvironment: VersionEnvironment? = nil,
-        engineRegistry: EngineRegistry = .shared
+        engineRegistry: EngineRegistry = .shared,
+        metricsDatabase: URL = MetricsStore.sharedURL
     ) {
         self.client = client
+        self.metricsDatabase = metricsDatabase
         let versionEnvironment = versionEnvironment ?? .live(client: client)
         self.versionEnvironment = versionEnvironment
         self.engineRegistry = engineRegistry

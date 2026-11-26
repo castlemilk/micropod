@@ -145,4 +145,38 @@ final class MetricsStoreTests: XCTestCase {
         XCTAssertEqual(
             MetricsStore.summary((10, []), title: "idle", range: 900), "idle: no history in the last 15m")
     }
+
+    // MARK: Where the database lives (B25 Z07: an API started for a
+    // throwaway root held the rig's ~/.micropod/metrics.sqlite open).
+
+    func testTheDatabaseFollowsTheAPISocketUnlessNamedOrOff() {
+        let home = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".micropod/metrics.sqlite")
+        XCTAssertEqual(MetricsStore.url(environment: [:]), home)
+        XCTAssertEqual(MetricsStore.url(environment: ["MICROPOD_API_SOCK": "off"]), home)
+        XCTAssertEqual(MetricsStore.url(environment: ["MICROPOD_API_SOCK": ""]), home)
+        XCTAssertEqual(
+            MetricsStore.url(environment: ["MICROPOD_API_SOCK": "/tmp/mpg-cp/api.sock"]),
+            URL(fileURLWithPath: "/tmp/mpg-cp/metrics.sqlite"), "a throwaway API keeps its own")
+        XCTAssertEqual(
+            MetricsStore.url(environment: ["MICROPOD_API_SOCK": "~/.micropod/api.sock"]), home,
+            "the default socket keeps the shared database")
+        XCTAssertEqual(
+            MetricsStore.url(
+                environment: [
+                    "MICROPOD_METRICS_DB": "/tmp/other/m.sqlite", "MICROPOD_API_SOCK": "/tmp/mpg-cp/api.sock",
+                ]),
+            URL(fileURLWithPath: "/tmp/other/m.sqlite"), "an explicit database wins")
+    }
+
+    func testAnExistingStoreIsNeverCreatedJustToPruneIt() throws {
+        let url = dir.appendingPathComponent("metrics.sqlite")
+        XCTAssertNil(MetricsStore.existing(at: url))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "neither the file nor its directory")
+
+        let made = try store()
+        made.record([(.container, "web", .init(cpuPercent: 10))], at: t0)
+        let existing = try XCTUnwrap(MetricsStore.existing(at: url))
+        existing.remove(.container, "web")
+        XCTAssertTrue(made.history(.container, "web", range: 3600, now: t0.addingTimeInterval(5)).points.isEmpty)
+    }
 }
