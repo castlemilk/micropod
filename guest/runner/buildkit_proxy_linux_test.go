@@ -43,6 +43,9 @@ type fakeBuildkit struct {
 	calls  map[string]metadata.MD
 	counts map[string]int
 	solve  *control.SolveRequest
+	// known are the refs of the builds it has (every ref it solved), which
+	// ListenBuildHistory of a ref answers.
+	known map[string]bool
 }
 
 // count is how many times method reached the fake.
@@ -88,10 +91,35 @@ func (f *fakeBuildkit) handle(_ any, ss grpc.ServerStream) error {
 		}
 		f.mu.Lock()
 		f.solve = &req
+		if f.known == nil {
+			f.known = map[string]bool{}
+		}
+		f.known[req.Ref] = true
 		f.mu.Unlock()
 		_ = ss.SetHeader(metadata.Pairs("x-up-header", "h1"))
 		ss.SetTrailer(metadata.Pairs("x-up-trailer", "t1"))
 		resp, err := proto.Marshal(&control.SolveResponse{ExporterResponse: map[string]string{"test": "solved"}})
+		if err != nil {
+			return err
+		}
+		return ss.SendMsg(&resp)
+	case control.Control_ListenBuildHistory_FullMethodName:
+		var b []byte
+		if err := ss.RecvMsg(&b); err != nil {
+			return err
+		}
+		var req control.BuildHistoryRequest
+		if proto.Unmarshal(b, &req) != nil || req.Ref == "" {
+			return ss.SendMsg(&b) // a probe of opaque bytes is echoed
+		}
+		f.mu.Lock()
+		known := f.known[req.Ref]
+		f.mu.Unlock()
+		if !known {
+			return nil
+		}
+		resp, err := proto.Marshal(&control.BuildHistoryEvent{Type: control.BuildHistoryEventType_COMPLETE,
+			Record: &control.BuildHistoryRecord{Ref: req.Ref}})
 		if err != nil {
 			return err
 		}
@@ -479,6 +507,50 @@ func TestADelegatedSocketsBuildRefsAreBounded(t *testing.T) {
 	}
 }
 
+// A delegated socket cannot take the ref of a build buildkitd already has,
+// which the ref table does not hold: one another socket's Solve ran more
+// than buildkitRefGrace ago, or one through the raw BuildKit bridge. Its
+// Solve under that ref is refused, and so that build's progress (a finished
+// build's whole log, replayed from the history) is not there for Status.
+func TestADelegatedSocketCannotTakeARefBuildkitAlreadyHas(t *testing.T) {
+	old := buildkitRefWait
+	buildkitRefWait = 200 * time.Millisecond
+	t.Cleanup(func() { buildkitRefWait = old })
+	host := newProxyHarness(t)
+	host.up.mu.Lock()
+	host.up.known = map[string]bool{"raw-bridge-build": true}
+	host.up.mu.Unlock()
+	a := control.NewControlClient(host.delegated(t, strings.Repeat("a", 64)).client(t))
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	code := func(err error) codes.Code { st, _ := status.FromError(err); return st.Code() }
+
+	if _, err := a.Solve(ctx, &control.SolveRequest{Ref: "raw-bridge-build"}); code(err) != codes.AlreadyExists {
+		t.Errorf("a Solve under the ref of a build buildkitd has: %v, want AlreadyExists", err)
+	}
+	stream, err := a.Status(ctx, &control.StatusRequest{Ref: "raw-bridge-build"})
+	if err == nil {
+		_, err = stream.Recv()
+	}
+	if code(err) != codes.NotFound {
+		t.Errorf("the progress of a build buildkitd has: %v, want NotFound", err)
+	}
+	if n, m := host.up.count(control.Control_Solve_FullMethodName), host.up.count(control.Control_Status_FullMethodName); n != 0 || m != 0 {
+		t.Errorf("Solve reached buildkitd %d times and Status %d, want neither", n, m)
+	}
+	// A ref of its own is its own.
+	if _, err := a.Solve(ctx, &control.SolveRequest{Ref: "fresh"}); err != nil {
+		t.Fatal(err)
+	}
+	stream, err = a.Status(ctx, &control.StatusRequest{Ref: "fresh"})
+	if err == nil {
+		_, err = stream.Recv()
+	}
+	if err != nil {
+		t.Errorf("its own build's progress: %v", err)
+	}
+}
+
 // On a delegated socket a build is its own job's: another job's build's
 // progress, frontend gateway and records, the machine's build history and
 // the history's content are not there, while its own build, the cache and
@@ -541,10 +613,13 @@ func TestGRPCProxyKeepsADelegatedSocketToItsOwnBuilds(t *testing.T) {
 	for _, method := range []string{control.Control_ListenBuildHistory_FullMethodName, control.Control_UpdateBuildHistory_FullMethodName,
 		"/containerd.services.content.v1.Content/Info", "/containerd.services.content.v1.Content/Read",
 		"/opentelemetry.proto.collector.trace.v1.TraceService/Export", "/grpc.reflection.v1.ServerReflection/ServerReflectionInfo"} {
+		// (The proxy's own Solve looks a delegated socket's ref up in the
+		// history; the client's call is what must not get there.)
+		before := host.up.count(method)
 		if err := raw(b, ctx, method); code(err) != codes.PermissionDenied {
 			t.Errorf("%s on a delegated socket: %v, want PermissionDenied", method, err)
 		}
-		if n := host.up.count(method); n != 0 {
+		if host.up.count(method) != before {
 			t.Errorf("%s reached buildkitd from a delegated socket", method)
 		}
 	}

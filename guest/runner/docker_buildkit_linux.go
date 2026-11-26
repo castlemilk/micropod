@@ -90,7 +90,8 @@ func (s *dockerEngine) dockerBuildkitUpgrade(w http.ResponseWriter, r *http.Requ
 // content service), stream an active build's output (Status), drive its
 // frontend gateway (LLBBridge, by build ID) or delete and pin records. On a
 // delegated socket (viewerOf(ctx) set) a build is its own job's: Solve
-// records whose each build is (dockerBuildRefs), Status and the frontend
+// records whose each build is (dockerBuildRefs) and takes no ref buildkitd
+// already has (knownToBuildkit), Status and the frontend
 // gateway reach only a build of the same socket's, the cache (DiskUsage,
 // Prune), the workers, Info, a session and the health check stay the
 // machine's, and anything else (the history, the content and trace
@@ -389,6 +390,15 @@ func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest)
 		}
 	}
 	if s.builds != nil && ref != "" {
+		if s.viewer != "" {
+			known, err := s.knownToBuildkit(ctx, ref)
+			if err != nil {
+				return nil, status.Errorf(codes.Unavailable, "look the build ref up in BuildKit: %v", err)
+			}
+			if known {
+				return nil, status.Error(codes.AlreadyExists, "the build ref is another build's")
+			}
+		}
 		release, err := s.builds.claim(ref, s.viewer)
 		if err != nil {
 			return nil, err
@@ -411,6 +421,31 @@ func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest)
 		}
 	}
 	return result, err
+}
+
+// knownToBuildkit reports whether buildkitd has a build of ref, running or
+// in its history. The ref table forgets a build buildkitRefGrace after its
+// Solve, and never records one through the raw BuildKit bridge
+// (serveBuildKit), while buildkitd's Status of a ref replays that build's
+// whole log from its history; so a delegated socket that learned such a ref
+// may not take it.
+func (s dockerBuildSolver) knownToBuildkit(ctx context.Context, ref string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	records, err := s.backend.ListenBuildHistory(ctx, &control.BuildHistoryRequest{Ref: ref, EarlyExit: true})
+	if err != nil {
+		return false, err
+	}
+	_, err = records.Recv()
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, io.EOF):
+		return false, nil
+	case status.Code(err) == codes.NotFound:
+		return true, nil // a record buildkitd is deleting
+	}
+	return false, err
 }
 
 func (s dockerBuildSolver) finishLocalLoad(ctx context.Context, tags []string, response map[string]string) error {
