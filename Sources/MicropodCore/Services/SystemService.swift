@@ -135,11 +135,19 @@ public struct SystemService: SystemServing {
         async let version = cliVersion()
         // Exit 1 is normal for a stopped service, but its JSON must actually
         // say that. An empty/error response must never trigger auto-start.
-        let output = try await client.run(
-            ContainerCommandFactory.systemStatus(), timeout: .seconds(15), acceptingExitCodes: [0, 1])
+        let response: SystemStatusResponse
+        do {
+            let output = try await client.run(
+                ContainerCommandFactory.systemStatus(), timeout: .seconds(15), acceptingExitCodes: [0, 1])
+            response = try MicropodJSON.decode(
+                SystemStatusResponse.self, from: Data(output.utf8), context: "system status")
+        } catch MicropodError.runtimeNotRunning {
+            // A gated client spawned nothing: its gate's XPC probe found the
+            // apiserver's mach service unregistered, the fact the CLI itself
+            // reports as `{"status":"unregistered"}`.
+            response = SystemStatusResponse(status: "unregistered")
+        }
         let cli = try await version
-        let response = try MicropodJSON.decode(
-            SystemStatusResponse.self, from: Data(output.utf8), context: "system status")
         var status = ModelMapper.systemStatus(from: response, cliVersion: cli)
         if Self.stoppedStatusValues.contains(status.status) {
             status.status = "stopped"

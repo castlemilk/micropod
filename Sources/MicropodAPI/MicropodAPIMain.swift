@@ -69,7 +69,12 @@ struct MicropodAPI {
                 client = ContainerCLIClient(executableURL: root.appendingPathComponent("bin/container"))
             } else {
                 identity = nil
-                client = ContainerCLIClient()
+                // Every `container` command this server runs first asks
+                // whether Apple's runtime is known to be down (one XPC ping,
+                // kept for 2 s): a down runtime costs no child per request.
+                let appleLiveness = AppleRuntimeLiveness()
+                appleLiveness.start()
+                client = ContainerCLIClient().gated(by: appleLiveness)
             }
         } catch {
             fputs("Managed API identity verification failed: \(error.localizedDescription)\n", stderr)
