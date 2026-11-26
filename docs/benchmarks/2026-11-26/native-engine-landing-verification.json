@@ -1,0 +1,64 @@
+{
+  "source_commit": "a005cb17",
+  "host": "Gamma",
+  "date": "2026-11-26",
+  "qualification": "Integration correctness under current host load",
+  "binaries_sha256": {
+    "cli": "a3216f7e234a89baacc6f08938dc36bc6e5d0e4e9cd0d877e0ceac40b95002e6",
+    "vmm": "585f84eb76f020980009959a1ec6cd78d3652311a38ccb0a669f63c181104783",
+    "guest_init": "bb9596b2efe4b2f8184059833df2780ed401f4edac52a7a91ec1d01d4569cfcc",
+    "job": "5999636926d18d164f3a5552ad0dad7e475b9bbae18a38fe2386919a4d49f932",
+    "kernel": "da6da0bae1db1e5b76754aa8a966b2c6ace66ae049ed0d19f520e2d7a183a43d",
+    "initrd": "6de7ad2c8e45510a9f41a734759a4e2b4298540a120517ea6da2035f661af2df"
+  },
+  "tests": {
+    "linux_arm64_runner": {
+      "passes_including_subtests": 667,
+      "skips": 6
+    },
+    "linux_arm64_guest_init": {
+      "passes_including_subtests": 70
+    },
+    "rust_workspace": {
+      "passes": 106,
+      "hardware_skips": 1
+    },
+    "swift_focused": {
+      "xctest": 153,
+      "swift_testing": 32
+    },
+    "cache_operator_node": 17,
+    "relay_python": 41,
+    "kernel_path_python": 24,
+    "tx_probe_rust": 2
+  },
+  "native": {
+    "image": "alpine:3.23",
+    "cache_writer_uid": 11001,
+    "cache_reader_uid": 11002,
+    "shared_bytes_verified": true,
+    "buildx_driver": "docker",
+    "buildx_http_upgrade": 101,
+    "buildx_iid": "sha256:97d01ebfec16bf41115296ff2359836a314f30b2cfe938f22d55ced34b560234",
+    "buildx_warm_hit": true,
+    "image_save_bytes_verified": true,
+    "guest_config_read_only": true
+  },
+  "cleanup": {
+    "containers_before_stop": [],
+    "machine_stopped": true,
+    "scope_removed": true,
+    "volume_audited_read_only": true,
+    "disk_identity_preserved": true,
+    "spotlight_disabled": true,
+    "persistent_fsevents_files": 0,
+    "persistent_fsevents_bytes": 0,
+    "scope_cleanup_errors": []
+  },
+  "local_receipts_sha256": {
+    "verification.json": "60dc7739d2f29b1699ab26791f69d85ff7726f558bc8a704d92d847c9eac4523",
+    "stock-cache-buildx-v2/receipt.json": "c423f63694dacb58a2f98b4172804ecb70ae8fe100ea1bfccc7e1ca94ab30408",
+    "retirement.json": "159a30dea01d9db3ecc4ada5daa4b5b10fe7f446189dbe1507390282091c362a"
+  },
+  "performance_reference": "workspace-reply-wait-and-native-network-gamma.json"
+}
