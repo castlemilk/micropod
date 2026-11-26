@@ -70,6 +70,9 @@ type dockerRecord struct {
 	// Docker API at create (engineSocketGrant); every start serves it a
 	// socket of its own at its docker.sock bind (openEngineSocket).
 	EngineSocket bool `json:",omitempty"`
+	// CreatedBy is the container whose delegated socket created this one
+	// ("" for the host's): its family on that socket (docker_delegated_linux.go).
+	CreatedBy string `json:",omitempty"`
 }
 type dockerContainer struct {
 	outputBytes int64
@@ -631,6 +634,15 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	if err != nil {
 		return nil, err
 	}
+	// A create through a container's delegated socket: its child sees only
+	// what that container may hand it (docker_delegated_linux.go).
+	var createdBy string
+	if viewer := viewerOf(ctx); viewer != "" && !privateRootless() {
+		createdBy = viewer
+		if err := s.delegatedCreateLocked(viewer, &spec, network, endpoints); err != nil {
+			return nil, err
+		}
+	}
 	if _, err := s.requestedJobParent(spec, network); err != nil {
 		return nil, err
 	}
@@ -649,7 +661,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		return nil, fail(400, err.Error())
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}

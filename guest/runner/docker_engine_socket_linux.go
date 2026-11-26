@@ -25,13 +25,14 @@ import (
 // (cacheOrigin{creator}): whatever it creates is never more trusted than it
 // is, and it cannot pass a socket on (a nested docker.sock bind is refused).
 //
-// Only a trusted container gets one. Whoever holds the socket can do what
-// the host can on this machine (name any tier and scope, bind any workspace
-// path, reach every container and BuildKit), so an untrusted or read-only
-// container, or any container under an untrusted policy default that the
-// host did not label trusted, is refused at create instead of being given
-// it. The Testcontainers reaper's own bind (cleanupMount) is unaffected: it
-// still gets the session-scoped cleanup socket.
+// The socket is the owner's alone (delegatedAPI, docker_delegated_linux.go):
+// through it the owner sees only itself and what it created there. Images
+// and the BuildKit cache stay the machine's, so only a trusted container
+// gets one: an untrusted or read-only container, or any container under an
+// untrusted policy default that the host did not label trusted, is refused
+// at create instead of being given it. The Testcontainers reaper's own bind
+// (cleanupMount) is unaffected: it still gets the session-scoped cleanup
+// socket.
 
 // dockerEnvPath is the empty file Docker puts at /.dockerenv in every
 // container. Clients read it to learn they run in a container: Testcontainers
@@ -104,11 +105,12 @@ func (s *dockerEngine) openEngineSocket(c *dockerContainer) (string, func(), err
 	if !c.EngineSocket || privateRootless() {
 		return "", func() {}, nil
 	}
-	return serveContainerEngine(s, filepath.Dir(engineGate), c.ID)
+	return serveContainerEngine(delegatedAPI{s}, filepath.Dir(engineGate), c.ID)
 }
 
 // serveContainerEngine serves handler on a new socket under parent on which
-// every request is owner's: a container's, never the host's.
+// every request is owner's: a container's, never the host's (cacheOrigin),
+// and seen as owner sees the engine (withViewer).
 func serveContainerEngine(handler http.Handler, parent, owner string) (string, func(), error) {
 	dir, err := os.MkdirTemp(parent, "engine-")
 	if err != nil {
@@ -129,7 +131,8 @@ func serveContainerEngine(handler http.Handler, parent, owner string) (string, f
 		return "", nil, err
 	}
 	origin := cacheOrigin{creator: owner}
-	server := &http.Server{Handler: handler, BaseContext: func(net.Listener) context.Context { return withCacheOrigin(context.Background(), origin) },
+	base := withViewer(withCacheOrigin(context.Background(), origin), owner)
+	server := &http.Server{Handler: handler, BaseContext: func(net.Listener) context.Context { return base },
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
 	go func() { _ = server.Serve(l) }()
 	return name, func() {

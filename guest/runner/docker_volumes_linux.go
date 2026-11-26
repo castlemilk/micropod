@@ -13,6 +13,9 @@ import (
 type volumeInfo struct {
 	Name, Driver, Scope, Mountpoint, CreatedAt string
 	Labels                                     map[string]string
+	// createdBy is the container whose delegated socket created the volume
+	// ("" for the host's); it is kept in the volume's metadata, not shown.
+	createdBy string
 }
 
 func volumePath(name string) string { return filepath.Join(engineRoot, "volumes", name) }
@@ -37,20 +40,30 @@ func inspectVolume(name string) (volumeInfo, error) {
 	if err != nil {
 		return v, err
 	}
-	var metadata struct {
-		CreatedAt string
-		Labels    map[string]string
-	}
+	var metadata volumeMetadata
 	if err := json.Unmarshal(b, &metadata); err != nil {
 		return v, err
 	}
 	v.CreatedAt = metadata.CreatedAt
 	v.Labels = metadata.Labels
+	v.createdBy = metadata.CreatedBy
 	return v, nil
+}
+
+type volumeMetadata struct {
+	CreatedAt string
+	Labels    map[string]string
+	CreatedBy string `json:",omitempty"`
 }
 
 // Called under the engine lock. Existing named volumes keep their original labels.
 func ensureVolume(name string, labels map[string]string) error {
+	return ensureVolumeBy(name, labels, "")
+}
+
+// ensureVolumeBy is ensureVolume recording the delegated socket's owner that
+// created the volume (volumeInfo.createdBy); an existing volume keeps its own.
+func ensureVolumeBy(name string, labels map[string]string, creator string) error {
 	if err := os.Mkdir(volumePath(name), 0755); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return nil
@@ -63,10 +76,7 @@ func ensureVolume(name string, labels map[string]string) error {
 		os.Remove(volumePath(name))
 		return err
 	}
-	metadata := struct {
-		CreatedAt string
-		Labels    map[string]string
-	}{formatTime(time.Now()), labels}
+	metadata := volumeMetadata{formatTime(time.Now()), labels, creator}
 	b, err := json.Marshal(metadata)
 	if err == nil {
 		err = os.WriteFile(volumeMeta(name)+".tmp", b, 0600)
@@ -136,11 +146,15 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		if !dockerName.MatchString(opts.Name) || (opts.Driver != "" && opts.Driver != "local") {
 			return fail(400, "expected a local named volume")
 		}
+		viewer := viewerOf(r.Context())
 		s.mu.Lock()
-		err = ensureVolume(opts.Name, opts.Labels)
+		err = ensureVolumeBy(opts.Name, opts.Labels, viewer)
 		var v volumeInfo
 		if err == nil {
 			v, err = inspectVolume(opts.Name)
+		}
+		if err == nil && !s.seesVolumeLocked(viewer, v) {
+			err = fail(http.StatusConflict, "a volume named "+opts.Name+" already exists")
 		}
 		s.mu.Unlock()
 		if err != nil {
@@ -154,6 +168,7 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		if err != nil {
 			return err
 		}
+		viewer := viewerOf(r.Context())
 		s.mu.Lock()
 		entries, err := os.ReadDir(root)
 		var list = []volumeInfo{}
@@ -166,6 +181,9 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 				v, err = inspectVolume(e.Name())
 				if err != nil {
 					break
+				}
+				if !s.seesVolumeLocked(viewer, v) {
+					continue
 				}
 				match := matchesLabels(v.Labels, filters["label"])
 				for k, values := range filters {
@@ -194,8 +212,13 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 	if !dockerName.MatchString(name) {
 		return fail(404, "no such volume")
 	}
+	viewer := viewerOf(r.Context())
 	s.mu.Lock()
 	v, err := inspectVolume(name)
+	if err == nil && (!s.seesVolumeLocked(viewer, v) || r.Method == "DELETE" && viewer != "" && v.createdBy != viewer) {
+		// Another job's, or (to remove) one this delegated socket did not create.
+		err = os.ErrNotExist
+	}
 	if err != nil {
 		s.mu.Unlock()
 		if os.IsNotExist(err) {

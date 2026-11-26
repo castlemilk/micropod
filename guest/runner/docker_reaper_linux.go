@@ -54,7 +54,7 @@ func (s *dockerEngine) openCleanupSocket(c *dockerContainer) (string, func(), er
 			os.Remove(dir)
 			return "", nil, err
 		}
-		api := &cleanupAPI{engine: s, session: c.Config.Labels[tcSession], owner: c.ID}
+		api := &cleanupAPI{engine: s, session: c.Config.Labels[tcSession], owner: c.ID, family: c.CreatedBy}
 		server := &http.Server{Handler: api, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 << 10}
 		s.metrics.reaper.sessionsStarted.Add(1)
 		s.metrics.reaper.activeSessions.Add(1)
@@ -76,6 +76,10 @@ func (s *dockerEngine) openCleanupSocket(c *dockerContainer) (string, func(), er
 type cleanupAPI struct {
 	engine         *dockerEngine
 	session, owner string
+	// family is the delegated socket's owner that created this reaper (""
+	// when the host did): it then reaps only that owner's family, as the
+	// socket it was created on sees it (docker_delegated_linux.go).
+	family string
 }
 
 func (p *cleanupAPI) owns(labels map[string]string) bool {
@@ -90,6 +94,9 @@ func (p *cleanupAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// engine never treats it as the host's (cacheOrigin), and nothing it
 	// could create would be more trusted than that container.
 	r = r.WithContext(withCacheOrigin(r.Context(), cacheOrigin{creator: p.owner}))
+	if p.family != "" {
+		r = r.WithContext(withViewer(r.Context(), p.family))
+	}
 	err := p.handle(rec, r)
 	dur := time.Since(start)
 	if err != nil {
@@ -171,7 +178,7 @@ func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 			}
 			p.engine.mu.Lock()
 			c := p.engine.containers[key]
-			owned := c != nil && p.owns(c.Config.Labels)
+			owned := c != nil && p.owns(c.Config.Labels) && seesContainer(p.family, c)
 			p.engine.mu.Unlock()
 			if !owned {
 				return fail(404, "unknown session container")
@@ -179,7 +186,7 @@ func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 			return p.engine.containerLifecycle(w, r, c, "")
 		case "networks":
 			return p.engine.deleteNetwork(w, key, func(n *workerNetwork) bool {
-				return n.ID == key && p.owns(n.Labels)
+				return n.ID == key && p.owns(n.Labels) && (p.family == "" || n.CreatedBy == p.family)
 			})
 		case "volumes":
 			if !dockerName.MatchString(key) {
@@ -190,7 +197,7 @@ func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 			}
 			p.engine.mu.Lock()
 			v, err := inspectVolume(key)
-			if err == nil && p.owns(v.Labels) {
+			if err == nil && p.owns(v.Labels) && (p.family == "" || v.createdBy == p.family) {
 				err = p.engine.removeVolumeLocked(key)
 			} else if err == nil || errors.Is(err, os.ErrNotExist) {
 				err = fail(404, "unknown session volume")

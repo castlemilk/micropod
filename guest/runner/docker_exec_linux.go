@@ -110,7 +110,7 @@ func (s *dockerEngine) exec(w http.ResponseWriter, r *http.Request, path string)
 	id, op, _ := strings.Cut(path, "/")
 	s.mu.Lock()
 	e := s.execs[id]
-	if e == nil {
+	if e == nil || !seesContainer(viewerOf(r.Context()), e.container) {
 		s.mu.Unlock()
 		return fail(404, "no such exec")
 	}

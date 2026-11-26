@@ -65,9 +65,14 @@ func (c *dockerContainer) activeDockerSecondary(networkID string) (string, bool)
 }
 
 func (s *dockerEngine) dockerNetworkMembers(n *workerNetwork) map[string]map[string]string {
+	return s.dockerNetworkMembersFor(n, "")
+}
+
+// dockerNetworkMembersFor lists the members viewer may see (viewerOf).
+func (s *dockerEngine) dockerNetworkMembersFor(n *workerNetwork, viewer string) map[string]map[string]string {
 	members := make(map[string]map[string]string)
 	for _, c := range s.containers {
-		if c.Phase != "running" {
+		if c.Phase != "running" || !seesContainer(viewer, c) {
 			continue
 		}
 		var ip, endpointID, mac string

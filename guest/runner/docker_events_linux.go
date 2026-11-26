@@ -30,8 +30,10 @@ func (s *dockerEngine) serveEvents(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
+	// A delegated socket sees only its owner's family's events.
+	viewer := viewerOf(r.Context())
 	query := dockerEventQuery{since: since, until: until, match: func(event dockerEvent) bool {
-		return matchesDockerEvent(event, filters)
+		return (viewer == "" || event.family == viewer) && matchesDockerEvent(event, filters)
 	}}
 	if err := s.events.serve(w, r, query); err != nil {
 		return fail(503, err.Error())
@@ -92,6 +94,6 @@ func (s *dockerEngine) containerEvent(c *dockerContainer, action string, attribu
 	s.events.publish(dockerEvent{
 		Type: "container", Action: action, Scope: "local",
 		Actor:  dockerEventActor{ID: c.ID, Attributes: attrs},
-		Status: action, ID: c.ID, From: c.Config.Image,
+		Status: action, ID: c.ID, From: c.Config.Image, family: c.family(),
 	})
 }

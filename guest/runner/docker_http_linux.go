@@ -168,7 +168,7 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		return s.exec(w, r, strings.TrimPrefix(path, "exec/"))
 	case strings.HasPrefix(path, "containers/"):
 		key, op, _ := strings.Cut(strings.TrimPrefix(path, "containers/"), "/")
-		c, err := s.lookup(key)
+		c, err := s.lookupFor(r.Context(), key)
 		if err != nil {
 			return err
 		}
@@ -280,9 +280,10 @@ func (s *dockerEngine) list(w http.ResponseWriter, r *http.Request) error {
 	}
 	all := truth(q.Get("all")) || len(filters["status"]) != 0
 	list := []dockerContainerListRow{}
+	viewer := viewerOf(r.Context())
 	s.mu.Lock()
 	for _, c := range s.containers {
-		if !all && !c.busy() {
+		if !all && !c.busy() || !seesContainer(viewer, c) {
 			continue
 		}
 		if len(names) != 0 && !slices.ContainsFunc(patterns, func(pattern *regexp.Regexp) bool {

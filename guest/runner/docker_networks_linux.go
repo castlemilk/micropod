@@ -27,9 +27,12 @@ type workerNetwork struct {
 	Internal, Attachable bool
 	Labels               map[string]string
 	Created              time.Time
-	dns                  *networkDNS
-	services             serviceDirectory
-	deleting             bool
+	// CreatedBy is the container whose delegated socket created the network
+	// ("" for the host's): only that container may remove it there.
+	CreatedBy string `json:",omitempty"`
+	dns       *networkDNS
+	services  serviceDirectory
+	deleting  bool
 }
 
 func networkID(name string) string {
@@ -221,7 +224,7 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 	if req.IPAM.Driver != "" && req.IPAM.Driver != "default" || len(req.IPAM.Options) != 0 || len(req.IPAM.Config) > 1 {
 		return fail(400, "unsupported IPAM configuration")
 	}
-	n := &workerNetwork{Name: req.Name, ID: engineID(), Driver: req.Driver, Internal: req.Internal, Attachable: req.Attachable, Labels: req.Labels, Created: time.Now().UTC(), MTU: mtu, TCPCongestion: congestion}
+	n := &workerNetwork{Name: req.Name, ID: engineID(), Driver: req.Driver, Internal: req.Internal, Attachable: req.Attachable, Labels: req.Labels, Created: time.Now().UTC(), MTU: mtu, TCPCongestion: congestion, CreatedBy: viewerOf(r.Context())}
 	s.networkMu.Lock()
 	defer s.networkMu.Unlock()
 	s.mu.Lock()
@@ -358,8 +361,14 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 			return s.mutateDockerNetwork(w, r, network, op == "connect")
 		}
 	}
+	viewer := viewerOf(r.Context())
 	if r.Method == "DELETE" && key != "" {
-		return s.deleteNetwork(w, key, nil)
+		var canRemove func(*workerNetwork) bool
+		if viewer != "" {
+			// Only a network created on this delegated socket.
+			canRemove = func(n *workerNetwork) bool { return n.CreatedBy == viewer }
+		}
+		return s.deleteNetwork(w, key, canRemove)
 	}
 	if r.Method != "GET" {
 		return fail(501, "unsupported network operation")
@@ -373,7 +382,7 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 	defaults := []*workerNetwork{{Name: "bridge", ID: networkID("bridge"), Driver: "bridge", Subnet: netip.MustParsePrefix("10.88.0.0/16")}, {Name: "none", ID: networkID("none"), Driver: "null"}}
 	nets := defaults
 	for _, n := range s.namedNetworks {
-		if !n.deleting {
+		if !n.deleting && s.seesNetworkLocked(viewer, n) {
 			nets = append(nets, n)
 		}
 	}
@@ -385,7 +394,7 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 			if err != nil {
 				return err
 			}
-			if n == nil {
+			if n == nil || !s.seesNetworkLocked(viewer, n) {
 				return fail(404, "no such network")
 			}
 			key = n.ID
@@ -429,7 +438,7 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 		}
 		details := map[string]any{"Name": n.Name, "Id": n.ID, "Driver": n.Driver, "Scope": "local", "Internal": n.Internal, "Attachable": n.Attachable, "Labels": n.Labels, "Created": n.Created, "EnableIPv4": true, "Options": opts, "IPAM": map[string]any{"Driver": "default", "Config": ranges}}
 		if key != "" {
-			details["Containers"] = s.dockerNetworkMembers(n)
+			details["Containers"] = s.dockerNetworkMembersFor(n, viewer)
 			writeJSON(w, 200, details)
 			return nil
 		}

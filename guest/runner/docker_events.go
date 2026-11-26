@@ -37,6 +37,9 @@ type dockerEvent struct {
 	Status string `json:"status"`
 	ID     string `json:"id"`
 	From   string `json:"from,omitempty"`
+	// family is the container that answers for the actor on a delegated
+	// socket (dockerContainer.family); "" for an event no container owns.
+	family string
 }
 
 type dockerEventQuery struct {

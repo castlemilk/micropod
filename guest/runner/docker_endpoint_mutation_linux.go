@@ -48,9 +48,18 @@ func (s *dockerEngine) mutateDockerNetwork(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return err
 	}
-	c, err := s.lookup(strings.TrimPrefix(name, "/"))
+	c, err := s.lookupFor(r.Context(), strings.TrimPrefix(name, "/"))
 	if err != nil {
 		return err
+	}
+	if viewer := viewerOf(r.Context()); viewer != "" {
+		s.mu.Lock()
+		n, err := s.findNetwork(key, false)
+		visible := err == nil && n != nil && s.seesNetworkLocked(viewer, n)
+		s.mu.Unlock()
+		if !visible {
+			return fail(http.StatusNotFound, "no such network: "+key)
+		}
 	}
 	release, err := s.lockContainerLifecycle(r.Context(), c)
 	if err != nil {

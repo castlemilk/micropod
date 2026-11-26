@@ -351,13 +351,18 @@ creator. Whoever holds the machine's Docker socket is the host: it can name any 
 `docker build` shares one BuildKit, whose `RUN --mount=type=cache` contents are keyed only by the id the Dockerfile
 gives, so never hand that socket to untrusted code. A trusted container the host creates with
 `-v /var/run/docker.sock:/var/run/docker.sock` (Testcontainers, compose or `docker build` in a CI step, Cuttlefish's
-`dockerSocket: true`) gets the machine's Docker API on a socket of its own: what it creates there is never more trusted
-than it is, and it cannot pass a socket on. An untrusted or read-only container, a container created from inside
-another, or one an untrusted default leaves unlabelled is refused such a bind at create (HTTP 403); the
-Testcontainers reaper still gets only its session's cleanup socket. As under Docker, every container has an empty
-`/.dockerenv`, and a published port is also reachable from inside the machine at the container network's gateway on
-its published port (`10.88.0.1:<port>` on the default network), which is where an in-container Testcontainers dials
-a sibling's mapped port and its Ryuk reaper. When the machine asked for its host config share, a policy file
+`dockerSocket: true`) gets the machine's Docker API on a socket of its own, which is not the host's: through it the
+container sees and acts on only itself and the containers, networks and volumes it created there (plus the built-in
+networks and the ones it is attached to); every other job's are not there (404), and the engine's own routes
+(`/micropod/*`: caches, metrics, traces) are refused (403). What it creates there is never more trusted than it is and
+cannot be given a socket in turn. Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi`
+through that socket changes them for every job, which is one more reason only a trusted container gets one. An untrusted
+or read-only container, a container created from inside another, or one an untrusted default leaves unlabelled is
+refused such a bind at create (HTTP 403); the Testcontainers reaper still gets only its session's cleanup socket, and
+one created through a container's socket reaps only what that container created. As under Docker, every container has an
+empty `/.dockerenv`, and a published port is also reachable from inside the machine at the container network's gateway
+on its published port (`10.88.0.1:<port>` on the default network), which is where an in-container Testcontainers dials a
+sibling's mapped port and its Ryuk reaper. When the machine asked for its host config share, a policy file
 the guest cannot read fails closed (untrusted by default), and no bind may reach the machine's own directory
 (`~/.micropod/hvf` sits in the home-directory workspace): a bind source inside it is refused, and a bind that covers
 it (`-v $HOME:/h`) shows an empty directory there. `--allow-scopes` holds for scope labels and alias volumes alike.

@@ -918,7 +918,7 @@ func TestSessionCleanupOwnership(t *testing.T) {
 		return &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: "job-" + id[:4], Phase: "running", Config: dockerConfig{Labels: map[string]string{tcSession: scope, tcReap: "true"}}}}
 	}
 	s := &dockerEngine{containers: map[string]*dockerContainer{other: makeContainer(other, "another-session"), own: makeContainer(own, session)}}
-	api := cleanupAPI{s, session, self}
+	api := cleanupAPI{engine: s, session: session, owner: self}
 	for _, tc := range []struct {
 		method, path string
 		code         int
