@@ -11,6 +11,11 @@ import MicropodCore
 /// <root>/Image               arm64 Linux kernel
 /// <root>/mp-hvf-init.cpio    guest init initramfs
 /// <root>/tools/              guest tool bundle, shared read-only as `oci-tools`
+///                            (the four above: the legacy flat payload)
+/// <root>/versions/<id>/      immutable payloads with the same four assets
+///                            (`HVFPayloadStore`); `current`, `staged`,
+///                            `known-good`, `previous` and `trial` name them
+/// <root>/update.lock         held by every payload stage/activate/rollback/prune
 /// <root>/disk.ext4           writable machine disk
 /// <root>/machine.json        HVFMachineConfig
 /// <root>/run/docker.sock     the guest Docker Engine API
@@ -49,20 +54,46 @@ public struct HVFMachineLayout: Sendable, Equatable {
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/hvf")
     }
 
+    /// Immutable payload directories (`HVFPayloadStore`).
     public var versionsDirectory: URL { root.appendingPathComponent("versions") }
+    /// The payload a newly started supervisor boots. Only an activation that
+    /// passed the health probes, or a rollback, moves it; staging never does.
     public var currentLink: URL { root.appendingPathComponent("current") }
+    /// What `current` named before the last activation or rollback.
     public var previousLink: URL { root.appendingPathComponent("previous") }
+    /// The newest staged payload, waiting for an activation.
+    public var stagedLink: URL { root.appendingPathComponent("staged") }
+    /// The last payload that booted and passed the health probes: what a
+    /// rollback returns to. Never pruned.
+    public var knownGoodLink: URL { root.appendingPathComponent("known-good") }
+    /// The payload an activation is booting to probe it. Honoured only while
+    /// `updateLock` is held, so one left by a killed activator boots nothing.
+    public var trialLink: URL { root.appendingPathComponent("trial") }
+    /// Held (flock) across every stage, activation, rollback and prune.
+    public var updateLock: URL { root.appendingPathComponent("update.lock") }
 
-    /// Immutable versioned payload directory when `<root>/current` points to a
-    /// valid staged release; otherwise the legacy flat `<root>` directory.
-    public var activePayloadRoot: URL {
-        HVFPayloadStore.resolveLinkTarget(currentLink) ?? root
+    /// The payload a supervisor started now would boot, resolved once: the
+    /// trial of a live activation, else `current`, else the legacy flat
+    /// layout (the root itself). Every asset of one launch comes from the one
+    /// directory this returns, so a launch can never mix two versions.
+    public func resolvePayload() -> HVFMachinePayload {
+        if HVFFileLock.isHeld(updateLock), let trial = HVFPayloadStore.resolveVersion(trialLink, in: self) {
+            return HVFMachinePayload(directory: trial, isVersioned: true)
+        }
+        if let current = HVFPayloadStore.resolveVersion(currentLink, in: self) {
+            return HVFMachinePayload(directory: current, isVersioned: true)
+        }
+        return HVFMachinePayload(directory: root, isVersioned: false)
     }
 
-    public var vmm: URL { activePayloadRoot.appendingPathComponent("micropod-vmm") }
-    public var kernel: URL { activePayloadRoot.appendingPathComponent("Image") }
-    public var initrd: URL { activePayloadRoot.appendingPathComponent("mp-hvf-init.cpio") }
-    public var tools: URL { activePayloadRoot.appendingPathComponent("tools") }
+    /// The directory `resolvePayload()` names.
+    public var activePayloadRoot: URL { resolvePayload().directory }
+
+    // One asset each: a caller that needs several resolves the payload once.
+    public var vmm: URL { resolvePayload().vmm }
+    public var kernel: URL { resolvePayload().kernel }
+    public var initrd: URL { resolvePayload().initrd }
+    public var tools: URL { resolvePayload().tools }
     public var disk: URL { root.appendingPathComponent("disk.ext4") }
     /// Optional persistent second VirtioBlk disk (`/dev/vdb` -> `/var/lib/micropod/caches`)
     /// so dependency and BuildKit caches survive `disk.ext4` OS replacements.
@@ -132,16 +163,19 @@ public struct HVFMachineLayout: Sendable, Equatable {
 
     /// The installed pieces the machine cannot boot without, by layout name.
     public func missingAssets(fileManager: FileManager = .default) -> [String] {
+        let payload = resolvePayload()
         var missing: [String] = []
-        for (name, url) in [("micropod-vmm", vmm), ("Image", kernel), ("mp-hvf-init.cpio", initrd)]
+        for (name, url) in [
+            ("micropod-vmm", payload.vmm), ("Image", payload.kernel), ("mp-hvf-init.cpio", payload.initrd),
+        ]
         where !Self.isRegularFile(url) {
             missing.append(name)
         }
         if !Self.isRegularFile(disk) { missing.append("disk.ext4") }
         var isDirectory: ObjCBool = false
-        if !fileManager.fileExists(atPath: tools.path, isDirectory: &isDirectory) || !isDirectory.boolValue {
+        if !fileManager.fileExists(atPath: payload.tools.path, isDirectory: &isDirectory) || !isDirectory.boolValue {
             missing.append("tools/")
-        } else if !fileManager.fileExists(atPath: tools.appendingPathComponent("runner/start.sh").path) {
+        } else if !fileManager.fileExists(atPath: payload.tools.appendingPathComponent("runner/start.sh").path) {
             missing.append("tools/runner/start.sh")
         }
         return missing
@@ -374,22 +408,24 @@ public enum HVFVMMCommand {
     /// Tells guest init to mount `configShareTag` at /run/micropod/host-config.
     public static let configBootArgument = "mp.config=1"
 
-    /// The full micropod-vmm argv (without the executable) for `config`.
-    public static func arguments(layout: HVFMachineLayout, config: HVFMachineConfig, parentPID: Int32) throws
-        -> [String]
-    {
+    /// The full micropod-vmm argv (without the executable) for `config`,
+    /// booting `payload` (default: `layout.resolvePayload()`, resolved once).
+    public static func arguments(
+        layout: HVFMachineLayout, payload: HVFMachinePayload? = nil, config: HVFMachineConfig, parentPID: Int32
+    ) throws -> [String] {
         try config.validate()
         try layout.validatePaths()
+        let payload = payload ?? layout.resolvePayload()
         var args = [
-            "--kernel", layout.kernel.path,
-            "--initrd", layout.initrd.path,
+            "--kernel", payload.kernel.path,
+            "--initrd", payload.initrd.path,
             "--disk", layout.disk.path,
         ]
         if HVFMachineLayout.isRegularFile(layout.cacheDisk) {
             args += ["--cache-disk", layout.cacheDisk.path]
         }
         args += [
-            "--share", "oci-tools:\(layout.tools.path):ro",
+            "--share", "oci-tools:\(payload.tools.path):ro",
             "--share", "\(configShareTag):\(layout.guestConfigDirectory.path)",
         ]
         // The VMM adds the share and the guest boot argument itself.

@@ -13,7 +13,8 @@ final class HVFPayloadStoreAndSandboxStandaloneTests: XCTestCase {
     }
 
     override func tearDown() {
-        try? FileManager.default.removeItem(at: tmp)
+        // Committed payloads are read-only.
+        try? HVFPayloadStore.removeTree(tmp)
     }
 
     private func makeFakeBundle(name: String, tag: String, appLayout: Bool) throws -> URL {
@@ -42,16 +43,22 @@ final class HVFPayloadStoreAndSandboxStandaloneTests: XCTestCase {
         let dirV2 = try makeFakeBundle(name: "bundle-v2", tag: "v2", appLayout: false)
         let dirV3 = try makeFakeBundle(name: "bundle-v3", tag: "v3", appLayout: false)
 
-        // Stage v1 from .app bundle
+        // Stage v1 from .app bundle: staged, not booted.
         let m1 = try HVFPayloadStore.stage(
             from: .directory(appV1), version: "0.14.0", revision: "111111111111", layout: layout,
             verifySignature: false)
         XCTAssertEqual(m1.version, "0.14.0")
         XCTAssertEqual(m1.digests.count, 5)
-        XCTAssertEqual(layout.vmm.deletingLastPathComponent().lastPathComponent, "0.14.0-111111111111")
-        try HVFPayloadStore.verify(payloadDirectory: layout.activePayloadRoot)
+        let v1Dir = layout.versionsDirectory.appendingPathComponent("0.14.0-111111111111")
+        XCTAssertEqual(HVFPayloadStore.status(layout: layout).stagedPath, HVFMachineLayout.canonicalPath(v1Dir.path))
+        XCTAssertNil(HVFPayloadStore.status(layout: layout).currentPath, "staging never moves current")
+        XCTAssertEqual(layout.activePayloadRoot, root.standardizedFileURL)
+        try HVFPayloadStore.verify(payloadDirectory: v1Dir)
 
-        // Simulate a live supervisor holding supervisor.lock on v1
+        // v1 verified and running (what a passed activation leaves).
+        try HVFPayloadStore.atomicSymlink(destination: "versions/0.14.0-111111111111", at: layout.currentLink)
+        try HVFPayloadStore.atomicSymlink(destination: "versions/0.14.0-111111111111", at: layout.knownGoodLink)
+        unlink(layout.stagedLink.path)
         try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
         let lock = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
         defer { lock.release() }
@@ -60,6 +67,7 @@ final class HVFPayloadStoreAndSandboxStandaloneTests: XCTestCase {
             phase: .running, supervisorPID: getpid(), loadedPayloadPath: v1Canonical,
             loadedPayloadVersion: "0.14.0", loadedPayloadRevision: "111111111111"
         ).save(to: layout.state)
+        XCTAssertFalse(HVFPayloadStore.status(layout: layout).updatePending)
 
         // Stage v2 while supervisor is live — must succeed without mutating v1 and flag updatePending
         let m2 = try HVFPayloadStore.stage(
@@ -69,34 +77,39 @@ final class HVFPayloadStoreAndSandboxStandaloneTests: XCTestCase {
         let st = HVFPayloadStore.status(layout: layout)
         XCTAssertTrue(st.updatePending)
         XCTAssertEqual(st.runningVersion, "0.14.0")
-        XCTAssertEqual(st.current?.version, "0.15.0")
-        XCTAssertEqual(st.previous?.version, "0.14.0")
+        XCTAssertEqual(st.current?.version, "0.14.0", "v1 still boots")
+        XCTAssertEqual(st.staged?.version, "0.15.0")
+        XCTAssertEqual(st.knownGood?.version, "0.14.0")
         XCTAssertTrue(FileManager.default.fileExists(atPath: v1Canonical + "/micropod-vmm"))
 
-        // Tamper detection
-        let currentKernel = layout.kernel
-        let originalKernel = try Data(contentsOf: currentKernel)
-        try Data("tampered".utf8).write(to: currentKernel)
-        XCTAssertThrowsError(try HVFPayloadStore.verify(payloadDirectory: layout.activePayloadRoot))
-        try originalKernel.write(to: currentKernel)
-        try HVFPayloadStore.verify(payloadDirectory: layout.activePayloadRoot)
+        // Tamper detection: committed payloads are read-only, and a changed asset fails verification.
+        let stagedDir = try XCTUnwrap(st.stagedPath.map { URL(fileURLWithPath: $0) })
+        let stagedKernel = stagedDir.appendingPathComponent("Image")
+        let originalKernel = try Data(contentsOf: stagedKernel)
+        XCTAssertThrowsError(try Data("tampered".utf8).write(to: stagedKernel), "read-only")
+        XCTAssertEqual(chmod(stagedDir.path, 0o755), 0)
+        XCTAssertEqual(chmod(stagedKernel.path, 0o644), 0)
+        try Data("tampered".utf8).write(to: stagedKernel)
+        XCTAssertThrowsError(try HVFPayloadStore.verify(payloadDirectory: stagedDir))
+        try originalKernel.write(to: stagedKernel)
+        try HVFPayloadStore.verify(payloadDirectory: stagedDir)
 
-        // Stage v3 and verify prune protects current (v3), previous (v2), and live runningPath (v1)
+        // Stage v3 and verify prune protects current and known-good (v1, also running) and staged (v3).
         _ = try HVFPayloadStore.stage(
             from: .directory(dirV3), version: "0.16.0", revision: "333333333333", layout: layout,
             verifySignature: false)
-        let prunedWhileRunning = HVFPayloadStore.pruneVersions(layout: layout, keep: 1)
-        XCTAssertTrue(prunedWhileRunning.isEmpty, "v1 is running, v2 is previous, v3 is current — none may be pruned")
+        let prunedWhileRunning = try HVFPayloadStore.pruneVersions(layout: layout, keep: 1)
+        XCTAssertEqual(prunedWhileRunning, ["0.15.0-222222222222"], "replaced while staged, never booted")
 
-        // Release supervisor lock: now v1 is no longer running and can be pruned, and rollback switches back to v2
+        // Release supervisor lock: v1 is still current and known-good, so it stays.
         lock.release()
-        let prunedAfterStop = HVFPayloadStore.pruneVersions(layout: layout, keep: 1)
-        XCTAssertEqual(prunedAfterStop, ["0.14.0-111111111111"])
+        XCTAssertEqual(try HVFPayloadStore.pruneVersions(layout: layout, keep: 1), [])
 
+        // Already on known-good: rollback changes nothing, however often it is repeated.
         let rolled = try await HVFPayloadStore.rollback(layout: layout)
-        XCTAssertEqual(rolled.action, .rolledBack)
-        XCTAssertEqual(rolled.toVersion, "0.15.0")
-        XCTAssertEqual(HVFPayloadStore.status(layout: layout).current?.version, "0.15.0")
+        XCTAssertEqual(rolled.action, .noop)
+        XCTAssertEqual(rolled.toVersion, "0.14.0 (0.14.0-111111111111)")
+        XCTAssertEqual(HVFPayloadStore.status(layout: layout).current?.version, "0.14.0")
     }
 
     func testSandboxResolvesStandaloneAndHVFWithoutAppleContainer() throws {
@@ -139,7 +152,7 @@ final class HVFPayloadStoreAndSandboxStandaloneTests: XCTestCase {
         XCTAssertEqual(envWin?.origin, .envOverride)
     }
 
-    func testRuntimeModeAliasesAndAutoEnableInstalledHVF() throws {
+    func testRuntimeModeAliasesAndAutoEnableInstalledHVF() async throws {
         XCTAssertEqual(EngineRegistry.canonicalName("container"), "hvf")
         XCTAssertEqual(EngineRegistry.canonicalName("containers"), "hvf")
         XCTAssertEqual(EngineRegistry.canonicalName("isolated"), "sandbox")
@@ -156,6 +169,13 @@ final class HVFPayloadStoreAndSandboxStandaloneTests: XCTestCase {
             from: .directory(bundle), version: "0.14.0", revision: "abcdef123456", layout: layout,
             verifySignature: false)
         try Data(repeating: 0, count: 2048).write(to: layout.disk)
+        XCTAssertFalse(HVFMachineClient(layout: layout).status().installed, "a staged payload is not installed yet")
+        // The activation boots and probes it (a machine stand-in here), then makes it current.
+        let machine = FakeUpdateMachine(layout: layout)
+        let activated = try await HVFPayloadStore.activate(
+            layout: layout,
+            environment: HVFUpdateEnvironment(machine: machine, drain: FakeDrain(), probe: FakeProbe(machine: machine)))
+        XCTAssertEqual(activated.action, .activated)
 
         let cfgURL = tmp.appendingPathComponent("runtimes.json")
         let reg = EngineRegistry(

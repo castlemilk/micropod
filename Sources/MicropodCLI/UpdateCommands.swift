@@ -39,15 +39,23 @@ enum UpdateCommands {
           micropod update verify [--automatic] [--image IMAGE]
                                        verify live workloads through an update
           micropod update cli [--force]  update a standalone CLI install from the
-                                       release channel (signature-verified)
-          micropod update hvf [status]   show running vs staged rootless HVF payload
+                                       release channel (signature-verified): the CLI, MCP
+                                       and API binaries and the HVF payload, or none
+          micropod update hvf [status]   show the running, current, staged and known-good
+                                       HVF payloads
           micropod update hvf stage --from <app-or-dir> [--version V] [--revision R]
-                                       stage an immutable versioned HVF payload while live
+                                       stage an immutable HVF payload; nothing boots it
+                                       until `apply` has verified it
           micropod update hvf apply [--force] [--drain-timeout S]
-                                       activate the staged HVF payload (auto-rollbacks on failure)
-          micropod update hvf rollback   roll back to the previous HVF payload version
+                                       boot the staged payload, probe it and make it current;
+                                       returns to known-good on any failure. Deferred
+                                       (exit 75) while containers run, unless --force
+          micropod update hvf rollback [--force]
+                                       return to the last known-good HVF payload; deferred
+                                       (exit 75) while containers run, unless --force
           micropod update hvf prune [--keep N]
-                                       remove old unused HVF payload versions
+                                       remove old HVF payload versions (never current,
+                                       staged, known-good or the running one)
 
         App installation requires coordinated workload admission; status explains
         when it is blocked. It links ~/.local/bin/micropod and micropod-mcp into
@@ -336,16 +344,42 @@ enum UpdateCommands {
 
     // MARK: Rootless HVF payload lifecycle
 
+    /// `update hvf apply` and `rollback` when nothing was stopped because
+    /// workloads run: EX_TEMPFAIL, so a script can retry once idle.
+    static let deferredExitCode: Int32 = 75
+
+    static func hvfExitCode(_ action: HVFActivationResult.Action) -> Int32 {
+        switch action {
+        case .noop, .activated: return ExitCode.ok
+        case .deferred: return deferredExitCode
+        case .rolledBack, .failedRollback, .failed: return ExitCode.failure
+        }
+    }
+
     static func hvfStatusLine(_ status: HVFPayloadStatus) -> String? {
-        guard status.current != nil || status.runningVersion != nil || !status.availableVersions.isEmpty else {
+        guard
+            status.current != nil || status.staged != nil || status.runningVersion != nil
+                || !status.availableVersions.isEmpty
+        else {
             return nil
         }
-        let staged = status.current?.version ?? "none"
+        let active = status.current?.version ?? "flat"
         let running = status.runningVersion ?? (status.runningPath != nil ? "flat" : "stopped")
         if status.updatePending {
-            return "HVF runtime — running \(running), staged \(staged) (update pending: `micropod update hvf apply`)"
+            let target = status.staged?.version ?? active
+            return "HVF runtime — running \(running), \(target) staged (update pending: `micropod update hvf apply`)"
         }
-        return "HVF runtime — \(staged) (\(running == "stopped" ? "stopped" : "running \(running)"))"
+        return "HVF runtime — \(active) (\(running == "stopped" ? "stopped" : "running \(running)"))"
+    }
+
+    static func printHVFResult(_ result: HVFActivationResult, json: Bool) throws {
+        if json {
+            let enc = JSONEncoder()
+            enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+            print(String(decoding: try enc.encode(result), as: UTF8.self))
+        } else {
+            print("\(result.action.rawValue): \(result.detail)")
+        }
     }
 
     private static func updateHVF(_ args: [String], json: Bool) async throws -> Int32 {
@@ -362,11 +396,16 @@ enum UpdateCommands {
                 print(String(decoding: try enc.encode(st), as: UTF8.self))
                 return ExitCode.ok
             }
+            func describe(_ manifest: HVFPayloadManifest?, _ path: String?) -> String? {
+                guard let manifest else { return nil }
+                return "\(manifest.version) (\(manifest.revision))"
+                    + (path.map { " — \(URL(fileURLWithPath: $0).lastPathComponent)" } ?? "")
+            }
             print("HVF root:         \(layout.root.path)")
-            print(
-                "Current staged:   \(st.current.map { "\($0.version) (\($0.revision))" } ?? "none (legacy flat layout)")"
-            )
-            print("Previous backup:  \(st.previous.map { "\($0.version) (\($0.revision))" } ?? "none")")
+            print("Current (boots):  \(describe(st.current, st.currentPath) ?? "none (legacy flat layout)")")
+            print("Staged:           \(describe(st.staged, st.stagedPath) ?? "none")")
+            print("Known-good:       \(describe(st.knownGood, st.knownGoodPath) ?? "none")")
+            print("Previous:         \(describe(st.previous, st.previousPath) ?? "none")")
             print(
                 "Running VM:       \(st.runningVersion ?? (st.runningPath != nil ? "running (legacy flat)" : "stopped"))"
             )
@@ -398,45 +437,42 @@ enum UpdateCommands {
                 enc.dateEncodingStrategy = .iso8601
                 print(String(decoding: try enc.encode(manifest), as: UTF8.self))
             } else {
-                print("staged HVF payload \(manifest.version) (\(manifest.revision))")
+                print(
+                    "staged HVF payload \(manifest.version) (\(manifest.revision)); "
+                        + "`micropod update hvf apply` boots, verifies and activates it")
             }
             return ExitCode.ok
 
         case "apply":
             let parsed = try parseArgs(
                 rest, boolFlags: ["--force"], valueFlags: ["--drain-timeout"], commandName: "update hvf apply")
-            let drainSeconds = parsed.value("--drain-timeout").flatMap(Int.init) ?? 0
+            let drainSeconds = try parsed.value("--drain-timeout").map { raw -> Int in
+                guard let seconds = Int(raw), seconds >= 0 else {
+                    throw UsageError(message: "--drain-timeout wants whole seconds, got '\(raw)'")
+                }
+                return seconds
+            }
             let result = try await HVFPayloadStore.activate(
                 layout: layout,
                 force: parsed.has("--force"),
-                drainTimeout: .seconds(max(0, drainSeconds)),
+                drainTimeout: .seconds(drainSeconds ?? 0),
                 progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
-            if json {
-                let enc = JSONEncoder()
-                enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-                print(String(decoding: try enc.encode(result), as: UTF8.self))
-            } else {
-                print("\(result.action.rawValue): \(result.detail)")
-            }
-            return result.action == .rolledBack ? ExitCode.failure : ExitCode.ok
+            try printHVFResult(result, json: json)
+            return hvfExitCode(result.action)
 
         case "rollback":
+            let parsed = try parseArgs(rest, boolFlags: ["--force"], valueFlags: [], commandName: "update hvf rollback")
             let result = try await HVFPayloadStore.rollback(
                 layout: layout,
+                force: parsed.has("--force"),
                 progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
-            if json {
-                let enc = JSONEncoder()
-                enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-                print(String(decoding: try enc.encode(result), as: UTF8.self))
-            } else {
-                print("\(result.action.rawValue): \(result.detail)")
-            }
-            return ExitCode.ok
+            try printHVFResult(result, json: json)
+            return hvfExitCode(result.action)
 
         case "prune":
             let parsed = try parseArgs(rest, boolFlags: [], valueFlags: ["--keep"], commandName: "update hvf prune")
             let keep = parsed.value("--keep").flatMap(Int.init) ?? 2
-            let removed = HVFPayloadStore.pruneVersions(layout: layout, keep: keep)
+            let removed = try HVFPayloadStore.pruneVersions(layout: layout, keep: keep)
             if json {
                 let data = try JSONSerialization.data(withJSONObject: ["removed": removed], options: [.prettyPrinted])
                 print(String(decoding: data, as: UTF8.self))
