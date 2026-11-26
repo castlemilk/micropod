@@ -81,9 +81,20 @@ func TestStartScriptStartsTheOCIServiceAfterTheEngineRecovered(t *testing.T) {
 		t.Fatal("the wait for the engine's Docker socket does not end before the OCI service starts")
 	}
 	// A dead containerd or engine never binds the socket: the wait must end.
-	for _, alive := range []string{`kill -0 "$engine"`, `kill -0 "$api"`} {
-		if !strings.Contains(loop[:done], alive+" 2>/dev/null || exit 1") {
-			t.Fatalf("the wait for the engine's Docker socket does not stop when %s fails", alive)
+	// A dead engine's own status (4 when its start-up outlasted its budget,
+	// startup_watchdog.go) is the one start.sh exits with: guest init reports
+	// it, and a fixed 1 would hide why the engine stopped.
+	waiting := loop[:done]
+	if !regexp.MustCompile(`kill -0 "\$engine" 2>/dev/null \|\| \{[^\n]*exit 1; \}`).MatchString(waiting) {
+		t.Fatal(`the wait for the engine's Docker socket does not stop when kill -0 "$engine" fails`)
+	}
+	engineDied := regexp.MustCompile(`if ! kill -0 "\$api" 2>/dev/null; then\n((?:[^\n]*\n)*?)\s*fi\n`).FindStringSubmatch(waiting)
+	if engineDied == nil {
+		t.Fatal(`the wait for the engine's Docker socket does not stop when kill -0 "$api" fails`)
+	}
+	for _, step := range []string{`wait "$api" || status=$?`, `exit "$status"`} {
+		if !strings.Contains(engineDied[1], step) {
+			t.Fatalf("when the engine dies the wait does not exit with its status (no %s):\n%s", step, engineDied[1])
 		}
 	}
 }

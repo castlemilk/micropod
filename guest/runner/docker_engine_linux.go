@@ -395,6 +395,9 @@ func (s *dockerEngine) recover(ctx context.Context) error {
 	return s.recoverCPUGroupPlacements()
 }
 func serveEngine(ctx context.Context, n node) error {
+	// Everything up to the open socket is bounded (startup_watchdog.go).
+	watch := armStartupWatchdog(startupBudget, os.Exit)
+	defer watch.disarm()
 	// start.sh runs everything under umask 077. Directories the engine creates
 	// (named volumes, cache scopes) set their modes explicitly as well.
 	unix.Umask(022)
@@ -477,20 +480,25 @@ func serveEngine(ctx context.Context, n node) error {
 	// containerd, and overlaps its start. Recovery does need it, and the
 	// socket opens only after recovery, so a _ping is never answered by an
 	// engine that cannot serve yet.
+	watch.enter("waiting for containerd's CRI")
 	if err := awaitRuntime(ctx, systemClock{}, runtimeWaitInterval, runtimeWaitBudget, n.runtimeReady); err != nil {
 		return err
 	}
 	// The scheduler jobs a previous boot left, as `job recover` did before
 	// start.sh started the engine.
+	watch.enter("recovering interrupted jobs")
 	if err := n.recover(ctx); err != nil {
 		return fmt.Errorf("recover interrupted jobs: %w", err)
 	}
+	watch.enter("recovering networks")
 	if err := s.recoverNetworks(ctx); err != nil {
 		return err
 	}
+	watch.enter("recovering containers")
 	if err := s.recover(ctx); err != nil {
 		return err
 	}
+	watch.enter("sweeping what the previous engine left")
 	// Recovery has retired the previous owner's tasks. Their transient FIFO
 	// names can be reclaimed while this engine still owns the worker lock.
 	s.execPipeDir = filepath.Join(filepath.Dir(engineGate), "exec")
@@ -525,6 +533,7 @@ func serveEngine(ctx context.Context, n node) error {
 		if why := cacheDiskUnavailable(); why != "" {
 			log.Printf("shared caches are off this boot: %s", why)
 		}
+		watch.enter("recovering the shared caches (dirty marks)")
 		discardDirtyCaches()
 		go cacheDirty.run(ctx)
 		go s.runCacheJanitor(ctx)
@@ -543,10 +552,12 @@ func serveEngine(ctx context.Context, n node) error {
 	if err := os.Chmod(dockerSocket, 0600); err != nil {
 		return err
 	}
+	watch.enter("starting the BuildKit socket")
 	s.buildkitSocket, err = serveBuildKit(ctx)
 	if err != nil {
 		return err
 	}
+	watch.disarm()
 	// Every request on this socket is the host's (cacheOrigin): only guest
 	// init's vsock bridge reaches it. In the rootless engine the socket is
 	// also bound into the job's containers (dockerSocketMount), which have

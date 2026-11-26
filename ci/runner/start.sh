@@ -238,8 +238,16 @@ api=$!
 # this loop: the first _ping is no later for it.
 step="waiting for the engine to open its socket"
 until [ -S /var/lib/micropod/docker.sock ]; do
-    kill -0 "$engine" 2>/dev/null || exit 1
-    kill -0 "$api" 2>/dev/null || exit 1
+    kill -0 "$engine" 2>/dev/null || { echo "start.sh: containerd exited before the engine opened its socket" >&2; exit 1; }
+    # The engine's own status (4: its start-up outlasted its budget) is the
+    # one guest init reports.
+    if ! kill -0 "$api" 2>/dev/null; then
+        status=0
+        wait "$api" || status=$?
+        echo "start.sh: the engine exited with status $status before it opened its socket" >&2
+        [ "$status" != 0 ] || status=1
+        exit "$status"
+    fi
     usleep 10000 2>/dev/null || sleep 0.01 2>/dev/null || sleep 1
 done
 "$tools/service" serve &
