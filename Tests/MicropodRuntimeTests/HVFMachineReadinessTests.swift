@@ -180,6 +180,39 @@ final class HVFMachineReadinessTests: XCTestCase {
         XCTAssertEqual(starts.value, 1)
     }
 
+    /// `machine stop` on a machine whose supervisor gave up (or died) keeps
+    /// it down: it used to persist nothing, so the next status read started
+    /// the crash loop again, once a minute for as long as anything polled.
+    func testAStopWithNoSupervisorKeepsAFailedOrAbandonedMachineDown() async throws {
+        try install()
+        HVFMachineAutostart.reset()
+        defer { HVFMachineAutostart.reset() }
+        let starts = LockedCount()
+        let start: @Sendable () async throws -> Void = { starts.increment() }
+        for (phase, reason) in [
+            (HVFMachinePhase.failed, "micropod-vmm exited with status 3: the guest crashed or reset"),
+            (.running, "unexpected exit"),
+        ] {
+            try HVFMachineState(
+                phase: phase, supervisorPID: 1, restartCount: 4, lastExitReason: reason, lastExitCode: 3,
+                updatedAt: Date(timeIntervalSinceNow: -600)
+            ).save(to: layout.state)
+            let stopped = try await client.stop()
+            XCTAssertFalse(stopped, "nothing was running")
+            let state = try XCTUnwrap(try HVFMachineState.load(from: layout.state))
+            XCTAssertEqual(state.phase, .stopped)
+            XCTAssertTrue(state.lastExitReason?.hasPrefix("stopped on request after: ") == true, "\(state)")
+            if phase == .failed {
+                XCTAssertTrue(state.lastExitReason?.contains(reason) == true, "keeps why it was down: \(state)")
+            }
+            XCTAssertEqual(state.lastExitCode, 3, "the last exit stays on record")
+            let read = await client.readinessStartingWhenDown(start: start)
+            XCTAssertEqual(read.status, .stopped, read.detail)
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(starts.value, 0, "a stopped-on-request machine is not started on demand")
+    }
+
     func testAFailedStartOnDemandIsNotRetriedAtOnceAndSaysWhy() async throws {
         try install()
         HVFMachineAutostart.reset()
