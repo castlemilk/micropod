@@ -11,6 +11,31 @@
   },
   {
     "method": "GET",
+    "path": "/v1/ci",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/ci",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/ci",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/ci",
+    "description": ""
+  },
+  {
+    "method": "POST",
+    "path": "/v1/ci",
+    "description": ""
+  },
+  {
+    "method": "GET",
     "path": "/v1/usage",
     "description": "Disk usage report (containers, images, volumes)."
   },
