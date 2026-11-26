@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -424,37 +425,50 @@ func TestCachePinWaitsForAClearer(t *testing.T) {
 	pin.drop()
 }
 
-// A writer's mark is on disk before its container can write a byte: attach
-// syncs the mark's content, renames it into place and then syncs its
-// directory (a journal commit), all before the start goes on. Without the
-// directory sync the rename waited for the next 5 s journal commit: a kill -9
-// of the VMM before it lost the mark while a writer's fdatasync'd overwrite in
-// place survived, and recovery kept the changed unit (scripts/gates/phase-b.sh
-// B2X, the swept-offset kills). When the sync fails the writer is kept out.
-func TestCacheDirtyMarkIsOnDiskBeforeTheWriterStarts(t *testing.T) {
+// Every writer's mark is on disk before anything of its start can touch the
+// unit, and one sync of a scope's mark directory covers all the marks a start
+// makes there: openCacheMounts holds every unit first (attach renames each
+// mark into place), then syncs .meta/<scope> once, and only then opens the
+// stores. attach used to sync the mark's file and then its directory, two
+// journal commits per unit: fourteen for a default start of seven units,
+// about 2.5 ms of every container start with caches attached, several times
+// that with the VMM's barrier flushes. Without the sync a kill -9 of the VMM
+// before the next journal commit lost the mark while a writer's fdatasync'd
+// overwrite in place survived, and recovery kept the changed unit
+// (scripts/gates/phase-b.sh B2X, the swept-offset kills). When the sync fails
+// the writers are kept out.
+func TestCacheDirtyMarksAreOnDiskBeforeTheWritersStart(t *testing.T) {
 	needRoot(t)
 	useCacheRoot(t)
 	useBoot(t, "boot-d")
-	old, oldFile, oldDir := cacheDirty, syncMarkFile, syncMarkDir
+	old, oldDir := cacheDirty, syncMarkDir
 	cacheDirty = newCacheDirtyTracker()
-	t.Cleanup(func() { cacheDirty, syncMarkFile, syncMarkDir = old, oldFile, oldDir })
-	var events []string
-	syncMarkFile = func(f *os.File) error {
-		b, _ := os.ReadFile(f.Name())
-		events = append(events, fmt.Sprintf("file %s content=%q placed=%v", filepath.Base(filepath.Dir(f.Name())), b, marked("default", "gomod")))
-		return f.Sync()
+	t.Cleanup(func() { cacheDirty, syncMarkDir = old, oldDir })
+	plan := decide(t, defaultCachePolicy(), dockerConfig{}, testFacts(golangEnv, nil))
+	var units []string
+	for _, st := range plan.Stores {
+		units = append(units, st.Unit)
 	}
+	if len(units) < 2 {
+		t.Fatalf("a default plan with one store proves no batching: %v", units)
+	}
+	var events []string
 	syncMarkDir = func(dir string) error {
-		b, _ := os.ReadFile(dirtyMarker("default", "gomod"))
-		events = append(events, fmt.Sprintf("dir %s content=%q", filepath.Base(dir), b))
+		placed := 0
+		for _, u := range units {
+			if b, err := os.ReadFile(dirtyMarker("default", u)); err == nil && string(b) == "boot-d\n" {
+				placed++
+			}
+		}
+		stores, _ := os.ReadDir(filepath.Join(cacheRoot, "scopes", "default"))
+		events = append(events, fmt.Sprintf("sync %s: %d/%d marks placed, %d stores opened", filepath.Base(dir), placed, len(units), len(stores)))
 		return syncDir(dir)
 	}
-	plan := decide(t, defaultCachePolicy(), dockerConfig{Labels: map[string]string{"io.micropod.cache": "gomod"}}, testFacts(golangEnv, nil))
 	a := openCacheMounts(&plan, "")
-	if !slices.Contains(a.units, "gomod") {
-		t.Fatalf("gomod not attached: units %v skipped %v", a.units, a.skipped)
+	if !slices.Equal(a.units, units) {
+		t.Fatalf("attached %v (skipped %v), want %v", a.units, a.skipped, units)
 	}
-	want := []string{`file default content="boot-d\n" placed=false`, `dir default content="boot-d\n"`}
+	want := []string{fmt.Sprintf("sync default: %d/%d marks placed, 0 stores opened", len(units), len(units))}
 	if !slices.Equal(events, want) {
 		t.Fatalf("mark syncs %q, want %q", events, want)
 	}
@@ -464,15 +478,78 @@ func TestCacheDirtyMarkIsOnDiskBeforeTheWriterStarts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The directory cannot be synced: the start goes on without the writer.
+	// One unit claimed on its own (a legacy alias volume) is synced before
+	// claimUnit returns its writer.
+	events = nil
+	pin, err := claimUnit("default", "npm", false)
+	if err != nil || !pin.writer {
+		t.Fatalf("claim: %v %+v", err, pin)
+	}
+	if len(events) != 1 || !strings.HasPrefix(events[0], "sync default: 1/") {
+		t.Fatalf("alias claim syncs %q", events)
+	}
+	releasePins([]cachePin{pin})
+	if err := cacheDirty.syncOnce(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The directory cannot be synced: the start goes on without its writers,
+	// holding none of their locks, and their marks stay marks.
 	syncMarkDir = func(string) error { return unix.EIO }
 	b := openCacheMounts(&plan, "")
 	defer closeMounts(b.files)
 	defer b.release()
-	if slices.Contains(b.units, "gomod") || len(b.pins) != 0 {
-		t.Fatalf("a writer got in although its mark was not synced: units %v pins %d", b.units, len(b.pins))
+	if len(b.units) != 0 || len(b.pins) != 0 {
+		t.Fatalf("writers got in although their marks were not synced: units %v pins %d", b.units, len(b.pins))
 	}
-	if b.skipped["gomod"] != skipStoreFailed {
-		t.Fatalf("gomod not reported skipped: %v", b.skipped)
+	for _, st := range plan.Stores {
+		if b.skipped[st.Kind] != skipStoreFailed {
+			t.Fatalf("%s not reported skipped: %v", st.Kind, b.skipped)
+		}
+		if !marked("default", st.Unit) {
+			t.Fatalf("%s lost its mark", st.Unit)
+		}
+		lock, err := unitLock("default", st.Unit, true)
+		if err != nil {
+			t.Fatalf("%s still held after its writer was kept out: %v", st.Unit, err)
+		}
+		lock.Close()
+	}
+	if _, err := claimUnit("default", "npm", false); !errors.Is(err, unix.EIO) {
+		t.Fatalf("alias claim with an unsynced mark: %v", err)
+	}
+}
+
+// A mark is on disk before its writer writes, its content is not (markBatch):
+// after an unclean stop recovery discards a unit whose mark lost its content
+// (empty) or kept only part of it, as it discards one naming the crashed
+// boot, even when what is left could be the start of a clean boot's id.
+func TestCacheMarkWithoutItsContentDiscards(t *testing.T) {
+	needRoot(t)
+	useCacheRoot(t)
+	setBoot, setCleanStop := useBoot(t, "boot-crashed")
+	old := cacheDirty
+	cacheDirty = newCacheDirtyTracker()
+	t.Cleanup(func() { cacheDirty = old; cacheDiscarded, cacheKept = nil, nil })
+	plan := decide(t, defaultCachePolicy(), dockerConfig{}, testFacts(golangEnv, nil))
+	a := openCacheMounts(&plan, "")
+	closeMounts(a.files) // the crash: locks gone, nothing released
+	lost := map[string]string{"gomod": "", "gobuild": "boot-", "npm": "boot-clean"}
+	for unit, content := range lost {
+		if err := os.WriteFile(dirtyMarker("default", unit), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setCleanStop("boot-clean-1\nboot-older")
+	setBoot("boot-next")
+	cacheDiscarded, cacheKept = nil, nil
+	discardDirtyCaches()
+	for unit := range lost {
+		if !slices.Contains(cacheDiscarded, "default/"+unit) {
+			t.Fatalf("%s kept with mark %q: discarded %v kept %v", unit, lost[unit], cacheDiscarded, cacheKept)
+		}
+	}
+	if len(cacheKept) != 0 {
+		t.Fatalf("kept %v after an unclean stop", cacheKept)
 	}
 }

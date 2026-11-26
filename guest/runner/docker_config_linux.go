@@ -821,10 +821,27 @@ func pinUnit(scope, unit string, exclusive bool) (cachePin, error) {
 // order (caches_dirty_linux.go): the unit lock LOCK_SH (waiting up to
 // sharedPinWait), then, for an exclusive kind, the writer slot LOCK_EX|LOCK_NB,
 // then the unit's mark lock LOCK_SH (waiting up to sharedPinWait for a
-// clearer), then the dirty mark, made while all are held. When an exclusive
-// kind's slot is taken the claim keeps the unit lock as a reader's hold and
-// makes no mark.
+// clearer), then the dirty mark, made while all are held and on disk before
+// claimUnit returns a writer. When an exclusive kind's slot is taken the claim
+// keeps the unit lock as a reader's hold and makes no mark.
 func claimUnit(scope, unit string, exclusive bool) (cachePin, error) {
+	marks := markBatch{}
+	pin, err := claimUnitMarking(scope, unit, exclusive, marks)
+	if err != nil || !pin.writer {
+		return pin, err
+	}
+	if err := marks.sync()[scope]; err != nil {
+		pin.drop()
+		return cachePin{}, err
+	}
+	return pin, nil
+}
+
+// claimUnitMarking is claimUnit without the mark's sync: a writer's scope is
+// added to marks, and the caller lets the writer at the unit only after
+// marks.sync() succeeded for that scope (openCacheMounts claims all of a
+// start's units first and then syncs each scope once).
+func claimUnitMarking(scope, unit string, exclusive bool, marks markBatch) (cachePin, error) {
 	lock, err := lockUnitWaiting(scope, unit, false, sharedPinWait)
 	if err != nil {
 		return cachePin{}, err
@@ -840,16 +857,17 @@ func claimUnit(scope, unit string, exclusive bool) (cachePin, error) {
 		}
 		pin.slot = slot
 	}
-	marks, err := markLockWaiting(scope, unit, false, sharedPinWait)
+	markLock, err := markLockWaiting(scope, unit, false, sharedPinWait)
 	if err != nil {
 		pin.drop()
 		return cachePin{}, err
 	}
-	pin.marks = marks
+	pin.marks = markLock
 	if err := cacheDirty.attach(scope, unit); err != nil {
 		pin.drop()
 		return cachePin{}, err
 	}
+	marks.add(scope)
 	pin.writer = true
 	return pin, nil
 }
@@ -1235,6 +1253,17 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		return dropAll(skipStoreFailed, err)
 	}
 	views := map[string]cacheUnitView{} // scope/unit -> this start's way to the store
+	// First every unit is held (a writer's marked), then the marks go on disk,
+	// then the stores are opened: nothing of this start touches a unit before
+	// its mark is durable, and one sync per scope covers all its marks.
+	type heldUnit struct {
+		st         cacheStoreRef
+		storeScope string
+		scopeDir   *os.File
+		pin        cachePin
+	}
+	var held []heldUnit
+	marks := markBatch{}
 	for _, st := range plan.Stores {
 		if t := cacheToolByKind(st.Kind); st.Scope == cacheL0GlobalScope && plan.Scope != cacheL0GlobalScope && (t == nil || !t.Global) {
 			a.skip(st.Kind, skipRetiredShare)
@@ -1286,7 +1315,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			}
 			pin, err = holdUnit(storeScope, st.Unit)
 		} else {
-			pin, err = claimUnit(storeScope, st.Unit, st.Exclusive)
+			pin, err = claimUnitMarking(storeScope, st.Unit, st.Exclusive, marks)
 		}
 		if err != nil {
 			// Still held exclusively after the bounded wait (recovery, a
@@ -1298,6 +1327,18 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 				log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
 			}
 			a.skip(st.Kind, reason)
+			continue
+		}
+		held = append(held, heldUnit{st, storeScope, scopeDir, pin})
+	}
+	unsynced := marks.sync()
+	for _, h := range held {
+		st, storeScope, scopeDir, pin := h.st, h.storeScope, h.scopeDir, h.pin
+		if err := unsynced[storeScope]; err != nil && pin.writer {
+			// Its mark stays, not known durable: the writer is kept out.
+			log.Printf("cache store %s/%s: sync dirty mark: %v", storeScope, st.Unit, err)
+			pin.drop()
+			a.skip(st.Kind, skipStoreFailed)
 			continue
 		}
 		var view cacheUnitView

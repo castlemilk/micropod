@@ -8,19 +8,27 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use vmm_core::exit::{EXIT_USAGE, EXIT_VMM_ERROR};
 use vmm_core::{
-    DEFAULT_SHUTDOWN_TIMEOUT_SECS, ShareSpec, TelemetryConfig, VmConfig, run_vm_with_parent,
+    DEFAULT_SHUTDOWN_TIMEOUT_SECS, DiskFlush, ShareSpec, TelemetryConfig, VmConfig,
+    run_vm_with_parent,
 };
 use vmm_virtio::vsock::VsockExposeSpec;
 
 const USAGE: &str = "\
 Usage: micropod-vmm (--kernel <Image> | --restore-from <dir>) [--initrd <cpio>]
-  [--disk <raw> [--disk-ro]] [--cache-disk <raw>] [--share tag:path[:ro]] [--workspace <dir>]
+  [--disk <raw> [--disk-ro]] [--cache-disk <raw>] [--disk-flush barrier|full|fsync]
+  [--share tag:path[:ro]] [--workspace <dir>]
   [--vsock-expose unix_sock:guest_port] [--published-net] [--published-mtu 9000]
   [--allow-host-port PORT]
   [--cpus N] [--memory-mib N] [--cmdline STR] [--cmdline-append STR]
   [--snapshot-trigger <path> --snapshot-out <dir> [--snapshot-and-exit]]
   [--quiet] [--console-log <path>] [--json-summary] [--timeout S]
   [--shutdown-timeout S] [--parent-pid PID]
+
+--disk-flush is the host sync both disks run when the guest flushes (its ext4
+journal commits): barrier (default) F_BARRIERFSYNC, writes persist in order
+across a host crash or power loss; full F_FULLFSYNC, ordered and durable at
+each flush; fsync fsync(2), safe only against the VMM itself crashing. A
+filesystem without the fcntl falls back to full, then fsync.
 
 Exit codes:
   0  the guest powered off in an orderly way (also after SIGTERM/SIGINT)
@@ -200,6 +208,7 @@ fn main() {
     let mut disk_path: Option<PathBuf> = None;
     let mut disk_read_only = false;
     let mut cache_disk_path: Option<PathBuf> = None;
+    let mut disk_flush = DiskFlush::default();
     let mut num_vcpus: u32 = 4;
     let mut memory_mib: usize = 512;
     let mut cmdline = String::from(
@@ -252,6 +261,12 @@ fn main() {
             "--cache-disk" => {
                 i += 1;
                 cache_disk_path = Some(PathBuf::from(flag_value(&args, i, "--cache-disk")));
+            }
+            "--disk-flush" => {
+                i += 1;
+                disk_flush = flag_value(&args, i, "--disk-flush")
+                    .parse()
+                    .unwrap_or_else(|e: String| usage_error(&format!("--disk-flush: {e}")));
             }
             "--cpus" => {
                 i += 1;
@@ -442,6 +457,7 @@ fn main() {
         disk_path,
         disk_read_only,
         cache_disk_path,
+        disk_flush,
         num_vcpus,
         memory_mib,
         cmdline,
