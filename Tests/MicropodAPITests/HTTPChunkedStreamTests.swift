@@ -174,6 +174,65 @@ final class HTTPChunkedStreamTests: XCTestCase {
         XCTAssertEqual(owner.keptConnections, 0)
     }
 
+    /// A client sends its next request as soon as it read the last chunk,
+    /// while the server is still ending the stream (here held open 300 ms
+    /// after the last chunk): the request is answered, not dropped with
+    /// the connection.
+    func testARequestSentRightAfterTheLastChunkIsServedWhileTheServerIsStillEndingTheStream() async throws {
+        let (owner, path) = try await ownerSocket()
+        owner.afterLastChunk = { try? await Task.sleep(for: .milliseconds(300)) }
+        try await blocking {
+            let client = try RawConnection.unix(path)
+            for round in 0..<3 {
+                try client.write(Self.post("/stream"))
+                let stream = try client.reply()
+                XCTAssertEqual(Self.payloads(stream.body), ["one", "two", "{}"], "#\(round)")
+                try client.write("GET /echo HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                let next = try client.reply()
+                XCTAssertEqual(next.status, 200, "#\(round): the request behind the stream is answered")
+                XCTAssertEqual(String(decoding: next.body, as: UTF8.self), "/echo")
+            }
+        }
+    }
+
+    /// A request written while the stream still runs is answered after the
+    /// stream, in order, on the same connection.
+    func testARequestSentDuringAChunkedStreamIsServedAfterIt() async throws {
+        let (owner, path) = try await ownerSocket()
+        try await blocking {
+            let client = try RawConnection.unix(path)
+            try client.write(Self.post("/slow"))
+            XCTAssertTrue(try client.hasBytes(within: 2), "the stream's head came")
+            try client.write("GET /echo HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            let stream = try client.reply()
+            XCTAssertEqual(stream.headers["transfer-encoding"], "chunked")
+            XCTAssertEqual(Self.payloads(stream.body), ["late", "{}"])
+            let next = try client.reply()
+            XCTAssertEqual(next.status, 200)
+            XCTAssertEqual(String(decoding: next.body, as: UTF8.self), "/echo")
+        }
+        XCTAssertEqual(owner.keptConnections, 1)
+    }
+
+    func testTheStreamWatchHandsBytesThatCameBeforeTheEndToTheNextReader() {
+        let watch = StreamWatch()
+        let request = Data("GET /echo HTTP/1.1\r\n\r\n".utf8)
+        XCTAssertEqual(watch.received(Data(), closed: false, failed: false), .watch)
+        XCTAssertEqual(watch.received(request, closed: false, failed: false), .held, "held, not read past")
+        let got = ReceivedBytes()
+        XCTAssertTrue(watch.end { data, _, _ in got.append(data) })
+        XCTAssertEqual(got.value, [request], "the next reader starts with the held bytes")
+
+        let open = StreamWatch()
+        XCTAssertTrue(open.end { data, _, _ in got.append(data) })
+        XCTAssertEqual(open.received(Data("x".utf8), closed: false, failed: false), .handedOff)
+        XCTAssertEqual(got.value.last, Data("x".utf8))
+
+        let gone = StreamWatch()
+        XCTAssertEqual(gone.received(nil, closed: true, failed: false), .hangUp)
+        XCTAssertFalse(gone.end { _, _, _ in XCTFail("a closed connection serves nothing more") })
+    }
+
     func testARequestSentBeforeAChunkedStreamEndedIsNotServedAndTheConnectionCloses() async throws {
         let (_, path) = try await ownerSocket()
         try await blocking {
@@ -184,6 +243,13 @@ final class HTTPChunkedStreamTests: XCTestCase {
             XCTAssertTrue(try client.closed(within: 2), "the request behind the stream was not answered")
         }
     }
+}
+
+final class ReceivedBytes: @unchecked Sendable {
+    private let lock = NSLock()
+    private var all: [Data?] = []
+    func append(_ data: Data?) { lock.withLock { all.append(data) } }
+    var value: [Data?] { lock.withLock { all } }
 }
 
 final class EndedFlag: @unchecked Sendable {

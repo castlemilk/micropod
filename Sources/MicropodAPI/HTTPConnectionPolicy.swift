@@ -161,14 +161,20 @@ enum HTTPStreamFraming {
 
 /// What a chunked stream's connection reader saw: the client closing while
 /// the stream runs stops it; once the stream ended, the bytes go to whoever
-/// `end` names (the next request's reader). Bytes before the end mark the
-/// connection as unusable after the stream.
+/// `end` names (the next request's reader).
+///
+/// Bytes that arrive before the end are the start of the next request: a
+/// client may send it as soon as it has read the last chunk, before the
+/// server has finished ending the stream. They are held, not read past (one
+/// receive, at most 64 KiB), and handed to `end`'s reader first, so that
+/// request is served in order after the stream.
 final class StreamWatch: @unchecked Sendable {
-    enum Verdict { case watch, hangUp, handedOff }
+    /// `held`: bytes of the next request arrived; stop reading until `end`.
+    enum Verdict { case watch, hangUp, handedOff, held }
 
     private let lock = NSLock()
-    private var early = false
     private var closed = false
+    private var early: Data?
     private var next: (@Sendable (Data?, Bool, Bool) -> Void)?
 
     /// One receive: `data`, and whether the peer closed or the read failed.
@@ -184,19 +190,34 @@ final class StreamWatch: @unchecked Sendable {
             lock.unlock()
             return .hangUp
         }
-        if let data, !data.isEmpty { early = true }
+        if let data, !data.isEmpty {
+            early = data
+            lock.unlock()
+            return .held
+        }
         lock.unlock()
         return .watch
     }
 
-    /// The stream ended: later bytes go to `next`. False when the
-    /// connection cannot serve another request (the client closed it or
-    /// sent before the end).
+    /// The stream ended: the bytes held so far, then later ones, go to
+    /// `next` (the held ones before this returns). False when the client
+    /// closed the connection.
     func end(_ next: @escaping @Sendable (Data?, Bool, Bool) -> Void) -> Bool {
-        lock.withLock {
-            guard !early, !closed else { return false }
+        lock.lock()
+        guard !closed else {
+            lock.unlock()
+            return false
+        }
+        guard let early else {
             self.next = next
+            lock.unlock()
             return true
         }
+        // No receive is outstanding once bytes are held: the reader that
+        // takes them posts the next one.
+        self.early = nil
+        lock.unlock()
+        next(early, false, false)
+        return true
     }
 }

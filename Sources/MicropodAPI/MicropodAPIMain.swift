@@ -224,6 +224,10 @@ final class HTTPServer: @unchecked Sendable {
     /// Connections the server currently keeps for another request.
     var keptConnections: Int { kept.count }
 
+    /// Tests: runs after a chunked stream's last chunk went out and before
+    /// its connection waits for the next request, to widen that window.
+    var afterLastChunk: (@Sendable () async -> Void)?
+
     /// Loopback addresses the API listens on: IPv4 and IPv6, so
     /// `http://localhost:45454` works whichever family the client's resolver
     /// tries first (docs, SDK examples and the explorer use `localhost`).
@@ -737,9 +741,11 @@ final class HTTPServer: @unchecked Sendable {
     /// stream), the zero-length chunk ends the body, and the connection then
     /// waits for the next request as after any kept reply. The client
     /// closing its side, or failing a send, stops the stream and the
-    /// connection. A client that sends anything before the stream ended
-    /// (this server does not pipeline behind a stream) has the connection
-    /// closed after it. `finished` runs once the source is done or abandoned.
+    /// connection. A request that arrives before the stream ended (a client
+    /// that sends its next request as soon as it read the last chunk) is
+    /// held and served after it (`StreamWatch`); from its arrival to the
+    /// stream's end only a failed send notices a client that left.
+    /// `finished` runs once the source is done or abandoned.
     private func streamChunked(
         status: Int, contentType: String, events: AsyncStream<Data>, cors: [(String, String)], peer: Peer,
         finished: @escaping @Sendable () -> Void
@@ -769,6 +775,7 @@ final class HTTPServer: @unchecked Sendable {
                         connection.cancel()
                         return
                     }
+                    if let pause = self.afterLastChunk { await pause() }
                     self.resumeAfterStream(peer, watch: watch)
                 }
                 Self.watchStream(connection, watch: watch) { pump.cancel() }
@@ -798,7 +805,7 @@ final class HTTPServer: @unchecked Sendable {
             self.received(peer, buffer: Data(), data: data, isComplete: isComplete, failed: failed, pending: pending)
         }
         if !resumed {
-            // The client sent before the stream ended, or already closed.
+            // The client closed its side.
             guard pending.finish() else { return }
             kept.release(peer.connection)
             peer.connection.cancel()
@@ -806,13 +813,14 @@ final class HTTPServer: @unchecked Sendable {
     }
 
     /// While a chunked stream runs, its connection's one reader: the client
-    /// closing stops the stream. After the stream ended the bytes go to the
+    /// closing stops the stream. The next request's first bytes stop it
+    /// reading; they, and after the stream ended any later bytes, go to the
     /// next request (`StreamWatch.end`).
     static func watchStream(_ connection: NWConnection, watch: StreamWatch, onHangup: @escaping @Sendable () -> Void) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, isComplete, error in
             switch watch.received(data, closed: isComplete || error != nil, failed: error != nil) {
             case .hangUp: onHangup()
-            case .handedOff: break
+            case .handedOff, .held: break
             case .watch: watchStream(connection, watch: watch, onHangup: onHangup)
             }
         }
