@@ -322,6 +322,48 @@ func (h dockerHost) cpuBandwidth(quota, period int64) (int64, int64) {
 	return cmp.Or(h.CpuQuota, quota), period
 }
 
+// dockerLimits are what a container may use at most: memory bytes, CPU time
+// (quota per period, a negative quota for none), processes and CPU shares.
+type dockerLimits struct{ memory, quota, period, pids, shares int64 }
+
+// limits are what configure gives a container with h, over the job's
+// defaults (config: one CPU, 1 GiB, 512 processes, the runtime's 1024
+// shares).
+func (h dockerHost) limits() dockerLimits {
+	l := dockerLimits{memory: jobMemory, pids: jobPids, shares: 1024}
+	l.quota, l.period = h.cpuBandwidth(jobCPUQuota, jobCPUPeriod)
+	if h.Memory > 0 {
+		l.memory = h.Memory
+	}
+	if h.PidsLimit != nil && *h.PidsLimit > 0 {
+		l.pids = *h.PidsLimit
+	}
+	if h.CpuShares > 0 {
+		l.shares = min(max(h.CpuShares, 2), 262144)
+	}
+	return l
+}
+
+// clampTo lowers what h asks above most to most, so the container gets at most
+// those limits: a request for more, or for none (a CPU quota of -1), gets
+// most's.
+func (h *dockerHost) clampTo(most dockerLimits) {
+	asked := h.limits()
+	if asked.memory > most.memory {
+		h.Memory = most.memory
+	}
+	if asked.pids > most.pids {
+		pids := most.pids
+		h.PidsLimit = &pids
+	}
+	if most.quota >= 0 && (asked.quota < 0 || float64(asked.quota)/float64(asked.period) > float64(most.quota)/float64(most.period)) {
+		h.NanoCpus, h.CpuQuota, h.CpuPeriod = 0, most.quota, most.period
+	}
+	if asked.shares > most.shares {
+		h.CpuShares = most.shares
+	}
+}
+
 func (s dockerConfig) cpuGroup(network string) dockerCPUGroup {
 	// Built-in networks have no catalog ID. Their normalized names cannot
 	// collide with the IDs of user-defined networks.

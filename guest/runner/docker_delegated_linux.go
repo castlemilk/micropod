@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"slices"
@@ -29,6 +30,10 @@ import (
 // Images and the BuildKit cache are the machine's: a pull, build, load, tag
 // or image removal through the socket changes them for every job, as a
 // trusted job's writes to the shared stores reach the jobs that read them.
+
+// delegatedFamilyContainers is how many containers, in any state, a
+// delegated socket's owner may have created and not removed.
+const delegatedFamilyContainers = 64
 
 type apiViewerKey struct{}
 
@@ -187,12 +192,25 @@ func delegatedRoute(method, raw string) bool {
 // one it sees only because it mounts it is read-only unless it mounts it
 // writable) and binds inside its own (delegatedBinds, whose roots it returns
 // and which it may make read-only in spec). The networks are the ones it
-// sees: selectNetworkFor found no other. Call with s.mu held.
+// sees: selectNetworkFor found no other. A child gets at most the owner's
+// own CPU, memory and process limits (clampTo), and the owner's family at
+// most delegatedFamilyContainers containers, so the host's limits on the
+// owner bound what it creates too. Call with s.mu held.
 func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig) (map[string]string, error) {
 	owner := s.containers[viewer]
 	if owner == nil {
 		return nil, fail(http.StatusForbidden, "the container this Docker socket belongs to is gone")
 	}
+	family := 0
+	for _, c := range s.containers {
+		if c.CreatedBy == viewer {
+			family++
+		}
+	}
+	if family >= delegatedFamilyContainers {
+		return nil, fail(http.StatusConflict, fmt.Sprintf("this Docker socket has created %d containers, as many as it may hold at once; remove one first", family))
+	}
+	spec.HostConfig.clampTo(owner.Config.HostConfig.limits())
 	roots, err := delegatedBinds(owner, spec)
 	if err != nil {
 		return nil, err

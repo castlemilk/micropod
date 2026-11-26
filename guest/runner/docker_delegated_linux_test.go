@@ -386,3 +386,80 @@ func TestDelegatedCreateDoesNotTellAnotherJobsNetworkExists(t *testing.T) {
 		}
 	}
 }
+
+// What a delegated socket's owner creates gets at most the owner's own CPU,
+// memory and process limits, whatever it asks (more, or none), and its
+// family at most delegatedFamilyContainers containers, so the host's limits
+// on a job bound what the job's socket creates.
+func TestDelegatedChildGetsAtMostItsOwnersLimits(t *testing.T) {
+	useVolumeStore(t)
+	s, owner, _, _, _ := delegatedFixture(t)
+	pids := func(n int64) *int64 { return &n }
+	applied := func(spec dockerConfig) (quota, period, memory int64, procs string, shares int64) {
+		t.Helper()
+		_, cfg, err := config("x", t.TempDir(), "img", job{Trust: "trusted"})
+		if err == nil {
+			err = spec.configure(cfg, nil, containerExtras{})
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := cfg.Linux.Resources
+		return r.CpuQuota, r.CpuPeriod, r.MemoryLimitInBytes, r.Unified["pids.max"], r.CpuShares
+	}
+	create := func(h dockerHost) dockerConfig {
+		t.Helper()
+		spec := dockerConfig{Image: "alpine", HostConfig: h}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if _, err := s.delegatedCreateLocked(owner.ID, &spec); err != nil {
+			t.Fatal(err)
+		}
+		return spec
+	}
+	for _, tc := range []struct {
+		name   string
+		owner  dockerHost
+		child  dockerHost
+		quota  int64
+		period int64
+		memory int64
+		pids   string
+		shares int64
+	}{
+		{"an unlimited child of a default owner", dockerHost{}, dockerHost{CpuQuota: -1, Memory: 64 << 30, PidsLimit: pids(1e9), CpuShares: 262144}, 100000, 100000, 1 << 30, "512", 1024},
+		{"more CPUs than its owner", dockerHost{NanoCpus: 2e9, Memory: 2 << 30, PidsLimit: pids(2048)}, dockerHost{NanoCpus: 8e9}, 200000, 100000, 1 << 30, "512", 0},
+		{"a child that asks for less", dockerHost{NanoCpus: 2e9, Memory: 2 << 30, PidsLimit: pids(2048)}, dockerHost{NanoCpus: 5e8, Memory: 256 << 20, PidsLimit: pids(100)}, 50000, 100000, 256 << 20, "100", 0},
+		{"a default child of a smaller owner", dockerHost{NanoCpus: 5e8, Memory: 512 << 20, PidsLimit: pids(64)}, dockerHost{}, 50000, 100000, 512 << 20, "64", 0},
+		{"an unlimited owner", dockerHost{CpuQuota: -1}, dockerHost{CpuQuota: -1}, -1, 100000, 1 << 30, "512", 0},
+		{"a quota over a longer period", dockerHost{}, dockerHost{CpuQuota: 300000, CpuPeriod: 200000}, 100000, 100000, 1 << 30, "512", 0},
+	} {
+		owner.Config.HostConfig = tc.owner
+		quota, period, memory, procs, shares := applied(create(tc.child))
+		if quota != tc.quota || period != tc.period || memory != tc.memory || procs != tc.pids || shares != tc.shares {
+			t.Errorf("%s: quota %d/%d memory %d pids %s shares %d, want %d/%d %d %s %d", tc.name, quota, period, memory, procs, shares, tc.quota, tc.period, tc.memory, tc.pids, tc.shares)
+		}
+	}
+
+	// A family holds at most delegatedFamilyContainers containers at once.
+	owner.Config.HostConfig = dockerHost{}
+	held := 0
+	for _, c := range s.containers {
+		if c.CreatedBy == owner.ID {
+			held++
+		}
+	}
+	for i := held; i < delegatedFamilyContainers; i++ {
+		id := strconv.Itoa(i)
+		id = strings.Repeat("f", 64-len(id)) + id
+		s.containers[id] = &dockerContainer{dockerRecord: dockerRecord{ID: id, Phase: "exited", CreatedBy: owner.ID}}
+	}
+	spec := dockerConfig{Image: "alpine"}
+	s.mu.Lock()
+	_, err := s.delegatedCreateLocked(owner.ID, &spec)
+	s.mu.Unlock()
+	var api apiError
+	if !errors.As(err, &api) || api.code != http.StatusConflict {
+		t.Fatalf("a create past the family's %d containers: %v", delegatedFamilyContainers, err)
+	}
+}

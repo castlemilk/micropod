@@ -205,13 +205,22 @@ func podConfig(id, dir string) *cri.PodSandboxConfig {
 		Hostname: "mp-" + id, LogDirectory: dir, Labels: map[string]string{owner: id}, Linux: &cri.LinuxPodSandboxConfig{SecurityContext: &cri.LinuxSandboxSecurityContext{Seccomp: profile}}}
 }
 
+// A job's (and a Docker container's) resources unless it asks for others:
+// one CPU, 1 GiB and 512 processes.
+const (
+	jobCPUPeriod = 100000
+	jobCPUQuota  = jobCPUPeriod
+	jobMemory    = 1 << 30
+	jobPids      = 512
+)
+
 func config(id, dir, image string, j job) (*cri.PodSandboxConfig, *cri.ContainerConfig, error) {
 	pod := podConfig(id, dir)
 	profile := pod.Linux.SecurityContext.Seccomp
 	labels := pod.Labels
 	container := &cri.ContainerConfig{Metadata: &cri.ContainerMetadata{Name: "job"}, Image: &cri.ImageSpec{Image: image},
 		Command: j.Command, LogPath: "job.log", Labels: labels,
-		Linux: &cri.LinuxContainerConfig{Resources: &cri.LinuxContainerResources{CpuQuota: 100000, CpuPeriod: 100000, MemoryLimitInBytes: 1 << 30, Unified: map[string]string{"pids.max": "512"}},
+		Linux: &cri.LinuxContainerConfig{Resources: &cri.LinuxContainerResources{CpuQuota: jobCPUQuota, CpuPeriod: jobCPUPeriod, MemoryLimitInBytes: jobMemory, Unified: map[string]string{"pids.max": strconv.Itoa(jobPids)}},
 			SecurityContext: &cri.LinuxContainerSecurityContext{NoNewPrivs: true, Seccomp: profile, Capabilities: &cri.Capability{DropCapabilities: []string{"ALL"}}}}}
 	if j.Trust == "trusted" {
 		if j.CPUs != nil {
