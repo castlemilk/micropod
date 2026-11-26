@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd/filters"
 	control "github.com/moby/buildkit/api/services/control"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -44,8 +45,87 @@ type fakeBuildkit struct {
 	counts map[string]int
 	solve  *control.SolveRequest
 	// known are the refs of the builds it has (every ref it solved), which
-	// ListenBuildHistory of a ref answers.
-	known map[string]bool
+	// ListenBuildHistory lists. listening and deleted are BuildKit's own
+	// (solver/llbsolver/history, Queue.Listen and Queue.delete, v0.26 and
+	// v0.34): a Listen of a ref counts in listening and leaves the ref there,
+	// at zero, after it; a deletion of a record whose ref is there only marks
+	// it deleted, and the last listener of a deleted ref to end removes it.
+	known     map[string]bool
+	listening map[string]int
+	deleted   map[string]bool
+	// filters is the Filter of every ListenBuildHistory.
+	filters [][]string
+}
+
+// listenHistory answers a ListenBuildHistory as buildkitd's history queue
+// does for the records it has (it has no running builds): EarlyExit, the
+// filters in containerd's syntax.
+func (f *fakeBuildkit) listenHistory(req *control.BuildHistoryRequest, ss grpc.ServerStream) error {
+	filter, err := filters.ParseAll(req.Filter...)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	f.mu.Lock()
+	if f.listening == nil {
+		f.listening, f.deleted = map[string]int{}, map[string]bool{}
+	}
+	f.filters = append(f.filters, req.Filter)
+	if ref := req.Ref; ref != "" {
+		if f.deleted[ref] {
+			f.mu.Unlock()
+			return status.Errorf(codes.NotFound, "ref %s is deleted", ref)
+		}
+		f.listening[ref]++
+		defer func() {
+			f.mu.Lock()
+			f.listening[ref]--
+			if f.deleted[ref] && f.listening[ref] == 0 {
+				delete(f.listening, ref)
+				f.deleteLocked(ref)
+			}
+			f.mu.Unlock()
+		}()
+	}
+	var refs []string
+	for ref := range f.known {
+		if (req.Ref == "" || ref == req.Ref) && !f.deleted[ref] {
+			refs = append(refs, ref)
+		}
+	}
+	f.mu.Unlock()
+	slices.Sort(refs)
+	for _, ref := range refs {
+		if !filter.Match(filters.AdapterFunc(func(path []string) (string, bool) {
+			return ref, len(path) == 1 && path[0] == "ref"
+		})) {
+			continue
+		}
+		resp, err := proto.Marshal(&control.BuildHistoryEvent{Type: control.BuildHistoryEventType_COMPLETE,
+			Record: &control.BuildHistoryRecord{Ref: ref}})
+		if err != nil {
+			return err
+		}
+		if err := ss.SendMsg(&resp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteHistory deletes the record of ref as buildkitd's history queue does.
+func (f *fakeBuildkit) deleteHistory(ref string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, listened := f.listening[ref]; listened {
+		f.deleted[ref] = true
+		return
+	}
+	f.deleteLocked(ref)
+}
+
+func (f *fakeBuildkit) deleteLocked(ref string) {
+	delete(f.known, ref)
+	delete(f.deleted, ref)
 }
 
 // count is how many times method reached the fake.
@@ -109,17 +189,23 @@ func (f *fakeBuildkit) handle(_ any, ss grpc.ServerStream) error {
 			return err
 		}
 		var req control.BuildHistoryRequest
-		if proto.Unmarshal(b, &req) != nil || req.Ref == "" {
+		if proto.Unmarshal(b, &req) != nil {
 			return ss.SendMsg(&b) // a probe of opaque bytes is echoed
 		}
-		f.mu.Lock()
-		known := f.known[req.Ref]
-		f.mu.Unlock()
-		if !known {
-			return nil
+		return f.listenHistory(&req, ss)
+	case control.Control_UpdateBuildHistory_FullMethodName:
+		var b []byte
+		if err := ss.RecvMsg(&b); err != nil {
+			return err
 		}
-		resp, err := proto.Marshal(&control.BuildHistoryEvent{Type: control.BuildHistoryEventType_COMPLETE,
-			Record: &control.BuildHistoryRecord{Ref: req.Ref}})
+		var req control.UpdateBuildHistoryRequest
+		if proto.Unmarshal(b, &req) != nil {
+			return ss.SendMsg(&b) // a probe of opaque bytes is echoed
+		}
+		if req.Delete {
+			f.deleteHistory(req.Ref)
+		}
+		resp, err := proto.Marshal(&control.UpdateBuildHistoryResponse{})
 		if err != nil {
 			return err
 		}
@@ -518,15 +604,19 @@ func TestADelegatedSocketCannotTakeARefBuildkitAlreadyHas(t *testing.T) {
 	t.Cleanup(func() { buildkitRefWait = old })
 	host := newProxyHarness(t)
 	host.up.mu.Lock()
-	host.up.known = map[string]bool{"raw-bridge-build": true}
+	// One ref a history filter takes as it is, and one it would not.
+	unfilterable := `raw bridge, "build"==x`
+	host.up.known = map[string]bool{"raw-bridge-build": true, unfilterable: true}
 	host.up.mu.Unlock()
 	a := control.NewControlClient(host.delegated(t, strings.Repeat("a", 64)).client(t))
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	code := func(err error) codes.Code { st, _ := status.FromError(err); return st.Code() }
 
-	if _, err := a.Solve(ctx, &control.SolveRequest{Ref: "raw-bridge-build"}); code(err) != codes.AlreadyExists {
-		t.Errorf("a Solve under the ref of a build buildkitd has: %v, want AlreadyExists", err)
+	for _, ref := range []string{"raw-bridge-build", unfilterable} {
+		if _, err := a.Solve(ctx, &control.SolveRequest{Ref: ref}); code(err) != codes.AlreadyExists {
+			t.Errorf("a Solve under the ref of a build buildkitd has (%q): %v, want AlreadyExists", ref, err)
+		}
 	}
 	stream, err := a.Status(ctx, &control.StatusRequest{Ref: "raw-bridge-build"})
 	if err == nil {
@@ -538,9 +628,11 @@ func TestADelegatedSocketCannotTakeARefBuildkitAlreadyHas(t *testing.T) {
 	if n, m := host.up.count(control.Control_Solve_FullMethodName), host.up.count(control.Control_Status_FullMethodName); n != 0 || m != 0 {
 		t.Errorf("Solve reached buildkitd %d times and Status %d, want neither", n, m)
 	}
-	// A ref of its own is its own.
-	if _, err := a.Solve(ctx, &control.SolveRequest{Ref: "fresh"}); err != nil {
-		t.Fatal(err)
+	// A ref of its own is its own, and the match is the whole ref.
+	for _, ref := range []string{"fresh", "raw-bridge", `raw bridge, "build"`} {
+		if _, err := a.Solve(ctx, &control.SolveRequest{Ref: ref}); err != nil {
+			t.Fatalf("a Solve under a ref buildkitd does not have (%q): %v", ref, err)
+		}
 	}
 	stream, err = a.Status(ctx, &control.StatusRequest{Ref: "fresh"})
 	if err == nil {
@@ -548,6 +640,71 @@ func TestADelegatedSocketCannotTakeARefBuildkitAlreadyHas(t *testing.T) {
 	}
 	if err != nil {
 		t.Errorf("its own build's progress: %v", err)
+	}
+	host.up.mu.Lock()
+	sent := slices.Clone(host.up.filters)
+	host.up.mu.Unlock()
+	want := [][]string{{"ref==raw-bridge-build"}, nil, {"ref==fresh"}, {"ref==raw-bridge"}, nil}
+	if !slices.EqualFunc(sent, want, slices.Equal) {
+		t.Errorf("the look-ups filtered the history by %q, want %q", sent, want)
+	}
+}
+
+// A delegated build's history record goes like any other build's, by a
+// history rm (and buildkitd's own age and count limits, which delete the same
+// way): the look-up of its ref before its Solve names no ref to buildkitd. A
+// Listen of a ref leaves the ref counted as listened to, and buildkitd then
+// only marks its record deleted, keeping it and the blobs its lease holds
+// until buildkitd restarts.
+func TestADelegatedBuildsHistoryRecordCanBeDeleted(t *testing.T) {
+	host := newProxyHarness(t)
+	a := control.NewControlClient(host.delegated(t, strings.Repeat("a", 64)).client(t))
+	hc := control.NewControlClient(host.client(t))
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	for _, ref := range []string{"k3xq9z0m4c2v8b1n6l5j7h0gq", `a ref, "quoted"`} {
+		if _, err := a.Solve(ctx, &control.SolveRequest{Ref: ref}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := hc.UpdateBuildHistory(ctx, &control.UpdateBuildHistoryRequest{Ref: ref, Delete: true}); err != nil {
+			t.Fatal(err)
+		}
+		host.up.mu.Lock()
+		kept, marked := host.up.known[ref], host.up.deleted[ref]
+		_, listened := host.up.listening[ref]
+		host.up.mu.Unlock()
+		if kept || marked || listened {
+			t.Errorf("after a history rm of the delegated build %q: its record kept %v, marked deleted %v, its ref counted as listened to %v",
+				ref, kept, marked, listened)
+		}
+	}
+}
+
+// A ref the look-up filters the history by stands for itself in the filter
+// syntax buildkitd parses (containerd's): it matches that ref and no other.
+// One that would not is looked up in the whole history.
+func TestBuildkitHistoryFilterMatchesTheWholeRef(t *testing.T) {
+	field := func(ref string) filters.Adaptor {
+		return filters.AdapterFunc(func(path []string) (string, bool) { return ref, len(path) == 1 && path[0] == "ref" })
+	}
+	for _, ref := range []string{"k3xq9z0m4c2v8b1n6l5j7h0gq", "-x", "_y", "A-b_9", strings.Repeat("z", buildkitMaxRef)} {
+		if !buildkitFilterableRef(ref) {
+			t.Errorf("%q is not filtered by", ref)
+			continue
+		}
+		filter, err := filters.ParseAll("ref==" + ref)
+		if err != nil {
+			t.Errorf("the filter of %q: %v", ref, err)
+			continue
+		}
+		if !filter.Match(field(ref)) || filter.Match(field(ref+"z")) || filter.Match(field(ref[1:])) {
+			t.Errorf("the filter of %q matches more or less than %q", ref, ref)
+		}
+	}
+	for _, ref := range []string{"", "a,b", "a b", `"a"`, "a.b", "a==b", "a/b", "é"} {
+		if buildkitFilterableRef(ref) {
+			t.Errorf("%q is filtered by", ref)
+		}
 	}
 }
 

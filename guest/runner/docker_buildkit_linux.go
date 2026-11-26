@@ -429,23 +429,59 @@ func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest)
 // (serveBuildKit), while buildkitd's Status of a ref replays that build's
 // whole log from its history; so a delegated socket that learned such a ref
 // may not take it.
+//
+// The look-up names no ref to buildkitd (BuildHistoryRequest.Ref). Its
+// Listen of a ref counts a listener of it and leaves the ref's count, at
+// zero, once that listener is gone; a record whose ref has a count is only
+// marked deleted, never removed, by a history rm or by buildkitd's own age
+// and count limits, and nothing later removes it (a Listen of a deleted ref
+// is refused), so the record and the blobs its lease holds stayed until
+// buildkitd restarted, for every delegated build (BuildKit v0.26 and v0.34,
+// solver/llbsolver/history: Queue.Listen and Queue.delete). The look-up
+// lists the history instead: filtered to ref when the filter syntax takes it
+// as it is (buildkitFilterableRef), which only narrows what is sent, since
+// buildkitd sends every running build whatever the filter; the match is the
+// ref itself. What this cannot see is a record buildkitd has marked deleted
+// but kept because another client's Listen of its ref holds it: the history
+// hides it, while its Status still replays its log.
 func (s dockerBuildSolver) knownToBuildkit(ctx context.Context, ref string) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	records, err := s.backend.ListenBuildHistory(ctx, &control.BuildHistoryRequest{Ref: ref, EarlyExit: true})
+	req := &control.BuildHistoryRequest{EarlyExit: true}
+	if buildkitFilterableRef(ref) {
+		req.Filter = []string{"ref==" + ref}
+	}
+	records, err := s.backend.ListenBuildHistory(ctx, req)
 	if err != nil {
 		return false, err
 	}
-	_, err = records.Recv()
-	switch {
-	case err == nil:
-		return true, nil
-	case errors.Is(err, io.EOF):
-		return false, nil
-	case status.Code(err) == codes.NotFound:
-		return true, nil // a record buildkitd is deleting
+	for {
+		event, err := records.Recv()
+		if errors.Is(err, io.EOF) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if event.GetRecord().GetRef() == ref {
+			return true, nil
+		}
 	}
-	return false, err
+}
+
+// buildkitFilterableRef reports whether ref can stand unquoted as the value
+// of a history filter (ref==<ref>): BuildKit's own refs (25 characters of
+// [a-z0-9]) can. Another is looked up in the whole history.
+func buildkitFilterableRef(ref string) bool {
+	if ref == "" {
+		return false
+	}
+	for _, r := range ref {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 func (s dockerBuildSolver) finishLocalLoad(ctx context.Context, tags []string, response map[string]string) error {
