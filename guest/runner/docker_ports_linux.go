@@ -182,8 +182,8 @@ func macFacingGuard(admit func(netip.Addr) bool) relayGuard {
 // pin the relay's descriptors until the port closes.
 const relayDialTimeout = 10 * time.Second
 
-// Container-facing relays (the gateway relay) hold at most relayPortSlots
-// connections each and gatewayRelaySlots between them, so no container can
+// Container-facing relays (the gateway relays) hold at most relayPortSlots
+// connections for each published port and gatewayRelaySlots between them, so no container can
 // exhaust the engine's descriptors through them (each costs two), and one
 // peer family (a job: a delegated socket's owner and what it created, or a
 // container of the host's alone) at most relayFamilySlots of the shared
@@ -192,7 +192,6 @@ const relayDialTimeout = 10 * time.Second
 // limit: it serves only the Mac's port broker (macFacingAdmits), and closes
 // any other peer, a container's included, before it dials anything.
 const (
-	relayPortSlots   = 128
 	relayFamilySlots = 128
 	// relayPendingAdmissions bounds a listener's connections waiting for
 	// admit, which takes the engine's lock (a create or a remove can hold
@@ -200,6 +199,11 @@ const (
 	// the kernel's backlog, instead of holding a descriptor for each.
 	relayPendingAdmissions = 16
 )
+
+// relayPortSlots is how many connections one published port's gateway
+// relays hold between them, at however many gateways it is relayed. A
+// variable for tests.
+var relayPortSlots = 128
 
 var (
 	gatewayRelaySlots    = make(chan struct{}, 512)
@@ -465,6 +469,31 @@ func relayGateways(network *workerNetwork) []string {
 // from that namespace. So admit decides each peer (relayAdmits): only one
 // that could reach the target anyway or belongs to the same job is relayed.
 func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) (string, bool), track func(netip.Addr, func()) func()) (*publishedPort, error) {
+	return openGatewayRelayWith(ctx, gateway, port, target, admit, track, make(chan struct{}, relayPortSlots))
+}
+
+// openGatewayRelays is openGatewayRelay at each of gateways (relayGateways)
+// for one published port, whose relays share its relayPortSlots. A gateway
+// it cannot listen at is skipped (the Mac mapping stands without it) and
+// returned among the errors.
+func openGatewayRelays(ctx context.Context, gateways []string, port uint16, target string, admit func(netip.Addr) (string, bool), track func(netip.Addr, func()) func()) ([]*publishedPort, error) {
+	slots := make(chan struct{}, relayPortSlots)
+	var open []*publishedPort
+	var errs []error
+	for _, gateway := range gateways {
+		p, err := openGatewayRelayWith(ctx, gateway, port, target, admit, track, slots)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("gateway %s: %w", gateway, err))
+			continue
+		}
+		open = append(open, p)
+	}
+	return open, errors.Join(errs...)
+}
+
+// openGatewayRelayWith is openGatewayRelay holding at most slots' capacity
+// of connections, shared with the port's relays at its other gateways.
+func openGatewayRelayWith(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) (string, bool), track func(netip.Addr, func()) func(), slots chan struct{}) (*publishedPort, error) {
 	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(gateway), Port: int(port)})
 	if err != nil {
 		return nil, err
@@ -472,7 +501,7 @@ func openGatewayRelay(ctx context.Context, gateway string, port uint16, target s
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, cancel: cancel}
 	p.relay(relayCtx, l, target, relayGuard{admit: admit, pending: make(chan struct{}, relayPendingAdmissions),
-		slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots, families: gatewayRelayFamilies, track: track, halfCloseIdle: true})
+		slots: slots, shared: gatewayRelaySlots, families: gatewayRelayFamilies, track: track, halfCloseIdle: true})
 	return p, nil
 }
 
@@ -770,14 +799,12 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			default:
 				s.metrics.networks.rootlessPorts.Add(1)
 			}
-			for _, gateway := range gateways {
-				// Best effort: the Mac mapping stands without it.
-				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c), s.trackRelay(c)); err != nil {
-					log.Printf("published port %d of %.12s at gateway %s: %v", n, c.ID, gateway, err)
-				} else {
-					open = append(open, g)
-				}
+			// Best effort: the Mac mapping stands without them.
+			relays, err := openGatewayRelays(ctx, gateways, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c), s.trackRelay(c))
+			if err != nil {
+				log.Printf("published port %d of %.12s: %v", n, c.ID, err)
 			}
+			open = append(open, relays...)
 			actual[key] = append(actual[key], portBinding{HostIP: "127.0.0.1", HostPort: strconv.Itoa(int(n))})
 		}
 	}

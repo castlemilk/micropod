@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"strconv"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -338,5 +339,34 @@ func TestMacFacingRelayWaitsForALateReplyToAHalfClosedRequest(t *testing.T) {
 	c.SetReadDeadline(time.Now().Add(5 * time.Second))
 	if got, err := io.ReadAll(c); err != nil || string(got) != "late reply" {
 		t.Fatalf("the Mac client got %q, %v: want the reply that came after the idle limit", got, err)
+	}
+}
+
+// A published port's gateway relays hold relayPortSlots connections between
+// them, at however many gateways it is relayed (the default network's and
+// its own network's), not that many at each.
+func TestGatewayRelaysShareTheirPortsSlots(t *testing.T) {
+	old := relayPortSlots
+	relayPortSlots = 2
+	t.Cleanup(func() { relayPortSlots = old })
+	port := freePort(t)
+	relays, err := openGatewayRelays(context.Background(), []string{"127.0.0.1", "127.0.0.2"}, port, holdTarget(t),
+		func(netip.Addr) (string, bool) { return "job", true }, nil)
+	if err != nil || len(relays) != 2 {
+		t.Fatalf("relays %d: %v", len(relays), err)
+	}
+	for _, p := range relays {
+		defer p.close()
+	}
+	at := func(gateway string) string { return net.JoinHostPort(gateway, strconv.Itoa(int(port))) }
+	for _, c := range []net.Conn{dialHeld(t, at("127.0.0.1")), dialHeld(t, at("127.0.0.2"))} {
+		if closedSoon(c) {
+			t.Fatal("a connection within the port's slots was closed")
+		}
+	}
+	for _, gateway := range []string{"127.0.0.1", "127.0.0.2"} {
+		if !closedSoon(dialHeld(t, at(gateway))) {
+			t.Errorf("a connection past the port's slots was relayed at %s", gateway)
+		}
 	}
 }
