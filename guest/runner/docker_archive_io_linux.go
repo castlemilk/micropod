@@ -68,6 +68,32 @@ func archiveOpen(dir *os.File, relative string, flags uint64) (*os.File, error) 
 	return os.NewFile(uintptr(fd), relative), nil
 }
 
+// machineGuard refuses (EXDEV, as a separate mount) a descriptor the view
+// opened that is the machine's own directory or lies below it
+// (guardMachineDir). f is closed when it is refused.
+func (v dockerArchiveView) machineGuard(f *os.File, err error) (*os.File, error) {
+	if err != nil || v.machine == nil {
+		return f, err
+	}
+	inside, err := v.machine.inside(f)
+	if err == nil && inside {
+		err = unix.EXDEV
+	}
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+// isMachineDir reports whether info, a directory entry the view walks into,
+// is the machine's own directory (the only way below it from a directory
+// machineGuard admitted).
+func (v dockerArchiveView) isMachineDir(info os.FileInfo) bool {
+	st, ok := info.Sys().(*syscall.Stat_t)
+	return v.machine != nil && ok && info.IsDir() && (fileID{uint64(st.Dev), st.Ino}) == v.machine.id
+}
+
 func archiveReadFD(file *os.File) (*os.File, error) {
 	// A checked O_PATH handle can be reopened without resolving the container
 	// path again. Never open an unchecked device, pipe, or socket for I/O.
@@ -129,7 +155,7 @@ func (v dockerArchiveView) openResolved(absolute string, flags uint64) (*os.File
 			return nil, "", unix.EXDEV
 		}
 		relative := v.relative(absolute)
-		f, err := archiveOpen(v.root, relative, flags)
+		f, err := v.machineGuard(archiveOpen(v.root, relative, flags))
 		if !errors.Is(err, unix.ELOOP) {
 			return f, absolute, err
 		}
@@ -146,6 +172,9 @@ func (v dockerArchiveView) openResolved(absolute string, flags uint64) (*os.File
 				return nil, "", err
 			}
 			info, err := probe.Stat()
+			if err == nil && v.isMachineDir(info) {
+				err = unix.EXDEV
+			}
 			if err == nil && info.Mode()&os.ModeSymlink != 0 {
 				var target string
 				target, err = archiveReadLink(probe)
@@ -234,8 +263,8 @@ func (v dockerArchiveView) writeTarEntry(ctx context.Context, out *tar.Writer, a
 	if err != nil {
 		return err
 	}
-	if !archiveReadable(info.Mode()) {
-		return nil
+	if !archiveReadable(info.Mode()) || v.isMachineDir(info) {
+		return nil // the machine's own directory is skipped as a separate mount is
 	}
 	var target string
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -355,7 +384,7 @@ func (v dockerArchiveView) extract(ctx context.Context, p dockerArchivePath, sou
 		case tar.TypeDir:
 			if entry != "." {
 				var directory *os.File
-				directory, err = archiveDirectory(destination, entry)
+				directory, err = v.archiveDirectory(destination, entry)
 				if err == nil {
 					directories[entry] = archiveMetadataFor(h, preserveOwner)
 					err = directory.Close()
@@ -373,7 +402,7 @@ func (v dockerArchiveView) extract(ctx context.Context, p dockerArchivePath, sou
 			return archiveUploadError(absolute, err)
 		}
 	}
-	return restoreArchiveDirectories(ctx, destination, directories)
+	return v.restoreArchiveDirectories(ctx, destination, directories)
 }
 
 func archiveEntryPath(raw string) (string, error) {
@@ -390,21 +419,37 @@ func archiveEntryPath(raw string) (string, error) {
 
 // Resolve one directory component at a time so creation and the next lookup
 // operate on a verified directory descriptor. Existing symlinks, separate
-// mounts and mismatched file types are never traversed or replaced.
-func archiveDirectory(root *os.File, relative string) (*os.File, error) {
+// mounts, the machine's own directory and mismatched file types are never
+// traversed or replaced.
+func (v dockerArchiveView) archiveDirectory(root *os.File, relative string) (*os.File, error) {
 	dir, err := archiveOpen(root, "", 0)
 	if err != nil || relative == "." {
 		return dir, err
 	}
-	for part := range strings.SplitSeq(relative, "/") {
+	open := func(dir *os.File, part string) (*os.File, error) {
 		next, err := archiveOpen(dir, part, unix.O_DIRECTORY|unix.O_NOFOLLOW)
+		if err != nil || v.machine == nil {
+			return next, err
+		}
+		info, err := next.Stat()
+		if err == nil && v.isMachineDir(info) {
+			err = unix.EXDEV
+		}
+		if err != nil {
+			next.Close()
+			return nil, err
+		}
+		return next, nil
+	}
+	for part := range strings.SplitSeq(relative, "/") {
+		next, err := open(dir, part)
 		if errors.Is(err, unix.ENOENT) {
 			made := unix.Mkdirat(int(dir.Fd()), part, 0700)
 			if made != nil && !errors.Is(made, unix.EEXIST) {
 				dir.Close()
 				return nil, made
 			}
-			next, err = archiveOpen(dir, part, unix.O_DIRECTORY|unix.O_NOFOLLOW)
+			next, err = open(dir, part)
 			if err == nil && made == nil {
 				err = unix.Fchmodat(int(next.Fd()), "", 0755, unix.AT_EMPTY_PATH)
 			}
@@ -457,7 +502,7 @@ func (m archiveMetadata) apply(f *os.File) error {
 	return unix.UtimesNanoAt(fd, "", []unix.Timespec{stamp, stamp}, unix.AT_EMPTY_PATH|unix.AT_SYMLINK_NOFOLLOW)
 }
 
-func restoreArchiveDirectories(ctx context.Context, root *os.File, directories map[string]archiveMetadata) error {
+func (v dockerArchiveView) restoreArchiveDirectories(ctx context.Context, root *os.File, directories map[string]archiveMetadata) error {
 	names := make([]string, 0, len(directories))
 	for name := range directories {
 		names = append(names, name)
@@ -469,7 +514,7 @@ func restoreArchiveDirectories(ctx context.Context, root *os.File, directories m
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		f, err := archiveOpen(root, name, unix.O_DIRECTORY|unix.O_NOFOLLOW)
+		f, err := v.machineGuard(archiveOpen(root, name, unix.O_DIRECTORY|unix.O_NOFOLLOW))
 		if err == nil {
 			err = errors.Join(directories[name].apply(f), f.Close())
 		}
@@ -481,7 +526,7 @@ func restoreArchiveDirectories(ctx context.Context, root *os.File, directories m
 }
 
 func (v dockerArchiveView) archiveWriteEntry(ctx context.Context, root *os.File, absolute, entry string, h *tar.Header, source io.Reader, preserveOwner bool) error {
-	dir, err := archiveDirectory(root, path.Dir(entry))
+	dir, err := v.archiveDirectory(root, path.Dir(entry))
 	if err != nil {
 		return err
 	}
@@ -569,7 +614,7 @@ func (v dockerArchiveView) archiveStageHardlink(root *os.File, absolute string, 
 	if target == "." || !v.includes(path.Join(absolute, target)) {
 		return fail(http.StatusBadRequest, "hardlink target must be a regular file in the same archive destination")
 	}
-	from, err := archiveOpen(root, target, unix.O_NOFOLLOW)
+	from, err := v.machineGuard(archiveOpen(root, target, unix.O_NOFOLLOW))
 	if err != nil {
 		return archiveUploadError(target, err)
 	}

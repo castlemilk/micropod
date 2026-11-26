@@ -370,7 +370,7 @@ reach it anyway) or belongs to the same job (the container holding the socket an
 connections a port and 512 in all. When the machine asked for its host config share, a policy file
 the guest cannot read fails closed (untrusted by default), and no bind may reach the machine's own directory
 (`~/.micropod/hvf` sits in the home-directory workspace): a bind source inside it is refused, and a bind that covers
-it (`-v $HOME:/h`) shows an empty directory there. `--allow-scopes` holds for scope labels and alias volumes alike.
+it (`-v $HOME:/h`) shows an empty directory there, to `docker cp` as well. `--allow-scopes` holds for scope labels and alias volumes alike.
 With `--share-l0 on`, only the stores whose tools verify them on every read (Go modules, npm, pnpm) are shared
 across scopes, the modules and packages of private projects included; maven, gradle, bun, playwright and every
 other store stay per scope. A container an older engine created with such a store in scope `global` starts without

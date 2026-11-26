@@ -216,6 +216,9 @@ type dockerArchiveView struct {
 	configured []dockerMount
 	lifetime   context.Context
 	running    bool
+	// machine, for a bind, is the machine's own directory, which the view
+	// never reaches (machineGuard), as the container never does.
+	machine *privateRoot
 }
 
 func (v dockerArchiveView) includes(absolute string) bool {
@@ -302,6 +305,10 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 				live.users.Done()
 				return dockerArchiveView{}, nil, fail(http.StatusConflict, "the configured mount is unavailable")
 			}
+			if err := s.guardMachineDir(&view, mount); err != nil {
+				live.users.Done()
+				return dockerArchiveView{}, nil, err
+			}
 			return view, live.users.Done, nil
 		}
 		view.root, err = openLiveArchiveRoot(id)
@@ -340,10 +347,43 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 		if err != nil {
 			return dockerArchiveView{}, nil, err
 		}
+		if mount.Target != "" {
+			if err := s.guardMachineDir(&view, mount); err != nil {
+				view.root.Close()
+				releasePins(pins)
+				return dockerArchiveView{}, nil, err
+			}
+		}
 		return view, func() { view.root.Close(); releasePins(pins) }, nil
 	default:
 		return dockerArchiveView{}, nil, fail(http.StatusConflict, "the container filesystem is unavailable in its current state")
 	}
+}
+
+// guardMachineDir holds an archive view of a bind to what the container sees
+// of it: never the machine's own directory (docker_private_linux.go). A bind
+// source inside it is refused; one that covers it gets the directory as an
+// empty read-only mount, as the container does, so a path at or below it is
+// not part of the view; and every descriptor the view opens is checked by
+// identity (machineGuard), because the host's file system ignores case and a
+// rename can move the directory where no spelling of the mask is.
+func (s *dockerEngine) guardMachineDir(view *dockerArchiveView, mount dockerMount) error {
+	if s.machineDir == nil || mount.Type != "bind" {
+		return nil
+	}
+	mask, err := s.machineDir.check(view.root, mount.Source, mount.Target)
+	if err != nil {
+		var api apiError
+		if errors.As(err, &api) {
+			return fail(http.StatusForbidden, "the archive path is inside the machine's own directory, which no container reaches")
+		}
+		return err
+	}
+	if mask != "" {
+		view.configured = append(append([]dockerMount(nil), view.configured...), dockerMount{Target: mask, ReadOnly: true})
+	}
+	view.machine = s.machineDir
+	return nil
 }
 
 // The managed crun handler uses containerd's runc-v2 shim. Its bundle already

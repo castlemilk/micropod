@@ -109,26 +109,15 @@ func (r *privateRoot) check(f *os.File, source, target string) (string, error) {
 	if err := unix.Fstat(int(f.Fd()), &st); err != nil {
 		return "", err
 	}
-	id := statID(&st)
-	if id == r.id {
-		return "", fail(400, fmt.Sprintf("bind source %s %v", source, errInsideMachine))
-	}
-	start := int(f.Fd())
 	if st.Mode&unix.S_IFMT == unix.S_IFDIR {
-		if rel, covers := r.ancestors[id]; covers {
+		if rel, covers := r.ancestors[statID(&st)]; covers {
 			return path.Join(target, rel), nil
 		}
-	} else {
-		// A file: walk up from the directory that holds it, found by the
-		// path the kernel resolved it to and checked to hold this very file.
-		dir, err := parentOf(f, id)
-		if err != nil {
-			return "", fail(400, fmt.Sprintf("bind source %s: %v", source, err))
-		}
-		defer unix.Close(dir)
-		start = dir
 	}
-	inside, err := r.below(start)
+	inside, err := r.holds(f, &st)
+	if errors.Is(err, errFileMoved) {
+		return "", fail(400, fmt.Sprintf("bind source %s: %v", source, err))
+	}
 	if err != nil {
 		return "", err
 	}
@@ -136,6 +125,41 @@ func (r *privateRoot) check(f *os.File, source, target string) (string, error) {
 		return "", fail(400, fmt.Sprintf("bind source %s %v", source, errInsideMachine))
 	}
 	return "", nil
+}
+
+// errFileMoved is what holds returns for a file whose directory it cannot
+// find again.
+var errFileMoved = errors.New("the file moved or was unlinked while it was opened")
+
+// holds reports whether the opened f (st is its stat) is the machine
+// directory or lies below it: a directory is walked up from itself, a file
+// from the directory that holds it, found by the path the kernel resolved it
+// to and checked to hold this very file.
+func (r *privateRoot) holds(f *os.File, st *unix.Stat_t) (bool, error) {
+	id := statID(st)
+	if id == r.id {
+		return true, nil
+	}
+	start := int(f.Fd())
+	if st.Mode&unix.S_IFMT != unix.S_IFDIR {
+		dir, err := parentOf(f, id)
+		if err != nil {
+			return false, fmt.Errorf("%w: %v", errFileMoved, err)
+		}
+		defer unix.Close(dir)
+		start = dir
+	}
+	return r.below(start)
+}
+
+// inside reports whether the opened f is the machine directory or lies below
+// it (holds, for a descriptor whose stat the caller does not have).
+func (r *privateRoot) inside(f *os.File) (bool, error) {
+	var st unix.Stat_t
+	if err := unix.Fstat(int(f.Fd()), &st); err != nil {
+		return false, err
+	}
+	return r.holds(f, &st)
 }
 
 // below reports whether the directory dir is the machine directory or lies
