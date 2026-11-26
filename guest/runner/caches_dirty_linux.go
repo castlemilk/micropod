@@ -41,8 +41,8 @@ import (
 //
 //   - attach (the caller holds the lock) replaces the mark with a new file whose
 //     content is this boot's id, so a mark that changed identity names a writer
-//     that came after whoever looked at it, and has it on disk (the file and
-//     its directory synced) before the writer can write a byte;
+//     that came after whoever looked at it, and the caller has it on disk (its
+//     directory synced, markBatch) before the writer can write a byte;
 //   - a mark is cleared only by someone who opened it, then completed a syncfs,
 //     then took the mark lock LOCK_EX|LOCK_NB (no writer left anywhere) and
 //     found the mark still the file it opened (no writer arrived since it was
@@ -188,16 +188,11 @@ func currentBootID() string {
 	return strings.TrimSpace(string(b))
 }
 
-// attach marks a unit dirty for one writer. The caller already holds the
-// unit's lock, so no clearer can be between its checks. The mark is on disk
-// before attach returns, so before the writer can write a byte: its content
-// is synced, then it is renamed into place and its directory is synced (a
-// journal commit). Ordering alone is not enough. A rename the journal has not
-// committed yet is lost by a crash, and a writer's bytes can reach the disk
-// without any journal commit at all: an overwrite in place that the tool
-// fdatasyncs (SQLite does, pnpm's index.db is one) or that writeback flushes
-// under memory pressure. A kill -9 of the VMM inside the first commit interval
-// then left that unit changed and unmarked, and recovery kept it.
+// attach marks a unit dirty for one writer: a new file naming this boot is
+// renamed into place. The caller already holds the unit's lock, so no clearer
+// can be between its checks. The mark is not yet durable when attach returns;
+// the caller adds its scope to a markBatch and lets no writer in before the
+// batch's sync has succeeded (claimUnit, openCacheMounts).
 func (t *cacheDirtyTracker) attach(scope, unit string) error {
 	dir := filepath.Join(cacheRoot, ".meta", scope)
 	var b [6]byte
@@ -208,27 +203,63 @@ func (t *cacheDirtyTracker) attach(scope, unit string) error {
 		return err
 	}
 	_, err = f.WriteString(currentBootID() + "\n")
-	if err == nil {
-		err = syncMarkFile(f)
-	}
 	if err = errors.Join(err, f.Close()); err == nil {
 		err = os.Rename(tmp, dirtyMarker(scope, unit))
 	}
 	if err != nil {
 		os.Remove(tmp)
-		return err
 	}
-	// A mark in place but not durable is still a mark: the unit stays marked
-	// (the janitor queues it once no writer holds it), and the caller does not
-	// let the writer in.
-	return syncMarkDir(dir)
+	return err
 }
 
-// syncMarkFile and syncMarkDir make a new mark durable (tests observe them).
-var (
-	syncMarkFile = func(f *os.File) error { return f.Sync() }
-	syncMarkDir  = syncDir
-)
+// markBatch is the scopes in which one start made new marks (attach). Its
+// sync puts them on disk with one fsync of each scope's mark directory, so a
+// start that marks several units of a scope pays for one journal commit, not
+// one per unit.
+//
+// Why the marks must be on disk before a writer writes. Ordering alone is not
+// enough: a rename the journal has not committed yet is lost by a crash, and a
+// writer's bytes can reach the disk without any journal commit at all: an
+// overwrite in place that the tool fdatasyncs (SQLite does, pnpm's index.db is
+// one) or that writeback flushes under memory pressure. A kill -9 of the VMM
+// inside the first commit interval then left that unit changed and unmarked,
+// and recovery kept it (scripts/gates/phase-b.sh B2X).
+//
+// Why the directory's sync is enough. ext4 makes a directory's fsync a full
+// journal commit (ext4_sync_file forces the running transaction for anything
+// but a regular file), and that transaction, or an earlier one, holds every
+// mark's create and rename, so all of them survive any later crash. The mark's
+// content need not: after a crash the boot it names is not this one and not a
+// clean stop, so recovery discards the unit whatever the mark holds, and a
+// mark whose content was lost (empty, or cut short) names no boot at all and
+// is discarded too (TestCacheMarkWithoutItsContentDiscards). A boot that stops
+// cleanly syncs every mark's content before guest init records it. What must
+// not happen is a mark that survives naming a cleanly stopped boot it never
+// held, which only stale block contents could give; ext4's data=ordered never
+// exposes those (a file's size reaches the journal only with its blocks
+// written), and it is the mode of the stores' filesystem: ext4's default, and
+// the journal mode HVFMachineInstaller.provisionCacheDisk formats the cache
+// disk with.
+type markBatch map[string]bool
+
+func (b markBatch) add(scope string) { b[scope] = true }
+
+// sync fsyncs each scope's mark directory and returns the scopes whose sync
+// failed. A mark in place but not durable is still a mark: its unit stays
+// marked (the janitor queues it once no writer holds it); its writer must
+// not be let in.
+func (b markBatch) sync() map[string]error {
+	failed := map[string]error{}
+	for scope := range b {
+		if err := syncMarkDir(filepath.Join(cacheRoot, ".meta", scope)); err != nil {
+			failed[scope] = err
+		}
+	}
+	return failed
+}
+
+// syncMarkDir makes the new marks of one directory durable (tests observe it).
+var syncMarkDir = syncDir
 
 // release queues a unit whose writer here has exited (and closed its lock) for
 // a clear; the syncer clears the mark once no writer is left anywhere.
