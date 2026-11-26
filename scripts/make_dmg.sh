@@ -30,6 +30,10 @@ while [ $# -gt 0 ]; do
 done
 
 [ -d "$APP" ] || { echo "!! $APP missing — run scripts/package_app.sh first" >&2; exit 1; }
+# A DMG is a release: it carries the whole HVF runtime, checked again after
+# signing. Fail here, before signing and notarization.
+bash "$ROOT/scripts/verify_release_payload.sh" "$APP" ||
+    { echo "!! $APP lacks the HVF runtime; it cannot be shipped as a DMG" >&2; exit 1; }
 
 if [ -n "$IDENTITY" ]; then
     echo "==> Signing app bundle ($IDENTITY)"
@@ -78,17 +82,9 @@ if [ -n "$IDENTITY" ]; then
     bash "$ROOT/scripts/write_runtime_components.sh" "$APP"
     codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
     codesign --verify --deep --strict --verbose=2 "$APP"
-    vmm="$APP/Contents/MacOS/micropod-vmm"
-    if [ -f "$vmm" ]; then
-        if ! codesign --display --entitlements - --xml "$vmm" 2>/dev/null | python3 -c '
-import plistlib, sys
-data = sys.stdin.buffer.read()
-sys.exit(not data or plistlib.loads(data).get("com.apple.security.hypervisor") is not True)
-'; then
-            echo "!! $vmm is missing the signed Hypervisor.framework entitlement" >&2
-            exit 1
-        fi
-    fi
+    # The VMM is now Developer ID signed with the hardened runtime and its
+    # Hypervisor.framework entitlement, by the app's team.
+    bash "$ROOT/scripts/verify_release_payload.sh" --developer-id "$APP"
 fi
 
 echo "==> Staging DMG contents"

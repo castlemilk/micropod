@@ -5,6 +5,13 @@ name: Release
 # are configured — otherwise an unsigned DMG is still published with a
 # warning so the pipeline never hard-blocks a release.
 #
+# The HVF runtime is not optional: every release bundles the qualified
+# micropod-vmm (signed with the hypervisor entitlement), vmlinux-hvf,
+# mp-hvf-init.cpio and micropod-oci-tools from a pinned same-commit run
+# (hvf_run_id + hvf_payload_sha256, or the MICROPOD_HVF_RUN_ID and
+# MICROPOD_HVF_PAYLOAD_SHA256 repository variables). A build without them
+# fails; scripts/verify_release_payload.sh checks the app, DMG and tarball.
+#
 # Required secrets for signed/notarized builds (see docs/releasing.md):
 #   MACOS_CERTIFICATE            base64-encoded Developer ID .p12
 #   MACOS_CERTIFICATE_PASSWORD   p12 export password
@@ -210,6 +217,11 @@ jobs:
           restore-keys: |
             swiftpm-release-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
 
+      # The release payload verifier is the release's HVF gate: prove it
+      # refuses each missing or unsigned asset before trusting its pass.
+      - name: Qualify the release payload verifier
+        run: node --test scripts/verify_release_payload.test.mjs
+
       - name: Fetch qualified native runtime
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -222,11 +234,21 @@ jobs:
           if [[ -n "$REQUESTED_RUN$REQUESTED_SHA256" ]]; then
             run_id="$REQUESTED_RUN"
             digest="$REQUESTED_SHA256"
+            pin="the hvf_run_id and hvf_payload_sha256 inputs"
           else
             run_id="$CONFIGURED_RUN"
             digest="$CONFIGURED_SHA256"
+            pin="the MICROPOD_HVF_RUN_ID and MICROPOD_HVF_PAYLOAD_SHA256 repository variables"
           fi
-          if [[ -z "$run_id$digest" ]]; then exit 0; fi
+          # No pin, no release: the app and tarball would ship without
+          # micropod-vmm, vmlinux-hvf, mp-hvf-init.cpio and micropod-oci-tools.
+          missing=()
+          [[ -n "$run_id" ]] || missing+=("run ID")
+          [[ -n "$digest" ]] || missing+=("micropod-hvf-runtime.tgz SHA-256")
+          if (( ${#missing[@]} )); then
+            echo "::error::A release must bundle the qualified HVF runtime (micropod-vmm, vmlinux-hvf, mp-hvf-init.cpio, micropod-oci-tools). Pin a successful same-commit micropod-hvf-runtime run with $pin; missing: $(IFS=,; echo "${missing[*]}")."
+            exit 1
+          fi
           destination="$RUNNER_TEMP/micropod-hvf-distribution"
           bash scripts/fetch_hvf_distribution.sh "$run_id" "$digest" "$destination"
           echo "MICROPOD_HVF_DISTRIBUTION=$destination" >> "$GITHUB_ENV"
@@ -234,12 +256,14 @@ jobs:
       - name: Build + package app
         timeout-minutes: 25
         run: |
+          # package_app.sh fails unless the app and tarball carry the HVF runtime.
           bash scripts/package_app.sh "${VERSION#v}"
           # A release without the helper would silently fall back to the
           # images' shells, and one without the CLI couldn't update it: fail.
           test -s dist/Micropod.app/Contents/Resources/micropod-guest
           test -x dist/Micropod.app/Contents/MacOS/micropod-cli
           test -x dist/Micropod.app/Contents/MacOS/MicropodMCP
+          bash scripts/verify_release_payload.sh --source "$GITHUB_SHA" dist/Micropod.app "dist/Micropod.${VERSION#v}.tgz"
 
       # codesign --timestamp and notarytool submit --wait have no built-in
       # timeout — a stalled timestamp/notary connection would otherwise hang
@@ -283,6 +307,19 @@ jobs:
             echo "DMG_ASSET=Micropod-unsigned.dmg" >> "$GITHUB_ENV"
           fi
 
+      # The shipped bytes: the final app and the DMG as users attach it. A
+      # signed release also needs the Developer ID, hardened-runtime VMM.
+      - name: Verify the release HVF payload
+        run: |
+          set -euo pipefail
+          if [ "$DMG_ASSET" = Micropod.dmg ]; then
+            bash scripts/verify_release_payload.sh --developer-id --source "$GITHUB_SHA" \
+              --summary "$GITHUB_STEP_SUMMARY" dist/Micropod.app "dist/$DMG_ASSET"
+          else
+            bash scripts/verify_release_payload.sh --source "$GITHUB_SHA" \
+              --summary "$GITHUB_STEP_SUMMARY" dist/Micropod.app "dist/$DMG_ASSET" "dist/Micropod.${VERSION#v}.tgz"
+          fi
+
       - name: Verify updater bundle contract
         if: env.DMG_ASSET == 'Micropod.dmg'
         run: bash scripts/verify_updater_bundle.sh dist/Micropod.app "${VERSION#v}" "$GITHUB_SHA"
@@ -293,24 +330,30 @@ jobs:
       - name: Repack tarball with signed binaries
         if: env.DMG_ASSET == 'Micropod.dmg'
         run: |
+          set -euo pipefail
           bundle="$PWD/dist/Micropod.app/Contents"
           cp "$bundle/MacOS/micropod-cli" dist/micropod
           cp "$bundle/MacOS/MicropodMCP" dist/micropod-mcp-bin
           codesign --verify --strict dist/micropod dist/micropod-mcp-bin
           members=(-C dist Micropod.app micropod-mcp micropod-mcp-bin micropod)
-          # Use the final bundle's bytes for the optional headless engine payload.
-          for helper in micropod-vmm micropod-oci; do
-            if [ -f "$bundle/MacOS/$helper" ]; then
-              codesign --verify --strict "$bundle/MacOS/$helper"
-              members+=(-C "$bundle/MacOS" "$helper")
-            fi
-          done
+          # The standalone HVF runtime is the final bundle's bytes. Every
+          # member is required: a missing one fails the release.
+          codesign --verify --strict "$bundle/MacOS/micropod-vmm"
+          members+=(-C "$bundle/MacOS" micropod-vmm)
           for resource in mp-hvf-init.cpio vmlinux-hvf micropod-oci-tools; do
-            if [ -e "$bundle/Resources/$resource" ]; then
-              members+=(-C "$bundle/Resources" "$resource")
-            fi
+            [ -e "$bundle/Resources/$resource" ] ||
+              { echo "::error::the signed app has no $resource for the standalone tarball"; exit 1; }
+            members+=(-C "$bundle/Resources" "$resource")
           done
+          # The Mac OCI client drives the Apple-VZ native worker, not the HVF
+          # runtime; package_app.sh bundles it only when it built the client.
+          if [ -f "$bundle/MacOS/micropod-oci" ]; then
+            codesign --verify --strict "$bundle/MacOS/micropod-oci"
+            members+=(-C "$bundle/MacOS" micropod-oci)
+          fi
           tar -czf "dist/Micropod.${VERSION#v}.tgz" "${members[@]}"
+          bash scripts/verify_release_payload.sh --developer-id --source "$GITHUB_SHA" \
+            --summary "$GITHUB_STEP_SUMMARY" "dist/Micropod.${VERSION#v}.tgz"
 
       - name: Upload release assets
         env:
