@@ -195,6 +195,39 @@ final class HVFReadinessAPITests: XCTestCase {
             "no `container` child: \((try? String(contentsOf: log, encoding: .utf8)) ?? "")")
     }
 
+    /// REST `GET /v1/system` is a request any web page can send without a
+    /// preflight (`<img src=…/v1/system>`, no Origin): it reports a down
+    /// default machine as it is and never starts it. Ping and GetSystem,
+    /// Connect POSTs a page cannot send without a preflight, still do.
+    func testRESTSystemNeverStartsADownDefaultMachine() async throws {
+        try install()
+        HVFMachineAutostart.reset()
+        defer { HVFMachineAutostart.reset() }
+        let registry = EngineRegistry(
+            environment: [
+                "MICROPOD_HVF_ROOT": root.path, "DOCKER_HOST": "unix:///nonexistent.sock",
+                "MICROPOD_RUNTIMES_CONFIG": root.appendingPathComponent("runtimes.json").path,
+                "MICROPOD_DEFAULT_RUNTIME": "hvf",
+                // Start on demand left on; a start that did happen would
+                // run this instead of a supervisor, and fail.
+                "MICROPOD_CLI": "/usr/bin/false",
+            ],
+            sandbox: SandboxEngine(root: FileManager.default.temporaryDirectory.appendingPathComponent("sbx-\(UUID())"))
+        )
+        let api = handlers(registry)
+        for path in ["/v1/system", "/v1/system/anything"] {
+            let response = await api.handle(
+                HTTPRequest(method: .get, path: path, query: [:], body: Data(), headers: [:]))
+            if path == "/v1/system" {
+                guard case .json(200, let body) = response else { return XCTFail("unexpected \(response)") }
+                XCTAssertEqual(body["status"] as? String, "stopped", "reported as it is")
+            } else if case .json(200, _) = response {
+                XCTFail("\(path) is not the system status")
+            }
+        }
+        XCTAssertTrue(HVFMachineAutostart.begin(root.path), "no start on demand began")
+    }
+
     func testADefaultHVFMachineThatIsNotInstalledIsNotReported() async throws {
         let api = handlers(registry(defaultRuntime: "hvf"))
         let ping = try await ping(api)

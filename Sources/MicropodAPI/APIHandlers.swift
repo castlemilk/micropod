@@ -562,12 +562,16 @@ final class APIHandlers: Sendable {
                 let data = try JSONEncoder().encode(report)
                 return .json(200, try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:])
 
-            case ("system", .get):
+            case ("system", .get) where segments.count == 2:
                 // hvf as the default runtime answers for itself, from live
                 // machine state, as GetSystem and Ping do: no `container`
-                // child to report Apple's runtime.
+                // child to report Apple's runtime. Never a start on demand:
+                // a GET is what any web page can send without a preflight
+                // (an <img>), so only the Connect Ping and GetSystem, which
+                // a page cannot send without one, start a machine that is
+                // down.
                 if let machine = defaultHVFMachine {
-                    let readiness = await machine.readinessStartingWhenDown()
+                    let readiness = await machine.readiness()
                     var body: [String: Any] = [
                         "status": readiness.status.rawValue,
                         "detail": readiness.detail,
