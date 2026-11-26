@@ -274,10 +274,16 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 		s.mu.Unlock()
 		return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is on a read-only filesystem")
 	}
-	if _, _, shared := legacyCacheVolume(mount.Source); write && shared && mount.Type == "volume" {
+	if scope, kind, shared := legacyCacheVolume(mount.Source); shared && mount.Type == "volume" {
 		// An untrusted or read-only cache container never writes a shared
-		// store, not even through docker cp into an alias volume.
-		if c.cacheReadOnly(s.cachePolicy.get()) {
+		// store, not even through docker cp into an alias volume; it and a
+		// child of a container's socket reach no other scope's (openMounts).
+		pol := s.cachePolicy.get()
+		if rules := containerVolumeRules(pol, c.Config, c.Cache, c.CreatedBy); (rules.readOnly || rules.confined) && !rules.readerMay(scope, kind) {
+			s.mu.Unlock()
+			return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is a shared cache store of a scope this container may not reach")
+		}
+		if write && c.cacheReadOnly(pol) {
 			s.mu.Unlock()
 			return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is a shared cache store this container may only read")
 		}

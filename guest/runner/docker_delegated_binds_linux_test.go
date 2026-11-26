@@ -134,3 +134,57 @@ func TestDelegatedCreateRefusesAWorkspaceBind(t *testing.T) {
 		t.Fatal("a refused create left a container")
 	}
 }
+
+// A trusted child of a delegated socket is a writer, yet its alias volumes
+// are held to its creator's scope as a reader's are, at create, at start and
+// through docker cp: naming another project's store by its volume name
+// reaches it no more than naming the scope does.
+func TestDelegatedChildAliasVolumesStayInItsCreatorsScope(t *testing.T) {
+	useVolumeStore(t)
+	imageID := healthConfigDigest([]byte("{}"))
+	owner := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("a", 64), Name: "job", Phase: "running",
+		Config: dockerConfig{Image: "golang:1"}, Cache: &cachePlan{Scope: "proj-a"}}}
+	s := &dockerEngine{
+		node:         node{images: dockerHealthTestImages{id: imageID}, imageStore: dockerHealthTestImageStore{}},
+		containers:   map[string]*dockerContainer{owner.ID: owner},
+		healthImages: dockerImageHealthCache{byID: map[string]dockerImageHealth{imageID: {}}},
+		cachePolicy:  policyLoader{path: filepath.Join(t.TempDir(), "absent.json")},
+		workspace:    t.TempDir(),
+	}
+	ctx := withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: owner.ID}), owner.ID)
+	pol := s.cachePolicy.get()
+	for _, bind := range []string{"micropod-ci-scoped-proj-b-gomod:/go/pkg/mod", "micropod-ci-scoped-proj-b-gomod:/go/pkg/mod:ro", "micropod-ci-scoped-default-gobuild:/root/.cache/go-build"} {
+		spec := dockerConfig{Image: "alpine:3.23", Labels: map[string]string{"io.micropod.cache": "off"}, HostConfig: dockerHost{Binds: []string{bind}}}
+		_, err := s.create(ctx, spec, "")
+		var api apiError
+		if !errors.As(err, &api) || api.code != 400 || !strings.Contains(api.message, "creator's scope") {
+			t.Errorf("create with %s through a delegated socket: %v, want 400", bind, err)
+		}
+		// A start replays the record's rules: the same child, made before
+		// this rule, does not start.
+		plan := cachePlan{Scope: "proj-a"}
+		if _, _, _, err := s.openMountsWith(spec, containerVolumeRules(pol, spec, &plan, owner.ID), false, mountSockets{bindRoots: map[string]string{}}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "creator's scope") {
+			t.Errorf("start with %s: %v", bind, err)
+		}
+		// Nor does docker cp reach it, stopped.
+		child := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("c", 64), Phase: "created", CreatedBy: owner.ID, Config: spec, Cache: &plan}, changed: make(chan struct{})}
+		for _, write := range []bool{false, true} {
+			_, _, err := s.pinArchive(context.Background(), child, "/go/pkg/mod/cache", write)
+			if strings.Contains(bind, "gobuild") {
+				_, _, err = s.pinArchive(context.Background(), child, "/root/.cache/go-build/x", write)
+			}
+			if !errors.As(err, &api) || api.code != 403 {
+				t.Errorf("docker cp (write %v) into %s of a stopped child: %v, want 403", write, bind, err)
+			}
+		}
+	}
+	// Its own scope stays open to it, and the host's containers keep theirs.
+	plan := cachePlan{Scope: "proj-a"}
+	spec := dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-proj-b-gomod:/go/pkg/mod"}}}
+	if r := containerVolumeRules(pol, spec, &plan, owner.ID); r.readOnly || !r.confined || !r.readerMay("proj-a", "gomod") || r.readerMay("proj-b", "gomod") {
+		t.Fatalf("child rules %+v", r)
+	}
+	if r := containerVolumeRules(pol, spec, &plan, ""); r.confined {
+		t.Fatalf("a host container is held to its scope: %+v", r)
+	}
+}

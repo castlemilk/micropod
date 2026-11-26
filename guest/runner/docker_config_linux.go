@@ -1485,11 +1485,14 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 // cacheVolumeRules is what openMounts enforces on a request's legacy alias
 // volumes of cache stores: the container's tier (readOnly for every tier but
 // trusted, decided at create), the machine policy's scope allow-list and,
-// for a reader, its own scope (containerScope): a reader mounts no alias
-// volume of another scope, except a store sharedL0 shares in "global", so
-// naming a volume does not open another project's stores to it.
+// for a reader or a container created through a container's Docker socket
+// (confined, whatever its tier), its own scope (containerScope, or the
+// creator's for a confined one): such a container mounts no alias volume of
+// another scope, except a store sharedL0 shares in "global", so naming a
+// volume does not open another project's stores to it.
 type cacheVolumeRules struct {
 	readOnly bool
+	confined bool
 	allows   func(scope string) bool
 	scope    string
 	sharedL0 bool
@@ -1552,6 +1555,9 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 		}
 		if rules.readOnly && !rules.readerMay(scope, kind) {
 			return nil, nil, nil, fail(400, fmt.Sprintf("an untrusted or read-only cache container may mount only the cache volumes of its own scope %q, not %s", rules.scope, m.Source))
+		}
+		if rules.confined && !rules.readerMay(scope, kind) {
+			return nil, nil, nil, fail(400, fmt.Sprintf("a container created through a container's Docker socket may mount only the cache volumes of its creator's scope %q, not %s", rules.scope, m.Source))
 		}
 	}
 	var files []*os.File

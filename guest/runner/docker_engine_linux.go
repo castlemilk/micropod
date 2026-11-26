@@ -661,7 +661,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, _, err := s.openMountsWith(spec, volumeRules(s.cachePolicy.get(), spec, plan), true, mountSockets{bindRoots: bindRoots}, "")
+	files, _, _, err := s.openMountsWith(spec, containerVolumeRules(s.cachePolicy.get(), spec, plan, createdBy), true, mountSockets{bindRoots: bindRoots}, "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
@@ -708,6 +708,15 @@ func volumeRules(pol cachePolicy, spec dockerConfig, plan *cachePlan) cacheVolum
 		scope = plan.Scope // decided at create, as the tier
 	}
 	return cacheVolumeRules{readOnly: c.cacheReadOnly(pol), allows: pol.allows, scope: scope, sharedL0: pol.SharedL0}
+}
+
+// containerVolumeRules is volumeRules for a container createdBy made through
+// its Docker socket ("" for the host): such a child is held to its scope, its
+// creator's (decideCachesFor), whatever its tier.
+func containerVolumeRules(pol cachePolicy, spec dockerConfig, plan *cachePlan, createdBy string) cacheVolumeRules {
+	rules := volumeRules(pol, spec, plan)
+	rules.confined = createdBy != ""
+	return rules
 }
 
 // cacheDecision loads the image facts when anything needs them and makes the
@@ -999,7 +1008,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// A plan an older engine made has no tier of its own yet, or an older
 	// table's exclusive kinds.
 	c.Cache.applyCurrentRules(pol)
-	files, mounts, aliasPins, err := s.openMountsWith(c.Config, volumeRules(pol, c.Config, c.Cache), false,
+	files, mounts, aliasPins, err := s.openMountsWith(c.Config, containerVolumeRules(pol, c.Config, c.Cache, c.CreatedBy), false,
 		mountSockets{cleanup: socket, engine: engineSocket, bindRoots: c.delegatedBindRoots()}, filepath.Join(c.dir(), "shim"))
 	if err != nil {
 		s.mu.Unlock()
