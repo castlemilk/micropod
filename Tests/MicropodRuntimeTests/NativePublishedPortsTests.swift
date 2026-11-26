@@ -2,11 +2,20 @@ import CPublishedTCP
 import MicropodCore
 import NIOCore
 import NIOPosix
+import Network
 import XCTest
 
 @testable import MicropodRuntime
 
 final class NativePublishedPortsTests: XCTestCase {
+    func testLocalNetworkDiagnosticRequiresAnExplicitDenialOnAWaitingPath() {
+        let waiting = NWConnection.State.waiting(.posix(.EHOSTUNREACH))
+        XCTAssertEqual(NativeLoopbackRelay.localNetworkOutcome(waiting, reason: .localNetworkDenied), "local-network-denied")
+        XCTAssertNil(NativeLoopbackRelay.localNetworkOutcome(waiting, reason: .notAvailable))
+        XCTAssertNil(NativeLoopbackRelay.localNetworkOutcome(.preparing, reason: .localNetworkDenied))
+        XCTAssertEqual(NativeLoopbackRelay.localNetworkOutcome(.ready, reason: .notAvailable), "ready")
+    }
+
     // The peer speaks first, then waits for a TCP half-close before replying.
     private final class ReplyAfterFIN: ChannelInboundHandler {
         typealias InboundIn = ByteBuffer
@@ -358,6 +367,8 @@ final class NativePublishedPortsTests: XCTestCase {
             XCTAssertEqual(stats.connected, 1)
             XCTAssertEqual(stats.recovered, 1)
             XCTAssertGreaterThan(stats.route_waits, 0)
+            XCTAssertEqual(stats.first_dial_stage.map { String(cString: $0) }, "find-gateway-interface")
+            XCTAssertEqual(stats.first_dial_errno, EADDRNOTAVAIL)
             XCTAssertEqual(stats.connect_errors, 0)
         }
         let client = try connect(port)

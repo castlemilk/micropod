@@ -335,6 +335,12 @@ pub struct TelemetrySnapshot {
     pub fs_nodes: u64,
     pub fs_nodes_peak: u64,
     pub fs_open_handles: u64,
+    pub fs_keep_cache_hits: u64,
+    pub fs_ro_cache_hits: u64,
+    pub fs_ro_cache_misses: u64,
+    pub fs_notify_events: u64,
+    pub fs_notify_epoch_resets: u64,
+    pub fs_errors: u64,
     pub net_tx_packets: u64,
     pub net_tx_bytes: u64,
     pub net_rx_packets: u64,
@@ -381,6 +387,12 @@ impl TelemetrySource {
             fs_nodes: self.fs.nodes.load(Ordering::Relaxed),
             fs_nodes_peak: self.fs.nodes_peak.load(Ordering::Relaxed),
             fs_open_handles: self.fs.open_handles.load(Ordering::Relaxed),
+            fs_keep_cache_hits: self.fs.keep_cache_hits.load(Ordering::Relaxed),
+            fs_ro_cache_hits: self.fs.ro_cache_hits.load(Ordering::Relaxed),
+            fs_ro_cache_misses: self.fs.ro_cache_misses.load(Ordering::Relaxed),
+            fs_notify_events: self.fs.notify_events_pushed.load(Ordering::Relaxed),
+            fs_notify_epoch_resets: self.fs.notify_epoch_resets.load(Ordering::Relaxed),
+            fs_errors: self.fs.fuse_errors.load(Ordering::Relaxed),
             net_tx_packets: self.net.tx_packets.load(Ordering::Relaxed),
             net_tx_bytes: self.net.tx_bytes.load(Ordering::Relaxed),
             net_rx_packets: self.net.rx_packets.load(Ordering::Relaxed),
@@ -506,6 +518,42 @@ impl TelemetrySource {
                 "# HELP {name} {help}\n# TYPE {name} gauge\n{name} {value}\n"
             ));
         }
+        for (name, help, value) in [
+            (
+                "micropod_vmm_virtiofs_keep_cache_hits_total",
+                "Virtio-FS FUSE_OPEN replies preserving Linux page cache via FOPEN_KEEP_CACHE.",
+                s.fs_keep_cache_hits,
+            ),
+            (
+                "micropod_vmm_virtiofs_ro_cache_hits_total",
+                "Virtio-FS pooled read-only handle cache hits on writable workspaces.",
+                s.fs_ro_cache_hits,
+            ),
+            (
+                "micropod_vmm_virtiofs_ro_cache_misses_total",
+                "Virtio-FS pooled read-only handle cache misses on writable workspaces.",
+                s.fs_ro_cache_misses,
+            ),
+            (
+                "micropod_vmm_virtiofs_notify_events_total",
+                "Virtio-FS host-to-guest invalidation notifications pushed on vq 1.",
+                s.fs_notify_events,
+            ),
+            (
+                "micropod_vmm_virtiofs_notify_epoch_resets_total",
+                "Virtio-FS FUSE_NOTIFY_INC_EPOCH resets (overflow, rescan, or snapshot restore).",
+                s.fs_notify_epoch_resets,
+            ),
+            (
+                "micropod_vmm_virtiofs_errors_total",
+                "Non-routine Virtio-FS host error replies (excludes ENOENT, ENOSYS, ENODATA).",
+                s.fs_errors,
+            ),
+        ] {
+            out.push_str(&format!(
+                "# HELP {name} {help}\n# TYPE {name} counter\n{name} {value}\n"
+            ));
+        }
         out.push_str("# HELP micropod_vmm_net_packets_total Virtio-Net packets processed.\n");
         out.push_str("# TYPE micropod_vmm_net_packets_total counter\n");
         out.push_str(&format!(
@@ -580,6 +628,8 @@ impl TelemetrySource {
              \"blk_read_ops\":{},\"blk_write_ops\":{},\"blk_read_bytes\":{},\"blk_write_bytes\":{},\
              \"fs_requests\":{},\"fs_bytes_read\":{},\
              \"fs_nodes\":{},\"fs_nodes_peak\":{},\"fs_open_handles\":{},\
+             \"fs_keep_cache_hits\":{},\"fs_ro_cache_hits\":{},\"fs_ro_cache_misses\":{},\
+             \"fs_notify_events\":{},\"fs_notify_epoch_resets\":{},\"fs_errors\":{},\
              \"net_tx_packets\":{},\"net_tx_bytes\":{},\"net_rx_packets\":{},\"net_rx_bytes\":{},\
              \"published_binds\":{},\"published_conns\":{},\
              \"mmio_exits\":{},\"wfi_exits\":{},\"tracing_enabled\":{},\"sampled_unix_secs\":{}}}\n",
@@ -605,6 +655,12 @@ impl TelemetrySource {
             s.fs_nodes,
             s.fs_nodes_peak,
             s.fs_open_handles,
+            s.fs_keep_cache_hits,
+            s.fs_ro_cache_hits,
+            s.fs_ro_cache_misses,
+            s.fs_notify_events,
+            s.fs_notify_epoch_resets,
+            s.fs_errors,
             s.net_tx_packets,
             s.net_tx_bytes,
             s.net_rx_packets,
@@ -760,6 +816,22 @@ impl TelemetrySource {
             sum_int("micropod.vmm.blk.read_ops", "{op}", s.blk_read_ops),
             sum_int("micropod.vmm.blk.write_ops", "{op}", s.blk_write_ops),
             sum_int("micropod.vmm.virtiofs.requests", "{request}", s.fs_requests),
+            sum_int(
+                "micropod.vmm.virtiofs.keep_cache_hits",
+                "{hit}",
+                s.fs_keep_cache_hits,
+            ),
+            sum_int(
+                "micropod.vmm.virtiofs.ro_cache_hits",
+                "{hit}",
+                s.fs_ro_cache_hits,
+            ),
+            sum_int(
+                "micropod.vmm.virtiofs.notify_events",
+                "{event}",
+                s.fs_notify_events,
+            ),
+            sum_int("micropod.vmm.virtiofs.errors", "{error}", s.fs_errors),
             gauge_int("micropod.vmm.virtiofs.nodes", "{node}", s.fs_nodes as i64),
             gauge_int(
                 "micropod.vmm.virtiofs.open_handles",

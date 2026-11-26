@@ -82,11 +82,20 @@ func (n *workerNetwork) endpoint(attrs netlink.LinkAttrs) netlink.Link {
 // sysfs reports the complete IFLA_IFALIAS text on kernels that omit the
 // optional trailing NUL from RTM_GETLINK replies.
 func (n *workerNetwork) ownsLink(l netlink.Link) bool {
-	if l.Attrs().Alias == n.ID {
+	return workerOwnsLink(l, n.ID)
+}
+
+func workerOwnsLink(l netlink.Link, owner string) bool {
+	if l.Attrs().Alias == owner {
 		return true
 	}
+	alias, err := workerLinkAlias(l)
+	return err == nil && alias == owner
+}
+
+func workerLinkAlias(l netlink.Link) (string, error) {
 	raw, err := os.ReadFile(filepath.Join("/sys/class/net", l.Attrs().Name, "ifalias"))
-	return err == nil && strings.TrimRight(string(raw), "\n\x00") == n.ID
+	return strings.TrimRight(string(raw), "\n\x00"), err
 }
 
 // On service recovery reuse only interfaces tagged with this durable network ID.
@@ -197,63 +206,95 @@ func (n *workerNetwork) attach(pod *netlink.Handle, fd int, podID, ip string) er
 // A CRI standby already owns this veth pair. Move the verified host end to
 // the selected bridge before starting the workload. CRI still owns its IPAM
 // lease and removes the same pair when the pod ends.
-func (n *workerNetwork) moveBridgeEndpoint(pod *netlink.Handle, link netlink.Link, ip string) error {
+func (n *workerNetwork) moveBridgeEndpoint(pod *netlink.Handle, link netlink.Link, ip string) (string, error) {
 	if link.Type() != "veth" || link.Attrs().ParentIndex <= 0 {
-		return errors.New("CRI endpoint is not a veth pair")
+		return "", errors.New("CRI endpoint is not a veth pair")
 	}
 	source, err := netlink.LinkByName("mpci0")
 	if err != nil {
-		return err
+		return "", err
 	}
 	dst, err := netlink.LinkByName(n.linkName())
 	if err != nil {
-		return err
+		return "", err
 	}
 	peer, err := netlink.LinkByIndex(link.Attrs().ParentIndex)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if peer.Type() != "veth" || peer.Attrs().MasterIndex != source.Attrs().Index || !n.ownsLink(dst) {
-		return errors.New("CRI endpoint did not match the worker bridge")
+	if !matchingBridgePeer(peer, link) || peer.Attrs().MasterIndex != source.Attrs().Index || dst.Type() != "bridge" || !n.ownsLink(dst) {
+		return "", errors.New("CRI endpoint did not match the worker bridge")
+	}
+	mac, err := n.primaryBridgePeerMAC(ip)
+	if err != nil {
+		return "", err
 	}
 	if err = pod.LinkSetDown(link); err != nil {
-		return err
+		return "", err
 	}
 	// Remove the previous address and default route while the link is down.
 	routes, err := pod.RouteList(link, netlink.FAMILY_V4)
 	if err != nil {
-		return err
+		return "", err
 	}
 	for _, route := range routes {
 		if route.Protocol != unix.RTPROT_KERNEL {
 			if err = pod.RouteDel(&route); err != nil {
-				return err
+				return "", err
 			}
 		}
 	}
 	addrs, err := pod.AddrList(link, netlink.FAMILY_V4)
 	if err != nil {
-		return err
+		return "", err
 	}
 	for _, addr := range addrs {
 		if err = pod.AddrDel(link, &addr); err != nil {
-			return err
+			return "", err
+		}
+	}
+	if mac != nil && !slices.Equal(link.Attrs().HardwareAddr, mac) {
+		if err := pod.LinkSetHardwareAddr(link, mac); err != nil {
+			return "", fmt.Errorf("set the primary bridge peer MAC: %w", err)
+		}
+		link, err = pod.LinkByIndex(link.Attrs().Index)
+		if err != nil {
+			return "", err
+		}
+		if !matchingBridgePeer(peer, link) || !slices.Equal(link.Attrs().HardwareAddr, mac) {
+			return "", errors.New("kernel did not retain the requested primary bridge peer MAC")
 		}
 	}
 	if err = netlink.LinkSetMasterByIndex(peer, dst.Attrs().Index); err != nil {
-		return err
+		return "", err
 	}
 	if peer.Attrs().MTU != n.MTU {
 		if err = netlink.LinkSetMTU(peer, n.MTU); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if link.Attrs().MTU != n.MTU {
 		if err = pod.LinkSetMTU(link, n.MTU); err != nil {
-			return err
+			return "", err
 		}
 	}
-	return n.addressEndpoint(pod, link, ip)
+	if err := n.addressEndpoint(pod, link, ip); err != nil {
+		return "", err
+	}
+	return link.Attrs().HardwareAddr.String(), nil
+}
+
+func (n *workerNetwork) primaryBridgePeerMAC(address string) (net.HardwareAddr, error) {
+	if n.Driver != "bridge" || builtinNetwork(networkName(n.Name)) || !n.Subnet.Addr().Is4() || privateRootless() {
+		return nil, nil
+	}
+	ip, err := netip.ParseAddr(address)
+	if err != nil || !ip.Is4() || !n.Subnet.Contains(ip) {
+		return nil, errors.New("invalid primary bridge address")
+	}
+	// The CRI veth is new after each start, but the reserved IP and its
+	// neighbours' ARP entries survive the previous pod.
+	return bridgePeerMAC(ip), nil
 }
 
 func (n *workerNetwork) addressEndpoint(pod *netlink.Handle, link netlink.Link, ip string) error {
@@ -270,23 +311,62 @@ func (n *workerNetwork) addressEndpoint(pod *netlink.Handle, link netlink.Link, 
 	if !n.Internal {
 		return pod.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Gw: net.ParseIP(n.gateway().String()).To4(), Family: unix.AF_INET})
 	}
-	return nil
+	return n.setEndpointCongestion(pod, link)
+}
+
+func (n *workerNetwork) setEndpointCongestion(pod *netlink.Handle, link netlink.Link) error {
+	if n.TCPCongestion == "" {
+		return nil
+	}
+	// Only peers in this internal subnet get the preference. Changing the TCP
+	// sysctl in the pod may fail when the chosen controller is restricted.
+	routes, err := pod.RouteList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return fmt.Errorf("read sibling subnet route: %w", err)
+	}
+	for _, route := range routes {
+		if route.Protocol != unix.RTPROT_KERNEL || route.Scope != netlink.SCOPE_LINK || routeSubnet(route) != n.Subnet {
+			continue
+		}
+		route.Congctl = n.TCPCongestion
+		if err := pod.RouteChange(&route); err != nil {
+			return fmt.Errorf("set sibling TCP congestion control %s: %w", n.TCPCongestion, err)
+		}
+		return nil
+	}
+	return fmt.Errorf("missing connected route for sibling subnet %s", n.Subnet)
+}
+
+type workerRouteReader func() ([]netlink.Route, error)
+
+var reservedWorkerNetworks = netip.MustParsePrefix("10.88.0.0/15")
+
+func workerIPv4Routes() ([]netlink.Route, error) {
+	return netlink.RouteList(nil, netlink.FAMILY_V4)
+}
+
+func routeSubnet(route netlink.Route) netip.Prefix {
+	if route.Dst == nil || strings.HasSuffix(route.Dst.String(), "/0") {
+		return netip.Prefix{}
+	}
+	prefix, _ := netip.ParsePrefix(route.Dst.String())
+	return prefix
 }
 
 func routeAvailable(prefix netip.Prefix) bool {
-	if prefix.Overlaps(netip.MustParsePrefix("10.88.0.0/15")) {
+	return subnetAvailable(prefix, workerIPv4Routes)
+}
+
+func subnetAvailable(prefix netip.Prefix, readRoutes workerRouteReader) bool {
+	if prefix.Overlaps(reservedWorkerNetworks) {
 		return false
 	}
-	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	routes, err := readRoutes()
 	if err != nil {
 		return false
 	}
-	for _, r := range routes {
-		if r.Dst == nil || strings.HasSuffix(r.Dst.String(), "/0") {
-			continue
-		}
-		p, err := netip.ParsePrefix(r.Dst.String())
-		if err == nil && p.Overlaps(prefix) {
+	for _, route := range routes {
+		if routeSubnet(route).Overlaps(prefix) {
 			return false
 		}
 	}

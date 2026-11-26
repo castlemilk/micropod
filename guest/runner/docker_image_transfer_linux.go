@@ -7,7 +7,10 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"slices"
 	"strings"
+
+	"github.com/distribution/reference"
 )
 
 const ctrPath = "/opt/micropod-oci/runner/bin/ctr"
@@ -53,7 +56,7 @@ func imageName(s string) (string, error) {
 }
 
 func importImages(w http.ResponseWriter, r *http.Request) error {
-	cmd := imageCommand(r.Context(), "import", "--local", "--digests", "--platform", "linux/arm64", "-")
+	cmd := imageCommand(r.Context(), "import", "--local", "--digests", "--skip-digest-for-named", "--platform", "linux/arm64", "-")
 	var out toolTail
 	cmd.Stdin = r.Body
 	cmd.Stdout = &out
@@ -64,9 +67,16 @@ func importImages(w http.ResponseWriter, r *http.Request) error {
 	writeJSON(w, 200, map[string]string{"stream": string(out)})
 	return nil
 }
-func exportImages(w http.ResponseWriter, r *http.Request, refs []string) error {
+func (s *dockerEngine) exportImages(w http.ResponseWriter, r *http.Request, refs []string) error {
 	if len(refs) == 0 {
 		return fail(400, "an image name is required")
+	}
+	if slices.ContainsFunc(refs, func(raw string) bool {
+		ref, err := reference.ParseNormalizedNamed(raw)
+		_, canonical := ref.(reference.Canonical)
+		return err == nil && canonical
+	}) {
+		return s.exportDigestImages(w, r, refs)
 	}
 	args := []string{"export", "--local", "--platform", "linux/arm64", "-"}
 	for _, ref := range refs {

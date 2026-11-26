@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -64,29 +65,45 @@ func (n node) podNetwork(ctx context.Context, id string) (*os.File, error) {
 	return f, nil
 }
 
-func configurePodNetwork(ctx context.Context, n node, id string, network *workerNetwork, ip string) error {
-	ns, err := n.podNetwork(ctx, id)
+// Prepared pods already have a network namespace. Apply the requested limit to
+// the pinned, single-use pod before its service starts, including on restart.
+func (n node) setPodTCPQueue(ctx context.Context, podID, bytes string) error {
+	ns, err := n.podNetwork(ctx, podID)
 	if err != nil {
 		return err
 	}
 	defer ns.Close()
+	cmd := exec.CommandContext(ctx, "nsenter", "--net=/proc/self/fd/3", "--", "sysctl", "-qw", tcpQueueSysctl+"="+bytes)
+	cmd.ExtraFiles = []*os.File{ns}
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("set pod TCP queue: %w: %.1024s", err, output)
+	}
+	return nil
+}
+
+func configurePodNetwork(ctx context.Context, n node, id string, network *workerNetwork, ip string) (string, error) {
+	ns, err := n.podNetwork(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	defer ns.Close()
 	pod, err := netlink.NewHandleAt(netns.NsHandle(ns.Fd()), unix.NETLINK_ROUTE)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer pod.Close()
 	link, err := pod.LinkByName("eth0")
 	if err != nil {
-		return err
+		return "", err
 	}
 	if network != nil && network.Driver == "bridge" {
 		return network.moveBridgeEndpoint(pod, link, ip)
 	}
 	if err := pod.LinkDel(link); err != nil {
-		return err
+		return "", err
 	}
 	if network == nil {
-		return nil
+		return "", nil
 	} // Preserve only loopback for offline jobs.
-	return network.attach(pod, int(ns.Fd()), id, ip)
+	return "", network.attach(pod, int(ns.Fd()), id, ip)
 }

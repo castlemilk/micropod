@@ -19,12 +19,6 @@ import (
 
 const portBrokerSocket = "/var/lib/micropod/ports.sock"
 
-type portBinding struct {
-	HostIP   string `json:"HostIp"`
-	HostPort string
-}
-type portMap map[string][]portBinding
-
 func tcpPort(key string) (uint16, error) {
 	s, proto, ok := strings.Cut(key, "/")
 	n, err := strconv.ParseUint(s, 10, 16)
@@ -45,22 +39,34 @@ func requestedPort(b portBinding) (uint16, error) {
 }
 func (c dockerConfig) requestedPorts() (portMap, error) {
 	out := portMap{}
-	for key := range c.ExposedPorts {
-		if c.HostConfig.PublishAllPorts {
-			out[key] = []portBinding{{}}
+	if c.HostConfig.NetworkMode == "none" {
+		if len(c.HostConfig.PortBindings) > 0 {
+			return nil, errors.New("an offline container cannot publish ports")
 		}
+		return out, nil
 	}
 	for key, bindings := range c.HostConfig.PortBindings {
-		out[key] = bindings
-	}
-	if c.HostConfig.NetworkMode == "none" && len(out) > 0 {
-		return nil, errors.New("an offline container cannot publish ports")
-	}
-	count := 0
-	for key, bindings := range out {
-		if _, err := tcpPort(key); err != nil {
+		port, err := tcpPort(key)
+		if err != nil {
 			return nil, err
 		}
+		key := strconv.Itoa(int(port)) + "/tcp"
+		out[key] = append(out[key], bindings...)
+	}
+	if c.HostConfig.PublishAllPorts {
+		for key := range c.ExposedPorts {
+			port, valid := parseDockerSummaryPort(key)
+			if !valid || port.Type != "tcp" {
+				return nil, fmt.Errorf("expected a TCP container port, got %q", key)
+			}
+			key := port.key()
+			if _, explicit := out[key]; !explicit {
+				out[key] = []portBinding{{}}
+			}
+		}
+	}
+	count := 0
+	for _, bindings := range out {
 		count += len(bindings)
 		for _, b := range bindings {
 			if _, err := requestedPort(b); err != nil {
@@ -202,9 +208,10 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		return nil, err
 	}
 	if c.Config.HostConfig.NetworkMode == "none" {
-		return nil, configurePodNetwork(ctx, s.node, podID, nil, "")
+		_, err := configurePodNetwork(ctx, s.node, podID, nil, "")
+		return nil, err
 	}
-	var target string
+	var target, primaryMAC string
 	var network *workerNetwork
 	if c.NetworkID != "" {
 		s.mu.Lock()
@@ -214,7 +221,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			return nil, errors.New("container network no longer exists")
 		}
 		start := time.Now()
-		err := configurePodNetwork(ctx, s.node, podID, n, c.NetworkIP)
+		primaryMAC, err = configurePodNetwork(ctx, s.node, podID, n, c.NetworkIP)
 		s.metrics.networks.attachment(n.Driver, start, err)
 		if err != nil {
 			return nil, err
@@ -232,7 +239,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		return nil, errors.New("container has no network address")
 	}
 	s.mu.Lock()
-	c.IP = target
+	c.IP, c.primaryMAC = target, primaryMAC
 	s.mu.Unlock()
 	if len(ports) == 0 {
 		return nil, nil

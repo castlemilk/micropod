@@ -3,12 +3,23 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	tasks "github.com/containerd/containerd/api/services/tasks/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 func TestCRIOutputRecordBoundaries(t *testing.T) {
@@ -56,6 +67,173 @@ func TestCRIOutputErrorsAndLimit(t *testing.T) {
 			t.Fatalf("raw=%q: err=%v bytes=%d", tc.raw, err, out.bytes)
 		}
 	}
+}
+
+type followRuntime struct {
+	cri.RuntimeServiceClient
+	checks   atomic.Int32
+	response func(check int32) *cri.ContainerStatus
+}
+
+func (r *followRuntime) ContainerStatus(_ context.Context, _ *cri.ContainerStatusRequest, _ ...grpc.CallOption) (*cri.ContainerStatusResponse, error) {
+	return &cri.ContainerStatusResponse{Status: r.response(r.checks.Add(1))}, nil
+}
+
+type fakeTaskWait func(context.Context, *tasks.WaitRequest) (*tasks.WaitResponse, error)
+
+func (f fakeTaskWait) Wait(ctx context.Context, req *tasks.WaitRequest, _ ...grpc.CallOption) (*tasks.WaitResponse, error) {
+	return f(ctx, req)
+}
+
+func receiveFollow[T any](t *testing.T, ctx context.Context, out <-chan T) T {
+	t.Helper()
+	select {
+	case value := <-out:
+		return value
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for container follow progress")
+		var zero T
+		return zero
+	}
+}
+
+func TestCRIFollowStreamsWhileWaitingForTask(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	log, err := os.CreateTemp(t.TempDir(), "job.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer log.Close()
+	var exited atomic.Bool
+	runtime := &followRuntime{response: func(int32) *cri.ContainerStatus {
+		if exited.Load() {
+			return &cri.ContainerStatus{State: cri.ContainerState_CONTAINER_EXITED, FinishedAt: 1, ExitCode: 137, Reason: "OOMKilled"}
+		}
+		// The completion RPC is independent of how CRI classifies a live task.
+		return &cri.ContainerStatus{State: cri.ContainerState_CONTAINER_UNKNOWN}
+	}}
+	registration := make(chan error, 1)
+	exitEvent := make(chan struct{})
+	watch := fakeTaskWait(func(ctx context.Context, req *tasks.WaitRequest) (*tasks.WaitResponse, error) {
+		md, _ := metadata.FromOutgoingContext(ctx)
+		want := md.Get("containerd-namespace")
+		if req.ContainerID != "native-runtime-id" || req.ExecID != "" || len(want) != 1 || want[0] != "k8s.io" {
+			registration <- fmt.Errorf("unexpected wait request %v in namespace %v", req, want)
+			return nil, status.Error(codes.NotFound, "test waiter identity mismatch")
+		}
+		registration <- nil
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-exitEvent:
+			// The CRI record supplies the authoritative code and reason.
+			return &tasks.WaitResponse{ExitStatus: 1}, nil
+		}
+	})
+	type outcome struct {
+		code   int32
+		reason string
+		err    error
+	}
+	frames := make(chan string, 3)
+	done := make(chan outcome, 1)
+	n := node{runtime: runtime, tasks: watch}
+	go func() {
+		code, reason, err := n.follow(ctx, "native-runtime-id", criLogSource{path: log.Name()}, func(stream string, b []byte) error {
+			frames <- stream + ":" + string(b)
+			return nil
+		}, true)
+		done <- outcome{code, reason, err}
+	}()
+	if err := receiveFollow(t, ctx, registration); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []struct{ raw, want string }{
+		{"t stdout F while waiting\n", "stdout:while waiting\n"},
+		{"t stderr P second read\n", "stderr:second read"},
+	} {
+		if _, err := log.WriteString(line.raw); err != nil {
+			t.Fatal(err)
+		}
+		if got := receiveFollow(t, ctx, frames); got != line.want {
+			t.Fatalf("streamed frame = %q, want %q", got, line.want)
+		}
+	}
+	if checks := runtime.checks.Load(); checks != 1 {
+		t.Fatalf("running task with a healthy waiter received %d CRI status calls", checks)
+	}
+	if _, err := log.WriteString("t stdout F final frame\n"); err != nil {
+		t.Fatal(err)
+	}
+	exited.Store(true)
+	close(exitEvent)
+	if last := receiveFollow(t, ctx, frames); last != "stdout:final frame\n" {
+		t.Fatalf("final frame = %q", last)
+	}
+	if got := receiveFollow(t, ctx, done); got != (outcome{code: 137, reason: "OOMKilled"}) {
+		t.Fatalf("completion = %+v", got)
+	}
+	if checks := runtime.checks.Load(); checks != 2 {
+		t.Fatalf("CRI status calls = %d, want initial and final", checks)
+	}
+}
+
+func TestCRIFollowWaitRechecksUncommittedExit(t *testing.T) {
+	for _, result := range []error{
+		nil, status.Error(codes.NotFound, "CRI removed the runtime task"), status.Error(codes.Unavailable, "transport closed"),
+	} {
+		t.Run(status.Code(result).String(), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			runtime := &followRuntime{response: func(check int32) *cri.ContainerStatus {
+				if check < 3 {
+					return &cri.ContainerStatus{State: cri.ContainerState_CONTAINER_RUNNING}
+				}
+				return &cri.ContainerStatus{State: cri.ContainerState_CONTAINER_EXITED, FinishedAt: 1, ExitCode: 17, Reason: "Error"}
+			}}
+			watch := fakeTaskWait(func(context.Context, *tasks.WaitRequest) (*tasks.WaitResponse, error) {
+				return nil, result
+			})
+			n := node{runtime: runtime, tasks: watch}
+			code, reason, err := n.follow(ctx, "runtime-id", criLogSource{path: filepath.Join(t.TempDir(), "missing.log")}, func(string, []byte) error {
+				return errors.New("received output from missing log")
+			}, true)
+			if code != 17 || reason != "Error" || err != nil || runtime.checks.Load() != 3 {
+				t.Fatalf("uncommitted exit: code=%d, reason=%q, err=%v, status calls=%d", code, reason, err, runtime.checks.Load())
+			}
+		})
+	}
+}
+
+func TestCRIFollowCancelsTaskWait(t *testing.T) {
+	ctx, timeout := context.WithTimeout(context.Background(), 2*time.Second)
+	defer timeout()
+	follow, cancel := context.WithCancel(ctx)
+	defer cancel()
+	registration, stopped := make(chan struct{}), make(chan struct{})
+	runtime := &followRuntime{response: func(int32) *cri.ContainerStatus {
+		return &cri.ContainerStatus{State: cri.ContainerState_CONTAINER_RUNNING}
+	}}
+	watch := fakeTaskWait(func(ctx context.Context, _ *tasks.WaitRequest) (*tasks.WaitResponse, error) {
+		close(registration)
+		<-ctx.Done()
+		close(stopped)
+		return nil, ctx.Err()
+	})
+	done := make(chan error, 1)
+	path := filepath.Join(t.TempDir(), "job.log")
+	go func() {
+		n := node{runtime: runtime, tasks: watch}
+		_, _, err := n.follow(follow, "id", criLogSource{path: path}, func(string, []byte) error { return nil }, true)
+		done <- err
+	}()
+	receiveFollow(t, ctx, registration)
+	cancel()
+	if err := receiveFollow(t, ctx, done); !errors.Is(err, context.Canceled) {
+		t.Fatalf("follow cancel = %v", err)
+	}
+	receiveFollow(t, ctx, stopped)
 }
 
 func BenchmarkCRIDrain(b *testing.B) {

@@ -1,5 +1,6 @@
 import CPublishedTCP
 import Foundation
+import Network
 
 /// Accept once on loopback. Each established stream stays with a single I/O owner.
 final class NativeLoopbackRelay: @unchecked Sendable {
@@ -56,12 +57,12 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         }
 
         func adopt(_ fd: Int32, accepted: UInt64) {
-            owner.queue.async { mp_tcp_adopt(self.handle, fd, accepted) }
+            mp_tcp_handoff_enqueue(handle, fd, accepted)
         }
 
         func adoptProfiled(_ fd: Int32, accepted: UInt64) {
             let enqueued = clock_gettime_nsec_np(CLOCK_UPTIME_RAW)
-            owner.queue.async { mp_tcp_adopt_profiled(self.handle, fd, accepted, enqueued) }
+            mp_tcp_handoff_enqueue_profiled(handle, fd, accepted, enqueued)
         }
 
         func release(profile: Bool) -> mp_tcp_handoff_stats? {
@@ -116,6 +117,11 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         return workers.dropFirst().allSatisfy { mp_tcp_relay_read_bytes($0.backend.handle) == bytes } ? Int(bytes) : nil
     }
     private let profile: Bool
+    private let guest: String
+    private let gateway: String?
+    // Owned by the accept queue. A profiled worker checks its own path once after a dial failure.
+    private var checkedLocalNetwork = false
+    private var localNetworkProbe: NWConnection?
     private var listeners: [UInt16: Lease] = [:]
     private var pending = Set<UInt16>()
     private var stopped = false
@@ -136,9 +142,55 @@ final class NativeLoopbackRelay: @unchecked Sendable {
                 boundedGuestWindow: boundedGuestWindow)
         }
         self.profile = profile
+        self.guest = guest
+        self.gateway = gateway
     }
 
-    func takePathFailure() -> Bool { mp_tcp_take_path_failure(accept.backend.handle) != 0 }
+    func takePathFailure() -> Bool {
+        guard mp_tcp_take_path_failure(accept.backend.handle) != 0 else { return false }
+        if profile, let gateway {
+            accept.queue.async { self.checkLocalNetwork(gateway: gateway) }
+        }
+        return true
+    }
+
+    static func localNetworkOutcome(_ state: NWConnection.State, reason: NWPath.UnsatisfiedReason?) -> String? {
+        switch state {
+        case .waiting where reason == .localNetworkDenied: return "local-network-denied"
+        case .ready: return "ready"
+        case .failed(let error): return "failed(\(error))"
+        default: return nil
+        }
+    }
+
+    private func checkLocalNetwork(gateway: String) {
+        guard !stopped, !checkedLocalNetwork else { return }
+        checkedLocalNetwork = true
+        // A connected UDP path evaluates local network privacy in the relay process.
+        // It uses the private gateway source address and sends no application datagrams.
+        let parameters = NWParameters.udp
+        parameters.requiredLocalEndpoint = .hostPort(host: .init(gateway), port: .any)
+        let probe = NWConnection(host: .init(guest), port: 9, using: parameters)
+        localNetworkProbe = probe
+        probe.stateUpdateHandler = { [weak self] state in
+            guard let self, let probe = self.localNetworkProbe,
+                let outcome = Self.localNetworkOutcome(state, reason: probe.currentPath?.unsatisfiedReason)
+            else { return }
+            self.finishLocalNetworkProbe(outcome)
+        }
+        probe.start(queue: accept.queue)
+        accept.queue.asyncAfter(deadline: .now() + .seconds(3)) { [weak self] in
+            guard let self, let probe = self.localNetworkProbe else { return }
+            self.finishLocalNetworkProbe(
+                Self.localNetworkOutcome(probe.state, reason: probe.currentPath?.unsatisfiedReason) ?? "unresolved")
+        }
+    }
+
+    private func finishLocalNetworkProbe(_ outcome: String) {
+        localNetworkProbe?.cancel()
+        localNetworkProbe = nil
+        SecretSource.stderrLog("published TCP local network diagnostic guest=\(guest) udp_path=\(outcome)")
+    }
 
     func takeGuestTraffic() -> Bool {
         var received = mp_tcp_take_guest_data(accept.backend.handle) != 0
@@ -196,6 +248,8 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     func stop() {
         accept.queue.sync {
             stopped = true
+            localNetworkProbe?.cancel()
+            localNetworkProbe = nil
             for port in Array(listeners.keys) { releaseOnQueue(port) }
         }
         accept.source.cancel()
@@ -230,7 +284,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "flat_bulk_full_cap_with_ready_hint_above_cap": stats.guest_flat_bulk_full_cap_ready_above_cap,
             "sparse_flat_bulk_full_cap_with_ready_hint_above_cap": stats.guest_sparse_flat_bulk_full_cap_ready_above_cap,
         ]
-        let event: [String: Any] = [
+        var event: [String: Any] = [
             "port": port, "accepted": stats.accepted, "connected": stats.connected,
             "connect_errors": stats.connect_errors, "connect_retries": stats.connect_retries,
             "route_waits": stats.route_waits, "handshake_timeouts": stats.handshake_timeouts,
@@ -251,6 +305,10 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "connect_to_first_request_write_us": buckets(stats.first_request_write_us),
             "first_request_write_to_guest_byte_us": buckets(stats.request_to_first_guest_byte_us),
         ]
+        if let stage = stats.first_dial_stage {
+            event["first_dial_stage"] = String(cString: stage)
+            event["first_dial_errno"] = stats.first_dial_errno
+        }
         if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
             SecretSource.stderrLog("published TCP profile " + String(decoding: data, as: UTF8.self))
         }

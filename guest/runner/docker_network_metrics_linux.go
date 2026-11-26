@@ -9,7 +9,11 @@ import (
 )
 
 func (d *serviceDirectory) publish(c *dockerContainer, add bool) {
-	ip, err := netip.ParseAddr(c.IP)
+	d.publishEndpoint(c.Name, c.Config.Hostname, c.Config.Aliases, c.IP, add)
+}
+
+func (d *serviceDirectory) publishEndpoint(name, hostname string, aliases []string, address string, add bool) {
+	ip, err := netip.ParseAddr(address)
 	if err != nil || !ip.Is4() {
 		return
 	}
@@ -18,7 +22,7 @@ func (d *serviceDirectory) publish(c *dockerContainer, add bool) {
 	if d.records == nil {
 		d.records = map[string][]netip.Addr{}
 	}
-	names := append([]string{c.Name, c.Config.Hostname}, c.Config.Aliases...)
+	names := append([]string{name, hostname}, aliases...)
 	for _, name := range names {
 		key := strings.ToLower(name)
 		if key == "" {
@@ -44,6 +48,7 @@ func (d *serviceDirectory) publish(c *dockerContainer, add bool) {
 type networkMetrics struct {
 	kernelPorts, directPorts, relayPorts, rootlessPorts         atomic.Uint64
 	dnsLocal, dnsMissing, dnsForwarded, dnsFailures, dnsDropped atomic.Uint64
+	dnsRedirectAttempts, dnsRedirectErrors, dnsRedirectUS       atomic.Uint64
 	attachCount, attachFailures, attachUS                       [3]atomic.Uint64
 }
 
@@ -63,6 +68,7 @@ func (m *networkMetrics) attachment(driver string, start time.Time, err error) {
 }
 func (m *networkMetrics) snapshot() map[string]any {
 	result := map[string]any{"dns_local_answers": m.dnsLocal.Load(), "dns_name_misses": m.dnsMissing.Load(), "dns_forwarded": m.dnsForwarded.Load(), "dns_upstream_failures": m.dnsFailures.Load(), "dns_overload_drops": m.dnsDropped.Load()}
+	result["sandbox_dns_redirect"] = map[string]uint64{"attempts": m.dnsRedirectAttempts.Load(), "errors": m.dnsRedirectErrors.Load(), "usec_total": m.dnsRedirectUS.Load()}
 	result["published_tcp"] = map[string]uint64{"kernel_leases": m.kernelPorts.Load(), "macvlan_leases": m.directPorts.Load(), "relay_leases": m.relayPorts.Load(), "rootless_leases": m.rootlessPorts.Load()}
 	for i, driver := range []string{"bridge", "macvlan", "ipvlan"} {
 		result[driver] = map[string]uint64{"attach_attempts": m.attachCount[i].Load(), "attach_errors": m.attachFailures[i].Load(), "attach_usec_total": m.attachUS[i].Load()}

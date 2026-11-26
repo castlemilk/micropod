@@ -349,6 +349,13 @@ func (d *directNetwork) attach(ctx context.Context, node node, id, target string
 		end.link = nil
 		return end, errors.New("published interface ownership mismatch")
 	}
+	// macvlan inherits the hardware TSO ceiling but starts with its own IPv4
+	// GSO limit. Honor a smaller limit on the worker's private publication NIC.
+	if limit := parent.GSOIPv4MaxSize; limit > 0 && limit < end.link.Attrs().GSOIPv4MaxSize {
+		if err := end.pod.LinkSetGSOIPv4MaxSize(end.link, int(limit)); err != nil {
+			return end, fmt.Errorf("configure published IPv4 segmentation: %w", err)
+		}
+	}
 	if err := end.pod.LinkSetIP6AddrGenMode(end.link, nl.IN6_ADDR_GEN_MODE_NONE); err != nil {
 		return end, err
 	}

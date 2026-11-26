@@ -45,7 +45,17 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::fs_watch::{FseEventsWatcher, KqueueVnodeWatcher, VnodeEvent};
 use crate::{DescBuf, GuestMemory, IrqLine, VirtQueue, VirtioBackend, scatter_writable};
+
+const VIRTIO_FS_F_NOTIFICATION: u64 = 1 << 0;
+const NOTIFY_VQ_IDX: usize = 1;
+const NOTIFY_BUF_SIZE: u32 = 512;
+const MAX_PENDING_NOTIFIES: usize = 256;
+
+const FUSE_NOTIFY_INVAL_INODE: i32 = 2;
+const FUSE_NOTIFY_INVAL_ENTRY: i32 = 3;
+const FUSE_NOTIFY_INC_EPOCH: i32 = 8;
 
 // FUSE opcodes (Linux include/uapi/linux/fuse.h)
 const FUSE_LOOKUP: u32 = 1;
@@ -91,6 +101,7 @@ const FUSE_NO_OPEN_SUPPORT: u32 = 1 << 17;
 const FUSE_PARALLEL_DIROPS: u32 = 1 << 18;
 const FUSE_MAX_PAGES: u32 = 1 << 22;
 const FUSE_CACHE_SYMLINKS: u32 = 1 << 23;
+const FUSE_NO_OPENDIR_SUPPORT: u32 = 1 << 24;
 const FUSE_EXPLICIT_INVAL_DATA: u32 = 1 << 25;
 const FUSE_INIT_EXT: u32 = 1 << 30;
 const FUSE_DIRECT_IO_ALLOW_MMAP_FLAGS2: u32 = 1 << (36 - 32);
@@ -161,6 +172,12 @@ fn check_rc(rc: libc::c_int) -> Result<(), i32> {
 }
 
 const MAX_CACHED_DIR_FDS: usize = 512;
+/// Most recently-opened read-only regular file handles pooled on a writable
+/// share to avoid repeat `openat`/`fstat`/`close` syscalls during hot scans
+/// (reclaimed automatically when the worker goes idle).
+const MAX_MUTABLE_RO_CACHE: usize = 2048;
+/// Idle time before `mutable_ro_cache` releases its pooled host descriptors.
+const MUTABLE_RO_IDLE_FLUSH: Duration = Duration::from_millis(250);
 
 /// Most nodes one share holds. The guest's FORGETs keep the table to what its
 /// inode cache references; this bounds a guest kernel that never forgets
@@ -191,14 +208,55 @@ const DIR_RETAIN: usize = 128;
 const DIR_FD_RECHECK_MS: u64 = 20;
 
 // Writable shares may be changed by a host editor while a guest file is open.
-// 20ms metadata validity keeps host-edit visibility ~3.5x faster than OrbStack (~91ms)
-// and ~40x faster than Apple VZ (~1004ms) while preventing mid-scan dentry thrashing.
-fn cache_validity(read_only: bool) -> (u64, u32) {
+// With a ready notification queue and both watchers, the host watches the
+// workspace via Darwin `kqueue(EVFILT_VNODE)` + `FSEvents` and pushes exact
+// invalidations in <1-4 ms, allowing 60s guest dentry/attr caching with zero
+// warm LOOKUP/GETATTR/READDIR churn. Legacy kernels without notification fall
+// back automatically to 20ms metadata validity.
+fn cache_validity(read_only: bool, notify_enabled: bool) -> (u64, u32) {
     if read_only {
         (3600, 0)
+    } else if notify_enabled {
+        (60, 0)
     } else {
         (0, 20_000_000)
     }
+}
+
+fn encode_notify_inval_inode(ino: u64, off: i64, len: i64) -> Vec<u8> {
+    let mut out = Vec::with_capacity(40);
+    out.extend_from_slice(&40u32.to_le_bytes());
+    out.extend_from_slice(&FUSE_NOTIFY_INVAL_INODE.to_le_bytes());
+    out.extend_from_slice(&0u64.to_le_bytes()); // unique = 0 for notifications
+    out.extend_from_slice(&ino.to_le_bytes());
+    out.extend_from_slice(&off.to_le_bytes());
+    out.extend_from_slice(&len.to_le_bytes());
+    out
+}
+
+fn encode_notify_inval_entry(parent: u64, name: &[u8], flags: u32) -> Option<Vec<u8>> {
+    let total = 16usize.checked_add(16)?.checked_add(name.len())?.checked_add(1)?;
+    if name.is_empty() || total > NOTIFY_BUF_SIZE as usize {
+        return None;
+    }
+    let mut out = Vec::with_capacity(total);
+    out.extend_from_slice(&(total as u32).to_le_bytes());
+    out.extend_from_slice(&FUSE_NOTIFY_INVAL_ENTRY.to_le_bytes());
+    out.extend_from_slice(&0u64.to_le_bytes());
+    out.extend_from_slice(&parent.to_le_bytes());
+    out.extend_from_slice(&(name.len() as u32).to_le_bytes());
+    out.extend_from_slice(&flags.to_le_bytes());
+    out.extend_from_slice(name);
+    out.push(0);
+    Some(out)
+}
+
+fn encode_notify_inc_epoch() -> Vec<u8> {
+    let mut out = Vec::with_capacity(16);
+    out.extend_from_slice(&16u32.to_le_bytes());
+    out.extend_from_slice(&FUSE_NOTIFY_INC_EPOCH.to_le_bytes());
+    out.extend_from_slice(&0u64.to_le_bytes());
+    out
 }
 
 /// Compact POSIX stat snapshot populated from `fstatat`/`fstat`/`getattrlistbulk`.
@@ -264,6 +322,7 @@ struct BulkDirEntry {
 struct OpenDir {
     dir_nodeid: u64,
     dir_fd: OwnedFd,
+    checked_ms: u64,
     listing: DirListing,
 }
 
@@ -402,6 +461,25 @@ impl Limits {
 struct CachedDir {
     fd: Arc<OwnedFd>,
     checked_ms: u64,
+}
+
+/// Pooled read-only regular file handle on a mutable share, keyed by nodeid and
+/// verified against host `(dev, ino)` and mode bits on every reuse.
+struct CachedRoFile {
+    file: Arc<File>,
+    identity: (u64, u64),
+    mode: u32,
+}
+
+/// Exact host content signature `(size, mtime, mtime_nsec, ctime, ctime_nsec)`.
+/// Any host write, truncate, or exact-mtime `utimensat` changes at least one
+/// component (on APFS `utimensat` always advances `ctime`), making conditional
+/// `FOPEN_KEEP_CACHE` exact without stale page-cache reads on re-open.
+type ContentSig = (u64, i64, i64, i64, i64);
+
+#[inline]
+fn content_sig(st: &FuseStat) -> ContentSig {
+    (st.size, st.mtime, st.mtime_nsec, st.ctime, st.ctime_nsec)
 }
 
 fn raw_os_err_to_linux(raw: i32) -> i32 {
@@ -915,6 +993,14 @@ pub struct FsMetrics {
     pub workspace_kicks: AtomicU64,
     pub workspace_used_batches: AtomicU64,
     pub workspace_irq_requests: AtomicU64,
+    /// Phase B8 cache & host-push notification telemetry.
+    pub keep_cache_hits: AtomicU64,
+    pub ro_cache_hits: AtomicU64,
+    pub ro_cache_misses: AtomicU64,
+    pub notify_events_pushed: AtomicU64,
+    pub notify_epoch_resets: AtomicU64,
+    /// Non-routine FUSE errors (excludes ENOENT, ENOSYS, ENODATA).
+    pub fuse_errors: AtomicU64,
 }
 
 /// Deepest directory chain resolved for one node. A chain cannot loop (every
@@ -970,6 +1056,13 @@ struct Node {
     /// opened): what a root caller sees as the owner of a floating file.
     recent_user: Option<(u32, u32)>,
     recent_at_ms: u64,
+    /// Last host content signature observed by `FUSE_OPEN` on a writable share.
+    /// When a subsequent `FUSE_OPEN` sees the identical signature, the guest
+    /// page cache is guaranteed fresh and `FOPEN_KEEP_CACHE` can be returned.
+    content_sig: Option<ContentSig>,
+    /// Host content signature immediately after the guest's own mutation, used
+    /// to suppress self-inflicted watcher invalidations without hiding host edits.
+    last_guest_sig: Option<ContentSig>,
 }
 
 impl Node {
@@ -981,6 +1074,8 @@ impl Node {
             lookups: 0,
             recent_user: None,
             recent_at_ms: 0,
+            content_sig: None,
+            last_guest_sig: None,
         }
     }
 }
@@ -1025,6 +1120,11 @@ fn guest_mode(mode: u32, is_dir: bool) -> u32 {
 #[inline]
 fn mode_is_dir(mode: u32) -> bool {
     mode & (libc::S_IFMT as u32) == libc::S_IFDIR as u32
+}
+
+#[inline]
+fn mode_is_reg(mode: u32) -> bool {
+    mode & (libc::S_IFMT as u32) == libc::S_IFREG as u32
 }
 
 /// A guest-supplied directory entry name: one component, never `.` or `..`.
@@ -1092,7 +1192,12 @@ fn open_entry_at(
 fn host_handle(fd: OwnedFd, st: &FuseStat, flags: i32) -> Result<File, i32> {
     match st.mode & libc::S_IFMT as u32 {
         m if m == libc::S_IFREG as u32 => {
-            if unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags & libc::O_APPEND) } != 0 {
+            // `O_NONBLOCK` has no effect on regular file `preadv`/`pwritev` on POSIX/Darwin,
+            // so read-only opens can skip the extra `fcntl(F_SETFL)` syscall completely.
+            if (flags & libc::O_ACCMODE) != libc::O_RDONLY
+                && unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags & libc::O_APPEND) }
+                    != 0
+            {
                 return Err(last_os_errno_linux());
             }
             Ok(File::from(fd))
@@ -1231,8 +1336,14 @@ fn host_rename(
 struct FsCore {
     read_only: bool,
     writable_workspace: bool,
+    notify_negotiated: bool,
+    /// Host-push cache policy, independent of the negotiated queue layout.
+    notify_enabled: bool,
+    no_opendir: bool,
     direct_io_requested: bool,
     direct_io_mmap: bool,
+    /// Optional live kqueue vnode watcher for open regular files (set when notify is active).
+    kq_watcher: Option<Arc<KqueueVnodeWatcher>>,
     /// The share root, opened once. Every host access is a `*at` call on a
     /// directory reached from here without following symlinks.
     root_fd: Arc<OwnedFd>,
@@ -1262,6 +1373,11 @@ struct FsCore {
     dir_fds: HashMap<u64, CachedDir>,
     open_files: HashMap<u64, OpenFile>,
     open_dirs: HashMap<u64, OpenDir>,
+    /// Multi-chunk directory listings when `FUSE_NO_OPENDIR_SUPPORT` (`fh == 0`) is active.
+    no_opendir_listings: HashMap<u64, DirListing>,
+    /// Recently-opened read-only regular file handles pooled on a mutable share
+    /// (evicted on mutation/forget/snapshot and reclaimed after idle).
+    mutable_ro_cache: HashMap<u64, CachedRoFile>,
     limits: Limits,
     /// Guest owner pinned by a guest `chown`, by host (dev, ino) (see [`GuestAttr`]).
     owners: HashMap<(u64, u64), (u32, u32)>,
@@ -1282,16 +1398,92 @@ struct FsCore {
 
 struct FsQueueState {
     queues: Vec<Option<VirtQueue>>,
+    notify_vq_idx: Option<usize>,
     mem: Option<Arc<GuestMemory>>,
     irq: Option<IrqLine>,
     kicked: bool,
     worker_parked: bool,
 }
 
+struct FsNotifyState {
+    vq: Option<VirtQueue>,
+    mem: Option<Arc<GuestMemory>>,
+    irq: Option<IrqLine>,
+    pending: VecDeque<Vec<u8>>,
+    desc_buf: Vec<DescBuf>,
+    epoch_needed: bool,
+}
+
+impl FsNotifyState {
+    fn new() -> Self {
+        Self {
+            vq: None,
+            mem: None,
+            irq: None,
+            pending: VecDeque::new(),
+            desc_buf: Vec::with_capacity(4),
+            epoch_needed: false,
+        }
+    }
+
+    fn resume(&mut self) -> bool {
+        if !self.vq.as_ref().is_some_and(|q| q.ready) || self.mem.is_none() || self.irq.is_none() {
+            return false;
+        }
+        if std::mem::take(&mut self.epoch_needed) {
+            self.push(encode_notify_inc_epoch());
+        } else {
+            self.flush();
+        }
+        true
+    }
+
+    fn flush(&mut self) {
+        let (Some(vq), Some(mem), Some(irq)) = (self.vq.as_mut(), self.mem.as_ref(), self.irq.as_ref())
+        else {
+            return;
+        };
+        if !vq.ready || self.pending.is_empty() {
+            return;
+        }
+        let old_used = vq.next_used;
+        let mut pushed_any = false;
+        while let Some(msg) = self.pending.front() {
+            let Some(head) = vq.pop_into(mem, &mut self.desc_buf) else {
+                break;
+            };
+            let written = scatter_writable(&self.desc_buf, mem, msg);
+            vq.push_used(mem, head, written);
+            self.pending.pop_front();
+            pushed_any = true;
+        }
+        if pushed_any && vq.next_used != old_used && vq.guest_wants_irq_since(mem, old_used) {
+            irq.raise_used_buffer();
+        }
+    }
+
+    fn push(&mut self, msg: Vec<u8>) {
+        if self.pending.len() >= MAX_PENDING_NOTIFIES {
+            self.pending.clear();
+            self.pending.push_back(encode_notify_inc_epoch());
+        } else {
+            self.pending.push_back(msg);
+        }
+        self.flush();
+    }
+}
+
+struct FsWatchers {
+    _kq: Arc<KqueueVnodeWatcher>,
+    _fsevents: FseEventsWatcher,
+}
+
 struct FsShared {
     core: Mutex<FsCore>,
     workspace_metrics: Option<Arc<FsMetrics>>,
     state: (Mutex<FsQueueState>, Condvar),
+    notify: Mutex<FsNotifyState>,
+    watchers: Mutex<Option<FsWatchers>>,
     paused: AtomicBool,
     shutdown: AtomicBool,
 }
@@ -1301,11 +1493,19 @@ pub struct VirtioFs {
     tag_name: String,
     request_queues: u16,
     offer_event_idx: bool,
+    offer_notify: bool,
     shared: Arc<FsShared>,
     worker_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl VirtioFs {
+    fn resume_notifications(&self) {
+        let ready = self.shared.notify.lock().unwrap().resume();
+        if ready && let Err(err) = self.shared.start_watchers() {
+            eprintln!("[virtiofs-workspace] notifications unavailable: {err}");
+        }
+    }
+
     pub fn new(
         tag: &str,
         root: PathBuf,
@@ -1330,24 +1530,41 @@ impl VirtioFs {
                     )
                 })?,
         };
-        let mut device = Self::with_request_queues(tag, root, read_only, metrics, request_queues)?;
+        let offer_notify = if tag == "workspace" && !read_only {
+            match std::env::var_os("MICROPOD_VIRTIOFS_WORKSPACE_NOTIFY").as_deref() {
+                None => true,
+                Some(value) if value == "0" => false,
+                Some(value) if value == "1" => true,
+                Some(_) => {
+                    return Err(std::io::Error::new(
+                        ErrorKind::InvalidInput,
+                        "MICROPOD_VIRTIOFS_WORKSPACE_NOTIFY must be 0 or 1",
+                    ));
+                }
+            }
+        } else {
+            false
+        };
+        let mut device = Self::with_options(tag, root, read_only, metrics, request_queues, offer_notify)?;
         if tag == "workspace" && !read_only {
-            device.offer_event_idx =
-                match std::env::var_os("MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX").as_deref() {
-                    None => false,
-                    Some(value) if value == "0" => false,
-                    Some(value) if value == "1" => true,
-                    Some(_) => {
-                        return Err(std::io::Error::new(
-                            ErrorKind::InvalidInput,
-                            "MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX must be 0 or 1",
-                        ));
-                    }
-                };
+            device.offer_event_idx = match std::env::var_os("MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX")
+                .as_deref()
+            {
+                None => true,
+                Some(value) if value == "0" => false,
+                Some(value) if value == "1" => true,
+                Some(_) => {
+                    return Err(std::io::Error::new(
+                        ErrorKind::InvalidInput,
+                        "MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX must be 0 or 1",
+                    ));
+                }
+            };
         }
         Ok(device)
     }
 
+    #[cfg(test)]
     fn with_request_queues(
         tag: &str,
         root: PathBuf,
@@ -1355,24 +1572,38 @@ impl VirtioFs {
         metrics: Arc<FsMetrics>,
         request_queues: u16,
     ) -> std::io::Result<Self> {
+        Self::with_options(tag, root, read_only, metrics, request_queues, false)
+    }
+
+    fn with_options(
+        tag: &str,
+        root: PathBuf,
+        read_only: bool,
+        metrics: Arc<FsMetrics>,
+        request_queues: u16,
+        offer_notify: bool,
+    ) -> std::io::Result<Self> {
         let workspace_metrics = (tag == "workspace" && !read_only).then(|| metrics.clone());
         let core = FsCore::new(tag, &root, read_only, metrics)?;
         let mut tag_bytes = [0u8; 36];
         let src = tag.as_bytes();
         let n = src.len().min(36);
         tag_bytes[..n].copy_from_slice(&src[..n]);
+        let total_queues = 1 + usize::from(offer_notify) + usize::from(request_queues);
 
         Ok(Self {
             tag: tag_bytes,
             tag_name: tag.to_string(),
             request_queues,
             offer_event_idx: false,
+            offer_notify,
             shared: Arc::new(FsShared {
                 core: Mutex::new(core),
                 workspace_metrics,
                 state: (
                     Mutex::new(FsQueueState {
-                        queues: vec![None; 1 + usize::from(request_queues)],
+                        queues: vec![None; total_queues],
+                        notify_vq_idx: None,
                         mem: None,
                         irq: None,
                         kicked: false,
@@ -1380,6 +1611,8 @@ impl VirtioFs {
                     }),
                     Condvar::new(),
                 ),
+                notify: Mutex::new(FsNotifyState::new()),
+                watchers: Mutex::new(None),
                 paused: AtomicBool::new(false),
                 shutdown: AtomicBool::new(false),
             }),
@@ -1441,12 +1674,7 @@ impl VirtioFs {
 }
 
 impl FsCore {
-    fn new(
-        tag: &str,
-        root: &Path,
-        read_only: bool,
-        metrics: Arc<FsMetrics>,
-    ) -> std::io::Result<Self> {
+    fn new(tag: &str, root: &Path, read_only: bool, metrics: Arc<FsMetrics>) -> std::io::Result<Self> {
         let canon = fs::canonicalize(root)?;
         let croot = CString::new(canon.as_os_str().as_bytes())
             .map_err(|_| std::io::Error::from(ErrorKind::InvalidInput))?;
@@ -1475,10 +1703,13 @@ impl FsCore {
         Ok(Self {
             read_only,
             writable_workspace,
+            notify_negotiated: false,
+            notify_enabled: false,
+            no_opendir: false,
             direct_io_requested: writable_workspace
-                && std::env::var_os("MICROPOD_VIRTIOFS_LIVE_READ")
-                    .is_some_and(|value| value == "1"),
+                && std::env::var_os("MICROPOD_VIRTIOFS_LIVE_READ").is_some_and(|value| value == "1"),
             direct_io_mmap: false,
+            kq_watcher: None,
             root_fd: Arc::new(root_fd),
             root_dev,
             foreign_devs: Vec::new(),
@@ -1492,6 +1723,8 @@ impl FsCore {
             dir_fds: HashMap::new(),
             open_files: HashMap::new(),
             open_dirs: HashMap::new(),
+            no_opendir_listings: HashMap::new(),
+            mutable_ro_cache: HashMap::new(),
             limits: Limits::new(),
             owners: HashMap::new(),
             ro_lookup_cache: HashMap::new(),
@@ -1548,6 +1781,8 @@ impl FsCore {
             }
         }
         self.dir_fds.remove(&id);
+        self.no_opendir_listings.remove(&id);
+        self.remove_mutable_ro_file(id);
         if self.read_only {
             self.ro_attr_cache.remove(&id);
             self.ro_file_cache.remove(&id);
@@ -2406,11 +2641,13 @@ impl FsCore {
         nodeid: u64,
         st: &FuseStat,
         read_only: bool,
+        notify_enabled: bool,
         attr: GuestAttr,
         out: &mut Vec<u8>,
     ) {
-        // fuse_entry_out (128 bytes); read-only tools shares get 3600s dentry/attr caching
-        let (valid_secs, valid_nsecs) = cache_validity(read_only);
+        // fuse_entry_out (128 bytes); read-only tools shares get 3600s,
+        // notify-backed writable workspaces get 60s, legacy writable gets 20ms.
+        let (valid_secs, valid_nsecs) = cache_validity(read_only, notify_enabled);
         out.extend_from_slice(&nodeid.to_le_bytes());
         out.extend_from_slice(&1u64.to_le_bytes()); // generation
         out.extend_from_slice(&valid_secs.to_le_bytes()); // entry_valid
@@ -2426,14 +2663,31 @@ impl FsCore {
         self.add_lookup(id);
         let attr = self.guest_attr(id, st);
         let ro = self.read_only;
+        let notify = self.notify_enabled;
         self.begin_ok(unique);
-        Self::encode_entry_out_stat(id, st, ro, attr, &mut self.resp_buf);
+        Self::encode_entry_out_stat(id, st, ro, notify, attr, &mut self.resp_buf);
+        self.finish_ok()
+    }
+
+    /// Reply with a cached negative dentry (`nodeid == 0`) so Linux does not
+    /// re-issue `FUSE_LOOKUP` for missing files (e.g. `.gitignore`) until the
+    /// host-push watcher invalidates the entry on creation.
+    fn write_negative_entry(&mut self, unique: u64) -> bool {
+        let (valid_secs, valid_nsecs) = cache_validity(self.read_only, self.notify_enabled);
+        self.begin_ok(unique);
+        self.resp_buf.extend_from_slice(&0u64.to_le_bytes()); // nodeid = 0 (negative)
+        self.resp_buf.extend_from_slice(&0u64.to_le_bytes()); // generation
+        self.resp_buf.extend_from_slice(&valid_secs.to_le_bytes()); // entry_valid
+        self.resp_buf.extend_from_slice(&0u64.to_le_bytes()); // attr_valid
+        self.resp_buf.extend_from_slice(&valid_nsecs.to_le_bytes()); // entry_valid_nsec
+        self.resp_buf.extend_from_slice(&0u32.to_le_bytes()); // attr_valid_nsec
+        self.resp_buf.extend_from_slice(&[0u8; 88]); // zeroed fuse_attr
         self.finish_ok()
     }
 
     /// Reply with a `fuse_attr_out` for node `id`.
     fn write_attr(&mut self, unique: u64, id: u64, st: &FuseStat) -> bool {
-        let (valid_secs, valid_nsecs) = cache_validity(self.read_only);
+        let (valid_secs, valid_nsecs) = cache_validity(self.read_only, self.notify_enabled);
         let attr = self.guest_attr(id, st);
         self.begin_ok(unique);
         self.resp_buf.extend_from_slice(&valid_secs.to_le_bytes());
@@ -2445,6 +2699,9 @@ impl FsCore {
 
     #[inline]
     fn write_err(&mut self, unique: u64, errno: i32) -> bool {
+        if !matches!(errno, LINUX_ENOENT | LINUX_ENOSYS | LINUX_ENODATA) {
+            self.metrics.fuse_errors.fetch_add(1, Ordering::Relaxed);
+        }
         self.resp_buf.clear();
         self.resp_buf.extend_from_slice(&16u32.to_le_bytes());
         self.resp_buf.extend_from_slice(&(-errno).to_le_bytes());
@@ -2544,18 +2801,80 @@ impl FsCore {
 
     /// Keep an open file of node `nodeid` as a new handle.
     fn add_open_file(&mut self, nodeid: u64, file: File, st: &FuseStat) -> u64 {
+        self.add_open_file_arc(nodeid, Arc::new(file), st)
+    }
+
+    fn add_open_file_arc(&mut self, nodeid: u64, file: Arc<File>, st: &FuseStat) -> u64 {
         let fh = self.next_fh;
         self.next_fh += 1;
+        if let Some(ref kq) = self.kq_watcher
+            && mode_is_reg(st.mode)
+        {
+            kq.watch_fd(file.as_raw_fd(), nodeid, (st.dev, st.ino));
+        }
         self.open_files.insert(
             fh,
             OpenFile {
                 nodeid,
-                file: Arc::new(file),
+                file,
                 identity: (st.dev, st.ino),
             },
         );
         self.metrics.open_handles.fetch_add(1, Ordering::Relaxed);
         fh
+    }
+
+    fn mutable_ro_cache_cap(&self) -> usize {
+        if self.read_only {
+            return 0;
+        }
+        (self.limits.handles / 2).min(MAX_MUTABLE_RO_CACHE)
+    }
+
+    fn remove_mutable_ro_file(&mut self, nodeid: u64) {
+        if let Some(cached) = self.mutable_ro_cache.remove(&nodeid)
+            && let Some(ref kq) = self.kq_watcher
+        {
+            kq.unwatch_fd(cached.file.as_raw_fd());
+        }
+    }
+
+    fn clear_mutable_ro_cache(&mut self) {
+        if let Some(ref kq) = self.kq_watcher {
+            for cached in self.mutable_ro_cache.values() {
+                kq.unwatch_fd(cached.file.as_raw_fd());
+            }
+        }
+        self.mutable_ro_cache.clear();
+    }
+
+    fn cache_mutable_ro_file(&mut self, nodeid: u64, file: Arc<File>, st: &FuseStat) {
+        let cap = self.mutable_ro_cache_cap();
+        if cap == 0 || !mode_is_reg(st.mode) {
+            return;
+        }
+        if self.mutable_ro_cache.contains_key(&nodeid) {
+            self.remove_mutable_ro_file(nodeid);
+        } else if self.mutable_ro_cache.len() >= cap {
+            self.clear_mutable_ro_cache();
+        }
+        if let Some(ref kq) = self.kq_watcher {
+            kq.watch_fd(file.as_raw_fd(), nodeid, (st.dev, st.ino));
+        }
+        self.mutable_ro_cache.insert(
+            nodeid,
+            CachedRoFile {
+                file,
+                identity: (st.dev, st.ino),
+                mode: st.mode & 0o7777,
+            },
+        );
+    }
+
+    fn invalidate_node_content(&mut self, nodeid: u64) {
+        if let Some(node) = self.nodes.get_mut(&nodeid) {
+            node.content_sig = None;
+        }
     }
 
     fn direct_open_flags(&self, st: &FuseStat) -> u32 {
@@ -2587,30 +2906,68 @@ impl FsCore {
         e.stat
     }
 
-    /// FUSE_READDIR(PLUS) on open directory handle `fh` from entry `offset`.
+    /// FUSE_READDIR(PLUS) on open directory handle `fh` (or `fh == 0` when
+    /// `FUSE_NO_OPENDIR_SUPPORT` is active) from entry `offset`.
     fn read_directory(
         &mut self,
         unique: u64,
         plus: bool,
+        nodeid: u64,
         fh: u64,
         offset: usize,
         max_size: usize,
     ) -> bool {
+        // A restored guest can still hold handleless directories from before
+        // the snapshot. Their use does not depend on today's watcher state.
+        if fh == 0 && self.notify_negotiated {
+            let dfd = match self.dir_fd(nodeid) {
+                Ok(fd) => fd,
+                Err(e) => return self.write_err(unique, e),
+            };
+            let mut listing = if offset == 0 {
+                self.no_opendir_listings.remove(&nodeid);
+                DirListing::default()
+            } else {
+                self.no_opendir_listings.remove(&nodeid).unwrap_or_default()
+            };
+            // `dir_fd` just verified share containment for this directory.
+            let mut checked_ms = self.clock_ms();
+            let done = self.list_into(
+                unique,
+                plus,
+                nodeid,
+                dfd.as_raw_fd(),
+                &mut checked_ms,
+                &mut listing,
+                offset,
+                max_size,
+            );
+            if !listing.eof {
+                if self.no_opendir_listings.len() >= 64 {
+                    self.no_opendir_listings.clear();
+                }
+                self.no_opendir_listings.insert(nodeid, listing);
+            }
+            return done;
+        }
         let Some(od) = self.open_dirs.get_mut(&fh) else {
             return self.write_err(unique, LINUX_EBADF);
         };
-        let (dir_nodeid, dir_fd) = (od.dir_nodeid, od.dir_fd.as_raw_fd());
+        let (dir_nodeid, dir_fd, mut checked_ms) =
+            (od.dir_nodeid, od.dir_fd.as_raw_fd(), od.checked_ms);
         let mut listing = std::mem::take(&mut od.listing);
         let done = self.list_into(
             unique,
             plus,
             dir_nodeid,
             dir_fd,
+            &mut checked_ms,
             &mut listing,
             offset,
             max_size,
         );
         if let Some(od) = self.open_dirs.get_mut(&fh) {
+            od.checked_ms = checked_ms;
             od.listing = listing;
         }
         done
@@ -2623,14 +2980,21 @@ impl FsCore {
         plus: bool,
         dir_nodeid: u64,
         dir_fd: RawFd,
+        checked_ms: &mut u64,
         l: &mut DirListing,
         offset: usize,
         max_size: usize,
     ) -> bool {
         if offset == 0 || !l.started || offset < l.base {
             // A directory the host moved out of the share is not listed.
-            if !self.read_only && !self.fd_within_share(dir_fd) {
-                return self.write_err(unique, LINUX_ESTALE);
+            if !self.read_only {
+                let now = self.clock_ms();
+                if now.saturating_sub(*checked_ms) >= DIR_FD_RECHECK_MS {
+                    if !self.fd_within_share(dir_fd) {
+                        return self.write_err(unique, LINUX_ESTALE);
+                    }
+                    *checked_ms = now;
+                }
             }
             l.rewind(dir_fd);
         }
@@ -2700,7 +3064,8 @@ impl FsCore {
                         }
                         self.add_lookup(id);
                         let attr = self.guest_attr(id, &st);
-                        Self::encode_entry_out_stat(id, &st, ro, attr, &mut self.resp_buf);
+                        let notify = self.notify_enabled;
+                        Self::encode_entry_out_stat(id, &st, ro, notify, attr, &mut self.resp_buf);
                     }
                     // Node ID 0: the guest lists the entry without binding it.
                     None => self.resp_buf.extend_from_slice(&[0u8; 128]),
@@ -2801,9 +3166,22 @@ impl FsCore {
                     // completely (Linux sets fc->no_open=1 and FOPEN_KEEP_CACHE automatically) and
                     // keep guest page cache warm across container execs!
                     flags |= FUSE_NO_OPEN_SUPPORT | FUSE_EXPLICIT_INVAL_DATA;
-                } else if (in_flags & FUSE_AUTO_INVAL_DATA) != 0 {
-                    flags |= FUSE_AUTO_INVAL_DATA;
+                    self.no_opendir = false;
+                } else {
+                    if (in_flags & FUSE_AUTO_INVAL_DATA) != 0 {
+                        flags |= FUSE_AUTO_INVAL_DATA;
+                    }
+                    // When host-push notification is active, skip FUSE_OPENDIR/RELEASEDIR
+                    // round-trips completely: Linux sets fc->no_opendir=1 with
+                    // FOPEN_KEEP_CACHE | FOPEN_CACHE_DIR, and FSEvents invalidates any
+                    // modified directory via FUSE_NOTIFY_INVAL_INODE(dir_nodeid).
+                    self.no_opendir =
+                        self.notify_enabled && (in_flags & FUSE_NO_OPENDIR_SUPPORT) != 0;
+                    if self.no_opendir {
+                        flags |= FUSE_NO_OPENDIR_SUPPORT;
+                    }
                 }
+                self.no_opendir_listings.clear();
                 self.resp_buf.extend_from_slice(&flags.to_le_bytes());
                 self.resp_buf.extend_from_slice(&64u16.to_le_bytes()); // max_background
                 self.resp_buf.extend_from_slice(&48u16.to_le_bytes()); // congestion_threshold
@@ -2879,6 +3257,9 @@ impl FsCore {
                             self.ro_lookup_cache
                                 .insert((nodeid, cname.to_bytes().to_vec()), Err(le));
                         }
+                        if self.notify_enabled && le == LINUX_ENOENT {
+                            return self.write_negative_entry(unique);
+                        }
                         self.write_err(unique, le)
                     }
                 }
@@ -2911,7 +3292,20 @@ impl FsCore {
                 }
                 let valid = u32::from_le_bytes(body[0..4].try_into().unwrap());
                 match self.set_attributes(nodeid, body, valid) {
-                    Ok(st) => self.write_attr(unique, nodeid, &st),
+                    Ok(st) => {
+                        if valid & (FATTR_SIZE | FATTR_MTIME | FATTR_MTIME_NOW) != 0 {
+                            self.invalidate_node_content(nodeid);
+                        }
+                        if self.notify_enabled
+                            && let Some(node) = self.nodes.get_mut(&nodeid)
+                        {
+                            node.last_guest_sig = Some(content_sig(&st));
+                        }
+                        if valid & (FATTR_MODE | FATTR_SIZE) != 0 {
+                            self.remove_mutable_ro_file(nodeid);
+                        }
+                        self.write_attr(unique, nodeid, &st)
+                    }
                     Err(errno) => self.write_err(unique, errno),
                 }
             }
@@ -2957,25 +3351,100 @@ impl FsCore {
                 if self.handles_full() {
                     return self.write_err(unique, LINUX_ENFILE);
                 }
-                let (file, st) = match self.open_node(nodeid, base_darwin) {
-                    Ok(opened) => opened,
-                    Err(e) => {
-                        let errno = self.open_failure(nodeid, e);
-                        return self.write_err(unique, errno);
+                let is_plain_ro = flags & (3 | 0o1000 | 0o2000) == 0;
+                let (file, st) = if is_plain_ro && self.mutable_ro_cache.contains_key(&nodeid) {
+                    match self.stat_node(nodeid) {
+                        Ok(st) => {
+                            let hit = self.mutable_ro_cache.get(&nodeid).and_then(|cached| {
+                                (mode_is_reg(st.mode)
+                                    && cached.identity == (st.dev, st.ino)
+                                    && cached.mode == (st.mode & 0o7777))
+                                    .then(|| cached.file.clone())
+                            });
+                            if let Some(cached_file) = hit {
+                                self.metrics.ro_cache_hits.fetch_add(1, Ordering::Relaxed);
+                                (cached_file, st)
+                            } else {
+                                self.metrics.ro_cache_misses.fetch_add(1, Ordering::Relaxed);
+                                self.remove_mutable_ro_file(nodeid);
+                                match self.open_node(nodeid, base_darwin) {
+                                    Ok((f, st)) => {
+                                        let arc_f = Arc::new(f);
+                                        self.cache_mutable_ro_file(nodeid, arc_f.clone(), &st);
+                                        (arc_f, st)
+                                    }
+                                    Err(e) => {
+                                        let errno = self.open_failure(nodeid, e);
+                                        return self.write_err(unique, errno);
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            self.remove_mutable_ro_file(nodeid);
+                            let errno = self.open_failure(nodeid, e);
+                            return self.write_err(unique, errno);
+                        }
+                    }
+                } else {
+                    let mut opened = self.open_node(nodeid, base_darwin);
+                    if matches!(opened, Err(LINUX_EMFILE | LINUX_ENFILE))
+                        && !self.mutable_ro_cache.is_empty()
+                    {
+                        self.clear_mutable_ro_cache();
+                        opened = self.open_node(nodeid, base_darwin);
+                    }
+                    match opened {
+                        Ok((f, st)) => {
+                            let arc_f = Arc::new(f);
+                            if is_plain_ro {
+                                self.metrics.ro_cache_misses.fetch_add(1, Ordering::Relaxed);
+                                self.cache_mutable_ro_file(nodeid, arc_f.clone(), &st);
+                            }
+                            (arc_f, st)
+                        }
+                        Err(e) => {
+                            let errno = self.open_failure(nodeid, e);
+                            return self.write_err(unique, errno);
+                        }
                     }
                 };
-                if flags & 0o1000 != 0 && unsafe { libc::ftruncate(file.as_raw_fd(), 0) } != 0 {
-                    return self.write_err(unique, last_os_errno_linux());
+                let truncating = flags & 0o1000 != 0;
+                if truncating {
+                    if unsafe { libc::ftruncate(file.as_raw_fd(), 0) } != 0 {
+                        return self.write_err(unique, last_os_errno_linux());
+                    }
+                    self.invalidate_node_content(nodeid);
+                    self.remove_mutable_ro_file(nodeid);
                 }
-                let fh = self.add_open_file(nodeid, file, &st);
+                let fh = self.add_open_file_arc(nodeid, file, &st);
                 let mut out = [0u8; 16];
                 out[0..8].copy_from_slice(&fh.to_le_bytes());
                 // An ordinary read must go to the host descriptor in direct
                 // mode even when host writes leave size and mtime unchanged.
                 let mut open_flags = self.direct_open_flags(&st);
                 // Skipping FLUSH remains safe for handles that cannot write.
-                if flags & (3 | 0o1000 | 0o2000) == 0 {
+                if is_plain_ro {
                     open_flags |= FOPEN_NOFLUSH;
+                }
+                // Preserve Linux page cache across re-opens whenever host
+                // `(size, mtime, ctime)` is byte-for-byte unchanged. Any host
+                // write, truncate, or exact-mtime `utimensat` changes `ctime`,
+                // dropping `FOPEN_KEEP_CACHE` so Linux invalidates immediately.
+                if !self.direct_io_mmap
+                    && !truncating
+                    && mode_is_reg(st.mode)
+                    && (!self.notify_negotiated || self.notify_enabled)
+                {
+                    let sig = content_sig(&st);
+                    if let Some(node) = self.nodes.get_mut(&nodeid) {
+                        if node.content_sig == Some(sig) {
+                            open_flags |= FOPEN_KEEP_CACHE;
+                            self.metrics.keep_cache_hits.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            node.content_sig = Some(sig);
+                        }
+                    }
                 }
                 out[8..12].copy_from_slice(&open_flags.to_le_bytes());
                 self.write_ok_slice(unique, &out)
@@ -3031,8 +3500,9 @@ impl FsCore {
                 self.add_lookup(id);
                 let attr = self.guest_attr(id, &st);
                 let ro = self.read_only;
+                let notify = self.notify_enabled;
                 self.begin_ok(unique);
-                Self::encode_entry_out_stat(id, &st, ro, attr, &mut self.resp_buf);
+                Self::encode_entry_out_stat(id, &st, ro, notify, attr, &mut self.resp_buf);
                 self.resp_buf.extend_from_slice(&fh.to_le_bytes());
                 self.resp_buf
                     .extend_from_slice(&self.direct_open_flags(&st).to_le_bytes());
@@ -3080,8 +3550,17 @@ impl FsCore {
                 let Some(file) = self.open_files.get(&fh) else {
                     return self.write_err(unique, LINUX_EBADF);
                 };
+                let write_nodeid = file.nodeid;
+                let write_fd = file.file.as_raw_fd();
                 match file.file.write_at(data, offset) {
                     Ok(n) => {
+                        self.invalidate_node_content(write_nodeid);
+                        if self.notify_enabled
+                            && let Ok(st) = fstat_fd(write_fd)
+                            && let Some(node) = self.nodes.get_mut(&write_nodeid)
+                        {
+                            node.last_guest_sig = Some(content_sig(&st));
+                        }
                         self.metrics
                             .bytes_written
                             .fetch_add(n as u64, Ordering::Relaxed);
@@ -3116,6 +3595,9 @@ impl FsCore {
                 if body.len() >= 8 {
                     let fh = u64::from_le_bytes(body[0..8].try_into().unwrap());
                     if let Some(open) = self.open_files.remove(&fh) {
+                        if let Some(ref kq) = self.kq_watcher {
+                            kq.unwatch_fd(open.file.as_raw_fd());
+                        }
                         self.metrics.open_handles.fetch_sub(1, Ordering::Relaxed);
                         // The last handle on a file the guest unlinked.
                         if self.owners.contains_key(&open.identity) {
@@ -3128,6 +3610,9 @@ impl FsCore {
                 self.write_ok_slice(unique, &[])
             }
             FUSE_OPENDIR => {
+                if self.no_opendir && self.notify_enabled {
+                    return self.write_err(unique, LINUX_ENOSYS);
+                }
                 if self.handles_full() || self.open_dirs.len() >= self.limits.dirs {
                     return self.write_err(unique, LINUX_ENFILE);
                 }
@@ -3149,21 +3634,23 @@ impl FsCore {
                 }
                 let fh = self.next_fh;
                 self.next_fh += 1;
+                let checked_ms = self.clock_ms();
                 self.open_dirs.insert(
                     fh,
                     OpenDir {
                         dir_nodeid: nodeid,
                         dir_fd,
+                        checked_ms,
                         listing: DirListing::default(),
                     },
                 );
                 self.metrics.open_handles.fetch_add(1, Ordering::Relaxed);
                 let mut out = [0u8; 16];
                 out[0..8].copy_from_slice(&fh.to_le_bytes());
-                let open_flags = if self.read_only {
+                let open_flags = if self.read_only || self.notify_enabled {
                     FOPEN_KEEP_CACHE | FOPEN_CACHE_DIR | FOPEN_NOFLUSH
                 } else {
-                    0
+                    FOPEN_NOFLUSH
                 };
                 out[8..12].copy_from_slice(&open_flags.to_le_bytes());
                 self.write_ok_slice(unique, &out)
@@ -3175,7 +3662,7 @@ impl FsCore {
                 let fh = u64::from_le_bytes(body[0..8].try_into().unwrap());
                 let offset = u64::from_le_bytes(body[8..16].try_into().unwrap()) as usize;
                 let max_size = u32::from_le_bytes(body[16..20].try_into().unwrap()) as usize;
-                self.read_directory(unique, opcode == FUSE_READDIRPLUS, fh, offset, max_size)
+                self.read_directory(unique, opcode == FUSE_READDIRPLUS, nodeid, fh, offset, max_size)
             }
             FUSE_RELEASEDIR => {
                 if body.len() >= 8 {
@@ -3424,6 +3911,10 @@ impl FsCore {
         data_only: bool,
     ) -> Result<(), i32> {
         if opcode == FUSE_FSYNCDIR {
+            if fh == 0 && self.notify_negotiated {
+                let dfd = self.dir_fd(nodeid)?;
+                return sync_host_fd(dfd.as_raw_fd(), false);
+            }
             let dir = self
                 .open_dirs
                 .get(&fh)
@@ -3545,6 +4036,7 @@ impl FsCore {
     fn restore_blob(&mut self, blob: &[u8]) {
         // Negotiation belongs to the captured FUSE session. Older snapshots omit the trailer.
         self.direct_io_mmap = false;
+        self.no_opendir_listings.clear();
         if blob.len() < 20 {
             return;
         }
@@ -3872,12 +4364,14 @@ impl FsCore {
                     self.write_err(unique, LINUX_EBADF);
                     return scatter_writable(bufs, mem, &self.resp_buf);
                 };
+                let write_nodeid = open.nodeid;
+                let write_fd = open.file.as_raw_fd();
                 let rc = if niov == 0 {
                     0
                 } else {
                     unsafe {
                         libc::pwritev(
-                            open.file.as_raw_fd(),
+                            write_fd,
                             iovs.as_ptr(),
                             niov as libc::c_int,
                             offset as libc::off_t,
@@ -3886,6 +4380,13 @@ impl FsCore {
                 };
                 if rc >= 0 {
                     let n = rc as usize;
+                    self.invalidate_node_content(write_nodeid);
+                    if self.notify_enabled
+                        && let Ok(st) = fstat_fd(write_fd)
+                        && let Some(node) = self.nodes.get_mut(&write_nodeid)
+                    {
+                        node.last_guest_sig = Some(content_sig(&st));
+                    }
                     self.metrics
                         .bytes_written
                         .fetch_add(n as u64, Ordering::Relaxed);
@@ -3930,6 +4431,294 @@ impl FsCore {
     }
 }
 
+impl FsShared {
+    fn push_notifications(&self, msgs: Vec<Vec<u8>>) {
+        if msgs.is_empty() || self.shutdown.load(Ordering::Acquire) {
+            return;
+        }
+        let mut notify = self.notify.lock().unwrap();
+        let mut pushed = 0u64;
+        let mut epoch_resets = 0u64;
+        for msg in msgs {
+            if msg.len() >= 8
+                && i32::from_le_bytes(msg[4..8].try_into().unwrap()) == FUSE_NOTIFY_INC_EPOCH
+            {
+                epoch_resets += 1;
+            } else if notify.pending.len() >= MAX_PENDING_NOTIFIES {
+                epoch_resets += 1;
+            }
+            notify.push(msg);
+            pushed += 1;
+        }
+        if let Some(ref metrics) = self.workspace_metrics {
+            metrics
+                .notify_events_pushed
+                .fetch_add(pushed, Ordering::Relaxed);
+            if epoch_resets > 0 {
+                metrics
+                    .notify_epoch_resets
+                    .fetch_add(epoch_resets, Ordering::Relaxed);
+            }
+        }
+    }
+
+    fn start_watchers(self: &Arc<Self>) -> std::io::Result<()> {
+        let mut guard = self.watchers.lock().unwrap();
+        if guard.is_some() || self.shutdown.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let root_path = {
+            let core = self.core.lock().unwrap();
+            if core.read_only || !core.notify_negotiated {
+                return Ok(());
+            }
+            core.root_path.clone()
+        };
+
+        let shared_kq = self.clone();
+        let kq = Arc::new(KqueueVnodeWatcher::start(move |ev| shared_kq.handle_vnode_event(ev))?);
+        let shared_fse = self.clone();
+        let fsevents = FseEventsWatcher::start(&root_path, move |batch| {
+            shared_fse.handle_fsevents_batch(batch);
+        })?;
+
+        let mut core = self.core.lock().unwrap();
+        // Hold the file owners while registering their descriptors.
+        for open in core.open_files.values() {
+            kq.watch_fd(open.file.as_raw_fd(), open.nodeid, open.identity);
+        }
+        for (&nodeid, cached) in &core.mutable_ro_cache {
+            kq.watch_fd(cached.file.as_raw_fd(), nodeid, cached.identity);
+        }
+        core.kq_watcher = Some(kq.clone());
+        *guard = Some(FsWatchers {
+            _kq: kq,
+            _fsevents: fsevents,
+        });
+        core.notify_enabled = true;
+        Ok(())
+    }
+
+    fn stop_watchers(&self) -> bool {
+        let (prev, was_enabled) = {
+            let mut watchers = self.watchers.lock().unwrap();
+            let mut core = self.core.lock().unwrap();
+            let was_enabled = std::mem::take(&mut core.notify_enabled);
+            core.kq_watcher = None;
+            if was_enabled {
+                for node in core.nodes.values_mut() {
+                    node.content_sig = None;
+                    node.last_guest_sig = None;
+                }
+                core.clear_mutable_ro_cache();
+                core.no_opendir_listings.clear();
+            }
+            (watchers.take(), was_enabled)
+        };
+        // Both watcher destructors wait for callbacks that may acquire core.
+        drop(prev);
+        was_enabled
+    }
+
+    fn handle_vnode_event(&self, ev: VnodeEvent) {
+        if self.shutdown.load(Ordering::Acquire) {
+            return;
+        }
+        let msgs = {
+            let mut core = self.core.lock().unwrap();
+            if !core.notify_enabled {
+                return;
+            }
+            let mut out = Vec::new();
+            #[cfg(target_vendor = "apple")]
+            let deleted_or_renamed =
+                ev.fflags & (libc::NOTE_DELETE | libc::NOTE_RENAME) != 0;
+            #[cfg(not(target_vendor = "apple"))]
+            let deleted_or_renamed = false;
+
+            if deleted_or_renamed
+                && let Some(node) = core.nodes.get(&ev.nodeid)
+                && node.identity == Some(ev.identity)
+            {
+                let parent = node.parent;
+                let name = node.name.to_bytes().to_vec();
+                if matches!(core.stat_node(ev.nodeid), Err(LINUX_ENOENT | LINUX_ESTALE)) {
+                    core.retire(ev.nodeid);
+                    if let Some(m) = encode_notify_inval_entry(parent, &name, 0) {
+                        out.push(m);
+                    }
+                    out.push(encode_notify_inval_inode(parent, 0, 0));
+                    // Update nlink/attrs on the held fd without discarding its original inode bytes.
+                    out.push(encode_notify_inval_inode(ev.nodeid, -1, 0));
+                    return_msgs_drop_core(out)
+                } else {
+                    out
+                }
+            } else {
+                out
+            }
+        };
+        if !msgs.is_empty() {
+            self.push_notifications(msgs);
+            return;
+        }
+
+        let msgs = {
+            let mut core = self.core.lock().unwrap();
+            if !core.notify_enabled {
+                return;
+            }
+            let mut out = Vec::new();
+            // Suppress echo of guest's own write when fstat matches last_guest_sig.
+            let current_sig = core
+                .open_files
+                .values()
+                .find(|o| o.nodeid == ev.nodeid && o.identity == ev.identity)
+                .and_then(|o| fstat_fd(o.file.as_raw_fd()).ok())
+                .map(|st| content_sig(&st));
+            if let Some(node) = core.nodes.get_mut(&ev.nodeid) {
+                if current_sig.is_some() && node.last_guest_sig == current_sig {
+                    return;
+                }
+                node.content_sig = None;
+                node.last_guest_sig = None;
+            }
+            core.remove_mutable_ro_file(ev.nodeid);
+            out.push(encode_notify_inval_inode(ev.nodeid, 0, 0));
+            out
+        };
+        self.push_notifications(msgs);
+    }
+
+    fn handle_fsevents_batch(&self, batch: &[(&[u8], u32)]) {
+        if self.shutdown.load(Ordering::Acquire) {
+            return;
+        }
+        let msgs = {
+            let mut core = self.core.lock().unwrap();
+            if !core.notify_enabled {
+                return;
+            }
+            let mut out = Vec::new();
+            let mut need_epoch = false;
+            for &(path, flags) in batch {
+                #[cfg(target_vendor = "apple")]
+                if flags & crate::fs_watch::FSEVENT_FLAG_RESCAN != 0 {
+                    need_epoch = true;
+                    break;
+                }
+                if path == core.root_path.as_slice() {
+                    out.push(encode_notify_inval_inode(FUSE_ROOT_ID, 0, 0));
+                    continue;
+                }
+                let root_len = core.root_path.len();
+                if !path.starts_with(&core.root_path) || path.get(root_len) != Some(&b'/') {
+                    continue;
+                }
+                let rel = &path[root_len + 1..];
+                let parts: Vec<&[u8]> = rel.split(|&b| b == b'/').filter(|p| !p.is_empty()).collect();
+                if parts.is_empty() {
+                    out.push(encode_notify_inval_inode(FUSE_ROOT_ID, 0, 0));
+                    continue;
+                }
+                // Walk known parents from FUSE_ROOT_ID (0 syscalls for unseen subtrees!).
+                let mut parent_id = FUSE_ROOT_ID;
+                let mut parent_tracked = true;
+                for comp in &parts[..parts.len() - 1] {
+                    let Ok(cname) = CString::new(*comp) else {
+                        parent_tracked = false;
+                        break;
+                    };
+                    match core.child_id(parent_id, &cname) {
+                        Some(next) => parent_id = next,
+                        None => {
+                            parent_tracked = false;
+                            break;
+                        }
+                    }
+                }
+                if !parent_tracked {
+                    continue;
+                }
+                let leaf = parts[parts.len() - 1];
+                let Ok(leaf_cstr) = CString::new(leaf) else {
+                    continue;
+                };
+                #[cfg(target_vendor = "apple")]
+                let removed_or_renamed =
+                    flags & crate::fs_watch::FSEVENT_FLAG_ITEM_REMOVED_OR_RENAMED != 0;
+                #[cfg(not(target_vendor = "apple"))]
+                let removed_or_renamed = false;
+
+                if let Some(cid) = core.child_id(parent_id, &leaf_cstr) {
+                    match core.stat_node(cid) {
+                        Ok(st) => {
+                            let sig = content_sig(&st);
+                            let already_current = core.nodes.get(&cid).is_some_and(|n| {
+                                n.last_guest_sig == Some(sig) || n.content_sig == Some(sig)
+                            });
+                            if already_current && !removed_or_renamed {
+                                continue;
+                            }
+                            if let Some(node) = core.nodes.get_mut(&cid) {
+                                node.content_sig = None;
+                                node.last_guest_sig = None;
+                            }
+                            core.remove_mutable_ro_file(cid);
+                            out.push(encode_notify_inval_inode(cid, 0, 0));
+                            if removed_or_renamed {
+                                core.no_opendir_listings.remove(&parent_id);
+                                if let Some(m) = encode_notify_inval_entry(parent_id, leaf, 0) {
+                                    out.push(m);
+                                }
+                                out.push(encode_notify_inval_inode(parent_id, 0, 0));
+                            }
+                        }
+                        Err(LINUX_ENOENT | LINUX_ESTALE) => {
+                            core.retire(cid);
+                            core.no_opendir_listings.remove(&parent_id);
+                            if let Some(m) = encode_notify_inval_entry(parent_id, leaf, 0) {
+                                out.push(m);
+                            }
+                            out.push(encode_notify_inval_inode(parent_id, 0, 0));
+                        }
+                        Err(_) => {
+                            core.invalidate_node_content(cid);
+                            core.remove_mutable_ro_file(cid);
+                            out.push(encode_notify_inval_inode(cid, 0, 0));
+                        }
+                    }
+                } else {
+                    // Host created or removed an entry in a tracked parent directory:
+                    // clear any negative dentry + cached directory listing.
+                    core.no_opendir_listings.remove(&parent_id);
+                    if let Some(m) = encode_notify_inval_entry(parent_id, leaf, 0) {
+                        out.push(m);
+                    }
+                    out.push(encode_notify_inval_inode(parent_id, 0, 0));
+                }
+            }
+            if need_epoch {
+                for node in core.nodes.values_mut() {
+                    node.content_sig = None;
+                    node.last_guest_sig = None;
+                }
+                core.clear_mutable_ro_cache();
+                core.no_opendir_listings.clear();
+                out.clear();
+                out.push(encode_notify_inc_epoch());
+            }
+            out
+        };
+        self.push_notifications(msgs);
+    }
+}
+
+#[inline]
+fn return_msgs_drop_core(v: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    v
+}
+
 /// Dedicated P-core Virtio-FS async I/O worker with Virtio 1.2 `VRING_USED_F_NO_NOTIFY`
 /// kick suppression and adaptive spinning (eliminates vCPU MMIO exits & pipelines I/O).
 fn run_fs_io_loop(shared: Arc<FsShared>) {
@@ -3969,7 +4758,30 @@ fn run_fs_io_loop(shared: Arc<FsShared>) {
                 }
                 // The drain loop rearms guest notifications, fences, and rechecks
                 // the ring. QueueNotify records its kick under this same mutex.
-                st = shared.state.1.wait(st).unwrap();
+                let has_ro_cache = !shared.paused.load(Ordering::Relaxed)
+                    && shared
+                        .core
+                        .try_lock()
+                        .is_ok_and(|c| !c.mutable_ro_cache.is_empty());
+                if has_ro_cache {
+                    let (next_st, timeout) = shared
+                        .state
+                        .1
+                        .wait_timeout(st, MUTABLE_RO_IDLE_FLUSH)
+                        .unwrap();
+                    st = next_st;
+                    if timeout.timed_out()
+                        && !st.kicked
+                        && !shared.paused.load(Ordering::Relaxed)
+                        && !shared.shutdown.load(Ordering::Relaxed)
+                    {
+                        drop(st);
+                        shared.core.lock().unwrap().clear_mutable_ro_cache();
+                        st = shared.state.0.lock().unwrap();
+                    }
+                } else {
+                    st = shared.state.1.wait(st).unwrap();
+                }
             }
             if shared.shutdown.load(Ordering::Relaxed) {
                 return;
@@ -4089,34 +4901,82 @@ impl VirtioBackend for VirtioFs {
         26
     }
     fn features(&self) -> u64 {
+        let mut f = 0u64;
         if self.offer_event_idx {
-            crate::VIRTIO_F_EVENT_IDX
-        } else {
-            0
+            f |= crate::VIRTIO_F_EVENT_IDX;
         }
+        if self.offer_notify {
+            f |= VIRTIO_FS_F_NOTIFICATION;
+        }
+        f
+    }
+    fn set_features(&mut self, features: u64) {
+        let notify = self.offer_notify && (features & VIRTIO_FS_F_NOTIFICATION) != 0;
+        let mut st = self.park_worker();
+        let notify_idx = notify.then_some(NOTIFY_VQ_IDX);
+        if st.notify_vq_idx == notify_idx {
+            self.resume_worker(&mut st);
+            return;
+        }
+        st.notify_vq_idx = notify_idx;
+        if notify {
+            st.queues[NOTIFY_VQ_IDX] = None;
+        }
+        drop(st);
+        self.shared.stop_watchers();
+        {
+            let mut core = self.shared.core.lock().unwrap();
+            core.notify_negotiated = notify;
+            core.no_opendir = false;
+        }
+        {
+            let mut queue = self.shared.notify.lock().unwrap();
+            queue.vq = None;
+            queue.pending.clear();
+            queue.epoch_needed = false;
+        }
+        let mut st = self.shared.state.0.lock().unwrap();
+        self.resume_worker(&mut st);
     }
     fn num_queues(&self) -> usize {
-        1 + usize::from(self.request_queues) // queue 0 is hiprio
+        1 + usize::from(self.offer_notify) + usize::from(self.request_queues)
     }
     fn queue_max_size(&self, _q: usize) -> u16 {
         256
     }
     fn read_config(&self, offset: u64, data: &mut [u8]) {
-        let mut cfg = [0u8; 40];
+        let mut cfg = [0u8; 44];
         cfg[0..36].copy_from_slice(&self.tag);
         cfg[36..40].copy_from_slice(&u32::from(self.request_queues).to_le_bytes());
+        if self.offer_notify {
+            cfg[40..44].copy_from_slice(&NOTIFY_BUF_SIZE.to_le_bytes());
+        }
         let start = offset as usize;
         for (i, b) in data.iter_mut().enumerate() {
             *b = cfg.get(start + i).copied().unwrap_or(0);
         }
     }
     fn attach(&mut self, mem: Arc<GuestMemory>, irq: IrqLine) {
-        let mut st = self.shared.state.0.lock().unwrap();
-        st.mem = Some(mem);
-        st.irq = Some(irq);
+        {
+            let mut st = self.shared.state.0.lock().unwrap();
+            st.mem = Some(mem.clone());
+            st.irq = Some(irq.clone());
+        }
+        let mut notify = self.shared.notify.lock().unwrap();
+        notify.mem = Some(mem);
+        notify.irq = Some(irq);
     }
     fn queue_ready(&mut self, q_idx: usize, q: &VirtQueue) {
         if q_idx < self.num_queues() {
+            let is_notify = {
+                let st = self.shared.state.0.lock().unwrap();
+                st.notify_vq_idx == Some(q_idx)
+            };
+            if is_notify {
+                self.shared.notify.lock().unwrap().vq = Some(q.clone());
+                self.resume_notifications();
+                return;
+            }
             let mut st = self.park_worker();
             st.queues[q_idx] = Some(q.clone());
             self.resume_worker(&mut st);
@@ -4125,16 +4985,42 @@ impl VirtioBackend for VirtioFs {
         }
     }
     fn queue_disabled(&mut self, q_idx: usize) {
+        let is_notify = {
+            let st = self.shared.state.0.lock().unwrap();
+            st.notify_vq_idx == Some(q_idx)
+        };
+        if is_notify {
+            self.shared.notify.lock().unwrap().vq = None;
+            if self.shared.stop_watchers() {
+                self.shared.notify.lock().unwrap().epoch_needed = true;
+            }
+            return;
+        }
         let mut st = self.park_worker();
         st.queues[q_idx] = None;
         self.resume_worker(&mut st);
     }
     fn reset(&mut self) {
+        self.shared.stop_watchers();
+        {
+            let mut notify = self.shared.notify.lock().unwrap();
+            notify.vq = None;
+            notify.pending.clear();
+            notify.epoch_needed = false;
+        }
         let mut st = self.park_worker();
         st.queues.fill(None);
+        st.notify_vq_idx = None;
         self.resume_worker(&mut st);
+        drop(st);
+        let mut core = self.shared.core.lock().unwrap();
+        core.notify_negotiated = false;
+        core.no_opendir = false;
     }
     fn snapshot_pause(&mut self, queues: &mut [VirtQueue], mem: &GuestMemory) -> Vec<u8> {
+        if self.shared.stop_watchers() {
+            self.shared.notify.lock().unwrap().epoch_needed = true;
+        }
         let st = self.park_worker();
         for (sq, q) in st.queues.iter().zip(queues.iter_mut()) {
             if let Some(sq) = sq {
@@ -4145,22 +5031,60 @@ impl VirtioBackend for VirtioFs {
                 }
             }
         }
+        if let Some(nidx) = st.notify_vq_idx
+            && let Some(nq) = self.shared.notify.lock().unwrap().vq.as_ref()
+            && let Some(q) = queues.get_mut(nidx)
+        {
+            q.next_avail = nq.next_avail;
+            q.next_used = nq.next_used;
+            if q.ready {
+                q.set_no_notify(mem, false);
+            }
+        }
         drop(st);
-        self.shared.core.lock().unwrap().snapshot_blob()
+        let mut core = self.shared.core.lock().unwrap();
+        core.clear_mutable_ro_cache();
+        core.no_opendir_listings.clear();
+        core.snapshot_blob()
     }
     fn snapshot_resume(&mut self) {
+        self.resume_notifications();
         let mut st = self.shared.state.0.lock().unwrap();
         self.resume_worker(&mut st);
     }
     fn snapshot_restore(&mut self, blob: &[u8], queues: &[VirtQueue]) {
+        self.shared.stop_watchers();
         let mut st = self.park_worker();
-        self.shared.core.lock().unwrap().restore_blob(blob);
-        for (slot, q) in st.queues.iter_mut().zip(queues) {
-            *slot = q.ready.then(|| q.clone());
+        {
+            let mut core = self.shared.core.lock().unwrap();
+            core.restore_blob(blob);
+            core.no_opendir = false;
         }
+        let notify_idx = st.notify_vq_idx;
+        for (idx, (slot, q)) in st.queues.iter_mut().zip(queues).enumerate() {
+            if notify_idx == Some(idx) {
+                *slot = None;
+            } else {
+                *slot = q.ready.then(|| q.clone());
+            }
+        }
+        drop(st);
+        {
+            let mut notify = self.shared.notify.lock().unwrap();
+            notify.pending.clear();
+            notify.vq = notify_idx.and_then(|idx| queues.get(idx)).filter(|q| q.ready).cloned();
+            // Invalidate pre-snapshot dentries before re-enabling long cache lifetimes.
+            notify.epoch_needed = notify_idx.is_some();
+        }
+        self.resume_notifications();
+        let mut st = self.shared.state.0.lock().unwrap();
         self.resume_worker(&mut st);
         drop(st);
-        if queues.iter().any(|q| q.ready) {
+        if queues
+            .iter()
+            .enumerate()
+            .any(|(idx, q)| notify_idx != Some(idx) && q.ready)
+        {
             self.ensure_worker_started();
         }
     }
@@ -4171,6 +5095,11 @@ impl VirtioBackend for VirtioFs {
         _mem: &GuestMemory,
     ) -> bool {
         let mut st = self.shared.state.0.lock().unwrap();
+        if st.notify_vq_idx == Some(q_idx) {
+            drop(st);
+            self.shared.notify.lock().unwrap().flush();
+            return false;
+        }
         if st.queues.get(q_idx).is_some_and(Option::is_some) {
             if let Some(metrics) = &self.shared.workspace_metrics {
                 metrics.workspace_kicks.fetch_add(1, Ordering::Relaxed);
@@ -4197,6 +5126,7 @@ impl Drop for FsCore {
 impl Drop for VirtioFs {
     fn drop(&mut self) {
         self.shared.shutdown.store(true, Ordering::SeqCst);
+        self.shared.stop_watchers();
         {
             let _st = self
                 .shared
@@ -4634,6 +5564,7 @@ mod tests {
                 OpenDir {
                     dir_nodeid: FUSE_ROOT_ID,
                     dir_fd: OwnedFd::from(right),
+                    checked_ms: 0,
                     listing: DirListing::default(),
                 },
             );
@@ -4662,7 +5593,14 @@ mod tests {
         )
         .unwrap();
         let id = lookup(&mut fsys, b"source\0");
-        for (flags, expected) in [(0, FOPEN_NOFLUSH), (0, FOPEN_NOFLUSH), (2, 0)] {
+        // First read-only open caches the signature without FOPEN_KEEP_CACHE;
+        // subsequent opens on the unchanged file preserve the guest page cache,
+        // while writable opens never skip FLUSH.
+        for (flags, expected) in [
+            (0, FOPEN_NOFLUSH),
+            (0, FOPEN_NOFLUSH | FOPEN_KEEP_CACHE),
+            (2, FOPEN_KEEP_CACHE),
+        ] {
             let reply = open(&mut fsys, id, flags);
             assert_eq!(errno(&reply), 0);
             assert_eq!(
@@ -4672,6 +5610,407 @@ mod tests {
         }
         fs::remove_file(path).unwrap();
         fs::remove_dir(dir).unwrap();
+    }
+
+    #[test]
+    fn conditional_keep_cache_and_ro_handle_pool_track_host_mutations() {
+        let (base, share, _) = scratch("keep-cache");
+        let path = share.join("file.txt");
+        fs::write(&path, b"initial").unwrap();
+        let mut fsys = writable(&share);
+        let id = lookup_in(&mut fsys, ROOT, b"file.txt").unwrap();
+
+        // Open #1 records content signature and populates mutable_ro_cache.
+        let r1 = open(&mut fsys, id, 0);
+        assert_eq!(errno(&r1), 0);
+        assert_eq!(
+            u32::from_le_bytes(r1[24..28].try_into().unwrap()),
+            FOPEN_NOFLUSH
+        );
+        let fh1 = u64::from_le_bytes(r1[16..24].try_into().unwrap());
+        assert!(core(&fsys).mutable_ro_cache.contains_key(&id));
+        request(&mut fsys, FUSE_RELEASE, id, &fh1.to_le_bytes());
+
+        // Open #2 on unchanged file gets FOPEN_KEEP_CACHE and reuses pooled handle.
+        let r2 = open(&mut fsys, id, 0);
+        assert_eq!(errno(&r2), 0);
+        assert_eq!(
+            u32::from_le_bytes(r2[24..28].try_into().unwrap()),
+            FOPEN_NOFLUSH | FOPEN_KEEP_CACHE
+        );
+        let fh2 = u64::from_le_bytes(r2[16..24].try_into().unwrap());
+        request(&mut fsys, FUSE_RELEASE, id, &fh2.to_le_bytes());
+
+        // Host in-place overwrite restoring exact mtime still advances ctime on APFS/POSIX:
+        // next open MUST drop FOPEN_KEEP_CACHE so Linux invalidates stale pages immediately.
+        let orig_meta = fs::metadata(&path).unwrap();
+        let orig_mtime = libc::timespec {
+            tv_sec: orig_meta.mtime() as libc::time_t,
+            tv_nsec: orig_meta.mtime_nsec() as libc::c_long,
+        };
+        std::thread::sleep(Duration::from_millis(2));
+        {
+            use std::io::Write;
+            let mut f = fs::OpenOptions::new().write(true).open(&path).unwrap();
+            f.write_all(b"edited!").unwrap();
+        }
+        let cpath = path_to_cstr(&path).unwrap();
+        let times = [orig_mtime, orig_mtime];
+        assert_eq!(
+            unsafe { libc::utimensat(libc::AT_FDCWD, cpath.as_ptr(), times.as_ptr(), 0) },
+            0
+        );
+        let r3 = open(&mut fsys, id, 0);
+        assert_eq!(errno(&r3), 0);
+        assert_eq!(
+            u32::from_le_bytes(r3[24..28].try_into().unwrap()),
+            FOPEN_NOFLUSH
+        );
+        let fh3 = u64::from_le_bytes(r3[16..24].try_into().unwrap());
+        // Follow-up unchanged open regains FOPEN_KEEP_CACHE.
+        let r4 = open(&mut fsys, id, 0);
+        assert_eq!(
+            u32::from_le_bytes(r4[24..28].try_into().unwrap()),
+            FOPEN_NOFLUSH | FOPEN_KEEP_CACHE
+        );
+        request(&mut fsys, FUSE_RELEASE, id, &fh3.to_le_bytes());
+        request(&mut fsys, FUSE_RELEASE, id, &r4[16..24]);
+
+        // Host atomic replace retires old nodeid via ESTALE on pooled open.
+        let tmp = share.join("file.new");
+        fs::write(&tmp, b"replaced").unwrap();
+        fs::rename(&tmp, &path).unwrap();
+        let r5 = open(&mut fsys, id, 0);
+        assert_eq!(errno(&r5), LINUX_ESTALE);
+        assert!(!core(&fsys).mutable_ro_cache.contains_key(&id));
+
+        // Fresh lookup binds a new nodeid whose first open omits FOPEN_KEEP_CACHE.
+        let id2 = lookup_in(&mut fsys, ROOT, b"file.txt").unwrap();
+        assert_ne!(id2, id);
+        let r6 = open(&mut fsys, id2, 0);
+        assert_eq!(errno(&r6), 0);
+        assert_eq!(
+            u32::from_le_bytes(r6[24..28].try_into().unwrap()),
+            FOPEN_NOFLUSH
+        );
+        request(&mut fsys, FUSE_RELEASE, id2, &r6[16..24]);
+
+        // Snapshot restore clears cached content signatures so restored forks revalidate.
+        let blob = core(&fsys).snapshot_blob();
+        let mut restored = writable(&share);
+        core(&restored).restore_blob(&blob);
+        let r7 = open(&mut restored, id2, 0);
+        assert_eq!(errno(&r7), 0);
+        assert_eq!(
+            u32::from_le_bytes(r7[24..28].try_into().unwrap()),
+            FOPEN_NOFLUSH
+        );
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn workspace_notification_queue_delivers_host_invalidation_events() {
+        use crate::VirtioMmioDevice;
+
+        let (base, share, _) = scratch("notify-vq");
+        let path = share.join("held.txt");
+        fs::write(&path, b"previous").unwrap();
+
+        let mut backing = vec![0u64; 4096];
+        let mem = Arc::new(unsafe {
+            GuestMemory::new(
+                backing.as_mut_ptr().cast(),
+                0,
+                std::mem::size_of_val(&backing[..]),
+            )
+        });
+        let fsys = VirtioFs::with_options(
+            "workspace",
+            share.clone(),
+            false,
+            Arc::default(),
+            1,
+            true,
+        )
+        .unwrap();
+        let shared = fsys.shared.clone();
+        let mut dev = VirtioMmioDevice::new(32, mem.clone(), Box::new(fsys));
+
+        // Feature negotiation advertises VIRTIO_FS_F_NOTIFICATION and notify_buf_size.
+        assert_ne!(dev.mmio_read(0x010, 4) & VIRTIO_FS_F_NOTIFICATION, 0);
+        assert_eq!(dev.mmio_read(0x100 + 40, 4), u64::from(NOTIFY_BUF_SIZE));
+        dev.mmio_write(0x020, 4, VIRTIO_FS_F_NOTIFICATION);
+        assert!(!shared.core.lock().unwrap().notify_enabled);
+
+        // Configure notification virtqueue (vq 1) with four reusable RX buffers.
+        let q: u64 = NOTIFY_VQ_IDX as u64;
+        let queue_size = 4u16;
+        let desc = 0u64;
+        let avail = 256u64;
+        let used = 512u64;
+        let buf_base = 1024u64;
+        for i in 0..u64::from(queue_size) {
+            let baddr = buf_base + i * u64::from(NOTIFY_BUF_SIZE);
+            mem.write_slice(desc + i * 16, 8)
+                .unwrap()
+                .copy_from_slice(&baddr.to_le_bytes());
+            mem.write_u32(desc + i * 16 + 8, NOTIFY_BUF_SIZE).unwrap();
+            mem.write_u16(desc + i * 16 + 12, crate::VIRTQ_DESC_F_WRITE)
+                .unwrap();
+            mem.write_u16(desc + i * 16 + 14, 0).unwrap();
+            mem.write_u16(avail + 4 + i * 2, i as u16).unwrap();
+        }
+        mem.write_u16_release(avail + 2, queue_size).unwrap();
+        for (reg, value) in [
+            (0x030, q),
+            (0x038, u64::from(queue_size)),
+            (0x080, desc),
+            (0x090, avail),
+            (0x0a0, used),
+            (0x044, 1),
+        ] {
+            dev.mmio_write(reg, 4, value);
+        }
+        assert!(shared.core.lock().unwrap().notify_enabled);
+
+        let mut consumed = 0u16;
+        let mut posted = queue_size;
+        let mut wait_for_notification = |expected: &str, matches: &dyn Fn(&[u8]) -> bool| {
+            let deadline = Instant::now() + Duration::from_secs(2);
+            loop {
+                let written = mem.read_u16_acquire(used + 2).unwrap();
+                let previous_posted = posted;
+                let mut matched = false;
+                while consumed != written {
+                    let slot = u64::from(consumed % queue_size);
+                    let head = mem.read_u32(used + 4 + slot * 8).unwrap();
+                    let len = mem.read_u32(used + 8 + slot * 8).unwrap() as usize;
+                    let address = buf_base + u64::from(head) * u64::from(NOTIFY_BUF_SIZE);
+                    matched |= matches(mem.read_slice(address, len).unwrap());
+                    let slot = u64::from(posted % queue_size);
+                    mem.write_u16(avail + 4 + slot * 2, head as u16).unwrap();
+                    consumed = consumed.wrapping_add(1);
+                    posted = posted.wrapping_add(1);
+                }
+                // Linux reposts consumed notification buffers and kicks the queue.
+                if posted != previous_posted {
+                    mem.write_u16_release(avail + 2, posted).unwrap();
+                    dev.mmio_write(0x050, 4, q);
+                }
+                if matched {
+                    return;
+                }
+                assert!(Instant::now() < deadline, "timed out waiting for {expected}");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        };
+
+        // Lookup + open `held.txt` so kqueue watches its open fd, and verify 60s validity,
+        // negative dentry caching, and FUSE_NO_OPENDIR_SUPPORT (`fh == 0` readdir).
+        let (id, fh) = {
+            let mut c = shared.core.lock().unwrap();
+            let mut init = [0u8; 24];
+            init[0..4].copy_from_slice(&7u32.to_le_bytes());
+            init[4..8].copy_from_slice(&31u32.to_le_bytes());
+            init[12..16].copy_from_slice(&FUSE_NO_OPENDIR_SUPPORT.to_le_bytes());
+            assert!(c.handle_fuse_into(&request_bytes(FUSE_INIT, FUSE_ROOT_ID, &init)));
+            assert_ne!(
+                u32::from_le_bytes(c.resp_buf[28..32].try_into().unwrap())
+                    & FUSE_NO_OPENDIR_SUPPORT,
+                0
+            );
+            // FUSE_OPENDIR returns ENOSYS so Linux sets fc->no_opendir = 1.
+            assert!(c.handle_fuse_into(&request_bytes(FUSE_OPENDIR, FUSE_ROOT_ID, &[0u8; 8])));
+            assert_eq!(errno(&c.resp_buf), LINUX_ENOSYS);
+            // FUSE_READDIRPLUS with fh == 0 lists root without an open dir handle.
+            let mut rd = [0u8; 20];
+            rd[16..20].copy_from_slice(&4096u32.to_le_bytes());
+            assert!(c.handle_fuse_into(&request_bytes(FUSE_READDIRPLUS, FUSE_ROOT_ID, &rd)));
+            assert_eq!(errno(&c.resp_buf), 0);
+            assert!(c.resp_buf.windows(b"held.txt".len()).any(|w| w == b"held.txt"));
+            // Missing file returns a cached negative dentry (nodeid == 0, entry_valid == 60).
+            assert!(c.handle_fuse_into(&request_bytes(
+                FUSE_LOOKUP,
+                FUSE_ROOT_ID,
+                b"does-not-exist\0"
+            )));
+            assert_eq!(errno(&c.resp_buf), 0);
+            assert_eq!(u64::from_le_bytes(c.resp_buf[16..24].try_into().unwrap()), 0);
+            assert_eq!(u64::from_le_bytes(c.resp_buf[32..40].try_into().unwrap()), 60);
+
+            assert!(c.handle_fuse_into(&request_bytes(
+                FUSE_LOOKUP,
+                FUSE_ROOT_ID,
+                b"held.txt\0"
+            )));
+            assert_eq!(errno(&c.resp_buf), 0);
+            let entry_valid = u64::from_le_bytes(c.resp_buf[32..40].try_into().unwrap());
+            assert_eq!(entry_valid, 60);
+            let id = u64::from_le_bytes(c.resp_buf[16..24].try_into().unwrap());
+            assert!(c.handle_fuse_into(&request_bytes(FUSE_OPEN, id, &[0u8; 8])));
+            assert_eq!(errno(&c.resp_buf), 0);
+            let fh = u64::from_le_bytes(c.resp_buf[16..24].try_into().unwrap());
+            (id, fh)
+        };
+
+        // An in-place host write invalidates data for the held inode.
+        {
+            use std::io::Write;
+            let mut f = fs::OpenOptions::new().write(true).open(&path).unwrap();
+            f.write_all(b"revision").unwrap();
+        }
+        wait_for_notification("FUSE_NOTIFY_INVAL_INODE for held.txt", &|msg| {
+            msg.len() == 40
+                && msg[0..4] == 40u32.to_le_bytes()
+                && msg[4..8] == FUSE_NOTIFY_INVAL_INODE.to_le_bytes()
+                && msg[8..16] == [0; 8]
+                && msg[16..24] == id.to_le_bytes()
+                && msg[24..40] == [0; 16]
+        });
+
+        // Atomic replacement invalidates the target name while the open handle retains its inode.
+        let tmp = share.join("held.new");
+        fs::write(&tmp, b"replaced").unwrap();
+        fs::rename(&tmp, &path).unwrap();
+        wait_for_notification("FUSE_NOTIFY_INVAL_ENTRY for held.txt", &|msg| {
+            msg.len() == 41
+                && msg[0..4] == 41u32.to_le_bytes()
+                && msg[4..8] == FUSE_NOTIFY_INVAL_ENTRY.to_le_bytes()
+                && msg[8..16] == [0; 8]
+                && msg[16..24] == FUSE_ROOT_ID.to_le_bytes()
+                && msg[24..28] == 8u32.to_le_bytes()
+                && msg[28..32] == [0; 4]
+                && &msg[32..] == b"held.txt\0"
+        });
+        // Held file handle STILL reads original inode content after retirement!
+        {
+            let mut c = shared.core.lock().unwrap();
+            let mut read_body = [0u8; 24];
+            read_body[0..8].copy_from_slice(&fh.to_le_bytes());
+            read_body[16..20].copy_from_slice(&8u32.to_le_bytes());
+            assert!(c.handle_fuse_into(&request_bytes(FUSE_READ, id, &read_body)));
+            assert_eq!(&c.resp_buf[16..24], b"revision");
+            assert!(c.handle_fuse_into(&request_bytes(FUSE_RELEASE, id, &fh.to_le_bytes())));
+        }
+
+        drop(dev);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn notification_watch_failure_keeps_short_cache_and_negotiated_queue() {
+        use crate::VirtioMmioDevice;
+
+        let (base, share, _) = scratch("notify-watch-failure");
+        fs::write(share.join("file"), b"contents").unwrap();
+        let mut backing = vec![0u64; 1024];
+        let mem = Arc::new(unsafe {
+            GuestMemory::new(
+                backing.as_mut_ptr().cast(),
+                0,
+                std::mem::size_of_val(&backing[..]),
+            )
+        });
+        let fsys = VirtioFs::with_options("workspace", share, false, Arc::default(), 1, true)
+            .unwrap();
+        let shared = fsys.shared.clone();
+        // An empty root deterministically rejects FSEvents initialization.
+        let root_path = std::mem::take(&mut shared.core.lock().unwrap().root_path);
+        let mut dev = VirtioMmioDevice::new(32, mem.clone(), Box::new(fsys));
+        dev.mmio_write(0x020, 4, VIRTIO_FS_F_NOTIFICATION);
+        let desc = 0u64;
+        let avail = 256u64;
+        let used = 512u64;
+        let response = 1024u64;
+        mem.write_slice(desc, 8).unwrap().copy_from_slice(&response.to_le_bytes());
+        mem.write_u32(desc + 8, 512).unwrap();
+        mem.write_u16(desc + 12, crate::VIRTQ_DESC_F_WRITE).unwrap();
+        mem.write_u16_release(avail + 2, 1).unwrap();
+        for (reg, value) in [
+            (0x030, NOTIFY_VQ_IDX as u64),
+            (0x038, 2),
+            (0x080, desc),
+            (0x090, avail),
+            (0x0a0, used),
+            (0x044, 1),
+        ] {
+            dev.mmio_write(reg, 4, value);
+        }
+
+        let assert_fallback = || {
+            assert_eq!(shared.state.0.lock().unwrap().notify_vq_idx, Some(NOTIFY_VQ_IDX));
+            assert!(shared.watchers.lock().unwrap().is_none());
+            let mut core = shared.core.lock().unwrap();
+            assert!(core.notify_negotiated);
+            assert!(!core.notify_enabled);
+            assert!(core.kq_watcher.is_none());
+            let mut init = [0u8; 24];
+            init[0..4].copy_from_slice(&7u32.to_le_bytes());
+            init[4..8].copy_from_slice(&31u32.to_le_bytes());
+            init[12..16].copy_from_slice(&FUSE_NO_OPENDIR_SUPPORT.to_le_bytes());
+            core.direct_io_requested = false;
+            assert!(core.handle_fuse_into(&request_bytes(FUSE_INIT, ROOT, &init)));
+            assert_eq!(
+                u32::from_le_bytes(core.resp_buf[28..32].try_into().unwrap()) & FUSE_NO_OPENDIR_SUPPORT,
+                0
+            );
+            assert!(core.handle_fuse_into(&request_bytes(FUSE_LOOKUP, ROOT, b"file\0")));
+            assert_eq!(errno(&core.resp_buf), 0);
+            let nodeid = u64::from_le_bytes(core.resp_buf[16..24].try_into().unwrap());
+            assert_eq!(u64::from_le_bytes(core.resp_buf[32..40].try_into().unwrap()), 0);
+            assert_eq!(
+                u32::from_le_bytes(core.resp_buf[48..52].try_into().unwrap()),
+                20_000_000
+            );
+            assert!(core.handle_fuse_into(&request_bytes(FUSE_LOOKUP, ROOT, b"absent\0")));
+            assert_eq!(errno(&core.resp_buf), LINUX_ENOENT);
+            for _ in 0..2 {
+                assert!(core.handle_fuse_into(&request_bytes(FUSE_OPEN, nodeid, &[0; 8])));
+                assert_eq!(errno(&core.resp_buf), 0);
+                let fh = u64::from_le_bytes(core.resp_buf[16..24].try_into().unwrap());
+                let flags = u32::from_le_bytes(core.resp_buf[24..28].try_into().unwrap());
+                assert_eq!(flags & FOPEN_KEEP_CACHE, 0);
+                assert!(core.handle_fuse_into(&request_bytes(FUSE_RELEASE, nodeid, &fh.to_le_bytes())));
+            }
+            assert!(core.handle_fuse_into(&request_bytes(FUSE_OPENDIR, ROOT, &[0; 8])));
+            assert_eq!(errno(&core.resp_buf), 0);
+            let flags = u32::from_le_bytes(core.resp_buf[24..28].try_into().unwrap());
+            assert_eq!(flags & (FOPEN_KEEP_CACHE | FOPEN_CACHE_DIR), 0);
+            let fh = u64::from_le_bytes(core.resp_buf[16..24].try_into().unwrap());
+            assert!(core.handle_fuse_into(&request_bytes(FUSE_RELEASEDIR, ROOT, &fh.to_le_bytes())));
+        };
+        assert_fallback();
+
+        // A real queue re-arm may recover both watchers and the long TTL.
+        dev.mmio_write(0x044, 4, 0);
+        shared.core.lock().unwrap().root_path = root_path;
+        dev.mmio_write(0x044, 4, 1);
+        assert!(shared.core.lock().unwrap().notify_enabled);
+
+        let snapshot = dev.snapshot_pause();
+        shared.core.lock().unwrap().root_path.clear();
+        dev.snapshot_resume();
+        assert_fallback();
+        assert_eq!(mem.read_u16_acquire(used + 2), Some(1));
+        assert_eq!(
+            mem.read_u32(response + 4).unwrap() as i32,
+            FUSE_NOTIFY_INC_EPOCH
+        );
+        dev.snapshot_restore(&snapshot).unwrap();
+        assert_fallback();
+        // The restored driver can still send handleless READDIR.
+        {
+            let mut core = shared.core.lock().unwrap();
+            let mut read = [0u8; 24];
+            read[16..20].copy_from_slice(&512u32.to_le_bytes());
+            assert!(core.handle_fuse_into(&request_bytes(FUSE_READDIR, ROOT, &read)));
+            assert_eq!(errno(&core.resp_buf), 0);
+        }
+        dev.mmio_write(0x070, 4, 0);
+        assert!(shared.state.0.lock().unwrap().notify_vq_idx.is_none());
+        assert!(!shared.core.lock().unwrap().notify_negotiated);
+        drop(dev);
+        let _ = fs::remove_dir_all(base);
     }
 
     #[test]
@@ -4731,10 +6070,7 @@ mod tests {
         core(&restored).restore_blob(&state[..state.len() - SNAPSHOT_DIRECT_IO_MMAP_TAG.len()]);
         assert!(!core(&restored).direct_io_mmap);
         core(&restored).restore_blob(&state);
-        let legacy_end = state
-            .windows(4)
-            .position(|b| b == SNAPSHOT_OWNERS_TAG)
-            .unwrap();
+        let legacy_end = state.windows(4).position(|b| b == SNAPSHOT_OWNERS_TAG).unwrap();
         core(&restored).restore_blob(&state[..legacy_end]);
         assert!(!core(&restored).direct_io_mmap);
         for (tag, read_only) in [("workspace", true), ("other", false)] {

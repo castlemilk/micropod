@@ -132,3 +132,30 @@ func TestServiceTCPUnrepresentableAnswerCount(t *testing.T) {
 		t.Fatal("unrepresentable answer count was accepted")
 	}
 }
+
+func TestDNSLocalReplyZeroAllocMatchesGeneral(t *testing.T) {
+	q := dnsmessage.Question{Name: dnsmessage.MustNewName("Svc."), Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET}
+	reqMsg := dnsmessage.Message{Header: dnsmessage.Header{ID: 0x1234, RecursionDesired: true}, Questions: []dnsmessage.Question{q}}
+	packet, err := reqMsg.Pack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	network := &workerNetwork{Internal: true}
+	network.services.records = map[string][]netip.Addr{"svc": {netip.MustParseAddr("10.90.0.5")}}
+	engine := new(dockerEngine)
+	want := engine.dnsReply(context.Background(), network, nil, packet, "udp")
+	buf := make([]byte, 0, 512)
+	got, fwd, _, _, _ := engine.dnsLocalReply(network, packet, "udp", buf)
+	if fwd || !bytes.Equal(got, want) {
+		t.Fatalf("inline local reply mismatch: fwd=%v got=%x want=%x", fwd, got, want)
+	}
+	allocs := testing.AllocsPerRun(200, func() {
+		out, f, _, _, _ := engine.dnsLocalReply(network, packet, "udp", buf[:0])
+		if f || len(out) == 0 {
+			t.Fatal("unexpected empty or forwarded local reply")
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("expected 0 allocs/op for inline local UDP DNS reply, got %.1f", allocs)
+	}
+}

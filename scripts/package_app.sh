@@ -204,6 +204,53 @@ if [[ -x "$oci_tools/client" && -x "$oci_tools/guest/service" && -x "$oci_tools/
     echo "==> Native CI guest service and client bundled"
 fi
 
+# Bundle the signed Rust Hypervisor.framework VMM and matching Linux initrd so
+# MICROPOD_CI_VMM=hvf works out of the box from both Micropod.app and dist/micropod.
+hvf_archive=()
+if [[ -n "${MICROPOD_HVF_DISTRIBUTION:-}" ]]; then
+    bash scripts/stage_hvf_assets.sh "$MICROPOD_HVF_DISTRIBUTION" "$MICROPOD_HVF_DISTRIBUTION" \
+        "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
+    bash scripts/stage_hvf_assets.sh "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources" "$DIST" "$DIST"
+    # The qualified tools replace the locally built copy. Archive the Mac OCI client once.
+    if (( ${#oci_archive[@]} )); then oci_archive=(micropod-oci); fi
+    hvf_archive=(micropod-vmm mp-hvf-init.cpio vmlinux-hvf micropod-oci-tools)
+elif [[ "${GITHUB_ACTIONS:-false}" != true || -n "${MICROPOD_VMM_DIR:-}" ]]; then
+    VMM_DIR="${MICROPOD_VMM_DIR:-$ROOT/vmm}"
+    if [[ -z "${MICROPOD_VMM_DIR:-}" && ! -d "$VMM_DIR" ]]; then
+        for sibling in "$ROOT/../../vmm" "$ROOT/../vmm"; do
+            if [[ -d "$sibling" ]]; then VMM_DIR="$sibling"; break; fi
+        done
+    fi
+    if [ -d "$VMM_DIR" ] && [ "${MICROPOD_SKIP_VMM_BUILD:-0}" != "1" ] && command -v cargo >/dev/null && command -v go >/dev/null; then
+        echo "==> Building HVF VMM (micropod-vmm + mp-hvf-init.cpio)"
+        bash "$VMM_DIR/build.sh"
+    fi
+    if [ -x "$VMM_DIR/target/release/micropod-vmm" ] && [ -f "$VMM_DIR/target/mp-hvf-init.cpio" ]; then
+        for vmm_dst in "$APP_BUNDLE/Contents/MacOS/micropod-vmm" "$DIST/micropod-vmm"; do
+            install -m 755 "$VMM_DIR/target/release/micropod-vmm" "$vmm_dst"
+            codesign --force --sign - --entitlements "$ROOT/signing/micropod-vmm.entitlements" "$vmm_dst"
+            codesign --verify --strict "$vmm_dst"
+        done
+        install -m 644 "$VMM_DIR/target/mp-hvf-init.cpio" "$APP_BUNDLE/Contents/Resources/mp-hvf-init.cpio"
+        install -m 644 "$VMM_DIR/target/mp-hvf-init.cpio" "$DIST/mp-hvf-init.cpio"
+        hvf_archive=(micropod-vmm mp-hvf-init.cpio)
+        if [ -n "${MICROPOD_HVF_KERNEL:-}" ]; then
+            HVF_KERNEL="$MICROPOD_HVF_KERNEL"
+        elif [ -f "$ROOT/.build/b8-kernel-out/Image" ]; then
+            HVF_KERNEL="$ROOT/.build/b8-kernel-out/Image"
+        else
+            HVF_KERNEL="$ROOT/.build/local-kernel-pages/20261125-b5-16k/full-16k/Image"
+        fi
+        if [ -f "$HVF_KERNEL" ]; then
+            install -m 644 "$HVF_KERNEL" "$APP_BUNDLE/Contents/Resources/vmlinux-hvf"
+            install -m 644 "$HVF_KERNEL" "$DIST/vmlinux-hvf"
+            hvf_archive+=(vmlinux-hvf)
+            echo "==> HVF kernel bundled (vmlinux-hvf)"
+        fi
+        echo "==> HVF VMM bundled and signed (micropod-vmm + mp-hvf-init.cpio)"
+    fi
+fi
+
 # The in-VM helper for sandbox file operations, watches and idle sandboxes
 # (a static linux/arm64 ELF — sealed as a resource, not signed as code).
 # The API finds it at ../Resources relative to its executable.
@@ -250,6 +297,6 @@ chmod +x "$DIST/micropod"
 codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$DIST/micropod"
 
 echo "==> Staging tarball"
-tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod ${oci_archive[@]+"${oci_archive[@]}"}
+tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod ${oci_archive[@]+"${oci_archive[@]}"} ${hvf_archive[@]+"${hvf_archive[@]}"}
 ls -lh "$DIST"
 echo "Done. Install: cp -R $APP_BUNDLE /Applications/"

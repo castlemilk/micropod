@@ -17,10 +17,13 @@ import (
 	"time"
 )
 
+const siblingTCPOption = "com.micropod.network.tcp-congestion"
+
 type workerNetwork struct {
 	Name, ID, Driver     string
 	Subnet               netip.Prefix
 	MTU                  int
+	TCPCongestion        string `json:",omitempty"`
 	Internal, Attachable bool
 	Labels               map[string]string
 	Created              time.Time
@@ -41,40 +44,59 @@ func networkName(name string) string {
 }
 func builtinNetwork(name string) bool { return name == "bridge" || name == "none" }
 func (n *workerNetwork) dir() string  { return filepath.Join(engineRoot, "networks", n.ID) }
-func (s *dockerEngine) findNetwork(key string) *workerNetwork {
+
+// Resolve exact IDs and names before trying a unique ID prefix. Caller holds s.mu.
+func (s *dockerEngine) findNetwork(key string, includeDeleting bool) (*workerNetwork, error) {
+	if n := s.namedNetworks[key]; n != nil && (includeDeleting || !n.deleting) {
+		return n, nil
+	}
+	var match *workerNetwork
+	ambiguous := false
 	for _, n := range s.namedNetworks {
-		if !n.deleting && (n.Name == key || n.ID == key) {
-			return n
+		if n.deleting && !includeDeleting {
+			continue
+		}
+		if n.Name == key {
+			return n, nil
+		}
+		if key != "" && strings.HasPrefix(n.ID, key) {
+			ambiguous = match != nil
+			match = n
 		}
 	}
-	return nil
+	if ambiguous {
+		return nil, fail(http.StatusBadRequest, "ambiguous network ID: "+key)
+	}
+	return match, nil
 }
 
-func (s *dockerEngine) selectNetwork(spec *dockerConfig) (id, address string, err error) {
-	name := networkName(spec.HostConfig.NetworkMode)
-	if builtinNetwork(name) {
-		return "", "", nil
-	}
-	n := s.findNetwork(name)
-	if n == nil {
-		return "", "", fail(404, "no such network: "+name)
-	}
-	if spec.EndpointName != "" && spec.EndpointName != n.Name && spec.EndpointName != n.ID || spec.EndpointID != "" && spec.EndpointID != n.ID {
-		return "", "", fail(400, "endpoint network identity differs")
-	}
-	spec.HostConfig.NetworkMode = n.Name
-	used := map[string]bool{}
-	for _, c := range s.containers {
-		if c.NetworkID == n.ID {
-			used[c.NetworkIP] = true
+func automaticSubnet(index int) netip.Prefix {
+	return netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 90, byte(index), 0}), 24)
+}
+
+func firstAutomaticSubnet(readRoutes workerRouteReader) netip.Prefix {
+	routes, err := readRoutes()
+	if err != nil {
+		// A changing route table can interrupt a dump. Retry once and discard
+		// incomplete results before choosing an address.
+		routes, err = readRoutes()
+		if err != nil {
+			return netip.Prefix{}
 		}
 	}
-	for ip := n.gateway().Next(); ip.IsValid() && n.Subnet.Contains(ip.Next()); ip = ip.Next() {
-		if !used[ip.String()] {
-			return n.ID, ip.String(), nil
+	occupied := make([]netip.Prefix, 0, len(routes))
+	for _, route := range routes {
+		if subnet := routeSubnet(route); subnet.IsValid() {
+			occupied = append(occupied, subnet)
 		}
 	}
-	return "", "", fail(409, "network has no free addresses")
+	for index := range 256 {
+		subnet := automaticSubnet(index)
+		if !slices.ContainsFunc(occupied, subnet.Overlaps) {
+			return subnet
+		}
+	}
+	return netip.Prefix{}
 }
 
 func (s *dockerEngine) startNetwork(ctx context.Context, n *workerNetwork) error {
@@ -113,7 +135,7 @@ func (s *dockerEngine) recoverNetworks(ctx context.Context) error {
 			return err
 		}
 		n := new(workerNetwork)
-		if json.Unmarshal(b, n) != nil || n.ID != e.Name() || len(n.ID) != 64 || !dockerName.MatchString(n.Name) || !n.Subnet.IsValid() || (n.Driver != "bridge" && n.Driver != "ipvlan" && n.Driver != "macvlan") {
+		if json.Unmarshal(b, n) != nil || n.ID != e.Name() || !fullContainerID.MatchString(n.ID) || !dockerName.MatchString(n.Name) || !n.Subnet.IsValid() || !n.Subnet.Addr().Is4() || (n.Driver != "bridge" && n.Driver != "ipvlan" && n.Driver != "macvlan") {
 			return errors.New("invalid saved network")
 		}
 		if _, e := os.Stat(filepath.Join(p, "removing")); e == nil {
@@ -172,19 +194,34 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 		return fail(400, "supported network drivers are bridge, macvlan and ipvlan")
 	}
 	mtu := 1500
+	var congestion string
 	for k, v := range req.Options {
-		if k != "com.docker.network.driver.mtu" {
+		switch k {
+		case "com.docker.network.driver.mtu":
+			mtu, err = strconv.Atoi(v)
+			if err != nil || mtu < 576 || mtu > 9000 {
+				return fail(400, "invalid MTU")
+			}
+		case siblingTCPOption:
+			if !req.Internal || req.Driver == "macvlan" || privateRootless() {
+				return fail(400, "TCP congestion control requires an internal bridge or ipvlan network on a native worker")
+			}
+			available, err := os.ReadFile("/proc/sys/net/ipv4/tcp_available_congestion_control")
+			if err != nil {
+				return fmt.Errorf("read guest TCP congestion controls: %w", err)
+			}
+			if !slices.Contains(strings.Fields(string(available)), v) {
+				return fail(400, "TCP congestion control unavailable in the guest kernel: "+v)
+			}
+			congestion = v
+		default:
 			return fail(400, "unsupported network option "+k)
-		}
-		mtu, err = strconv.Atoi(v)
-		if err != nil || mtu < 576 || mtu > 9000 {
-			return fail(400, "invalid MTU")
 		}
 	}
 	if req.IPAM.Driver != "" && req.IPAM.Driver != "default" || len(req.IPAM.Options) != 0 || len(req.IPAM.Config) > 1 {
 		return fail(400, "unsupported IPAM configuration")
 	}
-	n := &workerNetwork{Name: req.Name, ID: engineID(), Driver: req.Driver, Internal: req.Internal, Attachable: req.Attachable, Labels: req.Labels, Created: time.Now().UTC(), MTU: mtu}
+	n := &workerNetwork{Name: req.Name, ID: engineID(), Driver: req.Driver, Internal: req.Internal, Attachable: req.Attachable, Labels: req.Labels, Created: time.Now().UTC(), MTU: mtu, TCPCongestion: congestion}
 	s.networkMu.Lock()
 	defer s.networkMu.Unlock()
 	s.mu.Lock()
@@ -209,13 +246,9 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 			return fail(409, "subnet overlaps a worker route")
 		}
 	} else {
-		for i := 0; i < 256; i++ {
-			p := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 90, byte(i), 0}), 24)
-			if routeAvailable(p) {
-				n.Subnet = p
-				break
-			}
-		}
+		// networkMu serializes network creation and deletion until the chosen
+		// subnet's route is installed. Use a fresh snapshot for this allocation.
+		n.Subnet = firstAutomaticSubnet(workerIPv4Routes)
 		if !n.Subnet.IsValid() {
 			return fail(409, "no free network subnet")
 		}
@@ -267,23 +300,23 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 	writeJSON(w, 201, map[string]string{"Id": n.ID, "Warning": ""})
 	return nil
 }
-func (s *dockerEngine) deleteNetwork(w http.ResponseWriter, key string) error {
+func (s *dockerEngine) deleteNetwork(w http.ResponseWriter, key string, canRemove func(*workerNetwork) bool) error {
 	s.networkMu.Lock()
 	defer s.networkMu.Unlock()
 	s.mu.Lock()
-	var n *workerNetwork
-	for _, candidate := range s.namedNetworks {
-		if candidate.Name == key || candidate.ID == key {
-			n = candidate
-			break
-		}
+	n, err := s.findNetwork(key, true)
+	if err != nil {
+		s.mu.Unlock()
+		return err
 	}
-	if n == nil {
+	// Check the current network under the same locks that protect deletion.
+	// A new network can otherwise acquire the same deterministic ID.
+	if n == nil || canRemove != nil && !canRemove(n) {
 		s.mu.Unlock()
 		return fail(404, "no such network")
 	}
 	for _, c := range s.containers {
-		if c.NetworkID == n.ID {
+		if c.NetworkID == n.ID || c.secondaryEndpoint(n.ID) >= 0 || (c.bridge != nil && c.bridge.pending != nil && c.bridge.pending.NetworkID == n.ID) {
 			s.mu.Unlock()
 			return fail(409, "network has container endpoints")
 		}
@@ -320,8 +353,13 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 	if r.Method == "POST" && key == "create" {
 		return s.createNetwork(w, r)
 	}
+	if r.Method == http.MethodPost {
+		if network, op, ok := strings.Cut(key, "/"); ok && network != "" && (op == "connect" || op == "disconnect") {
+			return s.mutateDockerNetwork(w, r, network, op == "connect")
+		}
+	}
 	if r.Method == "DELETE" && key != "" {
-		return s.deleteNetwork(w, key)
+		return s.deleteNetwork(w, key, nil)
 	}
 	if r.Method != "GET" {
 		return fail(501, "unsupported network operation")
@@ -337,6 +375,20 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 	for _, n := range s.namedNetworks {
 		if !n.deleting {
 			nets = append(nets, n)
+		}
+	}
+	if key != "" {
+		if builtin := builtinDockerNetwork(key); builtin != "" {
+			key = builtin
+		} else {
+			n, err := s.findNetwork(key, false)
+			if err != nil {
+				return err
+			}
+			if n == nil {
+				return fail(404, "no such network")
+			}
+			key = n.ID
 		}
 	}
 	list := []map[string]any{}
@@ -364,6 +416,9 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 		}
 		ranges := []map[string]string{}
 		opts := map[string]string{}
+		if n.TCPCongestion != "" {
+			opts[siblingTCPOption] = n.TCPCongestion
+		}
 		if n.Subnet.IsValid() {
 			ranges = append(ranges, map[string]string{"Subnet": n.Subnet.String(), "Gateway": n.gateway().String()})
 			if n.Name == "bridge" {
@@ -374,17 +429,7 @@ func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path str
 		}
 		details := map[string]any{"Name": n.Name, "Id": n.ID, "Driver": n.Driver, "Scope": "local", "Internal": n.Internal, "Attachable": n.Attachable, "Labels": n.Labels, "Created": n.Created, "EnableIPv4": true, "Options": opts, "IPAM": map[string]any{"Driver": "default", "Config": ranges}}
 		if key != "" {
-			members := map[string]any{}
-			for _, c := range s.containers {
-				if c.Phase == "running" && networkName(c.Config.HostConfig.NetworkMode) == n.Name {
-					addr := c.IP
-					if addr != "" && n.Subnet.IsValid() {
-						addr = fmt.Sprintf("%s/%d", addr, n.Subnet.Bits())
-					}
-					members[c.ID] = map[string]string{"Name": c.Name, "IPv4Address": addr}
-				}
-			}
-			details["Containers"] = members
+			details["Containers"] = s.dockerNetworkMembers(n)
 			writeJSON(w, 200, details)
 			return nil
 		}

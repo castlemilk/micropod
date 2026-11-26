@@ -23,8 +23,11 @@ from urllib.parse import quote, urlencode
 from ci_benchmark_store import DEFAULT_DB, store
 
 LABEL = "io.micropod.engine-qualification"
-SPEC_SHA256 = "00ccd7d2e6e0b7a943ac0067007d181d723b2513ef1f6af3b6b54145314a6fa7"
 VERSION = "1.56"
+SPEC_DIGESTS = {
+    "1.47": "f44c4514b5893e043cbe3e1675b67b9eed86fc26b6c15144bddcb02c46d2ca7e",
+    "1.56": "00ccd7d2e6e0b7a943ac0067007d181d723b2513ef1f6af3b6b54145314a6fa7",
+}
 
 
 class UnixHTTP(http.client.HTTPConnection):
@@ -39,7 +42,7 @@ class UnixHTTP(http.client.HTTPConnection):
 
 
 class Engine:
-    def __init__(self, endpoint, image, postgres_runner, guest_socket):
+    def __init__(self, endpoint, image, postgres_runner, guest_socket, *, api_version=None):
         self.endpoint = endpoint
         self.image = image
         self.postgres_runner = postgres_runner
@@ -47,7 +50,7 @@ class Engine:
         self.cases = {}
         self.name = "mp-engine-" + uuid.uuid4().hex
         self.labels = {LABEL: self.name}
-        self.prefix = "/v" + VERSION
+        self.prefix = "/v" + (api_version or VERSION)
         self.env = {
             k: v
             for k, v in os.environ.items()
@@ -61,6 +64,8 @@ class Engine:
                 "BUILDX_BUILDER",
             }
         }
+        if api_version:
+            self.env["DOCKER_API_VERSION"] = api_version
 
     def request(self, method, path, *, body=None, headers=None, versioned=True):
         conn = UnixHTTP(self.endpoint)
@@ -118,7 +123,7 @@ class Engine:
         parsed = as_json(body)
         return {"status": status, "kind": type(parsed).__name__}
 
-    def run(self):
+    def run(self, *, engine_only=False):
         def ping(method):
             status, headers, data = self.request(method, "/_ping", versioned=False)
             return {
@@ -177,6 +182,8 @@ class Engine:
 
         self.observe("image-inspect", "ImageInspect", image_info)
         self.observe("image-history", "ImageHistory", lambda: self.shape(image + "/history"))
+        self.observe("image-tag", "ImageTag ImageInspect ImageDelete", self.image_tag)
+        self.observe("image-list-labels", "ImageList", self.image_list_labels)
         self.observe(
             "volume-lifecycle", "VolumeCreate VolumeInspect VolumeList VolumeDelete", self.volume
         )
@@ -208,10 +215,199 @@ class Engine:
             "ContainerCreate ContainerStart ContainerExec ExecStart ExecInspect",
             self.exec_check,
         )
+        if engine_only:
+            return
         self.observe("compose-up-down", "", self.compose)
         self.observe("buildx-local-export", "", self.buildx)
         if self.postgres_runner:
             self.observe("testcontainers-postgres", "", self.postgres)
+
+    def image_tag(self):
+        repo = "micropod-qa/" + self.name
+        alias = repo + ":qualification"
+        path = "/images/" + alias
+        source = "/images/" + quote(self.image, safe=":/")
+        code, _, data = self.request("GET", source + "/json")
+        expect(code, 200, data)
+        original = as_json(data)
+        code, _, data = self.request("GET", path + "/json")
+        expect(code, 404, data)
+        try:
+            query = urlencode({"repo": repo, "tag": "qualification"})
+            code, _, data = self.request("POST", source + "/tag?" + query)
+            expect(code, 201, data)
+            empty = not data
+            code, _, data = self.request("GET", path + "/json")
+            expect(code, 200, data)
+            tagged = as_json(data)
+            result = {
+                "empty_response": empty,
+                "same_id": tagged["Id"] == original["Id"],
+                "same_layers": tagged["RootFS"] == original["RootFS"],
+                "listed_tag": alias in [tag.removeprefix("docker.io/") for tag in tagged["RepoTags"]],
+            }
+        finally:
+            code, _, data = self.request("GET", path + "/json")
+            if code != 404:
+                expect(code, 200, data)
+                if as_json(data)["Id"] != original["Id"]:
+                    raise ValueError("qualification tag now points to a different image")
+                code, _, data = self.request("DELETE", path)
+                expect(code, 200, data)
+                if not any(row.get("Untagged", "").removeprefix("docker.io/") == alias for row in as_json(data)):
+                    raise ValueError("image removal did not report the qualification tag")
+        result["removed"] = self.request("GET", path + "/json")[0] == 404
+        code, _, data = self.request("GET", source + "/json")
+        expect(code, 200, data)
+        result["source_preserved"] = as_json(data)["Id"] == original["Id"]
+        return result
+
+    def image_list_labels(self):
+        color, gate = (f"{LABEL}.{self.name}.{key}" for key in ("color", "gate"))
+        fixture_labels = {
+            "selected": {**self.labels, color: "blue", gate: "yes"},
+            "empty": {**self.labels, color: "blue", gate: ""},
+            "missing": {**self.labels, gate: "yes"},
+        }
+        refs = {role: f"micropod-qa/{self.name}-image-labels:{role}" for role in fixture_labels}
+
+        def list_images(filters=None):
+            query = {"all": 1}
+            if filters is not None:
+                query["filters"] = filters
+            code, _, data = self.request("GET", "/images/json?" + urlencode(query))
+            return code, as_json(data)
+
+        def inventory():
+            code, rows = list_images()
+            if code != 200 or not isinstance(rows, list):
+                raise ValueError("could not establish the image inventory")
+            return {row["Id"] for row in rows}
+
+        def owned_id(role, row, present_before):
+            image_id = row["Id"]
+            if (not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) or image_id in present_before or
+                row.get("Config", {}).get("Labels") != fixture_labels[role]):
+                raise ValueError(f"image {role} is outside the qualification scope")
+            return image_id
+
+        code, base = self.inspect_image(self.image)
+        if code != 200:
+            raise ValueError("could not inspect the preloaded image")
+        present_before = inventory()
+        if any(self.inspect_image(ref)[0] != 404 for ref in refs.values()):
+            raise ValueError("qualification image tags must be absent before loading")
+        archive, config_ids = image_label_archive(refs, fixture_labels, base["Architecture"])
+        image_ids = {}
+        observations = {}
+        try:
+            loaded = self.cli("image", "load", "--quiet", data=archive)
+            expect(loaded.returncode, 0, loaded.stderr + loaded.stdout)
+            for role, ref in refs.items():
+                code, row = self.inspect_image(ref)
+                if code != 200:
+                    raise ValueError(f"loaded image {role} is absent")
+                image_ids[role] = owned_id(role, row, present_before)
+            by_id = {image_id: role for role, image_id in image_ids.items()}
+            if len(by_id) != len(refs):
+                raise ValueError("qualification images must have distinct IDs")
+
+            def selections(ids, wanted):
+                return {"roles": sorted(by_id[image_id] for image_id in ids if image_id in by_id),
+                        "rows": len(ids), "unexpected_rows": sum(by_id.get(image_id) not in wanted for image_id in ids)}
+
+            def filtered(filters, wanted):
+                code, rows = list_images(filters)
+                result = {"status": code}
+                if code == 200 and isinstance(rows, list):
+                    return {**result, **selections([row["Id"] for row in rows], wanted)}
+                return {**result, "json_message": isinstance(rows, dict) and bool(rows.get("message"))}
+
+            for name, values, wanted in (
+                ("key-only", [color], {"selected", "empty"}),
+                ("exact", [color + "=blue"], {"selected", "empty"}),
+                ("conjunction", [color + "=blue", gate + "=yes"], {"selected"}),
+                ("empty-value", [gate + "="], {"empty"}),
+                ("absent-is-not-empty", [color + "="], set()),
+                ("wrong-value", [color + "=absent"], set()),
+                ("missing-key", [color + ".absent"], set()),
+            ):
+                result = filtered(json.dumps({"label": values}), wanted)
+                cli_filters = [part for value in values for part in ("--filter", "label=" + value)]
+                listed = self.cli("image", "ls", "--all", "--no-trunc", "--quiet", *cli_filters)
+                result["cli_exit"] = listed.returncode
+                result["cli"] = selections(listed.stdout.decode().splitlines(), wanted)
+                observations[name] = result
+
+            for name, raw in (("malformed-json", "{"), ("malformed-values", '{"label":1}'),
+                              ("unknown-filter", '{"micropod-qualification-unknown":["x"]}')):
+                observations[name] = filtered(raw, set())
+            status, rows = list_images('{"label":[]}')
+            observations["empty-set"] = {"status": status, "same_as_unfiltered":
+                                         status == 200 and isinstance(rows, list) and {row["Id"] for row in rows} == inventory()}
+        finally:
+            for role, ref in refs.items():
+                code, row = self.inspect_image(ref)
+                if code == 404:
+                    continue
+                if code != 200:
+                    raise ValueError(f"could not check ownership of tag {role}")
+                image_id = owned_id(role, row, present_before)
+                if image_ids.setdefault(role, image_id) != image_id:
+                    raise ValueError(f"qualification tag {role} changed targets")
+                removed = self.cli("image", "rm", "--no-prune", ref)
+                expect(removed.returncode, 0, removed.stderr)
+
+            for role in refs:
+                # Containerd-backed Docker reports a manifest ID. The config ID
+                # also gives native a cleanup address after an interrupted load.
+                image_id = image_ids.get(role, config_ids[role])
+                if image_id in present_before:
+                    raise ValueError(f"qualification image {role} existed before fixture load")
+                self.remove_owned_image_id(image_id, fixture_labels[role])
+
+        verified_ids = {image_ids.get(role, config_ids[role]) for role in refs}
+        after = inventory()
+        # The runtime image inventory may briefly lag authoritative removal.
+        until = time.monotonic() + 3
+        while verified_ids & after and time.monotonic() < until:
+            time.sleep(0.03)
+            after = inventory()
+        code, current_base = self.inspect_image(self.image)
+        observations["cleanup"] = {
+            "tags_absent": all(self.inspect_image(ref)[0] == 404 for ref in refs.values()),
+            "ids_absent": all(self.inspect_image(image_id)[0] == 404 for image_id in verified_ids),
+            "listed_ids_absent": not (verified_ids & after),
+            "existing_ids_preserved": present_before <= after,
+            "preloaded_image_preserved": code == 200 and current_base.get("Id") == base["Id"] and current_base.get("RootFS") == base.get("RootFS"),
+        }
+        if not all(observations["cleanup"].values()):
+            raise ValueError(f"image-filter qualification cleanup failed {observations['cleanup']}")
+        return observations
+
+    def inspect_image(self, ref):
+        code, _, data = self.request("GET", "/images/" + quote(ref, safe=":/") + "/json")
+        return code, as_json(data)
+
+    def remove_owned_image_id(self, image_id, labels):
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
+            raise ValueError("qualification image ID must be an exact SHA-256 digest")
+        until = time.monotonic() + 3
+        while True:
+            code, row = self.inspect_image(image_id)
+            if code == 404:
+                return
+            if code != 200 or row.get("Id") != image_id or (row.get("Config") or {}).get("Labels") != labels:
+                raise ValueError("could not confirm ownership of the qualification image")
+            if not row.get("RepoTags"):
+                removed = self.cli("image", "rm", "--force", "--no-prune", image_id)
+                expect(removed.returncode, 0, removed.stderr)
+                if self.inspect_image(image_id)[0] != 404:
+                    raise ValueError("the owned qualification image ID remained after removal")
+                return
+            if time.monotonic() >= until:
+                raise ValueError("qualification image still has named references")
+            time.sleep(0.03)
 
     def volume(self):
         path = "/volumes/" + self.name
@@ -464,6 +660,9 @@ class Engine:
 
     def buildx(self):
         tag = "micropod-internal/engine-test:" + self.name
+        if self.inspect_image(tag)[0] != 404:
+            raise ValueError("qualification build tag must be absent before the build")
+        image_id = None
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / "Dockerfile").write_text("FROM scratch\nCOPY marker /marker\n")
             (Path(directory) / "marker").write_bytes(b"engine-test")
@@ -485,18 +684,26 @@ class Engine:
                     timeout=60,
                 )
                 expect(p.returncode, 0, p.stderr)
-                owned = self.cli(
-                    "image", "inspect", "--format", '{{index .Config.Labels "' + LABEL + '"}}', tag
-                )
-                expect(owned.returncode, 0, owned.stderr)
-                return owned.stdout.decode().strip() == self.name
+                inspected = self.cli("image", "inspect", "--format", "{{json .}}", tag)
+                expect(inspected.returncode, 0, inspected.stderr)
+                actual = as_json(inspected.stdout)
+                if (actual.get("Config") or {}).get("Labels") != self.labels:
+                    raise ValueError("could not confirm ownership of the Buildx fixture")
+                image_id = actual["Id"]
+                return True
             finally:
-                info = self.cli(
-                    "image", "inspect", "--format", '{{index .Config.Labels "' + LABEL + '"}}', tag
-                )
-                if info.returncode == 0 and info.stdout.decode().strip() == self.name:
-                    p = self.cli("image", "rm", tag)
+                code, current = self.inspect_image(tag)
+                if code != 404:
+                    if (code != 200 or (current.get("Config") or {}).get("Labels") != self.labels or
+                        (image_id is not None and current.get("Id") != image_id)):
+                        raise ValueError("refusing to remove a tag outside the Buildx fixture")
+                    image_id = current["Id"]
+                    p = self.cli("image", "rm", "--no-prune", tag)
                     expect(p.returncode, 0, p.stderr)
+                    if self.inspect_image(tag)[0] != 404:
+                        raise ValueError("the owned Buildx fixture tag remained after removal")
+                if image_id:
+                    self.remove_owned_image_id(image_id, self.labels)
 
     def postgres(self):
         name = self.name + "-pg"
@@ -533,6 +740,30 @@ class Engine:
             self.cleanup_cli(name)
 
 
+def image_label_archive(refs, labels, architecture):
+    def pack(entries):
+        stream = io.BytesIO()
+        with tarfile.open(fileobj=stream, mode="w") as archive:
+            for name, data in entries:
+                member = tarfile.TarInfo(name)
+                member.size = len(data)
+                archive.addfile(member, io.BytesIO(data))
+        return stream.getvalue()
+
+    layer = pack([("fixture-labels", next(iter(refs.values())).encode())])
+    layers = ["sha256:" + hashlib.sha256(layer).hexdigest()]
+    files, entries, ids = [("layer.tar", layer)], [], {}
+    for role, ref in refs.items():
+        config = json.dumps({"architecture": architecture, "os": "linux", "config": {"Labels": labels[role]},
+                             "rootfs": {"type": "layers", "diff_ids": layers}}, sort_keys=True).encode()
+        digest = hashlib.sha256(config).hexdigest()
+        ids[role] = "sha256:" + digest
+        name = digest + ".json"
+        files.append((name, config))
+        entries.append({"Config": name, "RepoTags": [ref], "Layers": ["layer.tar"]})
+    return pack([("manifest.json", json.dumps(entries).encode()), *files]), ids
+
+
 def multiplexed(data):
     streams = {1: bytearray(), 2: bytearray()}
     while data:
@@ -557,10 +788,10 @@ def expect(actual, expected, diagnostic):
         )
 
 
-def operation_inventory(raw):
-    """Read the route index of the exact, checksummed v1.56 spec using the standard library."""
-    if hashlib.sha256(raw).hexdigest() != SPEC_SHA256:
-        raise ValueError("expected the pinned Engine 1.56 specification")
+def operation_inventory(raw, version=VERSION):
+    """Read the route index of the checksummed Moby specification for this wire version."""
+    if hashlib.sha256(raw).hexdigest() != SPEC_DIGESTS[version]:
+        raise ValueError(f"expected the pinned Engine {version} specification")
     operations = []
     path = None
     lines = iter(raw.decode().split("\npaths:\n", 1)[1].splitlines())
@@ -593,22 +824,33 @@ def main():
         help="Optional preloaded ci/samples/go-app/Dockerfile.checks image on both engines",
     )
     p.add_argument(
-        "--spec", type=Path, required=True, help="Unmodified Moby api/v1.56.1 docs/v1.56.yaml"
+        "--spec", type=Path, required=True,
+        help="Unmodified Moby v27.5.1 api/swagger.yaml for 1.47 or api/v1.56.1 docs/v1.56.yaml for 1.56",
     )
+    p.add_argument("--api-version", choices=SPEC_DIGESTS,
+                   help="Pin both the HTTP probes and Docker client to this version (default HTTP 1.56, client negotiates)")
+    p.add_argument("--engine-only", action="store_true",
+                   help="Run Engine HTTP and stock docker attach/exec probes, omitting Compose, Buildx and Testcontainers")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--database", type=Path, default=DEFAULT_DB)
     args = p.parse_args()
+    version = args.api_version or VERSION
+    if args.engine_only and args.postgres_runner:
+        p.error("--postgres-runner requires the full qualification")
     try:
-        inventory = operation_inventory(args.spec.read_bytes())
+        inventory = operation_inventory(args.spec.read_bytes(), version)
     except ValueError as exc:
         p.error(str(exc))
     if args.reference.samefile(args.candidate):
         p.error("select two different Unix sockets")
     result = {
         "run": uuid.uuid4().hex,
-        "version": VERSION,
-        "spec_sha256": SPEC_SHA256,
+        "version": version,
+        "cli_api_version": args.api_version or "negotiated",
+        "profile": "engine" if args.engine_only else "full",
+        "spec_sha256": SPEC_DIGESTS[version],
         "operations": inventory,
+        "scopes": {},
     }
     for name in ["reference", "candidate"]:
         engine = Engine(
@@ -616,8 +858,10 @@ def main():
             getattr(args, name + "_image"),
             args.postgres_runner,
             getattr(args, name + "_guest_socket"),
+            api_version=args.api_version,
         )
-        engine.run()
+        result["scopes"][name] = {"labels": engine.labels, "image": engine.image}
+        engine.run(engine_only=args.engine_only)
         result[name] = engine.cases
     for name, ref in result["reference"].items():
         peer = result["candidate"][name]

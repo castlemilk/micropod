@@ -59,12 +59,17 @@ public struct EngineProbe: Sendable, Equatable {
     public var reason = ""
     public var version = ""
     public var endpoint = ""
+    /// Live capabilities for engines that can vary with the active worker build.
+    public var capabilities: [String]?
 
-    public init(available: Bool, reason: String = "", version: String = "", endpoint: String = "") {
+    public init(
+        available: Bool, reason: String = "", version: String = "", endpoint: String = "", capabilities: [String]? = nil
+    ) {
         self.available = available
         self.reason = reason
         self.version = version
         self.endpoint = endpoint
+        self.capabilities = capabilities
     }
 }
 
@@ -263,7 +268,7 @@ public final class EngineRegistry: Sendable {
                     $0.endpoint = probe.endpoint
                     $0.default = engine.name == defaultName
                     $0.enabled = isEnabled(engine.name)
-                    $0.capabilities = engine.capabilities
+                    $0.capabilities = probe.capabilities ?? engine.capabilities
                 })
         }
         return Micropod_V1_ListRuntimesResponse.with {

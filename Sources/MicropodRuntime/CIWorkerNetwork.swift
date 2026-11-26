@@ -212,6 +212,37 @@ extension CIWorker {
 
     private enum LinkProbe { case check, restoreRoute, reconnected }
 
+    // Linux lowers every macvlan MTU with its parent, but leaves the children
+    // at the smaller size when the parent grows. Restore only live broker leases.
+    private static let restorePublicationLinks = #"""
+        parent=$(cat "/sys/class/net/$2/ifindex")
+        target=$4
+        gso=$5
+        owners=$(nft -n list set netdev mp_publication neighbors 2>/dev/null) || owners=
+        repair_publication() {
+            info=$(nsenter --net=/proc/self/fd/3 ip -d -o link show dev mppub0 2>/dev/null) || return 0
+            case "$info" in *"mppub0@if$parent:"*"macvlan mode private"*) ;; *) return 0 ;; esac
+            set --
+            if [ -n "$target" ]; then
+                case "$info" in *" mtu $target "*) ;; *) set -- mtu "$target" ;; esac
+            fi
+            if [ -n "$gso" ]; then
+                case "$info" in *" gso_ipv4_max_size $gso "*) ;; *) set -- "$@" gso_ipv4_max_size "$gso" ;; esac
+            fi
+            [ "$#" -gt 0 ] || return 0
+            mac=$(printf '%s\n' "$info" | awk '{for (i=1; i<NF; i++) if ($i=="link/ether") {print $(i+1); exit}}')
+            [ -n "$mac" ] && [ -n "$owners" ] || return 1
+            case "$owners" in *"$mac . "*) ;; *) return 0 ;; esac
+            nsenter --net=/proc/self/fd/3 ip link set dev mppub0 "$@" && return 0
+            # A publication can retire while its namespace is pinned.
+            ! nsenter --net=/proc/self/fd/3 ip -o link show dev mppub0 2>/dev/null | grep -Fq "link/ether $mac "
+        }
+        for ns in /var/run/netns/cni-*; do
+            [ -e "$ns" ] || continue
+            if ! repair_publication 3<"$ns"; then [ ! -e "$ns" ] || exit 1; fi
+        done
+        """#
+
     private static func guestLink(
         _ container: LinuxContainer, network: SandboxNetwork, link: WorkerLink, mode: LinkProbe
     ) async throws -> Bool {
@@ -220,9 +251,18 @@ extension CIWorker {
             link == .egress
             ? #"ip route show default | grep -Fq "via $1 dev $2""#
             : #"ip -4 route get "$1" | grep -Fq "dev $2 ""#
+        let linkUp = network.publicationMTU.map { #"ip link set "$2" mtu \#($0) up"# } ?? #"ip link set "$2" up"#
+        let checkMTU = network.publicationMTU.map { #"test "$(cat "/sys/class/net/$2/mtu")" = \#($0)"# + "\n" } ?? ""
+        let checkGSO =
+            network.publicationGSOBytes.map {
+                #"ip -d -o link show dev "$2" | grep -Fq ' gso_ipv4_max_size \#($0) '"# + "\n"
+            } ?? ""
+        let restoreGSO = network.publicationGSOBytes.map { #"ip link set dev "$2" gso_ipv4_max_size \#($0)"# } ?? ""
         let restore = """
-            ip link set "$2" up
+            \(linkUp)
+            \(restoreGSO)
             ip -o -4 addr show dev "$2" | grep -Fq " $3 " || ip addr replace "$3" dev "$2"
+            \(network.publicationMTU != nil || network.publicationGSOBytes != nil ? restorePublicationLinks : "")
             """
         let routeRestore =
             link == .egress ? routeCheck + #" || ip route replace default via "$1" dev "$2""# : routeCheck
@@ -230,7 +270,9 @@ extension CIWorker {
         let script: String
         switch mode {
         case .check:
-            script = routeCheck + "\n" + #"ip neigh show to "$1" dev "$2" | grep -qw REACHABLE || "# + probePeer
+            script =
+                checkMTU + checkGSO + routeCheck + "\n" + #"ip neigh show to "$1" dev "$2" | grep -qw REACHABLE || "#
+                + probePeer
         case .restoreRoute:
             script = [restore, routeRestore, probePeer].joined(separator: "\n")
         case .reconnected:
@@ -243,7 +285,8 @@ extension CIWorker {
             cfg.capabilities = .allCapabilities
             cfg.arguments = [
                 "/bin/sh", "-ec", script, "sh", network.gateway.description, link.device,
-                network.interface.ipv4Address.description,
+                network.interface.ipv4Address.description, network.publicationMTU.map { String($0) } ?? "",
+                network.publicationGSOBytes.map { String($0) } ?? "",
             ]
         }
         let ok: Bool

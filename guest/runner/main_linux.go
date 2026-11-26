@@ -17,6 +17,12 @@ import (
 	"syscall"
 	"time"
 
+	containers "github.com/containerd/containerd/api/services/containers/v1"
+	content "github.com/containerd/containerd/api/services/content/v1"
+	images "github.com/containerd/containerd/api/services/images/v1"
+	leases "github.com/containerd/containerd/api/services/leases/v1"
+	snapshots "github.com/containerd/containerd/api/services/snapshots/v1"
+	tasks "github.com/containerd/containerd/api/services/tasks/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -65,8 +71,18 @@ func (j job) handler() (string, error) {
 }
 
 type node struct {
-	runtime cri.RuntimeServiceClient
-	images  cri.ImageServiceClient
+	runtime    cri.RuntimeServiceClient
+	images     cri.ImageServiceClient
+	imageStore imageMetadataClient
+	imagePush  dockerRegistryPusher
+	content    content.ContentClient
+	containers containers.ContainersClient
+	snapshots  dockerSnapshotClient
+	imageUsage imageLayerUsageClient
+	leases     archiveLeaseClient
+	tasks      taskWaitClient
+	execTasks  tasks.TasksClient
+	watchLog   func(string) (<-chan struct{}, func())
 }
 
 func connect() (*grpc.ClientConn, node, error) {
@@ -74,7 +90,20 @@ func connect() (*grpc.ClientConn, node, error) {
 	if err != nil {
 		return nil, node{}, err
 	}
-	return conn, node{cri.NewRuntimeServiceClient(conn), cri.NewImageServiceClient(conn)}, nil
+	taskClient := tasks.NewTasksClient(conn)
+	snapshotClient := snapshots.NewSnapshotsClient(conn)
+	return conn, node{
+		runtime: cri.NewRuntimeServiceClient(conn), images: cri.NewImageServiceClient(conn),
+		imageStore: images.NewImagesClient(conn),
+		imagePush:  newDockerRegistryPusher(conn),
+		content:    content.NewContentClient(conn),
+		containers: containers.NewContainersClient(conn),
+		snapshots:  snapshotClient,
+		imageUsage: snapshotClient,
+		leases:     leases.NewLeasesClient(conn),
+		tasks:      taskClient,
+		execTasks:  taskClient,
+	}, nil
 }
 
 func (n node) image(ctx context.Context, ref string) (string, bool, error) {
@@ -199,6 +228,7 @@ type result struct {
 	Reason    string `json:"exit_reason,omitempty"`
 	Type      string `json:"type"`
 	ExitCode  int32  `json:"exit_code"`
+	ExitKnown bool   `json:"-"`
 	Runtime   string `json:"runtime"`
 	Prepared  bool   `json:"prepared_pod"`
 	Image     string `json:"image_id"`
@@ -215,15 +245,41 @@ type result struct {
 // Only the scheduler can create these durable ownership records. Never enumerate or
 // remove another CRI client's pods, including other pods in the same namespace.
 func (n node) remove(ctx context.Context, id string) error {
+	return n.removeOwnedPod(ctx, id, "")
+}
+
+func (n node) removeOwnedPod(ctx context.Context, id, sandboxID string) error {
 	if !jobID.MatchString(id) {
 		return errors.New("invalid job ownership record")
+	}
+	owns := func(p *cri.PodSandbox) bool {
+		return p.GetLabels()[owner] == id && p.GetMetadata().GetUid() == id && p.GetMetadata().GetNamespace() == "micropod-ci" &&
+			(sandboxID == "" || sandboxID == p.GetId())
+	}
+	// A missing owner label must not make an existing recorded sandbox appear
+	// retired. Check its exact ID before cleaning up the job's ownership scope.
+	exactPresent := false
+	if sandboxID != "" {
+		byID, err := n.runtime.ListPodSandbox(ctx, &cri.ListPodSandboxRequest{Filter: &cri.PodSandboxFilter{Id: sandboxID}})
+		if err != nil {
+			return err
+		}
+		exactPresent = len(byID.GetItems()) != 0
+		for _, pod := range byID.GetItems() {
+			if !owns(pod) {
+				return errors.New("pod ownership changed")
+			}
+		}
 	}
 	pods, err := n.runtime.ListPodSandbox(ctx, &cri.ListPodSandboxRequest{Filter: &cri.PodSandboxFilter{LabelSelector: map[string]string{owner: id}}})
 	if err != nil {
 		return err
 	}
+	if exactPresent && len(pods.GetItems()) != 1 {
+		return errors.New("recorded pod is missing from its ownership scope")
+	}
 	for _, p := range pods.Items {
-		if p.Labels[owner] != id || p.Metadata.GetUid() != id || p.Metadata.GetNamespace() != "micropod-ci" {
+		if !owns(p) {
 			return errors.New("pod ownership changed")
 		}
 		if _, err := n.runtime.StopPodSandbox(ctx, &cri.StopPodSandboxRequest{PodSandboxId: p.Id}); err != nil {
@@ -241,6 +297,14 @@ func (n node) remove(ctx context.Context, id string) error {
 }
 
 func (n node) recover(ctx context.Context) error {
+	lease, err := engineRecoveryLease()
+	if err != nil {
+		return err
+	}
+	defer lease.Close()
+	if err := n.recoverDockerRootFSBindings(ctx); err != nil {
+		return err
+	}
 	dirs, err := os.ReadDir(filepath.Join(dataRoot, "jobs"))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -272,10 +336,16 @@ func kataPrerequisites() error {
 }
 
 type processHooks struct {
-	configure func(context.Context, string, *cri.ContainerConfig) error
-	retire    func() error
-	started   func(string)
-	output    outputSink
+	configure     func(context.Context, ownedPod, *cri.ContainerConfig) error
+	created       func(context.Context, string, string) error
+	bindRootFS    func(context.Context, ownedPod, string) (*dockerRootFSBinding, error)
+	clearRootFS   func() error
+	retire        func() error
+	podRetired    func()
+	startConsole  func(context.Context, string) error
+	runtimeLogDir string
+	started       func(string)
+	output        outputSink
 }
 
 func (n node) run(ctx context.Context, j job, hooks processHooks) (res result, err error) {
@@ -284,6 +354,31 @@ func (n node) run(ctx context.Context, j job, hooks processHooks) (res result, e
 		return res, err
 	}
 	return n.runProcess(ctx, j, handler, hooks)
+}
+
+func (n node) retireProcess(ctx context.Context, p ownedPod, hooks processHooks, binding *dockerRootFSBinding, rootFSDetached bool) error {
+	// Confirm that published routes are revoked before CNI recycles the pod.
+	if hooks.retire != nil {
+		if err := hooks.retire(); err != nil {
+			return err
+		}
+	}
+	var err error
+	if binding == nil {
+		err = n.cleanup(p.id)
+	} else {
+		err = n.cleanupDockerRootFSBinding(context.WithoutCancel(ctx), *binding, !rootFSDetached)
+	}
+	if err != nil {
+		return err
+	}
+	if hooks.podRetired != nil {
+		hooks.podRetired()
+	}
+	if binding != nil {
+		return hooks.clearRootFS()
+	}
+	return nil
 }
 
 func (n node) runProcess(ctx context.Context, j job, handler string, hooks processHooks) (res result, err error) {
@@ -306,38 +401,66 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 	res.Pod = p.pod
 	res.Prepared = prepared
 	res.PodMS = time.Since(setup).Milliseconds()
+	var binding *dockerRootFSBinding
+	var rootFSDetached bool
 	defer func() {
-		// Revoke published routes before CNI can recycle the pod address.
-		if hooks.retire != nil {
-			if e := hooks.retire(); e != nil {
-				err = errors.Join(err, e)
-				return
-			}
-		}
-		err = errors.Join(err, n.cleanup(p.id))
+		err = errors.Join(err, n.retireProcess(ctx, p, hooks, binding, rootFSDetached))
 	}()
 	dir := filepath.Join(dataRoot, "jobs", p.id)
 	pod, container, err := config(p.id, dir, image, j)
 	if err != nil {
 		return res, err
 	}
+	writeRuntimeLog := hooks.output
+	if hooks.runtimeLogDir != "" {
+		pod.LogDirectory = hooks.runtimeLogDir
+		container.LogPath = dockerRuntimeLogName
+	}
+	if hooks.startConsole != nil {
+		// Docker captures the OCI process's raw descriptors directly. CRI's
+		// line-oriented logger and the standalone job cap stay on the job path.
+		container.LogPath = ""
+		writeRuntimeLog = nil
+	}
 	startCtx, finishSetup := context.WithTimeout(ctx, 3*time.Minute)
 	defer finishSetup()
 	if hooks.configure != nil {
-		if err := hooks.configure(startCtx, p.pod, container); err != nil {
+		if err := hooks.configure(startCtx, p, container); err != nil {
 			return res, err
 		}
 	}
 	create := time.Now()
-	c, err := n.runtime.CreateContainer(startCtx, &cri.CreateContainerRequest{PodSandboxId: res.Pod, Config: container, SandboxConfig: pod})
+	c, err := n.createImageContainer(startCtx, &cri.CreateContainerRequest{PodSandboxId: res.Pod, Config: container, SandboxConfig: pod})
 	if err != nil {
 		return res, err
 	}
 	res.Container = c.ContainerId
 	res.CreateMS = time.Since(create).Milliseconds()
+	if hooks.created != nil {
+		if err := hooks.created(startCtx, res.Pod, res.Container); err != nil {
+			return res, err
+		}
+	}
+	if hooks.bindRootFS != nil {
+		binding, err = hooks.bindRootFS(startCtx, p, res.Container)
+		if err != nil {
+			return res, err
+		}
+	}
 	start := time.Now()
 	if _, err = n.runtime.StartContainer(startCtx, &cri.StartContainerRequest{ContainerId: res.Container}); err != nil {
 		return res, err
+	}
+	if binding != nil {
+		if err := n.detachDockerRootFS(startCtx, *binding); err != nil {
+			return res, fmt.Errorf("restore CRI scratch snapshot after start: %w", err)
+		}
+		rootFSDetached = true
+	}
+	if hooks.startConsole != nil {
+		if err := hooks.startConsole(startCtx, res.Container); err != nil {
+			return res, err
+		}
 	}
 	finishSetup()
 	res.StartMS = time.Since(start).Milliseconds()
@@ -345,7 +468,9 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 	if hooks.started != nil {
 		hooks.started(res.Container)
 	}
-	res.ExitCode, res.Reason, err = n.follow(ctx, res.Container, filepath.Join(dir, "job.log"), hooks.output)
+	logSource := criLogSource{path: filepath.Join(pod.LogDirectory, container.LogPath), diskBacked: hooks.runtimeLogDir != ""}
+	res.ExitCode, res.Reason, err = n.follow(ctx, res.Container, logSource, writeRuntimeLog, handler == "crun")
+	res.ExitKnown = err == nil
 	return res, err
 }
 
@@ -428,6 +553,9 @@ func run() error {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == dockerPID1Command {
+		os.Exit(launchDockerPID1(os.Args[2:]))
+	}
 	if err := run(); err != nil {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]string{"error": err.Error()})
 		os.Exit(1)

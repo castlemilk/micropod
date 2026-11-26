@@ -3,12 +3,167 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/netip"
+	"os"
 	"strconv"
 	"testing"
 
+	"github.com/vishvananda/netlink"
 	"golang.org/x/net/dns/dnsmessage"
 )
+
+func testWorkerRoute(prefix netip.Prefix) netlink.Route {
+	return netlink.Route{Dst: &net.IPNet{IP: prefix.Addr().AsSlice(), Mask: net.CIDRMask(prefix.Bits(), prefix.Addr().BitLen())}}
+}
+
+func TestDockerAutoIPAMReadsRoutesOnce(t *testing.T) {
+	routes := []netlink.Route{{}, testWorkerRoute(netip.MustParsePrefix("0.0.0.0/0"))}
+	for index := range 31 {
+		routes = append(routes, testWorkerRoute(automaticSubnet(index)))
+	}
+	reads := 0
+	readRoutes := func() ([]netlink.Route, error) {
+		reads++
+		return routes, nil
+	}
+	if got := firstAutomaticSubnet(readRoutes); got != netip.MustParsePrefix("10.90.31.0/24") || reads != 1 {
+		t.Fatalf("first allocation selected %s with %d route dumps", got, reads)
+	}
+	routes = append(routes, testWorkerRoute(netip.MustParsePrefix("10.90.31.0/24")))
+	if got := firstAutomaticSubnet(readRoutes); got != netip.MustParsePrefix("10.90.32.0/24") || reads != 2 {
+		t.Fatalf("next allocation selected %s with %d total route dumps", got, reads)
+	}
+}
+
+func TestDockerAutoIPAMRouteOverlap(t *testing.T) {
+	for _, tc := range []struct {
+		name, route, want string
+	}{
+		{name: "default route", route: "0.0.0.0/0", want: "10.90.0.0/24"},
+		{name: "outside pool", route: "10.89.0.0/16", want: "10.90.0.0/24"},
+		{name: "host route", route: "10.90.0.27/32", want: "10.90.1.0/24"},
+		{name: "nested route", route: "10.90.0.252/30", want: "10.90.1.0/24"},
+		{name: "covering route", route: "10.90.0.0/19", want: "10.90.32.0/24"},
+		{name: "occupied hole", route: "10.90.1.0/24", want: "10.90.0.0/24"},
+		{name: "entire pool", route: "10.90.0.0/16"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			routes := []netlink.Route{testWorkerRoute(netip.MustParsePrefix(tc.route))}
+			got := firstAutomaticSubnet(func() ([]netlink.Route, error) { return routes, nil })
+			if tc.want == "" && !got.IsValid() {
+				return
+			}
+			if got.String() != tc.want {
+				t.Fatalf("got %s, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDockerAutoIPAMRouteReadFailure(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want netip.Prefix
+	}{
+		{name: "interrupted dump recovered", want: netip.MustParsePrefix("10.90.1.0/24")},
+		{name: "persistent read failure", err: errors.New("route read failed")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reads := 0
+			readRoutes := func() ([]netlink.Route, error) {
+				reads++
+				if reads == 1 {
+					return nil, netlink.ErrDumpInterrupted
+				}
+				return []netlink.Route{testWorkerRoute(automaticSubnet(0))}, tc.err
+			}
+			if got := firstAutomaticSubnet(readRoutes); got != tc.want || reads != 2 {
+				t.Fatalf("got %s after %d route dumps, want %s after two", got, reads, tc.want)
+			}
+		})
+	}
+}
+
+func TestDockerAutoIPAMExplicitSubnet(t *testing.T) {
+	for _, tc := range []struct {
+		prefix string
+		allow  bool
+		reads  int
+	}{
+		{prefix: "10.88.0.0/16"},
+		{prefix: "10.89.255.0/24"},
+		{prefix: "10.88.0.0/14"},
+		{prefix: "10.90.0.32/29", reads: 1},
+		{prefix: "10.90.0.40/29", allow: true, reads: 1},
+		{prefix: "10.90.0.0/16", reads: 1},
+	} {
+		t.Run(tc.prefix, func(t *testing.T) {
+			reads := 0
+			readRoutes := func() ([]netlink.Route, error) {
+				reads++
+				return []netlink.Route{{}, testWorkerRoute(netip.MustParsePrefix("0.0.0.0/0")),
+					testWorkerRoute(netip.MustParsePrefix("10.90.0.33/32"))}, nil
+			}
+			if got := subnetAvailable(netip.MustParsePrefix(tc.prefix), readRoutes); got != tc.allow || reads != tc.reads {
+				t.Fatalf("allowed %t after %d route dumps, want %t after %d", got, reads, tc.allow, tc.reads)
+			}
+		})
+	}
+	reads := 0
+	readRoutes := func() ([]netlink.Route, error) {
+		reads++
+		return nil, netlink.ErrDumpInterrupted
+	}
+	if subnetAvailable(netip.MustParsePrefix("10.90.0.0/24"), readRoutes) || reads != 1 {
+		t.Fatalf("explicit subnet accepted an interrupted dump or retried (%d reads)", reads)
+	}
+}
+
+func BenchmarkDockerAutoIPAM(b *testing.B) {
+	if os.Getenv("MICROPOD_BENCH_DOCKER_IPAM") != "1" {
+		b.Skip("enable on the disposable worker with the first 32 job networks present")
+	}
+	old := func(readRoutes workerRouteReader) netip.Prefix {
+		for index := range 256 {
+			subnet := automaticSubnet(index)
+			if subnetAvailable(subnet, readRoutes) {
+				return subnet
+			}
+		}
+		return netip.Prefix{}
+	}
+	variants := []struct {
+		name   string
+		choose func(workerRouteReader) netip.Prefix
+	}{{"per-candidate", old}, {"snapshot", firstAutomaticSubnet}}
+	switch order := os.Getenv("MICROPOD_BENCH_DOCKER_IPAM_ORDER"); order {
+	case "", "old-first":
+	case "new-first":
+		variants[0], variants[1] = variants[1], variants[0]
+	default:
+		b.Fatalf("invalid benchmark order %q", order)
+	}
+	want := netip.MustParsePrefix("10.90.32.0/24")
+	for _, variant := range variants {
+		b.Run(variant.name, func(b *testing.B) {
+			reads := 0
+			readRoutes := func() ([]netlink.Route, error) {
+				reads++
+				return workerIPv4Routes()
+			}
+			b.ReportAllocs()
+			for b.Loop() {
+				if got := variant.choose(readRoutes); got != want {
+					b.Fatalf("selected %s, want %s with the first 32 job networks present", got, want)
+				}
+			}
+			b.ReportMetric(float64(reads)/float64(b.N), "route-dumps/op")
+		})
+	}
+}
 
 func TestServiceDirectoryIsScopedAndDropsOnlyExitedAddress(t *testing.T) {
 	s := new(dockerEngine)

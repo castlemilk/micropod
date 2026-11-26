@@ -1,5 +1,10 @@
 // swift-tools-version: 6.2
+import Foundation
 import PackageDescription
+
+// The CI service also runs this executable as a standalone launch agent.
+let cliInfoPlist = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+    .appendingPathComponent("signing/micropod-cli-info.plist").path
 
 let package = Package(
     name: "Micropod",
@@ -124,6 +129,14 @@ let package = Package(
             ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
+            ],
+            linkerSettings: [
+                .unsafeFlags(
+                    [
+                        "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist",
+                        "-Xlinker", cliInfoPlist,
+                    ],
+                    .when(platforms: [.macOS]))
             ]
         ),
         .executableTarget(

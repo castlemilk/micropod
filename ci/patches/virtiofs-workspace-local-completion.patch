@@ -1,0 +1,104 @@
+diff --git a/fs/fuse/virtio_fs.c b/fs/fuse/virtio_fs.c
+--- a/fs/fuse/virtio_fs.c
++++ b/fs/fuse/virtio_fs.c
+@@ -40,6 +40,11 @@
+ MODULE_PARM_DESC(workspace_async_release,
+ 		 "Use asynchronous RELEASE on the flat Micropod workspace share");
+ 
++static bool workspace_local_completion __read_mostly;
++module_param(workspace_local_completion, bool, 0644);
++MODULE_PARM_DESC(workspace_local_completion,
++		 "Prefer the foreground submitter's CPU for workspace completions");
++
+ /* The /sys/fs/virtio_fs/ kset */
+ static struct kset *virtio_fs_kset;
+ 
+@@ -60,6 +65,8 @@
+ 	struct work_struct dispatch_work;
+ 	struct fuse_dev *fud;
+ 	bool connected;
++	bool workspace_requests;
++	unsigned int completion_cpu;
+ 	long in_flight;
+ 	struct completion in_flight_zero; /* No inflight requests */
+ 	struct kobject *kobj;
+@@ -870,6 +877,9 @@
+ 
+ 	/* Collect completed requests off the virtqueue */
+ 	spin_lock(&fsvq->lock);
++	/* Do not carry the preceding batch's hint into the next IRQ. */
++	if (READ_ONCE(fsvq->completion_cpu) != WORK_CPU_UNBOUND)
++		WRITE_ONCE(fsvq->completion_cpu, WORK_CPU_UNBOUND);
+ 	do {
+ 		virtqueue_disable_cb(vq);
+ 
+@@ -952,8 +962,23 @@
+ static void virtio_fs_vq_done(struct virtqueue *vq)
+ {
+ 	struct virtio_fs_vq *fsvq = vq_to_fsvq(vq);
++	unsigned int cpu;
+ 
+ 	dev_dbg(&vq->vdev->dev, "%s %s\n", __func__, fsvq->name);
++
++	if (unlikely(READ_ONCE(workspace_local_completion)) &&
++	    fsvq->workspace_requests) {
++		/* Pairs with the release store after descriptor submission. */
++		cpu = smp_load_acquire(&fsvq->completion_cpu);
++		/*
++		 * The hint came from a running CPU. If it goes offline
++		 * after this check, workqueue can move the pending work.
++		 */
++		if (cpu < nr_cpu_ids && cpu_online(cpu)) {
++			schedule_work_on(cpu, &fsvq->done_work);
++			return;
++		}
++	}
+ 
+ 	schedule_work(&fsvq->done_work);
+ }
+@@ -963,6 +988,7 @@
+ {
+ 	strscpy(fsvq->name, name, VQ_NAME_LEN);
+ 	spin_lock_init(&fsvq->lock);
++	fsvq->completion_cpu = WORK_CPU_UNBOUND;
+ 	INIT_LIST_HEAD(&fsvq->queued_reqs);
+ 	INIT_LIST_HEAD(&fsvq->end_reqs);
+ 	init_completion(&fsvq->in_flight_zero);
+@@ -1025,6 +1051,8 @@
+ 
+ 		snprintf(vq_name, VQ_NAME_LEN, "requests.%u", i - VQ_REQUEST);
+ 		virtio_fs_init_vq(&fs->vqs[i], vq_name, VQ_REQUEST);
++		fs->vqs[i].workspace_requests = fs->num_request_queues == 1 &&
++					      !strcmp(fs->tag, "workspace");
+ 		vqs_info[i].callback = virtio_fs_vq_done;
+ 		vqs_info[i].name = fs->vqs[i].name;
+ 	}
+@@ -1225,6 +1253,7 @@
+ 		fsvq = &fs->vqs[i];
+ 		spin_lock(&fsvq->lock);
+ 		fsvq->connected = false;
++		WRITE_ONCE(fsvq->completion_cpu, WORK_CPU_UNBOUND);
+ 		spin_unlock(&fsvq->lock);
+ 	}
+ }
+@@ -1507,6 +1536,20 @@
+ 
+ 	if (!in_flight)
+ 		inc_in_flight_req(fsvq);
++
++	/*
++	 * Publish only on successful submission of a request the caller
++	 * waits for. A device already polling the ring may signal before
++	 * the hint is visible, in which case the normal dispatch still runs.
++	 */
++	if (unlikely(READ_ONCE(workspace_local_completion)) &&
++	    fsvq->workspace_requests && !in_flight &&
++	    test_bit(FR_ISREPLY, &req->flags) &&
++	    !test_bit(FR_BACKGROUND, &req->flags)) {
++		/* Pairs with the acquire load in the IRQ callback. */
++		smp_store_release(&fsvq->completion_cpu, smp_processor_id());
++	}
++
+ 	notify = virtqueue_kick_prepare(vq);
+ 
+ 	spin_unlock(&fsvq->lock);

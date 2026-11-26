@@ -2,6 +2,7 @@
 //! implementations: RNG, Block, Balloon (Free-Page Reporting -> MADV_FREE),
 //! Vsock (host<->guest Unix socket & port-broker mux), and Virtio-FS (FUSE).
 
+mod fs_watch;
 pub mod virtiofs;
 pub mod vsock;
 
@@ -658,8 +659,7 @@ impl VirtioMmioDevice {
                     q.ready = v != 0;
                     if q.ready {
                         let event_idx =
-                            self.driver_features & self.backend.features() & VIRTIO_F_EVENT_IDX
-                                != 0;
+                            self.driver_features & self.backend.features() & VIRTIO_F_EVENT_IDX != 0;
                         q.configure_notifications(&self.mem, event_idx);
                         let snap = q.clone();
                         self.backend.queue_ready(idx, &snap);
@@ -767,8 +767,7 @@ impl VirtioMmioDevice {
         let event_idx = snap.driver_features & VIRTIO_F_EVENT_IDX != 0;
         if event_idx && self.backend.features() & VIRTIO_F_EVENT_IDX == 0 {
             return Err(format!(
-                "virtio device {} requires EVENT_IDX for snapshot restore",
-                snap.device_id
+                "virtio device {} requires EVENT_IDX for snapshot restore", snap.device_id
             ));
         }
         self.device_features_sel = snap.device_features_sel;
@@ -1522,9 +1521,7 @@ mod tests {
         let mut backing = [0u64; 32];
         let mem = unsafe {
             GuestMemory::new(
-                backing.as_mut_ptr().cast(),
-                0,
-                std::mem::size_of_val(&backing),
+                backing.as_mut_ptr().cast(), 0, std::mem::size_of_val(&backing),
             )
         };
         let mut q = VirtQueue::new(4);
@@ -1555,11 +1552,7 @@ mod tests {
         q.next_used = 1;
         let old = u16::MAX - 1;
         for (event, requested) in [
-            (old - 1, false),
-            (old, true),
-            (u16::MAX, true),
-            (0, true),
-            (1, false),
+            (old - 1, false), (old, true), (u16::MAX, true), (0, true), (1, false),
         ] {
             mem.write_u16_release(used_event, event).unwrap();
             assert_eq!(q.guest_wants_irq_since(&mem, old), requested);

@@ -68,6 +68,8 @@ public enum SandboxVM {
         public var guestTool: URL?
         var ciKernel: URL?
         var ciWorkspace: String?
+        var ciPublishedMTU: UInt32?
+        var ciPublishedGSOBytes: UInt32?
         var ciOCITools: URL?
         var ciKataTools: URL?
         var isolatedCIJob = false
@@ -107,6 +109,19 @@ public enum SandboxVM {
         var image: String
         var diskBytes: UInt64
         var created: Date
+    }
+
+    static func resolveCIImage(
+        _ ref: String, progress: @Sendable (String) -> Void
+    ) async throws -> Containerization.Image {
+        let store = try imageStore()
+        let imageRef = try normalize(ref)
+        do {
+            return try await store.get(reference: imageRef)
+        } catch let error as ContainerizationError where error.code == .notFound {
+            progress("Pulling the Linux ARM64 CI worker image")
+            return try await store.pull(reference: imageRef, platform: .current)
+        }
     }
 
     static func validateRootlessDocker(_ options: Options) throws {
@@ -220,7 +235,16 @@ public enum SandboxVM {
         var kernel = Kernel(path: bootKernel, platform: .linuxArm)
         kernel.commandLine.kernelArgs += kernelArgs
         // The Apple guest kernel builds PSI with CONFIG_PSI_DEFAULT_DISABLED.
-        if ciWorker != nil { kernel.commandLine.kernelArgs.append("psi=1") }
+        if ciWorker != nil {
+            kernel.commandLine.kernelArgs += [
+                "psi=1",
+                "cgroup.memory=nokmem,nosocket",
+                "slab_min_order=2",
+                "swiotlb=noforce",
+                "workqueue.power_efficient=1",
+                "micropod.ci_sysctls=perf",
+            ]
+        }
         if let extra = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_KERNEL_ARGS"] {
             kernel.commandLine.kernelArgs += extra.split(separator: " ").map(String.init)
         }
@@ -248,8 +272,14 @@ public enum SandboxVM {
         if ciWorker?.isNativeRunner == true, let tools = options.ciOCITools,
             FileManager.default.fileExists(atPath: tools.appendingPathComponent("runner/published-ports.sh").path)
         {
-            publishedNetwork = try await SandboxNetwork.workerNetwork(mode: .VMNET_HOST_MODE)
+            publishedNetwork = try await SandboxNetwork.workerNetwork(
+                mode: .VMNET_HOST_MODE, publicationMTU: options.ciPublishedMTU,
+                publicationGSOBytes: options.ciPublishedGSOBytes)
         } else {
+            if options.ciPublishedMTU != nil || options.ciPublishedGSOBytes != nil {
+                throw MicropodError.message(
+                    "The selected runner bundle cannot provision a private publication interface")
+            }
             publishedNetwork = nil
         }
         let network = vmnet.map { (interface: $0.interface, gateway: $0.gateway.description) }

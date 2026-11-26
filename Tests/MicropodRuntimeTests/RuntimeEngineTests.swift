@@ -211,6 +211,52 @@ final class RuntimeEngineTests: XCTestCase {
         }
     }
 
+    func testNativeCIReportsItsDockerSocketWithoutStartingWorker() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let environment = ["MICROPOD_CI_HOME": root.path, "MICROPOD_CI_ENGINE": "containerd"]
+        let registered = registry(environment)
+        let engine = try XCTUnwrap(registered.engine("ci") as? DockerEngine)
+        let dockerSocket = root.appendingPathComponent("docker.sock").path
+        XCTAssertEqual(engine.client?.endpoint, .unix(dockerSocket))
+        XCTAssertFalse(engine.capabilities.contains("restart"))
+        XCTAssertTrue(DockerEngine(endpoint: nil, environment: [:]).capabilities.contains("restart"))
+        let probe = await engine.probe()
+        XCTAssertEqual(probe.endpoint, "unix://" + dockerSocket)
+        XCTAssertEqual(probe.reason, "CI worker is stopped")
+        XCTAssertFalse(probe.available)
+        let runtimes = await registered.describe(apple: apple()).runtimes
+        let info = try XCTUnwrap(runtimes.first { $0.name == "ci" })
+        XCTAssertFalse(info.available)
+        XCTAssertFalse(info.capabilities.contains("restart"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
+    }
+
+    func testNativeDockerRestartFeatureNeedsLiveWorkerIdentity() throws {
+        let worker = UUID()
+        let instance = UUID()
+        func reply(_ capabilities: Any?, workerID: UUID? = nil, instanceID: UUID? = nil, status: Int = 200)
+            throws -> DockerClient.Response
+        {
+            var info: [String: Any] = [
+                "ID": (workerID ?? worker).uuidString,
+                "Labels": ["io.micropod.instance=" + (instanceID ?? instance).uuidString],
+            ]
+            info["MicropodCapabilities"] = capabilities
+            return DockerClient.Response(status: status, body: try JSONSerialization.data(withJSONObject: info))
+        }
+        XCTAssertTrue(try CIWorker.attestedDockerRestart(reply(["restart"]), worker: worker, instance: instance))
+        for capabilities in [nil, ["other"], "restart", ["restart", true] as [Any]] as [Any?] {
+            XCTAssertFalse(try CIWorker.attestedDockerRestart(reply(capabilities), worker: worker, instance: instance))
+        }
+        for untrusted in [
+            try reply(["restart"], workerID: UUID()),
+            try reply(["restart"], instanceID: UUID()),
+            try reply(["restart"], status: 503),
+        ] {
+            XCTAssertThrowsError(try CIWorker.attestedDockerRestart(untrusted, worker: worker, instance: instance))
+        }
+    }
+
     // MARK: Routing
 
     func testRunTargetsRequestedOrDefaultEngine() async throws {

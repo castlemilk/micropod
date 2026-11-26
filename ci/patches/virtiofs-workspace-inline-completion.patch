@@ -1,0 +1,388 @@
+diff --git a/fs/fuse/dev.c b/fs/fuse/dev.c
+--- a/fs/fuse/dev.c
++++ b/fs/fuse/dev.c
+@@ -644,7 +644,7 @@
+ 	 * changing and below FR_INTERRUPTED check. Pairs with
+ 	 * smp_mb() from queue_interrupt().
+ 	 */
+-	if (test_bit(FR_INTERRUPTED, &req->flags)) {
++	if (test_bit(FR_INTERRUPTED, &req->flags) && fiq->ops->send_interrupt) {
+ 		spin_lock(&fiq->lock);
+ 		list_del_init(&req->intr_entry);
+ 		spin_unlock(&fiq->lock);
+@@ -676,7 +676,8 @@
+ 	if (unlikely(!test_bit(FR_INTERRUPTED, &req->flags)))
+ 		return -EINVAL;
+ 
+-	fiq->ops->send_interrupt(fiq, req);
++	if (fiq->ops->send_interrupt)
++		fiq->ops->send_interrupt(fiq, req);
+ 
+ 	return 0;
+ }
+diff --git a/fs/fuse/fuse_dev_i.h b/fs/fuse/fuse_dev_i.h
+--- a/fs/fuse/fuse_dev_i.h
++++ b/fs/fuse/fuse_dev_i.h
+@@ -139,7 +139,8 @@
+ 	void (*send_forget)(struct fuse_iqueue *fiq, struct fuse_forget_link *link);
+ 
+ 	/**
+-	 * @send_interrupt: Send interrupt for request
++	 * @send_interrupt: Send interrupt for request, optional. A transport
++	 * without this callback must leave the interrupt list unused.
+ 	 */
+ 	void (*send_interrupt)(struct fuse_iqueue *fiq, struct fuse_req *req);
+ 
+diff --git a/fs/fuse/virtio_fs.c b/fs/fuse/virtio_fs.c
+--- a/fs/fuse/virtio_fs.c
++++ b/fs/fuse/virtio_fs.c
+@@ -29,6 +29,10 @@
+  */
+ #define FUSE_HEADER_OVERHEAD    4
+ 
++/* Limit both the number of used buffers and the workspace SG chain size. */
++#define FUSE_IRQ_REPLY_BUDGET	8
++#define FUSE_IRQ_MAX_PAGES	64
++
+ /* List of virtio-fs device instances and a lock for the list. Also provides
+  * mutual exclusion in device removal and mounting path
+  */
+@@ -39,6 +43,11 @@
+ module_param(workspace_async_release, bool, 0444);
+ MODULE_PARM_DESC(workspace_async_release,
+ 		 "Use asynchronous RELEASE on the flat Micropod workspace share");
++
++static bool workspace_inline_completion __read_mostly;
++module_param(workspace_inline_completion, bool, 0444);
++MODULE_PARM_DESC(workspace_inline_completion,
++		 "Complete synchronous workspace OPEN and direct READ replies in IRQ");
+ 
+ /* The /sys/fs/virtio_fs/ kset */
+ static struct kset *virtio_fs_kset;
+@@ -56,6 +65,7 @@
+ 	struct virtqueue *vq;     /* protected by ->lock */
+ 	struct work_struct done_work;
+ 	struct list_head queued_reqs;
++	struct list_head deferred_replies; /* Used buffers for done_work */
+ 	struct list_head end_reqs;	/* End these requests */
+ 	struct work_struct dispatch_work;
+ 	struct fuse_dev *fud;
+@@ -596,12 +606,8 @@
+ 		ret = virtio_fs_enqueue_req(fsvq, req, true, GFP_KERNEL);
+ 		memalloc_nofs_restore(flags);
+ 		if (ret < 0) {
+-			if (ret == -ENOSPC) {
+-				spin_lock(&fsvq->lock);
+-				list_add_tail(&req->list, &fsvq->queued_reqs);
+-				spin_unlock(&fsvq->lock);
++			if (ret == -ENOSPC)
+ 				return;
+-			}
+ 			req->out.h.error = ret;
+ 			spin_lock(&fsvq->lock);
+ 			dec_in_flight_req(fsvq);
+@@ -767,33 +773,39 @@
+ }
+ 
+ /* Verify that the server properly follows the FUSE protocol */
+-static bool virtio_fs_verify_response(struct fuse_req *req, unsigned int len)
++static bool virtio_fs_verify_response(struct fuse_req *req, unsigned int len,
++				      bool warn)
+ {
+ 	struct fuse_args *args = req->args;
+ 	struct fuse_out_header *oh = &req->out.h;
+ 	unsigned int expected;
+ 
+ 	if (len < sizeof(*oh)) {
+-		pr_warn("virtio-fs: response too short (%u)\n", len);
++		if (warn)
++			pr_warn("virtio-fs: response too short (%u)\n", len);
+ 		return false;
+ 	}
+ 	if (oh->len != len) {
+-		pr_warn("virtio-fs: oh.len mismatch (%u != %u)\n", oh->len, len);
++		if (warn)
++			pr_warn("virtio-fs: oh.len mismatch (%u != %u)\n", oh->len, len);
+ 		return false;
+ 	}
+ 	if (oh->unique != req->in.h.unique) {
+-		pr_warn("virtio-fs: oh.unique mismatch (%llu != %llu)\n",
+-			oh->unique, req->in.h.unique);
++		if (warn)
++			pr_warn("virtio-fs: oh.unique mismatch (%llu != %llu)\n",
++				oh->unique, req->in.h.unique);
+ 		return false;
+ 	}
+ 	if (oh->error <= -ERESTARTSYS || oh->error > 0) {
+-		pr_warn("virtio-fs: invalid error value (%d)\n", oh->error);
++		if (warn)
++			pr_warn("virtio-fs: invalid error value (%d)\n", oh->error);
+ 		return false;
+ 	}
+ 
+ 	if (oh->error) {
+ 		if (len != sizeof(*oh)) {
+-			pr_warn("virtio-fs: error response too long (%u)\n", len);
++			if (warn)
++				pr_warn("virtio-fs: error response too long (%u)\n", len);
+ 			return false;
+ 		}
+ 		return true;
+@@ -805,11 +817,18 @@
+ 	    (len < expected &&
+ 	     (!args->out_argvar ||
+ 	      expected - len > args->out_args[args->out_numargs - 1].size))) {
+-		pr_warn("virtio-fs: invalid response length (%u, expected %u)\n",
+-			len, expected);
++		if (warn)
++			pr_warn("virtio-fs: invalid response length (%u, expected %u)\n",
++				len, expected);
+ 		return false;
+ 	}
+ 	return true;
++}
++
++static void virtio_fs_bad_response(struct fuse_req *req)
++{
++	req->out.h.error = -EIO;
++	req->out.h.len = sizeof(struct fuse_out_header);
+ }
+ 
+ /* Work function for request completion */
+@@ -861,23 +880,27 @@
+ {
+ 	struct virtio_fs_vq *fsvq = container_of(work, struct virtio_fs_vq,
+ 						 done_work);
+-	struct fuse_pqueue *fpq = &fsvq->fud->pq;
+ 	struct virtqueue *vq = fsvq->vq;
++	struct fuse_pqueue *fpq;
+ 	struct fuse_req *req;
+ 	struct fuse_req *next;
+ 	unsigned int len;
+ 	LIST_HEAD(reqs);
+ 
+-	/* Collect completed requests off the virtqueue */
++	/* A callback racing the last drain may have no requests left. */
+ 	spin_lock(&fsvq->lock);
++	if (!fsvq->in_flight) {
++		spin_unlock(&fsvq->lock);
++		return;
++	}
++	fpq = &fsvq->fud->pq;
++	list_splice_tail_init(&fsvq->deferred_replies, &reqs);
+ 	do {
+ 		virtqueue_disable_cb(vq);
+ 
+ 		while ((req = virtqueue_get_buf(vq, &len)) != NULL) {
+-			if (!virtio_fs_verify_response(req, len)) {
+-				req->out.h.error = -EIO;
+-				req->out.h.len = sizeof(struct fuse_out_header);
+-			}
++			if (!virtio_fs_verify_response(req, len, true))
++				virtio_fs_bad_response(req);
+ 			spin_lock(&fpq->lock);
+ 			list_move_tail(&req->list, &reqs);
+ 			spin_unlock(&fpq->lock);
+@@ -888,6 +911,12 @@
+ 	/* End requests */
+ 	list_for_each_entry_safe(req, next, &reqs, list) {
+ 		list_del_init(&req->list);
++
++		if (!req->out.h.len) {
++			pr_warn("virtio-fs: malformed response for request %llu\n",
++				req->in.h.unique);
++			virtio_fs_bad_response(req);
++		}
+ 
+ 		/* blocking async request completes in a worker context */
+ 		if (req->args->may_block) {
+@@ -908,6 +937,92 @@
+ 	if (!list_empty(&fsvq->queued_reqs))
+ 		schedule_work(&fsvq->dispatch_work);
+ 	spin_unlock(&fsvq->lock);
++}
++
++static bool virtio_fs_can_complete_inline(struct fuse_req *req)
++{
++	const struct fuse_args *args = req->args;
++	unsigned long flags = READ_ONCE(req->flags);
++	const unsigned long required = BIT(FR_SENT) | BIT(FR_SYNC_WAKEUP);
++	const unsigned long excluded = BIT(FR_BACKGROUND) | BIT(FR_ASYNC) |
++				       BIT(FR_URING) | BIT(FR_ABORTED) | BIT(FR_FINISHED);
++
++	if ((flags & (required | excluded)) != required || args->may_block ||
++	    args->page_zeroing || args->abort_on_kill)
++		return false;
++
++	/* Direct reads already delivered their bytes into the mapped pages. */
++	return req->in.h.opcode == FUSE_OPEN ||
++	       (req->in.h.opcode == FUSE_READ && args->out_pages);
++}
++
++static bool virtio_fs_inline_completions(struct virtio_fs_vq *fsvq,
++					struct virtqueue *vq)
++{
++	struct fuse_pqueue *fpq;
++	struct fuse_chan *fch;
++	struct fuse_req *req, *next;
++	unsigned int len, budget, max_pages;
++	LIST_HEAD(reqs);
++
++	/* These same locks can be held by an interrupted task. */
++	if (!spin_trylock(&fsvq->lock))
++		return false;
++
++	if (!fsvq->in_flight)
++		goto out;
++	if (!fsvq->connected)
++		goto defer;
++
++	fch = fuse_dev_chan_get(fsvq->fud);
++	max_pages = READ_ONCE(fch->max_pages);
++	if (!max_pages || max_pages > FUSE_IRQ_MAX_PAGES || fch->iq.ops->send_interrupt)
++		goto defer;
++
++	fpq = &fsvq->fud->pq;
++	if (!spin_trylock(&fpq->lock))
++		goto defer;
++	if (!fpq->connected) {
++		spin_unlock(&fpq->lock);
++		goto defer;
++	}
++
++	virtqueue_disable_cb(vq);
++	for (budget = 0; budget < FUSE_IRQ_REPLY_BUDGET; budget++) {
++		req = virtqueue_get_buf(vq, &len);
++		if (!req)
++			break;
++		/* Leave diagnostics for done_work. A valid reply has a header. */
++		if (!virtio_fs_verify_response(req, len, false))
++			req->out.h.len = 0;
++		if (req->out.h.len && virtio_fs_can_complete_inline(req))
++			list_move_tail(&req->list, &reqs);
++		else
++			list_move_tail(&req->list, &fsvq->deferred_replies);
++	}
++	spin_unlock(&fpq->lock);
++
++	/* Recheck for a used buffer published while callbacks were disabled. */
++	if (!virtqueue_enable_cb(vq) || !list_empty(&fsvq->deferred_replies))
++		schedule_work(&fsvq->done_work);
++
++	/* No interrupt-list lock, asynchronous callbacks or folio work here. */
++	list_for_each_entry_safe(req, next, &reqs, list) {
++		list_del_init(&req->list);
++		copy_args_from_argbuf(req->args, req);
++		clear_bit(FR_SENT, &req->flags);
++		fuse_request_end(req);
++		dec_in_flight_req(fsvq);
++	}
++
++	if (!list_empty(&fsvq->queued_reqs))
++		schedule_work(&fsvq->dispatch_work);
++out:
++	spin_unlock(&fsvq->lock);
++	return true;
++defer:
++	spin_unlock(&fsvq->lock);
++	return false;
+ }
+ 
+ static void virtio_fs_map_queues(struct virtio_device *vdev, struct virtio_fs *fs)
+@@ -951,9 +1066,15 @@
+ /* Virtqueue interrupt handler */
+ static void virtio_fs_vq_done(struct virtqueue *vq)
+ {
++	struct virtio_fs *fs = vq->vdev->priv;
+ 	struct virtio_fs_vq *fsvq = vq_to_fsvq(vq);
+ 
+ 	dev_dbg(&vq->vdev->dev, "%s %s\n", __func__, fsvq->name);
++
++	if (!IS_ENABLED(CONFIG_PREEMPT_RT) && workspace_inline_completion &&
++	    vq->index >= VQ_REQUEST && in_hardirq() && !strcmp(fs->tag, "workspace") &&
++	    virtio_fs_inline_completions(fsvq, vq))
++		return;
+ 
+ 	schedule_work(&fsvq->done_work);
+ }
+@@ -964,6 +1085,7 @@
+ 	strscpy(fsvq->name, name, VQ_NAME_LEN);
+ 	spin_lock_init(&fsvq->lock);
+ 	INIT_LIST_HEAD(&fsvq->queued_reqs);
++	INIT_LIST_HEAD(&fsvq->deferred_replies);
+ 	INIT_LIST_HEAD(&fsvq->end_reqs);
+ 	init_completion(&fsvq->in_flight_zero);
+ 
+@@ -1310,17 +1432,6 @@
+ 
+ 	send_forget_request(fsvq, forget, false);
+ 	kfree(link);
+-}
+-
+-static void virtio_fs_send_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
+-{
+-	/*
+-	 * TODO interrupts.
+-	 *
+-	 * Normal fs operations on a local filesystems aren't interruptible.
+-	 * Exceptions are blocking lock operations; for example fcntl(F_SETLKW)
+-	 * with shared lock between host and guest.
+-	 */
+ }
+ 
+ /* Count number of scatter-gather elements required */
+@@ -1490,6 +1601,19 @@
+ 
+ 	vq = fsvq->vq;
+ 	ret = virtqueue_add_sgs(vq, sgs, out_sgs, in_sgs, req, GFP_ATOMIC);
++	if (ret == -ENOSPC) {
++		/*
++		 * Publish the retry before a completion can free a slot and
++		 * check the retry list. The retry needs a fresh bounce buffer.
++		 */
++		kfree(req->argbuf);
++		req->argbuf = NULL;
++		list_add_tail(&req->list, &fsvq->queued_reqs);
++		if (!in_flight)
++			inc_in_flight_req(fsvq);
++		spin_unlock(&fsvq->lock);
++		goto out_sgs;
++	}
+ 	if (ret < 0) {
+ 		spin_unlock(&fsvq->lock);
+ 		goto out;
+@@ -1519,6 +1643,7 @@
+ 		kfree(req->argbuf);
+ 		req->argbuf = NULL;
+ 	}
++out_sgs:
+ 	if (sgs != stack_sgs) {
+ 		kfree(sgs);
+ 		kfree(sg);
+@@ -1550,17 +1675,8 @@
+ 	fsvq = &fs->vqs[queue_id];
+ 	ret = virtio_fs_enqueue_req(fsvq, req, false, GFP_ATOMIC);
+ 	if (ret < 0) {
+-		if (ret == -ENOSPC) {
+-			/*
+-			 * Virtqueue full. Retry submission from worker
+-			 * context as we might be holding fc->chan->bg_lock.
+-			 */
+-			spin_lock(&fsvq->lock);
+-			list_add_tail(&req->list, &fsvq->queued_reqs);
+-			inc_in_flight_req(fsvq);
+-			spin_unlock(&fsvq->lock);
++		if (ret == -ENOSPC)
+ 			return;
+-		}
+ 		req->out.h.error = ret;
+ 		pr_err("virtio-fs: virtio_fs_enqueue_req() failed %d\n", ret);
+ 
+@@ -1575,7 +1691,6 @@
+ 
+ static const struct fuse_iqueue_ops virtio_fs_fiq_ops = {
+ 	.send_forget	= virtio_fs_send_forget,
+-	.send_interrupt	= virtio_fs_send_interrupt,
+ 	.send_req	= virtio_fs_send_req,
+ 	.release	= virtio_fs_fiq_release,
+ };

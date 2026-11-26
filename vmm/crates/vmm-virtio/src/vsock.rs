@@ -269,6 +269,21 @@ fn set_nosigpipe(fd: RawFd) {
     }
 }
 
+/// Returns `true` when the peer of a non-blocking Unix stream socket has closed
+/// its read side (full `close()`, not just `shutdown(SHUT_WR)`).
+#[inline]
+fn host_peer_closed_read(fd: RawFd) -> bool {
+    let rc = unsafe { libc::send(fd, std::ptr::null(), 0, 0) };
+    if rc < 0 {
+        matches!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(libc::EPIPE | libc::ECONNRESET | libc::ENOTCONN | libc::EBADF)
+        )
+    } else {
+        false
+    }
+}
+
 #[inline]
 fn scatter_two_slices(bufs: &[DescBuf], mem: &GuestMemory, mut a: &[u8], mut b: &[u8]) -> u32 {
     let mut written = 0u32;
@@ -350,6 +365,7 @@ struct Conn {
     peer_fwd_cnt: u32,
     to_host_buf: VecDeque<u8>,
     created: Instant,
+    host_full_close_at: Option<Instant>,
 }
 
 impl Conn {
@@ -373,6 +389,7 @@ impl Conn {
             peer_fwd_cnt: 0,
             to_host_buf: VecDeque::new(),
             created: Instant::now(),
+            host_full_close_at: None,
         }
     }
 
@@ -597,17 +614,32 @@ impl MuxInner {
                 );
                 // Under EV_CLEAR, always keep looping until WouldBlock, EOF, or credit == 0!
             } else if rc == 0 {
+                // Distinguish a clean half-close (peer called shutdown(SHUT_WR), still reading)
+                // from a full close (peer exited / called close(), can neither send nor receive).
+                // On macOS AF_UNIX with SO_NOSIGPIPE, send(fd, NULL, 0, 0) returns 0 on half-close
+                // and -1/EPIPE on full close.
+                let peer_closed_read = host_peer_closed_read(fd);
                 let (send_rst, fwd_now) = {
                     let Some(c) = self.streams.get_mut(&key) else {
                         return pushed;
                     };
                     c.host_send_eof = true;
                     c.host_readable = false;
-                    let both = c.guest_send_eof && c.to_host_buf.is_empty() && !c.rst_sent;
-                    if both {
+                    if peer_closed_read {
+                        c.closed = true;
+                        c.host_full_close_at = Some(Instant::now());
+                    }
+                    // Full close with all host->guest bytes already consumed by the guest
+                    // (or guest already sent EOF): immediately RST so the guest unblocks and
+                    // no host socket FD leaks waiting for an idle gRPC/HTTP2 peer.
+                    let guest_drained = c.peer_fwd_cnt == c.tx_cnt;
+                    let immediate_rst = !c.rst_sent
+                        && ((c.guest_send_eof && c.to_host_buf.is_empty())
+                            || (peer_closed_read && guest_drained));
+                    if immediate_rst {
                         c.rst_sent = true;
                     }
-                    (both, c.fwd_cnt)
+                    (immediate_rst, c.fwd_cnt)
                 };
                 if send_rst {
                     self.remove_conn(key);
@@ -616,12 +648,17 @@ impl MuxInner {
                         &[],
                     );
                 } else {
+                    let shut_flags = if peer_closed_read {
+                        SHUTDOWN_SEND | SHUTDOWN_RCV
+                    } else {
+                        SHUTDOWN_SEND
+                    };
                     pushed |= self.send_rx(
                         VsockHdr::host_ctrl(
                             hp,
                             gp,
                             VIRTIO_VSOCK_OP_SHUTDOWN,
-                            SHUTDOWN_SEND,
+                            shut_flags,
                             fwd_now,
                         ),
                         &[],
@@ -921,8 +958,12 @@ fn run_vsock_io_loop(
             }
         }
 
-        // Periodic 500ms sweep: expire stalled host-initiated handshakes (> 5s without OP_RESPONSE)
-        if last_sweep.elapsed() >= Duration::from_millis(500) {
+        // Periodic 100ms sweep:
+        // 1. Expire stalled host-initiated handshakes (> 5s without OP_RESPONSE).
+        // 2. Finalize host full-closed streams with OP_RST once guest finishes reading
+        //    queued host->guest bytes (or after 100ms grace period) so idle gRPC/HTTP2
+        //    daemons like buildkitd never leak FDs or drain locks after client exit.
+        if last_sweep.elapsed() >= Duration::from_millis(100) {
             last_sweep = Instant::now();
             let mut g = inner.lock().unwrap();
             let expired: Vec<(u32, u32)> = g
@@ -933,6 +974,44 @@ fn run_vsock_io_loop(
                 .collect();
             for key in expired {
                 g.remove_conn(key);
+            }
+            let rst_keys: Vec<((u32, u32), u32, u32, u32)> = g
+                .streams
+                .iter_mut()
+                .filter_map(|(&k, c)| {
+                    if c.rst_sent || !c.connected || c.fd < 0 {
+                        return None;
+                    }
+                    // Catch host peers that half-closed (CloseWrite) first and exited/closed
+                    // their read side a millisecond later, or closed while credit was 0.
+                    if c.host_full_close_at.is_none()
+                        && (c.host_send_eof || c.peer_credit() == 0)
+                        && host_peer_closed_read(c.fd)
+                    {
+                        c.closed = true;
+                        c.host_full_close_at = Some(Instant::now());
+                    }
+                    let closed_at = c.host_full_close_at?;
+                    if c.peer_fwd_cnt == c.tx_cnt
+                        || closed_at.elapsed() >= Duration::from_millis(100)
+                    {
+                        c.rst_sent = true;
+                        Some((k, c.host_port, c.guest_port, c.fwd_cnt))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            let mut sweep_pushed = false;
+            for (key, hp, gp, fwd) in rst_keys {
+                g.remove_conn(key);
+                sweep_pushed |= g.send_rx(
+                    VsockHdr::host_ctrl(hp, gp, VIRTIO_VSOCK_OP_RST, 0, fwd),
+                    &[],
+                );
+            }
+            if sweep_pushed {
+                g.raise_irq_if_wanted();
             }
         }
     }
@@ -1670,6 +1749,23 @@ mod tests {
                 (2379, 10001, VIRTIO_VSOCK_OP_RST),
                 (40000, 2375, VIRTIO_VSOCK_OP_RST),
             ]
+        );
+    }
+
+    #[test]
+    fn vsock_distinguishes_half_close_from_full_close() {
+        let (a, b) = UnixStream::pair().unwrap();
+        a.set_nonblocking(true).unwrap();
+        set_nosigpipe(a.as_raw_fd());
+        b.shutdown(std::net::Shutdown::Write).unwrap();
+        assert!(
+            !host_peer_closed_read(a.as_raw_fd()),
+            "half-close SHUT_WR must not look like full close"
+        );
+        drop(b);
+        assert!(
+            host_peer_closed_read(a.as_raw_fd()),
+            "full close must be detected via EPIPE on zero-byte send"
         );
     }
 }

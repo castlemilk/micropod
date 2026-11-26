@@ -63,6 +63,12 @@ struct MicropodCLI {
         if args.first == "ci" {
             exit(await CICommands.main(Array(args.dropFirst())))
         }
+        if args.first == "telemetry" {
+            exit(await TelemetryCommands.main(Array(args.dropFirst())))
+        }
+        if args.first == "config" {
+            exit(await TelemetryCommands.mainConfigAlias(Array(args.dropFirst())))
+        }
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
@@ -173,7 +179,15 @@ struct MicropodCLI {
         Usage: micropod <command> [flags] [args]
 
         CI worker:
-          ci start|endpoint|status|run|stop  one Linux kernel for this account’s trusted Docker jobs
+          ci runner-start|status|health|stop manage the dedicated HVF/containerd CI worker
+          ci docker|run|snapshot|job         run builds, compose stacks, cached & native OCI jobs
+
+        Observability & configuration:
+          telemetry init|show|set|validate   manage YAML config (~/.micropod/observability.yaml)
+          telemetry enable|disable <target>  toggle prometheus, otlp, or tracing (live on VM!)
+          telemetry health|metrics           live engine/workload health, Prometheus & OTLP metrics
+          telemetry trace status|enable|dump on-demand distributed tracing & bottleneck breakdown
+          config init|show|set|validate      alias for telemetry YAML configuration management
 
         Containers:
           ps [-a] [-s] [--json]              list containers (add -a for stopped, -s for stats)

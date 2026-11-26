@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"encoding/binary"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,14 +16,18 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	containers "github.com/containerd/containerd/api/services/containers/v1"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
@@ -33,62 +37,222 @@ const dockerAPI = "1.47"
 
 type dockerRecord struct {
 	NetworkID, NetworkIP                         string
+	SecondaryNetworks                            []dockerSecondaryEndpoint `json:",omitempty"`
+	BridgeGeneration                             *dockerBridgeGeneration   `json:",omitempty"`
 	OOMKilled                                    bool
+	CPUGrouped                                   bool `json:",omitempty"`
 	ID, Name, ImageID, Phase, RuntimeID, Failure string
 	Created, Started, Finished                   time.Time
 	Exit                                         int32
 	Exits                                        uint64
+	LogOffset                                    int64              `json:",omitempty"`
+	LogError                                     string             `json:",omitempty"`
+	Health                                       *dockerHealthState `json:",omitempty"`
 	Config                                       dockerConfig
+	RootFS                                       *dockerRootFS        `json:",omitempty"`
+	RootFSBinding                                *dockerRootFSBinding `json:",omitempty"`
 }
 type dockerContainer struct {
 	outputBytes int64
 	IP          string
+	primaryMAC  string
 	Ports       portMap
 	dockerRecord
-	changed           chan struct{}
-	foregroundReaders int
-	readersDone       chan struct{}
-	removed           bool
+	changed            chan struct{}
+	lifecycle          chan struct{}
+	bridgeOps          sync.Mutex
+	bridge             *dockerRunningBridge
+	archive            *dockerLiveArchive
+	console            *dockerPID1
+	healthMonitor      *dockerHealthMonitor
+	killEventDone      chan struct{}
+	exitReceipt        *dockerExitReceipt
+	foregroundReaders  int
+	readersDone        chan struct{}
+	generationLogError string
+	removed            bool
 }
 type dockerEngine struct {
-	direct        *directNetwork
-	networkMu     sync.Mutex
-	namedNetworks map[string]*workerNetwork
-	startSlots    chan struct{}
-	metrics       dockerMetrics
-	node          node
-	workspace     string
-	mu            sync.Mutex
-	containers    map[string]*dockerContainer
-	execs         map[string]*dockerExec
+	buildkitSocket string
+	direct         *directNetwork
+	networkMu      sync.Mutex
+	namedNetworks  map[string]*workerNetwork
+	startSlots     chan struct{}
+	jobParents     dockerJobParents
+	metrics        dockerMetrics
+	node           node
+	imageMu        sync.RWMutex
+	healthImages   dockerImageHealthCache
+	workspace      string
+	events         dockerEventLog
+	mu             sync.Mutex
+	containers     map[string]*dockerContainer
+	execs          map[string]*dockerExec
+	execPipeDir    string
+}
+
+type dockerCPUGroup struct {
+	network, name string
+}
+
+func (c *dockerContainer) cpuGroup() dockerCPUGroup {
+	return c.Config.cpuGroup(c.NetworkID)
+}
+
+// Call with s.mu held, or during recovery before the API opens. The persisted
+// catalog is the reservation, including stopped containers that can restart.
+func (s *dockerEngine) cpuGroups() map[dockerCPUGroup][]*dockerContainer {
+	groups := make(map[dockerCPUGroup][]*dockerContainer)
+	for _, c := range s.containers {
+		if c.CPUGrouped {
+			key := c.cpuGroup()
+			groups[key] = append(groups[key], c)
+		}
+	}
+	return groups
+}
+
+func leastAssignedCPU(cpus []string, counts map[string]int) string {
+	best := cpus[0]
+	for _, cpu := range cpus[1:] {
+		if counts[cpu] < counts[best] {
+			best = cpu
+		}
+	}
+	return best
+}
+
+func (s *dockerEngine) chooseGroupCPULocked(group dockerCPUGroup, cpus []string) (string, error) {
+	groups := s.cpuGroups()
+	if members := groups[group]; len(members) > 0 {
+		cpu := members[0].Config.HostConfig.CpusetCpus
+		if slices.Contains(cpus, cpu) && !slices.ContainsFunc(members[1:], func(c *dockerContainer) bool {
+			return c.Config.HostConfig.CpusetCpus != cpu
+		}) {
+			return cpu, nil
+		}
+		return "", fail(409, "CPU group placement changed or is unavailable. Restart the worker to reconcile the group")
+	}
+	counts := make(map[string]int, len(cpus))
+	for _, members := range groups {
+		counts[members[0].Config.HostConfig.CpusetCpus]++
+	}
+	return leastAssignedCPU(cpus, counts), nil
+}
+
+func (s *dockerEngine) groupCPULocked(group dockerCPUGroup) (string, error) {
+	allowed, err := dockerAllowedCPUSet()
+	if err != nil {
+		return "", fail(400, err.Error())
+	}
+	return s.chooseGroupCPULocked(group, dockerPlacementCPUs(&allowed))
+}
+
+func recoverCPUGroupAssignments(groups map[dockerCPUGroup][]*dockerContainer, cpus []string) map[*dockerContainer]string {
+	assignments := make(map[dockerCPUGroup]string, len(groups))
+	counts := make(map[string]int, len(cpus))
+	var unplaced []dockerCPUGroup
+	for key, members := range groups {
+		// A crash during recovery can commit one member before another. Keep an
+		// already persisted available CPU, using the lowest if more than one fits.
+		for _, cpu := range cpus {
+			if slices.ContainsFunc(members, func(c *dockerContainer) bool { return c.Config.HostConfig.CpusetCpus == cpu }) {
+				assignments[key] = cpu
+				counts[cpu]++
+				break
+			}
+		}
+		if assignments[key] == "" {
+			unplaced = append(unplaced, key)
+		}
+	}
+	slices.SortFunc(unplaced, func(a, b dockerCPUGroup) int {
+		if a.network != b.network {
+			return strings.Compare(a.network, b.network)
+		}
+		return strings.Compare(a.name, b.name)
+	})
+	for _, key := range unplaced {
+		cpu := leastAssignedCPU(cpus, counts)
+		assignments[key] = cpu
+		counts[cpu]++
+	}
+	changes := make(map[*dockerContainer]string)
+	for key, members := range groups {
+		for _, c := range members {
+			if cpu := assignments[key]; c.Config.HostConfig.CpusetCpus != cpu {
+				changes[c] = cpu
+			}
+		}
+	}
+	return changes
+}
+
+func (s *dockerEngine) recoverCPUGroupPlacements() error {
+	groups := s.cpuGroups()
+	if len(groups) == 0 {
+		return nil
+	}
+	// The node has already retired interrupted processes. An offline CPU can
+	// now be replaced for the entire group before any member starts again.
+	allowed, err := workerCPUAffinity()
+	if err != nil {
+		return fmt.Errorf("recover Docker CPU group placements: %w", err)
+	}
+	for c, cpu := range recoverCPUGroupAssignments(groups, dockerPlacementCPUs(&allowed)) {
+		c.Config.HostConfig.CpusetCpus = cpu
+		if err := c.save(); err != nil {
+			return fmt.Errorf("save recovered Docker CPU group placement: %w", err)
+		}
+	}
+	return nil
 }
 
 func engineID() string                 { var id [32]byte; rand.Read(id[:]); return hex.EncodeToString(id[:]) }
 func (c *dockerContainer) dir() string { return filepath.Join(engineRoot, "containers", c.ID) }
-func (c *dockerContainer) signal()     { close(c.changed); c.changed = make(chan struct{}) }
-func (c *dockerContainer) busy() bool  { return c.Phase == "starting" || c.Phase == "running" }
+func (c *dockerContainer) signal() {
+	c.completeExitReceipt()
+	close(c.changed)
+	c.changed = make(chan struct{})
+}
+func (c *dockerContainer) busy() bool { return c.Phase == "starting" || c.Phase == "running" }
 func (c *dockerContainer) save() error {
-	b, err := json.Marshal(c.dockerRecord)
+	return c.dockerRecord.saveIn(c.dir())
+}
+
+func (r dockerRecord) saveIn(directory string) error {
+	_, err := r.commitIn(directory)
+	return err
+}
+
+func (r dockerRecord) commitIn(directory string) (bool, error) {
+	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return false, err
 	}
-	path := filepath.Join(c.dir(), "state")
+	path := filepath.Join(directory, "state")
+	// Ephemeral AutoRemove containers are deleted on exit and cleaned up on crash recovery,
+	// so skip synchronous ext4 journal barriers while keeping atomic rename visibility.
+	ephemeral := r.Config.HostConfig.AutoRemove
 	f, err := os.OpenFile(path+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
-		return err
+		return false, err
 	}
 	_, err = f.Write(b)
-	if err == nil {
+	if err == nil && !ephemeral {
 		err = f.Sync()
 	}
 	err = errors.Join(err, f.Close())
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err = os.Rename(path+".tmp", path); err != nil {
-		return err
+		return false, err
 	}
-	return syncDir(c.dir())
+	if ephemeral {
+		return true, nil
+	}
+	return true, syncDir(directory)
 }
 
 func syncDir(path string) error {
@@ -100,20 +264,29 @@ func syncDir(path string) error {
 	return d.Sync()
 }
 
-func (s *dockerEngine) recover() error {
+func (s *dockerEngine) recover(ctx context.Context) error {
+	lease, err := engineRecoveryLease()
+	if err != nil {
+		return err
+	}
+	defer lease.Close()
 	retired := filepath.Join(engineRoot, "retired")
 	old, err := os.ReadDir(retired)
 	if err != nil {
 		return err
 	}
 	for _, e := range old {
-		if !e.IsDir() || len(e.Name()) != 64 {
+		if !e.IsDir() || !fullContainerID.MatchString(e.Name()) {
 			continue
 		}
-		if _, err := hex.DecodeString(e.Name()); err != nil {
-			return err
+		path := filepath.Join(retired, e.Name())
+		c, err := loadDockerRecord(retired, e.Name())
+		if errors.Is(err, os.ErrNotExist) {
+			err = os.RemoveAll(path)
+		} else if err == nil {
+			err = s.reclaimDockerRootFS(ctx, c, path)
 		}
-		if err := os.RemoveAll(filepath.Join(retired, e.Name())); err != nil {
+		if err != nil {
 			return err
 		}
 	}
@@ -123,14 +296,11 @@ func (s *dockerEngine) recover() error {
 		return err
 	}
 	for _, e := range entries {
-		if !e.IsDir() || len(e.Name()) != 64 {
+		if !e.IsDir() || !fullContainerID.MatchString(e.Name()) {
 			continue
 		}
-		if _, err := hex.DecodeString(e.Name()); err != nil {
-			return err
-		}
 		p := filepath.Join(dir, e.Name())
-		b, err := os.ReadFile(filepath.Join(p, "state"))
+		c, err := loadDockerRecord(dir, e.Name())
 		if errors.Is(err, os.ErrNotExist) {
 			if err := os.RemoveAll(p); err != nil {
 				return err
@@ -140,14 +310,16 @@ func (s *dockerEngine) recover() error {
 		if err != nil {
 			return err
 		}
-		c := &dockerContainer{changed: make(chan struct{})}
-		if err := json.Unmarshal(b, &c.dockerRecord); err != nil {
-			return err
+		if err := s.node.recoverDockerRootFSBinding(ctx, c); err != nil {
+			return fmt.Errorf("recover Docker container %s: %w", c.ID, err)
 		}
-		if c.ID != e.Name() || !dockerName.MatchString(c.Name) {
-			return errors.New("invalid Docker ownership record")
+		if err := c.recoverDockerNetworkPod(ctx, p, s.node.removeOwnedPod); err != nil {
+			return fmt.Errorf("recover named network sandbox for %s: %w", c.ID, err)
 		}
 		if c.Phase == "removing" || (c.Config.HostConfig.AutoRemove && c.Phase != "created") {
+			if c.RootFS != nil {
+				return errors.New("retired rootfs record remains in the active Docker catalog")
+			}
 			if err := os.RemoveAll(p); err != nil {
 				return err
 			}
@@ -164,14 +336,18 @@ func (s *dockerEngine) recover() error {
 				return err
 			}
 		}
-		st, err := os.Stat(filepath.Join(c.dir(), "output"))
-		if err != nil {
-			return err
+		if err := c.recoverDockerOutput(p); err != nil {
+			return fmt.Errorf("recover Docker log for %s: %w", c.ID, err)
 		}
-		c.outputBytes = st.Size()
+		if err := removeDockerRuntimeLog(p); err != nil {
+			return fmt.Errorf("remove retired CRI log for %s: %w", c.ID, err)
+		}
 		s.containers[c.ID] = c
 	}
-	return nil
+	if err := s.verifyDockerNetworkReservations(); err != nil {
+		return err
+	}
+	return s.recoverCPUGroupPlacements()
 }
 func serveEngine(ctx context.Context, n node) error {
 	if privateRootless() && !inAllocationUserNS() {
@@ -214,6 +390,13 @@ func serveEngine(ctx context.Context, n node) error {
 		return err
 	}
 	g.Close()
+	logWatcher, watchErr := newCRILogWatcher()
+	if watchErr != nil {
+		log.Printf("CRI log notifications unavailable: %v", watchErr)
+	} else {
+		defer logWatcher.close()
+		n.watchLog = logWatcher.watch
+	}
 	s := &dockerEngine{node: n, workspace: os.Getenv("MICROPOD_ENGINE_WORKSPACE"), containers: make(map[string]*dockerContainer), execs: make(map[string]*dockerExec)}
 	if !privateRootless() && os.Getenv("MICROPOD_CI_PUBLISHED_PATH") == "macvlan" {
 		s.direct, err = newDirectNetwork(ctx)
@@ -231,10 +414,24 @@ func serveEngine(ctx context.Context, n node) error {
 		}
 	}
 	s.namedNetworks = make(map[string]*workerNetwork)
+	if !privateRootless() {
+		if _, err := prepareDockerBridgeResolver(); err != nil {
+			return fmt.Errorf("prepare the native bridge resolver: %w", err)
+		}
+	}
 	if err := s.recoverNetworks(ctx); err != nil {
 		return err
 	}
-	if err := s.recover(); err != nil {
+	if err := s.recover(ctx); err != nil {
+		return err
+	}
+	// Recovery has retired the previous owner's tasks. Their transient FIFO
+	// names can be reclaimed while this engine still owns the worker lock.
+	s.execPipeDir = filepath.Join(filepath.Dir(engineGate), "exec")
+	if err := os.RemoveAll(s.execPipeDir); err != nil {
+		return err
+	}
+	if err := os.Mkdir(s.execPipeDir, 0700); err != nil {
 		return err
 	}
 	if st, err := os.Lstat(dockerSocket); err == nil && st.Mode()&os.ModeSocket == 0 {
@@ -251,10 +448,12 @@ func serveEngine(ctx context.Context, n node) error {
 	if err := os.Chmod(dockerSocket, 0600); err != nil {
 		return err
 	}
-	if err := serveBuildKit(ctx); err != nil {
+	s.buildkitSocket, err = serveBuildKit(ctx)
+	if err != nil {
 		return err
 	}
-	server := &http.Server{Handler: s, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
+	server := &http.Server{Handler: s, BaseContext: func(net.Listener) context.Context { return ctx },
+		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
 	go func() { <-ctx.Done(); server.Close() }()
 	return server.Serve(l)
 }
@@ -266,6 +465,23 @@ func engineLease() (*os.File, error) {
 	if err = syscall.Flock(int(f.Fd()), syscall.LOCK_SH|syscall.LOCK_NB); err != nil {
 		f.Close()
 		return nil, fail(409, "worker is draining")
+	}
+	return f, nil
+}
+
+// Recovery can run in a separate job process. Keep both startup and its job
+// sweep out of the window between binding intent and CRI cleanup.
+func engineRecoveryLease() (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(engineGate), 0700); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(engineGate, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("cannot reconcile while the native engine is active: %w", err)
 	}
 	return f, nil
 }
@@ -309,12 +525,23 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	if name != "" && !dockerName.MatchString(name) {
 		return nil, fail(400, "invalid container name")
 	}
-	img, err := s.node.images.ImageStatus(ctx, &cri.ImageStatusRequest{Image: &cri.ImageSpec{Image: spec.Image}})
+	s.imageMu.RLock()
+	defer s.imageMu.RUnlock()
+	img, err := s.node.dockerImageStatus(ctx, spec.Image, true)
 	if err != nil {
 		return nil, err
 	}
 	if img.GetImage().GetId() == "" {
 		return nil, fail(404, "No such image: "+spec.Image)
+	}
+	spec.ExposedPorts = mergeImageExposedPorts(spec.ExposedPorts, img.GetInfo()["info"])
+	if err := s.configureDockerHealth(ctx, &spec, img.GetImage().GetId()); err != nil {
+		return nil, err
+	}
+	if spec.HostConfig.PublishAllPorts {
+		if _, err := spec.requestedPorts(); err != nil {
+			return nil, fail(400, err.Error())
+		}
 	}
 	id := engineID()
 	if name == "" {
@@ -324,30 +551,43 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	defer s.mu.Unlock()
 	for _, c := range s.containers {
 		if c.Name == name {
-			return nil, fail(409, "container name is in use")
+			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", "/"+c.Name, c.ID))
 		}
 	}
-	network, ip, err := s.selectNetwork(&spec)
+	network, ip, endpoints, err := s.selectNetwork(&spec)
 	if err != nil {
 		return nil, err
+	}
+	if _, err := s.requestedJobParent(spec, network); err != nil {
+		return nil, err
+	}
+	group, err := spec.requestedCPUGroup(network)
+	if err != nil {
+		return nil, err
+	}
+	if group.name != "" {
+		spec.HostConfig.CpusetCpus, err = s.groupCPULocked(group)
+		if err != nil {
+			return nil, err
+		}
 	}
 	files, _, err := s.openMounts(spec, true, "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != ""}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(filepath.Join(c.dir(), "output"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	f, err := os.OpenFile(c.logPath(), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err == nil {
 		err = f.Close()
 	}
 	if err == nil {
 		err = c.save()
 	}
-	if err == nil {
+	if err == nil && !c.Config.HostConfig.AutoRemove {
 		err = syncDir(filepath.Dir(c.dir()))
 	}
 	if err != nil {
@@ -355,6 +595,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		return nil, err
 	}
 	s.containers[id] = c
+	s.containerEvent(c, "create", nil)
 	s.metrics.creates.Add(1)
 	mounts, _ := spec.mounts()
 	for _, m := range mounts {
@@ -366,7 +607,8 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	}
 	return c, nil
 }
-func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
+
+func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) {
 	defer func() {
 		if startErr == nil {
 			return
@@ -403,6 +645,34 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		lease.Close()
 		return fail(304, "already started")
 	}
+	if c.RootFSBinding != nil {
+		s.mu.Unlock()
+		lease.Close()
+		return fail(409, "previous writable rootfs attachment needs worker recovery")
+	}
+	if c.BridgeGeneration != nil {
+		s.mu.Unlock()
+		lease.Close()
+		return fail(409, "previous named network sandbox needs worker recovery")
+	}
+	namedPrimary := c.NetworkID != ""
+	bridgeEnabled := s.namedNetworks[c.NetworkID].secondaryBridge()
+	jobParent, err := s.requestedJobParent(c.Config, c.NetworkID)
+	if err != nil {
+		s.mu.Unlock()
+		lease.Close()
+		return err
+	}
+	// A persisted container may be restarted on a differently sized worker.
+	if err := validateDockerCPUSet(c.Config.HostConfig.CpusetCpus); err != nil {
+		grouped := c.CPUGrouped
+		s.mu.Unlock()
+		lease.Close()
+		if grouped {
+			return fail(409, "CPU group placement is unavailable. Restart the worker to reconcile the group. "+err.Error())
+		}
+		return fail(400, err.Error())
+	}
 	socket, closeSocket, err := s.openCleanupSocket(c)
 	if err != nil {
 		s.mu.Unlock()
@@ -416,13 +686,33 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		lease.Close()
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(c.dir(), "output"), os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(c.logPath(), os.O_APPEND|os.O_WRONLY, 0)
+	if err == nil && c.LogError != "" {
+		// A previous failed write may have left bytes beyond the last complete
+		// frame. Remove that suffix before this generation can append.
+		err = f.Truncate(c.outputBytes)
+		if err != nil {
+			f.Close()
+		}
+	}
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
 		closeMounts(files)
 		lease.Close()
 		return err
+	}
+	var console *dockerPID1
+	if c.Config.captureRawOutput() {
+		console, err = newDockerPID1(s.execPipeDir, c.Config)
+		if err != nil {
+			s.mu.Unlock()
+			closeSocket()
+			f.Close()
+			closeMounts(files)
+			lease.Close()
+			return err
+		}
 	}
 	previous := c.dockerRecord
 	c.Phase = "starting"
@@ -439,8 +729,14 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		f.Close()
 		closeMounts(files)
 		lease.Close()
+		if console != nil {
+			_ = console.finish(context.Background())
+		}
 		return err
 	}
+	c.console = console
+	c.generationLogError = ""
+	write, sealLog := s.appendDockerOutput(c, f, c.outputBytes)
 	ctx, cancel := context.WithCancel(context.Background())
 	c.signal()
 	started := make(chan error, 1)
@@ -462,15 +758,46 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		}
 		defer releaseStart()
 		j := job{Trust: "trusted", Image: c.ImageID}
-		res, runErr := s.node.runProcess(ctx, j, "crun", processHooks{
+		var parentHeld bool
+		var bridgeRetireErr error
+		hooks := processHooks{
+			created: func(ctx context.Context, podID, id string) error {
+				if console == nil && len(c.Config.HostConfig.Tmpfs) == 0 && jobParent == "" {
+					return nil
+				}
+				if jobParent != "" {
+					if err := s.jobParents.retain(jobParent); err != nil {
+						return err
+					}
+					parentHeld = true
+				}
+				return s.node.installDockerOCI(ctx, podID, id, c.Config, jobParent, console)
+			},
 			retire: func() error {
+				if bridgeEnabled {
+					bridgeRetireErr = s.retireDockerBridge(c)
+				}
+				if c.Config.Healthcheck != nil {
+					s.stopDockerHealth(c)
+				}
+				s.retireDockerArchive(c)
 				var err error
 				for i := len(forwards) - 1; i >= 0; i-- {
 					err = errors.Join(err, forwards[i].close())
 				}
 				return err
 			},
-			configure: func(startCtx context.Context, podID string, cfg *cri.ContainerConfig) error {
+			podRetired: func() {
+				if !namedPrimary {
+					return
+				}
+				if bridgeRetireErr != nil {
+					log.Printf("cleaned up bridge sandbox for %s with CRI: %v", c.ID, bridgeRetireErr)
+					bridgeRetireErr = nil
+				}
+				s.acknowledgeDockerPodRetirement(c)
+			},
+			configure: func(startCtx context.Context, pod ownedPod, cfg *cri.ContainerConfig) error {
 				if s.startSlots != nil {
 					begin := time.Now()
 					select {
@@ -481,13 +808,30 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 						return startCtx.Err()
 					}
 				}
+				if size, ok := c.Config.HostConfig.Sysctls[tcpQueueSysctl]; ok {
+					if err := s.node.setPodTCPQueue(startCtx, pod.pod, size); err != nil {
+						return err
+					}
+				}
 				var err error
-				forwards, err = s.publish(startCtx, c, podID)
+				if namedPrimary {
+					s.mu.Lock()
+					err = c.claimDockerNetworkPod(c.dir(), pod)
+					s.mu.Unlock()
+					if err != nil {
+						return err
+					}
+				}
+				forwards, err = s.publish(startCtx, c, pod.pod)
 				if err != nil {
 					return err
 				}
-				if c.NetworkID != "" {
-					mounts = append(mounts, &cri.Mount{HostPath: filepath.Join(engineRoot, "networks", c.NetworkID, "resolv.conf"), ContainerPath: "/etc/resolv.conf", Readonly: true})
+				resolver, err := s.configureDockerBridge(startCtx, c, pod)
+				if err != nil {
+					return err
+				}
+				if resolver != "" {
+					mounts = append(mounts, &cri.Mount{HostPath: resolver, ContainerPath: "/etc/resolv.conf", Readonly: true})
 				}
 				return c.Config.configure(cfg, mounts)
 			},
@@ -495,11 +839,15 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 				releaseStart()
 				s.mu.Lock()
 				c.RuntimeID = id
+				c.archive = newDockerLiveArchive(files, mounts)
 				c.Started = time.Now().UTC()
 				c.Phase = "running"
-				if n := s.namedNetworks[c.NetworkID]; n != nil {
-					n.services.publish(c, true)
+				s.publishDockerBridgeNames(c, true)
+				s.containerEvent(c, "start", nil)
+				if restart {
+					s.containerEvent(c, "restart", nil)
 				}
+				s.startDockerHealth(ctx, c)
 				// A durable start intent already exists. Recovery treats both starting
 				// and running as interrupted if there is no committed exit status.
 				c.signal()
@@ -507,36 +855,56 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 				launched = true
 				started <- nil
 			},
-			output: func(stream string, b []byte) error {
-				var h [8]byte
-				h[0] = 1
-				if stream == "stderr" {
-					h[0] = 2
-				}
-				binary.BigEndian.PutUint32(h[4:], uint32(len(b)))
-				frameSize := int64(len(h) + len(b))
-				if c.outputBytes+frameSize > 8<<20 {
-					return errors.New("Docker log exceeded the 8 MiB limit")
-				}
-				if _, err := f.Write(append(h[:], b...)); err != nil {
-					return err
-				}
+		}
+		if console != nil {
+			hooks.startConsole = func(ctx context.Context, id string) error {
+				return console.accept(ctx, s.node, id, write, cancel)
+			}
+		} else {
+			hooks.output = write
+			hooks.runtimeLogDir = c.dir()
+		}
+		if c.retainsRootFS() {
+			hooks.bindRootFS = func(ctx context.Context, pod ownedPod, id string) (*dockerRootFSBinding, error) {
+				return s.bindDockerRootFS(ctx, c, pod, id)
+			}
+			hooks.clearRootFS = func() error {
 				s.mu.Lock()
-				c.outputBytes += frameSize
-				c.signal()
-				s.mu.Unlock()
-				return nil
-			},
-		})
+				defer s.mu.Unlock()
+				return saveRootFSBinding(c, nil)
+			}
+		}
+		res, runErr := s.node.runProcess(ctx, j, "crun", hooks)
+		runErr = errors.Join(runErr, bridgeRetireErr)
+		if console != nil {
+			runErr = errors.Join(runErr, console.finish(ctx))
+		} else if err := removeDockerRuntimeLog(c.dir()); err != nil {
+			log.Printf("remove runtime log for Docker container %s: %v", c.ID, err)
+		}
+		logOffset, logPersisted := sealLog()
+		if parentHeld {
+			runErr = errors.Join(runErr, s.jobParents.release(dockerRuntimeCgroupRoot, jobParent))
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if n := s.namedNetworks[c.NetworkID]; n != nil {
-			n.services.publish(c, false)
+		// An admitted explicit kill publishes only after its CRI acknowledgement.
+		// Let that acknowledgement precede exit and automatic removal events.
+		for c.killEventDone != nil {
+			done := c.killEventDone
+			s.mu.Unlock()
+			<-done
+			s.mu.Lock()
 		}
+		s.publishDockerBridgeNames(c, false)
 		c.IP = ""
+		c.primaryMAC = ""
 		c.Ports = nil
 		c.Finished = time.Now().UTC()
 		c.RuntimeID = ""
+		c.console = nil
+		if logPersisted {
+			c.LogOffset = logOffset
+		}
 		c.Exits++
 		c.Exit = res.ExitCode
 		c.OOMKilled = res.Reason == "OOMKilled"
@@ -547,17 +915,35 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 			c.Phase = "dead"
 		}
 		s.metrics.record(res, runErr)
+		if res.ExitKnown {
+			if c.OOMKilled {
+				s.containerEvent(c, "oom", nil)
+			}
+			s.containerEvent(c, "die", map[string]string{
+				"exitCode":     strconv.Itoa(int(res.ExitCode)),
+				"execDuration": strconv.FormatInt(max(0, int64(c.Finished.Sub(c.Started)/time.Second)), 10),
+			})
+		}
 		if c.Config.HostConfig.AutoRemove {
 			if err := s.removeLocked(c); err != nil {
 				c.Phase = "dead"
-				c.Exit = -1
-				c.Failure = err.Error()
+				if !res.ExitKnown || runErr != nil {
+					c.Exit = -1
+					c.Failure = err.Error()
+				}
+				log.Printf("remove Docker container %s after exit %d: %v", c.ID, c.Exit, err)
 				runErr = errors.Join(runErr, err)
+				if c.BridgeGeneration != nil {
+					runErr = errors.Join(runErr, c.save())
+				}
 			}
 		} else if err := c.save(); err != nil {
 			c.Phase = "dead"
-			c.Exit = -1
-			c.Failure = err.Error()
+			if !res.ExitKnown || runErr != nil {
+				c.Exit = -1
+				c.Failure = err.Error()
+			}
+			log.Printf("save Docker container %s after exit %d: %v", c.ID, c.Exit, err)
 			runErr = errors.Join(runErr, err)
 		}
 		c.signal()
@@ -567,7 +953,60 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 	}()
 	return <-started
 }
-func (s *dockerEngine) removeLocked(c *dockerContainer) error {
+
+func (n node) installDockerOCI(ctx context.Context, podID, id string, config dockerConfig, jobParent string, console *dockerPID1) error {
+	// CRI creates this owned container in k8s.io. The task service reads the
+	// OCI spec from container metadata when CRI subsequently starts the task.
+	ctx = metadata.AppendToOutgoingContext(ctx, "containerd-namespace", dockerRuntimeNamespace)
+	response, err := n.containers.Get(ctx, &containers.GetContainerRequest{ID: id})
+	if err != nil {
+		return fmt.Errorf("read owned OCI spec: %w", err)
+	}
+	record := response.GetContainer()
+	if record.GetID() != id || record.GetSandbox() != podID ||
+		record.GetSpec().GetTypeUrl() != dockerExecSpecType {
+		return errors.New("containerd OCI spec does not match the owned CRI container")
+	}
+	if len(config.HostConfig.Tmpfs) != 0 {
+		record.Spec.Value, err = config.specWithTmpfs(record.Spec.Value)
+		if err != nil {
+			return fmt.Errorf("configure OCI tmpfs: %w", err)
+		}
+	}
+	if jobParent != "" {
+		record.Spec.Value, err = specWithJobParent(record.Spec.Value, jobParent, id)
+		if err != nil {
+			return fmt.Errorf("configure OCI job parent: %w", err)
+		}
+	}
+	if console != nil {
+		record.Spec.Value, err = console.spec(record.Spec.Value)
+		if err != nil {
+			return fmt.Errorf("configure OCI console: %w", err)
+		}
+	}
+	_, err = n.containers.Update(ctx, &containers.UpdateContainerRequest{
+		Container:  &containers.Container{ID: id, Spec: record.Spec},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"spec"}},
+	})
+	if err != nil {
+		return fmt.Errorf("install owned OCI spec: %w", err)
+	}
+	return nil
+}
+
+func (s *dockerEngine) removeLocked(c *dockerContainer) (err error) {
+	if c.RootFSBinding != nil {
+		return fail(409, "previous writable rootfs attachment needs worker recovery")
+	}
+	if c.BridgeGeneration != nil {
+		return fail(409, "previous named network sandbox needs worker recovery")
+	}
+	defer func() {
+		if err == nil && c.RootFS == nil {
+			s.containerEvent(c, "destroy", nil)
+		}
+	}()
 	// Retire the catalog entry atomically. An already attached log reader
 	// retains its open inode while the next boot can finish any interrupted unlink.
 	retired := filepath.Join(engineRoot, "retired", c.ID)
@@ -583,28 +1022,79 @@ func (s *dockerEngine) removeLocked(c *dockerContainer) error {
 		}
 	}
 	c.signal()
+	if c.Config.HostConfig.AutoRemove {
+		return os.RemoveAll(retired)
+	}
+	if c.RootFS != nil {
+		// Commit both sides of the rename before deleting the snapshot. A
+		// crash must leave a tombstone, never a live record with a lost layer.
+		return errors.Join(syncDir(filepath.Dir(c.dir())), syncDir(filepath.Dir(retired)))
+	}
 	return errors.Join(syncDir(filepath.Dir(c.dir())), os.RemoveAll(retired))
 }
-func (s *dockerEngine) stop(ctx context.Context, c *dockerContainer, timeout int64) error {
-	for {
-		s.mu.Lock()
-		busy, id, changed := c.busy(), c.RuntimeID, c.changed
-		s.mu.Unlock()
-		if !busy {
-			return nil
+func (s *dockerEngine) stop(ctx context.Context, c *dockerContainer, timeout int64, action string) error {
+	s.mu.Lock()
+	// Starting and running share the same exit count. A replacement can start
+	// before this waiter observes the original runtime's exit notification.
+	exits := c.Exits
+	requested := false
+	for c.Exits == exits && c.busy() {
+		id, changed := c.RuntimeID, c.changed
+		var killDone chan struct{}
+		if !requested && id != "" && action == "kill" && timeout == 0 {
+			if pending := c.killEventDone; pending != nil {
+				s.mu.Unlock()
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-pending:
+				}
+				s.mu.Lock()
+				continue
+			}
+			killDone = make(chan struct{})
+			c.killEventDone = killDone
 		}
-		if id != "" {
-			_, err := s.node.runtime.StopContainer(ctx, &cri.StopContainerRequest{ContainerId: id, Timeout: timeout})
-			if err != nil {
+		s.mu.Unlock()
+		if !requested && id != "" {
+			if err := s.requestContainerStop(ctx, c, id, timeout, killDone); err != nil {
 				return err
 			}
+			requested = true
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-changed:
 		}
+		s.mu.Lock()
 	}
+	if requested && c.Exits != exits && action == "stop" {
+		s.containerEvent(c, "stop", nil)
+	}
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *dockerEngine) requestContainerStop(ctx context.Context, c *dockerContainer, id string, timeout int64, killDone chan struct{}) error {
+	if killDone != nil {
+		// Exit publication is waiting for this response. A stalled CRI RPC
+		// must not hold the container in its running phase indefinitely.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 45*time.Second)
+		defer cancel()
+	}
+	_, err := s.node.runtime.StopContainer(ctx, &cri.StopContainerRequest{ContainerId: id, Timeout: timeout})
+	if killDone != nil {
+		s.mu.Lock()
+		if err == nil {
+			s.containerEvent(c, "kill", map[string]string{"signal": "9"})
+		}
+		c.killEventDone = nil
+		close(killDone)
+		s.mu.Unlock()
+	}
+	return err
 }
 func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force bool) error {
 	for {
@@ -616,13 +1106,21 @@ func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force boo
 		if !c.busy() {
 			err := s.removeLocked(c)
 			s.mu.Unlock()
+			if err == nil && c.RootFS != nil {
+				if err := s.reclaimDockerRootFS(context.WithoutCancel(ctx), c, filepath.Join(engineRoot, "retired", c.ID)); err != nil {
+					return err
+				}
+				s.mu.Lock()
+				s.containerEvent(c, "destroy", nil)
+				s.mu.Unlock()
+			}
 			return err
 		}
 		s.mu.Unlock()
 		if !force {
 			return fail(409, "container is running")
 		}
-		if err := s.stop(ctx, c, 0); err != nil {
+		if err := s.stop(ctx, c, 0, ""); err != nil {
 			return err
 		}
 	}
@@ -635,18 +1133,37 @@ func readBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	return b, nil
 }
 func formatTime(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+func (c *dockerContainer) effectivePorts() portMap {
+	if c.Phase != "running" || networkName(c.Config.HostConfig.NetworkMode) == "none" {
+		return portMap{}
+	}
+	return c.Ports.withExposed(c.Config.ExposedPorts)
+}
 func (c *dockerContainer) inspect() map[string]any {
 	network := networkName(c.Config.HostConfig.NetworkMode)
-	return map[string]any{"Id": c.ID, "Name": "/" + c.Name, "Created": formatTime(c.Created), "Image": c.ImageID, "Config": c.Config, "HostConfig": c.Config.HostConfig, "Driver": "overlayfs", "Platform": "linux",
-		"State":           map[string]any{"Status": c.Phase, "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure},
-		"NetworkSettings": map[string]any{"Ports": c.Ports, "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP, "NetworkID": c.NetworkID, "Aliases": c.Config.Aliases}}}}
+	config := c.Config
+	config.HostConfig.LogConfig = config.HostConfig.LogConfig.withDefault()
+	state := map[string]any{"Status": c.Phase, "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure, "LogError": c.LogError}
+	if c.Health != nil {
+		state["Health"] = c.Health.snapshot()
+	}
+	return map[string]any{"Id": c.ID, "Name": "/" + c.Name, "Created": formatTime(c.Created), "Image": c.ImageID, "Config": config, "HostConfig": config.HostConfig, "Driver": "overlayfs", "Platform": "linux",
+		"State":           state,
+		"NetworkSettings": map[string]any{"Ports": c.effectivePorts(), "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP, "NetworkID": c.NetworkID, "Aliases": c.Config.Aliases}}}}
 }
 func (s *dockerEngine) info() map[string]any {
 	labels := []string{"io.micropod.instance=" + os.Getenv("MICROPOD_CI_INSTANCE")}
+	if s.workspace != "" {
+		labels = append(labels, fmt.Sprintf("io.micropod.workspace-sha256=%x", sha256.Sum256([]byte(s.workspace))))
+	}
 	if s.direct != nil {
 		labels = append(labels, "io.micropod.published-path=macvlan")
 	}
 	info := map[string]any{"ID": os.Getenv("MICROPOD_CI_WORKER_ID"), "Name": "micropod", "OSType": "linux", "Architecture": "aarch64", "Driver": "overlayfs", "CgroupDriver": "cgroupfs", "CgroupVersion": "2", "DefaultRuntime": "crun", "ServerVersion": "micropod", "NCPU": runtime.NumCPU(), "Labels": labels}
+	info["LoggingDriver"] = dockerDefaultLogDriver
+	if controllers, err := os.ReadFile("/sys/fs/cgroup/cgroup.subtree_control"); err == nil {
+		info["CPUShares"] = slices.Contains(strings.Fields(string(controllers)), "cpu")
+	}
 	if release, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil {
 		info["KernelVersion"] = strings.TrimSpace(string(release))
 	}

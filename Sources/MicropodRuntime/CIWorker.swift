@@ -44,7 +44,13 @@ public struct CIWorker: Sendable {
             "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS", "MICROPOD_CI_ENGINE", "MICROPOD_CI_KATA_TOOLS",
             "MICROPOD_CI_MAX_STARTING", "MICROPOD_CI_PORT_RELAY", "MICROPOD_CI_PORT_PROFILE",
             "MICROPOD_CI_PORT_RELAY_WORKERS", "MICROPOD_BENCH_RELAY_READ_KIB",
-            "MICROPOD_CI_KERNEL", "MICROPOD_CI_PUBLISHED_PATH",
+            "MICROPOD_CI_KERNEL", "MICROPOD_CI_PUBLISHED_PATH", "MICROPOD_CI_PUBLISHED_MTU",
+            "MICROPOD_CI_PUBLISHED_RPS", "MICROPOD_CI_PUBLISHED_GSO_BYTES",
+            "MICROPOD_CI_VMM", "MICROPOD_CI_HVF_BIN", "MICROPOD_CI_HVF_INITRD",
+            "MICROPOD_CI_HVF_RESTORE_FROM", "MICROPOD_CI_HVF_CAPTURE_SNAPSHOT",
+            "MICROPOD_TRACE",
+            ObservabilityConfig.environmentKey,
+            HVFKernelArguments.environmentKey,
         ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
@@ -65,6 +71,9 @@ public struct CIWorker: Sendable {
         let kataTools: String?
         var kernel: String? = nil
         var publishedPath: String? = nil
+        var publishedMTU: UInt32? = nil
+        var publishedRPS: String? = nil
+        var publishedGSOBytes: UInt32? = nil
 
         var engine: Engine { image == CIWorker.dockerImage ? .docker : .containerd }
     }
@@ -72,16 +81,24 @@ public struct CIWorker: Sendable {
     struct Session: Codable, Equatable {
         let owner: RuntimeProcessBirth
         let instance: UUID
+        var vmm: CIWorkerVMM?
         var guestAddress: String?
         var publishedAddress: String?
         var started = false
         var readySocket: ReadySocket?
+        var workspaceDigest: String?
+        var strictWorkspaceAttestation: Bool?
         var supportsNetworkRepair: Bool?
         var nativeOCI: Bool?
         var cpuAllocation: CIWorkerCPUCount.Allocation?
         var publishedRelayWorkers: Int?
         var publishedRelayCallbackEvents: Int?
         var publishedRelayReadBytes: Int?
+
+        var activeVMM: CIWorkerVMM {
+            // The first HVF supervisor wrote false here. Earlier VZ-only supervisors wrote true or omitted it.
+            vmm ?? (supportsNetworkRepair == false ? .hvf : .vz)
+        }
     }
 
     struct ReadySocket: Codable, Equatable {
@@ -106,6 +123,7 @@ public struct CIWorker: Sendable {
         public let boot: UUID
         public let instance: UUID
         public let engine: String
+        public var vmm: CIWorkerVMM?
         public let daemon: String
         public let engineVersion: String
         public let guestAddress: String?
@@ -122,6 +140,14 @@ public struct CIWorker: Sendable {
     }
 
     func prepareDirectory() throws {
+        var longestSocket = socket
+        if isNativeRunner {
+            let vmm = try? CIWorkerVMM.parse(resourceEnvironment["MICROPOD_CI_VMM"])
+            longestSocket = vmm == .hvf ? telemetrySocket : buildkitSocket
+        }
+        guard longestSocket.path.utf8.count < MemoryLayout.size(ofValue: sockaddr_un().sun_path) else {
+            throw MicropodError.message("CI socket path is too long: \(longestSocket.path)")
+        }
         let fm = FileManager.default
         if !fm.fileExists(atPath: directory.path) {
             try fm.createDirectory(
@@ -132,9 +158,6 @@ public struct CIWorker: Sendable {
             st.st_mode & 0o077 == 0
         else {
             throw MicropodError.message("CI state must be a private directory owned by this account: \(directory.path)")
-        }
-        guard socket.path.utf8.count < MemoryLayout.size(ofValue: sockaddr_un().sun_path) else {
-            throw MicropodError.message("CI socket path is too long: \(socket.path)")
         }
     }
 
@@ -206,7 +229,7 @@ public struct CIWorker: Sendable {
         return allocation
     }
 
-    func configuration(create: Bool = false) throws -> Configuration {
+    func configuration(create: Bool = false, restoring: HVFManagedSnapshotMetadata? = nil) throws -> Configuration {
         let engine = try selectedEngine()
         let fm = FileManager.default
         let existing: Configuration?
@@ -232,23 +255,52 @@ public struct CIWorker: Sendable {
         } else {
             workspace = existing?.workspace
         }
+        try restoring?.validateWorkspace(workspace)
         let batchUS = try resource("EXT4_MAX_BATCH_US", existing?.ext4MaxBatchUS ?? 15000, 0...Int(Int32.max))
         let publishedPath = resourceEnvironment["MICROPOD_CI_PUBLISHED_PATH"] ?? existing?.publishedPath
         if let publishedPath, engine != .containerd || !["bridge", "macvlan"].contains(publishedPath) {
             throw MicropodError.message("MICROPOD_CI_PUBLISHED_PATH must select bridge or macvlan on a native worker")
         }
+        let publishedMTU = try
+            (resourceEnvironment["MICROPOD_CI_PUBLISHED_MTU"]
+            ?? existing?.publishedMTU.map { String($0) }).map { raw -> UInt32 in
+                guard engine == .containerd, publishedPath == "macvlan", let mtu = UInt32(raw),
+                    (1500...9000).contains(mtu)
+                else {
+                    throw MicropodError.message(
+                        "MICROPOD_CI_PUBLISHED_MTU requires a native macvlan worker and 1500...9000 bytes")
+                }
+                return mtu
+            }
+        let publishedRPS = resourceEnvironment["MICROPOD_CI_PUBLISHED_RPS"] ?? existing?.publishedRPS
+        if let publishedRPS, engine != .containerd || publishedPath != "macvlan" || publishedRPS != "off-irq" {
+            throw MicropodError.message("MICROPOD_CI_PUBLISHED_RPS requires off-irq on a native macvlan worker")
+        }
+        let publishedGSOBytes = try
+            (resourceEnvironment["MICROPOD_CI_PUBLISHED_GSO_BYTES"]
+            ?? existing?.publishedGSOBytes.map { String($0) }).map { raw -> UInt32 in
+                let minimum = publishedMTU ?? 1500
+                guard engine == .containerd, publishedPath == "macvlan", let size = UInt32(raw),
+                    (minimum...65536).contains(size)
+                else {
+                    throw MicropodError.message(
+                        "MICROPOD_CI_PUBLISHED_GSO_BYTES requires a native macvlan worker and \(minimum)...65536 bytes")
+                }
+                return size
+            }
         let kernel = resourceEnvironment["MICROPOD_CI_KERNEL"] ?? existing?.kernel
         if let kernel, !kernel.hasPrefix("/") {
             throw MicropodError.message("MICROPOD_CI_KERNEL requires an absolute Linux ARM64 Image path")
         }
         let config = try Configuration(
-            schema: 1, image: engine.image, worker: existing?.worker ?? UUID(),
+            schema: 1, image: engine.image, worker: existing?.worker ?? restoring?.workerID ?? UUID(),
             cpus: cpuPolicy(existing: existing),
             memoryMiB: resource("MEMORY_MIB", existing?.memoryMiB ?? 4096, 1024...262144),
             diskGiB: resource("DISK_GIB", existing?.diskGiB ?? 32, 4...1024), workspace: workspace,
             ext4MaxBatchUS: batchUS == 15000 ? nil : batchUS,
             kataTools: resourceEnvironment["MICROPOD_CI_KATA_TOOLS"] ?? existing?.kataTools,
-            kernel: kernel, publishedPath: publishedPath == "bridge" ? nil : publishedPath)
+            kernel: kernel, publishedPath: publishedPath == "bridge" ? nil : publishedPath, publishedMTU: publishedMTU,
+            publishedRPS: publishedRPS, publishedGSOBytes: publishedGSOBytes)
         if let existing {
             guard config == existing else {
                 throw MicropodError.message(
@@ -303,6 +355,10 @@ public struct CIWorker: Sendable {
                 .unpack(image, for: .current, at: partial)
             try fm.moveItem(at: partial, to: disk)
         }
+        return try validatedDisk()
+    }
+
+    func validatedDisk() throws -> URL {
         var attributes = stat()
         guard lstat(disk.path, &attributes) == 0, attributes.st_mode & S_IFMT == S_IFREG,
             attributes.st_uid == getuid(), attributes.st_nlink == 1
@@ -329,9 +385,28 @@ public struct CIWorker: Sendable {
         """#
 
     private func liveSession() throws -> Session? {
-        guard FileManager.default.fileExists(atPath: session.path) else { return nil }
-        let value = try JSONDecoder().decode(Session.self, from: Data(contentsOf: session))
-        return try value.owner.hasExited() ? nil : value
+        let data: Data
+        do {
+            data = try Data(contentsOf: session)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return nil
+        }
+        let active: Session
+        do {
+            active = try JSONDecoder().decode(Session.self, from: data)
+        } catch is DecodingError where !isOwned() {
+            // The previous supervisor died before recording a usable session. A new owner replaces it atomically.
+            return nil
+        }
+        guard try !active.owner.hasExited() else { return nil }
+        if let raw = resourceEnvironment["MICROPOD_CI_VMM"], !raw.isEmpty {
+            let requested = try selectedVMM()
+            guard requested == active.activeVMM else {
+                throw MicropodError.message(
+                    "Requested VMM \(requested.rawValue), but the active worker uses \(active.activeVMM.rawValue) at \(directory.path)")
+            }
+        }
+        return active
     }
 
     private struct Info: Decodable {
@@ -354,7 +429,21 @@ public struct CIWorker: Sendable {
         try prepareDirectory()
         guard let active = try liveSession() else { throw MicropodError.message("CI worker is stopped") }
         guard active.started else { throw MicropodError.message("CI worker is booting") }
-        return try await inspectEngine(active, config: configuration())
+        return try await inspectEngine(active, config: runningConfiguration(active))
+    }
+
+    private func runningConfiguration(_ active: Session) throws -> Configuration {
+        let config = try configuration()
+        if active.activeVMM == .hvf {
+            let expected = HVFKernelArguments.workspaceDigest(
+                config.workspace, strict: active.strictWorkspaceAttestation == true)
+            guard active.workspaceDigest == expected else {
+                throw MicropodError.message(
+                    "The active HVF worker did not attest the configured workspace. Restart it with matching components."
+                )
+            }
+        }
+        return config
     }
 
     private func inspectEngine(_ active: Session, config: Configuration) async throws -> Status {
@@ -382,7 +471,7 @@ public struct CIWorker: Sendable {
             }
             return Status(
                 endpoint: endpoint, worker: config.worker, boot: identity.boot, instance: active.instance,
-                engine: "containerd", daemon: identity.engine, engineVersion: identity.version,
+                engine: "containerd", vmm: active.activeVMM, daemon: identity.engine, engineVersion: identity.version,
                 guestAddress: active.guestAddress, publishedAddress: active.publishedAddress,
                 publishedRelayWorkers: active.publishedRelayWorkers,
                 publishedRelayCallbackEvents: active.publishedRelayCallbackEvents,
@@ -413,7 +502,7 @@ public struct CIWorker: Sendable {
         }
         return Status(
             endpoint: endpoint, worker: config.worker, boot: boot, instance: active.instance,
-            engine: config.engine.rawValue,
+            engine: config.engine.rawValue, vmm: active.activeVMM,
             daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress,
             publishedAddress: active.publishedAddress, publishedRelayWorkers: active.publishedRelayWorkers,
             publishedRelayCallbackEvents: active.publishedRelayCallbackEvents,
@@ -428,25 +517,43 @@ public struct CIWorker: Sendable {
     /// The client checks liveness when it submits the job. Its endpoint is attested once per boot.
     public func runEndpoint(executable: URL) async throws -> String {
         try prepareDirectory()
-        if let active = try? liveSession(), active.started, let verified = active.readySocket,
+        if let active = try liveSession(), active.started, let verified = active.readySocket,
             !FileManager.default.fileExists(atPath: stopFile(active).path),
-            ReadySocket(at: socket, worker: try configuration().worker) == verified
+            ReadySocket(at: socket, worker: try runningConfiguration(active).worker) == verified
         {
             return endpoint
         }
         return try await start(executable: executable).endpoint
     }
 
-    /// Verify that the API on the second socket belongs to the running native worker.
+    /// Verify the Docker API for an already running worker.
+    func dockerStatus() async throws -> (engineVersion: String, supportsRestart: Bool) {
+        let active = try await status()
+        if active.engine == Engine.containerd.rawValue {
+            return (active.engineVersion, try await attestNativeDocker(active))
+        }
+        return (active.engineVersion, true)
+    }
+
     public func nativeDockerEndpoint(executable: URL) async throws -> String {
         let active = try await start(executable: executable)
+        _ = try await attestNativeDocker(active)
+        return "unix://" + dockerSocket.path
+    }
+
+    /// The native worker exposes Docker separately from its OCI control socket.
+    private func attestNativeDocker(_ active: Status) async throws -> Bool {
         let api = DockerClient(endpoint: .unix(dockerSocket.path), apiVersion: Self.apiVersion)
         let reply = try await api.request("GET", "/info", timeout: .seconds(3))
+        return try Self.attestedDockerRestart(reply, worker: active.worker, instance: active.instance)
+    }
+
+    static func attestedDockerRestart(_ reply: DockerClient.Response, worker: UUID, instance: UUID) throws -> Bool {
         guard reply.status == 200, let info = try reply.json() as? [String: Any],
-            info["ID"] as? String == active.worker.uuidString,
-            (info["Labels"] as? [String])?.contains("io.micropod.instance=" + active.instance.uuidString) == true
+            info["ID"] as? String == worker.uuidString,
+            (info["Labels"] as? [String])?.contains("io.micropod.instance=" + instance.uuidString) == true
         else { throw MicropodError.message("Native Docker API did not identify the active worker") }
-        return "unix://" + dockerSocket.path
+        return (info["MicropodCapabilities"] as? [String])?.contains("restart") == true
     }
 
     public func nativeBuildKitEndpoint(executable: URL) async throws -> String {
@@ -461,6 +568,7 @@ public struct CIWorker: Sendable {
 
     public func start(executable: URL) async throws -> Status {
         try prepareDirectory()
+        _ = try selectedVMM()
         if FileManager.default.fileExists(atPath: manifest.path) { _ = try configuration() }
         let deadline = ContinuousClock.now + .seconds(180)
         var election: FileHandle?
@@ -469,13 +577,14 @@ public struct CIWorker: Sendable {
         var sawSupervisor = false
         defer { try? election?.close() }
         repeat {
-            if let active = try? liveSession() {
+            if let active = try liveSession() {
                 guard !FileManager.default.fileExists(atPath: stopFile(active).path) else {
                     throw MicropodError.message("CI worker is stopping")
                 }
                 sawSupervisor = true
-                if active.started, let current = try? await inspectEngine(active, config: configuration()) {
-                    return current
+                if active.started {
+                    let config = try runningConfiguration(active)
+                    if let current = try? await inspectEngine(active, config: config) { return current }
                 }
             } else if sawSupervisor {
                 throw MicropodError.message("CI worker startup failed; see \(log.path)")
@@ -487,7 +596,7 @@ public struct CIWorker: Sendable {
                 }
             } else if election == nil, let lock = try acquire("start.lock") {
                 election = lock
-                if (try? liveSession()) == nil {
+                if try liveSession() == nil {
                     let service = try serviceTarget()
                     child = try launchSupervisor(executable: executable, service: service)
                     if service != nil { launchdDeadline = .now + .seconds(15) }
@@ -674,17 +783,21 @@ public struct CIWorker: Sendable {
         try Data().write(to: request, options: .atomic)
         defer { try? FileManager.default.removeItem(at: request) }
         let deadline = ContinuousClock.now + .seconds(45)
+        let stopped = directory.appendingPathComponent("stopped")
+        let expectedReceipt = Data(active.instance.uuidString.utf8)
         while ContinuousClock.now < deadline {
-            if try active.owner.hasExited() {
-                guard
-                    (try? Data(contentsOf: directory.appendingPathComponent("stopped")))
-                        == Data(active.instance.uuidString.utf8)
-                else {
+            let exited = try active.owner.hasExited()
+            let acknowledged = (try? Data(contentsOf: stopped)) == expectedReceipt
+            if exited {
+                guard acknowledged else {
                     throw MicropodError.message("CI supervisor exited without confirming a clean shutdown")
                 }
                 return
             }
-            if !FileManager.default.fileExists(atPath: request.path), (try? liveSession()) != nil {
+            // A foreground supervisor can stay in its parent's process table until waitpid.
+            // The per-boot receipt and released lifetime lock already establish that teardown finished.
+            if acknowledged && !isOwned() { return }
+            if !FileManager.default.fileExists(atPath: request.path), try liveSession() != nil {
                 throw MicropodError.message("The CI worker received more work while draining")
             }
             try await Task.sleep(for: .milliseconds(100))
@@ -730,15 +843,26 @@ public struct CIWorker: Sendable {
         // A client may close an attached stream while the vsock relay still has bytes to send.
         // Deliver EPIPE to that connection; the worker must keep serving the other jobs.
         signal(SIGPIPE, SIG_IGN)
-        guard VZVirtualMachine.isSupported else {
-            throw MicropodError.message("Apple Virtualization is unavailable on this Mac")
+        let vmm = try selectedVMM()
+        if vmm == .vz {
+            guard VZVirtualMachine.isSupported else {
+                throw MicropodError.message("Apple Virtualization is unavailable on this Mac")
+            }
         }
-        let config = try configuration(create: true)
+        // This check belongs to a new supervisor launch. Clients can rejoin an
+        // active restored session after the VMM creates its writable disk.
+        let restoreSource = vmm == .hvf ? try hvfRestoreSource() : nil
+        let restoreDisk = try restoreSource.map { _ in try freshHVFRestoreDisk() }
+        let config = try configuration(create: true, restoring: restoreSource?.metadata)
+        if vmm == .hvf, let workspace = config.workspace {
+            _ = try HVFKernelArguments.workspaceArgument(workspace)
+        }
         guard let owner = try RuntimeProcessBirth.read(getpid()) else {
             throw MicropodError.message("Missing supervisor identity")
         }
         let cpuAllocation = try config.cpus.resolveForBoot()
-        var active = Session(owner: owner, instance: UUID(), supportsNetworkRepair: true, cpuAllocation: cpuAllocation)
+        var active = Session(
+            owner: owner, instance: UUID(), vmm: vmm, supportsNetworkRepair: vmm == .vz, cpuAllocation: cpuAllocation)
         try JSONEncoder().encode(active).write(to: session, options: .atomic)
         defer {
             try? FileManager.default.removeItem(at: session)
@@ -766,6 +890,147 @@ public struct CIWorker: Sendable {
             stream.finish()
         }
 
+        if vmm == .hvf {
+            guard let ociTools = try nativeTools(engine: config.engine) else {
+                throw MicropodError.message(
+                    "Containerd runner tools are missing. Build or install ci/build-runner-tools.sh first.")
+            }
+            let captureDir = hvfCaptureSnapshotDirectory()
+            let captureTrigger = captureDir.map { _ in
+                directory.appendingPathComponent("snapshot-\(UUID().uuidString).trigger")
+            }
+            defer {
+                if let captureTrigger { try? FileManager.default.removeItem(at: captureTrigger) }
+            }
+            if let (_, meta) = restoreSource {
+                guard meta.cpus == cpuAllocation.count, meta.memoryMiB == config.memoryMiB,
+                    meta.publishedMTU == (config.publishedMTU ?? 9000)
+                else {
+                    throw MicropodError.message(
+                        "HVF warm snapshot topology (\(meta.cpus) vCPU, \(meta.memoryMiB) MiB, MTU \(meta.publishedMTU)) "
+                            + "does not match worker config (\(cpuAllocation.count) vCPU, \(config.memoryMiB) MiB, MTU \(config.publishedMTU ?? 9000))")
+                }
+                guard meta.workerID == config.worker else {
+                    throw MicropodError.message(
+                        "HVF warm snapshot worker ID \(meta.workerID.uuidString) differs from \(manifest.path); use a fresh MICROPOD_CI_HOME")
+                }
+                // A warm fork keeps the captured guest worker, instance, and boot identity.
+                // Each launch owns its own supervisor, Unix endpoints and writable disk.
+                active = Session(
+                    owner: owner, instance: meta.instanceID, vmm: vmm, supportsNetworkRepair: false,
+                    cpuAllocation: cpuAllocation)
+            }
+            active.nativeOCI = true
+            let strictWorkspace = restoreSource != nil || captureDir != nil
+            if strictWorkspace { active.strictWorkspaceAttestation = true }
+            let diskURL: URL
+            if let restoreDisk {
+                // micropod-vmm instantly APFS CoW-clones <snapshot>/disk.ext4 -> diskURL before opening it.
+                diskURL = restoreDisk
+            } else if FileManager.default.fileExists(atPath: disk.path) {
+                diskURL = try validatedDisk()
+            } else {
+                let image = try await SandboxVM.resolveCIImage(
+                    config.image, progress: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
+                diskURL = try await openDisk(
+                    image: image, bytes: UInt64(config.diskGiB) << 30,
+                    progress: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
+            }
+            let proc = try launchHVFProcess(
+                config: config, instanceID: active.instance, cpus: cpuAllocation.count,
+                diskURL: diskURL, ociTools: ociTools,
+                restoreFrom: restoreSource?.directory,
+                snapshotOut: captureDir,
+                snapshotTrigger: captureTrigger)
+            let stopHVF = {
+                if proc.isRunning {
+                    proc.terminate()
+                    proc.waitUntilExit()
+                }
+            }
+            do {
+                active.guestAddress = "10.42.0.2"
+                active.publishedAddress = "10.43.0.2"
+                let readyStart = ContinuousClock.now
+                let readyBy = readyStart + .seconds(90)
+                let api = DockerClient(endpoint: .unix(dockerSocket.path), apiVersion: Self.apiVersion)
+                while true {
+                    guard proc.isRunning else {
+                        throw MicropodError.message("micropod-vmm exited early (\(proc.terminationStatus))")
+                    }
+                    if let reply = try? await api.request("GET", "/info", timeout: .seconds(2)),
+                        reply.status == 200, let info = try? reply.json() as? [String: Any],
+                        info["ID"] as? String == config.worker.uuidString,
+                        let labels = info["Labels"] as? [String],
+                        labels.contains("io.micropod.instance=" + active.instance.uuidString)
+                    {
+                        active.workspaceDigest = try HVFKernelArguments.attestWorkspace(
+                            config.workspace, labels: labels, strict: strictWorkspace)
+                        break
+                    }
+                    guard ContinuousClock.now < readyBy else {
+                        throw MicropodError.message("HVF worker Docker API did not become ready")
+                    }
+                    let pollInterval: Duration =
+                        ContinuousClock.now - readyStart < .milliseconds(250) ? .milliseconds(5) : .milliseconds(25)
+                    try await Task.sleep(for: pollInterval)
+                }
+                if let captureDir, let captureTrigger {
+                    let meta = HVFManagedSnapshotMetadata(
+                        workerID: config.worker, instanceID: active.instance, cpus: cpuAllocation.count,
+                        memoryMiB: config.memoryMiB, publishedMTU: config.publishedMTU ?? 9000,
+                        workspace: config.workspace, diskBytes: try HVFManagedSnapshotMetadata.ext4FileSize(diskURL))
+                    try meta.write(to: captureDir)
+                    let readyMarker = captureDir.appendingPathComponent("READY")
+                    try Data("capture\n".utf8).write(to: captureTrigger, options: .atomic)
+                    let snapDeadline = ContinuousClock.now + .seconds(20)
+                    while !FileManager.default.fileExists(atPath: readyMarker.path) {
+                        guard proc.isRunning else {
+                            throw MicropodError.message("micropod-vmm exited during snapshot capture")
+                        }
+                        guard ContinuousClock.now < snapDeadline else {
+                            throw MicropodError.message("Timed out capturing HVF warm snapshot at \(captureDir.path)")
+                        }
+                        try await Task.sleep(for: .milliseconds(10))
+                    }
+                    _ = try HVFManagedSnapshotMetadata.load(from: captureDir)
+                }
+                active.readySocket = ReadySocket(at: socket, worker: config.worker)
+                active.started = true
+                try JSONEncoder().encode(active).write(to: session, options: .atomic)
+                proc.terminationHandler = { p in
+                    stream.yield(.exited("exit \(p.terminationStatus)"))
+                }
+                var stopping = false
+                hvfLoop: for await event in events {
+                    switch event {
+                    case .exited(let reason):
+                        guard stopping else { throw MicropodError.message("HVF CI worker stopped: \(reason)") }
+                        break hvfLoop
+                    case .maintenance:
+                        guard !stopping, FileManager.default.fileExists(atPath: stopFile(active).path),
+                            try await drain(active)
+                        else { continue }
+                        stopping = true
+                        proc.terminate()
+                    case .terminate:
+                        if stopping { continue }
+                        stopping = true
+                        proc.terminate()
+                    case .checkNetwork, .timedOut:
+                        continue
+                    }
+                }
+            } catch {
+                stopHVF()
+                throw error
+            }
+            stopHVF()
+            try Data(active.instance.uuidString.utf8).write(
+                to: directory.appendingPathComponent("stopped"), options: .atomic)
+            return 0
+        }
+
         var options = SandboxVM.Options(base: .image(config.image))
         options.network = true
         options.hostname = config.engine == .containerd ? Self.hostname(active.instance) : "micropod-ci"
@@ -776,6 +1041,8 @@ public struct CIWorker: Sendable {
             throw MicropodError.message("Direct published ports require the native kqueue relay")
         }
         options.ciWorkspace = config.workspace
+        options.ciPublishedMTU = config.publishedMTU
+        options.ciPublishedGSOBytes = config.publishedGSOBytes
         options.ciKernel = config.kernel.map { URL(fileURLWithPath: $0) }
         if let path = config.kataTools {
             guard config.engine == .containerd, VZGenericPlatformConfiguration.isNestedVirtualizationSupported,
@@ -803,6 +1070,10 @@ public struct CIWorker: Sendable {
         if config.engine == .containerd {
             options.env.append("MICROPOD_ENGINE_API=1")
             if let path = config.publishedPath { options.env.append("MICROPOD_CI_PUBLISHED_PATH=" + path) }
+            if let rps = config.publishedRPS { options.env.append("MICROPOD_CI_PUBLISHED_RPS=" + rps) }
+            if let size = config.publishedGSOBytes {
+                options.env.append("MICROPOD_CI_PUBLISHED_GSO_BYTES=" + String(size))
+            }
             if portRelay.dataWorkers > 0 { options.env.append("MICROPOD_CI_PORT_THROUGHPUT=1") }
             if let raw = resourceEnvironment["MICROPOD_CI_MAX_STARTING"] {
                 guard let limit = Int(raw), (0...32).contains(limit) else {
@@ -850,7 +1121,7 @@ public struct CIWorker: Sendable {
                 guard ContinuousClock.now < readyBy else {
                     throw MicropodError.message("Guest container engine did not become ready after boot")
                 }
-                try await Task.sleep(for: .milliseconds(150))
+                try await Task.sleep(for: .milliseconds(25))
             }
             if active.nativeOCI == true {
                 while true {
@@ -861,7 +1132,7 @@ public struct CIWorker: Sendable {
                         if ContinuousClock.now >= readyBy {
                             throw MicropodError.message("Native OCI guest socket did not become ready: \(error)")
                         }
-                        try await Task.sleep(for: .milliseconds(150))
+                        try await Task.sleep(for: .milliseconds(25))
                     }
                 }
             }
@@ -886,7 +1157,7 @@ public struct CIWorker: Sendable {
                     guard ContinuousClock.now < readyBy else {
                         throw MicropodError.message("The native Docker API did not recover on this worker boot")
                     }
-                    try await Task.sleep(for: .milliseconds(150))
+                    try await Task.sleep(for: .milliseconds(25))
                 }
             }
             active.readySocket = ReadySocket(at: socket, worker: config.worker)

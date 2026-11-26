@@ -26,15 +26,32 @@ protocol SandboxNetworkCleanup: Sendable {
 final class SandboxNetwork: SandboxNetworkCleanup, @unchecked Sendable {
     let interface: VmnetNetwork.Interface
     let gateway: IPv4Address
+    let publicationMTU: UInt32?
+    let publicationGSOBytes: UInt32?
     private let reference: vmnet_network_ref
     private let anchor: Mutex<SandboxNetworkAnchor?>
 
-    init(mode: vmnet.operating_modes_t, pinBridge: Bool = false) throws {
+    init(
+        mode: vmnet.operating_modes_t, pinBridge: Bool = false, publicationMTU: UInt32? = nil,
+        publicationGSOBytes: UInt32? = nil
+    ) throws {
+        self.publicationMTU = publicationMTU
+        self.publicationGSOBytes = publicationGSOBytes
         var status: vmnet_return_t = .VMNET_FAILURE
         guard let config = vmnet_network_configuration_create(mode, &status) else {
             throw MicropodError.message("vmnet network configuration failed (status \(status.rawValue))")
         }
         defer { Self.release(config) }
+        if let publicationMTU {
+            guard mode == .VMNET_HOST_MODE else {
+                throw MicropodError.message("A publication MTU requires a host-only network")
+            }
+            let result = vmnet_network_configuration_set_mtu(config, publicationMTU)
+            guard result == .VMNET_SUCCESS else {
+                throw MicropodError.message(
+                    "vmnet rejected the \(publicationMTU)-byte publication MTU (status \(result.rawValue))")
+            }
+        }
         vmnet_network_configuration_disable_dhcp(config)
         guard let reference = vmnet_network_create(config, &status), status == .VMNET_SUCCESS else {
             throw MicropodError.message("vmnet network creation failed (status \(status.rawValue))")
@@ -68,7 +85,8 @@ final class SandboxNetwork: SandboxNetworkCleanup, @unchecked Sendable {
                 ipv4Address: try CIDRv4(IPv4Address(lower + 2), prefix: v4Prefix),
                 ipv4Gateway: gateway,
                 ipv6Address: v6?.address,
-                ipv6Gateway: v6?.gateway)
+                ipv6Gateway: v6?.gateway,
+                mtu: publicationMTU ?? 1500)
         } catch {
             Self.release(reference)
             throw error
@@ -81,11 +99,18 @@ final class SandboxNetwork: SandboxNetworkCleanup, @unchecked Sendable {
         }
     }
 
-    static func workerNetwork(mode: vmnet.operating_modes_t) async throws -> SandboxNetwork {
+    static func workerNetwork(
+        mode: vmnet.operating_modes_t, publicationMTU: UInt32? = nil,
+        publicationGSOBytes: UInt32? = nil
+    ) async throws
+        -> SandboxNetwork
+    {
         // Internet Sharing can reject the first attachment while retiring an old bridge.
         // Release each confirmed attempt before requesting the next reservation.
         for attempt in 1...3 {
-            let network = try SandboxNetwork(mode: mode, pinBridge: true)
+            let network = try SandboxNetwork(
+                mode: mode, pinBridge: true, publicationMTU: publicationMTU,
+                publicationGSOBytes: publicationGSOBytes)
             do {
                 try network.waitUntilReady()
                 return network

@@ -33,6 +33,10 @@ typedef struct {
     uint64_t guest_flat_bulk_full_cap_ready_above_cap;
     // Subset from polls returning <=2 events with room to return at least three.
     uint64_t guest_sparse_flat_bulk_full_cap_ready_above_cap;
+    // First actual socket setup error for this lease, even if a retry later
+    // succeeds or the overall deadline expires. The stage has static storage.
+    const char *first_dial_stage;
+    int first_dial_errno;
 } mp_tcp_stats;
 
 // A single serial owner must call these functions. The returned kqueue is
@@ -56,6 +60,11 @@ void mp_tcp_adopt(mp_tcp_listener *target, int client, uint64_t accepted_at);
 // Profiled handoff only. Timestamps are CLOCK_UPTIME_RAW nanoseconds taken
 // immediately after accept and immediately before submission to the owner queue.
 void mp_tcp_adopt_profiled(mp_tcp_listener *target, int client, uint64_t accepted_at, uint64_t enqueued_at);
+// Thread-safe lock-free handoff into a dedicated data owner's kqueue.
+// Wakes the data owner via EVFILT_USER and adopts mid-turn ahead of bulk I/O.
+void mp_tcp_handoff_enqueue(mp_tcp_listener *target, int client, uint64_t accepted_at);
+void mp_tcp_handoff_enqueue_profiled(mp_tcp_listener *target, int client,
+                                     uint64_t accepted_at, uint64_t enqueued_at);
 // Thread-safe, coalescing signal for a new handshake that lost the worker path.
 int mp_tcp_take_path_failure(mp_tcp_relay *accept_relay);
 // Reports newly received guest payload since the previous observation on this I/O owner.

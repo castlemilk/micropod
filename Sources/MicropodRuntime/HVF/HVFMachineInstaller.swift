@@ -63,7 +63,8 @@ public enum HVFMachineInstaller {
     /// request or a failed pull changes nothing. Staging an interrupted
     /// install left behind is removed by the next one.
     public static func install(
-        _ request: HVFInstallRequest, layout: HVFMachineLayout, progress: @Sendable (String) -> Void
+        _ request: HVFInstallRequest, layout: HVFMachineLayout, packagedExecutable: URL? = nil,
+        progress: @Sendable (String) -> Void
     ) async throws {
         try layout.validatePaths()
         try refuseWhileRunning(layout)
@@ -105,11 +106,23 @@ public enum HVFMachineInstaller {
         // Sources are read through symlinks (`copyfile` with COPYFILE_CLONE
         // would copy a link as a link).
         func resolved(_ url: URL?) -> URL? { url.map { URL(fileURLWithPath: HVFMachineLayout.canonicalPath($0.path)) } }
+        let package = packagedExecutable.flatMap { distributionDirectories(for: $0) }
+        func source(_ explicit: URL?, target: URL, directory: URL?, name: String) -> URL? {
+            if let explicit { return resolved(explicit) }
+            guard !fm.fileExists(atPath: target.path), let directory else { return nil }
+            let member = directory.appendingPathComponent(name)
+            guard fm.fileExists(atPath: member.path), let canonical = resolved(member),
+                canonical.pathComponents.starts(with: directory.pathComponents)
+            else { return nil }
+            return canonical
+        }
+        let vmm = source(request.vmm, target: layout.vmm, directory: package?.bin, name: "micropod-vmm")
+        let kernel = source(request.kernel, target: layout.kernel, directory: package?.resources, name: "vmlinux-hvf")
+        let initrd = source(request.initrd, target: layout.initrd, directory: package?.resources, name: "mp-hvf-init.cpio")
         let files: [(name: String, source: URL?, target: URL)] = [
-            ("micropod-vmm", resolved(request.vmm), layout.vmm), ("Image", resolved(request.kernel), layout.kernel),
-            ("mp-hvf-init.cpio", resolved(request.initrd), layout.initrd),
+            ("micropod-vmm", vmm, layout.vmm), ("Image", kernel, layout.kernel), ("mp-hvf-init.cpio", initrd, layout.initrd),
         ]
-        let tools = resolved(request.tools)
+        let tools = source(request.tools, target: layout.tools, directory: package?.resources, name: "micropod-oci-tools")
         let diskFrom = resolved(request.diskFrom)
         var unresolved: [String] = []
         for file in files {
@@ -235,6 +248,20 @@ public enum HVFMachineInstaller {
         try config.save(to: layout.config)
         progress("wrote \(layout.config.path) (\(config.cpus) vCPU, \(config.memoryMiB) MiB)")
         progress(buildKitReport(layout.missingBuildKitFiles()))
+    }
+
+    private static func distributionDirectories(for executable: URL) -> (bin: URL, resources: URL)? {
+        let exe = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(executable.path))
+        switch CLIInstall.kind(of: exe) {
+        case let .appManaged(app):
+            let contents = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(app.path)).appendingPathComponent("Contents")
+            return (contents.appendingPathComponent("MacOS"), contents.appendingPathComponent("Resources"))
+        case .standalone:
+            let directory = exe.deletingLastPathComponent()
+            return (directory, directory)
+        case .development:
+            return nil
+        }
     }
 
     /// What the installed tool bundle means for `docker buildx`.

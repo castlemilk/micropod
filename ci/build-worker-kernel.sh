@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build on ARM64 Linux. Arguments are the upstream archive, the compatible
-# Apple guest's .config, an output directory and optional full|full-16k|full-no-mlx5|full-cubic|full-scx|lazy profile.
+# Apple guest's .config, an output directory and optional full|full-16k|full-mthp|full-no-mlx5|full-cubic|full-scx|lazy profile.
 set -eu
 archive=${1:?Linux 7.3.5 source tar.xz}
 config=${2:?base Apple guest .config}
@@ -9,7 +9,7 @@ profile=${4:-full}
 archive=$(realpath "$archive")
 config=$(realpath "$config")
 fresh_output=false
-case "$profile" in full-16k|full-no-mlx5) fresh_output=true ;; esac
+case "$profile" in full-16k|full-mthp|full-no-mlx5) fresh_output=true ;; esac
 if [ "$fresh_output" = true ]; then
     mkdir -p "$(dirname "$out")"
     out="$(realpath "$(dirname "$out")")/$(basename "$out")"
@@ -37,11 +37,16 @@ trap cleanup EXIT
 tar -xJf "$archive" -C "$work"
 cd "$work/linux-7.3.5"
 cp "$config" .config
+chmod u+w .config
 case "$profile" in
-    full|full-16k|full-no-mlx5|full-cubic|full-scx)
+    full|full-16k|full-mthp|full-no-mlx5|full-cubic|full-scx)
         localversion=-micropod
         if [ "$profile" = full-16k ]; then
             scripts/config -d ARM64_4K_PAGES -e ARM64_16K_PAGES -d ARM64_64K_PAGES
+        fi
+        if [ "$profile" = full-mthp ]; then
+            scripts/config -e ARM64_4K_PAGES -d ARM64_16K_PAGES -d ARM64_64K_PAGES \
+                -e TRANSPARENT_HUGEPAGE -d TRANSPARENT_HUGEPAGE_ALWAYS -e TRANSPARENT_HUGEPAGE_MADVISE
         fi
         if [ "$profile" = full-no-mlx5 ]; then
             scripts/config -d MLX5_CORE
@@ -61,10 +66,10 @@ case "$profile" in
         localversion=-micropod-lazy
         preempt=PREEMPT_LAZY
         scripts/config -d PREEMPT -e PREEMPT_LAZY -d PREEMPT_DYNAMIC ;;
-    *) echo "Select full, full-16k, full-no-mlx5, full-cubic, full-scx or lazy" >&2; exit 1 ;;
+    *) echo "Select full, full-16k, full-mthp, full-no-mlx5, full-cubic, full-scx or lazy" >&2; exit 1 ;;
 esac
 scripts/config --set-str LOCALVERSION "$localversion" -d LOCALVERSION_AUTO \
-    -e MACVLAN -e NETKIT -e NET_CLS_ACT -e NET_SCH_INGRESS -e NET_CLS_FLOWER \
+    -e MACVLAN -e IPVLAN -e NETKIT -e NET_CLS_ACT -e NET_SCH_INGRESS -e NET_CLS_FLOWER \
     -e NET_CLS_BPF -e NET_ACT_GACT -e NET_ACT_MIRRED -e NET_ACT_PEDIT \
     -e NETFILTER_INGRESS -e NETFILTER_EGRESS -e NF_TABLES_NETDEV \
     -e BPF_STREAM_PARSER -e NET_SCH_FQ -e CC_OPTIMIZE_FOR_PERFORMANCE
@@ -84,6 +89,11 @@ if [ "$profile" = full-16k ]; then
         exit 1
     fi
 fi
+if [ "$profile" = full-mthp ]; then
+    for setting in ARM64_4K_PAGES=y PAGE_SHIFT=12 TRANSPARENT_HUGEPAGE=y TRANSPARENT_HUGEPAGE_MADVISE=y; do
+        grep -qx "CONFIG_$setting" .config || { echo "Missing 4 KiB THP kernel setting $setting" >&2; exit 1; }
+    done
+fi
 if [ "$profile" = full-cubic ]; then
     grep -qx CONFIG_TCP_CONG_CUBIC=y .config
 fi
@@ -93,7 +103,7 @@ if [ "$profile" = full-scx ]; then
         grep -qx "CONFIG_$symbol=y" .config || { echo "Missing sched_ext profile option $symbol" >&2; exit 1; }
     done
 fi
-for symbol in "$preempt" NET_NS VIRTIO_NET MACVLAN NETFILTER_INGRESS NETFILTER_EGRESS NF_TABLES_NETDEV \
+for symbol in "$preempt" NET_NS VIRTIO_NET MACVLAN IPVLAN NETFILTER_INGRESS NETFILTER_EGRESS NF_TABLES_NETDEV \
     NF_TABLES_INET NF_CONNTRACK NF_CT_NETLINK NF_NAT NFT_NAT NFT_CT NET_SCH_FQ; do
     grep -qx "CONFIG_$symbol=y" .config || { echo "Missing built-in $symbol" >&2; exit 1; }
 done

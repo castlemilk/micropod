@@ -1,12 +1,15 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -15,34 +18,45 @@ import (
 )
 
 const engineRoot = "/var/lib/micropod/engine"
+const tcpQueueSysctl = "net.ipv4.tcp_limit_output_bytes"
+const dockerCPUGroupLabel = "io.micropod.ci.cpu-group"
 
 var dockerName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`)
 
 type dockerMount struct {
 	Type, Source, Target string
 	ReadOnly             bool
+	tmpfs                *dockerTmpfsOptions
 }
 type dockerHost struct {
 	PortBindings                          portMap
 	PublishAllPorts                       bool
 	Binds                                 []string
 	Mounts                                []dockerMount
+	Tmpfs                                 map[string]string `json:",omitempty"`
 	AutoRemove, ReadonlyRootfs            bool
+	ConsoleSize                           []uint16 `json:",omitempty"`
 	Memory, NanoCpus, CpuQuota, CpuPeriod int64
+	CpuShares                             int64  `json:",omitempty"`
+	CpusetCpus                            string `json:",omitempty"`
 	PidsLimit                             *int64
 	NetworkMode                           string
+	LogConfig                             dockerLogConfig
 	CapDrop                               []string
+	Sysctls                               map[string]string `json:",omitempty"`
 }
 type dockerConfig struct {
-	Aliases                           []string `json:"MicropodAliases,omitempty"`
-	EndpointName                      string   `json:"MicropodEndpointName,omitempty"`
-	EndpointID                        string   `json:"MicropodEndpointID,omitempty"`
-	ExposedPorts                      map[string]struct{}
-	Image, WorkingDir, User, Hostname string
-	Entrypoint, Cmd, Env              []string
-	Labels                            map[string]string
-	HostConfig                        dockerHost
-	AttachStdout, AttachStderr        bool
+	Aliases                                 []string                         `json:"MicropodAliases,omitempty"`
+	Endpoints                               map[string]dockerEndpointOptions `json:"-"`
+	ExposedPorts                            map[string]struct{}
+	Image, WorkingDir, User, Hostname       string
+	Entrypoint, Cmd, Env                    []string
+	Healthcheck                             *dockerHealthConfig `json:",omitempty"`
+	Shell                                   []string            `json:",omitempty"`
+	Labels                                  map[string]string
+	HostConfig                              dockerHost
+	AttachStdin, AttachStdout, AttachStderr bool
+	Tty, OpenStdin, StdinOnce               bool
 }
 
 // The CLI sends many empty defaults even for a plain "docker run". A meaningful
@@ -88,47 +102,28 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return spec, err
 	}
-	if err := supportedOptions(raw, "ExposedPorts Image WorkingDir User Entrypoint Cmd Env Labels HostConfig AttachStdout AttachStderr Hostname NetworkingConfig"); err != nil {
+	if err := supportedOptions(raw, "ExposedPorts Image WorkingDir User Entrypoint Cmd Env Labels HostConfig AttachStdin AttachStdout AttachStderr Tty OpenStdin StdinOnce Hostname NetworkingConfig Healthcheck Shell"); err != nil {
 		return spec, err
 	}
-	if netcfg, ok := raw["NetworkingConfig"].(map[string]any); ok {
+	if err := supportedOptions(obj(raw["Healthcheck"]), "Test Interval Timeout StartPeriod StartInterval Retries"); err != nil {
+		return spec, err
+	}
+	if err := spec.Healthcheck.validate(); err != nil {
+		return spec, err
+	}
+	if !validDockerHealthShell(spec.Shell) {
+		return spec, errors.New("invalid Docker Shell")
+	}
+	if value := raw["NetworkingConfig"]; value != nil {
+		netcfg, ok := value.(map[string]any)
+		if !ok {
+			return spec, errors.New("invalid Docker networking configuration")
+		}
 		if err := supportedOptions(netcfg, "EndpointsConfig"); err != nil {
 			return spec, err
 		}
-		endpoints := obj(netcfg["EndpointsConfig"])
-		if len(endpoints) > 1 {
-			return spec, errors.New("multiple endpoint attachments are unavailable")
-		}
-		for name, endpoint := range endpoints {
-			selected := networkName(spec.HostConfig.NetworkMode)
-			fields := obj(endpoint)
-			if err := supportedOptions(fields, "NetworkID Aliases"); err != nil {
-				return spec, err
-			}
-			id, _ := fields["NetworkID"].(string)
-			spec.EndpointName = name
-			if builtinNetwork(selected) && networkName(name) != selected && id != selected {
-				return spec, errors.New("endpoint does not match selected network")
-			}
-			if builtinNetwork(selected) && id != "" && id != networkID(selected) {
-				return spec, errors.New("endpoint identity differs")
-			}
-			spec.EndpointID = id
-			if list, ok := fields["Aliases"].([]any); ok {
-				if builtinNetwork(selected) && len(list) > 0 {
-					return spec, errors.New("aliases require a named network")
-				}
-				if len(list) > 64 {
-					return spec, errors.New("too many network aliases")
-				}
-				for _, v := range list {
-					alias, ok := v.(string)
-					if !ok || !dockerName.MatchString(alias) {
-						return spec, errors.New("invalid network alias")
-					}
-					spec.Aliases = append(spec.Aliases, alias)
-				}
-			}
+		if err := spec.parseDockerEndpoints(netcfg["EndpointsConfig"]); err != nil {
+			return spec, err
 		}
 	}
 	if h, ok := raw["HostConfig"].(map[string]any); ok {
@@ -136,14 +131,16 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 		if policy := obj(h["RestartPolicy"]); policy["Name"] == "no" {
 			delete(policy, "Name")
 		}
-		if size, ok := h["ConsoleSize"].([]any); ok && len(size) == 2 && emptyOption(size[0]) && emptyOption(size[1]) {
-			delete(h, "ConsoleSize")
-		}
 		if h["MemorySwappiness"] == float64(-1) {
 			delete(h, "MemorySwappiness")
 		}
-		if err := supportedOptions(h, "PortBindings PublishAllPorts Binds Mounts AutoRemove ReadonlyRootfs Memory NanoCpus CpuQuota CpuPeriod PidsLimit NetworkMode CapDrop"); err != nil {
+		if err := supportedOptions(h, "PortBindings PublishAllPorts Binds Mounts Tmpfs AutoRemove ReadonlyRootfs ConsoleSize Memory NanoCpus CpuQuota CpuPeriod CpuShares CpusetCpus PidsLimit NetworkMode LogConfig CapDrop Sysctls"); err != nil {
 			return spec, err
+		}
+		for k := range obj(h["LogConfig"]) {
+			if k != "Type" && k != "Config" {
+				return spec, fmt.Errorf("unsupported Docker log configuration field %q", k)
+			}
 		}
 		if mounts, ok := h["Mounts"].([]any); ok {
 			for _, v := range mounts {
@@ -168,6 +165,34 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 		return spec, errors.New("image is required")
 	}
 	h := spec.HostConfig
+	spec.HostConfig.LogConfig = h.LogConfig.withDefault()
+	if err := spec.HostConfig.LogConfig.validate(); err != nil {
+		return spec, err
+	}
+	if size := h.ConsoleSize; len(size) != 0 {
+		switch {
+		case len(size) == 2 && size[0] == 0 && size[1] == 0:
+			spec.HostConfig.ConsoleSize = nil
+		case !spec.Tty || len(size) != 2 || size[0] == 0 || size[1] == 0:
+			return spec, errors.New("console size requires a TTY and two positive dimensions")
+		}
+	}
+	if h.CpuShares < 0 {
+		return spec, errors.New("CPU shares must be nonnegative")
+	}
+	if err := validateDockerCPUSet(h.CpusetCpus); err != nil {
+		return spec, err
+	}
+	for key, raw := range h.Sysctls {
+		if key != tcpQueueSysctl {
+			return spec, fmt.Errorf("unsupported container sysctl %q", key)
+		}
+		value, err := strconv.ParseUint(raw, 10, 31)
+		if err != nil {
+			return spec, fmt.Errorf("%s requires a nonnegative 32-bit byte count", key)
+		}
+		h.Sysctls[key] = strconv.FormatUint(value, 10)
+	}
 	if !dockerName.MatchString(networkName(h.NetworkMode)) || h.NetworkMode == "host" {
 		return spec, errors.New("invalid network mode")
 	}
@@ -191,7 +216,112 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 	if _, _, err := dockerUser(spec.User); err != nil {
 		return spec, err
 	}
+	if len(h.Tmpfs) != 0 {
+		if _, err := spec.mounts(); err != nil {
+			return spec, err
+		}
+	}
 	return spec, nil
+}
+
+func validateDockerCPUSet(request string) error {
+	if request == "" {
+		return nil
+	}
+	allowed, err := dockerAllowedCPUSet()
+	if err != nil {
+		return err
+	}
+	return checkDockerCPUSet(request, &allowed)
+}
+
+func dockerAllowedCPUSet() (unix.CPUSet, error) {
+	controllers, err := os.ReadFile("/sys/fs/cgroup/cgroup.subtree_control")
+	if err != nil || !slices.Contains(strings.Fields(string(controllers)), "cpuset") {
+		return unix.CPUSet{}, errors.New("container CPU placement requires the delegated cpuset controller")
+	}
+	return workerCPUAffinity()
+}
+
+func workerCPUAffinity() (unix.CPUSet, error) {
+	var allowed unix.CPUSet
+	if err := unix.SchedGetaffinity(os.Getpid(), &allowed); err != nil {
+		return allowed, fmt.Errorf("read worker CPU affinity: %w", err)
+	}
+	if allowed.Count() == 0 {
+		return allowed, errors.New("worker has no available CPUs")
+	}
+	return allowed, nil
+}
+
+func dockerPlacementCPUs(allowed *unix.CPUSet) []string {
+	count := allowed.Count()
+	cpus := make([]string, 0, count)
+	for cpu := 0; len(cpus) < count; cpu++ {
+		if allowed.IsSet(cpu) {
+			cpus = append(cpus, strconv.Itoa(cpu))
+		}
+	}
+	return cpus
+}
+
+func checkDockerCPUSet(request string, allowed *unix.CPUSet) error {
+	for _, item := range strings.Split(request, ",") {
+		first, last, span := strings.Cut(item, "-")
+		if !span {
+			last = first
+		}
+		lo, loErr := strconv.ParseUint(first, 10, 31)
+		hi, hiErr := strconv.ParseUint(last, 10, 31)
+		if loErr != nil || hiErr != nil || lo > hi {
+			return fmt.Errorf("invalid Docker CPU list item %q", item)
+		}
+		// Check the endpoint before walking a range supplied by the client.
+		if !allowed.IsSet(int(hi)) {
+			return fmt.Errorf("CPU %d is unavailable to the worker", hi)
+		}
+		for cpu := lo; cpu < hi; cpu++ {
+			if !allowed.IsSet(int(cpu)) {
+				return fmt.Errorf("CPU %d is unavailable to the worker", cpu)
+			}
+		}
+	}
+	return nil
+}
+
+func (h dockerHost) cpuBandwidth(quota, period int64) (int64, int64) {
+	if h.NanoCpus > 0 {
+		return max(1000, h.NanoCpus/10000), 100000
+	}
+	if h.CpuPeriod > 0 {
+		period = h.CpuPeriod
+	}
+	// Docker's explicit -1 removes the child quota. Zero inherits the job default.
+	return cmp.Or(h.CpuQuota, quota), period
+}
+
+func (s dockerConfig) cpuGroup(network string) dockerCPUGroup {
+	// Built-in networks have no catalog ID. Their normalized names cannot
+	// collide with the IDs of user-defined networks.
+	return dockerCPUGroup{network: cmp.Or(network, networkName(s.HostConfig.NetworkMode)), name: s.Labels[dockerCPUGroupLabel]}
+}
+
+func (s dockerConfig) requestedCPUGroup(network string) (dockerCPUGroup, error) {
+	name, present := s.Labels[dockerCPUGroupLabel]
+	if !present || s.HostConfig.CpusetCpus != "" {
+		return dockerCPUGroup{}, nil
+	}
+	// Docker starts with config's one-CPU bandwidth. A wider explicit budget
+	// takes precedence over a group that can only use one CPU.
+	h := s.HostConfig
+	quota, period := h.cpuBandwidth(100000, 100000)
+	if h.NanoCpus > 1000000000 || quota < 0 || quota > period {
+		return dockerCPUGroup{}, nil
+	}
+	if name == "" {
+		return dockerCPUGroup{}, fail(400, dockerCPUGroupLabel+" requires a nonempty value")
+	}
+	return s.cpuGroup(network), nil
 }
 
 func dockerUser(user string) (*cri.Int64Value, *cri.Int64Value, error) {
@@ -236,9 +366,17 @@ func (c dockerConfig) mounts() ([]dockerMount, error) {
 		}
 		mounts = append(mounts, m)
 	}
+	for _, target := range slices.Sorted(maps.Keys(c.HostConfig.Tmpfs)) {
+		options, err := parseDockerTmpfs(c.HostConfig.Tmpfs[target])
+		if err != nil {
+			return nil, fmt.Errorf("tmpfs %q: %w", target, err)
+		}
+		mounts = append(mounts, dockerMount{Type: "tmpfs", Target: target,
+			ReadOnly: options.flags&unix.MS_RDONLY != 0, tmpfs: &options})
+	}
 	seen := map[string]bool{}
 	for _, m := range mounts {
-		if !filepath.IsAbs(m.Target) || filepath.Clean(m.Target) != m.Target || m.Target == "/" || seen[m.Target] {
+		if !filepath.IsAbs(m.Target) || filepath.Clean(m.Target) != m.Target || m.Target == "/" || strings.ContainsRune(m.Target, 0) || seen[m.Target] {
 			return nil, errors.New("invalid or duplicate mount target")
 		}
 		seen[m.Target] = true
@@ -248,9 +386,178 @@ func (c dockerConfig) mounts() ([]dockerMount, error) {
 		if m.Type == "bind" && filepath.IsAbs(m.Source) && filepath.Clean(m.Source) == m.Source {
 			continue
 		}
+		if m.tmpfs != nil {
+			continue
+		}
 		return nil, errors.New("expected a local named volume or a file in the shared workspace")
 	}
 	return mounts, nil
+}
+
+func (c dockerConfig) captureRawOutput() bool {
+	if c.Tty || c.OpenStdin {
+		return true
+	}
+	// An ordinary job could previously replace /dev. Avoid placing our
+	// launcher in a caller-owned mount. Keep that configuration on CRI I/O.
+	mounts, _ := c.mounts()
+	return !slices.ContainsFunc(mounts, func(m dockerMount) bool { return m.Target == "/dev" })
+}
+
+type dockerTmpfsOptions struct {
+	flags uintptr
+	size  uint64
+	mode  uint64
+	uid   uint64
+	gid   uint64
+}
+
+// The explicit size limit matches the `micropod ci run --scratch-mib` range.
+const maxDockerTmpfsBytes = 256 << 30
+
+func dockerTmpfsSize(value string) (uint64, error) {
+	shift := uint(0)
+	if value != "" {
+		switch value[len(value)-1] {
+		case 'k', 'K':
+			shift = 10
+		case 'm', 'M':
+			shift = 20
+		case 'g', 'G':
+			shift = 30
+		}
+		if shift != 0 {
+			value = value[:len(value)-1]
+		}
+	}
+	count, err := strconv.ParseUint(value, 10, 64)
+	if err != nil || count == 0 || count > maxDockerTmpfsBytes>>shift {
+		return 0, errors.New("size must be positive and at most 256 GiB")
+	}
+	return count << shift, nil
+}
+
+func parseDockerTmpfs(raw string) (dockerTmpfsOptions, error) {
+	options := dockerTmpfsOptions{
+		flags: unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC,
+		mode:  01777,
+	}
+	if raw == "" {
+		return options, nil
+	}
+	for option := range strings.SplitSeq(raw, ",") {
+		switch option {
+		case "defaults", "nosuid", "nodev":
+			continue
+		case "ro":
+			options.flags |= unix.MS_RDONLY
+		case "rw":
+			options.flags &^= unix.MS_RDONLY
+		case "noexec":
+			options.flags |= unix.MS_NOEXEC
+		case "exec":
+			options.flags &^= unix.MS_NOEXEC
+		default:
+			key, value, _ := strings.Cut(option, "=")
+			var err error
+			switch key {
+			case "size":
+				options.size, err = dockerTmpfsSize(value)
+			case "mode":
+				options.mode, err = strconv.ParseUint(value, 8, 12)
+			case "uid":
+				options.uid, err = strconv.ParseUint(value, 10, 32)
+			case "gid":
+				options.gid, err = strconv.ParseUint(value, 10, 32)
+			default:
+				return options, fmt.Errorf("unsupported option %q", key)
+			}
+			if err != nil {
+				return options, fmt.Errorf("invalid %s: %w", key, err)
+			}
+		}
+	}
+	return options, nil
+}
+
+func (options dockerTmpfsOptions) ociOptions() []string {
+	flags := []string{"nosuid", "nodev"}
+	if options.flags&unix.MS_NOEXEC != 0 {
+		flags = append(flags, "noexec")
+	} else {
+		flags = append(flags, "exec")
+	}
+	if options.flags&unix.MS_RDONLY != 0 {
+		flags = append(flags, "ro")
+	} else {
+		flags = append(flags, "rw")
+	}
+	// With no size option Linux supplies the ordinary tmpfs capacity.
+	if options.size != 0 {
+		flags = append(flags, "size="+strconv.FormatUint(options.size, 10))
+	}
+	return append(flags, fmt.Sprintf("mode=%o", options.mode), fmt.Sprintf("uid=%d", options.uid), fmt.Sprintf("gid=%d", options.gid))
+}
+
+type dockerOCITmpfsMount struct {
+	Destination string   `json:"destination"`
+	Type        string   `json:"type"`
+	Source      string   `json:"source"`
+	Options     []string `json:"options"`
+}
+
+// CRI translates all of its mounts to binds. A typed OCI tmpfs lets the
+// runtime apply all requested flags together when creating the filesystem.
+func (c dockerConfig) specWithTmpfs(original []byte) ([]byte, error) {
+	requested, err := c.mounts()
+	if err != nil {
+		return nil, err
+	}
+	var spec map[string]json.RawMessage
+	if err := json.Unmarshal(original, &spec); err != nil {
+		return nil, err
+	}
+	var mounts []json.RawMessage
+	if err := json.Unmarshal(spec["mounts"], &mounts); err != nil {
+		return nil, fmt.Errorf("decode OCI mounts: %w", err)
+	}
+
+	destinations := make([]string, len(mounts))
+	for i, raw := range mounts {
+		var header struct {
+			Destination string `json:"destination"`
+		}
+		if err := json.Unmarshal(raw, &header); err != nil || !filepath.IsAbs(header.Destination) {
+			return nil, errors.New("invalid destination in containerd OCI mounts")
+		}
+		destinations[i] = filepath.Clean(header.Destination)
+	}
+	for _, m := range requested {
+		if m.tmpfs == nil {
+			continue
+		}
+		mount, err := json.Marshal(dockerOCITmpfsMount{Destination: m.Target, Type: "tmpfs", Source: "tmpfs", Options: m.tmpfs.ociOptions()})
+		if err != nil {
+			return nil, err
+		}
+		if i := slices.Index(destinations, m.Target); i >= 0 {
+			mounts[i] = mount
+			continue
+		}
+		// Preserve existing order while placing scratch before any child mount.
+		i := slices.IndexFunc(destinations, func(dest string) bool { return strings.HasPrefix(dest, m.Target+"/") })
+		if i < 0 {
+			i = len(mounts)
+		}
+		mounts = slices.Insert(mounts, i, json.RawMessage(mount))
+		destinations = slices.Insert(destinations, i, m.Target)
+	}
+	updated, err := json.Marshal(mounts)
+	if err != nil {
+		return nil, err
+	}
+	spec["mounts"] = updated
+	return json.Marshal(spec)
 }
 
 // Resolve through a pinned directory and retain the exact inode until CRI has
@@ -305,7 +612,10 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 	var files []*os.File
 	var mounts []*cri.Mount
 	for _, m := range requests {
-		if privateRootless() && m.Type == "bind" && (m.Source == "/var/run/docker.sock" || m.Source == "/run/docker.sock") && m.Target == "/var/run/docker.sock" {
+		if m.tmpfs != nil {
+			continue
+		}
+		if privateRootless() && dockerSocketMount(m) {
 			mounts = append(mounts, &cri.Mount{HostPath: clientSocket(dockerSocket, "docker.sock"), ContainerPath: m.Target, Readonly: m.ReadOnly})
 			continue
 		}
@@ -319,34 +629,13 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 			}
 			continue
 		}
-		root, source := s.workspace, m.Source
-		if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
-			root = "/runner/externals"
-		}
-		if m.Type == "volume" {
-			root = filepath.Join(engineRoot, "volumes")
-			source = filepath.Join(root, m.Source)
-			if createVolumes {
-				if err = ensureVolume(m.Source, nil); err != nil {
-					break
-				}
-			}
-		}
-		var f *os.File
-		if m.Type == "volume" {
-			if path, shared := sharedCachePath(m.Source); shared {
-				if err = cacheDirectory(path); err != nil {
-					break
-				}
-				root, source = filepath.Dir(path), path
-			}
-		}
-		f, err = openMount(root, source)
-		if err != nil {
+		f, e := s.openDockerMount(m, createVolumes)
+		if e != nil {
+			err = e
 			break
 		}
 		files = append(files, f)
-		mounts = append(mounts, &cri.Mount{HostPath: fmt.Sprintf("/proc/%d/fd/%d", os.Getpid(), f.Fd()), ContainerPath: m.Target, Readonly: m.ReadOnly})
+		mounts = append(mounts, &cri.Mount{HostPath: dockerMountFDPath(f), ContainerPath: m.Target, Readonly: m.ReadOnly})
 	}
 	if err != nil {
 		closeMounts(files)
@@ -354,6 +643,39 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 	}
 	return files, mounts, nil
 }
+
+func dockerSocketMount(m dockerMount) bool {
+	return m.Type == "bind" && m.Target == "/var/run/docker.sock" &&
+		(m.Source == "/var/run/docker.sock" || m.Source == "/run/docker.sock")
+}
+
+func dockerMountFDPath(file *os.File) string {
+	return fmt.Sprintf("/proc/%d/fd/%d", os.Getpid(), file.Fd())
+}
+
+func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool) (*os.File, error) {
+	root, source := s.workspace, m.Source
+	if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
+		root = "/runner/externals"
+	}
+	if m.Type == "volume" {
+		if createVolume {
+			if err := ensureVolume(m.Source, nil); err != nil {
+				return nil, err
+			}
+		}
+		root = filepath.Join(engineRoot, "volumes")
+		source = filepath.Join(root, m.Source)
+		if path, shared := sharedCachePath(m.Source); shared {
+			if err := cacheDirectory(path); err != nil {
+				return nil, err
+			}
+			root, source = filepath.Dir(path), path
+		}
+	}
+	return openMount(root, source)
+}
+
 func closeMounts(files []*os.File) {
 	for _, f := range files {
 		f.Close()
@@ -368,6 +690,9 @@ func (s dockerConfig) configure(c *cri.ContainerConfig, mounts []*cri.Mount) err
 		c.Envs = append(c.Envs, &cri.KeyValue{Key: k, Value: v})
 	}
 	sec := c.Linux.SecurityContext
+	// Stock Docker starts the image entrypoint as PID 1. CRI's zero value
+	// joins the sandbox PID namespace, where that slot belongs to pause.
+	sec.NamespaceOptions = &cri.NamespaceOption{Pid: cri.NamespaceMode_CONTAINER}
 	sec.ReadonlyRootfs = s.HostConfig.ReadonlyRootfs
 	var err error
 	sec.RunAsUser, sec.RunAsGroup, err = dockerUser(s.User)
@@ -381,21 +706,15 @@ func (s dockerConfig) configure(c *cri.ContainerConfig, mounts []*cri.Mount) err
 	}
 	r := c.Linux.Resources
 	h := s.HostConfig
+	r.CpusetCpus = h.CpusetCpus
+	if h.CpuShares > 0 {
+		// Docker accepts positive shares. The Linux shares scale saturates at its endpoints.
+		r.CpuShares = min(max(h.CpuShares, 2), 262144)
+	}
 	if h.Memory > 0 {
 		r.MemoryLimitInBytes = h.Memory
 	}
-	if h.CpuPeriod > 0 {
-		r.CpuPeriod = h.CpuPeriod
-	}
-	// Docker's explicit -1 removes the child quota. Zero inherits the job
-	// default; the VM and ancestor cgroups bound both cases.
-	if h.CpuQuota != 0 {
-		r.CpuQuota = h.CpuQuota
-	}
-	if h.NanoCpus > 0 {
-		r.CpuQuota = max(1000, h.NanoCpus/10000)
-		r.CpuPeriod = 100000
-	}
+	r.CpuQuota, r.CpuPeriod = h.cpuBandwidth(r.CpuQuota, r.CpuPeriod)
 	if h.PidsLimit != nil && *h.PidsLimit > 0 {
 		r.Unified["pids.max"] = strconv.FormatInt(*h.PidsLimit, 10)
 	}

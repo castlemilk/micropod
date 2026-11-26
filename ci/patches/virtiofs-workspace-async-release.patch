@@ -1,0 +1,31 @@
+diff --git a/fs/fuse/virtio_fs.c b/fs/fuse/virtio_fs.c
+--- a/fs/fuse/virtio_fs.c
++++ b/fs/fuse/virtio_fs.c
+@@ -35,6 +35,11 @@
+ static DEFINE_MUTEX(virtio_fs_mutex);
+ static LIST_HEAD(virtio_fs_instances);
+ 
++static bool workspace_async_release __read_mostly;
++module_param(workspace_async_release, bool, 0444);
++MODULE_PARM_DESC(workspace_async_release,
++		 "Use asynchronous RELEASE on the flat Micropod workspace share");
++
+ /* The /sys/fs/virtio_fs/ kset */
+ static struct kset *virtio_fs_kset;
+ 
+@@ -1800,7 +1805,14 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
+ 
+ 	fc->release = fuse_free_conn;
+ 	fc->delete_stale = true;
+-	fc->auto_submounts = true;
++	/*
++	 * Micropod's workspace does not announce FUSE submounts. Keep one
++	 * superblock for this tag so the normal last-mount queue drain can
++	 * finish background RELEASEs before it shuts down the filesystem.
++	 * This also leaves FUSE_SUBMOUNTS out of the INIT request.
++	 */
++	fc->auto_submounts = !workspace_async_release ||
++			    strcmp(fs->tag, "workspace");
+ 	fc->sync_fs = true;
+ 	fc->use_pages_for_kvec_io = true;
+ 

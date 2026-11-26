@@ -91,4 +91,15 @@ func BenchmarkPackSingleServiceA(b *testing.B) {
 			}
 		})
 	}
+	b.Run("single-into-reused", func(b *testing.B) {
+		buf := make([]byte, 0, 512)
+		b.ReportAllocs()
+		for b.Loop() {
+			var err error
+			dnsAnswerBytes, err = packSingleServiceAInto(buf[:0], h, q, ip)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }

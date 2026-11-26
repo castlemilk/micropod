@@ -158,7 +158,13 @@ final class APIHandlers: Sendable {
         // /metrics — Prometheus text format, always 200: this API's routes,
         // then the apiserver XPC traffic behind them.
         if request.path == "/metrics" {
-            return .text(200, metrics.render() + APIServerMetrics.render())
+            var body = metrics.render() + APIServerMetrics.render()
+            var ciEnv = ProcessInfo.processInfo.environment
+            ciEnv["MICROPOD_CI_ENGINE"] = ciEnv["MICROPOD_CI_ENGINE"] ?? "containerd"
+            if let ciProm = try? await CIWorker(environment: ciEnv).prometheusMetrics() {
+                body += "\n" + ciProm
+            }
+            return .text(200, body)
         }
 
         let path = request.path
@@ -294,6 +300,64 @@ final class APIHandlers: Sendable {
 
         do {
             switch (resource, method) {
+            // MARK: CI Worker Engine & Workload Health
+            case ("ci", .get) where segments == ["v1", "ci", "health"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                let ciWorker = CIWorker(environment: env)
+                do {
+                    let report = try await ciWorker.health()
+                    let enc = JSONEncoder()
+                    enc.dateEncodingStrategy = .iso8601
+                    enc.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+                    let data = try enc.encode(report)
+                    let status = report.verdict == .unhealthy ? 503 : 200
+                    return .data(status, "application/json", data)
+                } catch {
+                    return .json(503, ["verdict": "unhealthy", "error": error.localizedDescription])
+                }
+
+            case ("ci", .get) where segments == ["v1", "ci", "metrics"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                let ciWorker = CIWorker(environment: env)
+                do {
+                    if request.query["format"] == "otlp" {
+                        return .data(200, "application/json", try await ciWorker.otlpMetricsJSON())
+                    }
+                    return .text(200, try await ciWorker.prometheusMetrics())
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
+            case ("ci", .get) where segments == ["v1", "ci", "traces"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                do {
+                    return .data(200, "application/json", try CIWorker(environment: env).tracesOTLPJSON())
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
+            case ("ci", .get) where segments == ["v1", "ci", "tracing"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                do {
+                    return .data(200, "application/json", try CIWorker(environment: env).tracingStatus())
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
+            case ("ci", .post) where segments == ["v1", "ci", "tracing", "enable"] || segments == ["v1", "ci", "tracing", "disable"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                let enable = segments.last == "enable"
+                do {
+                    return .data(200, "application/json", try CIWorker(environment: env).setLiveTracing(enabled: enable))
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
             // MARK: System
             case ("usage", .get):
                 let report = try await usage(services).report()

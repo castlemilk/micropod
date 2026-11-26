@@ -11,11 +11,17 @@ import (
 
 // A question-only response has no later name that could reference the first.
 func packServiceQuestion(header dnsmessage.Header, q dnsmessage.Question) ([]byte, error) {
-	return packServiceQuestionWithRoom(header, q, 0)
+	return packServiceQuestionInto(nil, header, q, 0)
 }
 
-func packServiceQuestionWithRoom(header dnsmessage.Header, q dnsmessage.Question, answerBytes int) ([]byte, error) {
-	out := dnsmessage.NewBuilder(make([]byte, 0, 12+int(q.Name.Length)+1+4+answerBytes), header)
+func packServiceQuestionInto(dst []byte, header dnsmessage.Header, q dnsmessage.Question, answerBytes int) ([]byte, error) {
+	need := 12 + int(q.Name.Length) + 1 + 4 + answerBytes
+	if cap(dst) < need {
+		dst = make([]byte, 0, need)
+	} else {
+		dst = dst[:0]
+	}
+	out := dnsmessage.NewBuilder(dst, header)
 	if err := out.StartQuestions(); err != nil {
 		return nil, err
 	}
@@ -28,7 +34,11 @@ func packServiceQuestionWithRoom(header dnsmessage.Header, q dnsmessage.Question
 // The sole answer always has the same owner as the question. Its name is
 // either the literal root or a compression pointer to the QNAME at offset 12.
 func packSingleServiceA(header dnsmessage.Header, q dnsmessage.Question, address [4]byte) ([]byte, error) {
-	wire, err := packServiceQuestionWithRoom(header, q, 16)
+	return packSingleServiceAInto(nil, header, q, address)
+}
+
+func packSingleServiceAInto(dst []byte, header dnsmessage.Header, q dnsmessage.Question, address [4]byte) ([]byte, error) {
+	wire, err := packServiceQuestionInto(dst, header, q, 16)
 	if err != nil {
 		return nil, err
 	}
@@ -74,15 +84,19 @@ func serviceAnswerLimit(q *dnsmessage.Question, network string, parser *dnsmessa
 }
 
 func packServiceAddresses(header dnsmessage.Header, q dnsmessage.Question, ips []netip.Addr, count int) ([]byte, error) {
+	return packServiceAddressesInto(nil, header, q, ips, count)
+}
+
+func packServiceAddressesInto(dst []byte, header dnsmessage.Header, q dnsmessage.Question, ips []netip.Addr, count int) ([]byte, error) {
 	if count > math.MaxUint16 || len(ips) > math.MaxUint16 {
 		return nil, errors.New("too many DNS answers")
 	}
 	if len(ips) < count {
 		header.Truncated = true
-		return packServiceQuestion(header, q)
+		return packServiceQuestionInto(dst, header, q, 0)
 	}
 	_, record := serviceAnswerLengths(&q.Name)
-	wire, err := packServiceQuestionWithRoom(header, q, record*len(ips))
+	wire, err := packServiceQuestionInto(dst, header, q, record*len(ips))
 	if err != nil {
 		return nil, err
 	}

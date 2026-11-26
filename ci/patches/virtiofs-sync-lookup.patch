@@ -1,0 +1,310 @@
+diff --git a/fs/fuse/virtio_fs.c b/fs/fuse/virtio_fs.c
+index 0150c5c..e90c1e8 100644
+--- a/fs/fuse/virtio_fs.c
++++ b/fs/fuse/virtio_fs.c
+@@ -35,6 +35,11 @@
+ static DEFINE_MUTEX(virtio_fs_mutex);
+ static LIST_HEAD(virtio_fs_instances);
+ 
++static bool sync_lookup_completion __read_mostly;
++module_param(sync_lookup_completion, bool, 0444);
++MODULE_PARM_DESC(sync_lookup_completion,
++		 "Wake the requester directly for an exclusive synchronous LOOKUP");
++
+ /* The /sys/fs/virtio_fs/ kset */
+ static struct kset *virtio_fs_kset;
+ 
+@@ -45,6 +50,14 @@ enum {
+ 
+ #define VQ_NAME_LEN	24
+ 
++struct virtio_fs_lookup_wait {
++	/* waitq.lock nests inside virtio_fs_vq.lock. */
++	wait_queue_head_t waitq;
++	bool active;
++	bool ready;
++	bool contended;
++};
++
+ /* Per-virtqueue state */
+ struct virtio_fs_vq {
+ 	spinlock_t lock;
+@@ -59,6 +72,7 @@ struct virtio_fs_vq {
+ 	struct completion in_flight_zero; /* No inflight requests */
+ 	struct kobject *kobj;
+ 	char name[VQ_NAME_LEN];
++	struct virtio_fs_lookup_wait lookup;
+ } ____cacheline_aligned_in_smp;
+ 
+ /* A virtio-fs device instance */
+@@ -99,7 +113,13 @@ struct virtio_fs_req_work {
+ 
+ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
+ 				 struct fuse_req *req, bool in_flight,
+-				 gfp_t gfp);
++				 gfp_t gfp, bool *wait_lookup);
++static void virtio_fs_share_lookup_queue(struct virtio_fs_vq *fsvq);
++
++static bool virtio_fs_sync_lookup(void)
++{
++	return !IS_ENABLED(CONFIG_PREEMPT_RT) && sync_lookup_completion;
++}
+ 
+ static const struct constant_table dax_param_enums[] = {
+ 	{"always",	FUSE_DAX_ALWAYS },
+@@ -301,6 +321,8 @@ static void virtio_fs_drain_queue(struct virtio_fs_vq *fsvq)
+ 	/* Wait for in flight requests to finish.*/
+ 	spin_lock(&fsvq->lock);
+ 	if (fsvq->in_flight) {
++		if (unlikely(virtio_fs_sync_lookup()))
++			virtio_fs_share_lookup_queue(fsvq);
+ 		/* We are holding virtio_fs_mutex. There should not be any
+ 		 * waiters waiting for completion.
+ 		 */
+@@ -588,7 +610,7 @@ static void virtio_fs_request_dispatch_work(struct work_struct *work)
+ 		spin_unlock(&fsvq->lock);
+ 
+ 		flags = memalloc_nofs_save();
+-		ret = virtio_fs_enqueue_req(fsvq, req, true, GFP_KERNEL);
++		ret = virtio_fs_enqueue_req(fsvq, req, true, GFP_KERNEL, NULL);
+ 		memalloc_nofs_restore(flags);
+ 		if (ret < 0) {
+ 			if (ret == -ENOSPC) {
+@@ -807,6 +829,14 @@ static bool virtio_fs_verify_response(struct fuse_req *req, unsigned int len)
+ 	return true;
+ }
+ 
++static void virtio_fs_check_response(struct fuse_req *req, unsigned int len)
++{
++	if (!virtio_fs_verify_response(req, len)) {
++		req->out.h.error = -EIO;
++		req->out.h.len = sizeof(struct fuse_out_header);
++	}
++}
++
+ /* Work function for request completion */
+ static void virtio_fs_request_complete(struct fuse_req *req,
+ 				       struct virtio_fs_vq *fsvq)
+@@ -852,6 +882,25 @@ static void virtio_fs_complete_req_work(struct work_struct *work)
+ 	kfree(w);
+ }
+ 
++static bool virtio_fs_wake_lookup(struct virtio_fs_vq *fsvq)
++{
++	struct virtio_fs_lookup_wait *lookup = &fsvq->lookup;
++	unsigned long flags;
++	bool direct = false;
++
++	if (!READ_ONCE(lookup->active))
++		return false;
++
++	spin_lock_irqsave(&lookup->waitq.lock, flags);
++	if (lookup->active && !lookup->contended) {
++		WRITE_ONCE(lookup->ready, true);
++		wake_up_locked(&lookup->waitq);
++		direct = true;
++	}
++	spin_unlock_irqrestore(&lookup->waitq.lock, flags);
++	return direct;
++}
++
+ static void virtio_fs_requests_done_work(struct work_struct *work)
+ {
+ 	struct virtio_fs_vq *fsvq = container_of(work, struct virtio_fs_vq,
+@@ -869,10 +918,7 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
+ 		virtqueue_disable_cb(vq);
+ 
+ 		while ((req = virtqueue_get_buf(vq, &len)) != NULL) {
+-			if (!virtio_fs_verify_response(req, len)) {
+-				req->out.h.error = -EIO;
+-				req->out.h.len = sizeof(struct fuse_out_header);
+-			}
++			virtio_fs_check_response(req, len);
+ 			spin_lock(&fpq->lock);
+ 			list_move_tail(&req->list, &reqs);
+ 			spin_unlock(&fpq->lock);
+@@ -880,6 +926,10 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
+ 	} while (!virtqueue_enable_cb(vq));
+ 	spin_unlock(&fsvq->lock);
+ 
++	/* The worker may have been queued before an exclusive waiter was armed. */
++	if (unlikely(virtio_fs_sync_lookup()) && !list_empty(&reqs))
++		virtio_fs_wake_lookup(fsvq);
++
+ 	/* End requests */
+ 	list_for_each_entry_safe(req, next, &reqs, list) {
+ 		list_del_init(&req->list);
+@@ -905,6 +955,70 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
+ 	spin_unlock(&fsvq->lock);
+ }
+ 
++/* Contention or teardown gives the workqueue responsibility for replies. */
++static void virtio_fs_share_lookup_queue(struct virtio_fs_vq *fsvq)
++{
++	struct virtio_fs_lookup_wait *lookup = &fsvq->lookup;
++	unsigned long flags;
++
++	lockdep_assert_held(&fsvq->lock);
++	if (!lookup->active || lookup->contended)
++		return;
++
++	spin_lock_irqsave(&lookup->waitq.lock, flags);
++	lookup->contended = true;
++	WRITE_ONCE(lookup->ready, true);
++	wake_up_locked(&lookup->waitq);
++	spin_unlock_irqrestore(&lookup->waitq.lock, flags);
++
++	/* The interrupt may already have signalled only the waiter. */
++	schedule_work(&fsvq->done_work);
++}
++
++static void virtio_fs_wait_lookup(struct virtio_fs_vq *fsvq, struct fuse_req *req)
++{
++	struct virtio_fs_lookup_wait *lookup = &fsvq->lookup;
++	struct fuse_req *done = NULL;
++	unsigned long flags;
++	unsigned int len;
++	bool contended;
++	long wait;
++
++	/* Leave signals and slow replies to the normal FUSE wait after one tick. */
++	wait = wait_event_interruptible_timeout(lookup->waitq,
++			test_bit(FR_FINISHED, &req->flags) || READ_ONCE(lookup->ready), 1);
++
++	spin_lock(&fsvq->lock);
++	spin_lock_irqsave(&lookup->waitq.lock, flags);
++	contended = lookup->contended;
++	WRITE_ONCE(lookup->active, false);
++	WRITE_ONCE(lookup->ready, false);
++	lookup->contended = false;
++	spin_unlock_irqrestore(&lookup->waitq.lock, flags);
++
++	/* The waiter owns the sole submitted request until another send shares it. */
++	if (!contended && wait > 0 && fsvq->connected &&
++	    !test_bit(FR_FINISHED, &req->flags))
++		done = virtqueue_get_buf(fsvq->vq, &len);
++	if (done) {
++		struct fuse_pqueue *fpq = &fsvq->fud->pq;
++
++		virtio_fs_check_response(done, len);
++		spin_lock(&fpq->lock);
++		list_del_init(&done->list);
++		spin_unlock(&fpq->lock);
++		if (!virtqueue_enable_cb(fsvq->vq))
++			schedule_work(&fsvq->done_work);
++	} else if (fsvq->in_flight) {
++		/* Catch a reply whose interrupt raced the switch back to the worker. */
++		schedule_work(&fsvq->done_work);
++	}
++	spin_unlock(&fsvq->lock);
++
++	if (done)
++		virtio_fs_request_complete(done, fsvq);
++}
++
+ static void virtio_fs_map_queues(struct virtio_device *vdev, struct virtio_fs *fs)
+ {
+ 	const struct cpumask *mask, *masks;
+@@ -950,6 +1064,9 @@ static void virtio_fs_vq_done(struct virtqueue *vq)
+ 
+ 	dev_dbg(&vq->vdev->dev, "%s %s\n", __func__, fsvq->name);
+ 
++	if (unlikely(virtio_fs_sync_lookup()) && virtio_fs_wake_lookup(fsvq))
++		return;
++
+ 	schedule_work(&fsvq->done_work);
+ }
+ 
+@@ -958,6 +1075,7 @@ static void virtio_fs_init_vq(struct virtio_fs_vq *fsvq, char *name,
+ {
+ 	strscpy(fsvq->name, name, VQ_NAME_LEN);
+ 	spin_lock_init(&fsvq->lock);
++	init_waitqueue_head(&fsvq->lookup.waitq);
+ 	INIT_LIST_HEAD(&fsvq->queued_reqs);
+ 	INIT_LIST_HEAD(&fsvq->end_reqs);
+ 	init_completion(&fsvq->in_flight_zero);
+@@ -1419,7 +1537,7 @@ static unsigned int sg_init_fuse_args(struct scatterlist *sg,
+ /* Add a request to a virtqueue and kick the device */
+ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
+ 				 struct fuse_req *req, bool in_flight,
+-				 gfp_t gfp)
++				 gfp_t gfp, bool *wait_lookup)
+ {
+ 	/* requests need at least 4 elements */
+ 	struct scatterlist *stack_sgs[6];
+@@ -1486,6 +1604,16 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
+ 	vq = fsvq->vq;
+ 	ret = virtqueue_add_sgs(vq, sgs, out_sgs, in_sgs, req, GFP_ATOMIC);
+ 	if (ret < 0) {
++		if (ret == -ENOSPC && !in_flight && fsvq->lookup.active &&
++		    !fsvq->lookup.contended) {
++			/* Publish the backlog before the waiter can reap the last reply. */
++			kfree(req->argbuf);
++			req->argbuf = NULL;
++			list_add_tail(&req->list, &fsvq->queued_reqs);
++			inc_in_flight_req(fsvq);
++			virtio_fs_share_lookup_queue(fsvq);
++			ret = 0;
++		}
+ 		spin_unlock(&fsvq->lock);
+ 		goto out;
+ 	}
+@@ -1502,6 +1630,23 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
+ 
+ 	if (!in_flight)
+ 		inc_in_flight_req(fsvq);
++	if (unlikely(virtio_fs_sync_lookup())) {
++		struct virtio_fs_lookup_wait *lookup = &fsvq->lookup;
++
++		if (wait_lookup && !lookup->active && fsvq->in_flight == 1 &&
++		    req->in.h.opcode == FUSE_LOOKUP && !args->may_block && !args->out_pages &&
++		    test_bit(FR_SYNC_WAKEUP, &req->flags) &&
++		    !test_bit(FR_ASYNC, &req->flags) && !test_bit(FR_BACKGROUND, &req->flags)) {
++			unsigned long flags;
++
++			spin_lock_irqsave(&lookup->waitq.lock, flags);
++			WRITE_ONCE(lookup->active, true);
++			spin_unlock_irqrestore(&lookup->waitq.lock, flags);
++			*wait_lookup = true;
++		} else {
++			virtio_fs_share_lookup_queue(fsvq);
++		}
++	}
+ 	notify = virtqueue_kick_prepare(vq);
+ 
+ 	spin_unlock(&fsvq->lock);
+@@ -1527,6 +1672,7 @@ static void virtio_fs_send_req(struct fuse_iqueue *fiq, struct fuse_req *req)
+ 	unsigned int queue_id;
+ 	struct virtio_fs *fs;
+ 	struct virtio_fs_vq *fsvq;
++	bool wait_lookup = false;
+ 	int ret;
+ 
+ 	fuse_request_assign_unique(fiq, req);
+@@ -1543,7 +1689,7 @@ static void virtio_fs_send_req(struct fuse_iqueue *fiq, struct fuse_req *req)
+ 		 queue_id);
+ 
+ 	fsvq = &fs->vqs[queue_id];
+-	ret = virtio_fs_enqueue_req(fsvq, req, false, GFP_ATOMIC);
++	ret = virtio_fs_enqueue_req(fsvq, req, false, GFP_ATOMIC, &wait_lookup);
+ 	if (ret < 0) {
+ 		if (ret == -ENOSPC) {
+ 			/*
+@@ -1553,6 +1699,8 @@ static void virtio_fs_send_req(struct fuse_iqueue *fiq, struct fuse_req *req)
+ 			spin_lock(&fsvq->lock);
+ 			list_add_tail(&req->list, &fsvq->queued_reqs);
+ 			inc_in_flight_req(fsvq);
++			if (unlikely(virtio_fs_sync_lookup()))
++				virtio_fs_share_lookup_queue(fsvq);
+ 			spin_unlock(&fsvq->lock);
+ 			return;
+ 		}
+@@ -1566,6 +1714,8 @@ static void virtio_fs_send_req(struct fuse_iqueue *fiq, struct fuse_req *req)
+ 		spin_unlock(&fsvq->lock);
+ 		return;
+ 	}
++	if (wait_lookup)
++		virtio_fs_wait_lookup(fsvq, req);
+ }
+ 
+ static const struct fuse_iqueue_ops virtio_fs_fiq_ops = {

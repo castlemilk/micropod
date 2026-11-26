@@ -5,34 +5,39 @@ import MicropodRuntime
 
 enum CICommands {
     static let help = """
-        micropod ci job TRUST IMAGE COMMAND [ARG ...]   submit a trusted crun or VM-isolated job
-        micropod ci runner-buildkit-endpoint print the native worker’s BuildKit socket for Buildx
-        micropod ci runner-docker-endpoint   print the native worker’s Docker-compatible socket
-        micropod ci runner-prime COUNT   prepare up to 32 single-use pods for trusted jobs
-        micropod ci runner-start | runner-status | runner-stop | runner-endpoint
-                                          control the dedicated containerd worker
-        micropod ci start                 start or join this account's Linux worker
-        micropod ci endpoint              ensure readiness and print the Docker socket URI
-        micropod ci status                print worker, kernel boot and daemon identities as JSON
-        micropod ci cpu-plan [--topology] show the next boot's vCPU plan and optionally the host CPU tiers
-        micropod ci set-cpus COUNT|auto   change a stopped worker's CPU policy and reuse its disk
-        micropod ci docker [arguments]    run the stock Docker CLI or a plugin against this worker
-        micropod ci snapshot BASE_IMAGE [DIRECTORY]
-                                          put a checkout in a reusable job image and print its local ID
-        micropod ci warm-go --cache-scope NAME [--offline] [--trace-tools] SOURCE_IMAGE_ID [PACKAGE ...]
-                                          warm shared Go compile and vet caches before concurrent jobs
-        micropod ci run [--scratch-mib N] [--cache npm|go|python] [--cache-scope NAME] [docker options] IMAGE [command...]
-                                          run a container with persistent package caches
-        micropod ci create [options]      prepare a fresh job with the same cache options and Docker create flags
-        micropod ci metrics [--usage]     print active cache mounts, optional sizes and BuildKit usage as JSON
-        micropod ci metrics --kernel      read memory, OOM and stall counters directly from the Linux kernel
-        micropod ci repair-network        reconnect the private network while containers keep running
-        micropod ci stop                  stop the idle worker and retain its disk and caches
-        micropod ci serve                 supervise the worker in the foreground
-        micropod ci install-service       run the worker under launchd across CI job lifetimes
-        micropod ci uninstall-service     retire the idle service and retain its disk
-        micropod ci launch-agent [--process-type Standard|Interactive]
-                                          print the launchd configuration for inspection
+        micropod ci — Dedicated Apple Silicon Linux CI worker (HVF + containerd + BuildKit)
+
+        Worker Lifecycle:
+          micropod ci runner-start | runner-status | runner-health | runner-stop
+                                            manage and inspect the dedicated containerd CI worker
+          micropod ci runner-endpoint | runner-docker-endpoint | runner-buildkit-endpoint
+                                            print native OCI, Docker-compatible, or BuildKit socket URI
+          micropod ci start | status | health | endpoint | stop
+                                            manage the default CI worker (Docker or containerd)
+          micropod ci cpu-plan [--topology] show next boot's vCPU plan and host CPU tiers
+          micropod ci set-cpus COUNT|auto   change a stopped worker's CPU policy (retains disk)
+          micropod ci repair-network        reconnect the private network while containers run
+
+        Workloads, Builds & Caching:
+          micropod ci docker [arguments]    run Docker CLI / Buildx / Compose against this worker
+          micropod ci run [--scratch-mib N] [--cache npm|go|python] [--cache-scope NAME] [docker opts] IMAGE [cmd...]
+                                            run a job with persistent, optionally scoped package caches
+          micropod ci create [options]      prepare a job with the same cache & Docker create options
+          micropod ci snapshot BASE_IMAGE [DIRECTORY]
+                                            bake a checkout into a reusable BuildKit job image ID
+          micropod ci warm-go --cache-scope NAME [--offline] [--trace-tools] SOURCE_IMAGE_ID [PKG ...]
+                                            warm shared Go compile and vet caches before fan-out
+          micropod ci job TRUST IMAGE COMMAND [ARG ...]
+                                            submit a trusted crun or VM-isolated native OCI job
+          micropod ci runner-prime COUNT    pre-warm up to 32 single-use pods for trusted OCI jobs
+
+        Observability & Service:
+          micropod ci metrics [--usage|--kernel|--prometheus|--otlp]
+          micropod ci runner-metrics [--prometheus|--otlp]
+                                            live cache, kernel, Prometheus, or OTLP metrics (see `micropod telemetry`)
+          micropod ci serve                 supervise the worker in the foreground
+          micropod ci install-service | uninstall-service | launch-agent [--process-type Standard|Interactive]
+                                            manage the launchd background service
         """
 
     static func main(_ args: [String]) async -> Int32 {
@@ -41,8 +46,8 @@ enum CICommands {
             return 2
         }
         let runnerCommands = [
-            "job", "runner-prime", "runner-start", "runner-status", "runner-stop", "runner-endpoint",
-            "runner-docker-endpoint", "runner-buildkit-endpoint",
+            "job", "runner-prime", "runner-start", "runner-status", "runner-health", "runner-metrics", "runner-stop",
+            "runner-endpoint", "runner-docker-endpoint", "runner-buildkit-endpoint",
         ]
         var environment = ProcessInfo.processInfo.environment
         if runnerCommands.contains(command) { environment["MICROPOD_CI_ENGINE"] = "containerd" }
@@ -59,6 +64,10 @@ enum CICommands {
                 || args == ["cpu-plan", "--topology"]
                 || args == ["metrics", "--usage"]
                 || args == ["metrics", "--kernel"]
+                || args == ["metrics", "--prometheus"]
+                || args == ["metrics", "--otlp"]
+                || args == ["runner-metrics", "--prometheus"]
+                || args == ["runner-metrics", "--otlp"]
                 || processType != nil
                 || (command == "set-cpus" && args.count == 2)
                 || args.count == 1
@@ -77,7 +86,15 @@ enum CICommands {
                 }
                 try printStatus(worker.setCPUs(args[1]))
             case "runner-status": try printStatus(await worker.status())
-            case "runner-stop": try await worker.stop()
+            case "runner-health", "health":
+                try printStatus(
+                    await OTLPTracer.withSpan(name: "ci.worker.health", environment: environment) {
+                        try await worker.health()
+                    })
+            case "runner-stop":
+                try await OTLPTracer.withSpan(name: "ci.worker.stop", environment: environment) {
+                    try await worker.stop()
+                }
             case "job", "runner-prime", "runner-start", "runner-endpoint", "runner-docker-endpoint",
                 "runner-buildkit-endpoint":
                 guard let executable = Bundle.main.executableURL else {
@@ -88,7 +105,17 @@ enum CICommands {
                     return 2
                 }
                 if command == "runner-start" {
-                    try printStatus(await worker.start(executable: executable))
+                    let st = try await OTLPTracer.withSpan(
+                        name: "ci.worker.start",
+                        attributes: [
+                            "micropod.vmm": environment["MICROPOD_CI_VMM"] ?? "vz",
+                            "micropod.restore": environment["MICROPOD_CI_HVF_RESTORE_FROM"] != nil ? "true" : "false",
+                        ],
+                        environment: environment
+                    ) {
+                        try await worker.start(executable: executable)
+                    }
+                    try printStatus(st)
                     return 0
                 }
                 if command == "runner-buildkit-endpoint" {
@@ -153,7 +180,12 @@ enum CICommands {
                     try printStatus(await worker.installService(executable: executable))
                 }
             case "metrics" where args.last == "--kernel": try printStatus(await worker.kernelMetrics())
-            case "metrics": try printStatus(await worker.metrics(includeUsage: args.count == 2))
+            case "metrics" where args.last == "--prometheus", "runner-metrics" where args.last == "--prometheus":
+                print(try await worker.prometheusMetrics(), terminator: "")
+            case "metrics" where args.last == "--otlp", "runner-metrics" where args.last == "--otlp":
+                FileHandle.standardOutput.write(try await worker.otlpMetricsJSON())
+                FileHandle.standardOutput.write(Data("\n".utf8))
+            case "metrics", "runner-metrics": try printStatus(await worker.metrics(includeUsage: args.count == 2))
             case "repair-network": try printStatus(await worker.repairNetwork())
             case "stop": try await worker.stop()
             case "status": try printStatus(await worker.status())
@@ -183,7 +215,12 @@ enum CICommands {
                         {
                             let address = try await worker.nativeBuildKitEndpoint(executable: executable)
                             let instance = try await worker.status().worker
-                            let name = try nativeBuilder(worker: instance, endpoint: endpoint, buildkit: address)
+                            let buildxConfig =
+                                environment["BUILDX_CONFIG"].flatMap { $0.isEmpty ? nil : $0 }
+                                ?? worker.directory.appendingPathComponent("buildx").path
+                            let name = try nativeBuilder(
+                                worker: instance, endpoint: endpoint, buildkit: address, buildxConfig: buildxConfig)
+                            setenv("BUILDX_CONFIG", buildxConfig, 1)
                             if command == "snapshot" { options[3] = name } else { setenv("BUILDX_BUILDER", name, 1) }
                         }
                     }
@@ -230,9 +267,16 @@ enum CICommands {
         }
     }
 
-    // Buildx keeps named builders in the Docker client's own configuration. This
-    // registers only this worker; it never selects or modifies a global context.
-    static func nativeBuilder(worker: UUID, endpoint: String, buildkit: String) throws -> String {
+    // Buildx keeps named builders in BUILDX_CONFIG. Scoping this to the worker's
+    // private directory avoids polluting ~/.docker/buildx/instances and prevents
+    // Docker Desktop's com.docker.build from holding persistent gRPC connections
+    // to this worker's buildkit.sock.
+    static func nativeBuilder(
+        worker: UUID, endpoint: String, buildkit: String, buildxConfig: String
+    ) throws -> String {
+        try FileManager.default.createDirectory(
+            atPath: buildxConfig, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
         let name = "micropod-" + worker.uuidString.lowercased()
         func buildx(_ args: [String]) throws -> (Int32, String) {
             let process = Process()
@@ -243,6 +287,7 @@ enum CICommands {
                 env.removeValue(forKey: key)
             }
             env["DOCKER_HOST"] = endpoint
+            env["BUILDX_CONFIG"] = buildxConfig
             process.environment = env
             let pipe = Pipe()
             process.standardOutput = pipe

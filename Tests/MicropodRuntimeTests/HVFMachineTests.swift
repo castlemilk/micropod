@@ -1003,6 +1003,70 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).memoryMiB, 2048)
     }
 
+    private func packageAssets(_ request: HVFInstallRequest, inApp: Bool) throws -> (cli: URL, resources: URL) {
+        let fm = FileManager.default
+        let distribution = root.appendingPathComponent("distribution")
+        let contents = distribution.appendingPathComponent("Micropod.app/Contents")
+        let bin = inApp ? contents.appendingPathComponent("MacOS") : distribution
+        let resources = inApp ? contents.appendingPathComponent("Resources") : distribution
+        try fm.createDirectory(at: bin, withIntermediateDirectories: true)
+        try fm.createDirectory(at: resources, withIntermediateDirectories: true)
+        let executable = bin.appendingPathComponent(inApp ? "micropod-cli" : "micropod")
+        try Data().write(to: executable)
+        try fm.copyItem(at: XCTUnwrap(request.vmm), to: bin.appendingPathComponent("micropod-vmm"))
+        try fm.copyItem(at: XCTUnwrap(request.kernel), to: resources.appendingPathComponent("vmlinux-hvf"))
+        try fm.copyItem(at: XCTUnwrap(request.initrd), to: resources.appendingPathComponent("mp-hvf-init.cpio"))
+        try fm.copyItem(at: XCTUnwrap(request.tools), to: resources.appendingPathComponent("micropod-oci-tools"))
+        return (executable, resources)
+    }
+
+    func testInstallFindsAppAssetsThroughCLILinkAndPreservesInstalledCopies() async throws {
+        let inputs = try sources()
+        let package = try packageAssets(inputs, inApp: true)
+        let linkedCLI = root.appendingPathComponent("cli-link")
+        try FileManager.default.createSymbolicLink(at: linkedCLI, withDestinationURL: package.cli)
+        try await HVFMachineInstaller.install(
+            HVFInstallRequest(diskFrom: inputs.diskFrom), layout: layout, packagedExecutable: linkedCLI
+        ) { _ in }
+        XCTAssertTrue(layout.missingAssets().isEmpty)
+        XCTAssertEqual(try Data(contentsOf: layout.kernel), Data("Image".utf8))
+        try Data("next package".utf8).write(to: package.resources.appendingPathComponent("vmlinux-hvf"))
+        try await HVFMachineInstaller.install(
+            HVFInstallRequest(cpus: 3), layout: layout, packagedExecutable: linkedCLI
+        ) { _ in }
+        XCTAssertEqual(try Data(contentsOf: layout.kernel), Data("Image".utf8))
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).cpus, 3)
+    }
+
+    func testInstallFindsStandaloneAssetsAndHonoursExplicitKernel() async throws {
+        let inputs = try sources()
+        let package = try packageAssets(inputs, inApp: false)
+        let kernel = root.appendingPathComponent("explicit-kernel")
+        try Data("explicit".utf8).write(to: kernel)
+        try await HVFMachineInstaller.install(
+            HVFInstallRequest(kernel: kernel, diskFrom: inputs.diskFrom), layout: layout, packagedExecutable: package.cli
+        ) { _ in }
+        XCTAssertTrue(layout.missingAssets().isEmpty)
+        XCTAssertEqual(try Data(contentsOf: layout.kernel), Data("explicit".utf8))
+    }
+
+    func testInstallRequiresAnExplicitSourceForPackageLinksOutsideDistribution() async throws {
+        let inputs = try sources()
+        let package = try packageAssets(inputs, inApp: true)
+        let initrd = package.resources.appendingPathComponent("mp-hvf-init.cpio")
+        try FileManager.default.removeItem(at: initrd)
+        try FileManager.default.createSymbolicLink(at: initrd, withDestinationURL: XCTUnwrap(inputs.initrd))
+        do {
+            try await HVFMachineInstaller.install(
+                HVFInstallRequest(diskFrom: inputs.diskFrom), layout: layout, packagedExecutable: package.cli
+            ) { _ in }
+            XCTFail("Expected an unresolved initrd")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("--initrd"), error.localizedDescription)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.disk.path))
+    }
+
     func testInstallRefusesAnUnentitledVMMAndChangesNothing() async throws {
         var request = try sources()
         request.vmm = try signedBinary(entitled: false)

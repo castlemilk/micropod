@@ -18,12 +18,28 @@ func (d *serviceDirectory) contains(name string) bool {
 	return len(d.records[name]) != 0
 }
 
+func (d *serviceDirectory) containsBytes(name []byte) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.records[string(name)]) != 0
+}
+
 // Records may change as soon as the lock is released. If the entire answer
 // must truncate, keep just its count. Otherwise copy into request-owned space.
 func (d *serviceDirectory) lookup(name string, scratch []netip.Addr, limit int) ([]netip.Addr, int) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	records := d.records[name]
+	if len(records) == 0 || len(records) > limit {
+		return nil, len(records)
+	}
+	return append(scratch[:0], records...), len(records)
+}
+
+func (d *serviceDirectory) lookupBytes(name []byte, scratch []netip.Addr, limit int) ([]netip.Addr, int) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	records := d.records[string(name)]
 	if len(records) == 0 || len(records) > limit {
 		return nil, len(records)
 	}

@@ -18,10 +18,15 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
             : "Micropod CI — one persistent Linux worker for trusted jobs"
     }
     public var capabilities: [String] {
-        [
+        capabilities(supportsRestart: ciWorker?.isNativeRunner != true)
+    }
+
+    private func capabilities(supportsRestart: Bool) -> [String] {
+        let operations = [
             "run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports", "volumes",
             "images", ResourceCapability.imageRemove, ResourceCapability.imageTag, ResourceCapability.volumePrune,
         ]
+        return supportsRestart ? operations : operations.filter { $0 != "restart" }
     }
     public var containers: any ContainerServing { self }
     public var logs: any LogStreaming { self }
@@ -44,9 +49,10 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
 
     init(worker: CIWorker) {
         ciWorker = worker
-        endpointString = worker.endpoint
+        let endpoint = DockerClient.Endpoint.unix(worker.dockerSocket.path)
+        endpointString = endpoint.description
         configError = nil
-        client = DockerClient(endpoint: .unix(worker.socket.path), apiVersion: CIWorker.apiVersion)
+        client = DockerClient(endpoint: endpoint, apiVersion: CIWorker.apiVersion)
     }
 
     /// An engine over an already-built client (the hvf machine's socket).
@@ -67,10 +73,12 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     public func probe() async -> EngineProbe {
         if let ciWorker {
             do {
-                let status = try await ciWorker.status()
-                return EngineProbe(available: true, version: status.engineVersion, endpoint: ciWorker.endpoint)
+                let status = try await ciWorker.dockerStatus()
+                return EngineProbe(
+                    available: true, version: status.engineVersion, endpoint: endpointString,
+                    capabilities: capabilities(supportsRestart: status.supportsRestart))
             } catch {
-                return EngineProbe(available: false, reason: error.localizedDescription, endpoint: ciWorker.endpoint)
+                return EngineProbe(available: false, reason: error.localizedDescription, endpoint: endpointString)
             }
         }
         guard let client else {
@@ -90,7 +98,7 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     }
 
     public func owns(_ id: String) async -> Bool {
-        if let ciWorker, (try? await ciWorker.status()) == nil { return false }
+        if let ciWorker, (try? await ciWorker.dockerStatus()) == nil { return false }
         guard let client, client.reachable,
             let response = try? await client.request("GET", "/containers/\(Self.escape(id))/json", timeout: .seconds(3))
         else { return false }
@@ -104,7 +112,7 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     // MARK: ContainerServing
 
     public func list() async throws -> [Micropod_V1_Container] {
-        if let ciWorker { _ = try await ciWorker.status() }
+        if let ciWorker { _ = try await ciWorker.dockerStatus() }
         return try await listWithIDs().map { entry in
             var result = entry.container
             result.runtime = name
@@ -340,7 +348,14 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         try await post("/containers/\(Self.escape(id))/stop", query: ["t": String(timeout)])
     }
 
-    public func restart(_ id: String) async throws { try await post("/containers/\(Self.escape(id))/restart") }
+    public func restart(_ id: String) async throws {
+        if let ciWorker, ciWorker.isNativeRunner {
+            guard try await ciWorker.dockerStatus().supportsRestart else {
+                throw MicropodError.unsupported("restart requires a native CI worker with Docker restart support")
+            }
+        }
+        try await post("/containers/\(Self.escape(id))/restart")
+    }
 
     public func kill(_ id: String, signal: String) async throws {
         try await post("/containers/\(Self.escape(id))/kill", query: ["signal": signal])

@@ -22,7 +22,8 @@ enum MachineCommands {
                                                   copy the assets into the machine root; the disk is
                                                   an APFS clone of --disk-from, or a fresh ext4
                                                   unpacked from an OCI image; flags left out keep
-                                                  what is installed
+                                                  what is installed. Missing runtime files come
+                                                  from the app bundle or the extracted CLI package.
           micropod machine start [--timeout S]    boot it (detached supervisor) and wait for Docker
           micropod machine stop                   power the guest off gracefully
           micropod machine restart
@@ -152,7 +153,9 @@ enum MachineCommands {
             diskBytes: try diskBytes(parsed.value("--disk-size") ?? "32g"), replaceDisk: parsed.has("--replace-disk"),
             cpus: try int("--cpus"), memoryMiB: try int("--memory-mib"),
             workspace: parsed.value("--workspace").map { $0.isEmpty ? "" : NSString(string: $0).expandingTildeInPath })
-        try await HVFMachineInstaller.install(request, layout: layout) { print($0) }
+        try await HVFMachineInstaller.install(request, layout: layout, packagedExecutable: CLIInstall.currentExecutable()) {
+            print($0)
+        }
         print("hvf machine installed under \(layout.root.path)")
     }
 

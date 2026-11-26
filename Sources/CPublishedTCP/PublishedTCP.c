@@ -33,19 +33,42 @@
 #define LARGE_READ (16 * 1024)
 
 #ifndef MICROPOD_BENCH_DEFER_HANDSHAKE_READS
-#define MICROPOD_BENCH_DEFER_HANDSHAKE_READS 0
+#define MICROPOD_BENCH_DEFER_HANDSHAKE_READS 1
 #endif
 // The experiment creates the read filters only when the connection can use them.
 // Both policies preserve buffered input and the single-write service budget.
 static const uint16_t connected_read_flags = MICROPOD_BENCH_DEFER_HANDSHAKE_READS ? EV_ADD | EV_ENABLE : EV_ENABLE;
 
-enum event_kind { ACCEPT, STREAM, BULK_READY, RETRY_GUEST };
+#ifndef MICROPOD_BENCH_ONESHOT_CONNECT
+#define MICROPOD_BENCH_ONESHOT_CONNECT 1
+#endif
+// A one-shot handshake watch disappears on delivery. Backpressure installs
+// its own level-triggered write watch if the established stream needs one.
+#define CONNECT_WRITE_FLAGS (MICROPOD_BENCH_ONESHOT_CONNECT ? EV_ADD | EV_ONESHOT : EV_ADD)
+
+#ifndef MICROPOD_BATCH_STREAM_FILTERS
+#define MICROPOD_BATCH_STREAM_FILTERS 1
+#endif
+
+enum event_kind { ACCEPT, STREAM, BULK_READY, RETRY_GUEST, HANDOFF_WAKE };
 struct watch { enum event_kind kind; int fd; };
 struct pair;
+
+struct handoff_item {
+    struct handoff_item *next;
+    mp_tcp_listener *target;
+    int client;
+    uint64_t accepted_at;
+    uint64_t enqueued_at;
+    bool profiled;
+};
 
 struct mp_tcp_relay {
     int kq;
     struct watch bulk;
+    struct watch handoff_wake;
+    _Atomic(struct handoff_item *) handoff_head;
+    atomic_bool handoff_notified;
     struct in_addr guest, gateway;
     unsigned ifindex;
     unsigned next_first_worker;
@@ -70,7 +93,7 @@ struct mp_tcp_listener {
     atomic_uint group_active, group_peak;
     unsigned active;
     unsigned next_worker;
-    uint64_t last_error_at;
+    uint64_t first_dial_error_at, last_error_at;
     bool profile, retry_accept, assigned_worker;
     mp_tcp_stats stats;
 };
@@ -169,9 +192,18 @@ static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
     r->guest = address;
     atomic_init(&r->path_failure, false);
     atomic_init(&r->guest_data, false);
+    atomic_init(&r->handoff_head, NULL);
+    atomic_init(&r->handoff_notified, false);
+    r->handoff_wake = (struct watch){ HANDOFF_WAKE, -1 };
     r->kq = kqueue();
     r->bulk = (struct watch){ BULK_READY, data_only ? -1 : kqueue() };
-    if (r->kq < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 ||
+    bool wake_failed = false;
+    if (r->kq >= 0 && data_only) {
+        struct kevent user_ev;
+        EV_SET(&user_ev, (uintptr_t)&r->handoff_wake, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, &r->handoff_wake);
+        wake_failed = submit_changes(r->kq, &user_ev, 1) < 0;
+    }
+    if (r->kq < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 || wake_failed ||
         (!data_only && (r->bulk.fd < 0 || fcntl(r->bulk.fd, F_SETFD, FD_CLOEXEC) < 0 ||
                         watch_fd(r, &r->bulk, EVFILT_READ, EV_ADD) < 0))) {
         int err = errno;
@@ -213,13 +245,13 @@ int mp_tcp_relay_scope(mp_tcp_relay *r, const char *gateway) {
 
 // The ifindex can change when vmnet rematerializes a worker's bridge. Cache
 // successful lookups briefly; bind the source address on every connection.
-static int scope_guest(mp_tcp_relay *r, int fd) {
-    if (!r->gateway.s_addr) return 0;
+static const char *scope_guest(mp_tcp_relay *r, int fd) {
+    if (!r->gateway.s_addr) return NULL;
     uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
     uint64_t ttl = r->ifindex ? 1000000000ULL : 100000000ULL;
     if (!r->interface_checked || now - r->interface_checked >= ttl) {
         struct ifaddrs *all;
-        if (getifaddrs(&all) < 0) return -1;
+        if (getifaddrs(&all) < 0) return "getifaddrs";
         r->ifindex = 0;
         for (struct ifaddrs *a = all; a; a = a->ifa_next) {
             if (a->ifa_addr && a->ifa_addr->sa_family == AF_INET && (a->ifa_flags & IFF_UP) &&
@@ -231,11 +263,15 @@ static int scope_guest(mp_tcp_relay *r, int fd) {
         freeifaddrs(all);
         r->interface_checked = now;
     }
-    if (!r->ifindex) { errno = EADDRNOTAVAIL; return -1; }
+    if (!r->ifindex) { errno = EADDRNOTAVAIL; return "find-gateway-interface"; }
     struct sockaddr_in source = { .sin_len = sizeof(source), .sin_family = AF_INET, .sin_addr = r->gateway };
-    if (setsockopt(fd, IPPROTO_IP, IP_BOUND_IF, &r->ifindex, sizeof(r->ifindex)) < 0 ||
-        bind(fd, (struct sockaddr *)&source, sizeof(source)) < 0) { r->ifindex = 0; return -1; }
-    return 0;
+    if (setsockopt(fd, IPPROTO_IP, IP_BOUND_IF, &r->ifindex, sizeof(r->ifindex)) < 0) {
+        r->ifindex = 0; return "IP_BOUND_IF";
+    }
+    if (bind(fd, (struct sockaddr *)&source, sizeof(source)) < 0) {
+        r->ifindex = 0; return "bind";
+    }
+    return NULL;
 }
 
 int mp_tcp_take_path_failure(mp_tcp_relay *r) {
@@ -408,7 +444,11 @@ static void reap(mp_tcp_relay *r) {
     }
 }
 
+static void drain_handoffs(mp_tcp_relay *r);
+
 void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
+    // Process any lock-free handoffs queued before this release fence ran.
+    if (l->relay->bulk.fd < 0) drain_handoffs(l->relay);
     // Timer registrations use an identifier, not a descriptor, and survive close(2).
     if (l->retry_accept) watch_fd(l->relay, &l->watch, EVFILT_TIMER, EV_DELETE);
     if (l->watch.fd >= 0) close(l->watch.fd);
@@ -451,6 +491,12 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
         sum->bulk_directions += one->bulk_directions;
         sum->route_waits += one->route_waits;
         sum->handshake_timeouts += one->handshake_timeouts;
+        if (one->first_dial_stage &&
+            (!sum->first_dial_stage || l->first_dial_error_at < l->parent->first_dial_error_at)) {
+            l->parent->first_dial_error_at = l->first_dial_error_at;
+            sum->first_dial_stage = one->first_dial_stage;
+            sum->first_dial_errno = one->first_dial_errno;
+        }
         if (l->last_error_at > l->parent->last_error_at) {
             l->parent->last_error_at = l->last_error_at;
             sum->last_connect_error = one->last_connect_error;
@@ -474,6 +520,13 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
 }
 
 void mp_tcp_relay_destroy(mp_tcp_relay *r) {
+    struct handoff_item *pending = atomic_exchange_explicit(&r->handoff_head, NULL, memory_order_acq_rel);
+    while (pending) {
+        struct handoff_item *next = pending->next;
+        if (pending->client >= 0) close(pending->client);
+        free(pending);
+        pending = next;
+    }
     close(r->kq);
     if (r->bulk.fd >= 0) close(r->bulk.fd);
     free(r);
@@ -493,6 +546,17 @@ static void connected(struct pair *p) {
     observe(p->listener->stats.connect_us, p->connected_at - p->accepted_at);
 }
 
+static int dial_failure(struct pair *p, const char *stage, int error) {
+    mp_tcp_listener *l = p->listener;
+    if (l->profile && !l->stats.first_dial_stage) {
+        l->first_dial_error_at = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+        l->stats.first_dial_stage = stage;
+        l->stats.first_dial_errno = error;
+    }
+    errno = error;
+    return -1;
+}
+
 // The client read filter stays inactive throughout setup. No application byte
 // can be consumed, sent or replayed while a guest handshake is pending.
 static int dial_guest(struct pair *p, int timeout_seconds) {
@@ -503,16 +567,20 @@ static int dial_guest(struct pair *p, int timeout_seconds) {
     p->guest.close_flags = 0;
     p->guest.close_fflags = 0;
     p->guest.close_data = 0;
-    if (fd < 0 || prepare(fd) < 0 || scope_guest(r, fd) < 0 ||
-        (r->guest_receive_buffer && setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &r->guest_receive_buffer,
-                                               sizeof(r->guest_receive_buffer)) < 0) ||
-        setsockopt(fd, IPPROTO_TCP, TCP_CONNECTIONTIMEOUT, &timeout_seconds, sizeof(timeout_seconds)) < 0) return -1;
+    if (fd < 0 || prepare(fd) < 0) return dial_failure(p, "socket-setup", errno);
+    const char *scope_error = scope_guest(r, fd);
+    if (scope_error) return dial_failure(p, scope_error, errno);
+    if (r->guest_receive_buffer && setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &r->guest_receive_buffer,
+                                             sizeof(r->guest_receive_buffer)) < 0)
+        return dial_failure(p, "SO_RCVBUF", errno);
+    if (setsockopt(fd, IPPROTO_TCP, TCP_CONNECTIONTIMEOUT, &timeout_seconds, sizeof(timeout_seconds)) < 0)
+        return dial_failure(p, "TCP_CONNECTIONTIMEOUT", errno);
     int rc = connect(fd, (struct sockaddr *)&l->target, sizeof(l->target));
-    if (rc < 0 && errno != EINPROGRESS && errno != EINTR) return -1;
+    if (rc < 0 && errno != EINPROGRESS && errno != EINTR) return dial_failure(p, "connect", errno);
     p->guest.connecting = rc < 0;
     if ((!MICROPOD_BENCH_DEFER_HANDSHAKE_READS || rc == 0) &&
         watch_fd(r, &p->guest.watch, EVFILT_READ, EV_ADD | (rc < 0 ? EV_DISABLE : EV_ENABLE)) < 0) return -1;
-    if (rc < 0) return watch_fd(r, &p->guest.watch, EVFILT_WRITE, EV_ADD);
+    if (rc < 0) return watch_fd(r, &p->guest.watch, EVFILT_WRITE, CONNECT_WRITE_FLAGS);
     if (watch_fd(r, &p->client.watch, EVFILT_READ, connected_read_flags) < 0) return -1;
     connected(p);
     return 0;
@@ -610,6 +678,64 @@ void mp_tcp_adopt_profiled(mp_tcp_listener *l, int client, uint64_t accepted_at,
         }
     }
     mp_tcp_adopt(l, client, accepted_at);
+}
+
+static void enqueue_handoff(mp_tcp_listener *target, int client, uint64_t accepted_at,
+                            uint64_t enqueued_at, bool profiled) {
+    mp_tcp_relay *r = target->relay;
+    struct handoff_item *item = malloc(sizeof(*item));
+    if (!item) {
+        close(client);
+        return;
+    }
+    item->target = target;
+    item->client = client;
+    item->accepted_at = accepted_at;
+    item->enqueued_at = enqueued_at;
+    item->profiled = profiled;
+    struct handoff_item *head = atomic_load_explicit(&r->handoff_head, memory_order_relaxed);
+    do {
+        item->next = head;
+    } while (!atomic_compare_exchange_weak_explicit(&r->handoff_head, &head, item,
+                                                    memory_order_seq_cst, memory_order_relaxed));
+    if (!atomic_exchange_explicit(&r->handoff_notified, true, memory_order_seq_cst)) {
+        struct kevent trig;
+        EV_SET(&trig, (uintptr_t)&r->handoff_wake, EVFILT_USER, 0, NOTE_TRIGGER, 0, &r->handoff_wake);
+        submit_changes(r->kq, &trig, 1);
+    }
+}
+
+void mp_tcp_handoff_enqueue(mp_tcp_listener *target, int client, uint64_t accepted_at) {
+    enqueue_handoff(target, client, accepted_at, 0, false);
+}
+
+void mp_tcp_handoff_enqueue_profiled(mp_tcp_listener *target, int client,
+                                     uint64_t accepted_at, uint64_t enqueued_at) {
+    enqueue_handoff(target, client, accepted_at, enqueued_at, true);
+}
+
+static void drain_handoffs(mp_tcp_relay *r) {
+    for (;;) {
+        atomic_store_explicit(&r->handoff_notified, false, memory_order_seq_cst);
+        struct handoff_item *rev = atomic_exchange_explicit(&r->handoff_head, NULL, memory_order_seq_cst);
+        if (!rev) return;
+        struct handoff_item *fifo = NULL;
+        while (rev) {
+            struct handoff_item *next = rev->next;
+            rev->next = fifo;
+            fifo = rev;
+            rev = next;
+        }
+        while (fifo) {
+            struct handoff_item *next = fifo->next;
+            if (fifo->profiled)
+                mp_tcp_adopt_profiled(fifo->target, fifo->client, fifo->accepted_at, fifo->enqueued_at);
+            else
+                mp_tcp_adopt(fifo->target, fifo->client, fifo->accepted_at);
+            free(fifo);
+            fifo = next;
+        }
+    }
 }
 
 enum bulk_poll { OTHER_EVENT, FLAT_BULK, SPARSE_FLAT_BULK };
@@ -756,15 +882,20 @@ static void finish_connect(struct pair *p) {
     if (getsockopt(p->guest.watch.fd, SOL_SOCKET, SO_ERROR, &error, &length) < 0) error = errno;
     if (!error) error = event_error(&p->guest);
     if (error) {
+        dial_failure(p, "connect-completion", error);
         if (retry_guest(p, error)) return;
         failed_handshake(p, error);
         return;
     }
     p->guest.connecting = false;
-    struct kevent changes[] = { filter_change(&p->guest.watch, EVFILT_WRITE, EV_DISABLE),
-                                filter_change(&p->guest.watch, EVFILT_READ, connected_read_flags),
-                                filter_change(&p->client.watch, EVFILT_READ, connected_read_flags) };
-    if (update_stream_filters(r, changes, 3) < 0) { retire(p); return; }
+    struct kevent changes[] = {
+#if !MICROPOD_BENCH_ONESHOT_CONNECT
+        filter_change(&p->guest.watch, EVFILT_WRITE, EV_DISABLE),
+#endif
+        filter_change(&p->guest.watch, EVFILT_READ, connected_read_flags),
+        filter_change(&p->client.watch, EVFILT_READ, connected_read_flags)
+    };
+    if (update_stream_filters(r, changes, sizeof(changes) / sizeof(changes[0])) < 0) { retire(p); return; }
     connected(p);
     // The Mac client can already have sent its first request during connect.
     pump(&p->client, &p->guest);
@@ -800,6 +931,7 @@ static void accept_ready(mp_tcp_listener *l, int16_t filter) {
 
 static void service_polled_event(const struct kevent *event, enum bulk_poll poll) {
     struct watch *w = event->udata;
+    if (w->kind == HANDOFF_WAKE) return;
     if (w->kind == ACCEPT) {
         accept_ready((mp_tcp_listener *)w, event->filter);
         return;
@@ -843,14 +975,27 @@ static void drain_data(mp_tcp_relay *r, int budget) {
     struct kevent events[DATA_READY_BATCH];
     const struct timespec now = {0};
     int serviced = 0;
+    drain_handoffs(r);
     while (serviced < budget) {
+        if (atomic_load_explicit(&r->handoff_head, memory_order_relaxed) != NULL)
+            drain_handoffs(r);
         int limit = budget - serviced;
         int capacity = limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH;
         int n = kevent(r->kq, NULL, 0, events, capacity, &now);
-        if (n <= 0) break;
+        if (n <= 0) {
+            if (atomic_load_explicit(&r->handoff_head, memory_order_relaxed) != NULL) {
+                drain_handoffs(r);
+                continue;
+            }
+            break;
+        }
         bool bulk[DATA_READY_BATCH] = {0};
         for (int i = 0; i < n; ++i) {
             struct watch *w = events[i].udata;
+            if (w->kind == HANDOFF_WAKE) {
+                drain_handoffs(r);
+                continue;
+            }
             if (w->kind == STREAM) {
                 struct endpoint *e = (struct endpoint *)w;
                 bulk[i] = (events[i].filter == EVFILT_READ ? e : opposite(e))->bulk_read;
@@ -860,9 +1005,17 @@ static void drain_data(mp_tcp_relay *r, int budget) {
         // A short return only demonstrates a sparse poll when the caller could
         // have observed a third event. The last slots of the callback may cap it.
         enum bulk_poll poll = n <= 2 && capacity > 2 ? SPARSE_FLAT_BULK : FLAT_BULK;
-        for (int i = 0; i < n; ++i) if (bulk[i]) service_polled_event(&events[i], poll);
+        for (int i = 0; i < n; ++i) {
+            if (bulk[i]) {
+                if (atomic_load_explicit(&r->handoff_head, memory_order_relaxed) != NULL)
+                    drain_handoffs(r);
+                service_polled_event(&events[i], poll);
+            }
+        }
         serviced += n;
     }
+    if (atomic_load_explicit(&r->handoff_head, memory_order_relaxed) != NULL)
+        drain_handoffs(r);
 }
 
 int mp_tcp_data_callback_events(int data_workers) {

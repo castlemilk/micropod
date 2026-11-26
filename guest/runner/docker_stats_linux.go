@@ -45,13 +45,74 @@ func (s *dockerEngine) kernelStats(r *http.Request, id string, sample map[string
 		sample["micropod_cgroup"] = cg
 	}
 	root := filepath.Join("/sys/fs/cgroup", cg)
+	pidsStats := map[string]uint64{}
 	if b, err := os.ReadFile(filepath.Join(root, "pids.current")); err == nil {
 		if n, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); err == nil {
-			sample["pids_stats"] = map[string]uint64{"current": n}
+			pidsStats["current"] = n
 		}
 	}
+	if b, err := os.ReadFile(filepath.Join(root, "pids.max")); err == nil {
+		if raw := strings.TrimSpace(string(b)); raw != "" && raw != "max" {
+			if n, err := strconv.ParseUint(raw, 10, 64); err == nil {
+				pidsStats["limit"] = n
+			}
+		}
+	}
+	if len(pidsStats) > 0 {
+		sample["pids_stats"] = pidsStats
+	}
+	if b, err := os.ReadFile(filepath.Join(root, "cpu.stat")); err == nil {
+		kv := parseCgroupKV(string(b))
+		if cpuMap, ok := sample["cpu_stats"].(map[string]any); ok {
+			if usageMap, ok := cpuMap["cpu_usage"].(map[string]any); ok {
+				if u, ok := kv["user_usec"]; ok {
+					usageMap["usage_in_usermode"] = u * 1000
+				}
+				if sys, ok := kv["system_usec"]; ok {
+					usageMap["usage_in_kernelmode"] = sys * 1000
+				}
+			}
+			cpuMap["throttling_data"] = map[string]uint64{
+				"periods":           kv["nr_periods"],
+				"throttled_periods": kv["nr_throttled"],
+				"throttled_time":    kv["throttled_usec"] * 1000,
+			}
+		}
+	}
+	if memMap, ok := sample["memory_stats"].(map[string]any); ok {
+		if b, err := os.ReadFile(filepath.Join(root, "memory.peak")); err == nil {
+			if peak, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); err == nil {
+				memMap["max_usage"] = peak
+			}
+		}
+		if b, err := os.ReadFile(filepath.Join(root, "memory.events")); err == nil {
+			kv := parseCgroupKV(string(b))
+			memMap["events"] = map[string]uint64{
+				"high":     kv["high"],
+				"max":      kv["max"],
+				"oom":      kv["oom"],
+				"oom_kill": kv["oom_kill"],
+			}
+		}
+	}
+	psi := map[string]uint64{}
+	for _, res := range []struct{ key, file string }{
+		{"cpu_some_usec", "cpu.pressure"},
+		{"memory_some_usec", "memory.pressure"},
+		{"io_some_usec", "io.pressure"},
+	} {
+		if b, err := os.ReadFile(filepath.Join(root, res.file)); err == nil {
+			if total, ok := parsePSISomeTotalUsec(string(b)); ok {
+				psi[res.key] = total
+			}
+		}
+	}
+	if len(psi) > 0 {
+		sample["psi_stats"] = psi
+	}
 	if b, err := os.ReadFile(filepath.Join(root, "io.stat")); err == nil {
-		var counts []map[string]any
+		var byteCounts []map[string]any
+		var opCounts []map[string]any
 		for _, line := range strings.Split(string(b), "\n") {
 			fields := strings.Fields(line)
 			if len(fields) < 2 {
@@ -59,16 +120,26 @@ func (s *dockerEngine) kernelStats(r *http.Request, id string, sample map[string
 			}
 			for _, field := range fields[1:] {
 				key, value, _ := strings.Cut(field, "=")
-				op := map[string]string{"rbytes": "Read", "wbytes": "Write"}[key]
-				if op == "" {
+				n, err := strconv.ParseUint(value, 10, 64)
+				if err != nil {
 					continue
 				}
-				if n, err := strconv.ParseUint(value, 10, 64); err == nil {
-					counts = append(counts, map[string]any{"op": op, "value": n})
+				switch key {
+				case "rbytes":
+					byteCounts = append(byteCounts, map[string]any{"op": "Read", "value": n})
+				case "wbytes":
+					byteCounts = append(byteCounts, map[string]any{"op": "Write", "value": n})
+				case "rios":
+					opCounts = append(opCounts, map[string]any{"op": "Read", "value": n})
+				case "wios":
+					opCounts = append(opCounts, map[string]any{"op": "Write", "value": n})
 				}
 			}
 		}
-		sample["blkio_stats"] = map[string]any{"io_service_bytes_recursive": counts}
+		sample["blkio_stats"] = map[string]any{
+			"io_service_bytes_recursive": byteCounts,
+			"io_serviced_recursive":      opCounts,
+		}
 	}
 	if b, err := os.ReadFile(filepath.Join(proc, "net/dev")); err == nil {
 		nets := map[string]map[string]uint64{}

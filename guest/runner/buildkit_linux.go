@@ -60,30 +60,30 @@ func (b *buildkitService) connect(ctx context.Context) (*net.UnixConn, error) {
 	}
 }
 
-func serveBuildKit(ctx context.Context) error {
+func serveBuildKit(ctx context.Context) (string, error) {
 	buildkitPublic := clientSocket(buildkitPublic, "buildkit.sock")
 	if _, err := os.Stat(buildkitBinary); errors.Is(err, os.ErrNotExist) {
-		return nil
+		return "", nil
 	} else if err != nil {
-		return err
+		return "", err
 	}
 	if st, err := os.Lstat(buildkitPublic); err == nil {
 		if st.Mode()&os.ModeSocket == 0 {
-			return errors.New("BuildKit socket path is occupied")
+			return "", errors.New("BuildKit socket path is occupied")
 		}
 		if err := os.Remove(buildkitPublic); err != nil {
-			return err
+			return "", err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
+		return "", err
 	}
 	l, err := net.ListenUnix("unix", &net.UnixAddr{Name: buildkitPublic, Net: "unix"})
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := os.Chmod(buildkitPublic, 0600); err != nil {
 		l.Close()
-		return err
+		return "", err
 	}
 	b := new(buildkitService)
 	slots := make(chan struct{}, 128)
@@ -125,5 +125,5 @@ func serveBuildKit(ctx context.Context) error {
 			}()
 		}
 	}()
-	return nil
+	return buildkitPublic, nil
 }

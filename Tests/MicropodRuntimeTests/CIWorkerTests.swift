@@ -119,17 +119,91 @@ final class CIWorkerTests: XCTestCase {
         var env = base
         env["MICROPOD_CI_KERNEL"] = "/kernels/7.3.5/Image"
         env["MICROPOD_CI_PUBLISHED_PATH"] = "macvlan"
+        env["MICROPOD_CI_PUBLISHED_MTU"] = "9000"
+        env["MICROPOD_CI_PUBLISHED_RPS"] = "off-irq"
+        env["MICROPOD_CI_PUBLISHED_GSO_BYTES"] = "40960"
         let worker = CIWorker(environment: env)
         try worker.prepareDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let config = try worker.configuration(create: true)
         XCTAssertEqual(config.kernel, env["MICROPOD_CI_KERNEL"])
         XCTAssertEqual(config.publishedPath, "macvlan")
+        XCTAssertEqual(config.publishedMTU, 9000)
+        XCTAssertEqual(config.publishedRPS, "off-irq")
+        XCTAssertEqual(config.publishedGSOBytes, 40960)
+        let plist = try worker.launchAgent(executable: URL(fileURLWithPath: "/usr/local/bin/micropod"))
+        let agent = try XCTUnwrap(PropertyListSerialization.propertyList(from: plist, format: nil) as? [String: Any])
+        XCTAssertEqual(
+            (agent["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_PUBLISHED_GSO_BYTES"], "40960")
         XCTAssertEqual(try CIWorker(environment: base).configuration(), config)
+        env["MICROPOD_CI_PUBLISHED_MTU"] = "1500"
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration())
+        env["MICROPOD_CI_PUBLISHED_MTU"] = nil
         env["MICROPOD_CI_PUBLISHED_PATH"] = "bridge"
         XCTAssertThrowsError(try CIWorker(environment: env).configuration())
         env["MICROPOD_CI_PUBLISHED_PATH"] = "unknown"
         XCTAssertThrowsError(try CIWorker(environment: env).configuration())
+    }
+
+    func testPublicationMTURequiresNativeMacvlanAndFitsThePrivateLink() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ci-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var env = ["MICROPOD_CI_HOME": root.path, "MICROPOD_CI_ENGINE": "containerd"]
+        try CIWorker(environment: env).prepareDirectory()
+        env["MICROPOD_CI_PUBLISHED_MTU"] = "9000"
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
+        env["MICROPOD_CI_PUBLISHED_PATH"] = "macvlan"
+        for bad in ["1499", "9001", "jumbo"] {
+            env["MICROPOD_CI_PUBLISHED_MTU"] = bad
+            XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
+        }
+        env["MICROPOD_CI_PUBLISHED_MTU"] = "1500"
+        env["MICROPOD_CI_ENGINE"] = "docker"
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
+        env["MICROPOD_CI_ENGINE"] = "containerd"
+        env["MICROPOD_CI_PUBLISHED_MTU"] = nil
+        let legacy = try CIWorker(environment: env).configuration(create: true)
+        XCTAssertNil(legacy.publishedMTU)
+        XCTAssertNil(legacy.publishedRPS)
+        XCTAssertNil(legacy.publishedGSOBytes)
+        XCTAssertEqual(try CIWorker(environment: env).configuration(), legacy)
+    }
+
+    func testPublicationGSORequiresNativeMacvlanAndFitsTheLink() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ci-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var env = [
+            "MICROPOD_CI_HOME": root.path, "MICROPOD_CI_ENGINE": "containerd",
+            "MICROPOD_CI_PUBLISHED_GSO_BYTES": "40960",
+        ]
+        try CIWorker(environment: env).prepareDirectory()
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
+        env["MICROPOD_CI_PUBLISHED_PATH"] = "macvlan"
+        env["MICROPOD_CI_PUBLISHED_MTU"] = "9000"
+        for invalid in ["8999", "65537", "-1", "invalid"] {
+            env["MICROPOD_CI_PUBLISHED_GSO_BYTES"] = invalid
+            XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
+        }
+        env["MICROPOD_CI_PUBLISHED_GSO_BYTES"] = "45056"
+        let saved = try CIWorker(environment: env).configuration(create: true)
+        env["MICROPOD_CI_PUBLISHED_GSO_BYTES"] = nil
+        XCTAssertEqual(try CIWorker(environment: env).configuration().publishedGSOBytes, saved.publishedGSOBytes)
+    }
+
+    func testPublicationRPSRequiresNativeMacvlanAndSupportedMode() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ci-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var env = [
+            "MICROPOD_CI_HOME": root.path, "MICROPOD_CI_ENGINE": "containerd", "MICROPOD_CI_PUBLISHED_RPS": "off-irq",
+        ]
+        try CIWorker(environment: env).prepareDirectory()
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
+        env["MICROPOD_CI_PUBLISHED_PATH"] = "macvlan"
+        env["MICROPOD_CI_ENGINE"] = "docker"
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
+        env["MICROPOD_CI_ENGINE"] = "containerd"
+        env["MICROPOD_CI_PUBLISHED_RPS"] = "all"
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration(create: true))
     }
 
     func testNetworkProbeRequiresAnAddressOnTheMac() throws {
