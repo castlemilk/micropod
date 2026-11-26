@@ -118,7 +118,15 @@ func serveBuildKit(ctx context.Context) (string, error) {
 				stop := context.AfterFunc(ctx, func() { client.Close(); dst.Close() })
 				defer stop()
 				upstream := make(chan struct{})
-				go func() { io.Copy(dst, client); dst.CloseWrite(); close(upstream) }()
+				go func() {
+					io.Copy(dst, client)
+					if disconnected(client) {
+						dst.Close()
+					} else {
+						dst.CloseWrite()
+					}
+					close(upstream)
+				}()
 				io.Copy(client, dst)
 				client.CloseWrite()
 				<-upstream
