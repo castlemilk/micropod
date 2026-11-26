@@ -8,6 +8,7 @@ on:
       - "web/**"
       - "blog/**"
       - "scripts/blog/**"
+      - ".nvmrc"
       - "proto/micropod/**"
       - "proto/com/**"
       - "buf.gen.docs.yaml"
@@ -40,7 +41,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
 
