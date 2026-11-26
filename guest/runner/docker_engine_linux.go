@@ -95,13 +95,16 @@ type dockerEngine struct {
 	imageMu        sync.RWMutex
 	healthImages   dockerImageHealthCache
 	workspace      string
-	events         dockerEventLog
-	mu             sync.Mutex
-	containers     map[string]*dockerContainer
-	execs          map[string]*dockerExec
-	execPipeDir    string
-	cachePolicy    policyLoader
-	imageFacts     factsLoader
+	// machineDir guards the machine's own directory inside the workspace
+	// (docker_private_linux.go); nil when it is outside or unknown.
+	machineDir  *privateRoot
+	events      dockerEventLog
+	mu          sync.Mutex
+	containers  map[string]*dockerContainer
+	execs       map[string]*dockerExec
+	execPipeDir string
+	cachePolicy policyLoader
+	imageFacts  factsLoader
 }
 
 type dockerCPUGroup struct {
@@ -414,6 +417,9 @@ func serveEngine(ctx context.Context, n node) error {
 		n.watchLog = logWatcher.watch
 	}
 	s := &dockerEngine{node: n, workspace: os.Getenv("MICROPOD_ENGINE_WORKSPACE"), containers: make(map[string]*dockerContainer), execs: make(map[string]*dockerExec)}
+	if !privateRootless() {
+		s.machineDir = engineMachineDir()
+	}
 	if !privateRootless() && os.Getenv("MICROPOD_CI_PUBLISHED_PATH") == "macvlan" {
 		s.direct, err = newDirectNetwork(ctx)
 		if err != nil {
@@ -626,7 +632,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, _, err := s.openMounts(spec, volumeRules(s.cachePolicy.get(), plan), true, "", "")
+	files, _, _, err := s.openMounts(spec, volumeRules(s.cachePolicy.get(), spec, plan), true, "", "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
@@ -665,10 +671,14 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 }
 
 // volumeRules is what openMounts enforces on alias volumes for a container
-// with this plan under this policy.
-func volumeRules(pol cachePolicy, plan *cachePlan) cacheVolumeRules {
-	c := dockerContainer{dockerRecord: dockerRecord{Cache: plan}}
-	return cacheVolumeRules{readOnly: c.cacheReadOnly(pol), allows: pol.allows}
+// with this request and plan under this policy.
+func volumeRules(pol cachePolicy, spec dockerConfig, plan *cachePlan) cacheVolumeRules {
+	c := dockerContainer{dockerRecord: dockerRecord{Config: spec, Cache: plan}}
+	scope := containerScope(pol, spec)
+	if plan != nil && plan.Scope != "" {
+		scope = plan.Scope // decided at create, as the tier
+	}
+	return cacheVolumeRules{readOnly: c.cacheReadOnly(pol), allows: pol.allows, scope: scope, sharedL0: pol.SharedL0}
 }
 
 // cacheDecision loads the image facts when anything needs them and makes the
@@ -862,7 +872,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	pol := s.cachePolicy.get()
 	// A plan an older engine made has no tier of its own yet.
 	c.Cache.legacyTrust(pol)
-	files, mounts, aliasPins, err := s.openMounts(c.Config, volumeRules(pol, c.Cache), false, socket, filepath.Join(c.dir(), "shim"))
+	files, mounts, aliasPins, err := s.openMounts(c.Config, volumeRules(pol, c.Config, c.Cache), false, socket, filepath.Join(c.dir(), "shim"))
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
@@ -1448,7 +1458,11 @@ func (c *dockerContainer) mountList() []map[string]any {
 				continue
 			}
 			// Bound read-only; the units this start uses are bound over it.
+			// A reader sees its own directory of their mount points instead.
 			e["Name"], e["Source"], e["RW"] = "micropod-cache-"+scope, scopeDir, false
+			if p.ReadOnly {
+				e["Source"] = filepath.Join(c.dir(), "shim", "ro-scope-"+scope)
+			}
 		default:
 			if _, gone := c.CacheSkipped[m.Kind]; gone {
 				continue

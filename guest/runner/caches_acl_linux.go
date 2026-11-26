@@ -30,6 +30,7 @@ import (
 //	  .meta/maintenance.lock            flock LOCK_EX: startup recovery, prune and janitor passes
 //	  .meta/<scope>/<unit>.lock         flock LOCK_SH: every container holding the unit, writer or reader
 //	  .meta/<scope>/<unit>.writer.lock  flock LOCK_EX: the single writer of an exclusive kind (yarn v1)
+//	  .meta/<scope>/<unit>.mark.lock    flock LOCK_SH: every writer of the unit; a mark clearer's LOCK_EX
 //	  .meta/<scope>/<unit>.dirty        the crash fence's mark (caches_dirty_linux.go)
 //	  .meta/<scope>/<unit>.used         mtime = last container start or exit
 //	  .meta/clean-stop                  boot id of the last stop that synced everything (guest init)
@@ -282,6 +283,34 @@ func openScope(l cacheLayout, scope string) (*os.File, error) {
 	}
 	meta.Close()
 	return ensureDirAt(l.scopes, scope, 0755, false, l.trash)
+}
+
+// ensureScopeMeta makes .meta/<scope> (0700) for a reader of a store that
+// exists, whose lock lives there: a store's writer made it, unless the store
+// predates it.
+func ensureScopeMeta(l cacheLayout, scope string) error {
+	if !scopeName.MatchString(scope) {
+		return fmt.Errorf("invalid cache scope %q", scope)
+	}
+	meta, err := ensureDirAt(l.meta, scope, 0700, false, nil)
+	if err != nil {
+		return err
+	}
+	return meta.Close()
+}
+
+// openExistingScope opens scopes/<scope> for a reader without creating it or
+// its .meta/<scope>; nil, nil when the scope does not exist (or is not a real
+// directory): nothing in it to read.
+func openExistingScope(l cacheLayout, scope string) (*os.File, error) {
+	if !scopeName.MatchString(scope) {
+		return nil, fmt.Errorf("invalid cache scope %q", scope)
+	}
+	d, err := openDirNoFollow(int(l.scopes.Fd()), scope, filepath.Join(l.scopes.Name(), scope))
+	if errors.Is(err, unix.ENOENT) || errors.Is(err, unix.ELOOP) || errors.Is(err, unix.ENOTDIR) {
+		return nil, nil
+	}
+	return d, err
 }
 
 // Qualification only: a scope named qual-* or debug-* may hold a store whose
@@ -580,6 +609,43 @@ func unitWriterLock(scope, unit string) (*os.File, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// markLock takes a unit's writers' lock without waiting
+// (.meta/<scope>/<unit>.mark.lock): LOCK_SH for a writer, held with its unit
+// lock from before it marks the unit until its container exited; LOCK_EX for
+// a mark clearer, which so learns that no writer is left. Readers never take
+// it, so a reader that holds a unit (a copy-on-write view of it, for as long
+// as its container runs) never keeps a writer's mark, and with it the risk
+// that an unclean stop discards the store, alive after the writer exited.
+func markLock(scope, unit string, exclusive bool) (*os.File, error) {
+	path := filepath.Join(cacheRoot, ".meta", scope, unit+".mark.lock")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return nil, err
+	}
+	how := unix.LOCK_SH | unix.LOCK_NB
+	if exclusive {
+		how = unix.LOCK_EX | unix.LOCK_NB
+	}
+	if err := unix.Flock(int(f.Fd()), how); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+// markLockWaiting is markLock retrying a busy lock every millisecond for up
+// to wait (a clearer holds it LOCK_EX for a stat and an unlink).
+func markLockWaiting(scope, unit string, exclusive bool, wait time.Duration) (*os.File, error) {
+	deadline := time.Now().Add(wait)
+	for {
+		lock, err := markLock(scope, unit, exclusive)
+		if !errors.Is(err, unix.EWOULDBLOCK) || !time.Now().Before(deadline) {
+			return lock, err
+		}
+		time.Sleep(time.Millisecond)
+	}
 }
 
 // touchUsed records the last use of a store as the mtime of its stamp file.

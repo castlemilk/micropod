@@ -23,6 +23,61 @@ const (
 	hostConfigMount = "/run/micropod/host-config"
 )
 
+// hostConfigEnv tells the engine what became of the host config share
+// (hostConfigState). The engine's policy fails closed whenever the host asked
+// for the share, so a share that did not mount, or a policy it cannot read,
+// never turns an untrusted default into the trusted built-in one.
+const hostConfigEnv = "MICROPOD_HOST_CONFIG"
+
+// hostConfigState is hostConfigEnv's value: "" when the host asked for no
+// share (the engine runs on its built-in policy), "mounted", or "unavailable"
+// when it asked and the mount failed.
+func hostConfigState(requested, mounted bool) string {
+	switch {
+	case !requested:
+		return ""
+	case mounted:
+		return "mounted"
+	default:
+		return "unavailable"
+	}
+}
+
+// The machine's own directory on the host (mp.private_b64, base64 with a
+// trailing '.' like mp.workspace_b64): its disks, machine.json and the host
+// config share. The standard machine keeps it in ~/.micropod/hvf, inside the
+// default workspace (the home directory), so a bind of a workspace path could
+// reach it. Guest init passes it to the engine (privateRootEnv) only when it
+// lies in the workspace; the engine then refuses a bind source inside it and
+// hides it in a bind that covers it.
+const (
+	privateRootArg = "mp.private_b64"
+	privateRootEnv = "MICROPOD_ENGINE_PRIVATE"
+)
+
+// parsePrivateRoot returns the machine directory to protect, or "" when the
+// host names none or it is outside the workspace (nothing in the guest
+// reaches it then).
+func parsePrivateRoot(params map[string]string, workspace string) (string, error) {
+	value, ok := params[privateRootArg]
+	if !ok {
+		return "", nil
+	}
+	payload, complete := strings.CutSuffix(value, ".")
+	decoded, err := base64.StdEncoding.Strict().DecodeString(payload)
+	if !complete || err != nil {
+		return "", fmt.Errorf("invalid %s value", privateRootArg)
+	}
+	p := string(decoded)
+	if !utf8.ValidString(p) || !path.IsAbs(p) || p == "/" || path.Clean(p) != p || strings.ContainsAny(p, "\x00") {
+		return "", fmt.Errorf("%s must name a canonical absolute path", privateRootArg)
+	}
+	if workspace == "" || !within(p, workspace) {
+		return "", nil
+	}
+	return p, nil
+}
+
 func cmdlineParams(fields []string) map[string]string {
 	out := map[string]string{}
 	for _, f := range fields {

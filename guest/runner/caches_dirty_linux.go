@@ -34,15 +34,18 @@ import (
 // not anything kept in memory: every container that uses a unit, in any
 // process (this engine, a standalone scheduler job), holds it LOCK_SH from
 // before it can reach the unit until its container has exited. A writer
-// (pinUnit, claimUnit) also marked the unit while holding the lock; a reader
-// (holdUnit) did not.
+// (pinUnit, claimUnit) also holds the unit's mark lock
+// (.meta/<scope>/<unit>.mark.lock) LOCK_SH for as long, and marked the unit
+// while holding both; a reader (holdUnit) took neither the mark lock nor a
+// mark.
 //
 //   - attach (the caller holds the lock) replaces the mark with a new file whose
 //     content is this boot's id, so a mark that changed identity names a writer
 //     that came after whoever looked at it;
 //   - a mark is cleared only by someone who opened it, then completed a syncfs,
-//     then took the lock LOCK_EX|LOCK_NB (no writer left anywhere) and found the
-//     mark still the file it opened (no writer arrived since it was opened);
+//     then took the mark lock LOCK_EX|LOCK_NB (no writer left anywhere) and
+//     found the mark still the file it opened (no writer arrived since it was
+//     opened);
 //   - at engine start a unit whose lock is held is left alone. A mark written
 //     in this boot, or in a boot guest init stopped cleanly (it adds that
 //     boot's id to the clean-stop record after every process exited and its
@@ -62,9 +65,10 @@ import (
 // view exists, so the janitor and recovery leave the store where the view's
 // lower layer is; a read-only alias volume (or a docker cp out of one) holds
 // its kind's lock the same way and, like every reader, never creates or
-// repairs anything in the store. To a clearer such a reader looks like a
-// writer, which only keeps a real writer's mark longer; a reader never counts
-// as a writer anywhere else (no mark, nothing in .meta but its lock).
+// repairs anything in the store. A reader never counts as a writer: it takes
+// no mark lock, so a clearer clears a writer's mark once that writer exited
+// even while readers (an untrusted container that sleeps) still hold the
+// unit, and it makes no mark.
 //
 // The janitor (caches_manage_linux.go) composes with this fence through the
 // same files. Lock order, one for every process:
@@ -76,16 +80,20 @@ import (
 //  2. unit locks (.meta/<scope>/<unit>.lock), always LOCK_NB or a bounded
 //     retry: the unit's own first and then its guards (cacheUnitGuards), all
 //     released on the first one that is busy. Containers take them LOCK_SH;
-//     recovery, the janitor, clearers and the inventory's probe LOCK_EX;
+//     recovery, the janitor and the inventory's probe LOCK_EX;
 //  3. an exclusive kind's writer slot (.meta/<scope>/<unit>.writer.lock,
 //     unitWriterLock), LOCK_EX|LOCK_NB and never waited for, taken only by a
 //     container that already holds the unit's lock LOCK_SH (claimUnit). It
 //     picks which of several containers writes the store; the fence's notion
 //     of a writer stays the lock plus the mark, and nobody in 1 or 2 ever
-//     looks at the slot.
+//     looks at the slot;
+//  4. the unit's mark lock (.meta/<scope>/<unit>.mark.lock, markLock), taken
+//     LOCK_SH by a writer that holds 2 (and 3 for an exclusive kind), with a
+//     bounded retry, and LOCK_EX|LOCK_NB with a bounded retry by a mark
+//     clearer, which holds nothing else meanwhile.
 //
-// A pin, a hold or a clearer may retry one busy unit lock for a bounded time
-// (claimUnit, holdUnit, clearMarkIfRetired) and never holds the maintenance
+// A pin, a hold or a clearer may retry one busy unit or mark lock for a
+// bounded time (claimUnit, holdUnit, clearMarkIfRetired) and never holds the maintenance
 // lock, and the holders it waits out (a probe, a clearer, a janitor batch)
 // wait for nothing while they hold the lock. So no wait-for cycle can form.
 // Under its unit locks the janitor checks the marks of the unit and its guards
@@ -300,11 +308,13 @@ var errUnitHeld = errors.New("a writer still holds the unit")
 // meet a probe and leave its mark for the rest of the boot.
 const clearerLockWait = 20 * time.Millisecond
 
-// clearMarkIfRetired removes the unit's mark if no writer holds the unit and
-// the mark is still the file opened before the caller's sync. A busy lock is
-// retried for up to wait. It reports whether it removed the mark.
+// clearMarkIfRetired removes the unit's mark if no writer holds the unit (its
+// mark lock, markLock, is free: a reader holds only the unit lock and does
+// not count) and the mark is still the file opened before the caller's sync.
+// A busy lock is retried for up to wait. It reports whether it removed the
+// mark.
 func clearMarkIfRetired(scope, unit string, opened *os.File, wait time.Duration) (bool, error) {
-	lock, err := lockUnitWaiting(scope, unit, true, wait)
+	lock, err := markLockWaiting(scope, unit, true, wait)
 	if errors.Is(err, unix.EWOULDBLOCK) {
 		return false, errUnitHeld
 	} else if err != nil {

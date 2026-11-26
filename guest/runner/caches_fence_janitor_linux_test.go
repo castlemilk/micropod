@@ -795,7 +795,7 @@ func TestCacheJanitorQueuesOrphanedMarks(t *testing.T) {
 	}
 	closeMounts(files) // the alias writer is killed too
 	for _, p := range pins {
-		p.lock.Close()
+		closeMounts(p.files()) // the kernel drops every lock it held
 	}
 	if _, err := ensureStore("default", "npm", nil); err != nil {
 		t.Fatal(err)

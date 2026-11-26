@@ -307,7 +307,7 @@ func TestCacheDirtyAliasVolumeCoversTheKind(t *testing.T) {
 	// The alias writer dies with the machine: the whole kind goes.
 	closeMounts(files)
 	for _, p := range pins {
-		p.lock.Close()
+		closeMounts(p.files()) // the kernel drops every lock it held
 	}
 	setBoot("boot-b")
 	discardDirtyCaches()
@@ -322,7 +322,17 @@ func TestCacheDirtyAliasVolumeCoversTheKind(t *testing.T) {
 	if len(listDirtyMarks()) != 0 {
 		t.Fatalf("marks left: %v", listDirtyMarks())
 	}
-	// A read-only alias mount holds its kind's lock and makes no mark.
+	// A read-only alias mount holds its kind's lock and makes no mark; with
+	// no store to read it holds nothing.
+	roBind := dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/cache/gomod:ro"}}}
+	files, _, pins, err = s.openMounts(roBind, rulesFor(t, roBind), false, "", t.TempDir())
+	if err != nil || len(pins) != 0 {
+		t.Fatalf("read-only alias of no store: pins %v %v", pins, err)
+	}
+	closeMounts(files)
+	if _, err := ensureStore("default", "gomod", nil); err != nil {
+		t.Fatal(err)
+	}
 	files, _, pins, err = s.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/cache/gomod:ro"}}}, rulesFor(t, dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/cache/gomod:ro"}}}), false, "", t.TempDir())
 	if err != nil || len(pins) != 1 || pins[0].unit != "gomod" || marked("default", "gomod") {
 		t.Fatalf("read-only alias pins %v %v", pins, err)
@@ -400,5 +410,15 @@ func TestCachePinWaitsForAClearer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("shared pin did not wait for the clearer: %v", err)
 	}
-	pin.lock.Close()
+	pin.drop()
+	// A clearer holds the mark lock (not the unit lock) the same briefly.
+	marks, err := markLock("default", "gomod", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { time.Sleep(20 * time.Millisecond); marks.Close() }()
+	if pin, err = pinUnit("default", "gomod", false); err != nil || pin.marks == nil {
+		t.Fatalf("a pin did not wait out a clearer's mark lock: %v", err)
+	}
+	pin.drop()
 }

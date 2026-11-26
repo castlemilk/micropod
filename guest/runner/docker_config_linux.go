@@ -712,15 +712,31 @@ type cachePin struct {
 	scope, unit string
 	lock        *os.File
 	slot        *os.File // the exclusive kind's writer slot (unitWriterLock), else nil
+	marks       *os.File // a writer's hold of the unit's mark lock (markLock), else nil
 	writer      bool
 }
 
-// drop closes the pin's writer slot and lock, without queueing a clear.
+// drop closes the pin's mark lock, writer slot and lock, without queueing a
+// clear.
 func (p cachePin) drop() {
+	if p.marks != nil {
+		p.marks.Close()
+	}
 	if p.slot != nil {
 		p.slot.Close()
 	}
 	p.lock.Close()
+}
+
+// files are the descriptors a container's start keeps open until it exits.
+func (p cachePin) files() []*os.File {
+	out := []*os.File{p.lock}
+	for _, f := range []*os.File{p.slot, p.marks} {
+		if f != nil {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // A pin or a hold waits for a mark clearer's LOCK_EX (held for a stat and an
@@ -758,8 +774,10 @@ func pinUnit(scope, unit string, exclusive bool) (cachePin, error) {
 // claimUnit is the one way a container takes a unit for writing. In lock
 // order (caches_dirty_linux.go): the unit lock LOCK_SH (waiting up to
 // sharedPinWait), then, for an exclusive kind, the writer slot LOCK_EX|LOCK_NB,
-// then the dirty mark, made while both are held. When an exclusive kind's slot
-// is taken the claim keeps the unit lock as a reader's hold and makes no mark.
+// then the unit's mark lock LOCK_SH (waiting up to sharedPinWait for a
+// clearer), then the dirty mark, made while all are held. When an exclusive
+// kind's slot is taken the claim keeps the unit lock as a reader's hold and
+// makes no mark.
 func claimUnit(scope, unit string, exclusive bool) (cachePin, error) {
 	lock, err := lockUnitWaiting(scope, unit, false, sharedPinWait)
 	if err != nil {
@@ -776,6 +794,12 @@ func claimUnit(scope, unit string, exclusive bool) (cachePin, error) {
 		}
 		pin.slot = slot
 	}
+	marks, err := markLockWaiting(scope, unit, false, sharedPinWait)
+	if err != nil {
+		pin.drop()
+		return cachePin{}, err
+	}
+	pin.marks = marks
 	if err := cacheDirty.attach(scope, unit); err != nil {
 		pin.drop()
 		return cachePin{}, err
@@ -786,9 +810,9 @@ func claimUnit(scope, unit string, exclusive bool) (cachePin, error) {
 
 // holdUnit locks a unit LOCK_SH for a reader and makes no mark: nothing is
 // written through the hold. The janitor and startup recovery then treat the
-// unit as in use. A clearer cannot tell the reader from a writer and leaves
-// the unit's mark to a later release; the hold's own release (releasePins)
-// queues that clear.
+// unit as in use. A reader takes no mark lock (markLock), so a clearer still
+// clears a writer's mark once the writers are gone; the hold's own release
+// (releasePins) queues a clear like a writer's.
 func holdUnit(scope, unit string) (cachePin, error) {
 	lock, err := lockUnitWaiting(scope, unit, false, sharedPinWait)
 	if err != nil {
@@ -843,7 +867,7 @@ func releasePins(pins []cachePin) {
 func (a *cacheAttachment) adopt(pins []cachePin) {
 	a.pins = append(a.pins, pins...)
 	for _, p := range pins {
-		a.files = append(a.files, p.lock)
+		a.files = append(a.files, p.files()...)
 	}
 }
 
@@ -976,11 +1000,16 @@ type cacheUnitView struct {
 // to start with EROFS), a reader may not create the store, and there is
 // nothing warm to read. A path-mode unit is bound at a path of the
 // container's own rootfs, so it still gets a view over an empty lower.
+//
+// scopeDir nil is a reader's scope that does not exist: no store to read.
 func (a *cacheAttachment) openReaderView(plan *cachePlan, scopeDir *os.File, st cacheStoreRef, storeScope, shimRoot string) (cacheUnitView, string) {
-	lower, err := openExistingStore(scopeDir, st.Kind, st.UID)
-	if err != nil {
-		log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
-		return cacheUnitView{}, skipStoreFailed
+	var lower *os.File
+	if scopeDir != nil {
+		var err error
+		if lower, err = openExistingStore(scopeDir, st.Kind, st.UID); err != nil {
+			log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
+			return cacheUnitView{}, skipStoreFailed
+		}
 	}
 	if lower == nil && plan.Tools[st.Kind].Mode == "env" {
 		return cacheUnitView{}, skipNoStore
@@ -1015,6 +1044,38 @@ func (a *cacheAttachment) openReaderView(plan *cachePlan, scopeDir *os.File, st 
 	return cacheUnitView{base: lower, reader: true}, ""
 }
 
+// readerScopeSource is what a reader sees at a scope's mount point
+// (/micropod/cache, /micropod/cache-l0) instead of the scope itself: a private
+// directory, bound read-only, that holds only the mount points of the
+// env-mode units this start reads through a view. So a reader sees no other
+// tool's store and no other uid's partition of its scope, whatever it named,
+// and the runtime never has to create a mount point below a read-only bind.
+func (a *cacheAttachment) readerScopeSource(plan *cachePlan, views map[string]cacheUnitView, scope, shimRoot string) (*os.File, error) {
+	if shimRoot == "" {
+		return nil, errors.New("no private directory for a reader's view of the scope")
+	}
+	dir := filepath.Join(shimRoot, "ro-scope-"+scope)
+	if err := os.RemoveAll(dir); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+	a.scratch = append(a.scratch, dir)
+	for _, st := range plan.Stores {
+		if _, gone := a.skipped[st.Kind]; gone || plan.scopeFor(st.Scope) != scope || plan.Tools[st.Kind].Mode != "env" {
+			continue
+		}
+		if _, ok := views[scope+"/"+st.Unit]; !ok {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Join(dir, cacheStoreSub(st.Kind, st.UID)), 0755); err != nil {
+			return nil, err
+		}
+	}
+	return openDirNoFollow(unix.AT_FDCWD, dir, dir)
+}
+
 // emptyReadOnlySource is a private empty directory bound read-only where a
 // read-only start has no store to show.
 func (a *cacheAttachment) emptyReadOnlySource(shimRoot, name string) (*os.File, error) {
@@ -1036,7 +1097,7 @@ func (a *cacheAttachment) emptyReadOnlySource(shimRoot, name string) (*os.File, 
 // (openUncachedAlias). A view's upper directory holds everything an untrusted
 // container wrote; it never outlives the boot.
 func sweepCacheViews() {
-	for _, pattern := range []string{"cow-*", "ro-file-*", "ro-empty-*", "nocache-*"} {
+	for _, pattern := range []string{"cow-*", "ro-file-*", "ro-empty-*", "ro-scope-*", "nocache-*"} {
 		matches, _ := filepath.Glob(filepath.Join(engineRoot, "containers", "*", "shim", pattern))
 		for _, m := range matches {
 			if pattern == "cow-*" {
@@ -1066,7 +1127,11 @@ func sweepCacheViews() {
 // The scope (at /micropod/cache, or "global" at /micropod/cache-l0) is bound
 // read-only; each env-mode unit of it is bound over it through that start's
 // own view of the unit (the store for a writer). So no path a container gets
-// is writable into a store it does not write as a pinned writer.
+// is writable into a store it does not write as a pinned writer. A reader
+// gets a private directory of its units' mount points there instead of the
+// scope (readerScopeSource), so it sees only the stores it reads, and it
+// creates nothing on the cache disk: no scope, no .meta, no lock or stamp
+// for a store nobody made.
 func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	var a cacheAttachment
 	if !plan.attached() {
@@ -1096,6 +1161,9 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		}
 	}
 	scopeDirs := map[string]*os.File{}
+	// A reader never creates a scope or its .meta (openExistingScope): a
+	// scope nobody wrote has nothing to read (nil), so any name a reader
+	// gives leaves no trace on the cache disk.
 	ensureScopeDir := func(scope string) (*os.File, error) {
 		if scope == "" {
 			scope = plan.Scope
@@ -1103,12 +1171,18 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		if d, ok := scopeDirs[scope]; ok {
 			return d, nil
 		}
-		d, err := openScope(l, scope)
+		open := openScope
+		if plan.ReadOnly {
+			open = openExistingScope
+		}
+		d, err := open(l, scope)
 		if err != nil {
 			return nil, err
 		}
 		scopeDirs[scope] = d
-		a.files = append(a.files, d)
+		if d != nil {
+			a.files = append(a.files, d)
+		}
 		return d, nil
 	}
 	if _, err := ensureScopeDir(plan.Scope); err != nil {
@@ -1131,6 +1205,35 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		// held or marked like this.
 		var pin cachePin
 		if plan.ReadOnly {
+			// A store nobody made is neither held nor stamped: a lock or a
+			// stamp file for it would only be metadata a reader made.
+			exists := false
+			if scopeDir != nil {
+				probe, err := openExistingStore(scopeDir, st.Kind, st.UID)
+				if err != nil {
+					log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
+					a.skip(st.Kind, skipStoreFailed)
+					continue
+				}
+				if probe != nil {
+					probe.Close()
+					exists = true
+				}
+			}
+			if !exists {
+				view, reason := a.openReaderView(plan, nil, st, storeScope, shimRoot)
+				if reason != "" {
+					a.skip(st.Kind, reason)
+					continue
+				}
+				views[storeScope+"/"+st.Unit] = view
+				continue
+			}
+			if err := ensureScopeMeta(l, storeScope); err != nil {
+				log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
+				a.skip(st.Kind, skipStoreFailed)
+				continue
+			}
 			pin, err = holdUnit(storeScope, st.Unit)
 		} else {
 			pin, err = claimUnit(storeScope, st.Unit, st.Exclusive)
@@ -1150,10 +1253,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		var view cacheUnitView
 		if pin.writer {
 			a.pins = append(a.pins, pin)
-			a.files = append(a.files, pin.lock)
-			if pin.slot != nil {
-				a.files = append(a.files, pin.slot)
-			}
+			a.files = append(a.files, pin.files()...)
 			dir, err := openStore(l, storeScope, scopeDir, st.Kind, st.UID)
 			if err != nil {
 				// The pin stays in a.pins, so its mark stays until a sync
@@ -1282,6 +1382,21 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 				continue
 			}
 			a.files = append(a.files, src)
+		case m.Kind == "" && plan.ReadOnly:
+			// A reader's own directory of mount points; its units' views are
+			// bound over it below.
+			var err error
+			if src, err = a.readerScopeSource(plan, views, mountScope, shimRoot); err != nil {
+				log.Printf("cache scope %s: %v", mountScope, err)
+				for _, st := range plan.Stores {
+					if plan.scopeFor(st.Scope) == mountScope && plan.Tools[st.Kind].Mode == "env" {
+						a.skip(st.Kind, skipStoreFailed)
+					}
+				}
+				continue
+			}
+			a.files = append(a.files, src)
+			readonly = true
 		case m.Kind == "":
 			// Read-only; the env-mode units are bound over it below.
 			if src = scopeDirs[mountScope]; src == nil {
@@ -1361,10 +1476,24 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 
 // cacheVolumeRules is what openMounts enforces on a request's legacy alias
 // volumes of cache stores: the container's tier (readOnly for every tier but
-// trusted, decided at create) and the machine policy's scope allow-list.
+// trusted, decided at create), the machine policy's scope allow-list and,
+// for a reader, its own scope (containerScope): a reader mounts no alias
+// volume of another scope, except a store sharedL0 shares in "global", so
+// naming a volume does not open another project's stores to it.
 type cacheVolumeRules struct {
 	readOnly bool
 	allows   func(scope string) bool
+	scope    string
+	sharedL0 bool
+}
+
+// readerMay reports whether a reader may mount kind's store of scope.
+func (r cacheVolumeRules) readerMay(scope, kind string) bool {
+	if scope == r.scope {
+		return true
+	}
+	t := cacheToolByKind(kind)
+	return r.sharedL0 && scope == cacheL0GlobalScope && t != nil && t.Global
 }
 
 // openMounts opens the request's own mounts. For a start (createVolumes false)
@@ -1385,7 +1514,7 @@ func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, cre
 		return nil, nil, nil, err
 	}
 	for _, m := range requests {
-		scope, _, shared := legacyCacheVolume(m.Source)
+		scope, kind, shared := legacyCacheVolume(m.Source)
 		if !shared || m.Type != "volume" {
 			continue
 		}
@@ -1394,6 +1523,9 @@ func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, cre
 		}
 		if !m.ReadOnly && rules.readOnly {
 			return nil, nil, nil, fail(400, fmt.Sprintf("an untrusted or read-only cache container cannot mount the shared cache volume %s read-write; mount it :ro", m.Source))
+		}
+		if rules.readOnly && !rules.readerMay(scope, kind) {
+			return nil, nil, nil, fail(400, fmt.Sprintf("an untrusted or read-only cache container may mount only the cache volumes of its own scope %q, not %s", rules.scope, m.Source))
 		}
 	}
 	var files []*os.File
@@ -1440,6 +1572,18 @@ func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, cre
 		}
 		files = append(files, f)
 		mounts = append(mounts, &cri.Mount{HostPath: dockerMountFDPath(f), ContainerPath: m.Target, Readonly: m.ReadOnly})
+		if m.Type == "bind" {
+			// Never the machine's own directory: refused inside it, hidden
+			// in a bind that covers it (docker_private_linux.go).
+			mask, e := s.machineDir.check(f, m.Source, m.Target)
+			if e != nil {
+				err = e
+				break
+			}
+			if mask != "" {
+				mounts = append(mounts, s.machineDir.maskMount(mask))
+			}
+		}
 	}
 	if err != nil {
 		closeMounts(files)
@@ -1516,9 +1660,10 @@ var cacheAliasHeldHook func(scope, kind string)
 // the lock alone, so the janitor neither evicts nor trims the store under it,
 // and never creates or repairs anything in the store (it made no mark): a
 // store that is not there yet is an empty private directory of the
-// container's below privateRoot. Either is taken before the store is opened,
-// so a janitor pass cannot move the store between the two. A create's probe
-// neither holds nor opens the store; its start does. With no cache disk
+// container's below privateRoot, and neither the scope nor a lock file is
+// made for it. Either is taken before the store is opened, so a janitor pass
+// cannot move the store between the two. A create's probe neither holds nor
+// opens the store, nor creates its scope; its start does. With no cache disk
 // mounted (cacheDiskUnavailable) it returns errNoCacheDisk.
 func openAliasStore(scope, kind string, access aliasAccess, privateRoot string) (*os.File, []cachePin, error) {
 	l, err := openCacheLayout()
@@ -1526,17 +1671,44 @@ func openAliasStore(scope, kind string, access aliasAccess, privateRoot string) 
 		return nil, nil, err
 	}
 	defer l.Close()
-	scopeDir, err := openScope(l, scope) // also .meta/<scope>, where the lock lives
+	open := openExistingScope
+	if access == aliasWrite {
+		open = openScope // also .meta/<scope>, where the lock lives
+	}
+	scopeDir, err := open(l, scope)
 	if err != nil {
 		return nil, nil, err
 	}
 	if access == aliasProbe {
+		if scopeDir == nil {
+			// Something to close: the create only validates the request.
+			f, err := openDirNoFollow(int(l.root.Fd()), "scopes", l.scopes.Name())
+			return f, nil, err
+		}
 		return scopeDir, nil, nil // the create closes it at once
+	}
+	if scopeDir == nil {
+		f, err := openPrivateDir(privateRoot, "ro-empty-alias-"+scope+"-"+kind, 0755)
+		return f, nil, err
 	}
 	defer scopeDir.Close()
 	hold := holdUnit
 	if access == aliasWrite {
 		hold = func(scope, unit string) (cachePin, error) { return pinUnit(scope, unit, false) }
+	} else {
+		// A reader holds only a store that is there.
+		probe, err := openExistingStore(scopeDir, kind, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+		if probe == nil {
+			f, err := openPrivateDir(privateRoot, "ro-empty-alias-"+scope+"-"+kind, 0755)
+			return f, nil, err
+		}
+		probe.Close()
+		if err := ensureScopeMeta(l, scope); err != nil {
+			return nil, nil, err
+		}
 	}
 	pin, err := hold(scope, kind)
 	if err != nil {

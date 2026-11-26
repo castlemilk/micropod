@@ -183,12 +183,19 @@ func tierRank(tier string) int {
 // (io.micropod.cache.trust=untrusted, io.micropod.cache.readonly=1), but it
 // may claim trusted only when the policy default is trusted or the request
 // arrived on the host-facing socket, which nothing inside the machine can
-// reach. A request from inside a container is then capped at that
+// reach, and named the tier in a label. MICROPOD_CACHE_TRUST in the request's
+// environment only ever lowers: an orchestrator passes a job's own env: block
+// (a workflow, a compose file, a service definition) through to the
+// containers it creates, so under an untrusted default a job could name its
+// own tier there; the scheduler states the tier of the attempts it trusts in
+// the label. A request from inside a container is then capped at that
 // container's own tier. Unknown values fail the create (HTTP 400).
 func resolveCacheTrust(pol cachePolicy, spec dockerConfig, origin cacheOrigin) (tier, from string, err error) {
 	raw, _ := cacheLabel(spec.Labels, "io.micropod.cache.trust", "com.micropod.cache.trust")
+	fromEnv := false
 	if strings.TrimSpace(raw) == "" {
 		raw, _ = envLookup(spec.Env, "MICROPOD_CACHE_TRUST", false)
+		fromEnv = true
 	}
 	tier, from = trustTrusted, trustFromPolicy
 	if pol.untrustedByDefault() {
@@ -199,7 +206,7 @@ func resolveCacheTrust(pol cachePolicy, spec dockerConfig, origin cacheOrigin) (
 	case trustUntrusted:
 		tier, from = trustUntrusted, trustFromLabel
 	case trustTrusted:
-		if origin.hostFacing || !pol.untrustedByDefault() {
+		if !pol.untrustedByDefault() || origin.hostFacing && !fromEnv {
 			tier, from = trustTrusted, trustFromLabel
 		} else {
 			from = trustFromRefused
@@ -925,11 +932,27 @@ func (p cachePolicy) digest() string {
 	return hex.EncodeToString(sum[:8])
 }
 
+// The host config share as guest init reports it in MICROPOD_HOST_CONFIG:
+// hostConfigMounted, hostConfigUnavailable (the host asked for it with
+// mp.config=1 and it did not mount) or "" (none asked for: no host renders a
+// policy, and the engine uses its built-in defaults).
+const (
+	hostConfigMounted     = "mounted"
+	hostConfigUnavailable = "unavailable"
+)
+
+var hostConfigInit = os.Getenv("MICROPOD_HOST_CONFIG")
+
 // policyLoader re-reads the policy file at most every 2 s, and only when its
-// inode, size or mtime changed. A missing file means defaults, so the engine
-// also works on hosts that never write one; a file that exists but is invalid
-// fails closed (failClosedCachePolicy): whatever the host meant to write, it
-// never trusts more containers than the host-facing socket asks for.
+// inode, size or mtime changed. Where no host config share was asked for, a
+// missing file means defaults, so the engine also works on hosts that never
+// write one. Everywhere else it fails closed (failClosedCachePolicy: whatever
+// the host meant to write, it never trusts more containers than the
+// host-facing socket asks for): a file that exists but is invalid, a share
+// the host asked for that did not mount, and a missing file on a mounted
+// share (the host renders the policy before every boot). An error reading a
+// file that was there keeps the last policy read, as such an error says
+// nothing about what the host wrote; with none read yet it fails closed too.
 type policyLoader struct {
 	mu      sync.Mutex
 	path    string
@@ -937,6 +960,17 @@ type policyLoader struct {
 	stamp   [3]int64
 	pol     cachePolicy
 	loaded  bool
+	// good: pol was read from the file (not a default or a fail-closed stand-in).
+	good bool
+	// share stands in for hostConfigInit (tests); "" reads hostConfigInit.
+	share string
+}
+
+func (l *policyLoader) shareState() string {
+	if l.share != "" {
+		return l.share
+	}
+	return strings.TrimSpace(hostConfigInit)
 }
 
 func (l *policyLoader) get() cachePolicy {
@@ -950,23 +984,54 @@ func (l *policyLoader) get() cachePolicy {
 	if file == "" {
 		file = cachePolicyFile
 	}
+	share := l.shareState()
+	// none is the policy without a file to read: the shipped default where no
+	// share was asked for, else fail closed.
+	none := func(why string, err error) cachePolicy {
+		if share == "" {
+			if l.loaded && l.stamp != [3]int64{} {
+				log.Printf("cache policy %s unavailable, using defaults: %v", file, err)
+			}
+			l.pol = defaultCachePolicy()
+		} else {
+			if !l.loaded || l.stamp != [3]int64{} || l.good {
+				log.Printf("cache policy %s %s, using defaults with defaultTrust untrusted: %v", file, why, err)
+			}
+			l.pol = failClosedCachePolicy()
+		}
+		l.loaded, l.stamp, l.good = true, [3]int64{}, false
+		return l.pol
+	}
+	if share == hostConfigUnavailable {
+		return none("not shared (the host config share did not mount)", errors.New(share))
+	}
 	var st syscall.Stat_t
 	if err := syscall.Stat(file, &st); err != nil {
-		if l.loaded && l.stamp != [3]int64{} {
-			log.Printf("cache policy %s unavailable, using defaults: %v", file, err)
+		if share != "" && l.good && !errors.Is(err, syscall.ENOENT) {
+			log.Printf("cache policy %s unreadable, keeping the last policy read: %v", file, err)
+			return l.pol
 		}
-		l.pol, l.loaded, l.stamp = defaultCachePolicy(), true, [3]int64{}
-		return l.pol
+		return none("unavailable", err)
 	}
 	stamp := [3]int64{int64(st.Ino), st.Size, st.Mtim.Nano()}
 	if l.loaded && stamp == l.stamp {
 		return l.pol
 	}
-	l.stamp, l.loaded = stamp, true
 	b, err := os.ReadFile(file)
+	if err != nil {
+		if share != "" && l.good && !errors.Is(err, os.ErrNotExist) {
+			log.Printf("cache policy %s unreadable, keeping the last policy read: %v", file, err)
+			return l.pol
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			return none("unavailable", err)
+		}
+	}
+	l.stamp, l.loaded = stamp, true
 	if err == nil {
 		l.pol, err = parseCachePolicy(b)
 	}
+	l.good = err == nil
 	if err != nil {
 		log.Printf("cache policy %s invalid, using defaults with defaultTrust untrusted: %v", file, err)
 		l.pol = failClosedCachePolicy()
@@ -1267,6 +1332,31 @@ func requestCacheValue(spec dockerConfig) string {
 	return v
 }
 
+// requestScope is the cache scope a create names: io.micropod.cache.scope, or
+// MICROPOD_CACHE_SCOPE for env-only clients while the policy trusts by
+// default. Under an untrusted default the request's environment names no
+// scope, as it names no tier (resolveCacheTrust): it is the job's own, so a
+// job could otherwise read another project's stores by naming its scope.
+func requestScope(pol cachePolicy, spec dockerConfig) (string, bool) {
+	if scope, ok := cacheLabel(spec.Labels, "io.micropod.cache.scope", "com.micropod.cache.scope"); ok {
+		return scope, true
+	}
+	if pol.untrustedByDefault() {
+		return "", false
+	}
+	return envLookup(spec.Env, "MICROPOD_CACHE_SCOPE", false)
+}
+
+// containerScope is the scope a container's caches belong to whether or not
+// anything attaches: the one it names (requestScope), else the policy's
+// default. A reader's alias volumes must name it (openMounts).
+func containerScope(pol cachePolicy, spec dockerConfig) string {
+	if scope, named := requestScope(pol, spec); named {
+		return scope
+	}
+	return pol.DefaultScope
+}
+
 // cacheRequest is what a create brings besides its config and the image facts.
 type cacheRequest struct {
 	origin cacheOrigin
@@ -1323,10 +1413,7 @@ func decideCachesFor(pol cachePolicy, spec dockerConfig, facts imageFacts, req c
 		return plan, nil
 	}
 	// (1) scope
-	scope, named := cacheLabel(spec.Labels, "io.micropod.cache.scope", "com.micropod.cache.scope")
-	if !named {
-		scope, named = envLookup(spec.Env, "MICROPOD_CACHE_SCOPE", false)
-	}
+	scope, named := requestScope(pol, spec)
 	if named {
 		if !scopeName.MatchString(scope) || !pol.allows(scope) {
 			return plan, fail(400, "cache scope not allowed by machine policy")

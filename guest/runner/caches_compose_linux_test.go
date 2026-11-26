@@ -133,7 +133,8 @@ func TestCacheUntrustedViewOverAStoreWhileTheJanitorRuns(t *testing.T) {
 	if marked("default", "gomod") || marked("default", "gobuild") {
 		t.Fatal("an untrusted start marked a trusted store dirty")
 	}
-	if root, src := mountAt(t, a, cacheMountRoot); !root.Readonly || src != filepath.Join(cacheRoot, "scopes/default") {
+	// A reader sees its own directory of mount points, not the scope.
+	if root, src := mountAt(t, a, cacheMountRoot); !root.Readonly || src != filepath.Join(shim, "ro-scope-default") {
 		t.Fatalf("scope root %+v from %s", root, src)
 	}
 	view, src := mountAt(t, a, cacheMountRoot+"/gomod")
@@ -293,12 +294,12 @@ func TestCacheYarnV1ConcurrencyUnderOneLockScheme(t *testing.T) {
 		t.Fatalf("prune: %+v %v", res, err)
 	}
 
-	// The writer exits. The reader still holds the unit: to a clearer it may
-	// be a writer, so the mark stays.
+	// The writer exits. The reader still holds the unit but took no mark
+	// lock, so the clearer knows no writer is left: the mark goes.
 	a.touchAll()
 	a.close()
-	if err := cacheDirty.syncOnce(); err != nil || !marked("default", unit) {
-		t.Fatalf("mark cleared under a reader: %v", err)
+	if err := cacheDirty.syncOnce(); err != nil || marked("default", unit) {
+		t.Fatalf("mark kept for a reader: %v", err)
 	}
 	// The slot is free (the reader never took it); the next start writes.
 	c := start("c")
@@ -306,8 +307,8 @@ func TestCacheYarnV1ConcurrencyUnderOneLockScheme(t *testing.T) {
 	if c.access["yarn"] != "" || len(c.pins) != 1 || !c.pins[0].writer {
 		t.Fatalf("next writer: access %v pins %+v", c.access, c.pins)
 	}
-	if markIno(t, "default", unit) == ino {
-		t.Fatal("the next writer did not renew the mark")
+	if !marked("default", unit) {
+		t.Fatal("the next writer did not mark the unit")
 	}
 	c.close()
 	b.close()
@@ -553,38 +554,47 @@ func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
 
 // A read-only alias volume (and a docker cp out of one) holds its kind
 // without a mark and, like every reader, never creates or repairs anything in
-// a store: a missing store is an empty private directory of the container's,
-// a store whose modes drifted keeps them, and a non-directory planted where a
-// store belongs stays where it is. A create's probe holds and opens nothing.
+// a store: a missing store is an empty private directory of the container's
+// (held by nobody, with no scope or lock file made for it), a store whose
+// modes drifted keeps them, and a non-directory planted where a store belongs
+// stays where it is. A create's probe holds and opens nothing.
 func TestCacheAliasReaderNeverCreatesOrRepairsTheStore(t *testing.T) {
 	useFence(t, "boot-a")
 	eng := &dockerEngine{}
 	priv := filepath.Join(filepath.Dir(cacheRoot), "c", "shim")
+	// A reader mounts the alias volumes of its own scope only.
 	reader := func(bind string) dockerConfig {
-		return dockerConfig{Labels: map[string]string{"io.micropod.cache.trust": "untrusted"}, HostConfig: dockerHost{Binds: []string{bind}}}
+		return dockerConfig{Labels: map[string]string{"io.micropod.cache.trust": "untrusted", "io.micropod.cache.scope": "other"}, HostConfig: dockerHost{Binds: []string{bind}}}
 	}
-	open := func(bind string) ([]*os.File, []*cri.Mount, []cachePin) {
+	openN := func(bind string, held int) ([]*os.File, []*cri.Mount, []cachePin) {
 		t.Helper()
 		files, mounts, pins, err := eng.openMounts(reader(bind), rulesFor(t, reader(bind)), false, "", priv)
-		if err != nil || len(files) != 1 || len(pins) != 1 || pins[0].writer || !mounts[0].Readonly {
+		if err != nil || len(files) != 1 || len(pins) != held || !mounts[0].Readonly {
 			t.Fatalf("%s: files %d pins %+v mounts %+v: %v", bind, len(files), pins, mounts, err)
 		}
-		if _, err := unitLock(pins[0].scope, pins[0].unit, true); !errors.Is(err, unix.EWOULDBLOCK) {
-			t.Fatalf("%s: the reader does not hold its kind: %v", bind, err)
-		}
-		if marked(pins[0].scope, pins[0].unit) {
-			t.Fatalf("%s: a reader marked the store", bind)
+		for _, pin := range pins {
+			if pin.writer {
+				t.Fatalf("%s: a reader's pin is a writer's", bind)
+			}
+			if _, err := unitLock(pin.scope, pin.unit, true); !errors.Is(err, unix.EWOULDBLOCK) {
+				t.Fatalf("%s: the reader does not hold its kind: %v", bind, err)
+			}
+			if marked(pin.scope, pin.unit) {
+				t.Fatalf("%s: a reader marked the store", bind)
+			}
 		}
 		return files, mounts, pins
 	}
+	open := func(bind string) ([]*os.File, []*cri.Mount, []cachePin) { t.Helper(); return openN(bind, 1) }
 
-	// No store yet: nothing is created in the scope a reader names.
-	files, _, pins := open("micropod-ci-scoped-other-pnpm:/x:ro")
+	// No store yet: nothing is created in the scope a reader names, not
+	// even the scope or a lock file.
+	files, _, pins := openN("micropod-ci-scoped-other-pnpm:/x:ro", 0)
 	if src := fdTarget(t, files[0]); src != filepath.Join(priv, "ro-empty-alias-other-pnpm") {
 		t.Fatalf("missing store bound from %s", src)
 	}
-	if exists(filepath.Join(cacheRoot, "scopes/other/pnpm")) {
-		t.Fatal("a reader created the store")
+	if exists(filepath.Join(cacheRoot, "scopes/other")) || exists(filepath.Join(cacheRoot, ".meta/other")) {
+		t.Fatal("a reader created the scope")
 	}
 	releasePins(pins)
 	closeMounts(files)
@@ -616,7 +626,10 @@ func TestCacheAliasReaderNeverCreatesOrRepairsTheStore(t *testing.T) {
 	if err := os.WriteFile(planted, []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	files, _, pins = open("micropod-ci-scoped-other-cargo:/c:ro")
+	files, _, pins = openN("micropod-ci-scoped-other-cargo:/c:ro", 0)
+	if exists(filepath.Join(cacheRoot, ".meta/other/cargo.lock")) {
+		t.Fatal("a reader made a lock file for a store that is not there")
+	}
 	if st, err := os.Lstat(planted); err != nil || !st.Mode().IsRegular() {
 		t.Fatalf("a reader moved the planted file: %v", err)
 	}
@@ -628,7 +641,7 @@ func TestCacheAliasReaderNeverCreatesOrRepairsTheStore(t *testing.T) {
 
 	// A docker cp out of a stopped container's alias volume reads the same way.
 	f, cpPins, err := eng.openDockerMount(dockerMount{Type: "volume", Source: "micropod-ci-scoped-other-npm", Target: "/n"}, false, aliasRead, priv)
-	if err != nil || len(cpPins) != 1 || cpPins[0].writer || exists(filepath.Join(cacheRoot, "scopes/other/npm")) {
+	if err != nil || len(cpPins) != 0 || exists(filepath.Join(cacheRoot, "scopes/other/npm")) {
 		t.Fatalf("docker cp out: %v %+v", err, cpPins)
 	}
 	f.Close()

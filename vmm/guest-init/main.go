@@ -413,31 +413,34 @@ func mustMount(src, dst, fstype string, flags uintptr, data string) {
 
 // mountHostConfig mounts the host config share read-only at
 // /run/micropod/host-config, before start.sh so the engine's mount namespace
-// has it. The engine falls back to its built-in policy without it, so a
-// failure is reported (console marker included) but the boot goes on.
-func mountHostConfig(params map[string]string) {
+// has it, and returns what the engine is told about it (hostConfigState). A
+// failure is reported (console marker included) but the boot goes on; the
+// engine's cache policy then fails closed (no container is trusted by
+// default), as the host asked for a policy the engine cannot read.
+func mountHostConfig(params map[string]string) string {
 	requested, err := hostConfigRequested(params)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[mp-hvf-init] %v; no host config share\n", err)
 	}
 	if !requested {
-		return
+		return hostConfigState(false, false)
 	}
 	if err := os.MkdirAll(hostConfigMount, 0755); err != nil {
 		reportGuestFailure("config-share", fmt.Sprintf("mkdir %s: %v", hostConfigMount, err))
-		return
+		return hostConfigState(true, false)
 	}
 	flags := uintptr(syscall.MS_RDONLY | syscall.MS_NOSUID | syscall.MS_NODEV | syscall.MS_NOEXEC)
 	if err := syscall.Mount(hostConfigTag, hostConfigMount, "virtiofs", flags, ""); err != nil {
 		reportGuestFailure("config-share",
-			fmt.Sprintf("mount %s at %s: %v; the engine uses its built-in policy", hostConfigTag, hostConfigMount, err))
-		return
+			fmt.Sprintf("mount %s at %s: %v; the engine's cache policy fails closed", hostConfigTag, hostConfigMount, err))
+		return hostConfigState(true, false)
 	}
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(hostConfigMount, &st); err == nil {
 		fmt.Printf("[mp-hvf-init] host config: %s ro=%t nosuid=%t nodev=%t noexec=%t\n", hostConfigMount,
 			st.Flags&stRdonly != 0, st.Flags&stNosuid != 0, st.Flags&stNodev != 0, st.Flags&stNoexec != 0)
 	}
+	return hostConfigState(true, true)
 }
 
 // cacheDisk is what became of the persistent cache disk this boot
@@ -594,7 +597,11 @@ func stage2Supervise() {
 				workspace, st.Flags&stNosuid != 0, st.Flags&stNodev != 0)
 		}
 	}
-	mountHostConfig(params)
+	hostConfig := mountHostConfig(params)
+	privateRoot, err := parsePrivateRoot(params, workspace)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] %v; the machine directory is not protected from binds\n", err)
+	}
 	cacheDisk = mountPersistentCacheDisk(params)
 
 	// Bring up loopback, eth0 (egress 10.42.0.2/24 via 10.42.0.1) and, with
@@ -656,6 +663,12 @@ func stage2Supervise() {
 	}
 	if workspace != "" {
 		env = append(env, "MICROPOD_ENGINE_WORKSPACE="+workspace)
+	}
+	if hostConfig != "" {
+		env = append(env, hostConfigEnv+"="+hostConfig)
+	}
+	if privateRoot != "" {
+		env = append(env, privateRootEnv+"="+privateRoot)
 	}
 	if cacheDisk != cacheDiskNone {
 		env = append(env, cacheDiskEnv+"="+cacheDisk)

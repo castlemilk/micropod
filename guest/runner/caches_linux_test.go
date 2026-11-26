@@ -1125,5 +1125,5 @@ func rulesFor(t *testing.T, spec dockerConfig) cacheVolumeRules {
 	if err != nil {
 		t.Fatalf("decideCaches: %v", err)
 	}
-	return volumeRules(defaultCachePolicy(), &plan)
+	return volumeRules(defaultCachePolicy(), spec, &plan)
 }

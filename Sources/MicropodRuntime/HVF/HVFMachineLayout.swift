@@ -478,6 +478,20 @@ public enum HVFVMMCommand {
     /// shared caches off for the boot instead of creating stores on the OS
     /// disk below the mount point.
     public static let cacheDiskBootArgument = "mp.cache_disk=1"
+    /// Names the machine root for guest init (`mp.private_b64`, base64 with a
+    /// trailing "." as micropod-vmm writes `mp.workspace_b64`) when it lies
+    /// inside the workspace share, as the standard machine's `~/.micropod/hvf`
+    /// does in the default home-directory workspace. The guest engine then
+    /// refuses a bind source inside it and hides it in a bind that covers it,
+    /// so no container reaches machine.json, the disks or the host-owned cache
+    /// policy through the workspace.
+    public static func privateRootBootArgument(root: URL, workspace: String?) -> String? {
+        guard let workspace, !workspace.isEmpty else { return nil }
+        let rootPath = HVFMachineLayout.canonicalPath(root.path)
+        let share = HVFMachineLayout.canonicalPath(workspace)
+        guard share == "/" || rootPath == share || rootPath.hasPrefix(share + "/") else { return nil }
+        return "mp.private_b64=\(Data(rootPath.utf8).base64EncodedString())."
+    }
 
     /// The full micropod-vmm argv (without the executable) for `config`,
     /// booting `payload` (default: `layout.resolvePayload()`, resolved once).
@@ -512,6 +526,9 @@ public enum HVFVMMCommand {
         // Before the configured arguments, so one of them can still override it.
         args += ["--cmdline-append", configBootArgument]
         if cacheDisk { args += ["--cmdline-append", cacheDiskBootArgument] }
+        if let privateRoot = privateRootBootArgument(root: layout.root, workspace: config.workspace) {
+            args += ["--cmdline-append", privateRoot]
+        }
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
         if !config.console { args.append("--quiet") }
         args += [

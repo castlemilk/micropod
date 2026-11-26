@@ -185,6 +185,34 @@ final class HVFMachineTests: XCTestCase {
             defaults.firstIndex(of: "--workspace").map { defaults[$0 + 1] }, HVFMachineConfig.defaultWorkspace)
     }
 
+    /// The standard machine's root sits in the default workspace (the home
+    /// directory): the guest is told where, so no bind reaches it. A root
+    /// outside the workspace, or no workspace, names nothing.
+    func testTheMachineRootIsNamedToTheGuestWhenTheWorkspaceHoldsIt() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let canonical = HVFMachineLayout.canonicalPath(root.path)
+        let parent = (canonical as NSString).deletingLastPathComponent
+        let expected = "mp.private_b64=\(Data(canonical.utf8).base64EncodedString())."
+        let inside = try HVFVMMCommand.arguments(
+            layout: layout, config: HVFMachineConfig(workspace: parent), parentPID: 1)
+        let joined = inside.joined(separator: "|")
+        XCTAssertTrue(joined.contains("--cmdline-append|mp.config=1|--cmdline-append|\(expected)"), joined)
+        XCTAssertEqual(
+            HVFVMMCommand.privateRootBootArgument(root: root, workspace: canonical), expected,
+            "the root as the workspace itself")
+        for workspace in [nil, "", "/nonexistent/elsewhere", canonical + "-sibling"] {
+            XCTAssertNil(
+                HVFVMMCommand.privateRootBootArgument(root: root, workspace: workspace),
+                "\(String(describing: workspace))")
+        }
+        let outside = try HVFVMMCommand.arguments(
+            layout: layout, config: HVFMachineConfig(workspace: nil), parentPID: 1)
+        XCTAssertFalse(outside.contains { $0.hasPrefix("mp.private_b64=") })
+        // Guest init decodes it strictly: standard base64, a trailing ".".
+        let value = String(expected.dropFirst("mp.private_b64=".count).dropLast())
+        XCTAssertEqual(Data(base64Encoded: value).map { String(decoding: $0, as: UTF8.self) }, canonical)
+    }
+
     func testCacheDiskIsAttachedAndAnnouncedToTheGuest() throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let without = try HVFVMMCommand.arguments(

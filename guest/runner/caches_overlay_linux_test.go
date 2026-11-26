@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -231,5 +232,139 @@ func TestCacheReaderOfAMissingEnvStoreLeavesItOut(t *testing.T) {
 	defer b.close()
 	if len(b.mounts) != 0 || b.skipped["pip"] != skipNoStore {
 		t.Fatalf("fresh scope: mounts %+v skipped %v", b.mounts, b.skipped)
+	}
+}
+
+// A reader sees at the scope's mount point only the mount points of the units
+// it reads: not the stores of tools it did not select, not another uid's
+// partition, whatever scope it named. A writer still sees its scope.
+func TestCacheReaderSeesOnlyItsOwnUnits(t *testing.T) {
+	useFence(t, "boot-a")
+	useOverlay(t)
+	fillStore(t, "marker", "trusted") // default/gomod and default/gobuild
+	for _, d := range []string{"scopes/default/cargo/registry", "scopes/default/pip/u1000"} {
+		if err := os.MkdirAll(filepath.Join(cacheRoot, d), 0777); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(cacheRoot, "scopes/default/pip/u1000/secret"), []byte("other uid"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	shim := filepath.Join(filepath.Dir(cacheRoot), "c6", "shim")
+	plan := decide(t, defaultCachePolicy(), dockerConfig{Labels: map[string]string{
+		"io.micropod.cache": "gomod,pip", "io.micropod.cache.trust": "untrusted",
+	}}, testFacts(golangEnv, nil))
+	a := openCacheMounts(&plan, shim)
+	defer a.close()
+	m, src := mountAt(t, a, cacheMountRoot)
+	if !m.Readonly || src != filepath.Join(shim, "ro-scope-default") {
+		t.Fatalf("scope mount %+v -> %s", m, src)
+	}
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if strings.Join(names, ",") != "gomod" {
+		t.Fatalf("the reader's scope shows %v, want only gomod", names)
+	}
+	if _, view := mountAt(t, a, cacheMountRoot+"/gomod"); view == "" {
+		t.Fatal("no view of gomod")
+	}
+	a.release()
+	if exists(src) {
+		t.Fatal("the reader's scope directory outlived its start")
+	}
+	w := goPlan(t, "default")
+	b := openCacheMounts(&w, "")
+	defer b.close()
+	if _, src := mountAt(t, b, cacheMountRoot); src != filepath.Join(cacheRoot, "scopes/default") {
+		t.Fatalf("a writer's scope mount -> %s", src)
+	}
+}
+
+// A reader leaves nothing on the cache disk for a scope or a store nobody
+// wrote: no scope directory, no .meta, no lock or stamp file.
+func TestCacheReaderLeavesNoTraceOfMissingScopesAndStores(t *testing.T) {
+	useFence(t, "boot-a")
+	useOverlay(t)
+	fillStore(t, "marker", "trusted")
+	for i, scope := range []string{"nobody-wrote-this", "default"} {
+		plan := decide(t, defaultCachePolicy(), dockerConfig{Labels: map[string]string{
+			"io.micropod.cache": "gomod,pip,cargo", "io.micropod.cache.trust": "untrusted", "io.micropod.cache.scope": scope,
+		}}, testFacts(append([]string{"CARGO_HOME=/usr/local/cargo"}, golangEnv...), map[string]pathFact{"/usr/local/cargo": dirFact}))
+		a := openCacheMounts(&plan, filepath.Join(filepath.Dir(cacheRoot), "c7", strconv.Itoa(i), "shim"))
+		if a.skipped["pip"] != skipNoStore {
+			t.Fatalf("%s: skipped %v", scope, a.skipped)
+		}
+		a.touchAll()
+		a.close()
+	}
+	for _, p := range []string{"scopes/nobody-wrote-this", ".meta/nobody-wrote-this", ".meta/default/pip.u0.lock", ".meta/default/pip.u0.used", ".meta/default/cargo.lock", ".meta/default/cargo.used"} {
+		if exists(filepath.Join(cacheRoot, p)) {
+			t.Fatalf("a reader made %s", p)
+		}
+	}
+	// An alias volume of a store nobody wrote is a private empty directory,
+	// with no scope or lock made for it.
+	priv := filepath.Join(filepath.Dir(cacheRoot), "c8")
+	f, pins, err := openAliasStore("nobody-either", "gomod", aliasRead, priv)
+	if err != nil || len(pins) != 0 || !strings.HasPrefix(f.Name(), priv) {
+		t.Fatalf("alias read %v %v %v", f, pins, err)
+	}
+	f.Close()
+	if f, _, err = openAliasStore("nobody-either", "gomod", aliasProbe, ""); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	if exists(filepath.Join(cacheRoot, "scopes/nobody-either")) || exists(filepath.Join(cacheRoot, ".meta/nobody-either")) {
+		t.Fatal("an alias reader or probe made the scope")
+	}
+}
+
+// A reader that holds a unit (a sleeping untrusted container) never keeps a
+// writer's mark alive: once the writer exited the clearer clears it, so an
+// unclean stop then cannot discard the store on the reader's account.
+func TestCacheReaderDoesNotKeepAWritersMark(t *testing.T) {
+	useFence(t, "boot-a")
+	useOverlay(t)
+	fillStore(t, "marker", "trusted")
+	w := goPlan(t, "default")
+	writer := openCacheMounts(&w, "")
+	if !marked("default", "gomod") {
+		t.Fatal("the writer made no mark")
+	}
+	r := untrustedGoPlan(t, "default")
+	reader := openCacheMounts(&r, filepath.Join(filepath.Dir(cacheRoot), "c9", "shim"))
+	defer reader.close()
+	if !unitLockHeld("default", "gomod") {
+		t.Fatal("the reader does not hold the store")
+	}
+	writer.close()
+	if err := cacheDirty.syncOnce(); err != nil {
+		t.Fatal(err)
+	}
+	if marked("default", "gomod") {
+		t.Fatal("a reader's hold kept the writer's mark")
+	}
+	// While a writer still holds it, the mark stays.
+	w2 := openCacheMounts(&w, "")
+	other := openCacheMounts(&w, "")
+	w2.close()
+	if err := cacheDirty.syncOnce(); err != nil {
+		t.Fatal(err)
+	}
+	if !marked("default", "gomod") {
+		t.Fatal("cleared while another writer holds the unit")
+	}
+	other.close()
+	if err := cacheDirty.syncOnce(); err != nil {
+		t.Fatal(err)
+	}
+	if marked("default", "gomod") {
+		t.Fatal("not cleared once the last writer exited")
 	}
 }

@@ -120,3 +120,44 @@ func TestPrepareWorkspaceMountRejectsSymlinks(t *testing.T) {
 		t.Fatalf("workspace mount preparation followed a symlink: %v", err)
 	}
 }
+
+// The engine learns what became of the host config share, so its cache
+// policy fails closed whenever the host asked for one.
+func TestHostConfigState(t *testing.T) {
+	for _, tc := range []struct {
+		requested, mounted bool
+		want               string
+	}{{false, false, ""}, {false, true, ""}, {true, true, "mounted"}, {true, false, "unavailable"}} {
+		if got := hostConfigState(tc.requested, tc.mounted); got != tc.want {
+			t.Fatalf("hostConfigState(%v, %v) = %q, want %q", tc.requested, tc.mounted, got, tc.want)
+		}
+	}
+}
+
+// mp.private_b64 names the machine directory to the engine only when it lies
+// in the workspace, and only as a canonical absolute path.
+func TestParsePrivateRoot(t *testing.T) {
+	enc := func(p string) string { return base64.StdEncoding.EncodeToString([]byte(p)) + "." }
+	for _, tc := range []struct {
+		name, args, workspace, want string
+		invalid                     bool
+	}{
+		{name: "standard machine", args: "mp.private_b64=" + enc("/Users/me/.micropod/hvf"), workspace: "/Users/me", want: "/Users/me/.micropod/hvf"},
+		{name: "the workspace itself", args: "mp.private_b64=" + enc("/Users/me"), workspace: "/Users/me", want: "/Users/me"},
+		{name: "outside the workspace", args: "mp.private_b64=" + enc("/private/tmp/m"), workspace: "/Users/me"},
+		{name: "a sibling prefix", args: "mp.private_b64=" + enc("/Users/me2/m"), workspace: "/Users/me"},
+		{name: "no workspace", args: "mp.private_b64=" + enc("/Users/me/.micropod/hvf")},
+		{name: "old host", args: "mp.config=1", workspace: "/Users/me"},
+		{name: "cut off", args: "mp.private_b64=" + strings.TrimSuffix(enc("/Users/me/x"), "."), workspace: "/Users/me", invalid: true},
+		{name: "not base64", args: "mp.private_b64=@@.", workspace: "/Users/me", invalid: true},
+		{name: "relative", args: "mp.private_b64=" + enc("me/x"), workspace: "/Users/me", invalid: true},
+		{name: "unclean", args: "mp.private_b64=" + enc("/Users/me/../x"), workspace: "/Users/me", invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parsePrivateRoot(cmdlineParams(strings.Fields(tc.args)), tc.workspace)
+			if got != tc.want || (err != nil) != tc.invalid {
+				t.Fatalf("parsePrivateRoot(%q, %q) = %q, %v; want %q, invalid %v", tc.args, tc.workspace, got, err, tc.want, tc.invalid)
+			}
+		})
+	}
+}

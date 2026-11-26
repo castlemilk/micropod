@@ -222,7 +222,7 @@ func TestCacheScopeAllowListCoversDefaultsAndAliasVolumes(t *testing.T) {
 	for _, bind := range []string{"micropod-ci-scoped-other-gomod:/go/pkg/mod", "micropod-ci-scoped-other-gomod:/go/pkg/mod:ro"} {
 		spec := dockerConfig{HostConfig: dockerHost{Binds: []string{bind}}}
 		for _, create := range []bool{true, false} {
-			_, _, _, err := eng.openMounts(spec, volumeRules(pol, &plan), create, "", t.TempDir())
+			_, _, _, err := eng.openMounts(spec, volumeRules(pol, spec, &plan), create, "", t.TempDir())
 			var api apiError
 			if !errors.As(err, &api) || api.code != 400 || !strings.Contains(err.Error(), "does not allow") {
 				t.Fatalf("%s (create %v): %v", bind, create, err)
@@ -247,7 +247,7 @@ func TestCacheUntrustedByDefaultAliasAndArchive(t *testing.T) {
 	s := &dockerEngine{workspace: t.TempDir(), cachePolicy: policyLoader{path: policyFile}}
 	spec := dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/go/pkg/mod"}}}
 	plan := decide(t, untrustedPolicy(), spec, imageFacts{})
-	if _, _, _, err := s.openMounts(spec, volumeRules(untrustedPolicy(), &plan), true, "", ""); err == nil || !strings.Contains(err.Error(), "read-write") {
+	if _, _, _, err := s.openMounts(spec, volumeRules(untrustedPolicy(), spec, &plan), true, "", ""); err == nil || !strings.Contains(err.Error(), "read-write") {
 		t.Fatalf("an unlabeled container under defaultTrust=untrusted mounted an alias read-write: %v", err)
 	}
 	if _, err := ensureStore("default", "gomod", nil); err != nil {
