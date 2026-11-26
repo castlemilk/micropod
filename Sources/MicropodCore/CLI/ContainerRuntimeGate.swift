@@ -27,4 +27,13 @@ public protocol ContainerRuntimeGate: Sendable {
     /// A command that can change whether the runtime runs (`system start`,
     /// `system stop`) finished, whatever its outcome: forget what was known.
     func runtimeMayHaveChanged()
+    /// The apiserver just answered another client of this process (the
+    /// native backend's own XPC ping): it is up now, whatever an older
+    /// observation said.
+    func runtimeAnswered()
+}
+
+extension ContainerRuntimeGate {
+    /// A gate that keeps no state of its own forgets what it knew.
+    public func runtimeAnswered() { runtimeMayHaveChanged() }
 }

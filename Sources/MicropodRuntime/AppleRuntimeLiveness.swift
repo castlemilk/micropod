@@ -97,6 +97,18 @@ public final class AppleRuntimeLiveness: ContainerRuntimeGate {
 
     public func runtimeIsKnownDown() -> Bool { knownState() == .down }
 
+    /// Up as of now: the backend's own ping just reached the apiserver. A
+    /// `down` observed a moment before (the runtime started outside this
+    /// process) must not refuse the commands of the backend that ping just
+    /// chose, such as the init image read behind a create.
+    public func runtimeAnswered() {
+        inner.withLock { inner in
+            inner.generation += 1
+            inner.observed = Observation(state: .up, health: inner.observed?.health, at: .now)
+            inner.probe = nil
+        }
+    }
+
     public func runtimeMayHaveChanged() {
         inner.withLock { inner in
             inner.generation += 1

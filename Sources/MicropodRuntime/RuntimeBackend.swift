@@ -132,6 +132,10 @@ public enum RuntimeBackendResolver {
         let api = APIServerClient()
         do {
             let health = try await api.ping(timeout: pingTimeout)
+            // The gate in front of `client` may still hold a `down` from
+            // before the runtime came up: the init image read below goes
+            // through it.
+            client.runtimeAnswered()
             let exitCodes = ExitCodeRegistry()
             let initImageDefault = RuntimeDefaultInitImage.reading(MachineService(client: client))
             let services = RuntimeServices(

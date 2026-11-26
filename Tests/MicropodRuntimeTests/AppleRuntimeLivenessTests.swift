@@ -160,6 +160,34 @@ final class AppleRuntimeLivenessTests: XCTestCase {
         XCTAssertEqual(started, .up, "system start forgets the down state")
     }
 
+    /// The runtime came up outside the API: the native backend's own ping
+    /// answered, while the gate still held a `down` under 2 s old. The
+    /// commands behind that backend (the init image read for a create)
+    /// must not be refused by it.
+    func testAPingThatReachedTheApiserverOverridesAFreshDown() async throws {
+        let cli = try stoppedCLI()
+        let probe = ScriptedProbe(.down)
+        let liveness = AppleRuntimeLiveness(maxAge: .seconds(60), probe: probe.answer)
+        let client = ContainerCLIClient(executableURL: cli).gated(by: liveness)
+        let down = await liveness.state()
+        XCTAssertEqual(down, .down)
+        do {
+            _ = try await client.run(ContainerCommandFactory.listProperties())
+            XCTFail("a down runtime refuses the property read")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "unavailable")
+        }
+        XCTAssertEqual(spawned, [])
+
+        client.runtimeAnswered()
+        XCTAssertEqual(liveness.knownState(), .up)
+        let up = await liveness.state()
+        XCTAssertEqual(up, .up)
+        _ = try? await client.run(ContainerCommandFactory.listProperties())
+        XCTAssertEqual(spawned.count, 1, "the read is attempted: \(spawned)")
+        XCTAssertEqual(probe.calls, 1, "no probe was needed")
+    }
+
     func testAnUnknownOrExpiredStateNeverRefuses() async throws {
         let probe = ScriptedProbe(.unknown)
         let liveness = AppleRuntimeLiveness(maxAge: .seconds(60), probe: probe.answer)
