@@ -280,9 +280,11 @@ enum CacheCommands {
         }
     }
 
-    private static func handlePrune(
-        _ args: [String], client: HVFMachineClient, environment: [String: String], json: Bool
-    ) async throws {
+    /// `cache prune`'s request. The command prunes unless `--dry-run` is
+    /// given, and says which on the wire every time (`dryRun` is always
+    /// sent), so it never depends on what the receiving end assumes when
+    /// the field is missing — the API routes assume a dry run.
+    static func pruneRequest(_ args: [String]) throws -> HVFCachePruneRequest {
         let parsed = try parseArgs(
             args, boolFlags: ["--dry-run"],
             valueFlags: ["--scope", "--tool", "--older-than", "--max-bytes", "--partial"],
@@ -308,6 +310,13 @@ enum CacheCommands {
             default: throw UsageError(message: "cache prune: --partial wants on or off, got '\(raw)'")
             }
         }
+        return req
+    }
+
+    private static func handlePrune(
+        _ args: [String], client: HVFMachineClient, environment: [String: String], json: Bool
+    ) async throws {
+        let req = try pruneRequest(args)
         let active = resolveClient(client, environment: environment)
         let res = try await active.cachePrune(req)
         if json {
