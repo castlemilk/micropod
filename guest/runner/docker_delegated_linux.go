@@ -23,8 +23,8 @@ import (
 // caches, metrics, traces, the container summary) are refused (403), and any
 // other route this file does not name is answered as one the engine does not
 // implement (501). What the owner creates is capped at its tier
-// (cacheOrigin) and binds only paths inside the owner's own binds
-// (delegatedBinds).
+// (cacheOrigin), stays in its cache scope (decideCachesFor) and binds only
+// paths inside the owner's own binds (delegatedBinds).
 //
 // Images and the BuildKit cache are the machine's: a pull, build, load, tag
 // or image removal through the socket changes them for every job, as a

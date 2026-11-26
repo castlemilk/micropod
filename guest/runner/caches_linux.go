@@ -157,11 +157,14 @@ const (
 // has no vsock loopback). Every other way in, such as the Testcontainers
 // cleanup socket bound into a Ryuk container, is a container's: creatorTier
 // is the tier of the container that owns that socket ("" when it is not
-// known, which counts as untrusted).
+// known, which counts as untrusted) and creatorScope its cache scope, the
+// only one a container it creates may be in ("" for none: an unknown
+// creator's children get no scope).
 type cacheOrigin struct {
-	hostFacing  bool
-	creator     string
-	creatorTier string
+	hostFacing   bool
+	creator      string
+	creatorTier  string
+	creatorScope string
 }
 
 type cacheOriginKey struct{}
@@ -1441,6 +1444,16 @@ func decideCachesFor(pol cachePolicy, spec dockerConfig, facts imageFacts, req c
 		return plan, err
 	}
 	plan.Trust, plan.TrustFrom, plan.ReadOnly = planTier(tier), from, tier != trustTrusted
+	// A container created through a container's socket is in its creator's
+	// scope, whether or not anything attaches (alias volumes follow
+	// plan.Scope, volumeRules): naming another would open that project's
+	// stores to it, as MICROPOD_CACHE_SCOPE would under an untrusted default.
+	if !req.origin.hostFacing {
+		if named, ok := requestScope(pol, spec); ok && named != req.origin.creatorScope {
+			return plan, fail(403, fmt.Sprintf("a container created through a container's Docker socket is in that container's cache scope %q; it cannot name scope %q", req.origin.creatorScope, named))
+		}
+		plan.Scope = req.origin.creatorScope
+	}
 	// (0) everything off
 	selection := requestCacheValue(spec)
 	switch {
@@ -1466,7 +1479,15 @@ func decideCachesFor(pol cachePolicy, spec dockerConfig, facts imageFacts, req c
 	}
 	// (1) scope
 	scope, named := requestScope(pol, spec)
-	if named {
+	if !req.origin.hostFacing {
+		// The creator's (checked above), which the host's policy admitted
+		// for the creator; a policy since narrowed attaches nothing.
+		scope = req.origin.creatorScope
+		if scope != "" && !pol.allows(scope) {
+			plan.Reason = planScopeNotAllowed
+			return plan, nil
+		}
+	} else if named {
 		if !scopeName.MatchString(scope) || !pol.allows(scope) {
 			return plan, fail(400, "cache scope not allowed by machine policy")
 		}

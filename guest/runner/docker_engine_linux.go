@@ -722,6 +722,10 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	if !req.origin.hostFacing && req.origin.creator != "" {
 		s.mu.Lock()
 		if creator := s.containers[req.origin.creator]; creator != nil {
+			req.origin.creatorScope = containerScope(pol, creator.Config)
+			if creator.Cache != nil && creator.Cache.Scope != "" {
+				req.origin.creatorScope = creator.Cache.Scope // decided at its create
+			}
 			req.origin.creatorTier = trustTrusted
 			if creator.cacheReadOnly(pol) {
 				// A reader's own name for its tier (readonly or untrusted);

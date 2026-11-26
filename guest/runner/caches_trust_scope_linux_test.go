@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -144,5 +145,58 @@ func TestCachePolicyFailsClosedOnTheHostConfigShare(t *testing.T) {
 	// Without a share an unreadable path is still the shipped default.
 	if (&policyLoader{path: filepath.Join(good, "cache-policy.json", "x")}).get().untrustedByDefault() {
 		t.Fatal("no share: an unreadable path")
+	}
+}
+
+// A child of a delegated socket is in its creator's cache scope: naming
+// another is refused, naming none is the creator's, and its alias volumes
+// follow it even with caches off.
+func TestDelegatedChildStaysInItsCreatorsScope(t *testing.T) {
+	facts := testFacts(golangEnv, nil)
+	req := cacheRequest{origin: cacheOrigin{creator: "c0ffee", creatorTier: trustTrusted, creatorScope: "proj-a"}}
+	named := func(scope string, extra ...string) dockerConfig {
+		labels := map[string]string{"io.micropod.cache.scope": scope}
+		for i := 0; i+1 < len(extra); i += 2 {
+			labels[extra[i]] = extra[i+1]
+		}
+		return dockerConfig{Image: "golang:1", Labels: labels}
+	}
+	for _, spec := range []dockerConfig{named("proj-b"), named("proj-b", "io.micropod.cache", "off"),
+		{Image: "golang:1", Env: []string{"MICROPOD_CACHE_SCOPE=proj-b"}}} {
+		_, err := decideCachesFor(defaultCachePolicy(), spec, facts, req)
+		var api apiError
+		if !errors.As(err, &api) || api.code != 403 {
+			t.Errorf("%v %v: %v, want 403", spec.Labels, spec.Env, err)
+		}
+	}
+	for _, spec := range []dockerConfig{{Image: "golang:1"}, named("proj-a")} {
+		p, err := decideCachesFor(defaultCachePolicy(), spec, facts, req)
+		if err != nil || p.Scope != "proj-a" {
+			t.Errorf("%v: scope %q %v, want the creator's", spec.Labels, p.Scope, err)
+		}
+	}
+	// Off, the plan still names the creator's scope, which alias volumes follow.
+	off := dockerConfig{Image: "golang:1", Labels: map[string]string{"io.micropod.cache": "off"},
+		HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-proj-b-gomod:/go/pkg/mod:ro"}}}
+	p, err := decideCachesFor(defaultCachePolicy(), off, facts, req)
+	if err != nil || p.Scope != "proj-a" {
+		t.Fatalf("off: %q %v", p.Scope, err)
+	}
+	if rules := volumeRules(defaultCachePolicy(), off, &p); rules.readerMay("proj-b", "gomod") || !rules.readerMay("proj-a", "gomod") {
+		t.Fatalf("alias volume rules %+v: want the creator's scope only", rules)
+	}
+	// An unknown creator's child is in no scope.
+	if p, err := decideCachesFor(defaultCachePolicy(), dockerConfig{Image: "golang:1"}, facts, cacheRequest{}); err != nil || p.Scope != "" || p.attached() {
+		t.Fatalf("unknown creator: %+v %v", p, err)
+	}
+	// The engine reads the creator's scope from its plan, else its request.
+	s := &dockerEngine{containers: map[string]*dockerContainer{}, cachePolicy: policyLoader{path: filepath.Join(t.TempDir(), "absent.json")}}
+	s.containers["a"] = &dockerContainer{dockerRecord: dockerRecord{ID: "a", Cache: &cachePlan{Scope: "proj-a"}}}
+	s.containers["b"] = &dockerContainer{dockerRecord: dockerRecord{ID: "b", Cache: &cachePlan{}, Config: dockerConfig{Labels: map[string]string{"io.micropod.cache.scope": "proj-b"}}}}
+	for creator, want := range map[string]string{"a": "proj-a", "b": "proj-b"} {
+		plan, _, err := s.cacheDecision(withCacheOrigin(context.Background(), cacheOrigin{creator: creator}), dockerConfig{Image: "qa", Labels: map[string]string{"io.micropod.cache": "off"}}, "sha256:x")
+		if err != nil || plan.Scope != want {
+			t.Errorf("creator %s: scope %q %v, want %s", creator, plan.Scope, err, want)
+		}
 	}
 }
