@@ -792,6 +792,9 @@ public enum HVFPayloadStore {
     /// 2. With the machine running and no `force`: waits up to
     ///    `drainTimeout` for `environment.drain` to report nothing running.
     ///    Busy, or a drain check that fails, is `deferred` and stops nothing.
+    ///    It then reads the payload into the page cache (`environment.warm`)
+    ///    and checks the drain again, within what is left of `drainTimeout`,
+    ///    for work that started during that read.
     /// 3. Points `trial` at it, stops the machine and starts it (the new
     ///    supervisor boots the trial), checks that the machine loaded it and
     ///    runs the health probes.
@@ -840,18 +843,34 @@ public enum HVFPayloadStore {
                 detail: "\(target.label) is already active", targetVersion: target.label)
         }
 
-        if wasRunning, !force,
-            let busy = await busyWorkloads(env, waitingUpTo: drainTimeout, progress: progress)
-        {
-            return HVFActivationResult(
+        func deferred(_ busy: (count: Int, reason: String)) -> HVFActivationResult {
+            HVFActivationResult(
                 action: .deferred, fromVersion: before, toVersion: before, activeContainers: busy.count,
                 detail: "\(busy.reason); the machine keeps running \(before) (re-run when idle, or pass --force)",
                 targetVersion: target.label)
+        }
+        let drainDeadline = ContinuousClock.now + drainTimeout
+        if wasRunning, !force,
+            let busy = await busyWorkloads(env, waitingUpTo: drainTimeout, progress: progress)
+        {
+            return deferred(busy)
         }
 
         // While the old guest still serves: what the new one reads at boot
         // then comes from the page cache, not the disk, during the switchover.
         env.warm(target.directory)
+        // That read takes as long as the disk needs for the whole payload,
+        // and the guest refuses no new work meanwhile: a container or reaper
+        // session that started during it would be killed by the stop. So
+        // the drain is checked again, within what is left of drainTimeout,
+        // and only the trial link stands between its last idle answer and
+        // the stop.
+        if wasRunning, !force,
+            let busy = await busyWorkloads(
+                env, waitingUpTo: max(.zero, drainDeadline - ContinuousClock.now), progress: progress)
+        {
+            return deferred(busy)
+        }
         progress("booting \(target.label) to verify it…")
         try atomicSymlink(destination: "versions/\(target.id)", at: layout.trialLink)
         defer { unlink(layout.trialLink.path) }

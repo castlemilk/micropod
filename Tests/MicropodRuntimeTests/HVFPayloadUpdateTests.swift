@@ -343,6 +343,39 @@ final class HVFPayloadUpdateTests: XCTestCase {
         XCTAssertEqual(warmed.entries, [])
     }
 
+    func testWorkThatStartsWhileThePayloadIsReadDefersTheActivation() async throws {
+        // The read takes as long as the disk needs for the whole payload,
+        // and the old guest takes new work meanwhile: a container started
+        // then would be killed by the stop.
+        try installFlat("v1")
+        let machine = FakeUpdateMachine(layout: layout, runningOn: root)
+        let v2 = try stage("v2")
+        let started = UpdateFlag(false)
+        var env = HVFUpdateEnvironment(
+            machine: machine, drain: FlagDrain(started), probe: FakeProbe(machine: machine),
+            drainPollInterval: .milliseconds(10))
+        env.warm = { _ in started.value = true }
+        let result = try await HVFPayloadStore.activate(layout: layout, environment: env)
+        XCTAssertEqual(result.action, .deferred, result.detail)
+        XCTAssertEqual(result.activeContainers, 1)
+        XCTAssertEqual(machine.stops, 0)
+        XCTAssertEqual(machine.starts, 0)
+        XCTAssertEqual(staged, v2, "still staged")
+        XCTAssertNil(HVFPayloadStore.readRelativeLink(layout.trialLink))
+
+        // Work that started during the read and ends within drainTimeout is
+        // waited out like any other.
+        let draining = FakeDrain([
+            .success(HVFWorkloads(containers: 0)), .success(HVFWorkloads(containers: 1)),
+            .success(HVFWorkloads(containers: 0)),
+        ])
+        let drained = try await HVFPayloadStore.activate(
+            layout: layout, drainTimeout: .seconds(10), environment: environment(machine, drain: draining))
+        XCTAssertEqual(drained.action, .activated, drained.detail)
+        XCTAssertEqual(draining.calls, 3, "idle, then busy after the read, then idle")
+        XCTAssertEqual(machine.stops, 1)
+    }
+
     func testWarmReadsEveryRegularFileOnceAndFollowsNoLink() throws {
         let fm = FileManager.default
         let dir = sources.appendingPathComponent("warm")
@@ -601,7 +634,7 @@ final class HVFPayloadUpdateTests: XCTestCase {
         let drained = try await HVFPayloadStore.activate(
             layout: layout, drainTimeout: .seconds(10), environment: environment(machine, drain: draining))
         XCTAssertEqual(drained.action, .activated, drained.detail)
-        XCTAssertEqual(draining.calls, 3)
+        XCTAssertEqual(draining.calls, 4, "three until idle, and once more after the payload was read")
 
         let v3 = try stage("v3")
         let ignored = FakeDrain([.success(HVFWorkloads(containers: 4))])
@@ -1016,6 +1049,15 @@ final class FakeDrain: HVFDrainCoordinating, @unchecked Sendable {
         }
         return try answer.get()
     }
+}
+
+/// Idle until `busy` is set, then one running container.
+final class FlagDrain: HVFDrainCoordinating, Sendable {
+    let busy: UpdateFlag
+
+    init(_ busy: UpdateFlag) { self.busy = busy }
+
+    func activeWorkloads() async throws -> HVFWorkloads { HVFWorkloads(containers: busy.value ? 1 : 0) }
 }
 
 /// What an activation's `warm` was called with.
