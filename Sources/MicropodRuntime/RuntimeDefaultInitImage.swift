@@ -4,15 +4,24 @@ import MicropodCore
 /// The runtime's default init image, the `vminit.image` property. No XPC
 /// route serves it, so it is read through `container system property list`
 /// and kept for a minute: the init image guard reads it on every create
-/// that asks for an override. A failed read is not kept, so the next create
-/// tries again.
+/// that asks for an override. A failed (or empty) read is kept for
+/// `failureTTL`, zero by default so the next create tries again; the API's
+/// Ping keeps one for 30 s, so a stopped runtime is not asked on every call.
+/// Concurrent callers share one read.
 public actor RuntimeDefaultInitImage {
     private let read: @Sendable () async throws -> String?
     private let ttl: Duration
+    private let failureTTL: Duration
     private var cached: (value: String, at: ContinuousClock.Instant)?
+    private var failedAt: ContinuousClock.Instant?
+    private var reading: Task<String?, Never>?
 
-    public init(ttl: Duration = .seconds(60), read: @escaping @Sendable () async throws -> String?) {
+    public init(
+        ttl: Duration = .seconds(60), failureTTL: Duration = .zero,
+        read: @escaping @Sendable () async throws -> String?
+    ) {
         self.ttl = ttl
+        self.failureTTL = failureTTL
         self.read = read
     }
 
@@ -37,8 +46,19 @@ public actor RuntimeDefaultInitImage {
     public func value() async -> String? {
         let now = ContinuousClock.now
         if let cached, now - cached.at < ttl { return cached.value }
-        guard let value = try? await read() else { return nil }
-        cached = (value, now)
+        if let failedAt, now - failedAt < failureTTL { return nil }
+        if let reading { return await reading.value }
+        let read = self.read
+        let task = Task { try? await read() }
+        reading = task
+        let value = await task.value
+        reading = nil
+        if let value {
+            cached = (value, now)
+            failedAt = nil
+        } else {
+            failedAt = now
+        }
         return value
     }
 }

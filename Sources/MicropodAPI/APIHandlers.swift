@@ -30,8 +30,11 @@ final class APIHandlers: Sendable {
     /// What the version manifest reads (Ping, GetSystem, GetUpdateState).
     let versionEnvironment: VersionEnvironment
     let desktopObserver = DesktopObserver()
+    /// Ping's host-observed components, kept for 2 s (see the type).
+    let hostComponents = HostComponentCache()
     /// The runtime's `vminit.image`, kept for five minutes: it only changes
-    /// when the runtime is reconfigured.
+    /// when the runtime is reconfigured. A failed read is kept 30 s, so a
+    /// stopped runtime is not asked again on every Ping.
     let initImage: RuntimeDefaultInitImage
     /// Engine registry consulted by `Ping`, `GetSystem` and runtime management.
     let engineRegistry: EngineRegistry
@@ -50,12 +53,11 @@ final class APIHandlers: Sendable {
         engineRegistry: EngineRegistry = .shared
     ) {
         self.client = client
-        self.versionEnvironment = versionEnvironment ?? .live(client: client)
+        let versionEnvironment = versionEnvironment ?? .live(client: client)
+        self.versionEnvironment = versionEnvironment
         self.engineRegistry = engineRegistry
-        let machine = MachineService(client: client)
-        self.initImage = RuntimeDefaultInitImage(ttl: .seconds(300)) {
-            RuntimeDefaultInitImage.vminitImage(in: try await machine.properties())
-        }
+        self.initImage = RuntimeDefaultInitImage(
+            ttl: .seconds(300), failureTTL: .seconds(30), read: versionEnvironment.vminitImage)
         self.managedTerminals = ManagedTerminalSessions(client: client)
         self.system = system
         self.images = images

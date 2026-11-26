@@ -40,6 +40,11 @@ struct VersionEnvironment: Sendable {
     var rigUpgrade: @Sendable () -> Micropod_V1_UpdateState? = { nil }
     /// The executables of root runtime helper processes.
     var helperPrograms: @Sendable () -> [String] = { [] }
+    /// The runtime's `vminit.image` property (`container system property list`).
+    var vminitImage: @Sendable () async throws -> String? = { nil }
+    /// True while Apple's runtime is known to be down (the API client's
+    /// liveness gate); nothing is then read from it.
+    var appleRuntimeKnownDown: @Sendable () -> Bool = { false }
 
     static func live(client: ContainerCLIClient) -> VersionEnvironment {
         let environment = ProcessInfo.processInfo.environment
@@ -68,7 +73,81 @@ struct VersionEnvironment: Sendable {
                 try await IsolatedRuntimeTransport.shared.request(path: path, body: body, timeout: timeout)
             },
             rigUpgrade: { UpdateStateResolver.rig(layout: RigUpgradeLayout(home: home)) },
-            helperPrograms: { RuntimeSetupInstallation.helperPrograms() })
+            helperPrograms: { RuntimeSetupInstallation.helperPrograms() },
+            vminitImage: {
+                RuntimeDefaultInitImage.vminitImage(in: try await MachineService(client: client).properties())
+            },
+            appleRuntimeKnownDown: { client.runtimeKnownDown })
+    }
+}
+
+/// The host-observed components of Ping's manifest (`digests: false`):
+/// the docker-shim and shared-fs records and sockets, the setup helper's
+/// bundle, the runtime authority (its plist and bundle, and a scan of the
+/// whole process table for root `MicropodRuntimeHost` helpers: about 83% of a
+/// Ping's cost when it was read per call), the guest binary and the kernel
+/// link. No request changes them.
+///
+/// Bound: a returned value was observed at most `maxAge` (2 s, the bound
+/// the desktop observation already has) before, plus the time one
+/// observation takes (a few ms). So a docker-shim or shared-fs socket that
+/// starts or stops, or a helper that starts, is reported within that bound.
+/// Once a value is `refreshAfter` (1 s) old one observation starts in the
+/// background, so steady traffic never waits; a request that finds the value
+/// expired waits for (joins) the observation. Observations are single-flight.
+/// Readiness, admission, update state and Apple's own observation are not
+/// kept here: each request reads them.
+final class HostComponentCache: @unchecked Sendable {
+    typealias Components = [MicropodComponent: Micropod_V1_ComponentVersion]
+
+    /// What the observation depends on besides the host itself.
+    struct Key: Equatable, Sendable {
+        var kernelAppRoot: String
+        var dedicatedRuntime: Bool
+    }
+
+    let maxAge: Duration
+    let refreshAfter: Duration
+    private let lock = NSLock()
+    private var kept: (key: Key, components: Components, at: ContinuousClock.Instant)?
+    private var observing: (key: Key, task: Task<Components, Never>)?
+
+    init(maxAge: Duration = .seconds(2), refreshAfter: Duration? = nil) {
+        self.maxAge = maxAge
+        self.refreshAfter = refreshAfter ?? maxAge / 2
+    }
+
+    func components(for key: Key, observe: @escaping @Sendable () -> Components) async -> Components {
+        let now = ContinuousClock.now
+        let (hit, pending): (Components?, Task<Components, Never>?) = lock.withLock {
+            if let kept, kept.key == key, now - kept.at < maxAge {
+                if now - kept.at >= refreshAfter { _ = startLocked(key, observe) }
+                return (kept.components, nil)
+            }
+            return (nil, startLocked(key, observe))
+        }
+        if let hit { return hit }
+        return await pending?.value ?? observe()
+    }
+
+    /// The observation for `key` in flight, or a new one. Call under `lock`.
+    private func startLocked(_ key: Key, _ observe: @escaping @Sendable () -> Components) -> Task<Components, Never> {
+        if let observing, observing.key == key { return observing.task }
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            let started = ContinuousClock.now
+            let components = observe()
+            self?.store(components, for: key, observedAt: started)
+            return components
+        }
+        observing = (key, task)
+        return task
+    }
+
+    private func store(_ components: Components, for key: Key, observedAt started: ContinuousClock.Instant) {
+        lock.withLock {
+            if kept == nil || kept!.key != key || kept!.at <= started { kept = (key, components, started) }
+            if observing?.key == key { observing = nil }
+        }
     }
 }
 
@@ -222,8 +301,65 @@ extension APIHandlers {
             desktopState = observed.updateState
             found[.app] = observed.app
             found[.connectAPI] = selfComponent
+        case .dedicated:
+            found[.app] = ComponentProbe.component(.app, state: .unknown, detail: notObservable)
+            found[.connectAPI] = ComponentProbe.component(.connectAPI, state: .unknown, detail: notObservable)
+            found[.dedicatedAPI] = selfComponent
+        }
+        let dedicatedRuntime = environment.usesDedicatedRuntime()
+        let kernelAppRoot =
+            apple.appRoot
+            ?? environment.home.appendingPathComponent("Library/Application Support/com.apple.container")
+        if digests {
+            found.merge(
+                Self.hostComponents(
+                    environment, digests: true, dedicatedRuntime: dedicatedRuntime, kernelAppRoot: kernelAppRoot)
+            ) { kept, _ in kept }
+        } else {
+            let key = HostComponentCache.Key(kernelAppRoot: kernelAppRoot.path, dedicatedRuntime: dedicatedRuntime)
+            found.merge(
+                await hostComponents.components(for: key) {
+                    Self.hostComponents(
+                        environment, digests: false, dedicatedRuntime: dedicatedRuntime, kernelAppRoot: kernelAppRoot)
+                }
+            ) { kept, _ in kept }
+        }
+        if environment.role == .connect, dedicatedRuntime {
+            // The dedicated runtime reports these itself (VersionManifest.merging);
+            // this account's legacy runtime files say nothing about it.
+            for name in [MicropodComponent.appleRuntime, .vminit] {
+                found[name] = ComponentProbe.component(
+                    name, state: .unknown, detail: "Reported by the dedicated runtime API")
+            }
+        } else {
+            found[.appleRuntime] = appleComponent(apple, digest: digests)
+            found[.vminit] = await vminitComponent(fresh: digests)
+        }
+
+        let runtimeState = UpdateStateResolver.runtime(
+            admission: environment.runtimeAdmission(),
+            currentVersion: environment.role == .dedicated ? build.version : ComponentProbe.unknown)
+        return VersionManifest(
+            micropodVersion: build.version, sourceRevision: build.revision,
+            protocolVersion: MicropodProtocol.apiVersion, peerProtocol: MicropodProtocol.peerProtocol,
+            components: MicropodComponent.allCases.compactMap { found[$0] },
+            updateState: desktopState.map {
+                UpdateStateResolver.combined(desktop: $0, runtime: runtimeState, rig: environment.rigUpgrade())
+            } ?? runtimeState)
+    }
+
+    /// The components read from this host's files, sockets and process
+    /// table (see ``HostComponentCache``); `digests` also hashes executables
+    /// and checks the root helper runs.
+    static func hostComponents(
+        _ environment: VersionEnvironment, digests: Bool, dedicatedRuntime: Bool, kernelAppRoot: URL
+    ) -> HostComponentCache.Components {
+        var found: HostComponentCache.Components = [:]
+        let build = environment.build
+        switch environment.role {
+        case .connect:
             found[.dedicatedAPI] =
-                environment.usesDedicatedRuntime()
+                dedicatedRuntime
                 ? ComponentProbe.component(
                     .dedicatedAPI, state: .unknown, detail: "Reported by the dedicated runtime API")
                 : ComponentProbe.component(
@@ -241,9 +377,7 @@ extension APIHandlers {
                         digest: digests)
             }
         case .dedicated:
-            found[.app] = ComponentProbe.component(.app, state: .unknown, detail: notObservable)
-            found[.connectAPI] = ComponentProbe.component(.connectAPI, state: .unknown, detail: notObservable)
-            found[.dedicatedAPI] = selfComponent
+            let notObservable = "Not observable from the dedicated runtime account"
             found[.dockerShim] = ComponentProbe.component(.dockerShim, state: .unknown, detail: notObservable)
             found[.sharedFS] = ComponentProbe.component(.sharedFS, state: .unknown, detail: notObservable)
         }
@@ -251,35 +385,17 @@ extension APIHandlers {
         found[.setupHelper] = ComponentProbe.setupHelper(
             at: environment.setupApp, running: helperRunning, digest: digests)
         found[.runtimeAuthority] = ComponentProbe.runtimeAuthority(
-            helpers: environment.helperPrograms(),
-            dedicated: environment.role == .dedicated || environment.usesDedicatedRuntime())
-        if environment.role == .connect, environment.usesDedicatedRuntime() {
-            // The dedicated runtime reports these itself (VersionManifest.merging);
-            // this account's legacy runtime files say nothing about it.
-            for name in [MicropodComponent.appleRuntime, .vminit, .guest, .kernel] {
+            helpers: environment.helperPrograms(), dedicated: environment.role == .dedicated || dedicatedRuntime)
+        if environment.role == .connect, dedicatedRuntime {
+            for name in [MicropodComponent.guest, .kernel] {
                 found[name] = ComponentProbe.component(
                     name, state: .unknown, detail: "Reported by the dedicated runtime API")
             }
         } else {
-            found[.appleRuntime] = appleComponent(apple, digest: digests)
-            found[.vminit] = await vminitComponent(fresh: digests)
             found[.guest] = ComponentProbe.guest(besides: environment.executable, build: build, digest: digests)
-            found[.kernel] = ComponentProbe.kernel(
-                appRoot: apple.appRoot
-                    ?? environment.home.appendingPathComponent("Library/Application Support/com.apple.container"),
-                digest: digests)
+            found[.kernel] = ComponentProbe.kernel(appRoot: kernelAppRoot, digest: digests)
         }
-
-        let runtimeState = UpdateStateResolver.runtime(
-            admission: environment.runtimeAdmission(),
-            currentVersion: environment.role == .dedicated ? build.version : ComponentProbe.unknown)
-        return VersionManifest(
-            micropodVersion: build.version, sourceRevision: build.revision,
-            protocolVersion: MicropodProtocol.apiVersion, peerProtocol: MicropodProtocol.peerProtocol,
-            components: MicropodComponent.allCases.compactMap { found[$0] },
-            updateState: desktopState.map {
-                UpdateStateResolver.combined(desktop: $0, runtime: runtimeState, rig: environment.rigUpgrade())
-            } ?? runtimeState)
+        return found
     }
 
     /// GetUpdateState: the desktop answers for both updaters; the dedicated
@@ -315,7 +431,8 @@ extension APIHandlers {
     }
 
     /// The `vminit.image` property. Ping uses the kept value and refreshes it
-    /// in the background; GetSystem reads it.
+    /// in the background; GetSystem reads it. A runtime known to be down is
+    /// not asked (its answer would be the CLI's runtime-down error).
     private func vminitComponent(fresh: Bool) async -> Micropod_V1_ComponentVersion {
         if fresh {
             return ComponentProbe.vminit(
@@ -323,6 +440,9 @@ extension APIHandlers {
         }
         if let kept = await initImage.peek() {
             return ComponentProbe.vminit(reference: kept, unavailable: "")
+        }
+        if versionEnvironment.appleRuntimeKnownDown() {
+            return ComponentProbe.vminit(reference: nil, unavailable: "Not read: the runtime is not running")
         }
         let initImage = self.initImage
         Task { _ = await initImage.value() }

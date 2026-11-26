@@ -66,8 +66,15 @@ final class HVFReadinessAPITests: XCTestCase {
         )
     }
 
-    private func handlers(_ registry: EngineRegistry) -> APIHandlers {
+    private func handlers(_ registry: EngineRegistry, helperScans: Tally? = nil) -> APIHandlers {
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
+        var versionEnvironment = VersionEnvironment.live(client: client)
+        if let helperScans {
+            versionEnvironment.helperPrograms = {
+                helperScans.add()
+                return []
+            }
+        }
         let services = RuntimeServices(
             kind: .cli, containers: NoAppleContainers(), logs: LogStreamer(client: client),
             stats: StatsSampler(client: client), volumes: VolumeService(client: client), api: nil, health: nil,
@@ -77,7 +84,7 @@ final class HVFReadinessAPITests: XCTestCase {
             client: client, system: SystemService(client: client), images: ImageService(client: client),
             networks: NetworkService(client: client), compose: ComposeService(client: client),
             runtime: RuntimeHolder(initial: services, resolve: { services }, managedSelectionPresent: { false }),
-            engineRegistry: registry)
+            versionEnvironment: versionEnvironment, engineRegistry: registry)
     }
 
     private func call<M: Message>(_ api: APIHandlers, _ method: String, _ request: some Message, as type: M.Type)
@@ -128,6 +135,34 @@ final class HVFReadinessAPITests: XCTestCase {
         let component = try XCTUnwrap(gone.components.first { $0.name == "hvf-machine" })
         XCTAssertEqual(component.state, "stopped")
         XCTAssertTrue(component.detail.hasPrefix("not-ready: "), component.detail)
+    }
+
+    /// The host components Ping keeps for 2 s never include readiness: with
+    /// them warm, the very next Ping after the guest goes away says so.
+    func testReadinessFlipsOnTheNextPingWhileTheHostComponentsAreKept() async throws {
+        try install()
+        let guest = try serve { _ in (404, Data()) }
+        let scans = Tally()
+        let api = handlers(registry(defaultRuntime: "hvf"), helperScans: scans)
+        for _ in 0..<5 {
+            let live = try await ping(api)
+            XCTAssertEqual(live.status, "running")
+            XCTAssertEqual(live.components.first { $0.name == "hvf-machine" }?.state, "running")
+        }
+        XCTAssertEqual(scans.value, 1, "the host was observed once")
+
+        guest.stop()
+        let deadline = ContinuousClock.now + .seconds(5)
+        while FileManager.default.fileExists(atPath: layout.dockerSocket.path) {
+            guard ContinuousClock.now < deadline else { return XCTFail("the fake guest never closed its socket") }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let gone = try await ping(api)
+        XCTAssertEqual(gone.status, "not-ready")
+        XCTAssertEqual(gone.components.first { $0.name == "hvf-machine" }?.state, "stopped")
+        XCTAssertEqual(scans.value, 1, "the flip came from live readiness, not a new host observation")
+        let system = try await call(api, "GetSystem", Micropod_V1_Empty(), as: Micropod_V1_SystemSnapshot.self)
+        XCTAssertEqual(system.status.status, "not-ready")
     }
 
     func testADefaultHVFMachineThatIsNotInstalledIsNotReported() async throws {
