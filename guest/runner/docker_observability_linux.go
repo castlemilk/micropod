@@ -142,14 +142,27 @@ var micropodRouteKeys = map[string]bool{
 	"micropod/traces/clear":       true,
 }
 
-// selfObservationRoute reports whether a route reads (or clears) the
-// counters and traces recordHTTP keeps. Those requests are not counted, so
-// reading the metrics does not change them. Every other /micropod route,
-// the batched container listing (/micropod/containers/summary) and the
-// cache routes included, is a request a client made of the engine and is
-// counted like /_ping or /containers/json.
-func selfObservationRoute(route string) bool {
-	return route == "/micropod/metrics" || route == "/micropod/traces" || route == "/micropod/traces/clear"
+// watchRequest reports whether a request only reads the engine's own state:
+// its counters and traces (or clears the traces), whether BuildKit is up, the
+// disk's usage, the cache inventory. That is what the host reads to watch the
+// engine (the update's health probe, `machine status` and rig health, CI
+// health, every few seconds when a dashboard polls), so those requests are
+// not recorded at all: watching the engine never moves requests_total, the
+// 4xx/5xx counts or the recent issues it is judged by. (A BuildKit-less
+// engine answers every CI health poll's /micropod/buildkit with 503; the
+// inventory with stats is often slower than slowAPIThreshold.) What callers
+// ask the engine to do is recorded: the Docker API, /_ping included, the
+// batched container listing (/micropod/containers/summary, one request per
+// host listing, B24), and the cache maintenance routes (prune, the dedupe
+// sample, debug).
+func watchRequest(method, route string) bool {
+	switch route {
+	case "/micropod/metrics", "/micropod/traces", "/micropod/traces/clear":
+		return true
+	case "/micropod/buildkit", "/micropod/storage", "/micropod/caches":
+		return method == http.MethodGet
+	}
+	return false
 }
 
 // normalizeDockerRoute strips Docker API version prefixes and collapses dynamic IDs/names
@@ -241,7 +254,7 @@ func (m *apiMetrics) recordHTTP(source, method, rawPath string, status int, star
 		status = 200
 	}
 	route := normalizeDockerRoute(rawPath)
-	if source == "docker_api" && selfObservationRoute(route) {
+	if source == "docker_api" && watchRequest(method, route) {
 		return
 	}
 	us := dur.Microseconds()

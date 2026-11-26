@@ -157,6 +157,46 @@ func TestAPIMetricsCountTheBatchedListingButNotTheirOwnReads(t *testing.T) {
 	}
 }
 
+// What the host polls to watch the engine (the update's health probe,
+// machine status and rig health, CI health) is not recorded, so a dashboard
+// polling it moves none of the counters, error counts or recent issues the
+// engine is judged by. What callers ask of the engine is recorded.
+func TestAPIMetricsLeaveTheHostsWatchReadsOut(t *testing.T) {
+	var m apiMetrics
+	at := time.Now()
+	record := func(method, path string, status int, took time.Duration) {
+		m.recordHTTP("docker_api", method, path, status, at, took, "")
+	}
+	// A CI health poll of an engine without BuildKit, and a slow inventory.
+	record("GET", "/v1.47/micropod/buildkit", 503, time.Millisecond)
+	record("GET", "/micropod/storage", 200, time.Millisecond)
+	record("GET", "/micropod/caches", 200, 80*time.Millisecond)
+	record("GET", "/micropod/caches", 500, time.Millisecond)
+	record("GET", "/micropod/metrics", 200, time.Millisecond)
+	record("POST", "/micropod/traces/clear", 200, time.Millisecond)
+	snap, issues := m.snapshot()
+	if snap["requests_total"] != uint64(0) || snap["errors_5xx"] != uint64(0) || snap["slow_requests_total"] != uint64(0) ||
+		len(issues) != 0 || len(snap["routes"].(map[string]routeStats)) != 0 {
+		t.Fatalf("watching the engine was recorded: %+v, issues %+v", snap, issues)
+	}
+
+	record("GET", "/_ping", 200, time.Millisecond)
+	record("GET", "/v1.47/micropod/containers/summary", 200, time.Millisecond)
+	record("POST", "/micropod/caches/prune", 200, time.Millisecond)
+	record("DELETE", "/micropod/caches", 500, time.Millisecond)
+	record("GET", "/micropod/caches/dedupe", 200, 80*time.Millisecond)
+	snap, issues = m.snapshot()
+	routes := snap["routes"].(map[string]routeStats)
+	if snap["requests_total"] != uint64(5) || snap["errors_5xx"] != uint64(1) || snap["slow_requests_total"] != uint64(1) || len(issues) != 2 {
+		t.Fatalf("caller requests: %+v, issues %+v", snap, issues)
+	}
+	for _, key := range []string{"GET /_ping", "GET /micropod/containers/summary", "POST /micropod/caches/prune", "DELETE /micropod/caches", "GET /micropod/caches/dedupe"} {
+		if routes[key].Count != 1 {
+			t.Fatalf("%s counted %d times: %v", key, routes[key].Count, routes)
+		}
+	}
+}
+
 func TestReaperMetricsAndStatusRecorder(t *testing.T) {
 	var r reaperMetrics
 	r.sessionsStarted.Add(1)
