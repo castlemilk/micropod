@@ -8,7 +8,9 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -134,7 +136,11 @@ func reserveMacPort(ctx context.Context, host, guest uint16) (net.Conn, uint16, 
 	return control, binary.BigEndian.Uint16(req[:2]), nil
 }
 
-func openPublishedPort(ctx context.Context, ip, target string, host uint16, direct *directEndpoint) (*publishedPort, uint16, error) {
+// openPublishedPort publishes target on the Mac's loopback. In the userspace
+// relay mode the guest end is a listener on the guest NIC, which a container
+// can reach too: admit (nil admits everyone) holds those peers to the same
+// rule as the gateway relay (relayAdmits).
+func openPublishedPort(ctx context.Context, ip, target string, host uint16, direct *directEndpoint, admit func(netip.Addr) bool) (*publishedPort, uint16, error) {
 	if kernelPublishedPorts() {
 		return openKernelPort(ctx, ip, target, host, direct)
 	}
@@ -151,12 +157,14 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 	// until the container releases its port, including across long SQL sessions.
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, lease: control, cancel: cancel}
-	p.relay(relayCtx, l, target)
+	p.relay(relayCtx, l, target, admit)
 	return p, port, nil
 }
 
-// relay copies every connection l accepts to target until relayCtx ends.
-func (p *publishedPort) relay(relayCtx context.Context, l *net.TCPListener, target string) {
+// relay copies every connection l accepts to target until relayCtx ends;
+// admit, when set, decides each peer by its address, and one it refuses is
+// closed before anything is dialed.
+func (p *publishedPort) relay(relayCtx context.Context, l *net.TCPListener, target string, admit func(netip.Addr) bool) {
 	var dial net.Dialer
 	p.wg.Add(1)
 	go func() {
@@ -170,6 +178,12 @@ func (p *publishedPort) relay(relayCtx context.Context, l *net.TCPListener, targ
 			go func() {
 				defer p.wg.Done()
 				defer in.Close()
+				if admit != nil {
+					peer, _ := netip.ParseAddrPort(in.RemoteAddr().String())
+					if !admit(peer.Addr().Unmap()) {
+						return
+					}
+				}
 				out, err := dial.DialContext(relayCtx, "tcp4", target)
 				if err != nil {
 					return
@@ -209,21 +223,92 @@ func bridgeGateway(name string) string {
 	return ""
 }
 
+// defaultGateway is the default network's gateway (10.88.0.1), where an
+// in-container Docker client dials a sibling's mapped port: Testcontainers
+// reads it from the built-in "bridge" network. A variable for tests.
+var defaultGateway = func() string { return bridgeGateway(defaultBridge) }
+
+// relayGateways are the addresses a published port of a container on network
+// (nil for the default one) is also relayed at: the default gateway, where
+// Testcontainers dials whatever network the sibling is on, and the named
+// network's own gateway, its members' default route.
+func relayGateways(network *workerNetwork) []string {
+	var out []string
+	if g := defaultGateway(); g != "" {
+		out = append(out, g)
+	}
+	if network != nil {
+		if g := network.gateway().String(); !slices.Contains(out, g) {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
 // openGatewayRelay makes a published port reachable from inside the machine
-// the way Docker's is: at the container network's gateway on the port the
-// Mac publishes it on (gateway:hostPort), which is what a client in a
-// container (Testcontainers with the engine socket, its Ryuk reaper) dials
-// for a sibling's mapped port. Every container can already reach the
-// published container's own address, so this exposes nothing new.
-func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string) (*publishedPort, error) {
+// the way Docker's is: at a container network's gateway on the port the Mac
+// publishes it on (gateway:hostPort), which is what a client in a container
+// (Testcontainers with the engine socket, its Ryuk reaper) dials for a
+// sibling's mapped port. The gateway is an address of the engine's own
+// namespace, so any container with a route to it reaches the listener, past
+// the FORWARD rules that keep networks apart; and the relay dials the target
+// from that namespace. So admit decides each peer (relayAdmits): only one
+// that could reach the target anyway or belongs to the same job is relayed.
+func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) bool) (*publishedPort, error) {
 	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(gateway), Port: int(port)})
 	if err != nil {
 		return nil, err
 	}
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, cancel: cancel}
-	p.relay(relayCtx, l, target)
+	p.relay(relayCtx, l, target, admit)
 	return p, nil
+}
+
+// relayAdmits is the rule a published port of target holds a container peer
+// to at a relay a container can reach: the peer shares a network with target
+// (it could dial target's own address anyway) or is of target's family (the
+// delegated socket's owner and what it created there: a Testcontainers job
+// and its siblings, on whatever networks). A peer address that is no
+// container's is refused, unless macFacing, where it is the Mac's.
+func (s *dockerEngine) relayAdmits(target *dockerContainer, macFacing bool) func(netip.Addr) bool {
+	return func(peer netip.Addr) bool {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		from := s.containerAtLocked(peer)
+		if from == nil {
+			return macFacing
+		}
+		return from.family() == target.family() || sharesNetwork(from, target)
+	}
+}
+
+// containerAtLocked is the running container with address ip on any of its
+// networks; nil for none. Call with s.mu held.
+func (s *dockerEngine) containerAtLocked(ip netip.Addr) *dockerContainer {
+	if !ip.IsValid() {
+		return nil
+	}
+	want := ip.String()
+	for _, c := range s.containers {
+		if !c.busy() {
+			continue
+		}
+		if c.IP == want || slices.ContainsFunc(c.SecondaryNetworks, func(e dockerSecondaryEndpoint) bool { return e.IP == want }) {
+			return c
+		}
+	}
+	return nil
+}
+
+// sharesNetwork reports whether a and b are on a network together ("" is
+// the default network).
+func sharesNetwork(a, b *dockerContainer) bool {
+	on := func(c *dockerContainer, id string) bool { return c.NetworkID == id || c.secondaryEndpoint(id) >= 0 }
+	if on(b, a.NetworkID) {
+		return true
+	}
+	return slices.ContainsFunc(a.SecondaryNetworks, func(e dockerSecondaryEndpoint) bool { return on(b, e.NetworkID) })
 }
 func guestIPv4() (string, error) {
 	dev := "eth0"
@@ -314,16 +399,12 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			return nil, err
 		}
 	}
-	// Where a container on this network reaches its siblings' published
-	// ports (openGatewayRelay); the private rootless engine has no shared
-	// bridge to serve it on.
-	gateway := ""
+	// Where a container reaches its siblings' published ports
+	// (openGatewayRelay); the private rootless engine has no shared bridge
+	// to serve it on.
+	var gateways []string
 	if !privateRootless() {
-		if network != nil {
-			gateway = network.gateway().String()
-		} else {
-			gateway = bridgeGateway(defaultBridge)
-		}
+		gateways = relayGateways(network)
 	}
 	actual := portMap{}
 	for key, bindings := range ports {
@@ -336,7 +417,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			if privateRootless() {
 				p, n, err = publishRootless(ctx, target, port, request)
 			} else {
-				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request, direct)
+				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request, direct, s.relayAdmits(c, true))
 			}
 			if err != nil {
 				if p != nil {
@@ -355,9 +436,9 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			default:
 				s.metrics.networks.rootlessPorts.Add(1)
 			}
-			if gateway != "" {
+			for _, gateway := range gateways {
 				// Best effort: the Mac mapping stands without it.
-				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port)))); err != nil {
+				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c, false)); err != nil {
 					log.Printf("published port %d of %.12s at gateway %s: %v", n, c.ID, gateway, err)
 				} else {
 					open = append(open, g)

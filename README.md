@@ -362,9 +362,12 @@ socket changes them for every job, which is one more reason only a trusted conta
 container, a container created from inside another, or one an untrusted default leaves unlabelled is refused such a bind
 at create (HTTP 403); the Testcontainers reaper still gets only its session's cleanup socket, and one created through a
 container's socket reaps only what that container created. As under Docker, every container has an empty `/.dockerenv`,
-and a published port is also reachable from inside the machine at the container network's gateway on its published port
-(`10.88.0.1:<port>` on the default network), which is where an in-container Testcontainers dials a sibling's mapped port
-and its Ryuk reaper. When the machine asked for its host config share, a policy file
+and a published port is also reachable from inside the machine at `10.88.0.1:<port>`, the default network's gateway,
+whatever network the published container is on (and at its own network's gateway): that is where an in-container
+Testcontainers dials a sibling's mapped port and its Ryuk reaper. The gateway is the engine's own address, past the
+rules that keep networks apart, so it relays only a container that shares a network with the published one (and could
+reach it anyway) or belongs to the same job (the container holding the socket and what it created). When the machine
+asked for its host config share, a policy file
 the guest cannot read fails closed (untrusted by default), and no bind may reach the machine's own directory
 (`~/.micropod/hvf` sits in the home-directory workspace): a bind source inside it is refused, and a bind that covers
 it (`-v $HOME:/h`) shows an empty directory there. `--allow-scopes` holds for scope labels and alias volumes alike.
