@@ -35,6 +35,15 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         case off
     }
 
+    /// A container's cache trust tier. A trusted container writes the shared
+    /// stores it uses; an untrusted one only reads them (copy-on-write views
+    /// or read-only binds), through every path: auto-attached caches, legacy
+    /// alias volumes and `docker cp`.
+    public enum Trust: String, Codable, Sendable, Equatable, CaseIterable {
+        case trusted
+        case untrusted
+    }
+
     /// `buildkit` settings: what `machine start` does about BuildKit.
     public struct BuildKit: Codable, Sendable, Equatable {
         /// `machine start` installs the fallback buildx builder
@@ -98,6 +107,17 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     /// in scope `global` even when containers name a project scope; every
     /// other store, L1 build caches included, stays in the container's scope.
     public var sharedL0: Bool
+    /// The tier of a container that names none (`io.micropod.cache.trust`).
+    /// nil is not set: trusted, the shipped default for a developer's own
+    /// machine, where an unlabeled `docker run` warms the caches; the
+    /// standard machine on a rig is set to untrusted the first time it is
+    /// installed or started (`applyRigDefaultTrust`). A container may lower
+    /// its own tier, but may claim trusted only while this is trusted or on
+    /// the host-facing Docker socket; one created from inside a container is
+    /// never more trusted than that container.
+    public var defaultTrust: Trust?
+    /// Also inject `goProxy` and `npmRegistry` into untrusted containers.
+    public var proxyUntrusted: Bool
     /// Optional L0 rig Go proxy list, a `GOPROXY` value (e.g.
     /// `http://10.42.0.1:7677/go|direct`). A gateway URL opens a host port
     /// only as `HVFHostPortAllowlist` allows.
@@ -120,6 +140,7 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         allowedScopes: [String] = ["*"], tools: [String] = HVFMachineCachePolicy.toolKinds, goTrimpath: Bool = true,
         pnpmLegacyEnv: Bool = true, sharedL0: Bool = false, goProxy: String? = nil, npmRegistry: String? = nil,
         maxBytes: UInt64? = nil, maxAgeDays: Int? = nil, minFreeBytes: UInt64? = nil,
+        defaultTrust: Trust? = nil, proxyUntrusted: Bool = false,
         buildkit: BuildKit = BuildKit(), extra: [String: JSONValue] = [:]
     ) {
         self.version = version
@@ -135,13 +156,19 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         self.maxBytes = maxBytes
         self.maxAgeDays = maxAgeDays
         self.minFreeBytes = minFreeBytes
+        self.defaultTrust = defaultTrust
+        self.proxyUntrusted = proxyUntrusted
         self.buildkit = buildkit
         self.extra = extra
     }
 
+    /// `defaultTrust` as the guest applies it.
+    public var effectiveDefaultTrust: Trust { defaultTrust ?? .trusted }
+
     static let knownKeys: Set<String> = [
         "version", "mode", "defaultScope", "allowedScopes", "tools", "goTrimpath", "pnpmLegacyEnv",
-        "sharedL0", "goProxy", "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes", "buildkit",
+        "sharedL0", "goProxy", "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes", "defaultTrust",
+        "proxyUntrusted", "buildkit",
     ]
 
     /// Missing keys take their defaults, like the rest of machine.json.
@@ -170,6 +197,17 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         maxBytes = try c.decodeIfPresent(UInt64.self, forKey: key("maxBytes")).flatMap { $0 > 0 ? $0 : nil }
         maxAgeDays = try c.decodeIfPresent(Int.self, forKey: key("maxAgeDays")).flatMap { $0 > 0 ? $0 : nil }
         minFreeBytes = try c.decodeIfPresent(UInt64.self, forKey: key("minFreeBytes")).flatMap { $0 > 0 ? $0 : nil }
+        if let raw = try c.decodeIfPresent(String.self, forKey: key("defaultTrust")) {
+            guard let trust = Trust(rawValue: raw) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: key("defaultTrust"), in: c,
+                    debugDescription: "cache defaultTrust must be trusted or untrusted, got '\(raw)'")
+            }
+            defaultTrust = trust
+        } else {
+            defaultTrust = nil
+        }
+        proxyUntrusted = try c.decodeIfPresent(Bool.self, forKey: key("proxyUntrusted")) ?? false
         buildkit = try c.decodeIfPresent(BuildKit.self, forKey: key("buildkit")) ?? defaults.buildkit
         extra = try HVFJSONKey.unknown(in: c, known: Self.knownKeys)
     }
@@ -194,6 +232,8 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         if let maxBytes, maxBytes > 0 { try c.encode(maxBytes, forKey: HVFJSONKey("maxBytes")) }
         if let maxAgeDays, maxAgeDays > 0 { try c.encode(maxAgeDays, forKey: HVFJSONKey("maxAgeDays")) }
         if let minFreeBytes, minFreeBytes > 0 { try c.encode(minFreeBytes, forKey: HVFJSONKey("minFreeBytes")) }
+        if let defaultTrust { try c.encode(defaultTrust.rawValue, forKey: HVFJSONKey("defaultTrust")) }
+        if proxyUntrusted { try c.encode(proxyUntrusted, forKey: HVFJSONKey("proxyUntrusted")) }
         try c.encode(buildkit, forKey: HVFJSONKey("buildkit"))
         for (name, value) in extra where !Self.knownKeys.contains(name) {
             try c.encode(value, forKey: HVFJSONKey(name))
@@ -339,7 +379,8 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
                 defaultScope.isEmpty ? "no default scope (only containers naming a scope)" : "scope \(defaultScope)"
             let kinds = (try? Self.normalizedTools(tools)) ?? tools
             let which = kinds == Self.toolKinds ? "" : ", tools \(kinds.joined(separator: ","))"
-            return "auto, \(scope)\(which)"
+            let trust = effectiveDefaultTrust == .untrusted ? ", untrusted by default" : ""
+            return "auto, \(scope)\(which)\(trust)"
         }
     }
 }
@@ -395,5 +436,40 @@ struct HVFJSONKey: CodingKey, Hashable {
             extra[key.stringValue] = try container.decode(JSONValue.self, forKey: key)
         }
         return extra
+    }
+}
+
+// MARK: - Rig auto-configuration
+
+extension HVFMachineCachePolicy {
+    /// What `applyRigDefaultTrust` prints when it changed machine.json.
+    public static let rigDefaultTrustNote =
+        "this host runs CI (Cuttlefish): containers without io.micropod.cache.trust are now untrusted "
+        + "(cache defaultTrust untrusted; `micropod cache policy --default-trust trusted` changes it)"
+
+    /// Rig auto-configuration: on a host Cuttlefish runs CI on
+    /// (`RuntimeRigClient.hasConfiguredRig`), the standard machine
+    /// (`~/.micropod/hvf`) gets `defaultTrust: untrusted` in machine.json the
+    /// first time it is installed or launched without a `defaultTrust` of its
+    /// own, so a CI container that names no tier never writes the shared
+    /// caches; the scheduler labels the attempts it trusts. An explicit
+    /// setting (`micropod cache policy --default-trust trusted`) is kept, and
+    /// a throwaway root (`MICROPOD_HVF_ROOT` elsewhere) is never changed.
+    /// Returns `rigDefaultTrustNote` when it changed machine.json, else nil.
+    @discardableResult
+    public static func applyRigDefaultTrust(
+        layout: HVFMachineLayout, home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        isRig: (URL) -> Bool = { RuntimeRigClient.hasConfiguredRig(ownerHome: $0) }
+    ) throws -> String? {
+        guard layout.isStandardRoot(home: home), FileManager.default.fileExists(atPath: layout.config.path),
+            isRig(home)
+        else { return nil }
+        var config = try HVFMachineConfig.load(from: layout.config)
+        var policy = config.effectiveCachePolicy
+        guard policy.defaultTrust == nil else { return nil }
+        policy.defaultTrust = .untrusted
+        config.cache = policy
+        try config.save(to: layout.config)
+        return rigDefaultTrustNote
     }
 }

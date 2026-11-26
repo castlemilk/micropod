@@ -307,14 +307,19 @@ enum MCPToolCatalog {
         MCPTool(
             name: "cache_policy",
             description:
-                "Show the active HVF machine dependency cache policy (sharedL0, goProxy, npmRegistry, tools, budget)."),
+                "Show the active HVF machine dependency cache policy (defaultTrust, sharedL0, goProxy, npmRegistry, tools, budget)."
+        ),
         MCPTool(
             name: "cache_policy_set",
             description:
                 "Update HVF cache policy live. Only the settings given change; a call naming none writes nothing.",
             parameters: [
                 .choice("mode", ["auto", "off"], "Attach caches to every container (auto) or none (off)."),
-                .boolean("shared_l0", "Share verified downloads across scopes (fleet L0)."),
+                .boolean("shared_l0", "Share the gomod, npm and pnpm stores across scopes (fleet L0)."),
+                .choice(
+                    "default_trust", ["trusted", "untrusted"],
+                    "Trust tier of containers naming none: untrusted ones only read the shared caches."),
+                .boolean("proxy_untrusted", "Also give untrusted containers go_proxy and npm_registry."),
                 .string(
                     "go_proxy", "GOPROXY for containers, e.g. http://10.42.0.1:7677/go|direct; off or \"\" clears it."),
                 .string("npm_registry", "npm registry URL for containers; off or \"\" clears it."),

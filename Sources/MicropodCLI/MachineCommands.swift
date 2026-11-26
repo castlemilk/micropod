@@ -42,6 +42,7 @@ enum MachineCommands {
                                                   another machine's live socket without --force)
           micropod machine cache policy [show] [--mode auto|off] [--default-scope S|none]
                                    [--allow-scopes a,b*] [--tools go,npm,…|all] [--go-trimpath on|off]
+                                   [--default-trust trusted|untrusted] [--proxy-untrusted on|off]
                                    [--pnpm-legacy-env on|off] [--register-buildx on|off]
                                                   the dependency-cache policy every container on the
                                                   machine's Docker socket gets (machine.json `cache`);
@@ -222,6 +223,7 @@ enum MachineCommands {
         ) {
             print($0)
         }
+        if let note = try HVFMachineCachePolicy.applyRigDefaultTrust(layout: layout) { print(note) }
         print("hvf machine installed under \(layout.root.path)")
     }
 
@@ -392,7 +394,7 @@ enum MachineCommands {
     static let policyValueFlags: Set<String> = [
         "--mode", "--default-scope", "--allow-scopes", "--tools", "--go-trimpath", "--pnpm-legacy-env",
         "--register-buildx", "--share-l0", "--go-proxy", "--npm-registry", "--max-bytes", "--max-age-days",
-        "--min-free-bytes",
+        "--min-free-bytes", "--default-trust", "--proxy-untrusted",
     ]
 
     static func cache(_ args: [String], client: HVFMachineClient, json: Bool) throws {
@@ -402,6 +404,7 @@ enum MachineCommands {
                     + "[--allow-scopes a,b*] [--tools go,npm,…|all] [--share-l0 on|off] "
                     + "[--go-proxy URL|off] [--npm-registry URL|off] [--max-bytes SIZE|off] "
                     + "[--max-age-days N|off] [--min-free-bytes SIZE|off] "
+                    + "[--default-trust trusted|untrusted] [--proxy-untrusted on|off] "
                     + "[--go-trimpath on|off] [--pnpm-legacy-env on|off] [--register-buildx on|off]")
         }
         let parsed = try parseArgs(
@@ -487,6 +490,14 @@ enum MachineCommands {
         if let value = try toggle("--pnpm-legacy-env") { policy.pnpmLegacyEnv = value }
         if let value = try toggle("--register-buildx") { policy.buildkit.registerBuildx = value }
         if let value = try toggle("--share-l0") { policy.sharedL0 = value }
+        if let raw = parsed.value("--default-trust") {
+            guard let trust = HVFMachineCachePolicy.Trust(rawValue: raw.lowercased()) else {
+                throw UsageError(
+                    message: "machine cache policy: --default-trust wants trusted or untrusted, got '\(raw)'")
+            }
+            policy.defaultTrust = trust
+        }
+        if let value = try toggle("--proxy-untrusted") { policy.proxyUntrusted = value }
         if let raw = parsed.value("--go-proxy") {
             let trimmed = raw.trimmingCharacters(in: .whitespaces)
             policy.goProxy = ["off", "none", ""].contains(trimmed.lowercased()) ? nil : trimmed
@@ -616,6 +627,11 @@ enum MachineCommands {
             "shared L0 tier:  \(onOff(policy.sharedL0)) "
                 + "(\(HVFMachineCachePolicy.globalKinds.joined(separator: ", ")) shared in scope 'global'; "
                 + "every other store stays per scope)")
+        print(
+            "default trust:   \(policy.effectiveDefaultTrust.rawValue)"
+                + (policy.defaultTrust == nil ? " (not set)" : "")
+                + " (containers naming no io.micropod.cache.trust)")
+        print("proxy untrusted: \(onOff(policy.proxyUntrusted)) (goProxy/npmRegistry for untrusted containers)")
         if let gp = policy.goProxy { print("go proxy (L0):   \(gp)") }
         if let nr = policy.npmRegistry { print("npm proxy (L0):  \(nr)") }
         if let maxB = policy.maxBytes { print("budget ceiling:  \(CacheCommands.formatBytes(maxB))") }

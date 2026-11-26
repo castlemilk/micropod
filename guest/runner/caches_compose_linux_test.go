@@ -496,7 +496,7 @@ func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
 		"micropod-ci-scoped-team-npm:/root/.npm:ro",
 	}}}
 	privA := filepath.Join(filepath.Dir(cacheRoot), "a", "shim")
-	files, mounts, pins, err := eng.openMounts(spec, false, "", privA)
+	files, mounts, pins, err := eng.openMounts(spec, rulesFor(t, spec), false, "", privA)
 	if err != nil {
 		t.Fatalf("the start failed without the cache disk: %v", err)
 	}
@@ -519,7 +519,7 @@ func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
 
 	// A restart, and a docker cp into the stopped container, reach the same
 	// directory; another container gets its own.
-	files, _, _, err = eng.openMounts(spec, false, "", privA)
+	files, _, _, err = eng.openMounts(spec, rulesFor(t, spec), false, "", privA)
 	if err != nil || !exists(filepath.Join(fdTarget(t, files[0]), "cache", "download", "x.mod")) {
 		t.Fatalf("restart lost the container's own directory: %v", err)
 	}
@@ -530,7 +530,7 @@ func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
 	}
 	f.Close()
 	privB := filepath.Join(filepath.Dir(cacheRoot), "b", "shim")
-	files, _, _, err = eng.openMounts(spec, false, "", privB)
+	files, _, _, err = eng.openMounts(spec, rulesFor(t, spec), false, "", privB)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -546,7 +546,7 @@ func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
 	}
 	untrusted := spec
 	untrusted.Labels = map[string]string{"io.micropod.cache.trust": "untrusted"}
-	if _, _, _, err := eng.openMounts(untrusted, false, "", privB); err == nil {
+	if _, _, _, err := eng.openMounts(untrusted, rulesFor(t, untrusted), false, "", privB); err == nil {
 		t.Fatal("an untrusted container mounted an alias volume read-write")
 	}
 }
@@ -565,7 +565,7 @@ func TestCacheAliasReaderNeverCreatesOrRepairsTheStore(t *testing.T) {
 	}
 	open := func(bind string) ([]*os.File, []*cri.Mount, []cachePin) {
 		t.Helper()
-		files, mounts, pins, err := eng.openMounts(reader(bind), false, "", priv)
+		files, mounts, pins, err := eng.openMounts(reader(bind), rulesFor(t, reader(bind)), false, "", priv)
 		if err != nil || len(files) != 1 || len(pins) != 1 || pins[0].writer || !mounts[0].Readonly {
 			t.Fatalf("%s: files %d pins %+v mounts %+v: %v", bind, len(files), pins, mounts, err)
 		}

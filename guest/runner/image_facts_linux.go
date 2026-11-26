@@ -26,13 +26,14 @@ import (
 // Image facts are what the attach decision needs to know about an image:
 // its configured Env/User/WorkingDir (from CRI) and a handful of rootfs facts
 // (passwd/group, whether candidate cache paths exist and hold content, which
-// tool binaries are on PATH). They are probed once per image ID through a
-// read-only `ctr images mount` view and cached on disk. factsVersion changes
-// whenever the probe learns something new (version 2: the mvn, gradle, bun,
-// sccache and playwright binaries), so facts an older engine cached are
-// probed again.
+// tool binaries are on PATH, which npmrc files set a registry). They are probed
+// once per image ID through a read-only `ctr images mount` view and cached on
+// disk. factsVersion changes whenever the probe learns something new (version
+// 2: the mvn, gradle, bun, sccache and playwright binaries; 3: the npmrc
+// files that set a registry), so facts an older engine cached are probed
+// again.
 
-const factsVersion = 2
+const factsVersion = 3
 const probeRoot = "/run/micropod/probe"
 
 var imageFactsDir = filepath.Join(engineRoot, "image-facts")
@@ -68,9 +69,12 @@ type imageFacts struct {
 	Group      []groupEntry        `json:"group"`
 	Paths      map[string]pathFact `json:"paths"`
 	Binaries   map[string]bool     `json:"binaries"`
-	OK         bool                `json:"ok"`
-	ProbeMS    int64               `json:"probeMS"`
-	Error      string              `json:"error,omitempty"`
+	// NpmRegistry lists the npmrc files of the image that set an unscoped
+	// registry (npmrcCandidates), which npm_config_registry would override.
+	NpmRegistry map[string]bool `json:"npmRegistry,omitempty"`
+	OK          bool            `json:"ok"`
+	ProbeMS     int64           `json:"probeMS"`
+	Error       string          `json:"error,omitempty"`
 }
 
 func (f *imageFacts) passwdByUID(uid uint32) *passwdEntry {
@@ -251,6 +255,85 @@ func readInRoot(root int, p string) []byte {
 	return b
 }
 
+// npmrcCandidates are the npmrc files of an image npm would read for some
+// container of it: the global config (npm's builtin prefixes, or the image's
+// npm_config_globalconfig), an npm_config_userconfig the image names, ~/.npmrc
+// of every plausible HOME, and the project config in the image's working
+// directory or any directory above it.
+func npmrcCandidates(env []string, passwd []passwdEntry, user, workDir string) []string {
+	set := map[string]bool{"/usr/local/etc/npmrc": true, "/usr/etc/npmrc": true, "/etc/npmrc": true}
+	for _, k := range []string{"npm_config_globalconfig", "npm_config_userconfig"} {
+		if v, ok := envLookup(env, k, true); ok && path.IsAbs(v) {
+			set[path.Clean(v)] = true
+		}
+	}
+	homes := []string{"/root"}
+	if h, ok := envLookup(env, "HOME", false); ok && path.IsAbs(h) {
+		homes = append(homes, h)
+	}
+	if user != "" {
+		if _, _, h, err := resolveUser(user, &imageFacts{OK: true, Passwd: passwd}); err == nil {
+			homes = append(homes, h)
+		}
+	}
+	for _, p := range passwd {
+		if p.UID == 0 || p.UID >= 1000 && p.UID != 65534 {
+			homes = append(homes, p.Home)
+		}
+	}
+	for _, h := range homes {
+		if path.IsAbs(h) && len(set) < 48 {
+			set[path.Join(h, ".npmrc")] = true
+		}
+	}
+	if path.IsAbs(workDir) {
+		for d := path.Clean(workDir); ; d = path.Dir(d) {
+			set[path.Join(d, ".npmrc")] = true
+			if d == "/" {
+				break
+			}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for p := range set {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// imageNpmRegistry reports whether an npmrc of the image that npm reads for a
+// container with this HOME and working directory sets an unscoped registry.
+func (f *imageFacts) imageNpmRegistry(home, workDir string) bool {
+	if f == nil || len(f.NpmRegistry) == 0 {
+		return false
+	}
+	for _, p := range []string{"/usr/local/etc/npmrc", "/usr/etc/npmrc", "/etc/npmrc", path.Join(home, ".npmrc")} {
+		if f.NpmRegistry[p] {
+			return true
+		}
+	}
+	for _, k := range []string{"npm_config_globalconfig", "npm_config_userconfig"} {
+		if v, ok := envLookup(f.Env, k, true); ok && f.NpmRegistry[path.Clean(v)] {
+			return true
+		}
+	}
+	if workDir == "" {
+		workDir = f.WorkingDir
+	}
+	if path.IsAbs(workDir) {
+		for d := path.Clean(workDir); ; d = path.Dir(d) {
+			if f.NpmRegistry[path.Join(d, ".npmrc")] {
+				return true
+			}
+			if d == "/" {
+				break
+			}
+		}
+	}
+	return false
+}
+
 // rootfsFacts reads everything the decision needs from a mounted rootfs.
 func rootfsFacts(dir string, f *imageFacts) error {
 	rootFd, err := unix.Open(dir, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
@@ -274,6 +357,14 @@ func rootfsFacts(dir string, f *imageFacts) error {
 	searchPath, ok := envLookup(f.Env, "PATH", false)
 	if !ok {
 		searchPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	}
+	for _, p := range npmrcCandidates(f.Env, f.Passwd, f.User, f.WorkingDir) {
+		if npmrcSetsRegistry(readInRoot(rootFd, p)) {
+			if f.NpmRegistry == nil {
+				f.NpmRegistry = map[string]bool{}
+			}
+			f.NpmRegistry[p] = true
+		}
 	}
 	f.Binaries = map[string]bool{}
 	for _, name := range []string{"node", "yarn", "corepack", "cargo", "mvn", "gradle", "bun", "sccache", "playwright"} {

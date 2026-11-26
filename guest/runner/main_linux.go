@@ -166,14 +166,15 @@ func pause(ctx context.Context) error {
 	}
 }
 
-// jobCaches attaches the scheduler-named scope to a trusted job through the
-// same cache table as Docker containers: env-mode tools only, one bind at
-// /micropod/cache, the uid from the image facts (else 0), and the GOFLAGS
-// -trimpath merge. The returned func stamps the units and releases the pins
+// jobCaches attaches the scheduler-named scope to a job through the same cache
+// table as Docker containers, at the job's own trust tier (a job the scheduler
+// did not classify trusted only reads the stores): env-mode tools only, one
+// bind at /micropod/cache, the uid from the image facts (else 0), and the
+// GOFLAGS -trimpath merge. The returned func stamps the units and releases the pins
 // after the job ends.
 func (n node) jobCaches(ctx context.Context, image string, j job, c *cri.ContainerConfig) func() {
 	facts, _ := (&factsLoader{}).load(ctx, n.images, image)
-	plan := decideJobCaches((&policyLoader{}).get(), j.Cache, facts)
+	plan := decideJobCaches((&policyLoader{}).get(), j.Cache, j.Trust, facts, dependencyProxies.up)
 	if !plan.attached() {
 		if plan.Reason != "" {
 			fmt.Fprintf(os.Stderr, "job cache scope %s not attached: %s\n", j.Cache, plan.Reason)

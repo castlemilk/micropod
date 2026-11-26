@@ -172,6 +172,21 @@ final class CacheToolsTests: XCTestCase {
         XCTAssertEqual(second["mode"] as? String, "auto")
     }
 
+    func testPolicySetSendsTheDefaultTrustTier() async throws {
+        let fake = try FakeLocalAPI(unixSocket: socketPath)
+        defer { fake.stop() }
+        let server = makeServer()
+        let reply = try await call(
+            server, "cache_policy_set", ["default_trust": "untrusted", "proxy_untrusted": false])
+        XCTAssertFalse(reply.isError, reply.text)
+        let requests = fake.requests
+        XCTAssertEqual(requests.count, 1)
+        guard let body = requests.first?.json else { return }
+        XCTAssertEqual(body["defaultTrust"] as? String, "untrusted")
+        XCTAssertEqual(body["proxyUntrusted"] as? Bool, false)
+        XCTAssertEqual(body.count, 2)
+    }
+
     /// `""` for a URL or the default scope is the earlier clear, not an
     /// omission: it is sent, alone or beside another setting.
     func testPolicySetSendsAnEmptyURLAsAClear() async throws {

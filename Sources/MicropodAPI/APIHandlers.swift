@@ -556,6 +556,7 @@ final class APIHandlers: Sendable {
                     "cachePolicy": [
                         "mode": cfg.effectiveCachePolicy.mode.rawValue,
                         "sharedL0": cfg.effectiveCachePolicy.sharedL0,
+                        "defaultTrust": cfg.effectiveCachePolicy.effectiveDefaultTrust.rawValue,
                         "goProxy": cfg.effectiveCachePolicy.goProxy ?? "",
                         "toolCount": cfg.effectiveCachePolicy.tools.count,
                     ],
@@ -1437,7 +1438,7 @@ extension APIHandlers {
 
     static let cachePolicyFields: Set<String> = [
         "mode", "defaultScope", "allowedScopes", "tools", "goTrimpath", "pnpmLegacyEnv", "sharedL0", "goProxy",
-        "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes",
+        "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes", "defaultTrust", "proxyUntrusted",
     ]
     /// The optional settings `null` clears.
     static let cachePolicyClearableFields: Set<String> = [
@@ -1463,6 +1464,13 @@ extension APIHandlers {
         if let trim = try fields.bool("goTrimpath") { policy.goTrimpath = trim }
         if let legacy = try fields.bool("pnpmLegacyEnv") { policy.pnpmLegacyEnv = legacy }
         if let shared = try fields.bool("sharedL0") { policy.sharedL0 = shared }
+        if let raw = try fields.string("defaultTrust") {
+            guard let trust = HVFMachineCachePolicy.Trust(rawValue: raw) else {
+                throw BadRequest(message: "cache policy: defaultTrust must be trusted or untrusted, got '\(raw)'")
+            }
+            policy.defaultTrust = trust
+        }
+        if let proxy = try fields.bool("proxyUntrusted") { policy.proxyUntrusted = proxy }
         if fields.contains("goProxy") {
             policy.goProxy = try fields.string("goProxy").flatMap { $0.isEmpty ? nil : $0 }
         }

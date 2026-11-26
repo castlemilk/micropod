@@ -121,6 +121,21 @@ final class MachineCommandsTests: XCTestCase {
         }
     }
 
+    func testDefaultTrustAndProxyUntrustedFlags() throws {
+        let rig = try policy(["--default-trust", "untrusted", "--proxy-untrusted", "on"])
+        XCTAssertEqual(rig.defaultTrust, .untrusted)
+        XCTAssertTrue(rig.proxyUntrusted)
+        let developer = try policy(["--default-trust", "TRUSTED", "--proxy-untrusted", "off"], from: rig)
+        XCTAssertEqual(developer.defaultTrust, .trusted, "an explicit trusted is recorded")
+        XCTAssertFalse(developer.proxyUntrusted)
+        XCTAssertNil(try policy(["--share-l0", "on"]).defaultTrust, "other flags leave it unset")
+        for bad in [["--default-trust", "semi"], ["--proxy-untrusted", "maybe"]] {
+            XCTAssertThrowsError(try policy(bad), "\(bad)") { error in
+                XCTAssertTrue(error is UsageError, "\(bad): \(error)")
+            }
+        }
+    }
+
     func testCacheCommandRoutingAndFleetPolicyFlags() throws {
         XCTAssertEqual(CacheCommands.route(["cache", "status"])?.args, ["status"])
         XCTAssertEqual(

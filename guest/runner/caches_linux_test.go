@@ -469,7 +469,7 @@ func TestDecideCachesCargo(t *testing.T) {
 
 func TestDecideJobCaches(t *testing.T) {
 	f := testFacts(append([]string{"GOFLAGS=-mod=mod"}, golangEnv...), nil, "node")
-	p := decideJobCaches(defaultCachePolicy(), "repo-main", f)
+	p := decideJobCaches(defaultCachePolicy(), "repo-main", "trusted", f, nil)
 	if p.Scope != "repo-main" || !p.attached() || len(p.Mounts) != 1 || p.Mounts[0].Target != "/micropod/cache" {
 		t.Fatalf("job plan %+v", p)
 	}
@@ -482,14 +482,14 @@ func TestDecideJobCaches(t *testing.T) {
 		}
 	}
 	// Without facts a job still gets its caches, as uid 0.
-	p = decideJobCaches(defaultCachePolicy(), "repo-main", imageFacts{})
+	p = decideJobCaches(defaultCachePolicy(), "repo-main", "trusted", imageFacts{}, nil)
 	if v, _ := envOf(p, "PIP_CACHE_DIR"); v != "/micropod/cache/pip/u0" {
 		t.Fatalf("job without facts %+v", p)
 	}
 	// A scheduler scope is not subject to the Docker allow-list or mode.
 	ci := defaultCachePolicy()
 	ci.Mode, ci.DefaultScope, ci.AllowedScopes = "off", "", []string{"none"}
-	if p := decideJobCaches(ci, "repo-main", f); !p.attached() {
+	if p := decideJobCaches(ci, "repo-main", "trusted", f, nil); !p.attached() {
 		t.Fatalf("job plan under CI policy %+v", p)
 	}
 }
@@ -1115,4 +1115,15 @@ func TestCacheDebugStripACL(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(0777, true)
+}
+
+// rulesFor is what a start enforces on spec's alias volumes under the default
+// policy, the tier decided for spec on the host-facing socket.
+func rulesFor(t *testing.T, spec dockerConfig) cacheVolumeRules {
+	t.Helper()
+	plan, err := decideCaches(defaultCachePolicy(), spec, imageFacts{})
+	if err != nil {
+		t.Fatalf("decideCaches: %v", err)
+	}
+	return volumeRules(defaultCachePolicy(), &plan)
 }

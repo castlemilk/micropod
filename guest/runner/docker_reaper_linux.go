@@ -86,6 +86,10 @@ func (p *cleanupAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.engine.metrics.reaper.requestsTotal.Add(1)
 	rec := &statusRecorder{ResponseWriter: w}
 	var errMsg string
+	// A request on this socket comes from inside the Ryuk container: the
+	// engine never treats it as the host's (cacheOrigin), and nothing it
+	// could create would be more trusted than that container.
+	r = r.WithContext(withCacheOrigin(r.Context(), cacheOrigin{creator: p.owner}))
 	err := p.handle(rec, r)
 	dur := time.Since(start)
 	if err != nil {

@@ -274,7 +274,7 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 	if _, _, shared := legacyCacheVolume(mount.Source); write && shared && mount.Type == "volume" {
 		// An untrusted or read-only cache container never writes a shared
 		// store, not even through docker cp into an alias volume.
-		if _, readOnly, _ := cacheTrustOf(c.Config); readOnly {
+		if c.cacheReadOnly(s.cachePolicy.get()) {
 			s.mu.Unlock()
 			return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is a shared cache store this container may only read")
 		}

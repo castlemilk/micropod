@@ -1349,28 +1349,41 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	return a
 }
 
+// cacheVolumeRules is what openMounts enforces on a request's legacy alias
+// volumes of cache stores: the container's tier (readOnly for every tier but
+// trusted, decided at create) and the machine policy's scope allow-list.
+type cacheVolumeRules struct {
+	readOnly bool
+	allows   func(scope string) bool
+}
+
 // openMounts opens the request's own mounts. For a start (createVolumes false)
 // a legacy alias volume of a cache store also holds that kind's unit: a
 // writable one pins it (lock plus dirty mark), a read-only one takes the lock
 // alone. The caller hands the pins to the container's cache attachment, whose
-// release drops them. An untrusted or read-only container (cacheTrustOf) may
-// mount an alias volume only read-only: a writable one would be a path into a
-// shared store that bypasses its copy-on-write view. While shared caches are
-// off for the boot an alias volume is a directory of the container's own
-// below privateRoot (openUncachedAlias), so its job runs uncached instead of
-// failing; privateRoot is the container's shim directory ("" at create).
-func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket, privateRoot string) ([]*os.File, []*cri.Mount, []cachePin, error) {
+// release drops them. An alias volume must name a scope the policy's
+// allowedScopes admit, at create and at every start (HTTP 400 otherwise), and
+// an untrusted or read-only container (rules.readOnly) may mount one only
+// read-only: a writable one would be a path into a shared store that bypasses
+// its copy-on-write view. While shared caches are off for the boot an alias
+// volume is a directory of the container's own below privateRoot
+// (openUncachedAlias), so its job runs uncached instead of failing;
+// privateRoot is the container's shim directory ("" at create).
+func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, createVolumes bool, cleanupSocket, privateRoot string) ([]*os.File, []*cri.Mount, []cachePin, error) {
 	requests, err := spec.mounts()
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	_, readOnlyCaches, err := cacheTrustOf(spec)
-	if err != nil {
-		return nil, nil, nil, err
-	}
 	for _, m := range requests {
-		if _, _, shared := legacyCacheVolume(m.Source); shared && m.Type == "volume" && !m.ReadOnly && readOnlyCaches {
-			return nil, nil, nil, fmt.Errorf("an untrusted or read-only cache container cannot mount the shared cache volume %s read-write; mount it :ro", m.Source)
+		scope, _, shared := legacyCacheVolume(m.Source)
+		if !shared || m.Type != "volume" {
+			continue
+		}
+		if rules.allows == nil || !rules.allows(scope) {
+			return nil, nil, nil, fail(400, fmt.Sprintf("the cache volume %s names cache scope %s, which the machine policy does not allow", m.Source, scope))
+		}
+		if !m.ReadOnly && rules.readOnly {
+			return nil, nil, nil, fail(400, fmt.Sprintf("an untrusted or read-only cache container cannot mount the shared cache volume %s read-write; mount it :ro", m.Source))
 		}
 	}
 	var files []*os.File

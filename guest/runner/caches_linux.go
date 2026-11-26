@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -67,6 +68,23 @@ const (
 	planRootless    = "rootless"
 	planNoScope     = "no-scope"
 	planNoCacheDisk = "cache-disk-unavailable"
+	// The policy's own defaultScope is not in its allowedScopes (the host
+	// refuses that; a hand-written policy file may still say it).
+	planScopeNotAllowed = "scope-not-allowed"
+)
+
+// Dependency proxy decisions (cachePlan.Proxy, inspect MicropodCache.proxy).
+const (
+	proxyInjected = "injected"
+	// A reader tier (untrusted, read-only) and no policy proxyUntrusted.
+	proxySkipReader = "reader-tier"
+	// The request or the image sets the variable itself.
+	proxySkipRequest = "request-env"
+	// A .npmrc of the project or the image sets an unscoped registry, which
+	// npm_config_registry would override.
+	proxySkipNpmrc = "npmrc-registry"
+	// The proxy did not answer the create-time health check.
+	proxySkipUnreachable = "proxy-unreachable"
 )
 
 // How one start reaches a store it uses (cacheToolState.Access; empty is the
@@ -91,35 +109,171 @@ type cacheToolState struct {
 	Access string `json:"access,omitempty"`
 }
 
-// cacheTrustOf reads a request's cache trust: io.micropod.cache.trust (or
-// MICROPOD_CACHE_TRUST) "untrusted", or io.micropod.cache.readonly (or
-// MICROPOD_CACHE_READONLY) set, makes the container a reader of every shared
-// store: it never gets a writable path into one, through the auto-attached
-// caches or a legacy alias volume (openMounts).
-func cacheTrustOf(spec dockerConfig) (trust string, readOnly bool, err error) {
-	trust, _ = cacheLabel(spec.Labels, "io.micropod.cache.trust", "com.micropod.cache.trust")
-	if trust == "" {
-		trust, _ = envLookup(spec.Env, "MICROPOD_CACHE_TRUST", false)
+// Cache trust tiers (cachePlan.Trust; "" is trustTrusted in a plan, as every
+// plan before tiers were resolved said). A trusted container writes the shared
+// stores it uses; an untrusted or read-only one only reads them: it never gets
+// a writable path into a store, through the auto-attached caches, a legacy
+// alias volume (openMounts) or docker cp (docker_archive_linux.go).
+const (
+	trustTrusted   = "trusted"
+	trustUntrusted = "untrusted"
+	trustReadOnly  = "readonly"
+)
+
+// Where a plan's tier came from (cachePlan.TrustFrom, inspect trustFrom).
+const (
+	// No trust label: the machine policy's defaultTrust.
+	trustFromPolicy = "policy-default"
+	// The request's io.micropod.cache.trust or .readonly: a lowering, or a
+	// claim of trusted the engine could grant.
+	trustFromLabel = "label"
+	// The request claimed trusted where nothing proves the host asked for it
+	// (the policy default is untrusted and the request did not arrive on the
+	// host-facing socket): it gets the policy default instead.
+	trustFromRefused = "claim-refused"
+	// The request arrived on a socket bound into a container (or one whose
+	// owner is unknown): never more trusted than that container.
+	trustFromCreator = "creator"
+	// A plan an engine made before tiers were resolved, read under a policy
+	// whose default is untrusted (cachePlan.legacyTrust).
+	trustFromLegacy = "legacy-policy-default"
+)
+
+// cacheOrigin is where a create request came from. Only the engine's own
+// Docker socket (dockerSocket) is host-facing: guest init bridges it to the
+// host's vsock port, and no container is ever given a path to it (a bind
+// source must be a directory or regular file in the workspace, and the kernel
+// has no vsock loopback). Every other way in, such as the Testcontainers
+// cleanup socket bound into a Ryuk container, is a container's: creatorTier
+// is the tier of the container that owns that socket ("" when it is not
+// known, which counts as untrusted).
+type cacheOrigin struct {
+	hostFacing  bool
+	creator     string
+	creatorTier string
+}
+
+type cacheOriginKey struct{}
+
+// withCacheOrigin marks a request's context with where it came from.
+func withCacheOrigin(ctx context.Context, o cacheOrigin) context.Context {
+	return context.WithValue(ctx, cacheOriginKey{}, o)
+}
+
+// cacheOriginOf is the origin a context carries; none is a container's
+// socket with an unknown owner, the least trusted way in.
+func cacheOriginOf(ctx context.Context) cacheOrigin {
+	o, _ := ctx.Value(cacheOriginKey{}).(cacheOrigin)
+	return o
+}
+
+// tierRank orders tiers for the creator ceiling: only trusted writes.
+func tierRank(tier string) int {
+	if tier == "" || tier == trustTrusted {
+		return 1
 	}
-	switch strings.ToLower(strings.TrimSpace(trust)) {
-	case "", "trusted":
-		trust = ""
-	case "untrusted":
-		trust, readOnly = "untrusted", true
+	return 0
+}
+
+// resolveCacheTrust decides a create's tier. The policy's defaultTrust is the
+// tier of a container that names none. A container may always lower its own
+// (io.micropod.cache.trust=untrusted, io.micropod.cache.readonly=1), but it
+// may claim trusted only when the policy default is trusted or the request
+// arrived on the host-facing socket, which nothing inside the machine can
+// reach. A request from inside a container is then capped at that
+// container's own tier. Unknown values fail the create (HTTP 400).
+func resolveCacheTrust(pol cachePolicy, spec dockerConfig, origin cacheOrigin) (tier, from string, err error) {
+	raw, _ := cacheLabel(spec.Labels, "io.micropod.cache.trust", "com.micropod.cache.trust")
+	if strings.TrimSpace(raw) == "" {
+		raw, _ = envLookup(spec.Env, "MICROPOD_CACHE_TRUST", false)
+	}
+	tier, from = trustTrusted, trustFromPolicy
+	if pol.untrustedByDefault() {
+		tier = trustUntrusted
+	}
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "":
+	case trustUntrusted:
+		tier, from = trustUntrusted, trustFromLabel
+	case trustTrusted:
+		if origin.hostFacing || !pol.untrustedByDefault() {
+			tier, from = trustTrusted, trustFromLabel
+		} else {
+			from = trustFromRefused
+		}
 	default:
-		return "", false, fail(400, fmt.Sprintf("invalid cache trust %q (expected trusted or untrusted)", trust))
+		return "", "", fail(400, fmt.Sprintf("invalid cache trust %q (expected trusted or untrusted)", raw))
 	}
 	roVal, hasRO := cacheLabel(spec.Labels, "io.micropod.cache.readonly", "com.micropod.cache.readonly")
 	if !hasRO {
 		roVal, hasRO = envLookup(spec.Env, "MICROPOD_CACHE_READONLY", false)
 	}
-	if hasRO && truthy(roVal) {
-		readOnly = true
-		if trust == "" {
-			trust = "readonly"
+	if hasRO && truthy(roVal) && tier == trustTrusted {
+		tier, from = trustReadOnly, trustFromLabel
+	}
+	if !origin.hostFacing {
+		ceiling := origin.creatorTier
+		if ceiling == "" {
+			ceiling = trustUntrusted
+		}
+		if tierRank(tier) > tierRank(ceiling) {
+			tier, from = ceiling, trustFromCreator
 		}
 	}
-	return trust, readOnly, nil
+	return tier, from, nil
+}
+
+// planTier is how a plan records a tier: "" for trusted, as before tiers.
+func planTier(tier string) string {
+	if tier == trustTrusted {
+		return ""
+	}
+	return tier
+}
+
+// legacyTrust gives a plan an engine made before tiers were resolved (no
+// TrustFrom) the tier the policy now gives a container naming none, never a
+// higher one: such an engine read only the request's labels, so nothing in the
+// plan proves the host asked for a trusted container.
+func (p *cachePlan) legacyTrust(pol cachePolicy) {
+	if p == nil || p.TrustFrom != "" || p.ReadOnly || !pol.untrustedByDefault() {
+		return
+	}
+	p.Trust, p.ReadOnly, p.TrustFrom = trustUntrusted, true, trustFromLegacy
+	// A reader never asks for an exclusive kind's writer slot; copied, as
+	// the slice may be shared with the plan this one was copied from.
+	p.Stores = append([]cacheStoreRef(nil), p.Stores...)
+	for i := range p.Stores {
+		p.Stores[i].Exclusive = false
+	}
+}
+
+// cacheReadOnly reports whether the container may only read the shared
+// stores: its plan's tier, decided at create (cachePlan.legacyTrust for a plan
+// an older engine made). A record with no plan at all (from an engine before
+// plans) is read as such an engine read it, from its labels, and then like a
+// legacy plan: never trusted under a policy whose default is untrusted.
+func (c *dockerContainer) cacheReadOnly(pol cachePolicy) bool {
+	var p cachePlan
+	if c.Cache != nil {
+		p = *c.Cache
+	} else {
+		tier, _, err := resolveCacheTrust(pol, c.Config, cacheOrigin{hostFacing: true})
+		if err != nil {
+			return true
+		}
+		p.Trust, p.ReadOnly = planTier(tier), tier != trustTrusted
+	}
+	p.legacyTrust(pol)
+	return p.ReadOnly
+}
+
+// tier is the plan's tier by name (trustTrusted for "").
+func (p *cachePlan) tier() string {
+	if p == nil || p.Trust == "" {
+		return trustTrusted
+	}
+	return p.Trust
 }
 
 // The persistent cache disk (caches.ext4, /dev/vdb). Guest init mounts it at
@@ -185,8 +339,13 @@ type cacheMount struct {
 }
 
 type cachePlan struct {
-	Scope        string                    `json:"scope"`
+	Scope string `json:"scope"`
+	// Trust is the container's tier ("" trusted, trustUntrusted or
+	// trustReadOnly), decided at create (resolveCacheTrust) whether or not
+	// anything attaches: legacy alias volumes and docker cp follow it too.
+	// ReadOnly is true for every tier but trusted.
 	Trust        string                    `json:"trust,omitempty"`
+	TrustFrom    string                    `json:"trustFrom,omitempty"`
 	ReadOnly     bool                      `json:"readOnly,omitempty"`
 	UID          uint32                    `json:"uid"`
 	GID          uint32                    `json:"gid"`
@@ -198,6 +357,9 @@ type cachePlan struct {
 	Tools        map[string]cacheToolState `json:"tools"`
 	PolicyDigest string                    `json:"policyDigest,omitempty"`
 	Reason       string                    `json:"reason,omitempty"`
+	// Proxy is the dependency proxy decision per tool kind ("gomod", "npm",
+	// "pnpm"): proxyInjected or why it was left out (decideProxies).
+	Proxy map[string]string `json:"proxy,omitempty"`
 }
 
 // attached reports whether the plan binds anything at all.
@@ -590,6 +752,26 @@ type cachePolicy struct {
 	MaxBytes     uint64 `json:"maxBytes,omitempty"`
 	MaxAgeDays   int    `json:"maxAgeDays,omitempty"`
 	MinFreeBytes uint64 `json:"minFreeBytes,omitempty"`
+	// DefaultTrust is the tier of a container that names none: "" (trusted,
+	// the shipped default for a developer's own machine, where an unlabeled
+	// docker run warms the caches) or trustUntrusted (a rig). Host-owned:
+	// only the host writes cache-policy.json.
+	DefaultTrust string `json:"defaultTrust,omitempty"`
+	// ProxyUntrusted also injects goProxy and npmRegistry into containers
+	// that only read the stores (untrusted and read-only tiers).
+	ProxyUntrusted bool `json:"proxyUntrusted,omitempty"`
+}
+
+// untrustedByDefault reports whether a container naming no tier is untrusted.
+func (p cachePolicy) untrustedByDefault() bool { return p.DefaultTrust == trustUntrusted }
+
+// failClosedCachePolicy stands in for a policy file that exists but cannot be
+// read or parsed: the defaults, except that no container is trusted unless the
+// host-facing socket asks for it. A missing file is the shipped default.
+func failClosedCachePolicy() cachePolicy {
+	pol := defaultCachePolicy()
+	pol.DefaultTrust = trustUntrusted
+	return pol
 }
 
 func allCacheKinds() []string {
@@ -637,9 +819,23 @@ func parseCachePolicy(b []byte) (cachePolicy, error) {
 		MaxBytes      *uint64   `json:"maxBytes"`
 		MaxAgeDays    *int      `json:"maxAgeDays"`
 		MinFreeBytes  *uint64   `json:"minFreeBytes"`
+		DefaultTrust  *string   `json:"defaultTrust"`
+		ProxyUntrust  *bool     `json:"proxyUntrusted"`
 	}
 	if err := json.Unmarshal(b, &wire); err != nil {
 		return pol, err
+	}
+	if wire.DefaultTrust != nil {
+		switch *wire.DefaultTrust {
+		case "", trustTrusted:
+		case trustUntrusted:
+			pol.DefaultTrust = trustUntrusted
+		default:
+			return failClosedCachePolicy(), fmt.Errorf("unknown defaultTrust %q (expected trusted or untrusted)", *wire.DefaultTrust)
+		}
+	}
+	if wire.ProxyUntrust != nil {
+		pol.ProxyUntrusted = *wire.ProxyUntrust
 	}
 	if wire.Mode != nil {
 		switch *wire.Mode {
@@ -727,8 +923,10 @@ func (p cachePolicy) digest() string {
 }
 
 // policyLoader re-reads the policy file at most every 2 s, and only when its
-// inode, size or mtime changed. A missing or invalid file means defaults, so
-// the engine also works on hosts that never write one.
+// inode, size or mtime changed. A missing file means defaults, so the engine
+// also works on hosts that never write one; a file that exists but is invalid
+// fails closed (failClosedCachePolicy): whatever the host meant to write, it
+// never trusts more containers than the host-facing socket asks for.
 type policyLoader struct {
 	mu      sync.Mutex
 	path    string
@@ -767,8 +965,8 @@ func (l *policyLoader) get() cachePolicy {
 		l.pol, err = parseCachePolicy(b)
 	}
 	if err != nil {
-		log.Printf("cache policy %s invalid, using defaults: %v", file, err)
-		l.pol = defaultCachePolicy()
+		log.Printf("cache policy %s invalid, using defaults with defaultTrust untrusted: %v", file, err)
+		l.pol = failClosedCachePolicy()
 	}
 	return l.pol
 }
@@ -1066,11 +1264,38 @@ func requestCacheValue(spec dockerConfig) string {
 	return v
 }
 
-// decideCaches is the whole attach decision. It is pure: everything it reads
-// is in its arguments (plus privateRootless and cacheDiskUnavailable), so it
-// is table-tested directly.
+// cacheRequest is what a create brings besides its config and the image facts.
+type cacheRequest struct {
+	origin cacheOrigin
+	// proxyUp reports whether a dependency proxy URL of the policy answers
+	// now; nil counts every one as up (table tests).
+	proxyUp func(url string) bool
+	// projectNpmRegistry: a .npmrc of the project the container works in
+	// (its working directory or above, inside the same workspace bind) sets
+	// an unscoped registry, which an injected npm_config_registry would
+	// override (projectNpmRegistry in docker_engine_linux.go).
+	projectNpmRegistry bool
+}
+
+// hostFacingRequest is a create on the engine's own socket with every proxy up.
+var hostFacingRequest = cacheRequest{origin: cacheOrigin{hostFacing: true}}
+
+// decideCaches is decideCachesFor a create on the host-facing socket.
 func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePlan, error) {
+	return decideCachesFor(pol, spec, facts, hostFacingRequest)
+}
+
+// decideCachesFor is the whole attach decision. It is pure: everything it
+// reads is in its arguments (plus privateRootless and cacheDiskUnavailable),
+// so it is table-tested directly. The trust tier is decided first and kept in
+// every plan, attached or not: alias volumes and docker cp follow it too.
+func decideCachesFor(pol cachePolicy, spec dockerConfig, facts imageFacts, req cacheRequest) (cachePlan, error) {
 	plan := cachePlan{Tools: map[string]cacheToolState{}, PolicyDigest: pol.digest()}
+	tier, from, err := resolveCacheTrust(pol, spec, req.origin)
+	if err != nil {
+		return plan, err
+	}
+	plan.Trust, plan.TrustFrom, plan.ReadOnly = planTier(tier), from, tier != trustTrusted
 	// (0) everything off
 	selection := requestCacheValue(spec)
 	switch {
@@ -1105,6 +1330,12 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 		}
 	} else {
 		scope = pol.DefaultScope
+		// The host refuses a default scope its allow-list does not admit;
+		// a policy file that has one anyway attaches nothing.
+		if scope != "" && !pol.allows(scope) {
+			plan.Reason = planScopeNotAllowed
+			return plan, nil
+		}
 	}
 	// (4) selection (validated before anything that can be skipped)
 	selected, forced, err := selectCacheTools(pol, selection)
@@ -1133,14 +1364,12 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 		return plan, nil
 	}
 	plan.Scope = scope
-	// (1b) trust & read-only isolation: untrusted PR builds or explicit readonly
-	// requests get warm reads through an ephemeral per-container overlayfs upperdir
-	// (or fail-closed read-only bind), never mutating trusted stores. Every
-	// store of such a plan is held as a reader (openCacheMounts): locked so the
-	// janitor and the crash discard leave it alone, never marked dirty.
-	if plan.Trust, plan.ReadOnly, err = cacheTrustOf(spec); err != nil {
-		return plan, err
-	}
+	// (1b) trust & read-only isolation (resolved above): an untrusted or
+	// read-only plan gets warm reads through an ephemeral per-container
+	// overlayfs upperdir (or a fail-closed read-only bind), never mutating
+	// trusted stores. Every store of such a plan is held as a reader
+	// (openCacheMounts): locked so the janitor and the crash discard leave
+	// it alone, never marked dirty.
 	if !facts.OK {
 		plan.Reason = skipProbeFailed
 		for _, t := range cacheTable {
@@ -1314,17 +1543,12 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 				env = append(env, "GOFLAGS="+merged)
 			}
 		}
-		// (7b) Optional L0 rig dependency proxy wiring (depproxy): inject only
-		// when neither the container request nor the image set the registry.
-		if t.Kind == "gomod" && pol.GoProxy != "" {
-			if _, ok := envLookup(merged, "GOPROXY", false); !ok {
-				env = append(env, "GOPROXY="+pol.GoProxy)
-			}
-		}
-		if (t.Kind == "npm" || t.Kind == "pnpm") && pol.NpmRegistry != "" {
-			if _, ok := envLookup(merged, "npm_config_registry", true); !ok {
-				env = append(env, "npm_config_registry="+pol.NpmRegistry)
-			}
+		// (7b) Optional rig dependency proxy wiring (depproxy), guarded
+		// (decideProxy): never over a setting of the request, the image or
+		// the project, never when the proxy does not answer, never into a
+		// reader tier unless the policy says so; Go keeps a direct fallback.
+		if kv := req.decideProxy(pol, &plan, t.Kind, merged, &facts, home, spec.WorkingDir); kv != "" {
+			env = append(env, kv)
 		}
 		if len(env) > 0 {
 			plan.ToolEnv[t.Kind] = env
@@ -1348,6 +1572,134 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 		plan.ToolEnv = nil
 	}
 	return plan, nil
+}
+
+// decideProxy decides the policy's dependency proxy for one tool of a plan
+// and returns the KEY=VALUE to inject, or "". It records the decision in
+// plan.Proxy. The Go proxy goes with gomod; the npm registry with npm and
+// pnpm (one decision, both get it). A setting of the request or the image
+// (env), or of the project or the image (.npmrc registry=), always wins; a
+// reader tier gets nothing unless the policy sets proxyUntrusted; a proxy that
+// does not answer the create-time health check is left out, so its outage
+// never fails an install. The injected GOPROXY always ends in a direct
+// fallback (goProxyWithDirect).
+func (req cacheRequest) decideProxy(pol cachePolicy, plan *cachePlan, kind string, merged []string, facts *imageFacts, home, workDir string) string {
+	var key, list, probe string
+	switch {
+	case kind == "gomod" && pol.GoProxy != "":
+		key, list = "GOPROXY", goProxyWithDirect(pol.GoProxy)
+		probe = firstProxyURL(pol.GoProxy)
+	case (kind == "npm" || kind == "pnpm") && pol.NpmRegistry != "":
+		key, list, probe = "npm_config_registry", pol.NpmRegistry, pol.NpmRegistry
+		// One decision for both npm and pnpm.
+		for _, other := range []string{"npm", "pnpm"} {
+			if why, done := plan.Proxy[other]; done && other != kind {
+				plan.setProxy(kind, why)
+				if why == proxyInjected {
+					return key + "=" + list
+				}
+				return ""
+			}
+		}
+	default:
+		return ""
+	}
+	why := ""
+	switch {
+	case plan.ReadOnly && !pol.ProxyUntrusted:
+		why = proxySkipReader
+	case envSet(merged, key, kind != "gomod"):
+		why = proxySkipRequest
+	case key == "npm_config_registry" && (req.projectNpmRegistry || facts.imageNpmRegistry(home, workDir)):
+		why = proxySkipNpmrc
+	case probe != "" && req.proxyUp != nil && !req.proxyUp(probe):
+		why = proxySkipUnreachable
+	}
+	if why != "" {
+		plan.setProxy(kind, why)
+		return ""
+	}
+	plan.setProxy(kind, proxyInjected)
+	return key + "=" + list
+}
+
+func (p *cachePlan) setProxy(kind, why string) {
+	if p.Proxy == nil {
+		p.Proxy = map[string]string{}
+	}
+	p.Proxy[kind] = why
+}
+
+// envSet reports whether env sets key at all (an empty value is a setting).
+func envSet(env []string, key string, fold bool) bool {
+	_, ok := envLookup(env, key, fold)
+	return ok
+}
+
+// goProxyWithDirect is the GOPROXY a container gets for the policy's list:
+// "off" entries dropped (a container always keeps a way to the module's
+// origin) and "|direct" appended unless the list already ends in direct, so
+// Go falls back to the origin on any proxy error, not only on 404 and 410.
+func goProxyWithDirect(list string) string {
+	var out strings.Builder
+	sep := ""
+	last := ""
+	for len(list) > 0 {
+		i := strings.IndexAny(list, ",|")
+		entry, next := list, ""
+		if i >= 0 {
+			entry, next = list[:i], list[i:i+1]
+			list = list[i+1:]
+		} else {
+			list = ""
+		}
+		entry = strings.TrimSpace(entry)
+		if entry != "" && entry != "off" {
+			if out.Len() > 0 {
+				out.WriteString(sep)
+			}
+			out.WriteString(entry)
+			last = entry
+		}
+		if next != "" && entry != "" && entry != "off" {
+			sep = next
+		}
+	}
+	switch {
+	case out.Len() == 0:
+		return "direct"
+	case last != "direct":
+		out.WriteString("|direct")
+	}
+	return out.String()
+}
+
+// firstProxyURL is the first http(s) entry of a GOPROXY list, the one the
+// health check asks.
+func firstProxyURL(list string) string {
+	for _, entry := range strings.FieldsFunc(list, func(r rune) bool { return r == ',' || r == '|' }) {
+		if entry = strings.TrimSpace(entry); strings.HasPrefix(entry, "http://") || strings.HasPrefix(entry, "https://") {
+			return entry
+		}
+	}
+	return ""
+}
+
+// npmrcSetsRegistry reports whether an npmrc file sets the unscoped registry
+// (`registry=…`, any case and spacing). A scoped `@scope:registry=` is not
+// overridden by npm_config_registry and does not count.
+func npmrcSetsRegistry(b []byte) bool {
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || line[0] == '#' || line[0] == ';' {
+			continue
+		}
+		key, _, ok := strings.Cut(line, "=")
+		if ok && strings.EqualFold(strings.TrimSpace(key), "registry") {
+			return true
+		}
+	}
+	return false
 }
 
 // shimFor returns the first missing directory on the way from HOME to target
@@ -1397,10 +1749,21 @@ func legacyCacheVolume(name string) (scope, kind string, ok bool) {
 }
 
 // decideJobCaches is the scheduler job path: the scope is named by the
-// trusted scheduler, only env-mode tools attach (one bind at /micropod/cache),
-// and the uid comes from the image facts, else 0.
-func decideJobCaches(pol cachePolicy, scope string, facts imageFacts) cachePlan {
+// scheduler, which reaches the guest only over the worker owner's private
+// vsock (as host-facing as the Docker socket), so neither the Docker
+// allow-list nor the mode applies to it; only env-mode tools attach (one
+// bind at /micropod/cache), and the uid comes from the image facts, else 0.
+// trust is the job's own classification by the scheduler ("trusted" writes
+// the stores; anything else only reads them), never a label of the job's
+// image, and the policy's defaultTrust does not lower it: the scheduler is
+// the host asking.
+func decideJobCaches(pol cachePolicy, scope, trust string, facts imageFacts, proxyUp func(string) bool) cachePlan {
 	spec := dockerConfig{Labels: map[string]string{}}
+	if trust != trustTrusted {
+		spec.Labels["io.micropod.cache.trust"] = trustUntrusted
+	} else {
+		spec.Labels["io.micropod.cache.trust"] = trustTrusted
+	}
 	var tools []string
 	for _, t := range cacheTable {
 		if t.Mode == "env" && slices.Contains(pol.Tools, t.Kind) {
@@ -1419,7 +1782,7 @@ func decideJobCaches(pol cachePolicy, scope string, facts imageFacts) cachePlan 
 		// image's root default with nothing pre-warm-detected.
 		facts = imageFacts{OK: true, Env: facts.Env}
 	}
-	plan, err := decideCaches(jobPol, spec, facts)
+	plan, err := decideCachesFor(jobPol, spec, facts, cacheRequest{origin: cacheOrigin{hostFacing: true}, proxyUp: proxyUp})
 	if err != nil {
 		return cachePlan{Scope: scope, Reason: err.Error(), Tools: map[string]cacheToolState{}}
 	}

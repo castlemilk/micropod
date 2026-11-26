@@ -489,7 +489,12 @@ func serveEngine(ctx context.Context, n node) error {
 	if err != nil {
 		return err
 	}
-	server := &http.Server{Handler: s, BaseContext: func(net.Listener) context.Context { return ctx },
+	// Every request on this socket is the host's (cacheOrigin): only guest
+	// init's vsock bridge reaches it. In the rootless engine the socket is
+	// also bound into the job's containers (dockerSocketMount), which have
+	// no shared caches at all (planRootless).
+	origin := cacheOrigin{hostFacing: true}
+	server := &http.Server{Handler: s, BaseContext: func(net.Listener) context.Context { return withCacheOrigin(ctx, origin) },
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
 	go func() { <-ctx.Done(); server.Close() }()
 	err = server.Serve(l)
@@ -621,7 +626,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, _, err := s.openMounts(spec, true, "", "")
+	files, _, _, err := s.openMounts(spec, volumeRules(s.cachePolicy.get(), plan), true, "", "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
@@ -659,11 +664,37 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	return c, nil
 }
 
+// volumeRules is what openMounts enforces on alias volumes for a container
+// with this plan under this policy.
+func volumeRules(pol cachePolicy, plan *cachePlan) cacheVolumeRules {
+	c := dockerContainer{dockerRecord: dockerRecord{Cache: plan}}
+	return cacheVolumeRules{readOnly: c.cacheReadOnly(pol), allows: pol.allows}
+}
+
 // cacheDecision loads the image facts when anything needs them and makes the
-// attach decision. Only a disallowed scope, an unknown tool name or an
-// unresolvable user fails the create; a failed probe attaches nothing.
+// attach decision. Only a disallowed scope, an unknown tool name or trust
+// value or an unresolvable user fails the create; a failed probe attaches
+// nothing. The request's origin (withCacheOrigin; none is a container's
+// socket) bounds its trust: a create through a socket bound into a container
+// is never more trusted than that container's own plan.
 func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, imageID string) (*cachePlan, *runAsUser, error) {
 	pol := s.cachePolicy.get()
+	req := cacheRequest{origin: cacheOriginOf(ctx), proxyUp: dependencyProxies.up}
+	if !req.origin.hostFacing && req.origin.creator != "" {
+		s.mu.Lock()
+		if creator := s.containers[req.origin.creator]; creator != nil {
+			req.origin.creatorTier = trustTrusted
+			if creator.cacheReadOnly(pol) {
+				// A reader's own name for its tier (readonly or untrusted);
+				// a legacy plan read as untrusted has none.
+				req.origin.creatorTier = trustUntrusted
+				if creator.Cache != nil && creator.Cache.ReadOnly {
+					req.origin.creatorTier = creator.Cache.tier()
+				}
+			}
+		}
+		s.mu.Unlock()
+	}
 	off := pol.Mode == "off" || isOff(requestCacheValue(spec)) || strings.EqualFold(spec.Labels["micropod.cache.shared"], "false")
 	u, g, _ := strings.Cut(spec.User, ":")
 	_, uNum := numericID(u)
@@ -682,11 +713,80 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	if err != nil {
 		return nil, nil, fail(400, err.Error())
 	}
-	plan, err := decideCaches(pol, spec, facts)
+	if pol.NpmRegistry != "" && !off {
+		req.projectNpmRegistry = s.projectNpmRegistry(spec, facts.WorkingDir)
+	}
+	plan, err := decideCachesFor(pol, spec, facts, req)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &plan, runAs, nil
+}
+
+// projectNpmRegistry reports whether the project a container works in sets
+// its own npm registry: an unscoped registry= in a .npmrc in its working
+// directory (the request's, else the image's) or in any directory above it
+// that the same workspace bind covers. Files are opened below the workspace
+// without following symlinks out of it; a missing or unreadable file counts
+// as no setting.
+func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string) bool {
+	wd := spec.WorkingDir
+	if wd == "" {
+		wd = imageWorkDir
+	}
+	if s.workspace == "" || !filepath.IsAbs(wd) {
+		return false
+	}
+	wd = filepath.Clean(wd)
+	mounts, _ := spec.mounts()
+	var bind *dockerMount
+	for i, m := range mounts {
+		if m.Type != "bind" || m.tmpfs != nil || !filepath.IsAbs(m.Target) {
+			continue
+		}
+		t := filepath.Clean(m.Target)
+		if (wd == t || strings.HasPrefix(wd, t+"/") || t == "/") && (bind == nil || len(t) > len(filepath.Clean(bind.Target))) {
+			bind = &mounts[i]
+		}
+	}
+	if bind == nil {
+		return false
+	}
+	target := filepath.Clean(bind.Target)
+	rel, err := filepath.Rel(target, wd)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return false
+	}
+	dir := filepath.Join(bind.Source, rel)
+	for i := 0; i < 32; i++ {
+		if f, err := openMount(s.workspace, filepath.Join(dir, ".npmrc")); err == nil {
+			b := readNpmrc(f)
+			f.Close()
+			if npmrcSetsRegistry(b) {
+				return true
+			}
+		}
+		if dir == filepath.Clean(bind.Source) || dir == "/" {
+			break
+		}
+		dir = filepath.Dir(dir)
+	}
+	return false
+}
+
+// readNpmrc reads up to 64 KiB of an npmrc opened O_PATH by openMount.
+func readNpmrc(f *os.File) []byte {
+	st, err := f.Stat()
+	if err != nil || !st.Mode().IsRegular() {
+		return nil
+	}
+	r, err := os.Open(dockerMountFDPath(f))
+	if err != nil {
+		return nil
+	}
+	defer r.Close()
+	b, _ := io.ReadAll(io.LimitReader(r, 64<<10))
+	return b
 }
 func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) {
 	defer func() {
@@ -759,7 +859,10 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		lease.Close()
 		return err
 	}
-	files, mounts, aliasPins, err := s.openMounts(c.Config, false, socket, filepath.Join(c.dir(), "shim"))
+	pol := s.cachePolicy.get()
+	// A plan an older engine made has no tier of its own yet.
+	c.Cache.legacyTrust(pol)
+	files, mounts, aliasPins, err := s.openMounts(c.Config, volumeRules(pol, c.Cache), false, socket, filepath.Join(c.dir(), "shim"))
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
@@ -1279,6 +1382,12 @@ func (c *dockerContainer) inspect() map[string]any {
 		}
 		if c.Cache.Trust != "" {
 			mc["trust"] = c.Cache.Trust
+		}
+		if c.Cache.TrustFrom != "" {
+			mc["trustFrom"] = c.Cache.TrustFrom
+		}
+		if len(c.Cache.Proxy) > 0 {
+			mc["proxy"] = c.Cache.Proxy
 		}
 		v["MicropodCache"] = mc
 	}

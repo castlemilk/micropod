@@ -184,6 +184,36 @@ final class CacheRoutesTests: XCTestCase {
         XCTAssertTrue(policy.sharedL0, "fields the body does not name keep their values")
     }
 
+    func testPolicyPutSetsTheDefaultTrustTier() async throws {
+        _ = try writeConfig(HVFMachineConfig())
+        let api = await makeHandlers()
+        var reply = await send(
+            api, .put, "/v1/caches/policy", #"{"defaultTrust": "untrusted", "proxyUntrusted": true}"#)
+        XCTAssertEqual(reply.status, 200, "\(reply.body)")
+        var policy = try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy
+        XCTAssertEqual(policy.defaultTrust, .untrusted)
+        XCTAssertTrue(policy.proxyUntrusted)
+        let rendered = try String(contentsOf: layout.cachePolicyFile, encoding: .utf8)
+        XCTAssertTrue(rendered.contains(#""defaultTrust" : "untrusted""#), rendered)
+
+        reply = await send(api, .put, "/v1/caches/policy", #"{"defaultTrust": "trusted"}"#)
+        XCTAssertEqual(reply.status, 200, "\(reply.body)")
+        policy = try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy
+        XCTAssertEqual(policy.defaultTrust, .trusted)
+        XCTAssertTrue(policy.proxyUntrusted, "fields the body does not name keep their values")
+
+        let saved = try Data(contentsOf: layout.config)
+        for (body, expected) in [
+            (#"{"defaultTrust": "semi"}"#, "defaultTrust must be trusted or untrusted"),
+            (#"{"proxyUntrusted": "yes"}"#, "proxyUntrusted must be a boolean"),
+        ] {
+            reply = await send(api, .put, "/v1/caches/policy", body)
+            XCTAssertEqual(reply.status, 400, "\(body): \(reply.body)")
+            XCTAssertTrue((reply.body["error"] as? String ?? "").contains(expected), "\(body): \(reply.body)")
+        }
+        XCTAssertEqual(try Data(contentsOf: layout.config), saved, "a refused write leaves machine.json alone")
+    }
+
     func testPolicyPutNeverReplacesAnUnreadableMachineConfigWithDefaults() async throws {
         let broken = Data(#"{"cpus": "#.utf8)
         try broken.write(to: layout.config)

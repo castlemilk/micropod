@@ -90,6 +90,8 @@ enum CacheTools {
         var body: [String: Any] = [:]
         if let mode = args.optionalString("mode") { body["mode"] = mode }
         if let shared = args.bool("shared_l0") { body["sharedL0"] = shared }
+        if let trust = args.optionalString("default_trust") { body["defaultTrust"] = trust }
+        if let proxy = args.bool("proxy_untrusted") { body["proxyUntrusted"] = proxy }
         if let goProxy = args.optionalString("go_proxy") {
             body["goProxy"] = url(goProxy)
         } else if args.isEmptyString("go_proxy") {
@@ -109,8 +111,9 @@ enum CacheTools {
         if let days = args.integer("max_age_days") { body["maxAgeDays"] = days }
         guard !body.isEmpty else {
             throw MCPArgumentError(
-                message: "cache_policy_set: name at least one setting to change (mode, shared_l0, go_proxy, "
-                    + "npm_registry, default_scope, max_bytes, max_age_days); nothing was written")
+                message: "cache_policy_set: name at least one setting to change (mode, shared_l0, default_trust, "
+                    + "proxy_untrusted, go_proxy, npm_registry, default_scope, max_bytes, max_age_days); "
+                    + "nothing was written")
         }
         return body
     }
