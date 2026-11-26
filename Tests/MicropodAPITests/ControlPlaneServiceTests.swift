@@ -1,11 +1,11 @@
 import Darwin
 import Foundation
 import MicropodCore
-import MicropodRuntime
 import SwiftProtobuf
 import XCTest
 
 @testable import MicropodAPI
+@testable import MicropodRuntime
 
 /// CacheService, RigService and the reports the MCP server reads over
 /// binary Connect, on a throwaway HVF root with a fake guest engine on the
@@ -410,6 +410,44 @@ final class ControlPlaneServiceTests: XCTestCase {
         XCTAssertEqual(stopped.phase, "stopped")
     }
 
+    /// ControlMachine stop and restart interrupt every container on the
+    /// shared machine: like an update's apply, they are deferred while any
+    /// runs (or the guest cannot say), unless forced.
+    func testControlMachineDefersAStopOrRestartWhileContainersRunUnlessForced() async throws {
+        let api = await makeHandlers()
+        let client = HVFMachineClient(layout: layout, environment: ["MICROPOD_HVF_ROOT": root.path])
+        let held = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+        defer { held.release() }
+        try HVFMachineState(phase: .running, supervisorPID: getpid(), vmmPID: getpid()).save(to: layout.state)
+        let guest = try FakeGuestDockerAPI(path: layout.dockerSocket.path) { request in
+            if request.path.contains("/containers/json") { return (200, Data(#"[{"Id": "ci-job-1"}]"#.utf8)) }
+            if request.path.contains("/micropod/metrics") {
+                return (200, Data(#"{"reaper": {"active_sessions": 0}}"#.utf8))
+            }
+            return (404, Data())
+        }
+        defer { guest.stop() }
+        for action in ["stop", "restart"] {
+            let refused = try await rpc(
+                api, "RigService", "ControlMachine", Micropod_V1_ControlMachineRequest.with { $0.action = action })
+            XCTAssertEqual(refused.json["code"] as? String, "failed_precondition", "\(action): \(refused.json)")
+            let message = refused.json["message"] as? String ?? ""
+            XCTAssertTrue(message.contains("1 running container"), message)
+            XCTAssertTrue(message.contains("force"), message)
+        }
+        XCTAssertTrue(HVFFileLock.isHeld(layout.supervisorLock), "nothing was stopped")
+
+        // A guest that cannot say counts as busy; an idle one, or a machine
+        // that is not serving, does not.
+        let unsure = await APIHandlers.machineBusy(client, drain: StubDrain(workloads: nil))
+        XCTAssertTrue(unsure?.contains("could not confirm") == true, unsure ?? "nil")
+        let idle = await APIHandlers.machineBusy(client, drain: StubDrain(workloads: HVFWorkloads(containers: 0)))
+        XCTAssertNil(idle)
+        held.release()
+        let down = await APIHandlers.machineBusy(client, drain: StubDrain(workloads: nil))
+        XCTAssertNil(down, "nothing runs on a machine that is not serving")
+    }
+
     func testMachineStatusSaysAStopWasAskedFor() throws {
         let client = HVFMachineClient(layout: layout)
         XCTAssertFalse(RigProto.machineStatus(client.status()).stoppedOnRequest, "never started")
@@ -680,5 +718,14 @@ private final class FollowingLogs: LogStreaming, @unchecked Sendable {
     func tail(id: String, lines: Int, boot: Bool) async throws -> [LogLine] {
         lock.withLock { calls.append(lines) }
         return all.suffix(lines).map { LogLine(text: $0) }
+    }
+}
+
+/// A drain check with a fixed answer (nil: it cannot tell).
+private struct StubDrain: HVFDrainCoordinating {
+    var workloads: HVFWorkloads?
+    func activeWorkloads() async throws -> HVFWorkloads {
+        guard let workloads else { throw MicropodError.message("unavailable: the guest did not answer") }
+        return workloads
     }
 }

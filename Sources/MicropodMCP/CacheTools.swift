@@ -89,7 +89,10 @@ enum CacheTools {
         case "machine_control":
             let status = try await api.unary(
                 "RigService", "ControlMachine",
-                Micropod_V1_ControlMachineRequest.with { $0.action = args.string("action") },
+                Micropod_V1_ControlMachineRequest.with {
+                    $0.action = args.string("action")
+                    $0.force = args.flag("force")
+                },
                 as: Micropod_V1_HVFMachineStatus.self, timeout: api.longCallSeconds)
             return ControlPlaneJSON.text(ControlPlaneJSON.machineStatus(status))
         case "telemetry_health":

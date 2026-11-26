@@ -81,7 +81,9 @@ type RigServiceClient interface {
 	GetMachineStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
-	// the machine; replies with its status afterwards.
+	// the machine; replies with its status afterwards. Stop and restart are
+	// deferred (`failed_precondition`, nothing stopped) while containers run on
+	// a serving machine or its idleness cannot be confirmed, unless `force`.
 	ControlMachine(context.Context, *connect.Request[v1.ControlMachineRequest]) (*connect.Response[v1.HVFMachineStatus], error)
 }
 
@@ -224,7 +226,9 @@ type RigServiceHandler interface {
 	GetMachineStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.HVFMachineStatus], error)
 	// Start (returns once the guest answers), stop (a stop on request: Ping and
 	// GetSystem then say stopped and nothing restarts it on demand) or restart
-	// the machine; replies with its status afterwards.
+	// the machine; replies with its status afterwards. Stop and restart are
+	// deferred (`failed_precondition`, nothing stopped) while containers run on
+	// a serving machine or its idleness cannot be confirmed, unless `force`.
 	ControlMachine(context.Context, *connect.Request[v1.ControlMachineRequest]) (*connect.Response[v1.HVFMachineStatus], error)
 }
 

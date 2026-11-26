@@ -1315,8 +1315,10 @@ func (x *HVFMachineStatus) GetStoppedOnRequest() bool {
 }
 
 type ControlMachineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Action        string                 `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Action string                 `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	// Stop or restart even while containers run (interrupts them).
+	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1356,6 +1358,13 @@ func (x *ControlMachineRequest) GetAction() string {
 		return x.Action
 	}
 	return ""
+}
+
+func (x *ControlMachineRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
 }
 
 var File_micropod_v1_rig_proto protoreflect.FileDescriptor
@@ -1524,9 +1533,10 @@ const file_micropod_v1_rig_proto_rawDesc = "" +
 	"\x12stopped_on_request\x18\f \x01(\bR\x10stoppedOnRequestB\n" +
 	"\n" +
 	"\b_problemB\x0e\n" +
-	"\f_state_error\"L\n" +
+	"\f_state_error\"b\n" +
 	"\x15ControlMachineRequest\x123\n" +
-	"\x06action\x18\x01 \x01(\tB\x1b\xbaH\x18r\x16R\x05startR\x04stopR\arestartR\x06action2\xc9\x04\n" +
+	"\x06action\x18\x01 \x01(\tB\x1b\xbaH\x18r\x16R\x05startR\x04stopR\arestartR\x06action\x12\x14\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force2\xc9\x04\n" +
 	"\n" +
 	"RigService\x12:\n" +
 	"\fGetRigHealth\x12\x12.micropod.v1.Empty\x1a\x16.micropod.v1.RigHealth\x126\n" +

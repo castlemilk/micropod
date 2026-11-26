@@ -372,9 +372,11 @@ enum MCPToolCatalog {
             name: "machine_control",
             description:
                 "Start (waits until the guest answers), stop (on request: nothing restarts it on demand) or restart "
-                + "the shared HVF machine; returns its status afterwards. Stopping interrupts running containers.",
+                + "the shared HVF machine; returns its status afterwards. Stop and restart are deferred, as a tool "
+                + "error, while containers run or idleness cannot be confirmed, unless force is true.",
             parameters: [
-                .choice("action", ["start", "stop", "restart"], "What to do.", required: true, noun: "machine action")
+                .choice("action", ["start", "stop", "restart"], "What to do.", required: true, noun: "machine action"),
+                .boolean("force", "Stop or restart even while containers run (interrupts them)."),
             ]),
         MCPTool(
             name: "update_hvf_apply",

@@ -766,6 +766,9 @@ public nonisolated struct Micropod_V1_ControlMachineRequest: Sendable {
 
   public var action: String = String()
 
+  /// Stop or restart even while containers run (interrupts them).
+  public var force: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1803,7 +1806,7 @@ nonisolated extension Micropod_V1_HVFMachineStatus: SwiftProtobuf.Message, Swift
 
 nonisolated extension Micropod_V1_ControlMachineRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ControlMachineRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}action\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}action\0\u{1}force\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1812,6 +1815,7 @@ nonisolated extension Micropod_V1_ControlMachineRequest: SwiftProtobuf.Message, 
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.action) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.force) }()
       default: break
       }
     }
@@ -1821,11 +1825,15 @@ nonisolated extension Micropod_V1_ControlMachineRequest: SwiftProtobuf.Message, 
     if !self.action.isEmpty {
       try visitor.visitSingularStringField(value: self.action, fieldNumber: 1)
     }
+    if self.force != false {
+      try visitor.visitSingularBoolField(value: self.force, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_ControlMachineRequest, rhs: Micropod_V1_ControlMachineRequest) -> Bool {
     if lhs.action != rhs.action {return false}
+    if lhs.force != rhs.force {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
