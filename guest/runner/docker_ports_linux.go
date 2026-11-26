@@ -159,13 +159,22 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 	// until the container releases its port, including across long SQL sessions.
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, lease: control, cancel: cancel}
+	p.relay(relayCtx, l, target, macFacingGuard(admit))
+	return p, port, nil
+}
+
+// macFacingGuard is the Mac-facing relay's guard: admit (nil admits
+// everyone) decides each peer, with no connection limit, as it serves the
+// Mac's port broker alone, and no idle limit on a half-closed connection:
+// a Mac client may send a request, end its side and wait as long as the
+// service takes to answer.
+func macFacingGuard(admit func(netip.Addr) bool) relayGuard {
 	guard := relayGuard{}
 	if admit != nil {
 		guard.admit = func(peer netip.Addr) (string, bool) { return "", admit(peer) }
 		guard.pending = make(chan struct{}, relayPendingAdmissions)
 	}
-	p.relay(relayCtx, l, target, guard)
-	return p, port, nil
+	return guard
 }
 
 // relayDialTimeout bounds how long an accepted connection waits for the
@@ -197,11 +206,11 @@ var (
 	gatewayRelayFamilies = &familySlots{max: relayFamilySlots}
 )
 
-// relayHalfCloseIdle is how long a relayed connection whose one direction
-// has ended may go without a byte in the other before the relay closes it:
-// a peer that never closes its side after the target closed its own would
-// otherwise hold the connection's slots until the port closes. A variable
-// for tests.
+// relayHalfCloseIdle is how long a gateway relay's connection whose one
+// direction has ended may go without a byte in the other before the relay
+// closes it (relayGuard.halfCloseIdle): a peer that never closes its side
+// after the target closed its own would otherwise hold the connection's
+// slots until the port closes. A variable for tests.
 var relayHalfCloseIdle = 60 * time.Second
 
 // familySlots counts the shared gateway relay connections each peer family
@@ -241,13 +250,16 @@ func (f *familySlots) release(family string) {
 // one family may hold of shared. track, when set, registers each accepted
 // connection, before it is admitted, with the function that ends it, so a
 // change that withdraws its admission ends it too (recheckRelaysLocked); it
-// returns the function that unregisters it.
+// returns the function that unregisters it. halfCloseIdle, when set, closes
+// a connection that has gone relayHalfCloseIdle without a byte once one
+// direction has ended, so it does not hold its slots for good.
 type relayGuard struct {
 	admit         func(peer netip.Addr) (family string, ok bool)
 	pending       chan struct{}
 	slots, shared chan struct{}
 	families      *familySlots
 	track         func(peer netip.Addr, end func()) (forget func())
+	halfCloseIdle bool
 }
 
 // take reserves a connection of family in every limit, or reports one is full.
@@ -352,24 +364,29 @@ func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target st
 				defer out.Close()
 				stop := context.AfterFunc(connCtx, func() { in.Close(); out.Close() })
 				defer stop()
-				relayPipe(in, out.(*net.TCPConn))
+				var idle time.Duration
+				if guard.halfCloseIdle {
+					idle = relayHalfCloseIdle
+				}
+				relayPipe(in, out.(*net.TCPConn), idle)
 			}()
 		}
 	}()
 }
 
 // relayPipe copies both directions of a relayed connection until each ends.
-// Once one has ended (its sender closed), the other is closed after
-// relayHalfCloseIdle without a byte, so a peer that keeps its side open and
-// silent does not hold the connection for good.
-func relayPipe(in, out *net.TCPConn) {
+// With an idle limit, once one has ended (its sender closed), the other is
+// closed after idle without a byte, so a peer that keeps its side open and
+// silent does not hold the connection for good; with none (0) it lasts until
+// its sender closes it.
+func relayPipe(in, out *net.TCPConn, idle time.Duration) {
 	var half atomic.Bool
 	pipe := func(dst, src *net.TCPConn) {
 		for {
 			n, err := io.Copy(dst, src)
 			var ne net.Error
 			if err != nil && n > 0 && half.Load() && errors.As(err, &ne) && ne.Timeout() {
-				src.SetReadDeadline(time.Now().Add(relayHalfCloseIdle))
+				src.SetReadDeadline(time.Now().Add(idle))
 				continue // progress since the last deadline
 			}
 			return
@@ -378,8 +395,10 @@ func relayPipe(in, out *net.TCPConn) {
 	// What one direction wrote to is what the other reads from.
 	ended := func(c *net.TCPConn) {
 		c.CloseWrite()
-		half.Store(true)
-		c.SetReadDeadline(time.Now().Add(relayHalfCloseIdle))
+		if idle > 0 {
+			half.Store(true)
+			c.SetReadDeadline(time.Now().Add(idle))
+		}
 	}
 	done := make(chan struct{})
 	go func() {
@@ -453,7 +472,7 @@ func openGatewayRelay(ctx context.Context, gateway string, port uint16, target s
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, cancel: cancel}
 	p.relay(relayCtx, l, target, relayGuard{admit: admit, pending: make(chan struct{}, relayPendingAdmissions),
-		slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots, families: gatewayRelayFamilies, track: track})
+		slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots, families: gatewayRelayFamilies, track: track, halfCloseIdle: true})
 	return p, nil
 }
 

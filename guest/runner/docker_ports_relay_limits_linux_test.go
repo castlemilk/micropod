@@ -279,7 +279,7 @@ func TestRelayClosesAHalfClosedSilentPeer(t *testing.T) {
 		}
 	}()
 	slots := make(chan struct{}, 4)
-	p, addr := relayFront(t, l.Addr().String(), relayGuard{slots: slots})
+	p, addr := relayFront(t, l.Addr().String(), relayGuard{slots: slots, halfCloseIdle: true})
 	defer p.close()
 
 	silent := dialHeld(t, addr)
@@ -299,5 +299,44 @@ func TestRelayClosesAHalfClosedSilentPeer(t *testing.T) {
 	busy.(*net.TCPConn).CloseWrite()
 	if n := <-got; n != 64 {
 		t.Fatalf("the target got %d of 64 bytes from a peer that kept sending", n)
+	}
+}
+
+// The Mac-facing relay leaves a half-closed connection open however long the
+// service takes to answer: a Mac client that sends its request and ends its
+// side (nc -N) gets the reply that comes after relayHalfCloseIdle.
+func TestMacFacingRelayWaitsForALateReplyToAHalfClosedRequest(t *testing.T) {
+	old := relayHalfCloseIdle
+	relayHalfCloseIdle = 100 * time.Millisecond
+	t.Cleanup(func() { relayHalfCloseIdle = old })
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer c.Close()
+				io.Copy(io.Discard, c) // the whole request, to its end
+				time.Sleep(5 * relayHalfCloseIdle)
+				c.Write([]byte("late reply"))
+			}()
+		}
+	}()
+	p, addr := relayFront(t, l.Addr().String(), macFacingGuard(func(netip.Addr) bool { return true }))
+	defer p.close()
+	c := dialHeld(t, addr)
+	if _, err := c.Write([]byte("job")); err != nil {
+		t.Fatal(err)
+	}
+	c.(*net.TCPConn).CloseWrite()
+	c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if got, err := io.ReadAll(c); err != nil || string(got) != "late reply" {
+		t.Fatalf("the Mac client got %q, %v: want the reply that came after the idle limit", got, err)
 	}
 }
