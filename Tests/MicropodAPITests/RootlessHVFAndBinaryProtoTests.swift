@@ -202,7 +202,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         // PUT /v1/caches/policy -> updates machine.json + live guest-config/cache-policy.json
         let policyBody = try JSONSerialization.data(withJSONObject: [
             "sharedL0": true,
-            "goProxy": "http://10.43.0.1:7677/go|direct",
+            "goProxy": "http://10.42.0.1:7677/go|direct",
         ])
         let putPolicyResp = await api.handle(
             HTTPRequest(
@@ -213,7 +213,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         }
         let updatedPolicy = try JSONDecoder().decode(HVFMachineCachePolicy.self, from: updatedBytes)
         XCTAssertTrue(updatedPolicy.sharedL0)
-        XCTAssertEqual(updatedPolicy.goProxy, "http://10.43.0.1:7677/go|direct")
+        XCTAssertEqual(updatedPolicy.goProxy, "http://10.42.0.1:7677/go|direct")
         XCTAssertTrue(FileManager.default.fileExists(atPath: layout.cachePolicyFile.path))
     }
 }

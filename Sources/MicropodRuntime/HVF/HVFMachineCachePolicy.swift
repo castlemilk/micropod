@@ -92,9 +92,11 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     /// npm, pnpm, yarn, pip, uv, cargo, corepack) in scope `global` even when
     /// containers specify a project scope, keeping L1 build caches scoped.
     public var sharedL0: Bool
-    /// Optional L0 rig Go proxy URL (e.g. `http://10.43.0.1:5555/go,direct`).
+    /// Optional L0 rig Go proxy list, a `GOPROXY` value (e.g.
+    /// `http://10.42.0.1:7677/go|direct`). A gateway URL opens a host port
+    /// only as `HVFHostPortAllowlist` allows.
     public var goProxy: String?
-    /// Optional L0 rig npm registry URL (e.g. `http://10.43.0.1:5555/npm`).
+    /// Optional L0 rig npm registry URL (e.g. `http://10.42.0.1:7677/npm`).
     public var npmRegistry: String?
     /// Optional total cache byte ceiling enforced by the bounded LRU janitor.
     public var maxBytes: UInt64?
@@ -222,6 +224,30 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         }
     }
 
+    /// The entries of a `GOPROXY` list, trimmed, empty ones dropped (Go skips
+    /// them). Go separates entries with `,` (fall through on 404/410) and
+    /// `|` (fall through on any error), so both split: splitting on `,`
+    /// alone let `http://x|file:///p` pass as one http URL.
+    public static func goProxyElements(_ raw: String) -> [String] {
+        raw.split(whereSeparator: { $0 == "," || $0 == "|" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// `raw` as an http or https URL with a host and, when it names one, a
+    /// port in 1...65535; nil otherwise. Strict: a string Foundation would
+    /// have to repair (whitespace, a stray `%`, a list separator) is
+    /// refused rather than reinterpreted.
+    public static func proxyURL(_ raw: String) -> URLComponents? {
+        guard !raw.isEmpty, !raw.contains(where: { $0.isWhitespace || $0 == "," || $0 == "|" }),
+            let url = URLComponents(string: raw), url.string == raw,
+            let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+            let host = url.host, !host.isEmpty
+        else { return nil }
+        if let port = url.port, !(1...Int(UInt16.max)).contains(port) { return nil }
+        return url
+    }
+
     /// Expands groups, drops repeats and orders by the guest's table; throws
     /// for a name the guest does not know.
     public static func normalizedTools(_ names: [String]) throws -> [String] {
@@ -262,18 +288,17 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         }
         _ = try Self.normalizedTools(tools)
         if let goProxy, !goProxy.isEmpty {
-            let parts = goProxy.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-            guard !parts.isEmpty,
-                parts.allSatisfy({
-                    $0 == "direct" || $0 == "off" || $0.hasPrefix("http://") || $0.hasPrefix("https://")
-                })
+            let parts = Self.goProxyElements(goProxy)
+            guard !parts.isEmpty, parts.allSatisfy({ $0 == "direct" || $0 == "off" || Self.proxyURL($0) != nil })
             else {
-                throw invalid("goProxy '\(goProxy)' entries must be http://, https://, direct, or off")
+                throw invalid(
+                    "goProxy '\(goProxy)' entries (separated by ',' or '|') must be http:// or https:// URLs "
+                        + "with a host, direct, or off")
             }
         }
         if let npmRegistry, !npmRegistry.isEmpty {
-            guard npmRegistry.hasPrefix("http://") || npmRegistry.hasPrefix("https://") else {
-                throw invalid("npmRegistry '\(npmRegistry)' must start with http:// or https://")
+            guard Self.proxyURL(npmRegistry) != nil else {
+                throw invalid("npmRegistry '\(npmRegistry)' must be one http:// or https:// URL with a host")
             }
         }
         if let maxAgeDays, maxAgeDays < 0 {

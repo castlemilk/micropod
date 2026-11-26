@@ -367,7 +367,11 @@ public actor HVFMachineSupervisor {
             let policy = try HVFMachineCachePolicy.writeGuestFile(layout: layout, fallback: config)
             log("cache policy: \(policy.summary) (\(layout.cachePolicyFile.path))")
             let arguments = try HVFVMMCommand.arguments(layout: layout, config: config, parentPID: pid)
+            let hostPorts = HVFHostPortAllowlist(config: config)
+            log("host ports open to the guest: \(hostPorts.description)")
+            for refusal in hostPorts.refused { log(refusal.message) }
             process = try launcher.launch(executable: layout.vmm, arguments: arguments)
+            state.allowHostPorts = hostPorts.ports
         } catch {
             continuation.yield(.exited(generation: g, HVFVMMExit(launchError: error.localizedDescription)))
             return
