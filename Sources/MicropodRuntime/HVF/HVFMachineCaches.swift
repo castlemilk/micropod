@@ -68,6 +68,22 @@ public struct HVFCacheInspection: Codable, Sendable, Equatable {
     /// Marked units the engine kept at its start because their boot stopped
     /// cleanly (or is still running).
     public var keptAtStart: [String]? = nil
+    /// Guest init's report on the persistent cache disk (caches.ext4):
+    /// "mounted", "unavailable" (attached but missing or unmountable), or
+    /// absent when the machine has none (the stores live on the OS disk).
+    public var cacheDisk: String? = nil
+    /// Why the guest has no shared caches this boot (the cache disk should be
+    /// mounted but is not): every container then runs uncached. Absent while
+    /// shared caches work.
+    public var unavailable: String? = nil
+
+    /// The reason shared caches are off this boot, or nil while they work.
+    public var sharedCachesOffReason: String? {
+        guard let why = unavailable?.trimmingCharacters(in: .whitespacesAndNewlines), !why.isEmpty else {
+            return nil
+        }
+        return why
+    }
 }
 
 public struct HVFCacheDedupeSample: Codable, Sendable, Equatable {

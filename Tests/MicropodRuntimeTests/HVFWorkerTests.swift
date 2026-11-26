@@ -955,4 +955,54 @@ struct HVFWorkerTests {
         let unchunked = try #require(CIWorker.decodeChunkedHTTPBody(chunked))
         #expect(String(decoding: unchunked, as: UTF8.self) == "hello world")
     }
+
+    @Test("A cache disk that did not mount degrades health: shared caches are off for the boot")
+    func cacheDiskUnavailableDegradesHealth() throws {
+        let off = try JSONDecoder().decode(
+            HVFCacheInspection.self,
+            from: Data(
+                """
+                {"root":"/var/lib/micropod/caches","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{},
+                 "units":[],"cacheDisk":"unavailable",
+                 "unavailable":"guest init found the cache disk missing or unmountable"}
+                """.utf8))
+        #expect(off.cacheDisk == "unavailable")
+        #expect(off.sharedCachesOffReason == "guest init found the cache disk missing or unmountable")
+        let fromInventory = CIWorker.evaluateHealth(
+            vmm: .vz, hypervisor: nil, kernel: nil, nativeOCI: nil, cacheInventory: off)
+        #expect(fromInventory.verdict == .degraded)
+        let expected =
+            "Guest shared caches are off this boot (cache-disk-unavailable): "
+            + "guest init found the cache disk missing or unmountable"
+        #expect(fromInventory.warnings == [expected])
+
+        // Without an inventory the engine's skip count says the same.
+        let engine = try CIWorker.makeRuntimeMetricsDecoder().decode(
+            CIWorker.RuntimeEngineMetrics.self,
+            from: Data(
+                """
+                {"containers_created": 1, "runs_finished": 1, "runtime_failures": 0, "image_cache_hits": 0,
+                 "prepared_pods_used": 0, "shared_cache_attachments": 0, "pod_ms_total": 0, "create_ms_total": 0,
+                 "start_ms_total": 0, "start_parallelism_limit": 8, "setup_slots_in_use": 0,
+                 "setup_wait_usec_total": 0, "cache_skip": {"cache-disk-unavailable": 3}}
+                """.utf8))
+        let fromSkips = CIWorker.evaluateHealth(
+            vmm: .vz, hypervisor: nil, kernel: nil, nativeOCI: nil, runtimeEngine: engine)
+        #expect(fromSkips.verdict == .degraded)
+        #expect(fromSkips.warnings.contains { $0.contains("3 attachment(s) due to cache-disk-unavailable") })
+
+        // A mounted cache disk, or none at all, is healthy.
+        let mounted = try JSONDecoder().decode(
+            HVFCacheInspection.self,
+            from: Data(
+                """
+                {"root":"/var/lib/micropod/caches","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{},
+                 "units":[],"cacheDisk":"mounted"}
+                """.utf8))
+        #expect(mounted.sharedCachesOffReason == nil)
+        let healthy = CIWorker.evaluateHealth(
+            vmm: .vz, hypervisor: nil, kernel: nil, nativeOCI: nil, cacheInventory: mounted)
+        #expect(healthy.verdict == .healthy)
+        #expect(healthy.warnings.isEmpty)
+    }
 }

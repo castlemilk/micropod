@@ -619,6 +619,15 @@ extension CIWorker {
             escalate(.degraded, "Guest cache budget utilization is high (\(String(format: "%.1f", pct))%)")
         }
 
+        // A cache disk that should be mounted but is not turns shared caches
+        // off for the whole boot: every container runs uncached.
+        if let why = cacheInventory?.sharedCachesOffReason {
+            escalate(.degraded, "Guest shared caches are off this boot (cache-disk-unavailable): \(why)")
+        } else if let noDisk = runtimeEngine?.cacheSkip?["cache-disk-unavailable"], noDisk > 0 {
+            escalate(
+                .degraded, "Guest cache skipped \(noDisk) attachment(s) due to cache-disk-unavailable")
+        }
+
         return (verdict, warnings)
     }
 

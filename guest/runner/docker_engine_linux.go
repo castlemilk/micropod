@@ -621,7 +621,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, _, err := s.openMounts(spec, true, "")
+	files, _, _, err := s.openMounts(spec, true, "", "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
@@ -759,7 +759,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		lease.Close()
 		return err
 	}
-	files, mounts, aliasPins, err := s.openMounts(c.Config, false, socket)
+	files, mounts, aliasPins, err := s.openMounts(c.Config, false, socket, filepath.Join(c.dir(), "shim"))
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()

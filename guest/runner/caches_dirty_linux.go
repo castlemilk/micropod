@@ -61,7 +61,8 @@ import (
 // reader holds the store's unit LOCK_SH without a mark for as long as its
 // view exists, so the janitor and recovery leave the store where the view's
 // lower layer is; a read-only alias volume (or a docker cp out of one) holds
-// its kind's lock the same way. To a clearer such a reader looks like a
+// its kind's lock the same way and, like every reader, never creates or
+// repairs anything in the store. To a clearer such a reader looks like a
 // writer, which only keeps a real writer's mark longer; a reader never counts
 // as a writer anywhere else (no mark, nothing in .meta but its lock).
 //
@@ -101,7 +102,11 @@ import (
 // OS disk (disk.ext4) keeps every mark next to the record that decides it.
 // Guest init mounts the cache disk before it starts the engine, so recovery
 // always runs on it; when the disk should be there but is not, shared caches
-// are off for the boot (cacheDiskUnavailable) and the fence does nothing.
+// are off for the boot (cacheDiskUnavailable) and the fence does nothing:
+// auto-attached caches are skipped (cache-disk-unavailable) and a legacy alias
+// volume is a directory of its container's own outside cacheRoot
+// (openUncachedAlias), so jobs run uncached and no store is written onto the
+// OS disk.
 
 var (
 	bootIDPath = "/proc/sys/kernel/random/boot_id"
@@ -426,7 +431,10 @@ func listDirtyMarks() [][2]string {
 // every partition with a lock file (for the kind-wide unit, whose directory
 // holds them all). The unit comes first and the rest in name order, so every
 // holder of several (startup recovery, the janitor) takes them in one order.
-// (parseCacheUnit is in caches_manage_linux.go.)
+// Only unit locks are guards: an exclusive kind's writer slot
+// (<kind>.u<uid>.writer.lock, step 3 of the lock order) also ends in .lock but
+// names no unit, and nobody in steps 1 or 2 may take it. (parseCacheUnit is in
+// caches_manage_linux.go.)
 func cacheUnitGuards(scope, unit string) []string {
 	units := []string{unit}
 	kind, uid, ok := parseCacheUnit(unit)
@@ -438,7 +446,11 @@ func cacheUnitGuards(scope, unit string) []string {
 	}
 	entries, _ := os.ReadDir(filepath.Join(cacheRoot, ".meta", scope))
 	for _, e := range entries {
-		if u, ok := strings.CutSuffix(e.Name(), ".lock"); ok && strings.HasPrefix(u, kind+".u") {
+		u, ok := strings.CutSuffix(e.Name(), ".lock")
+		if !ok {
+			continue
+		}
+		if k, id, ok := parseCacheUnit(u); ok && k == kind && id != nil {
 			units = append(units, u)
 		}
 	}

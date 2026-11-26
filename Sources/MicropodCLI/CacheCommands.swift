@@ -131,6 +131,9 @@ enum CacheCommands {
         print(
             "CACHE ROOT:  \(inspection.root) (mount=\(inspection.mountPoint)\(pol?.sharedL0 == true ? ", L0=\(inspection.mountL0Point ?? "/micropod/cache-l0")" : ""))"
         )
+        if let line = cacheDiskLine(inspection) {
+            print("CACHE DISK:  \(line)")
+        }
         if let pol {
             var extras: [String] = []
             if pol.sharedL0 { extras.append("shared-L0=on") }
@@ -164,6 +167,17 @@ enum CacheCommands {
         if let line = recoveryLine(inspection) {
             print("RECOVERY:    \(line)")
         }
+    }
+
+    /// The persistent cache disk's state, or nil when the guest reports none
+    /// (no cache disk, or a guest that predates it). A disk that should be
+    /// there but is not turns shared caches off for the boot.
+    static func cacheDiskLine(_ inspection: HVFCacheInspection) -> String? {
+        if let why = inspection.sharedCachesOffReason {
+            return "UNAVAILABLE — shared caches are off this boot, every container runs uncached: \(why)"
+        }
+        guard let disk = inspection.cacheDisk, !disk.isEmpty else { return nil }
+        return disk == "mounted" ? "mounted (caches.ext4)" : disk
     }
 
     /// What the crash fence did at the engine's start, or nil when it found no
@@ -211,6 +225,10 @@ enum CacheCommands {
             return
         }
         if units.isEmpty {
+            if let why = inspection.sharedCachesOffReason {
+                print("No cache stores: shared caches are off this boot (\(why)).")
+                return
+            }
             print("No cache stores found\(scopeFilter.map { " in scope '\($0)'" } ?? "").")
             return
         }
@@ -419,6 +437,10 @@ enum CacheCommands {
         case "not-selected": return "excluded by machine cache policy or --cache flag"
         case "busy-exclusive": return "another running container holds exclusive lock (e.g. yarn v1)"
         case "store-failed": return "store setup or lock failed; check guest logs"
+        case "cache-disk-unavailable":
+            return
+                "the persistent cache disk (caches.ext4) is missing or did not mount this boot; "
+                + "containers run uncached until it is repaired (`micropod cache status`)"
         case "policy-off": return "machine cache policy mode is off (`micropod cache policy --mode auto`)"
         case "label-off": return "disabled via io.micropod.cache=off label"
         case "env-off": return "disabled via MICROPOD_CACHE=off"

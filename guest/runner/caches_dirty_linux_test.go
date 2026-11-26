@@ -285,7 +285,7 @@ func TestCacheDirtyAliasVolumeCoversTheKind(t *testing.T) {
 	}
 	s := &dockerEngine{}
 	spec := dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-pip:/cache/pip"}}}
-	files, mounts, pins, err := s.openMounts(spec, false, "")
+	files, mounts, pins, err := s.openMounts(spec, false, "", t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +323,7 @@ func TestCacheDirtyAliasVolumeCoversTheKind(t *testing.T) {
 		t.Fatalf("marks left: %v", listDirtyMarks())
 	}
 	// A read-only alias mount holds its kind's lock and makes no mark.
-	files, _, pins, err = s.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/cache/gomod:ro"}}}, false, "")
+	files, _, pins, err = s.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/cache/gomod:ro"}}}, false, "", t.TempDir())
 	if err != nil || len(pins) != 1 || pins[0].unit != "gomod" || marked("default", "gomod") {
 		t.Fatalf("read-only alias pins %v %v", pins, err)
 	}

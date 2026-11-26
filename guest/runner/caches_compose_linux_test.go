@@ -414,7 +414,8 @@ func TestCacheNewEcosystemStoresGoThroughTheFence(t *testing.T) {
 // Without the cache disk it should have, the guest has no shared caches: no
 // plan attaches, a plan made in a boot that had it replays as skipped, no
 // store, lock or mark is created below the mount point, recovery and the
-// janitor leave what is there alone, and alias volumes are refused.
+// janitor leave what is there alone, and an alias volume's store is refused
+// (its container gets a private directory instead, next test).
 func TestCacheDiskAbsentTurnsSharedCachesOff(t *testing.T) {
 	useFence(t, "boot-a")
 	eng := &dockerEngine{}
@@ -448,7 +449,7 @@ func TestCacheDiskAbsentTurnsSharedCachesOff(t *testing.T) {
 		if _, err := ensureStore("other", "npm", nil); !errors.Is(err, errNoCacheDisk) {
 			t.Fatalf("%s: ensureStore %v", state, err)
 		}
-		if _, _, err := openAliasStore("default", "gomod", aliasWrite); !errors.Is(err, errNoCacheDisk) {
+		if _, _, err := openAliasStore("default", "gomod", aliasWrite, t.TempDir()); !errors.Is(err, errNoCacheDisk) {
 			t.Fatalf("%s: alias volume %v", state, err)
 		}
 		discardDirtyCaches()
@@ -464,6 +465,239 @@ func TestCacheDiskAbsentTurnsSharedCachesOff(t *testing.T) {
 		if exists(filepath.Join(cacheRoot, "scopes/other")) || exists(filepath.Join(cacheRoot, ".meta/default/gomod.lock")) {
 			t.Fatalf("%s: created below the mount point", state)
 		}
+	}
+}
+
+// fdTarget is where a bind source descriptor resolves.
+func fdTarget(t *testing.T, f *os.File) string {
+	t.Helper()
+	p, err := os.Readlink(dockerMountFDPath(f))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// Without the cache disk a legacy alias volume is a directory of its
+// container's own, so the job runs uncached instead of failing: the start
+// succeeds, writable and read-only alike, nothing is held, marked or created
+// below the mount point, a restart of the same container (or a docker cp into
+// it while stopped) sees what it wrote, another container sees none of it,
+// and each such mount counts as cache-disk-unavailable. An untrusted container
+// still may not mount one read-write.
+func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
+	useFence(t, "boot-a")
+	old := cacheDiskState
+	t.Cleanup(func() { cacheDiskState = old })
+	cacheDiskState = "unavailable"
+	eng := &dockerEngine{}
+	spec := dockerConfig{HostConfig: dockerHost{Binds: []string{
+		"micropod-ci-scoped-team-gomod:/go/pkg/mod",
+		"micropod-ci-scoped-team-npm:/root/.npm:ro",
+	}}}
+	privA := filepath.Join(filepath.Dir(cacheRoot), "a", "shim")
+	files, mounts, pins, err := eng.openMounts(spec, false, "", privA)
+	if err != nil {
+		t.Fatalf("the start failed without the cache disk: %v", err)
+	}
+	if len(files) != 2 || len(mounts) != 2 || len(pins) != 0 {
+		t.Fatalf("files %d mounts %+v pins %+v", len(files), mounts, pins)
+	}
+	gomod, npm := fdTarget(t, files[0]), fdTarget(t, files[1])
+	if gomod != filepath.Join(privA, "nocache-micropod-ci-scoped-team-gomod") || mounts[0].Readonly ||
+		npm != filepath.Join(privA, "nocache-micropod-ci-scoped-team-npm") || !mounts[1].Readonly {
+		t.Fatalf("sources %s %s, mounts %+v", gomod, npm, mounts)
+	}
+	if mode, _ := modeOf(t, gomod); mode != 0777 {
+		t.Fatalf("private directory mode %o", mode)
+	}
+	writeAged(t, filepath.Join(gomod, "cache", "download", "x.mod"), 8, 0)
+	closeMounts(files)
+	if got := eng.metrics.cache.skips[skipNoCacheDisk]; got != 2 {
+		t.Fatalf("cache-disk-unavailable counted %d times", got)
+	}
+
+	// A restart, and a docker cp into the stopped container, reach the same
+	// directory; another container gets its own.
+	files, _, _, err = eng.openMounts(spec, false, "", privA)
+	if err != nil || !exists(filepath.Join(fdTarget(t, files[0]), "cache", "download", "x.mod")) {
+		t.Fatalf("restart lost the container's own directory: %v", err)
+	}
+	closeMounts(files)
+	f, cpPins, err := eng.openDockerMount(dockerMount{Type: "volume", Source: "micropod-ci-scoped-team-gomod", Target: "/go/pkg/mod"}, false, aliasWrite, privA)
+	if err != nil || len(cpPins) != 0 || fdTarget(t, f) != gomod {
+		t.Fatalf("docker cp into the stopped container: %v %+v", err, cpPins)
+	}
+	f.Close()
+	privB := filepath.Join(filepath.Dir(cacheRoot), "b", "shim")
+	files, _, _, err = eng.openMounts(spec, false, "", privB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(fdTarget(t, files[0])); len(entries) != 0 {
+		t.Fatalf("another container shares the directory: %v", entries)
+	}
+	closeMounts(files)
+
+	for _, p := range []string{"scopes/team", ".meta/team", ".meta/team/gomod.lock", ".meta/team/gomod.dirty"} {
+		if exists(filepath.Join(cacheRoot, p)) {
+			t.Fatalf("created %s below the mount point", p)
+		}
+	}
+	untrusted := spec
+	untrusted.Labels = map[string]string{"io.micropod.cache.trust": "untrusted"}
+	if _, _, _, err := eng.openMounts(untrusted, false, "", privB); err == nil {
+		t.Fatal("an untrusted container mounted an alias volume read-write")
+	}
+}
+
+// A read-only alias volume (and a docker cp out of one) holds its kind
+// without a mark and, like every reader, never creates or repairs anything in
+// a store: a missing store is an empty private directory of the container's,
+// a store whose modes drifted keeps them, and a non-directory planted where a
+// store belongs stays where it is. A create's probe holds and opens nothing.
+func TestCacheAliasReaderNeverCreatesOrRepairsTheStore(t *testing.T) {
+	useFence(t, "boot-a")
+	eng := &dockerEngine{}
+	priv := filepath.Join(filepath.Dir(cacheRoot), "c", "shim")
+	reader := func(bind string) dockerConfig {
+		return dockerConfig{Labels: map[string]string{"io.micropod.cache.trust": "untrusted"}, HostConfig: dockerHost{Binds: []string{bind}}}
+	}
+	open := func(bind string) ([]*os.File, []*cri.Mount, []cachePin) {
+		t.Helper()
+		files, mounts, pins, err := eng.openMounts(reader(bind), false, "", priv)
+		if err != nil || len(files) != 1 || len(pins) != 1 || pins[0].writer || !mounts[0].Readonly {
+			t.Fatalf("%s: files %d pins %+v mounts %+v: %v", bind, len(files), pins, mounts, err)
+		}
+		if _, err := unitLock(pins[0].scope, pins[0].unit, true); !errors.Is(err, unix.EWOULDBLOCK) {
+			t.Fatalf("%s: the reader does not hold its kind: %v", bind, err)
+		}
+		if marked(pins[0].scope, pins[0].unit) {
+			t.Fatalf("%s: a reader marked the store", bind)
+		}
+		return files, mounts, pins
+	}
+
+	// No store yet: nothing is created in the scope a reader names.
+	files, _, pins := open("micropod-ci-scoped-other-pnpm:/x:ro")
+	if src := fdTarget(t, files[0]); src != filepath.Join(priv, "ro-empty-alias-other-pnpm") {
+		t.Fatalf("missing store bound from %s", src)
+	}
+	if exists(filepath.Join(cacheRoot, "scopes/other/pnpm")) {
+		t.Fatal("a reader created the store")
+	}
+	releasePins(pins)
+	closeMounts(files)
+
+	// A store whose modes drifted is bound as it is.
+	store, err := ensureStore("other", "pnpm", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := filepath.Join(store, "v11", "index.db")
+	if err := errors.Join(os.Chmod(store, 0755), os.Chmod(index, 0644)); err != nil {
+		t.Fatal(err)
+	}
+	files, _, pins = open("micropod-ci-scoped-other-pnpm:/x:ro")
+	if src := fdTarget(t, files[0]); src != store {
+		t.Fatalf("existing store bound from %s", src)
+	}
+	if mode, _ := modeOf(t, store); mode != 0755 {
+		t.Fatalf("a reader repaired the store's mode to %o", mode)
+	}
+	if mode, _ := modeOf(t, index); mode != 0644 {
+		t.Fatalf("a reader repaired pnpm's index to %o", mode)
+	}
+	releasePins(pins)
+	closeMounts(files)
+
+	// A non-directory where a store belongs stays there (no move to .trash).
+	planted := filepath.Join(cacheRoot, "scopes/other/cargo")
+	if err := os.WriteFile(planted, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	files, _, pins = open("micropod-ci-scoped-other-cargo:/c:ro")
+	if st, err := os.Lstat(planted); err != nil || !st.Mode().IsRegular() {
+		t.Fatalf("a reader moved the planted file: %v", err)
+	}
+	if trash, _ := os.ReadDir(filepath.Join(cacheRoot, ".trash")); len(trash) != 0 {
+		t.Fatalf("a reader filled .trash: %v", trash)
+	}
+	releasePins(pins)
+	closeMounts(files)
+
+	// A docker cp out of a stopped container's alias volume reads the same way.
+	f, cpPins, err := eng.openDockerMount(dockerMount{Type: "volume", Source: "micropod-ci-scoped-other-npm", Target: "/n"}, false, aliasRead, priv)
+	if err != nil || len(cpPins) != 1 || cpPins[0].writer || exists(filepath.Join(cacheRoot, "scopes/other/npm")) {
+		t.Fatalf("docker cp out: %v %+v", err, cpPins)
+	}
+	f.Close()
+	releasePins(cpPins)
+
+	// A create's probe neither holds nor opens the store.
+	f, probePins, err := openAliasStore("other", "uv", aliasProbe, "")
+	if err != nil || len(probePins) != 0 {
+		t.Fatalf("probe: %v %+v", err, probePins)
+	}
+	f.Close()
+	if exists(filepath.Join(cacheRoot, "scopes/other/uv")) || exists(filepath.Join(cacheRoot, ".meta/other/uv.lock")) {
+		t.Fatal("a create's probe created the store or its lock")
+	}
+}
+
+// yarn is partitioned and exclusive: its partition's writer slot
+// (.meta/<scope>/yarn.u<uid>.writer.lock) sits next to the unit locks. The
+// kind-wide unit's guards are the unit locks alone, so recovery, the janitor
+// and the inventory probe never take the slot (lock order step 3), and a yarn
+// start that claims its partition while they hold the kind still wins it.
+func TestCacheUnitGuardsNeverIncludeTheWriterSlot(t *testing.T) {
+	useFence(t, "boot-a")
+	uid := uint32(1000)
+	if _, err := ensureStore("default", "yarn", &uid); err != nil {
+		t.Fatal(err)
+	}
+	unit := cacheUnit("yarn", &uid)
+	w, err := pinUnit("default", unit, true)
+	if err != nil || w.slot == nil {
+		t.Fatalf("yarn writer: %+v %v", w, err)
+	}
+	releasePins([]cachePin{w})
+	if !exists(filepath.Join(cacheRoot, ".meta/default", unit+".writer.lock")) {
+		t.Fatal("no writer slot file to confuse the guards")
+	}
+	if got := cacheUnitGuards("default", "yarn"); !slices.Equal(got, []string{"yarn", unit}) {
+		t.Fatalf("kind-wide guards %v", got)
+	}
+	if got := cacheUnitGuards("default", unit); !slices.Equal(got, []string{unit, "yarn"}) {
+		t.Fatalf("partition guards %v", got)
+	}
+
+	// Recovery holds every guard of the kind-wide unit (a yarn.dirty mark a
+	// writable alias volume left) for its whole run.
+	held := map[string]*os.File{}
+	if err := lockForDiscard(held, "default", "yarn"); err != nil {
+		t.Fatal(err)
+	}
+	slot, err := unitWriterLock("default", unit)
+	for _, f := range held {
+		f.Close()
+	}
+	if err != nil {
+		t.Fatalf("recovery held the writer slot: %v", err)
+	}
+	slot.Close()
+
+	// A running yarn writer is in use through its unit lock, not its slot.
+	w, err = pinUnit("default", unit, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !isUnitInUse("default", "yarn") || !isUnitInUse("default", unit) {
+		t.Fatal("a running yarn writer is not in use")
+	}
+	releasePins([]cachePin{w})
+	if isUnitInUse("default", "yarn") {
+		t.Fatal("in use with no container left")
 	}
 }
 

@@ -323,7 +323,7 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 			if write {
 				access = aliasWrite
 			}
-			view.root, pins, err = s.openDockerMount(mount, false, access)
+			view.root, pins, err = s.openDockerMount(mount, false, access, filepath.Join(c.dir(), "shim"))
 		} else if c.retainsRootFS() {
 			view.root, err = s.openStoppedArchiveRoot(ctx, c)
 		} else if c.Config.HostConfig.ReadonlyRootfs && !c.Config.HostConfig.AutoRemove {

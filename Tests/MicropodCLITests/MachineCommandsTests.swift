@@ -220,4 +220,44 @@ final class MachineCommandsTests: XCTestCase {
         XCTAssertEqual(prune.skippedDirty, 1)
         XCTAssertEqual(prune.actions.first?.action, "skipped-dirty")
     }
+
+    /// A cache disk that did not mount turns shared caches off for the boot;
+    /// `cache status`, `cache ls` and `cache explain` say so instead of showing
+    /// an empty inventory or a raw reason.
+    func testCacheInventoryShowsSharedCachesOffWithoutTheCacheDisk() throws {
+        let off = try JSONDecoder().decode(
+            HVFCacheInspection.self,
+            from: Data(
+                """
+                {"root":"/var/lib/micropod/caches","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{},
+                 "units":[],"cacheDisk":"unavailable",
+                 "unavailable":"guest init found the cache disk missing or unmountable"}
+                """.utf8))
+        XCTAssertEqual(off.cacheDisk, "unavailable")
+        XCTAssertEqual(off.sharedCachesOffReason, "guest init found the cache disk missing or unmountable")
+        XCTAssertEqual(
+            CacheCommands.cacheDiskLine(off),
+            "UNAVAILABLE — shared caches are off this boot, every container runs uncached: "
+                + "guest init found the cache disk missing or unmountable")
+
+        let mounted = try JSONDecoder().decode(
+            HVFCacheInspection.self,
+            from: Data(
+                """
+                {"root":"/var/lib/micropod/caches","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{},
+                 "cacheDisk":"mounted"}
+                """.utf8))
+        XCTAssertNil(mounted.sharedCachesOffReason)
+        XCTAssertEqual(CacheCommands.cacheDiskLine(mounted), "mounted (caches.ext4)")
+
+        let none = try JSONDecoder().decode(
+            HVFCacheInspection.self,
+            from: Data(#"{"root":"/r","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{}}"#.utf8))
+        XCTAssertNil(none.cacheDisk)
+        XCTAssertNil(CacheCommands.cacheDiskLine(none))
+
+        let hint = CacheCommands.skipHint("cache-disk-unavailable")
+        XCTAssertNotEqual(hint, "cache-disk-unavailable")
+        XCTAssertTrue(hint.contains("caches.ext4"), hint)
+    }
 }

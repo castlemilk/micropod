@@ -200,7 +200,7 @@ func TestCacheJanitorHonoursAliasVolumePins(t *testing.T) {
 	}
 	wheel := filepath.Join(cacheRoot, "scopes/default/pip/u1000", "wheel")
 	writeAged(t, wheel, 16, 0)
-	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-pip:/cache/pip"}}}, false, "")
+	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-pip:/cache/pip"}}}, false, "", t.TempDir())
 	if err != nil || len(pins) != 1 || pins[0].unit != "pip" {
 		t.Fatalf("alias pins %+v: %v", pins, err)
 	}
@@ -637,7 +637,7 @@ func TestCacheJanitorHonoursReadOnlyAliasVolumes(t *testing.T) {
 		return pruneActions(res)["default/gomod"]
 	}
 
-	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/go/pkg/mod:ro"}}}, false, "")
+	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/go/pkg/mod:ro"}}}, false, "", t.TempDir())
 	if err != nil || len(pins) != 1 || pins[0].unit != "gomod" {
 		t.Fatalf("read-only alias pins %+v: %v", pins, err)
 	}
@@ -692,7 +692,7 @@ func TestCacheAliasVolumeIsHeldBeforeItsStoreOpens(t *testing.T) {
 			}
 			acts = pruneActions(res)
 		}
-		files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{bind}}}, false, "")
+		files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{bind}}}, false, "", t.TempDir())
 		cacheAliasHeldHook = nil
 		if err != nil {
 			t.Fatalf("%s: the start failed: %v", bind, err)
@@ -707,7 +707,7 @@ func TestCacheAliasVolumeIsHeldBeforeItsStoreOpens(t *testing.T) {
 		releasePins(pins)
 		closeMounts(files)
 	}
-	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-fresh-npm:/root/.npm"}}}, false, "")
+	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-fresh-npm:/root/.npm"}}}, false, "", t.TempDir())
 	if err != nil || len(pins) != 1 || !marked("fresh", "npm") || !exists(filepath.Join(cacheRoot, "scopes/fresh/npm")) {
 		t.Fatalf("alias volume of a fresh scope: pins %+v: %v", pins, err)
 	}
@@ -788,7 +788,7 @@ func TestCacheJanitorQueuesOrphanedMarks(t *testing.T) {
 	if err := touchUsed("default", "pip.u1000"); err != nil {
 		t.Fatal(err)
 	}
-	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-pip:/cache/pip"}}}, false, "")
+	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-pip:/cache/pip"}}}, false, "", t.TempDir())
 	if err != nil || len(pins) != 1 {
 		t.Fatalf("alias pins %+v: %v", pins, err)
 	}

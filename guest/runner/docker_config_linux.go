@@ -1021,11 +1021,12 @@ func (a *cacheAttachment) emptyReadOnlySource(shimRoot, name string) (*os.File, 
 
 // sweepCacheViews removes what a crash left of copy-on-write views and
 // read-only fallback sources in container directories (engine start, before
-// any container of this engine runs: none of them is in use). A view's upper
-// directory holds everything an untrusted container wrote; it never outlives
-// the boot.
+// any container of this engine runs: none of them is in use), and the private
+// stand-ins of alias volumes from a boot without shared caches
+// (openUncachedAlias). A view's upper directory holds everything an untrusted
+// container wrote; it never outlives the boot.
 func sweepCacheViews() {
-	for _, pattern := range []string{"cow-*", "ro-file-*", "ro-empty-*"} {
+	for _, pattern := range []string{"cow-*", "ro-file-*", "ro-empty-*", "nocache-*"} {
 		matches, _ := filepath.Glob(filepath.Join(engineRoot, "containers", "*", "shim", pattern))
 		for _, m := range matches {
 			if pattern == "cow-*" {
@@ -1354,8 +1355,11 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 // alone. The caller hands the pins to the container's cache attachment, whose
 // release drops them. An untrusted or read-only container (cacheTrustOf) may
 // mount an alias volume only read-only: a writable one would be a path into a
-// shared store that bypasses its copy-on-write view.
-func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket string) ([]*os.File, []*cri.Mount, []cachePin, error) {
+// shared store that bypasses its copy-on-write view. While shared caches are
+// off for the boot an alias volume is a directory of the container's own
+// below privateRoot (openUncachedAlias), so its job runs uncached instead of
+// failing; privateRoot is the container's shim directory ("" at create).
+func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket, privateRoot string) ([]*os.File, []*cri.Mount, []cachePin, error) {
 	requests, err := spec.mounts()
 	if err != nil {
 		return nil, nil, nil, err
@@ -1398,8 +1402,14 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 			if m.ReadOnly {
 				access = aliasRead
 			}
+			if _, _, shared := legacyCacheVolume(m.Source); shared && m.Type == "volume" {
+				if why := cacheDiskUnavailable(); why != "" {
+					log.Printf("cache volume %s at %s: no shared caches this boot (%s); the container gets a private directory", m.Source, m.Target, why)
+					s.metrics.cache.skip(skipNoCacheDisk)
+				}
+			}
 		}
-		f, mountPins, e := s.openDockerMount(m, createVolumes, access)
+		f, mountPins, e := s.openDockerMount(m, createVolumes, access, privateRoot)
 		pins = append(pins, mountPins...)
 		if e != nil {
 			err = e
@@ -1436,9 +1446,11 @@ const (
 )
 
 // openDockerMount opens a request mount's source. For a legacy alias volume of
-// a cache store, access says how the descriptor will be used; the caller
-// releases the returned pins once nothing uses the descriptor any more.
-func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access aliasAccess) (*os.File, []cachePin, error) {
+// a cache store, access says how the descriptor will be used and privateRoot
+// is the container's own directory for private stand-ins (its shim directory;
+// "" at create, which only probes); the caller releases the returned pins once
+// nothing uses the descriptor any more.
+func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access aliasAccess, privateRoot string) (*os.File, []cachePin, error) {
 	root, source := s.workspace, m.Source
 	if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
 		root = "/runner/externals"
@@ -1452,7 +1464,18 @@ func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access 
 		root = filepath.Join(engineRoot, "volumes")
 		source = filepath.Join(root, m.Source)
 		if scope, kind, shared := legacyCacheVolume(m.Source); shared {
-			return openAliasStore(scope, kind, access)
+			f, pins, err := openAliasStore(scope, kind, access, privateRoot)
+			if !errors.Is(err, errNoCacheDisk) {
+				return f, pins, err
+			}
+			// Shared caches are off this boot: the container runs uncached
+			// rather than failing, and nothing is written below cacheRoot.
+			if access != aliasProbe {
+				f, err = openUncachedAlias(privateRoot, m.Source)
+				return f, nil, err
+			}
+			// A create only validates the request: the volume's own
+			// reference directory (ensureVolume) is all it opens.
 		}
 	}
 	f, err := openMount(root, source)
@@ -1466,11 +1489,15 @@ var cacheAliasHeldHook func(scope, kind string)
 // openAliasStore opens the store scopes/<scope>/<kind> a legacy alias volume
 // names. A writer pins the kind-wide unit (lock plus dirty mark), because the
 // whole kind directory, every partition included, is writable through it
-// (caches_dirty_linux.go). A reader holds the lock alone, so the janitor
-// neither evicts nor trims the store under it. Either is taken before the store
-// is created or verified and opened, so a janitor pass cannot move the store
-// between the two.
-func openAliasStore(scope, kind string, access aliasAccess) (*os.File, []cachePin, error) {
+// (caches_dirty_linux.go), then creates or repairs the store. A reader holds
+// the lock alone, so the janitor neither evicts nor trims the store under it,
+// and never creates or repairs anything in the store (it made no mark): a
+// store that is not there yet is an empty private directory of the
+// container's below privateRoot. Either is taken before the store is opened,
+// so a janitor pass cannot move the store between the two. A create's probe
+// neither holds nor opens the store; its start does. With no cache disk
+// mounted (cacheDiskUnavailable) it returns errNoCacheDisk.
+func openAliasStore(scope, kind string, access aliasAccess, privateRoot string) (*os.File, []cachePin, error) {
 	l, err := openCacheLayout()
 	if err != nil {
 		return nil, nil, err
@@ -1480,34 +1507,81 @@ func openAliasStore(scope, kind string, access aliasAccess) (*os.File, []cachePi
 	if err != nil {
 		return nil, nil, err
 	}
-	defer scopeDir.Close()
-	var pins []cachePin
-	if access != aliasProbe {
-		hold := holdUnit
-		if access == aliasWrite {
-			hold = func(scope, unit string) (cachePin, error) { return pinUnit(scope, unit, false) }
-		}
-		pin, err := hold(scope, kind)
-		if err != nil {
-			return nil, nil, err
-		}
-		pins = append(pins, pin)
-		if cacheAliasHeldHook != nil {
-			cacheAliasHeldHook(scope, kind)
-		}
+	if access == aliasProbe {
+		return scopeDir, nil, nil // the create closes it at once
 	}
-	dir, err := openStore(l, scope, scopeDir, kind, nil)
+	defer scopeDir.Close()
+	hold := holdUnit
+	if access == aliasWrite {
+		hold = func(scope, unit string) (cachePin, error) { return pinUnit(scope, unit, false) }
+	}
+	pin, err := hold(scope, kind)
+	if err != nil {
+		return nil, nil, err
+	}
+	pins := []cachePin{pin}
+	if cacheAliasHeldHook != nil {
+		cacheAliasHeldHook(scope, kind)
+	}
+	var dir *os.File
+	if access == aliasWrite {
+		dir, err = openStore(l, scope, scopeDir, kind, nil)
+	} else {
+		dir, err = openExistingStore(scopeDir, kind, nil)
+	}
 	if err != nil {
 		releasePins(pins)
 		return nil, nil, err
 	}
-	dir.Close()
-	f, err := openStoreBeneath(filepath.Join(cacheRoot, "scopes", scope, kind))
+	var f *os.File
+	if dir == nil {
+		f, err = openPrivateDir(privateRoot, "ro-empty-alias-"+scope+"-"+kind, 0755)
+	} else {
+		dir.Close()
+		f, err = openStoreBeneath(filepath.Join(cacheRoot, "scopes", scope, kind))
+	}
 	if err != nil {
 		releasePins(pins)
 		return nil, nil, err
 	}
 	return f, pins, nil
+}
+
+// openUncachedAlias stands in for a legacy alias volume while shared caches
+// are off for the boot (cacheDiskUnavailable): privateRoot/nocache-<volume>,
+// a directory of this container's alone that no other container shares. It
+// lasts until the container is removed or the engine next starts
+// (sweepCacheViews), so a docker cp into the stopped container reaches its
+// next start, and nothing of it is ever a store.
+func openUncachedAlias(privateRoot, volume string) (*os.File, error) {
+	f, err := openPrivateDir(privateRoot, "nocache-"+volume, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("%w: cache volume %s: %v", errNoCacheDisk, volume, err)
+	}
+	return f, nil
+}
+
+// openPrivateDir creates (if needed) and opens privateRoot/name with exactly
+// mode: a container's own directory, outside cacheRoot.
+func openPrivateDir(privateRoot, name string, mode os.FileMode) (*os.File, error) {
+	if privateRoot == "" {
+		return nil, errors.New("no private directory for this container")
+	}
+	if err := os.MkdirAll(privateRoot, 0755); err != nil {
+		return nil, err
+	}
+	dir := filepath.Join(privateRoot, name)
+	if err := os.Mkdir(dir, mode); err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, err
+	}
+	f, err := openDirNoFollow(unix.AT_FDCWD, dir, dir)
+	if err == nil {
+		if err = f.Chmod(mode); err != nil {
+			f.Close()
+			f = nil
+		}
+	}
+	return f, err
 }
 
 func closeMounts(files []*os.File) {
