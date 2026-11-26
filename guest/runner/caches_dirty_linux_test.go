@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -421,4 +422,57 @@ func TestCachePinWaitsForAClearer(t *testing.T) {
 		t.Fatalf("a pin did not wait out a clearer's mark lock: %v", err)
 	}
 	pin.drop()
+}
+
+// A writer's mark is on disk before its container can write a byte: attach
+// syncs the mark's content, renames it into place and then syncs its
+// directory (a journal commit), all before the start goes on. Without the
+// directory sync the rename waited for the next 5 s journal commit: a kill -9
+// of the VMM before it lost the mark while a writer's fdatasync'd overwrite in
+// place survived, and recovery kept the changed unit (scripts/gates/phase-b.sh
+// B2X, the swept-offset kills). When the sync fails the writer is kept out.
+func TestCacheDirtyMarkIsOnDiskBeforeTheWriterStarts(t *testing.T) {
+	needRoot(t)
+	useCacheRoot(t)
+	useBoot(t, "boot-d")
+	old, oldFile, oldDir := cacheDirty, syncMarkFile, syncMarkDir
+	cacheDirty = newCacheDirtyTracker()
+	t.Cleanup(func() { cacheDirty, syncMarkFile, syncMarkDir = old, oldFile, oldDir })
+	var events []string
+	syncMarkFile = func(f *os.File) error {
+		b, _ := os.ReadFile(f.Name())
+		events = append(events, fmt.Sprintf("file %s content=%q placed=%v", filepath.Base(filepath.Dir(f.Name())), b, marked("default", "gomod")))
+		return f.Sync()
+	}
+	syncMarkDir = func(dir string) error {
+		b, _ := os.ReadFile(dirtyMarker("default", "gomod"))
+		events = append(events, fmt.Sprintf("dir %s content=%q", filepath.Base(dir), b))
+		return syncDir(dir)
+	}
+	plan := decide(t, defaultCachePolicy(), dockerConfig{Labels: map[string]string{"io.micropod.cache": "gomod"}}, testFacts(golangEnv, nil))
+	a := openCacheMounts(&plan, "")
+	if !slices.Contains(a.units, "gomod") {
+		t.Fatalf("gomod not attached: units %v skipped %v", a.units, a.skipped)
+	}
+	want := []string{`file default content="boot-d\n" placed=false`, `dir default content="boot-d\n"`}
+	if !slices.Equal(events, want) {
+		t.Fatalf("mark syncs %q, want %q", events, want)
+	}
+	a.release()
+	closeMounts(a.files)
+	if err := cacheDirty.syncOnce(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The directory cannot be synced: the start goes on without the writer.
+	syncMarkDir = func(string) error { return unix.EIO }
+	b := openCacheMounts(&plan, "")
+	defer closeMounts(b.files)
+	defer b.release()
+	if slices.Contains(b.units, "gomod") || len(b.pins) != 0 {
+		t.Fatalf("a writer got in although its mark was not synced: units %v pins %d", b.units, len(b.pins))
+	}
+	if b.skipped["gomod"] != skipStoreFailed {
+		t.Fatalf("gomod not reported skipped: %v", b.skipped)
+	}
 }

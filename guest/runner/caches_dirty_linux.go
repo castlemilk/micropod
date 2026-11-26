@@ -41,7 +41,8 @@ import (
 //
 //   - attach (the caller holds the lock) replaces the mark with a new file whose
 //     content is this boot's id, so a mark that changed identity names a writer
-//     that came after whoever looked at it;
+//     that came after whoever looked at it, and has it on disk (the file and
+//     its directory synced) before the writer can write a byte;
 //   - a mark is cleared only by someone who opened it, then completed a syncfs,
 //     then took the mark lock LOCK_EX|LOCK_NB (no writer left anywhere) and
 //     found the mark still the file it opened (no writer arrived since it was
@@ -188,9 +189,15 @@ func currentBootID() string {
 }
 
 // attach marks a unit dirty for one writer. The caller already holds the
-// unit's lock, so no clearer can be between its checks. The new mark is a
-// journaled rename made before any of the writer's own metadata changes, so any
-// rename of the writer's that survives a crash implies the mark did too.
+// unit's lock, so no clearer can be between its checks. The mark is on disk
+// before attach returns, so before the writer can write a byte: its content
+// is synced, then it is renamed into place and its directory is synced (a
+// journal commit). Ordering alone is not enough. A rename the journal has not
+// committed yet is lost by a crash, and a writer's bytes can reach the disk
+// without any journal commit at all: an overwrite in place that the tool
+// fdatasyncs (SQLite does, pnpm's index.db is one) or that writeback flushes
+// under memory pressure. A kill -9 of the VMM inside the first commit interval
+// then left that unit changed and unmarked, and recovery kept it.
 func (t *cacheDirtyTracker) attach(scope, unit string) error {
 	dir := filepath.Join(cacheRoot, ".meta", scope)
 	var b [6]byte
@@ -201,14 +208,27 @@ func (t *cacheDirtyTracker) attach(scope, unit string) error {
 		return err
 	}
 	_, err = f.WriteString(currentBootID() + "\n")
+	if err == nil {
+		err = syncMarkFile(f)
+	}
 	if err = errors.Join(err, f.Close()); err == nil {
 		err = os.Rename(tmp, dirtyMarker(scope, unit))
 	}
 	if err != nil {
 		os.Remove(tmp)
+		return err
 	}
-	return err
+	// A mark in place but not durable is still a mark: the unit stays marked
+	// (the janitor queues it once no writer holds it), and the caller does not
+	// let the writer in.
+	return syncMarkDir(dir)
 }
+
+// syncMarkFile and syncMarkDir make a new mark durable (tests observe them).
+var (
+	syncMarkFile = func(f *os.File) error { return f.Sync() }
+	syncMarkDir  = syncDir
+)
 
 // release queues a unit whose writer here has exited (and closed its lock) for
 // a clear; the syncer clears the mark once no writer is left anywhere.

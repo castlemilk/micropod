@@ -23,7 +23,12 @@
 #   npm-ci V [offline]       npm ci (--offline) of npm/V, http fetch lines
 #   pnpm-install V [offline] pnpm install --frozen-lockfile (--offline) of pnpm/V
 #   attack            deliberate writes into every attached store
-#   writer            writes into $GOMODCACHE until the VMM dies (crash case)
+#   seed              writes the crash sweep's pre-crash entries into $GOMODCACHE
+#   writer [overwrite] writes into $GOMODCACHE until the VMM dies (crash case):
+#                     new entries only, no sync; with overwrite it first
+#                     overwrites a seed entry in place and fdatasyncs it, then
+#                     keeps doing that between new entries (what SQLite does:
+#                     those bytes reach the disk without a journal commit)
 #   mutate            one trusted overwrite of a gomod file (sabotage only)
 #   touch             one trusted mtime change of a gomod file, no byte
 #                     written (sabotage only)
@@ -221,16 +226,35 @@ attack)
     out attack.not_landed "$(grep -E '^attack\.(gomod|gobuild|npm|pnpm)\.[a-z]+=failed' "$TMP" | cut -d= -f1 | tr '\n' ' ')"
     out rc 0
     ;;
+seed)
+    D=${GOMODCACHE:-}
+    [ -n "$D" ] && [ -d "$D" ] || { out rc no-gomod; finish; }
+    S=$D/cache/download/seed.example/crash/@v
+    mkdir -p "$S" || { out rc mkdir-failed; finish; }
+    for n in 1 2 3 4 5 6 7 8; do
+        dd if=/dev/urandom of="$S/v0.0.$n.zip" bs=64k count=1 2>/dev/null || { out rc seed-failed; finish; }
+    done
+    out rc 0
+    ;;
 writer)
     # Writes real bytes into the gomod store until the VMM is killed under it.
     D=${GOMODCACHE:-}
     [ -n "$D" ] && [ -d "$D" ] || { out rc no-gomod; finish; }
     W=$D/cache/download/gate.example/crash/@v
+    S=$D/cache/download/seed.example/crash/@v
+    overwrite() { # overwrite N: 4 KiB of seed entry N in place, fdatasync'd (busybox sync -d)
+        dd if=/dev/urandom of="$S/v0.0.$1.zip" bs=4k count=1 conv=notrunc 2>/dev/null && sync -d "$S/v0.0.$1.zip"
+    }
+    if [ "$VARIANT" = overwrite ]; then
+        [ -f "$S/v0.0.1.zip" ] || { out rc no-seed; finish; }
+        overwrite 1 || { out rc overwrite-failed; finish; }
+    fi
     mkdir -p "$W" || { out rc mkdir-failed; finish; }
     printf 'started %s\n' "$(fs_of "$D")" >"$O/$NAME.started"
     i=0
     while :; do
         i=$((i + 1))
+        [ "$VARIANT" = overwrite ] && overwrite $((i % 8 + 1))
         dd if=/dev/urandom of="$W/v0.0.$i.zip" bs=64k count=4 2>/dev/null
         printf '%s\n' "$i" >"$O/$NAME.progress"
         sleep 0.05

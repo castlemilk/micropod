@@ -30,7 +30,11 @@
 #     supervisor's relaunch the engine must discard exactly that dirty unit,
 #     and every other unit (the same scope's gobuild and npm, and all of B1's
 #     scope) must be preserved to the inode and ctime; the next build
-#     re-downloads the modules and compiles nothing.
+#     re-downloads the modules and compiles nothing. Then kills at swept
+#     offsets (GATE_CRASH_SWEEP_MS, default 50 ms to 6 s) after a writer
+#     started on an idle cache disk, for a writer that only adds entries and
+#     for one that overwrites committed entries in place with fdatasync: each
+#     must discard the unit whole, its mark being on disk before any write.
 #
 # How the stores are measured. Never from inside the container under test: a
 # census container (io.micropod.cache=off, --network none) mounts every store
@@ -1020,10 +1024,10 @@ if want B2X; then
     waited=0
     progress() { local p; p=$(cat "$OUTD/${1:-x-writer}.progress" 2>/dev/null); if num "$p"; then echo "$p"; else echo 0; fi; }
     while [ "$(progress)" -lt 25 ] && [ "$waited" -lt 600 ]; do sleep 0.1 && waited=$((waited + 1)); done
-    # ext4 commits its journal every 5 s: by the kill, the unit's mark and some
-    # of the writer's entries are on the cache disk, and its newest writes are
-    # not (the case the fence exists for). A kill within the first commit
-    # interval would find neither on disk, and nothing to discard.
+    # ext4 commits its journal every 5 s: by the kill some of the writer's
+    # entries are on the cache disk and its newest writes are not (the case the
+    # fence exists for). The unit's mark went to disk before the writer could
+    # write (attach syncs it).
     WRITE_SECS=${GATE_CRASH_WRITE_SECS:-15}
     log "the writer runs ${WRITE_SECS}s before the kill (progress $(progress))"
     sleep "$WRITE_SECS"
@@ -1076,10 +1080,12 @@ print('real' if d['real'] else 'gone', sum(1 for e in d['entries'] if e['type'] 
     check "go mod verify of the rebuilt gomod store" "rc=$(r x-go-verify rc) verified=$(r x-go-verify verified)" "rc=0 verified=1"
 
     # The same kill inside the first journal commit interval (well under 5 s
-    # after the writer attached): the mark may not be on disk yet, and then
-    # neither may anything the writer wrote. Either outcome is safe: the unit
-    # discarded whole, or the unit exactly as it was before the writer (no
-    # entry of the writer's survives without the mark that would discard it).
+    # after the writer attached): the mark went to disk before the writer could
+    # write, so the unit is discarded whole. (Before attach synced the mark this
+    # kill found neither the mark nor the writer's entries on disk, and kept the
+    # unit as it was before the writer: safe for this writer, which only adds
+    # entries, but not for one whose bytes reach the disk without a journal
+    # commit; the swept kills below have one.)
     wait_clean 120 "$SX" "$SB"
     census e2 "$SB" "$SX"
     run_d x-writer2 "$IMG_BASE" --label "io.micropod.cache.scope=$SX" --label "io.micropod.cache=gomod,+gomod" -- sh /g/probe.sh x-writer2 writer
@@ -1112,13 +1118,105 @@ else:
 PY
 )
     metric "b2x.early_kill_outcome" "$EARLY"
-    checkp "early kill: no writer entry survives outside a discard (discarded whole, or exactly the pre-crash content)" "$EARLY" \
-        "'discarded gone writer-entries=0' or 'kept pre-crash-content writer-entries=0'" \
-        "$([ "$EARLY" = "discarded gone writer-entries=0" ] || [ "$EARLY" = "kept pre-crash-content writer-entries=0" ] && echo 1 || echo 0)" "census/e3.json"
+    checkp "early kill: the unit is discarded whole (its mark was on disk before the writer wrote)" "$EARLY" \
+        "'discarded gone writer-entries=0'" \
+        "$([ "$EARLY" = "discarded gone writer-entries=0" ] && echo 1 || echo 0)" "census/e3.json"
     got=$(cdiff e2 e3 "$SX" strict "gobuild,npm")
     checkp "early kill: gobuild and npm of $SX identical to the byte, inode, mtime and ctime" "$got" "equal" "$(ok is_equal "$got")"
     got=$(cdiff e2 e3 "$SB" strict)
     checkp "early kill: every store of $SB identical to the byte, inode, mtime and ctime" "$got" "equal" "$(ok is_equal "$got")"
+
+    # The swept kills. attach puts the unit's mark on disk (synced, renamed,
+    # its directory synced) before the writer can write a byte, so a kill at
+    # any moment after the writer started must discard the unit whole. Two
+    # writers: new entries only, never synced; and one that first overwrites
+    # a committed seed entry in place and fdatasyncs it (as SQLite does), whose
+    # bytes reach the disk without any journal commit. Before each writer the
+    # cache disk has been idle for longer than a journal commit interval, so
+    # a mark the engine left to the next commit would not be on disk at any
+    # offset below 5 s: the new-entry writer's unit then survives undiscarded,
+    # the overwriter's survives changed (measured on 54732c4f: 8 of 21 kills
+    # 50 ms..1.7 s after the overwriter started kept a changed gomod). Each
+    # kill is followed by a machine stop/start: five kills within a minute of
+    # their launches would end supervision.
+    sweep_census() { # sweep_census TAG: census of $SX's gomod store alone
+        local cname="gpb-$S-census-$1"
+        rm -f "$OUTD/census-$1.json"
+        "$DOCKER" run --rm --name "$cname" --label "gate-run=$S" --label io.micropod.cache=off --network none \
+            -v "${GW}/g:/g:ro" -v "${GW}/out:/o" -v "micropod-ci-scoped-$SX-gomod:/c/$SX.gomod:ro" "$IMG_PY" \
+            python3 -I /g/census.py /c "/o/census-$1.json" >"$R/census/$1.log" 2>&1
+        cp "$OUTD/census-$1.json" "$R/census/$1.json" 2>/dev/null
+    }
+    sweep_outcome() { # sweep_outcome PRE POST INVENTORY: discarded|kept, what is left
+        python3 - "$R/census/$1.json" "$R/census/$2.json" "$R/engine/inventory-$3.json" "$SX" <<'PY' 2>/dev/null || echo "no-census"
+import json, sys
+pre = json.load(open(sys.argv[1]))["stores"][sys.argv[4] + ".gomod"]
+post = json.load(open(sys.argv[2]))["stores"][sys.argv[4] + ".gomod"]
+disc = json.load(open(sys.argv[3])).get("discardedAtStart") or []
+key = lambda e: (e["type"], e["size"], e.get("sha256"))
+before = {e["path"]: key(e) for e in pre["entries"]}
+after = {e["path"]: key(e) for e in post["entries"]}
+seed = sum(1 for p in after if "seed.example" in p)
+writer = sum(1 for p in after if "gate.example" in p)
+if sys.argv[4] + "/gomod" in disc:
+    print("discarded", "gone" if not post["real"] else f"real-{len(after)}", f"seed-entries={seed}", f"writer-entries={writer}")
+else:
+    changed = sum(1 for p, k in before.items() if after.get(p) != k) + sum(1 for p in after if p not in before)
+    print("kept", "unchanged" if changed == 0 else f"CHANGED-{changed}", f"seed-entries={seed}", f"writer-entries={writer}")
+PY
+    }
+    SWEEP_MS=${GATE_CRASH_SWEEP_MS:-"50 250 1000 2500 4000 6000"}
+    trial=0
+    for variant in new overwrite; do
+        for off in $SWEEP_MS; do
+            trial=$((trial + 1))
+            tag="sw$trial-$variant-$off"
+            wait_clean 120 "$SX" "$SB" || log "sweep $tag: $SX not clean before the trial"
+            "$DOCKER" rm -f "gpb-$S-x-seed" >/dev/null 2>&1
+            run_c x-seed "$IMG_BASE" --label "io.micropod.cache.scope=$SX" --label "io.micropod.cache=gomod,+gomod" -- sh /g/probe.sh x-seed seed
+            seeded=$(r x-seed rc)
+            wait_clean 120 "$SX" "$SB" || log "sweep $tag: $SX not clean after seeding"
+            sweep_census "$tag-pre"
+            # One full commit interval with nothing written: the journal is idle.
+            sleep 6
+            rm -f "$OUTD/x-$tag.started"
+            run_d "x-$tag" "$IMG_BASE" --label "io.micropod.cache.scope=$SX" --label "io.micropod.cache=gomod,+gomod" -- \
+                sh /g/probe.sh "x-$tag" writer "$([ "$variant" = overwrite ] && echo overwrite)"
+            waited=0
+            while [ ! -f "$OUTD/x-$tag.started" ] && [ "$waited" -lt 600 ]; do sleep 0.01 && waited=$((waited + 1)); done
+            t0=$(host_ms)
+            perl -MTime::HiRes=sleep -e "sleep($off / 1000)"
+            VMM=$(my_vmm)
+            [ -f "$OUTD/x-$tag.started" ] && [ -n "$VMM" ] && kill -9 "$VMM"
+            actual=$(($(host_ms) - t0))
+            deadline=$((SECONDS + 240))
+            until [ "$(state "s['phase'] == 'running' and s.get('vmmPID') != ${VMM:-0}")" = True ] && ping_engine; do
+                [ "$SECONDS" -lt "$deadline" ] || break
+                sleep 0.2
+            done
+            "$DOCKER" rm -f "gpb-$S-x-$tag" >/dev/null 2>&1
+            cp "$OUTD/x-$tag.progress" "$R/containers/x-$tag.progress" 2>/dev/null
+            inventory "x-$tag" nostats
+            sweep_census "$tag-post"
+            outcome=$(sweep_outcome "$tag-pre" "$tag-post" "x-$tag")
+            metric "b2x.sweep.$tag" "kill ${actual} ms after the writer started; $outcome"
+            checkp "swept kill ($variant writer, ${off} ms after it started; killed at ${actual} ms): the unit is discarded whole" \
+                "seed rc=$seeded vmm=${VMM:-none} $outcome" "seed rc=0 vmm=<pid> discarded gone seed-entries=0 writer-entries=0" \
+                "$([ "$seeded" = 0 ] && [ -n "$VMM" ] && [ "$outcome" = "discarded gone seed-entries=0 writer-entries=0" ] && echo 1 || echo 0)" \
+                "census/$tag-pre.json census/$tag-post.json engine/inventory-x-$tag.json"
+            "$M" machine stop >"$R/logs/machine-stop-$tag.log" 2>&1
+            "$M" machine start --timeout 300 >"$R/logs/machine-start-$tag.log" 2>&1
+            wait_engine 120 || log "sweep $tag: the machine did not come back after its stop/start"
+        done
+    done
+    census e4 "$SB" "$SX"
+    check "census e4 ran" "$?" 0 "census/e4.json"
+    got=$(cdiff e2 e4 "$SX" strict "gobuild,npm")
+    checkp "after the swept kills gobuild and npm of $SX are identical to the byte, inode, mtime and ctime" "$got" "equal" "$(ok is_equal "$got")" \
+        "census/diff-e2-e4-$SX-strict.json"
+    got=$(cdiff e2 e4 "$SB" strict)
+    checkp "after the swept kills every store of $SB is identical to the byte, inode, mtime and ctime" "$got" "equal" "$(ok is_equal "$got")" \
+        "census/diff-e2-e4-$SB-strict.json"
 fi
 
 # --- result: written by the exit trap (cleanup → write_result) ------------------------
