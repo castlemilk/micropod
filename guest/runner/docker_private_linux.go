@@ -28,7 +28,10 @@ import (
 //
 // Both are decided by identity (device and inode), never by spelling: the
 // host's file system ignores case and a symlink can name the directory by
-// another path, but neither changes the inode a lookup ends on.
+// another path, but neither changes the inode a lookup ends on. Nor does a
+// rename: a container that writes the workspace can move the directory, or
+// one above it, under another name, so where a bind covers it is found at
+// every open, walking up from the directory itself.
 
 type fileID struct{ dev, ino uint64 }
 
@@ -37,9 +40,9 @@ func statID(st *unix.Stat_t) fileID { return fileID{uint64(st.Dev), st.Ino} }
 type privateRoot struct {
 	path string
 	id   fileID
-	// ancestors maps every directory above path, up to "/", to path's
-	// location below it: a bind of one of them covers path.
-	ancestors map[fileID]string
+	// dir is the machine directory, held open from boot: wherever it is
+	// moved, a walk up from it passes the directories that cover it now.
+	dir *os.File
 	// mask is the empty directory bound read-only over path in a bind that
 	// covers it.
 	mask string
@@ -48,8 +51,8 @@ type privateRoot struct {
 // privateMaskDir is the empty directory privateRoot.mask names.
 var privateMaskDir = filepath.Join(engineRoot, "private-mask")
 
-// loadPrivateRoot reads the identities of p and its ancestors and prepares the
-// mask directory. An empty p protects nothing (nil).
+// loadPrivateRoot opens p, reads its identity and prepares the mask
+// directory. An empty p protects nothing (nil).
 func loadPrivateRoot(p, maskDir string) (*privateRoot, error) {
 	if p == "" {
 		return nil, nil
@@ -57,40 +60,37 @@ func loadPrivateRoot(p, maskDir string) (*privateRoot, error) {
 	if !path.IsAbs(p) || path.Clean(p) != p || p == "/" {
 		return nil, fmt.Errorf("the machine directory %q is not a canonical absolute path", p)
 	}
-	var st unix.Stat_t
-	if err := unix.Stat(p, &st); err != nil {
+	fd, err := unix.Open(p, unix.O_PATH|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if err != nil {
 		return nil, fmt.Errorf("the machine directory %s: %w", p, err)
 	}
-	r := &privateRoot{path: p, id: statID(&st), ancestors: map[fileID]string{}, mask: maskDir}
-	for dir := path.Dir(p); ; dir = path.Dir(dir) {
-		if err := unix.Stat(dir, &st); err != nil {
-			return nil, fmt.Errorf("the machine directory's parent %s: %w", dir, err)
-		}
-		rel, err := filepath.Rel(dir, p)
-		if err != nil {
-			return nil, err
-		}
-		if _, seen := r.ancestors[statID(&st)]; !seen {
-			r.ancestors[statID(&st)] = rel
-		}
-		if dir == "/" {
-			break
-		}
+	dir := os.NewFile(uintptr(fd), p)
+	var st unix.Stat_t
+	if err := unix.Fstat(fd, &st); err != nil {
+		dir.Close()
+		return nil, fmt.Errorf("the machine directory %s: %w", p, err)
 	}
-	// Always empty: whatever an earlier boot left is removed.
-	if err := os.RemoveAll(maskDir); err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(filepath.Dir(maskDir), 0700); err != nil {
-		return nil, err
-	}
-	if err := os.Mkdir(maskDir, 0555); err != nil {
-		return nil, err
-	}
-	if err := os.Chmod(maskDir, 0555); err != nil {
+	r := &privateRoot{path: p, id: statID(&st), dir: dir, mask: maskDir}
+	if err := makeMaskDir(maskDir); err != nil {
+		dir.Close()
 		return nil, err
 	}
 	return r, nil
+}
+
+// makeMaskDir makes maskDir an empty read-only directory: whatever an earlier
+// boot left there is removed.
+func makeMaskDir(maskDir string) error {
+	if err := os.RemoveAll(maskDir); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(maskDir), 0700); err != nil {
+		return err
+	}
+	if err := os.Mkdir(maskDir, 0555); err != nil {
+		return err
+	}
+	return os.Chmod(maskDir, 0555)
 }
 
 // errInsideMachine is what check returns for a bind source inside the
@@ -110,7 +110,11 @@ func (r *privateRoot) check(f *os.File, source, target string) (string, error) {
 		return "", err
 	}
 	if st.Mode&unix.S_IFMT == unix.S_IFDIR {
-		if rel, covers := r.ancestors[statID(&st)]; covers {
+		rel, err := r.coveredBy(f, statID(&st))
+		if err != nil {
+			return "", fail(400, fmt.Sprintf("bind source %s: %v", source, err))
+		}
+		if rel != "" {
 			return path.Join(target, rel), nil
 		}
 	}
@@ -125,6 +129,53 @@ func (r *privateRoot) check(f *os.File, source, target string) (string, error) {
 		return "", fail(400, fmt.Sprintf("bind source %s %v", source, errInsideMachine))
 	}
 	return "", nil
+}
+
+// errMachineMoved is what coveredBy returns when the way down to the machine
+// directory does not lead to it: it moved while it was found.
+var errMachineMoved = errors.New("covers the machine's own directory, which moved while it was found")
+
+// coveredBy is the path below the directory dir (id is its identity) at which
+// the machine directory lies now, "" when it does not lie below dir. dir
+// covers it when a walk up from the held machine directory passes dir; the
+// kernel's path for the machine directory names the way down, which must lead
+// from dir to that very directory through no symlink (errMachineMoved
+// otherwise). The walk costs the directory's depth, whatever dir holds.
+func (r *privateRoot) coveredBy(dir *os.File, id fileID) (string, error) {
+	var st unix.Stat_t
+	if err := unix.Fstat(int(r.dir.Fd()), &st); err != nil {
+		return "", err
+	}
+	if st.Nlink == 0 {
+		return "", nil // removed: nothing is left to cover
+	}
+	depth, found := 0, false
+	if err := walkUp(r.dir, func(up fileID) bool {
+		if found = up == id && depth > 0; found {
+			return false
+		}
+		depth++
+		return true
+	}); err != nil || !found {
+		return "", err
+	}
+	p, err := os.Readlink(dockerMountFDPath(r.dir))
+	names := strings.Split(strings.Trim(p, "/"), "/")
+	if err != nil || !path.IsAbs(p) || strings.HasSuffix(p, " (deleted)") || len(names) < depth {
+		return "", errMachineMoved
+	}
+	rel := path.Join(names[len(names)-depth:]...)
+	fd, err := unix.Openat2(int(dir.Fd()), rel, &unix.OpenHow{Flags: unix.O_PATH | unix.O_DIRECTORY | unix.O_CLOEXEC,
+		Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS | unix.RESOLVE_NO_XDEV})
+	if err != nil {
+		return "", errMachineMoved
+	}
+	err = unix.Fstat(fd, &st)
+	unix.Close(fd)
+	if err != nil || statID(&st) != r.id {
+		return "", errMachineMoved
+	}
+	return rel, nil
 }
 
 // errFileMoved is what walkUp returns for a file whose directory it cannot
