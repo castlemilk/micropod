@@ -133,6 +133,23 @@ final class MCPArgumentsTests: XCTestCase {
         XCTAssertNoThrow(try MCPArguments([:], for: bare))
     }
 
+    /// Every wrong argument is named in the one refusal, not just the first
+    /// in parameter order: a caller learns all it has to fix, and a refusal
+    /// always names the argument that was wrong.
+    func testEveryWrongArgumentIsNamed() {
+        let reply = message(["mode": .string("sideways"), "flag": .string("perhaps")])
+        XCTAssertEqual(
+            reply,
+            "probe: flag must be a boolean (true or false), got 'perhaps'; Unknown mode 'sideways' — want auto|off")
+        XCTAssertThrowsError(try MCPArguments(["count": .string("lots")], for: tool)) { error in
+            let text = error.localizedDescription
+            XCTAssertTrue(text.contains("count") && text.contains("requires id"), text)
+        }
+        // One problem reads exactly as before.
+        XCTAssertEqual(
+            message(["flag": .string("perhaps")]), "probe: flag must be a boolean (true or false), got 'perhaps'")
+    }
+
     // MARK: Schemas
 
     func testEveryToolAdvertisesATypedClosedObjectSchema() throws {
