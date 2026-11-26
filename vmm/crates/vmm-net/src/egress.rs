@@ -37,6 +37,26 @@ const EGRESS_RCV_WND: usize = 256 * 1024;
 const EGRESS_TX_INFLIGHT: usize = 256 * 1024;
 const EGRESS_ACK_COALESCE: usize = 32 * 1024;
 
+/// Resolve the host IPv4 connect target for a guest outbound TCP SYN.
+/// Returns `None` when the destination is blocked by egress isolation.
+#[inline]
+pub fn resolve_egress_tcp_target(
+    cfg: &NetConfig,
+    dst_ip: Ipv4Addr,
+    remote_port: u16,
+    upstream_dns: Ipv4Addr,
+) -> Option<Ipv4Addr> {
+    if dst_ip == cfg.host_ip && remote_port == 53 {
+        Some(upstream_dns)
+    } else if dst_ip == cfg.host_ip && cfg.host_loopback_ports.contains(&remote_port) {
+        Some(Ipv4Addr::LOCALHOST)
+    } else if dst_ip == cfg.host_ip || is_blocked_egress_ip(dst_ip) {
+        None
+    } else {
+        Some(dst_ip)
+    }
+}
+
 /// Security guard: reject outbound guest connections targeting host loopback,
 /// link-local, unspecified, broadcast, or multicast IPv4 addresses.
 #[inline]
@@ -869,9 +889,9 @@ impl EgressShared {
 
         // New outbound TCP connection (SYN without ACK)
         if (flags & (TCP_SYN | TCP_ACK)) == TCP_SYN {
-            let connect_ip = if dst_ip == self.cfg.host_ip && remote_port == 53 {
-                self.upstream_dns()
-            } else if dst_ip == self.cfg.host_ip || is_blocked_egress_ip(dst_ip) {
+            let Some(connect_ip) =
+                resolve_egress_tcp_target(&self.cfg, dst_ip, remote_port, self.upstream_dns())
+            else {
                 return self.send_tcp(
                     key,
                     0,
@@ -882,8 +902,6 @@ impl EgressShared {
                     None,
                     true,
                 );
-            } else {
-                dst_ip
             };
 
             let mut table = self.table.lock().unwrap();
@@ -2050,6 +2068,34 @@ mod tests {
         assert!(!is_blocked_egress_ip(Ipv4Addr::new(1, 1, 1, 1)));
         assert!(!is_blocked_egress_ip(Ipv4Addr::new(8, 8, 8, 8)));
         assert!(!is_blocked_egress_ip(Ipv4Addr::new(192, 168, 1, 1)));
+    }
+
+    #[test]
+    fn egress_allowlists_explicit_host_loopback_ports_only() {
+        let dns = Ipv4Addr::new(1, 1, 1, 1);
+        let default_cfg = NetConfig::primary_egress();
+        assert_eq!(
+            resolve_egress_tcp_target(&default_cfg, default_cfg.host_ip, 53, dns),
+            Some(dns)
+        );
+        assert_eq!(
+            resolve_egress_tcp_target(&default_cfg, default_cfg.host_ip, 7677, dns),
+            None
+        );
+
+        let allowed = default_cfg.with_host_loopback_ports(vec![7677]);
+        assert_eq!(
+            resolve_egress_tcp_target(&allowed, allowed.host_ip, 7677, dns),
+            Some(Ipv4Addr::LOCALHOST)
+        );
+        assert_eq!(
+            resolve_egress_tcp_target(&allowed, allowed.host_ip, 22, dns),
+            None
+        );
+        assert_eq!(
+            resolve_egress_tcp_target(&allowed, Ipv4Addr::LOCALHOST, 7677, dns),
+            None
+        );
     }
 
     #[test]

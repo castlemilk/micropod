@@ -518,6 +518,10 @@ pub struct VmConfig {
     pub initrd_path: Option<PathBuf>,
     pub disk_path: Option<PathBuf>,
     pub disk_read_only: bool,
+    /// Optional second Virtio-Blk disk (`/dev/vdb`) mounted by guest init at
+    /// `/var/lib/micropod/caches` so persistent dependency & BuildKit caches
+    /// survive `disk.ext4` OS upgrades.
+    pub cache_disk_path: Option<PathBuf>,
     pub num_vcpus: u32,
     pub memory_mib: usize,
     pub cmdline: String,
@@ -525,6 +529,8 @@ pub struct VmConfig {
     pub enable_net: bool,
     pub enable_published_net: bool,
     pub published_mtu: u16,
+    /// Opt-in host loopback TCP ports reachable from the guest at `10.42.0.1:<port>`.
+    pub allow_host_ports: Vec<u16>,
     pub enable_vsock: bool,
     pub vsock_exposes: Vec<VsockExposeSpec>,
     pub shares: Vec<ShareSpec>,
@@ -750,6 +756,18 @@ pub fn run_vm_with_parent(
             })
         })
         .transpose()?;
+    let cache_disk = cfg
+        .cache_disk_path
+        .as_deref()
+        .map(|path| {
+            disk::open(path, false).map_err(|e| match e.kind() {
+                io::ErrorKind::WouldBlock => {
+                    format!("cache disk {} is locked by another writer", path.display())
+                }
+                _ => format!("open cache disk {}: {e}", path.display()),
+            })
+        })
+        .transpose()?;
 
     // Bind every exposed host socket before the guest exists: an unusable path
     // (too long, occupied by a live listener, or not a socket) fails startup.
@@ -965,6 +983,14 @@ pub fn run_vm_with_parent(
                 .map_err(|e| format!("init virtio-blk: {e}"))?;
             push_dev(Box::new(blk));
         }
+        if let Some(cache_disk) = &cache_disk {
+            let file = cache_disk
+                .try_clone()
+                .map_err(|e| format!("duplicate cache disk descriptor: {e}"))?;
+            let blk = VirtioBlk::new(file, false, blk_metrics.clone())
+                .map_err(|e| format!("init cache virtio-blk: {e}"))?;
+            push_dev(Box::new(blk));
+        }
         if cfg.enable_balloon {
             push_dev(Box::new(VirtioBalloon::new(balloon_metrics.clone())));
         }
@@ -973,9 +999,10 @@ pub fn run_vm_with_parent(
         // Linux probes virtio-mmio DT nodes in order:
         // eth0 = primary egress (10.42.0.2/24), eth1 = dedicated published-port link (10.43.0.2/24)
         if cfg.enable_net {
-            let net0 =
-                vmm_net::VirtioNetEgress::new(NetConfig::primary_egress(), net_metrics.clone())
-                    .map_err(|e| format!("init eth0 virtio-net egress: {e}"))?;
+            let egress_cfg =
+                NetConfig::primary_egress().with_host_loopback_ports(cfg.allow_host_ports.clone());
+            let net0 = vmm_net::VirtioNetEgress::new(egress_cfg, net_metrics.clone())
+                .map_err(|e| format!("init eth0 virtio-net egress: {e}"))?;
             push_dev(Box::new(net0));
         }
         if cfg.enable_published_net {
@@ -1994,6 +2021,7 @@ mod vcpu_lifecycle_tests {
                 initrd_path: None,
                 disk_path: None,
                 disk_read_only: false,
+                cache_disk_path: None,
                 num_vcpus,
                 memory_mib,
                 cmdline: String::new(),
@@ -2003,6 +2031,7 @@ mod vcpu_lifecycle_tests {
                 enable_net: false,
                 enable_published_net: false,
                 published_mtu: 1500,
+                allow_host_ports: Vec::new(),
                 enable_vsock: false,
                 vsock_exposes: Vec::new(),
                 shares: Vec::new(),

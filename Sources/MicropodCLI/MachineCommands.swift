@@ -18,7 +18,7 @@ enum MachineCommands {
           micropod machine install [--vmm <micropod-vmm>] [--kernel <Image>] [--initrd <cpio>]
                                    [--tools <dir>] [--cpus N] [--memory-mib N] [--workspace <dir>|""]
                                    [--disk-from <ext4> | --disk-image <ref>|default [--disk-size 64g]]
-                                   [--replace-disk]
+                                   [--cache-disk-size 32g] [--replace-disk]
                                                   copy the assets into the machine root; the disk is
                                                   an APFS clone of --disk-from, or a fresh sparse ext4
                                                   unpacked from an OCI image; flags left out keep
@@ -35,6 +35,7 @@ enum MachineCommands {
           micropod machine docker-endpoint        unix:// socket for DOCKER_HOST
           micropod machine buildkit-endpoint      unix:// BuildKit socket for a remote buildx builder
                                                   (fails when the tool bundle ships no BuildKit)
+          micropod machine link-socket [--force]  link ~/.micropod/docker.sock -> HVF docker.sock
           micropod machine cache policy [show] [--mode auto|off] [--default-scope S|none]
                                    [--allow-scopes a,b*] [--tools go,npm,…|all] [--go-trimpath on|off]
                                    [--pnpm-legacy-env on|off] [--register-buildx on|off]
@@ -56,16 +57,17 @@ enum MachineCommands {
         Docker bind mounts resolve under the workspace, the home directory by default
         (`--workspace ""` turns host bind mounts off).
 
-        Dependency caches (Go, npm, pnpm, yarn, pip, uv, cargo, corepack) attach to every
-        container by default, shared per scope ("default"); per container, the labels
-        io.micropod.cache=auto|off|<tools> and io.micropod.cache.scope=<scope> (or
-        `micropod run --cache … --cache-scope …`) refine the policy. Tools: go (= gomod,gobuild),
-        gomod, gobuild, npm, pnpm, yarn, yarnberry, pip, uv, cargo, corepack.
+        Dependency caches (Go, npm, pnpm, yarn, pip, uv, cargo, corepack, Maven, Gradle, Bun,
+        sccache, Playwright) attach to every container by default, shared per scope ("default");
+        per container, the labels io.micropod.cache=auto|off|<tools> and
+        io.micropod.cache.scope=<scope> (or `micropod run --cache … --cache-scope …`) refine the
+        policy. Tools: go (= gomod,gobuild), gomod, gobuild, npm, pnpm, yarn, yarnberry, pip, uv,
+        cargo, corepack, maven, gradle, bun, sccache, playwright.
         """
 
     static let hvfOnly: Set<String> = [
-        "install", "start", "restart", "status", "serve", "docker-endpoint", "buildkit-endpoint", "help", "cache",
-        "builder",
+        "install", "start", "restart", "status", "serve", "docker-endpoint", "buildkit-endpoint", "link-socket",
+        "help", "cache", "builder",
     ]
 
     /// The hvf machine command in a whole `micropod` argv, if it is one: the
@@ -110,6 +112,7 @@ enum MachineCommands {
             case "start":
                 let parsed = try parseArgs(rest, boolFlags: [], valueFlags: ["--timeout"], commandName: "machine start")
                 try await client.ensureRunning(timeout: .seconds(parsed.intValue("--timeout", default: 180)))
+                _ = try? client.linkCanonicalDockerSocket()
                 print("hvf machine running — DOCKER_HOST=\(client.layout.dockerEndpoint)")
                 await afterStart(client, environment: environment)
             case "stop":
@@ -131,6 +134,22 @@ enum MachineCommands {
             case "buildkit-endpoint":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine buildkit-endpoint")
                 print(try client.buildkitEndpoint())
+            case "link-socket":
+                let parsed = try parseArgs(
+                    rest, boolFlags: ["--force"], valueFlags: [], commandName: "machine link-socket")
+                let linkURL = try client.linkCanonicalDockerSocket(force: parsed.has("--force"))
+                if json {
+                    let payload = [
+                        "link": linkURL.path,
+                        "target": client.layout.dockerSocket.path,
+                        "dockerEndpoint": "unix://" + linkURL.path,
+                    ]
+                    let data = try JSONSerialization.data(
+                        withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+                    print(String(decoding: data, as: UTF8.self))
+                } else {
+                    print("linked \(linkURL.path) -> \(client.layout.dockerSocket.path)")
+                }
             case "serve":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine serve")
                 return try await serve(layout: client.layout, environment: environment)
@@ -156,8 +175,8 @@ enum MachineCommands {
         let parsed = try parseArgs(
             args, boolFlags: ["--replace-disk"],
             valueFlags: [
-                "--vmm", "--kernel", "--initrd", "--tools", "--disk-from", "--disk-image", "--disk-size", "--cpus",
-                "--memory-mib", "--workspace",
+                "--vmm", "--kernel", "--initrd", "--tools", "--disk-from", "--disk-image", "--disk-size",
+                "--cache-disk-size", "--cpus", "--memory-mib", "--workspace",
             ],
             commandName: "machine install")
         guard parsed.positionals.isEmpty else {
@@ -172,10 +191,12 @@ enum MachineCommands {
             return value
         }
         let image = parsed.value("--disk-image").map { $0 == "default" ? HVFMachineInstaller.defaultDiskImage : $0 }
+        let cacheDiskBytes = try parsed.value("--cache-disk-size").map { try diskBytes($0) }
         let request = HVFInstallRequest(
             vmm: url("--vmm"), kernel: url("--kernel"), initrd: url("--initrd"), tools: url("--tools"),
             diskFrom: url("--disk-from"), diskImage: image,
             diskBytes: try diskBytes(parsed.value("--disk-size") ?? defaultDiskSize),
+            cacheDiskBytes: cacheDiskBytes,
             replaceDisk: parsed.has("--replace-disk"),
             cpus: try int("--cpus"), memoryMiB: try int("--memory-mib"),
             workspace: parsed.value("--workspace").map { $0.isEmpty ? "" : NSString(string: $0).expandingTildeInPath })

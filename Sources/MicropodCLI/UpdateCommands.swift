@@ -1,6 +1,7 @@
 import Foundation
 import MicropodBuildInfo
 import MicropodCore
+import MicropodRuntime
 
 /// `micropod update` — keeping Micropod current: the app (Sparkle, over the
 /// app-control socket) and this CLI. A CLI linked into the app bundle
@@ -39,6 +40,14 @@ enum UpdateCommands {
                                        verify live workloads through an update
           micropod update cli [--force]  update a standalone CLI install from the
                                        release channel (signature-verified)
+          micropod update hvf [status]   show running vs staged rootless HVF payload
+          micropod update hvf stage --from <app-or-dir> [--version V] [--revision R]
+                                       stage an immutable versioned HVF payload while live
+          micropod update hvf apply [--force] [--drain-timeout S]
+                                       activate the staged HVF payload (auto-rollbacks on failure)
+          micropod update hvf rollback   roll back to the previous HVF payload version
+          micropod update hvf prune [--keep N]
+                                       remove old unused HVF payload versions
 
         App installation requires coordinated workload admission; status explains
         when it is blocked. It links ~/.local/bin/micropod and micropod-mcp into
@@ -72,6 +81,8 @@ enum UpdateCommands {
                 return await RigUpgradeCommands.helper(Array(args.dropFirst()))
             case "cli":
                 return try await updateCLI(force: args.contains("--force"))
+            case "hvf":
+                return try await updateHVF(Array(args.dropFirst()), json: json)
             case "auto":
                 let value = args.dropFirst().first ?? "status"
                 guard ["on", "off", "status"].contains(value) else {
@@ -156,6 +167,7 @@ enum UpdateCommands {
         if case .appManaged(let bundle) = kind { rigLayout.appPath = bundle }
         let rig = UpdateStateResolver.rig(layout: rigLayout)
         let policy = RigUpgradePolicy.read(layout: rigLayout)
+        let hvfStatus = HVFPayloadStore.status(layout: HVFMachineLayout())
         if json {
             var cli: [String: Any] = ["version": MicropodBuildInfo.version, "path": exe.path]
             switch kind {
@@ -168,6 +180,9 @@ enum UpdateCommands {
             if let latest { cli["latestVersion"] = latest }
             var out: [String: Any] = ["cli": cli, "policy": policy.rawValue]
             if let app { out["app"] = app }
+            if let hvfObj = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(hvfStatus)) {
+                out["hvf"] = hvfObj
+            }
             if let rig {
                 out["rig"] = [
                     "kind": "\(rig.kind)", "phase": rig.phase, "operation": rig.operationID,
@@ -189,6 +204,7 @@ enum UpdateCommands {
             print("Micropod app — not running")
         }
         print(cliLine(kind: kind, path: exe, latest: latest))
+        if let hvfLine = hvfStatusLine(hvfStatus) { print(hvfLine) }
         if let line = RigUpgradeCommands.statusLine(rig, policy: policy) { print(line) }
     }
 
@@ -316,5 +332,124 @@ enum UpdateCommands {
         let files = SelfUpdate.installedFiles(cli: exe).map(\.path.lastPathComponent).joined(separator: " + ")
         print("updated \(files) \(MicropodBuildInfo.version) → \(release.version) (previous kept as .bak)")
         return ExitCode.ok
+    }
+
+    // MARK: Rootless HVF payload lifecycle
+
+    static func hvfStatusLine(_ status: HVFPayloadStatus) -> String? {
+        guard status.current != nil || status.runningVersion != nil || !status.availableVersions.isEmpty else {
+            return nil
+        }
+        let staged = status.current?.version ?? "none"
+        let running = status.runningVersion ?? (status.runningPath != nil ? "flat" : "stopped")
+        if status.updatePending {
+            return "HVF runtime — running \(running), staged \(staged) (update pending: `micropod update hvf apply`)"
+        }
+        return "HVF runtime — \(staged) (\(running == "stopped" ? "stopped" : "running \(running)"))"
+    }
+
+    private static func updateHVF(_ args: [String], json: Bool) async throws -> Int32 {
+        let layout = HVFMachineLayout()
+        let sub = args.first ?? "status"
+        let rest = Array(args.dropFirst())
+        switch sub {
+        case "status":
+            let st = HVFPayloadStore.status(layout: layout)
+            if json {
+                let enc = JSONEncoder()
+                enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+                enc.dateEncodingStrategy = .iso8601
+                print(String(decoding: try enc.encode(st), as: UTF8.self))
+                return ExitCode.ok
+            }
+            print("HVF root:         \(layout.root.path)")
+            print(
+                "Current staged:   \(st.current.map { "\($0.version) (\($0.revision))" } ?? "none (legacy flat layout)")"
+            )
+            print("Previous backup:  \(st.previous.map { "\($0.version) (\($0.revision))" } ?? "none")")
+            print(
+                "Running VM:       \(st.runningVersion ?? (st.runningPath != nil ? "running (legacy flat)" : "stopped"))"
+            )
+            print("Update pending:   \(st.updatePending ? "yes — run `micropod update hvf apply`" : "no")")
+            if !st.availableVersions.isEmpty {
+                print("Versions on disk: \(st.availableVersions.joined(separator: ", "))")
+            }
+            return ExitCode.ok
+
+        case "stage":
+            let parsed = try parseArgs(
+                rest, boolFlags: ["--no-verify"], valueFlags: ["--from", "--version", "--revision"],
+                commandName: "update hvf stage")
+            guard let fromPath = parsed.value("--from") ?? parsed.positionals.first else {
+                throw UsageError(message: "update hvf stage --from <Micropod.app-or-dir> [--version V] [--revision R]")
+            }
+            let version = parsed.value("--version") ?? MicropodBuildInfo.version
+            let revision = parsed.value("--revision") ?? MicropodBuildInfo.sourceRevision
+            let manifest = try HVFPayloadStore.stage(
+                from: .directory(URL(fileURLWithPath: (fromPath as NSString).expandingTildeInPath)),
+                version: version,
+                revision: revision,
+                layout: layout,
+                verifySignature: !parsed.has("--no-verify"),
+                progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
+            if json {
+                let enc = JSONEncoder()
+                enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+                enc.dateEncodingStrategy = .iso8601
+                print(String(decoding: try enc.encode(manifest), as: UTF8.self))
+            } else {
+                print("staged HVF payload \(manifest.version) (\(manifest.revision))")
+            }
+            return ExitCode.ok
+
+        case "apply":
+            let parsed = try parseArgs(
+                rest, boolFlags: ["--force"], valueFlags: ["--drain-timeout"], commandName: "update hvf apply")
+            let drainSeconds = parsed.value("--drain-timeout").flatMap(Int.init) ?? 0
+            let result = try await HVFPayloadStore.activate(
+                layout: layout,
+                force: parsed.has("--force"),
+                drainTimeout: .seconds(max(0, drainSeconds)),
+                progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
+            if json {
+                let enc = JSONEncoder()
+                enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+                print(String(decoding: try enc.encode(result), as: UTF8.self))
+            } else {
+                print("\(result.action.rawValue): \(result.detail)")
+            }
+            return result.action == .rolledBack ? ExitCode.failure : ExitCode.ok
+
+        case "rollback":
+            let result = try await HVFPayloadStore.rollback(
+                layout: layout,
+                progress: { if !json { FileHandle.standardError.write(Data("\($0)\n".utf8)) } })
+            if json {
+                let enc = JSONEncoder()
+                enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+                print(String(decoding: try enc.encode(result), as: UTF8.self))
+            } else {
+                print("\(result.action.rawValue): \(result.detail)")
+            }
+            return ExitCode.ok
+
+        case "prune":
+            let parsed = try parseArgs(rest, boolFlags: [], valueFlags: ["--keep"], commandName: "update hvf prune")
+            let keep = parsed.value("--keep").flatMap(Int.init) ?? 2
+            let removed = HVFPayloadStore.pruneVersions(layout: layout, keep: keep)
+            if json {
+                let data = try JSONSerialization.data(withJSONObject: ["removed": removed], options: [.prettyPrinted])
+                print(String(decoding: data, as: UTF8.self))
+            } else if removed.isEmpty {
+                print("no old HVF payload versions to prune")
+            } else {
+                print("pruned \(removed.count) HVF payload version(s): \(removed.joined(separator: ", "))")
+            }
+            return ExitCode.ok
+
+        default:
+            throw UsageError(
+                message: "unknown update hvf command '\(sub)' (want status, stage, apply, rollback, prune)")
+        }
     }
 }

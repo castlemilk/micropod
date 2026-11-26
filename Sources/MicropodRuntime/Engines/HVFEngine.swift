@@ -143,12 +143,16 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
 
     // MARK: ContainerServing
 
-    /// The guest's listing has no ports; a running container's come from
-    /// its inspect (one local round trip each, concurrently). Every listing
-    /// also refreshes the container index.
+    /// Prefers the guest's batched `/micropod/containers/summary` endpoint
+    /// (1 vsock RTT including published ports); falls back to Docker list +
+    /// per-container inspect on older guest bundles. Every listing also
+    /// refreshes the host-side container index.
     public func list() async throws -> [Micropod_V1_Container] {
         guard machine.isServing else { return [] }
         let listedAt = Date()
+        if let batched = await listBatchedSummary(listedAt: listedAt) {
+            return batched
+        }
         let entries = try await docker.listWithIDs()
         index.update { $0.refresh(from: Self.indexEntries(entries), listedAt: listedAt) }
         let listed = entries.map(\.container)
@@ -168,8 +172,58 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
         return listed.map { container in
             var container = container
             container.runtime = name
+            if container.state == "exited" || container.state == "dead" { container.state = "stopped" }
             if container.publishedPorts.isEmpty, let mapped = ports[container.id] { container.publishedPorts = mapped }
             return container
+        }
+    }
+
+    private func listBatchedSummary(listedAt: Date) async -> [Micropod_V1_Container]? {
+        guard let resp = try? await machine.docker.request("GET", "/micropod/containers/summary", timeout: .seconds(5)),
+            resp.status == 200
+        else { return nil }
+        struct SummaryPort: Decodable {
+            let hostIp: String?
+            let hostPort: UInt32
+            let containerPort: UInt32
+            let `protocol`: String
+        }
+        struct SummaryRow: Decodable {
+            let id: String
+            let name: String
+            let image: String
+            let state: String
+            let exitCode: Int?
+            let labels: [String: String]?
+            let ports: [SummaryPort]?
+        }
+        struct SummaryPayload: Decodable {
+            let containers: [SummaryRow]
+        }
+        guard let payload = try? JSONDecoder().decode(SummaryPayload.self, from: resp.body) else { return nil }
+        let idxEntries: [(id: String, name: String?)] = payload.containers.map { row in
+            (row.id, row.name.isEmpty || row.name == row.id ? nil : row.name)
+        }
+        index.update { $0.refresh(from: idxEntries, listedAt: listedAt) }
+        return payload.containers.map { row in
+            Micropod_V1_Container.with {
+                $0.id = row.name.isEmpty ? row.id : row.name
+                $0.image = row.image
+                $0.state = row.state == "exited" ? "stopped" : row.state
+                $0.runtime = name
+                if let labels = row.labels { $0.labels = labels }
+                if row.state == "exited", let code = row.exitCode { $0.exitCode = String(code) }
+                if let ports = row.ports {
+                    $0.publishedPorts = ports.map { p in
+                        Micropod_V1_PortMapping.with {
+                            $0.hostPort = p.hostPort
+                            $0.containerPort = p.containerPort
+                            $0.protocol = p.protocol
+                            $0.hostIp = p.hostIp ?? ""
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -198,6 +252,58 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     public func inspect(_ id: String) async throws -> Data {
         try requireServing(id)
         return try await forgettingMissing(id) { try await docker.inspect(id) }
+    }
+
+    /// Reads the container's lifecycle state directly from the guest Docker API
+    /// inspect JSON (`State.Status`), normalizing Docker's `"exited"`/`"dead"`
+    /// to Micropod's `"stopped"` so `WaitContainer` sees transitions immediately.
+    public func state(of id: String) async -> String {
+        guard let info = await inspectState(id) else { return "unknown" }
+        return info.normalizedState
+    }
+
+    /// Returns the recorded exit code for an exited HVF container so
+    /// `WaitContainer` returns `known: true` with the exact process status.
+    public func exitCode(_ id: String) async -> Int32? {
+        guard let info = await inspectState(id), !info.running,
+            info.status == "exited" || info.status == "dead"
+        else { return nil }
+        return info.exitCode
+    }
+
+    private struct DockerInspectState {
+        let status: String
+        let running: Bool
+        let exitCode: Int32
+
+        var normalizedState: String {
+            switch status.lowercased() {
+            case "exited", "dead": return "stopped"
+            case "removing": return "stopping"
+            case "running": return "running"
+            case "created": return "created"
+            case "": return "unknown"
+            default: return status.lowercased()
+            }
+        }
+    }
+
+    private func inspectState(_ id: String) async -> DockerInspectState? {
+        guard machine.isServing, let data = try? await docker.inspect(id),
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let state = json["State"] as? [String: Any]
+        else { return nil }
+        let status = state["Status"] as? String ?? ""
+        let running = state["Running"] as? Bool ?? (status == "running")
+        let code: Int32
+        if let n = state["ExitCode"] as? Int {
+            code = Int32(clamping: n)
+        } else if let n = state["ExitCode"] as? Int32 {
+            code = n
+        } else {
+            code = 0
+        }
+        return DockerInspectState(status: status, running: running, exitCode: code)
     }
 
     /// Refuses what the guest cannot do, resolves host bind sources (the

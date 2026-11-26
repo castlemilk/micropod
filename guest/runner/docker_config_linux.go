@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"maps"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -686,33 +688,46 @@ type cacheUnitPin struct {
 
 // cacheAttachment is what one start of a container gets from its plan.
 type cacheAttachment struct {
-	files   []*os.File // pinned bind sources and unit locks; closed when the container exits
-	mounts  []*cri.Mount
-	env     []string
-	units   []string          // the plan's locked, stamped and dirty-marked unit names (kept for legacy callers)
-	stamped []cacheUnitPin    // the same units as exact (scope, unit) pairs: stamped used at start and exit
-	pins    []cachePin        // every unit this start locked and marked, alias volumes and failed stores included
-	skipped map[string]string // tool -> reason, for this start only
+	files     []*os.File // pinned bind sources and unit locks; closed when the container exits
+	mounts    []*cri.Mount
+	overlays  []string   // merged mount points of this start's copy-on-write views; release tears them down
+	viewFiles []*os.File // descriptors opened in those views, closed before the views go
+	scratch   []string   // private read-only fallback sources (ro-file-*, ro-empty-*), removed by release
+	env       []string
+	units     []string          // the plan's held and stamped unit names (kept for legacy callers)
+	stamped   []cacheUnitPin    // the same units as exact (scope, unit) pairs: stamped used at start and exit
+	pins      []cachePin        // every unit this start holds, as writer or reader, alias volumes and failed stores included
+	access    map[string]string // tool -> accessCopyOnWrite or accessReadOnly, for this start only
+	skipped   map[string]string // tool -> reason, for this start only
 }
 
-// cachePin is one writer's hold on a unit: its lock, held from before the
-// unit was marked dirty until the container exited (caches_dirty_linux.go).
+// cachePin is one container's hold on a unit: its lock, held LOCK_SH from
+// before anything of the container can reach the unit until the container
+// exited (caches_dirty_linux.go). A writer's pin has also marked the unit
+// dirty and, for an exclusive kind, holds the unit's writer slot. A reader's
+// pin (an untrusted or read-only plan, the copy-on-write fallback of an
+// exclusive kind, a read-only alias volume) makes no mark: nothing reaches the
+// store through it but reads.
 type cachePin struct {
 	scope, unit string
 	lock        *os.File
+	slot        *os.File // the exclusive kind's writer slot (unitWriterLock), else nil
+	writer      bool
 }
 
-const (
-	// A shared pin waits for a mark clearer's LOCK_EX (held for a stat and
-	// an unlink), a janitor trim batch (at most janitorBatchHold) or an
-	// inventory probe rather than leave the tool out of this start.
-	sharedPinWait = 100 * time.Millisecond
-	// An exclusive pin (yarn v1) waits only long enough for a probe or a
-	// clearer, which hold a unit's lock for microseconds: a container that
-	// holds the store keeps it until it exits, and the tool is then skipped
-	// as busy-exclusive.
-	exclusivePinWait = 20 * time.Millisecond
-)
+// drop closes the pin's writer slot and lock, without queueing a clear.
+func (p cachePin) drop() {
+	if p.slot != nil {
+		p.slot.Close()
+	}
+	p.lock.Close()
+}
+
+// A pin or a hold waits for a mark clearer's LOCK_EX (held for a stat and an
+// unlink), a janitor trim batch (at most janitorBatchHold) or an inventory
+// probe rather than leave the tool out of this start. An exclusive kind's
+// writer slot is never waited for: a container holds it until it exits.
+const sharedPinWait = 100 * time.Millisecond
 
 // lockUnitWaiting takes a unit's lock (unitLock), retrying a busy one every
 // millisecond for up to wait. It never holds anything while it waits.
@@ -727,51 +742,98 @@ func lockUnitWaiting(scope, unit string, exclusive bool, wait time.Duration) (*o
 	}
 }
 
-// pinUnit locks a unit for a writer and marks it dirty.
+// pinUnit makes a container a writer of a unit and marks it dirty. For an
+// exclusive kind it must also win the writer slot; a slot another container
+// holds is unix.EWOULDBLOCK, with nothing held (openCacheMounts falls back to
+// a reader instead, claimUnit).
 func pinUnit(scope, unit string, exclusive bool) (cachePin, error) {
-	wait := sharedPinWait
-	if exclusive {
-		wait = exclusivePinWait
+	pin, err := claimUnit(scope, unit, exclusive)
+	if err == nil && !pin.writer {
+		pin.drop()
+		return cachePin{}, unix.EWOULDBLOCK
 	}
-	lock, err := lockUnitWaiting(scope, unit, exclusive, wait)
+	return pin, err
+}
+
+// claimUnit is the one way a container takes a unit for writing. In lock
+// order (caches_dirty_linux.go): the unit lock LOCK_SH (waiting up to
+// sharedPinWait), then, for an exclusive kind, the writer slot LOCK_EX|LOCK_NB,
+// then the dirty mark, made while both are held. When an exclusive kind's slot
+// is taken the claim keeps the unit lock as a reader's hold and makes no mark.
+func claimUnit(scope, unit string, exclusive bool) (cachePin, error) {
+	lock, err := lockUnitWaiting(scope, unit, false, sharedPinWait)
 	if err != nil {
 		return cachePin{}, err
 	}
+	pin := cachePin{scope: scope, unit: unit, lock: lock}
+	if exclusive {
+		slot, err := unitWriterLock(scope, unit)
+		if errors.Is(err, unix.EWOULDBLOCK) {
+			return pin, nil // a reader: another container is the store's writer
+		} else if err != nil {
+			lock.Close()
+			return cachePin{}, err
+		}
+		pin.slot = slot
+	}
 	if err := cacheDirty.attach(scope, unit); err != nil {
-		lock.Close()
+		pin.drop()
 		return cachePin{}, err
 	}
-	return cachePin{scope, unit, lock}, nil
+	pin.writer = true
+	return pin, nil
 }
 
 // holdUnit locks a unit LOCK_SH for a reader and makes no mark: nothing is
-// written through the hold. The janitor then treats the unit as in use. A
-// clearer cannot tell the reader from a writer and leaves the unit's mark to a
-// later release; the hold's own release (releasePins) queues that clear.
+// written through the hold. The janitor and startup recovery then treat the
+// unit as in use. A clearer cannot tell the reader from a writer and leaves
+// the unit's mark to a later release; the hold's own release (releasePins)
+// queues that clear.
 func holdUnit(scope, unit string) (cachePin, error) {
 	lock, err := lockUnitWaiting(scope, unit, false, sharedPinWait)
 	if err != nil {
 		return cachePin{}, err
 	}
-	return cachePin{scope, unit, lock}, nil
+	return cachePin{scope: scope, unit: unit, lock: lock}, nil
 }
 
-// release unpins the units after the container exited (or never started): it
-// drops their locks, then queues their dirty marks to be cleared once no
-// writer is left and a sync has put the writes on disk. Calling it again does
-// nothing; stamp the units (touchAll) before, while they are still held.
+// release ends this start's hold on its stores after the container exited (or
+// never started). It tears the copy-on-write views down first (each overlay
+// and its upper and work directories), while their lower stores are still
+// held, then drops the locks and writer slots and queues the units' dirty
+// marks to be cleared once no writer is left and a sync has put the writes on
+// disk. Calling it again does nothing; stamp the units (touchAll) before,
+// while they are still held.
 func (a *cacheAttachment) release() {
+	closeMounts(a.viewFiles)
+	a.viewFiles = nil
+	for i := len(a.overlays) - 1; i >= 0; i-- {
+		removeCacheOverlay(a.overlays[i])
+	}
+	a.overlays = nil
+	for _, p := range a.scratch {
+		os.RemoveAll(p)
+	}
+	a.scratch = nil
 	releasePins(a.pins)
 	a.pins = nil
 	a.units = nil
 	a.stamped = nil
 }
 
-// releasePins drops each pin's lock, then queues its unit's dirty mark for a
-// clear (cacheAttachment.release).
+// close releases the attachment and closes every descriptor it still holds
+// (a scheduler job, tests; a container start closes a.files with its own).
+func (a *cacheAttachment) close() {
+	a.release()
+	closeMounts(a.files)
+	a.files = nil
+}
+
+// releasePins drops each pin's lock and writer slot, then queues its unit's
+// dirty mark for a clear (cacheAttachment.release).
 func releasePins(pins []cachePin) {
 	for _, p := range pins {
-		p.lock.Close()
+		p.drop()
 		cacheDirty.release(p.scope, p.unit)
 	}
 }
@@ -801,9 +863,199 @@ func (a *cacheAttachment) skip(kind, reason string) {
 	a.skipped[kind] = reason
 }
 
-// openCacheMounts replays a plan computed at create: it verifies each store,
-// takes the unit locks and opens every bind source. It never fails a start; a
-// store that cannot be prepared is dropped with its variables for this start.
+func (a *cacheAttachment) setAccess(kind, how string) {
+	if a.access == nil {
+		a.access = map[string]string{}
+	}
+	a.access[kind] = how
+}
+
+// cacheOverlayMount mounts a per-container overlayfs whose only lower layer
+// is lowerDir ("" for an empty lower of its own) with upper/work/merged below
+// baseDir, and returns the merged mount point. Swapped in unit tests that
+// cannot mount.
+var cacheOverlayMount = mountCacheOverlay
+
+// mountCacheOverlay starts every view from nothing: a view an earlier start of
+// the container left (a crash) is unmounted and removed first. lowerDir is the
+// /proc/<pid>/fd path of a store directory opened without following symlinks,
+// so the overlay never resolves a path a container could have redirected.
+// overlayfs only ever writes to the upper directory; the store below it is
+// never changed through the view.
+func mountCacheOverlay(lowerDir, baseDir string) (string, error) {
+	if strings.ContainsAny(lowerDir+baseDir, ",:\\") {
+		return "", fmt.Errorf("overlay paths %q, %q need escaping", lowerDir, baseDir)
+	}
+	merged := filepath.Join(baseDir, "merged")
+	removeCacheOverlay(merged)
+	if err := os.MkdirAll(baseDir, 0700); err != nil {
+		return "", err
+	}
+	if lowerDir == "" {
+		lowerDir = filepath.Join(baseDir, "lower")
+		if err := os.Mkdir(lowerDir, 0755); err != nil {
+			return "", err
+		}
+	}
+	upper, work := filepath.Join(baseDir, "upper"), filepath.Join(baseDir, "work")
+	for _, d := range []struct {
+		path string
+		mode uint32
+	}{{upper, 0777}, {work, 0700}, {merged, 0755}} {
+		if err := os.Mkdir(d.path, os.FileMode(d.mode)); err != nil {
+			return "", err
+		}
+		if err := unix.Chmod(d.path, d.mode); err != nil {
+			return "", err
+		}
+	}
+	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upper, work)
+	if err := unix.Mount("overlay", merged, "overlay", 0, opts); err != nil {
+		os.RemoveAll(baseDir)
+		return "", err
+	}
+	return merged, nil
+}
+
+// removeCacheOverlay detaches a view (if mounted) and removes its directory
+// (merged's parent): upper, work, an empty lower. Nothing below it is a store;
+// a removal through a still-attached overlay would only whiteout in the upper.
+func removeCacheOverlay(merged string) {
+	if err := unix.Unmount(merged, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) && !errors.Is(err, unix.ENOENT) {
+		log.Printf("cache view %s: unmount: %v", merged, err)
+	}
+	if err := os.RemoveAll(filepath.Dir(merged)); err != nil {
+		log.Printf("cache view %s: remove: %v", filepath.Dir(merged), err)
+	}
+}
+
+// copyEphemeralCacheFile gives a read-only start a private writable copy of a
+// store file (cargo's lock files), read through its descriptor (never by
+// path); src nil makes an empty one.
+func copyEphemeralCacheFile(src *os.File, dstPath string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+		return nil, err
+	}
+	dst, err := os.OpenFile(dstPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR|syscall.O_NOFOLLOW, 0666)
+	if err != nil {
+		return nil, err
+	}
+	if src != nil {
+		if _, err := io.Copy(dst, io.NewSectionReader(src, 0, 1<<40)); err != nil {
+			dst.Close()
+			return nil, err
+		}
+	}
+	if err := dst.Chmod(0666); err != nil {
+		dst.Close()
+		return nil, err
+	}
+	return dst, nil
+}
+
+// cacheUnitView is how this start reaches one store.
+type cacheUnitView struct {
+	// base is the store directory (a writer), the root of a copy-on-write
+	// view of it, or the store itself to bind read-only; nil when a reader
+	// found no store yet and has no view (nothing warm, nothing writable).
+	base   *os.File
+	reader bool // held without a mark: never a writable path into the store
+	cow    bool // base is a per-container overlay
+}
+
+// openReaderView gives a reader its view of a store it holds: an overlay
+// over the store (or over an empty lower when there is no store yet), whose
+// writes stay in the container's own upper directory. Without overlayfs an
+// untrusted or read-only plan fails closed to the store bound read-only; a
+// trusted container that lost an exclusive kind's writer slot is skipped as
+// busy-exclusive, as before the copy-on-write fallback.
+func (a *cacheAttachment) openReaderView(plan *cachePlan, scopeDir *os.File, st cacheStoreRef, storeScope, shimRoot string) (cacheUnitView, string) {
+	lower, err := openExistingStore(scopeDir, st.Kind, st.UID)
+	if err != nil {
+		log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
+		return cacheUnitView{}, skipStoreFailed
+	}
+	if lower != nil {
+		a.files = append(a.files, lower)
+	}
+	if shimRoot != "" {
+		lowerPath := ""
+		if lower != nil {
+			lowerPath = dockerMountFDPath(lower)
+		}
+		merged, err := cacheOverlayMount(lowerPath, filepath.Join(shimRoot, "cow-"+storeScope+"-"+st.Unit))
+		if err == nil {
+			root, openErr := openDirNoFollow(unix.AT_FDCWD, merged, merged)
+			if openErr == nil {
+				a.overlays = append(a.overlays, merged)
+				a.viewFiles = append(a.viewFiles, root)
+				a.files = append(a.files, root)
+				a.setAccess(st.Kind, accessCopyOnWrite)
+				return cacheUnitView{base: root, reader: true, cow: true}, ""
+			}
+			removeCacheOverlay(merged)
+			err = openErr
+		}
+		log.Printf("cache store %s/%s: copy-on-write view: %v", storeScope, st.Unit, err)
+	}
+	if !plan.ReadOnly {
+		return cacheUnitView{}, skipBusyExclusive
+	}
+	a.setAccess(st.Kind, accessReadOnly)
+	return cacheUnitView{base: lower, reader: true}, ""
+}
+
+// emptyReadOnlySource is a private empty directory bound read-only where a
+// read-only start has no store to show.
+func (a *cacheAttachment) emptyReadOnlySource(shimRoot, name string) (*os.File, error) {
+	if shimRoot == "" {
+		return nil, errors.New("no private directory for an empty read-only view")
+	}
+	dir := filepath.Join(shimRoot, name)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+	a.scratch = append(a.scratch, dir)
+	return openDirNoFollow(unix.AT_FDCWD, dir, dir)
+}
+
+// sweepCacheViews removes what a crash left of copy-on-write views and
+// read-only fallback sources in container directories (engine start, before
+// any container of this engine runs: none of them is in use). A view's upper
+// directory holds everything an untrusted container wrote; it never outlives
+// the boot.
+func sweepCacheViews() {
+	for _, pattern := range []string{"cow-*", "ro-file-*", "ro-empty-*"} {
+		matches, _ := filepath.Glob(filepath.Join(engineRoot, "containers", "*", "shim", pattern))
+		for _, m := range matches {
+			if pattern == "cow-*" {
+				removeCacheOverlay(filepath.Join(m, "merged"))
+				continue
+			}
+			os.RemoveAll(m)
+		}
+	}
+}
+
+// openCacheMounts replays a plan computed at create: it holds each store,
+// verifies it and opens every bind source. It never fails a start; a store
+// that cannot be prepared is dropped with its variables for this start.
+//
+// A writer (a trusted plan; for an exclusive kind, the container that wins the
+// writer slot) pins its units: unit lock plus dirty mark, then the store is
+// created or repaired and bound read-write. Everyone else is a reader and
+// holds its units without a mark: an untrusted or read-only plan for every
+// store, and a trusted container whose exclusive kind (yarn v1) has a writer
+// already. A reader gets a per-container overlayfs view of the store, so its
+// writes never reach the store and leave with the container; the store below
+// stays held until the view is gone, so neither the janitor nor the crash
+// discard can move it. Without overlayfs an untrusted or read-only plan fails
+// closed to read-only binds, and a busy exclusive kind is skipped.
+//
+// The scope (at /micropod/cache, or "global" at /micropod/cache-l0) is bound
+// read-only; each env-mode unit of it is bound over it through that start's
+// own view of the unit (the store for a writer). So no path a container gets
+// is writable into a store it does not write as a pinned writer.
 func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	var a cacheAttachment
 	if !plan.attached() {
@@ -811,7 +1063,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	}
 	dropAll := func(reason string, err error) cacheAttachment {
 		log.Printf("cache scope %s: %v", plan.Scope, err)
-		closeMounts(a.files)
+		a.close()
 		a = cacheAttachment{}
 		for _, st := range plan.Stores {
 			a.skip(st.Kind, reason)
@@ -819,11 +1071,19 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		a.env = plan.env(a.skipped)
 		return a
 	}
+	if why := cacheDiskUnavailable(); why != "" {
+		return dropAll(skipNoCacheDisk, errors.New(why))
+	}
 	l, err := openCacheLayout()
 	if err != nil {
 		return dropAll(skipStoreFailed, err)
 	}
 	defer l.Close()
+	if shimRoot != "" {
+		if err := os.MkdirAll(shimRoot, 0755); err != nil {
+			return dropAll(skipStoreFailed, err)
+		}
+	}
 	scopeDirs := map[string]*os.File{}
 	ensureScopeDir := func(scope string) (*os.File, error) {
 		if scope == "" {
@@ -843,7 +1103,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	if _, err := ensureScopeDir(plan.Scope); err != nil {
 		return dropAll(skipStoreFailed, err)
 	}
-	stores := map[string]*os.File{} // scope/unit -> store directory
+	views := map[string]cacheUnitView{} // scope/unit -> this start's way to the store
 	for _, st := range plan.Stores {
 		storeScope := plan.scopeFor(st.Scope)
 		scopeDir, err := ensureScopeDir(storeScope)
@@ -852,14 +1112,21 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			a.skip(st.Kind, skipStoreFailed)
 			continue
 		}
-		// Locked and marked in the store's own scope (shared L0 units live in
-		// "global") before the container can write, cleared after it exits
-		// and a sync (caches_dirty_linux.go): a crash meanwhile discards the
-		// unit instead of leaving torn entries for every container. The
-		// janitor (caches_manage_linux.go) never touches a unit locked or
-		// marked like this.
-		pin, err := pinUnit(storeScope, st.Unit, st.Exclusive)
+		// Held in the store's own scope (shared L0 units live in "global")
+		// before the container can reach it. A writer's mark is cleared after
+		// it exits and a sync (caches_dirty_linux.go): a crash meanwhile
+		// discards the unit instead of leaving torn entries for every
+		// container. The janitor (caches_manage_linux.go) never touches a unit
+		// held or marked like this.
+		var pin cachePin
+		if plan.ReadOnly {
+			pin, err = holdUnit(storeScope, st.Unit)
+		} else {
+			pin, err = claimUnit(storeScope, st.Unit, st.Exclusive)
+		}
 		if err != nil {
+			// Still held exclusively after the bounded wait (recovery, a
+			// janitor eviction in another process): busy, as before.
 			reason := skipStoreFailed
 			if errors.Is(err, unix.EWOULDBLOCK) {
 				reason = skipBusyExclusive
@@ -869,25 +1136,113 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			a.skip(st.Kind, reason)
 			continue
 		}
-		dir, err := openStore(l, storeScope, scopeDir, st.Kind, st.UID)
-		if err != nil {
-			log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
-			// The mark stays until a sync after this release: openStore may
-			// have created or repaired part of the store.
+		var view cacheUnitView
+		if pin.writer {
 			a.pins = append(a.pins, pin)
-			a.skip(st.Kind, skipStoreFailed)
-			continue
+			a.files = append(a.files, pin.lock)
+			if pin.slot != nil {
+				a.files = append(a.files, pin.slot)
+			}
+			dir, err := openStore(l, storeScope, scopeDir, st.Kind, st.UID)
+			if err != nil {
+				// The pin stays in a.pins, so its mark stays until a sync
+				// after this release: openStore may have created or repaired
+				// part of the store.
+				log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
+				a.skip(st.Kind, skipStoreFailed)
+				continue
+			}
+			a.files = append(a.files, dir)
+			view = cacheUnitView{base: dir}
+		} else {
+			// The view is made while the store is held; a reader that gets
+			// none lets go of the store at once.
+			var reason string
+			if view, reason = a.openReaderView(plan, scopeDir, st, storeScope, shimRoot); reason != "" {
+				releasePins([]cachePin{pin})
+				a.skip(st.Kind, reason)
+				continue
+			}
+			a.pins = append(a.pins, pin)
+			a.files = append(a.files, pin.lock)
 		}
-		a.files = append(a.files, pin.lock, dir)
-		a.pins = append(a.pins, pin)
-		stores[storeScope+"/"+st.Unit] = dir
+		views[storeScope+"/"+st.Unit] = view
 		a.units = append(a.units, st.Unit)
 		a.stamped = append(a.stamped, cacheUnitPin{Scope: storeScope, Unit: st.Unit})
 	}
+	// unitSource is the bind source of one unit's mount below its view, and
+	// whether it is bound read-only.
+	unitSource := func(i int, m cacheMount, view cacheUnitView) (*os.File, bool, error) {
+		switch {
+		case !view.reader:
+			var f *os.File
+			var err error
+			switch {
+			case m.Sub == "":
+				return view.base, false, nil
+			case m.File:
+				f, err = ensureFileAt(view.base, m.Sub, 0666)
+			default:
+				f, err = ensureSubdirAt(view.base, m.Sub, l.trash)
+			}
+			return f, false, err
+		case view.cow:
+			// Created in the view's upper directory when the store has none;
+			// a file is copied up there before it is bound writable. Nothing
+			// is moved to .trash from a view (another filesystem).
+			var f *os.File
+			var err error
+			switch {
+			case m.Sub == "":
+				return view.base, false, nil
+			case m.File:
+				f, err = ensureFileAt(view.base, m.Sub, 0666)
+			default:
+				f, err = ensureSubdirAt(view.base, m.Sub, nil)
+			}
+			if f != nil {
+				a.viewFiles = append(a.viewFiles, f)
+			}
+			return f, false, err
+		case m.File:
+			// Read-only start without overlayfs: a private writable copy, as
+			// cargo opens its lock files read-write.
+			var src *os.File
+			if view.base != nil {
+				var err error
+				if src, err = openExistingFile(view.base, m.Sub); err != nil {
+					return nil, false, err
+				}
+			}
+			if shimRoot == "" {
+				return nil, false, errors.New("no private directory for a read-only start's file")
+			}
+			dst, err := copyEphemeralCacheFile(src, filepath.Join(shimRoot, fmt.Sprintf("ro-file-%d", i)))
+			a.scratch = append(a.scratch, filepath.Join(shimRoot, fmt.Sprintf("ro-file-%d", i)))
+			if src != nil {
+				src.Close()
+			}
+			return dst, false, err
+		default:
+			var dir *os.File
+			var err error
+			if view.base != nil {
+				dir = view.base
+				if m.Sub != "" {
+					dir, err = openExistingBelow(view.base, strings.Split(m.Sub, "/"))
+				}
+			}
+			if err == nil && dir == nil {
+				dir, err = a.emptyReadOnlySource(shimRoot, fmt.Sprintf("ro-empty-%d", i))
+			}
+			return dir, true, err
+		}
+	}
 	type opened struct {
-		m     cacheMount
-		scope string
-		src   *os.File
+		m        cacheMount
+		scope    string
+		src      *os.File
+		readonly bool
 	}
 	var binds []opened
 	for i, m := range plan.Mounts {
@@ -898,11 +1253,12 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		}
 		mountScope := plan.scopeFor(m.Scope)
 		var src *os.File
-		var err error
+		readonly := false
 		switch {
 		case m.Shim:
 			dir := filepath.Join(shimRoot, strconv.Itoa(i))
-			if err = os.MkdirAll(dir, 0755); err == nil {
+			err := os.MkdirAll(dir, 0755)
+			if err == nil {
 				err = errors.Join(os.Chown(dir, int(plan.UID), int(plan.GID)), os.Chmod(dir, 0755))
 			}
 			if err == nil {
@@ -916,21 +1272,18 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			}
 			a.files = append(a.files, src)
 		case m.Kind == "":
-			src = scopeDirs[mountScope]
-			if src == nil {
+			// Read-only; the env-mode units are bound over it below.
+			if src = scopeDirs[mountScope]; src == nil {
 				continue
 			}
+			readonly = true
 		default:
-			base := stores[mountScope+"/"+m.Unit]
-			switch {
-			case base == nil:
+			view, ok := views[mountScope+"/"+m.Unit]
+			var err error
+			if !ok {
 				err = fmt.Errorf("store %s/%s not opened", mountScope, m.Unit)
-			case m.Sub == "":
-				src = base
-			case m.File:
-				src, err = ensureFileAt(base, m.Sub, 0666)
-			default:
-				src, err = ensureSubdirAt(base, m.Sub, l.trash)
+			} else {
+				src, readonly, err = unitSource(i, m, view)
 			}
 			if err != nil {
 				// A path-mode tool that loses one of its binds loses all of them.
@@ -938,11 +1291,11 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 				a.skip(m.Kind, skipStoreFailed)
 				continue
 			}
-			if src != base {
+			if src != view.base {
 				a.files = append(a.files, src)
 			}
 		}
-		binds = append(binds, opened{m, mountScope, src})
+		binds = append(binds, opened{m, mountScope, src, readonly})
 	}
 	usedScopes := map[string]bool{}
 	for _, st := range plan.Stores {
@@ -957,26 +1310,34 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		if _, gone := a.skipped[b.m.Kind]; gone && b.m.Kind != "" {
 			continue
 		}
-		if b.m.Kind == "" && !b.m.Shim {
-			// The scope (at /micropod/cache, or "global" at /micropod/cache-l0
-			// with shared L0) is visible read-only; each env-mode unit of that
-			// scope this start locked and marked is bound writable over it
-			// (deeper mounts are applied after shallower ones). So nothing
-			// outside the marked units, a skipped tool's or another uid's
-			// partition included, can be written through this mount, and an
-			// archive write (docker cp) below the scope is refused as read-only.
-			a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target, Readonly: true})
-			for _, st := range plan.Stores {
-				sc := plan.scopeFor(st.Scope)
-				dir := stores[sc+"/"+st.Unit]
-				if _, gone := a.skipped[st.Kind]; gone || sc != b.scope || plan.Tools[st.Kind].Mode != "env" || dir == nil {
-					continue
-				}
-				a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(dir), ContainerPath: path.Join(b.m.Target, cacheStoreSub(st.Kind, st.UID))})
-			}
+		a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target, Readonly: b.readonly})
+		if b.m.Kind != "" || b.m.Shim {
 			continue
 		}
-		a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target})
+		// The scope is visible read-only; each env-mode unit of that scope
+		// this start holds is bound over it (deeper mounts are applied after
+		// shallower ones) through its own view: the store for a writer, a
+		// copy-on-write view or a read-only bind for a reader. So nothing
+		// outside the units of this start, a skipped tool's or another uid's
+		// partition included, can be written through this mount, and an
+		// archive write (docker cp) below the scope is refused as read-only.
+		for i, st := range plan.Stores {
+			sc := plan.scopeFor(st.Scope)
+			view, ok := views[sc+"/"+st.Unit]
+			if _, gone := a.skipped[st.Kind]; gone || !ok || sc != b.scope || plan.Tools[st.Kind].Mode != "env" {
+				continue
+			}
+			src, readonly := view.base, view.reader && !view.cow
+			if src == nil {
+				var err error
+				if src, err = a.emptyReadOnlySource(shimRoot, fmt.Sprintf("ro-empty-unit-%d", i)); err != nil {
+					log.Printf("cache unit %s/%s: %v", sc, st.Unit, err)
+					continue
+				}
+				a.files = append(a.files, src)
+			}
+			a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(src), ContainerPath: path.Join(b.m.Target, cacheStoreSub(st.Kind, st.UID)), Readonly: readonly})
+		}
 	}
 	a.env = plan.env(a.skipped)
 	for _, p := range a.stamped {
@@ -991,11 +1352,22 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 // a legacy alias volume of a cache store also holds that kind's unit: a
 // writable one pins it (lock plus dirty mark), a read-only one takes the lock
 // alone. The caller hands the pins to the container's cache attachment, whose
-// release drops them.
+// release drops them. An untrusted or read-only container (cacheTrustOf) may
+// mount an alias volume only read-only: a writable one would be a path into a
+// shared store that bypasses its copy-on-write view.
 func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket string) ([]*os.File, []*cri.Mount, []cachePin, error) {
 	requests, err := spec.mounts()
 	if err != nil {
 		return nil, nil, nil, err
+	}
+	_, readOnlyCaches, err := cacheTrustOf(spec)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	for _, m := range requests {
+		if _, _, shared := legacyCacheVolume(m.Source); shared && m.Type == "volume" && !m.ReadOnly && readOnlyCaches {
+			return nil, nil, nil, fmt.Errorf("an untrusted or read-only cache container cannot mount the shared cache volume %s read-write; mount it :ro", m.Source)
+		}
 	}
 	var files []*os.File
 	var mounts []*cri.Mount

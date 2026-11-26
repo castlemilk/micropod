@@ -18,6 +18,10 @@ public struct HVFMachineStatus: Sendable, Equatable {
     public var state: HVFMachineState?
     /// state.json exists but could not be read.
     public var stateError: String?
+    /// True when a newer versioned payload is staged at `<root>/current` than the running VMM loaded.
+    public var updatePending: Bool = false
+    /// Staged vs running versioned payload summary.
+    public var payload: HVFPayloadStatus?
 
     public var installed: Bool { missing.isEmpty }
 
@@ -26,9 +30,11 @@ public struct HVFMachineStatus: Sendable, Equatable {
         if !installed { return "not installed: missing \(missing.joined(separator: ", "))" }
         if let problem { return problem }
         if let stateError { return "\(phase.rawValue) (\(stateError))" }
+        let pending = updatePending ? ", update pending -> \(payload?.current?.version ?? "staged")" : ""
         switch phase {
         case .running:
-            return "running (vmm pid \(state?.vmmPID.map(String.init) ?? "?"), restarts \(state?.restartCount ?? 0))"
+            return
+                "running (vmm pid \(state?.vmmPID.map(String.init) ?? "?"), restarts \(state?.restartCount ?? 0)\(pending))"
         case .starting:
             let restarts = state?.restartCount ?? 0
             return restarts > 0
@@ -69,6 +75,65 @@ public struct HVFMachineClient: Sendable {
         DockerClient(endpoint: .unix(layout.dockerSocket.path), apiVersion: Self.apiVersion)
     }
 
+    /// Atomically links `canonical` (default `~/.micropod/docker.sock`) to this
+    /// machine's `run/docker.sock`, replacing a stale socket or older symlink.
+    /// Refuses only if another active daemon is currently listening on `canonical`.
+    @discardableResult
+    public func linkCanonicalDockerSocket(canonical: URL? = nil, force: Bool = false) throws -> URL {
+        let linkURL = (canonical ?? HVFMachineLayout.canonicalDockerSocket(environment: environment))
+            .standardizedFileURL
+        let targetPath = layout.dockerSocket.path
+        if linkURL.path == targetPath { return linkURL }
+        let fm = FileManager.default
+        try fm.createDirectory(at: linkURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        var st = stat()
+        if lstat(linkURL.path, &st) == 0 {
+            let mode = st.st_mode & S_IFMT
+            if mode == S_IFLNK {
+                if let dest = try? fm.destinationOfSymbolicLink(atPath: linkURL.path), dest == targetPath {
+                    return linkURL
+                }
+            } else if mode == S_IFSOCK, !force, Self.isUnixSocketListening(linkURL.path) {
+                throw MicropodError.message(
+                    "failedPrecondition: another daemon is actively listening on \(linkURL.path); "
+                        + "stop it or pass --force to replace it with the HVF socket")
+            }
+        }
+
+        let staging = linkURL.deletingLastPathComponent()
+            .appendingPathComponent(".docker.sock.link.\(UUID().uuidString.prefix(8))")
+        try? fm.removeItem(at: staging)
+        try fm.createSymbolicLink(atPath: staging.path, withDestinationPath: targetPath)
+        guard rename(staging.path, linkURL.path) == 0 else {
+            let code = errno
+            try? fm.removeItem(at: staging)
+            throw MicropodError.message(
+                "failed to link \(linkURL.path) -> \(targetPath): \(String(cString: strerror(code)))")
+        }
+        return linkURL
+    }
+
+    private static func isUnixSocketListening(_ path: String) -> Bool {
+        let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        defer { Darwin.close(fd) }
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let bytes = path.utf8CString
+        guard bytes.count <= MemoryLayout.size(ofValue: addr.sun_path) else { return false }
+        withUnsafeMutablePointer(to: &addr.sun_path) { ptr in
+            ptr.withMemoryRebound(to: CChar.self, capacity: bytes.count) { dst in
+                for i in 0..<bytes.count { dst[i] = bytes[i] }
+            }
+        }
+        return withUnsafePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
+                Darwin.connect(fd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size)) == 0
+            }
+        }
+    }
+
     // MARK: Status
 
     /// Never boots anything and never talks to the guest.
@@ -84,10 +149,11 @@ public struct HVFMachineClient: Sendable {
         let phase: HVFMachinePhase =
             if alive { state?.phase ?? .starting } else if state?.phase == .failed { .failed } else { .stopped }
         let missing = layout.missingAssets()
+        let payload = HVFPayloadStore.status(layout: layout)
         return HVFMachineStatus(
             root: layout.root.path, socket: layout.dockerSocket.path, missing: missing,
             problem: missing.isEmpty ? layout.configurationProblem() : nil, supervisorAlive: alive, phase: phase,
-            state: state, stateError: stateError)
+            state: state, stateError: stateError, updatePending: payload.updatePending, payload: payload)
     }
 
     /// Cheap "is there a guest engine to talk to": a live supervisor that

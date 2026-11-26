@@ -71,12 +71,19 @@ run_main() {
 }
 # The store a path really lives in: mountinfo root of the longest mount point
 # covering it, plus the rest of the path ("rootfs:<path>" when on no bind).
+# A root is relative to its filesystem: one on the persistent cache disk
+# (source /dev/vdb, mounted at /var/lib/micropod/caches in the guest) is given
+# as that guest path. A copy-on-write view (overlay) maps to no store.
 qstore() {
     p=$(readlink -f "$1" 2>/dev/null || echo "$1")
-    awk -v p="$p" '
+    awk -v p="$p" -v cdev="${QCACHE_DEV:-/dev/vdb}" -v croot="${QCACHE_ROOT:-/var/lib/micropod/caches}" '
         { mp = $5; gsub(/\\040/, " ", mp)
-          if (mp != "/" && (p == mp || index(p, mp "/") == 1) && length(mp) > bl) { bl = length(mp); root = $4; best = mp } }
-        END { if (bl == 0) print "rootfs:" p; else { r = root substr(p, bl + 1); sub(/^\/\//, "/", r); print r } }' /proc/self/mountinfo
+          if (mp != "/" && (p == mp || index(p, mp "/") == 1) && length(mp) > bl) {
+              bl = length(mp); root = $4; best = mp; src = ""
+              for (i = 7; i < NF; i++) if ($i == "-") { src = $(i + 2); break } } }
+        END { if (bl == 0) print "rootfs:" p
+              else { if (src == cdev) root = (root == "/") ? croot : croot root
+                     r = root substr(p, bl + 1); sub(/^\/\//, "/", r); print r } }' /proc/self/mountinfo
 }
 # scan <label> <dir>: owner-only entries (no group or other bits at all) and
 # entries without o+w, counted by mode string so BusyBox and GNU agree.

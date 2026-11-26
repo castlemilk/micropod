@@ -66,7 +66,7 @@ final class MachineCommandsTests: XCTestCase {
             (["--default-scope", "Proj"], "--default-scope 'Proj' must match"),
             (["--allow-scopes", "a*b"], "--allow-scopes entry 'a*b'"),
             (["--allow-scopes", "ci-*"], "default scope 'default' is not in the allowed scopes"),
-            (["--tools", "go,maven"], "unknown tool 'maven'"),
+            (["--tools", "go,bogus-tool"], "unknown tool 'bogus-tool'"),
             (["--go-trimpath", "maybe"], "--go-trimpath wants on or off"),
         ] {
             XCTAssertThrowsError(try policy(bad), "\(bad)") { error in
@@ -86,7 +86,7 @@ final class MachineCommandsTests: XCTestCase {
         XCTAssertEqual(request.cacheScope, "proja")
         XCTAssertEqual(request.arguments, ["go", "version"])
         XCTAssertNoThrow(try ContainerCommands.validateCacheFlags(request))
-        for (cache, scope, runtime) in [("maven", nil, "hvf"), (nil, "Bad", "hvf"), ("go", nil, "apple")]
+        for (cache, scope, runtime) in [("bogus-tool", nil, "hvf"), (nil, "Bad", "hvf"), ("go", nil, "apple")]
             as [(String?, String?, String)]
         {
             let bad = ContainerRunRequest(image: "x", runtime: runtime, cache: cache, cacheScope: scope)

@@ -719,7 +719,8 @@ func TestCacheAliasVolumeIsHeldBeforeItsStoreOpens(t *testing.T) {
 // exclusive pin (yarn v1) and a mark clearer wait that out instead of taking
 // the unit for busy, which skipped yarn for a start, or left a standalone
 // scheduler job's mark (it tries its clear once, then exits) for the boot. A
-// real holder still makes the exclusive pin busy.
+// real writer still makes the exclusive pin busy: it holds the writer slot,
+// which nobody waits for.
 func TestCachePinAndClearerWaitOutAProbe(t *testing.T) {
 	useFence(t, "boot-a")
 	uid := uint32(0)
@@ -739,7 +740,7 @@ func TestCachePinAndClearerWaitOutAProbe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an exclusive pin gave up on a probe: %v", err)
 	}
-	pin.lock.Close() // the writer exits
+	pin.drop() // the writer exits
 	opened, err := os.Open(dirtyMarker("default", "yarn.u0"))
 	if err != nil {
 		t.Fatal(err)
@@ -753,7 +754,7 @@ func TestCachePinAndClearerWaitOutAProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer holder.lock.Close()
+	defer holder.drop()
 	start := time.Now()
 	if _, err := pinUnit("default", "yarn.u0", true); !errors.Is(err, unix.EWOULDBLOCK) {
 		t.Fatalf("an exclusive pin of a held store: %v", err)

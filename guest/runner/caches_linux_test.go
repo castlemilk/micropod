@@ -1018,10 +1018,21 @@ func TestOpenCacheMountsReplaysPlan(t *testing.T) {
 		}
 	}
 	// A second concurrent start: yarn v1 is exclusive, everything else shared.
+	// Without overlayfs the second start cannot read the store copy-on-write
+	// and leaves yarn out (TestCacheYarnV1ConcurrencyUnderOneLockScheme has
+	// the copy-on-write view).
+	prevOverlay := cacheOverlayMount
+	cacheOverlayMount = func(string, string) (string, error) { return "", unix.EPERM }
 	b := openCacheMounts(&plan, filepath.Join(base, "container2", "shim"))
+	cacheOverlayMount = prevOverlay
 	defer closeMounts(b.files)
 	if len(b.skipped) != 1 || b.skipped["yarn"] != skipBusyExclusive {
 		t.Fatalf("second start skipped %v", b.skipped)
+	}
+	for _, p := range b.pins {
+		if p.unit == "yarn.u1000" {
+			t.Fatal("a skipped yarn kept a hold on the store")
+		}
 	}
 	for _, m := range b.mounts {
 		if m.ContainerPath == "/home/node/.cache/yarn" {

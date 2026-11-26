@@ -94,15 +94,42 @@ public enum SandboxVM {
         }
     }
 
-    static let appSupport =
+    public static let appSupport =
         FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/com.apple.container")
-    public static let root =
-        FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".micropod/sandbox")
+
+    /// Standalone Micropod sandbox root (`MICROPOD_SANDBOX_ROOT` overrides `~/.micropod/sandbox`).
+    public static var root: URL {
+        if let configured = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_ROOT"], !configured.isEmpty {
+            return URL(fileURLWithPath: NSString(string: configured).expandingTildeInPath)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/sandbox")
+    }
+    static var kernelsDir: URL { root.appendingPathComponent("kernels") }
+    static var defaultKernelLink: URL { kernelsDir.appendingPathComponent("default.kernel-arm64") }
+    static var contentDir: URL { root.appendingPathComponent("content") }
     static var imagesDir: URL { root.appendingPathComponent("images") }
     static var checkpointsDir: URL { root.appendingPathComponent("checkpoints") }
     static var runsDir: URL { root.appendingPathComponent("runs") }
+
+    /// Where a sandbox asset was resolved from (`standalone` needs zero Apple `container` install).
+    public enum AssetOrigin: String, Codable, Sendable, Equatable {
+        case envOverride = "env"
+        case standalone
+        case hvfFallback = "hvf"
+        case legacyApple = "apple_container"
+        case missing
+    }
+
+    public struct AssetStatus: Codable, Sendable, Equatable {
+        public var root: String
+        public var kernelOrigin: AssetOrigin
+        public var kernelPath: String?
+        public var contentOrigin: AssetOrigin
+        public var contentPath: String
+        public var initfsPaths: [String]
+        public var standaloneReady: Bool
+    }
 
     /// Base disk + the image whose config (env, cwd, entrypoint) applies.
     struct Checkpoint: Codable {
@@ -780,28 +807,34 @@ public enum SandboxVM {
     /// exactly; `SandboxVMInitTests` keeps the two in step).
     static let linkedContainerizationVersion = "0.42.0"
 
+    /// Default OCI image for the linked `vminitd` initramfs — pulled straight
+    /// into Micropod's standalone `~/.micropod/sandbox` store when absent.
+    public static let defaultVMInitReference = "ghcr.io/apple/containerization/vminit:\(linkedContainerizationVersion)"
+
     /// The `vminit` image the sandbox boots, from the references in the
-    /// store. The store holds the `vminit` of every `container` release that
-    /// ran `system start` here: an upgrade to 1.5.0 adds `vminit:0.47.0`
-    /// beside `0.42.0`. Prefer the one matching the linked library, so the
-    /// guest agent and its host-side client stay one release: from 0.47,
-    /// `vminitd` refuses copy and stat requests without the `root` field a
-    /// 0.42 client never sends. Otherwise the first `vminit`, as before.
+    /// store. Prefer the one matching the linked library, so the guest agent
+    /// and its host-side client stay one release.
     static func pickVMInit(_ references: [String]) -> String? {
         let vminits = references.filter { $0.contains("containerization/vminit") }
         return vminits.first { $0.hasSuffix(":" + linkedContainerizationVersion) } ?? vminits.first
     }
 
-    /// vminitd initfs, unpacked once from the store's `vminit` image.
+    /// vminitd initfs, unpacked once from the standalone sandbox store (pulling
+    /// `defaultVMInitReference` automatically on first run — no Apple `container`
+    /// CLI or daemon required).
     static func initfs(store: ImageStore, progress: @Sendable (String) -> Void) async throws -> Containerization.Mount {
         let images = try await store.list()
-        guard let reference = pickVMInit(images.map(\.reference)),
-            let vminit = images.first(where: { $0.reference == reference })
-        else {
-            throw MicropodError.message("no vminit image — run `container system start` once")
-        }
-        if !reference.hasSuffix(":" + linkedContainerizationVersion) {
-            progress("using \(reference); micropod's sandbox is built for vminit \(linkedContainerizationVersion)")
+        let vminit: Containerization.Image
+        if let reference = pickVMInit(images.map(\.reference)),
+            let existing = images.first(where: { $0.reference == reference })
+        {
+            if !reference.hasSuffix(":" + linkedContainerizationVersion) {
+                progress("using \(reference); micropod's sandbox is built for vminit \(linkedContainerizationVersion)")
+            }
+            vminit = existing
+        } else {
+            progress("pulling standalone \(defaultVMInitReference) into \(root.path)")
+            vminit = try await store.pull(reference: defaultVMInitReference, platform: .current)
         }
         let tag = vminit.digest.replacingOccurrences(of: ":", with: "-")
         let path = root.appendingPathComponent("initfs-\(tag).ext4")
@@ -826,18 +859,149 @@ public enum SandboxVM {
     /// `MICROPOD_SANDBOX_BOOTLOG`).
     static let kernelArgs = ["rcupdate.rcu_expedited=1"]
 
-    static func kernelURL() throws -> URL {
-        let link = appSupport.appendingPathComponent("kernels/default.kernel-arm64")
-        guard FileManager.default.fileExists(atPath: link.path) else {
-            throw MicropodError.message("no kernel at \(link.path) — run `container system start` once")
+    /// Resolves the ARM64 Linux kernel without requiring Apple's `container`:
+    ///   1. `MICROPOD_SANDBOX_KERNEL` env override
+    ///   2. `~/.micropod/sandbox/kernels/default.kernel-arm64` (standalone)
+    ///   3. Legacy `~/Library/Application Support/com.apple.container/kernels/default.kernel-arm64`
+    ///   4. Micropod's own HVF kernel (`~/.micropod/hvf/current/Image` or `~/.micropod/hvf/Image`)
+    public static func resolveKernel(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        sandboxRoot: URL = root,
+        legacyAppSupport: URL = appSupport,
+        hvfLayout: HVFMachineLayout? = nil
+    ) -> (url: URL, origin: AssetOrigin)? {
+        let fm = FileManager.default
+        if let override = environment["MICROPOD_SANDBOX_KERNEL"], !override.isEmpty {
+            let url = URL(fileURLWithPath: NSString(string: override).expandingTildeInPath)
+            if fm.fileExists(atPath: url.path) {
+                return (url.resolvingSymlinksInPath(), .envOverride)
+            }
         }
-        return link.resolvingSymlinksInPath()
+        let standalone = sandboxRoot.appendingPathComponent("kernels/default.kernel-arm64")
+        if fm.fileExists(atPath: standalone.path) {
+            return (standalone.resolvingSymlinksInPath(), .standalone)
+        }
+        let legacy = legacyAppSupport.appendingPathComponent("kernels/default.kernel-arm64")
+        if fm.fileExists(atPath: legacy.path) {
+            return (legacy.resolvingSymlinksInPath(), .legacyApple)
+        }
+        let hvf = hvfLayout ?? HVFMachineLayout(environment: environment)
+        if fm.fileExists(atPath: hvf.kernel.path) {
+            return (hvf.kernel.resolvingSymlinksInPath(), .hvfFallback)
+        }
+        return nil
     }
 
-    static func imageStore() throws -> ImageStore {
-        try ImageStore(
-            path: appSupport,
-            contentStore: try LocalContentStore(path: appSupport.appendingPathComponent("content")))
+    static func kernelURL() throws -> URL {
+        guard let resolved = resolveKernel() else {
+            throw MicropodError.message(
+                "no sandbox kernel found — run `micropod sandbox setup` (or set MICROPOD_SANDBOX_KERNEL)")
+        }
+        return resolved.url
+    }
+
+    /// Standalone OCI image store under `~/.micropod/sandbox` (never depends on
+    /// `~/Library/Application Support/com.apple.container` unless opted in via
+    /// `MICROPOD_SANDBOX_LEGACY_STORE=1`).
+    public static func imageStore(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        sandboxRoot: URL = root,
+        legacyAppSupport: URL = appSupport
+    ) throws -> ImageStore {
+        let useLegacy = environment["MICROPOD_SANDBOX_LEGACY_STORE"] == "1"
+        let base = useLegacy ? legacyAppSupport : sandboxRoot
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return try ImageStore(
+            path: base,
+            contentStore: try LocalContentStore(path: base.appendingPathComponent("content")))
+    }
+
+    /// Reports whether the sandbox engine is self-contained under `~/.micropod/sandbox`.
+    public static func assetStatus(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        sandboxRoot: URL = root,
+        legacyAppSupport: URL = appSupport,
+        hvfLayout: HVFMachineLayout? = nil
+    ) -> AssetStatus {
+        let fm = FileManager.default
+        let kernel = resolveKernel(
+            environment: environment, sandboxRoot: sandboxRoot, legacyAppSupport: legacyAppSupport,
+            hvfLayout: hvfLayout)
+        let useLegacyStore = environment["MICROPOD_SANDBOX_LEGACY_STORE"] == "1"
+        let storeBase = useLegacyStore ? legacyAppSupport : sandboxRoot
+        let contentPath = storeBase.appendingPathComponent("content").path
+        let contentOrigin: AssetOrigin = useLegacyStore ? .legacyApple : .standalone
+        let initfs =
+            ((try? fm.contentsOfDirectory(atPath: sandboxRoot.path)) ?? [])
+            .filter { $0.hasPrefix("initfs-") && $0.hasSuffix(".ext4") }
+            .sorted()
+            .map { sandboxRoot.appendingPathComponent($0).path }
+        let standaloneReady =
+            (kernel?.origin == .standalone || kernel?.origin == .envOverride || kernel?.origin == .hvfFallback)
+            && contentOrigin == .standalone
+        return AssetStatus(
+            root: sandboxRoot.path,
+            kernelOrigin: kernel?.origin ?? .missing,
+            kernelPath: kernel?.url.path,
+            contentOrigin: contentOrigin,
+            contentPath: contentPath,
+            initfsPaths: initfs,
+            standaloneReady: standaloneReady)
+    }
+
+    /// Bootstraps `~/.micropod/sandbox` so isolated sandboxes run with zero
+    /// dependency on `com.apple.container`: installs/clones the ARM64 kernel
+    /// into `~/.micropod/sandbox/kernels/default.kernel-arm64` and pulls/unpacks
+    /// `vminit` into `~/.micropod/sandbox/`.
+    public static func setupStandalone(
+        kernelSource: URL? = nil,
+        vminitReference: String = defaultVMInitReference,
+        sandboxRoot: URL = root,
+        progress: @Sendable (String) -> Void = { _ in }
+    ) async throws -> AssetStatus {
+        let fm = FileManager.default
+        let kernels = sandboxRoot.appendingPathComponent("kernels")
+        try fm.createDirectory(at: kernels, withIntermediateDirectories: true)
+        let targetKernel = kernels.appendingPathComponent("default.kernel-arm64")
+
+        let sourceKernel: URL?
+        if let explicit = kernelSource {
+            guard fm.fileExists(atPath: explicit.path) else {
+                throw MicropodError.message("invalidArgument: kernel not found at \(explicit.path)")
+            }
+            sourceKernel = explicit.resolvingSymlinksInPath()
+        } else if fm.fileExists(atPath: targetKernel.path) {
+            sourceKernel = nil
+        } else {
+            sourceKernel = resolveKernel(sandboxRoot: sandboxRoot)?.url
+        }
+
+        if let src = sourceKernel {
+            let dstFile = kernels.appendingPathComponent("vmlinux-arm64")
+            let tmp = kernels.appendingPathComponent(".vmlinux-\(UUID().uuidString)")
+            defer { try? fm.removeItem(at: tmp) }
+            progress("staging standalone sandbox kernel from \(src.path)…")
+            if clonefile(src.path, tmp.path, 0) != 0 {
+                try fm.copyItem(at: src, to: tmp)
+            }
+            guard rename(tmp.path, dstFile.path) == 0 else {
+                throw MicropodError.message("installing sandbox kernel: \(String(cString: strerror(errno)))")
+            }
+            try HVFPayloadStore.atomicSymlink(destination: dstFile.lastPathComponent, at: targetKernel)
+            progress("installed \(targetKernel.path)")
+        } else if !fm.fileExists(atPath: targetKernel.path) {
+            throw MicropodError.message(
+                "no kernel available to seed ~/.micropod/sandbox; pass --kernel <path> or install HVF machine first")
+        }
+
+        let store = try imageStore(sandboxRoot: sandboxRoot)
+        let existing = try await store.list()
+        if !existing.contains(where: { $0.reference == vminitReference }) {
+            progress("pulling \(vminitReference)…")
+            _ = try await store.pull(reference: vminitReference, platform: .current)
+        }
+        _ = try await initfs(store: store, progress: progress)
+        return assetStatus(sandboxRoot: sandboxRoot)
     }
 
     static func normalize(_ raw: String) throws -> String {

@@ -22,6 +22,9 @@ extension APIHandlers {
     /// Route `/api/micropod.v1.<Service>/*`. Returns nil for methods that
     /// don't exist so the caller can fall through to 404.
     func connectRPC(method: String, body: Data, headers: [String: String]) async -> HTTPResponse? {
+        let contentType = headers["content-type"]?.lowercased() ?? "application/json"
+        let useBinaryProto =
+            contentType.hasPrefix("application/proto") || contentType.hasPrefix("application/connect+proto")
         // The liveness RPCs are where a CLI-started API notices the runtime
         // came up: they re-resolve the backend (rate-limited) before
         // answering, so `runtime_backend` flips to native on the first
@@ -29,11 +32,40 @@ extension APIHandlers {
         let services =
             method == "Ping" || method == "GetSystem"
             ? await runtime.refreshIfNeeded() : await runtime.current
+        func reply<M: Message>(_ message: M) -> HTTPResponse {
+            unary(message, binary: useBinaryProto)
+        }
+        func decodeReq<M: Message>(_ type: M.Type, _ data: Data) throws -> M {
+            try decode(type, data, binary: useBinaryProto)
+        }
         do {
             switch method {
             case "GetSystem":
                 if versionEnvironment.role == .connect, versionEnvironment.usesDedicatedRuntime() {
-                    return unary(try await dedicatedSystem())
+                    return reply(try await dedicatedSystem())
+                }
+                if engineRegistry.defaultName == "hvf",
+                    let hvfEngine = engineRegistry.engine("hvf") as? HVFEngine
+                {
+                    let hvfStatus = hvfEngine.machine.status()
+                    if hvfStatus.installed && hvfStatus.problem == nil {
+                        var snapshot = Micropod_V1_SystemSnapshot()
+                        var status = Micropod_V1_SystemStatus()
+                        status.status = "running"
+                        status.runtimeBackend = "hvf"
+                        status.installRoot = hvfStatus.root
+                        status.apiServerVersion = hvfStatus.payload?.current?.version ?? "hvf"
+                        snapshot.status = status
+                        var disk = Micropod_V1_DiskUsage()
+                        let diskSize =
+                            (try? FileManager.default.attributesOfItem(atPath: hvfEngine.machine.layout.disk.path)[
+                                .size] as? UInt64) ?? 0
+                        disk.containers.sizeBytes = diskSize
+                        snapshot.diskUsage = disk
+                        await versionManifest(apple: AppleObservation(reported: "", state: .stopped), digests: false)
+                            .apply(to: &snapshot)
+                        return reply(snapshot)
+                    }
                 }
                 var snapshot = Micropod_V1_SystemSnapshot()
                 var status = try await system.status()
@@ -55,29 +87,29 @@ extension APIHandlers {
                         installRoot: health?.installRoot ?? (status.installRoot.isEmpty ? nil : status.installRoot)),
                     digests: true)
                 manifest.apply(to: &snapshot)
-                return unary(snapshot)
+                return reply(snapshot)
 
             case "Ping":
                 if versionEnvironment.role == .connect, versionEnvironment.usesDedicatedRuntime() {
-                    return unary(try await dedicatedPing(services))
+                    return reply(try await dedicatedPing(services))
                 }
-                return unary(await ping(services))
+                return reply(await ping(services))
 
             case "GetUpdateState":
-                return unary(await currentUpdateState())
+                return reply(await currentUpdateState())
 
             case "ListRuntimes":
-                return unary(try await runtimes(services))
+                return reply(try await runtimes(services))
 
             case "SetDefaultRuntime":
-                let req = try decode(Micropod_V1_SetDefaultRuntimeRequest.self, body)
+                let req = try decodeReq(Micropod_V1_SetDefaultRuntimeRequest.self, body)
                 try required(req.name, "name")
-                return unary(try await setDefaultRuntime(req.name, services))
+                return reply(try await setDefaultRuntime(req.name, services))
 
             case "UpdateRuntime":
-                let req = try decode(Micropod_V1_UpdateRuntimeRequest.self, body)
+                let req = try decodeReq(Micropod_V1_UpdateRuntimeRequest.self, body)
                 try required(req.name, "name")
-                return unary(
+                return reply(
                     try await updateRuntime(
                         req.name, req.hasEnabled ? req.enabled : nil, req.hasEndpoint ? req.endpoint : nil,
                         services))
@@ -85,15 +117,15 @@ extension APIHandlers {
             case "ListContainers":
                 var resp = Micropod_V1_ListContainersResponse()
                 resp.containers = try await listedContainersWithExitCodes(in: services)
-                return unary(resp)
+                return reply(resp)
 
             case "GetContainer":
-                let req = try decode(Micropod_V1_ContainerRef.self, body)
+                let req = try decodeReq(Micropod_V1_ContainerRef.self, body)
                 try check(req)
-                return unary(try await lookupContainer(req.id, in: services))
+                return reply(try await lookupContainer(req.id, in: services))
 
             case "WaitContainer":
-                let req = try decode(Micropod_V1_WaitContainerRequest.self, body)
+                let req = try decodeReq(Micropod_V1_WaitContainerRequest.self, body)
                 try check(req)
                 // Unknown ids fail fast — never a silent `exited: true`, and
                 // never a wait against a container that does not exist.
@@ -101,53 +133,53 @@ extension APIHandlers {
                     _ = try await lookupContainer(req.id, in: services)
                 }
                 let seconds = req.timeoutSeconds == 0 ? 30 : min(req.timeoutSeconds, 300)
-                return unary(try await waitContainer(id: req.id, timeout: .seconds(Int(seconds)), in: services))
+                return reply(try await waitContainer(id: req.id, timeout: .seconds(Int(seconds)), in: services))
 
             case "RunContainer":
-                let req = try decode(Micropod_V1_RunContainerRequest.self, body)
+                let req = try decodeReq(Micropod_V1_RunContainerRequest.self, body)
                 try check(req)
                 let id = try await services.containers.run(try runRequest(from: req))
-                return unary(Micropod_V1_ContainerRef.with { $0.id = id })
+                return reply(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "CreateContainer":
-                let req = try decode(Micropod_V1_RunContainerRequest.self, body)
+                let req = try decodeReq(Micropod_V1_RunContainerRequest.self, body)
                 try check(req)
                 let id = try await services.containers.create(try runRequest(from: req))
-                return unary(Micropod_V1_ContainerRef.with { $0.id = id })
+                return reply(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "StartContainer":
-                let req = try decode(Micropod_V1_ContainerRef.self, body)
+                let req = try decodeReq(Micropod_V1_ContainerRef.self, body)
                 try check(req)
                 try await services.containers.start(req.id)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "StopContainer":
-                let req = try decode(Micropod_V1_ContainerRef.self, body)
+                let req = try decodeReq(Micropod_V1_ContainerRef.self, body)
                 try check(req)
                 try await services.containers.stop(req.id)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "RestartContainer":
-                let req = try decode(Micropod_V1_ContainerRef.self, body)
+                let req = try decodeReq(Micropod_V1_ContainerRef.self, body)
                 try check(req)
                 try await services.containers.restart(req.id)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "KillContainer":
-                let req = try decode(Micropod_V1_ContainerRef.self, body)
+                let req = try decodeReq(Micropod_V1_ContainerRef.self, body)
                 try check(req)
                 try await services.containers.kill(req.id)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "DeleteContainer":
-                let req = try decode(Micropod_V1_DeleteContainerRequest.self, body)
+                let req = try decodeReq(Micropod_V1_DeleteContainerRequest.self, body)
                 try check(req)
                 try await services.containers.delete(req.id, force: req.force)
                 MetricsStore.shared?.remove(.container, req.id)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "StreamContainerLogs":
-                let req = try decodeStreamRequest(Micropod_V1_StreamLogsRequest.self, body)
+                let req = try decodeStreamRequest(Micropod_V1_StreamLogsRequest.self, body, binary: useBinaryProto)
                 try check(req)
                 let events = services.logs.stream(
                     id: req.id,
@@ -158,7 +190,8 @@ extension APIHandlers {
                 // Each line stays its own LogChunk envelope (clients count
                 // envelopes as lines); a flood packs many envelopes into one
                 // awaited socket write instead of one write per line.
-                return streamEnvelope(dropping(req.skipLines, from: events), coalesce: true) { line in
+                return streamEnvelope(dropping(req.skipLines, from: events), coalesce: true, binary: useBinaryProto) {
+                    line in
                     Micropod_V1_LogChunk.with { $0.text = line.text }
                 }
 
@@ -170,10 +203,10 @@ extension APIHandlers {
             case "ListImages":
                 var resp = Micropod_V1_ListImagesResponse()
                 resp.images = try await imageRouter(services).list()
-                return unary(resp)
+                return reply(resp)
 
             case "PullImage":
-                let req = try decodeStreamRequest(Micropod_V1_PullImageRequest.self, body)
+                let req = try decodeStreamRequest(Micropod_V1_PullImageRequest.self, body, binary: useBinaryProto)
                 try check(req)
                 // No platform pulls linux/<host arch>, not every platform in
                 // the index (see ImageService.pull).
@@ -181,7 +214,7 @@ extension APIHandlers {
                 let events = imageRouter(services).pullForAPI(
                     req.reference,
                     platform: req.hasPlatform ? req.platform : nil, budget: budget, runtime: nil)
-                return streamEnvelope(events) { event in
+                return streamEnvelope(events, binary: useBinaryProto) { event in
                     Micropod_V1_ProgressLine.with {
                         $0.line = event.line
                         if let stage = event.stage { $0.stage = Int32(stage) }
@@ -190,36 +223,36 @@ extension APIHandlers {
                 }
 
             case "DeleteImage":
-                let req = try decode(Micropod_V1_DeleteImageRequest.self, body)
+                let req = try decodeReq(Micropod_V1_DeleteImageRequest.self, body)
                 try check(req)
                 try await imageRouter(services).delete(req.reference, force: req.force)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "ListVolumes":
                 var resp = Micropod_V1_ListVolumesResponse()
                 resp.volumes = try await volumeRouter(services).list()
-                return unary(resp)
+                return reply(resp)
 
             case "CreateVolume":
-                let req = try decode(Micropod_V1_CreateVolumeRequest.self, body)
+                let req = try decodeReq(Micropod_V1_CreateVolumeRequest.self, body)
                 try check(req)
                 try await volumeRouter(services).create(
                     name: req.name,
                     size: req.hasSize ? req.size : nil,
                     labels: req.labels,
                     options: req.options)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "DeleteVolume":
-                let req = try decode(Micropod_V1_DeleteVolumeRequest.self, body)
+                let req = try decodeReq(Micropod_V1_DeleteVolumeRequest.self, body)
                 try check(req)
                 try await volumeRouter(services).delete(req.name)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "CloneVolume":
-                let req = try decode(Micropod_V1_CloneVolumeRequest.self, body)
+                let req = try decodeReq(Micropod_V1_CloneVolumeRequest.self, body)
                 try check(req)
-                return unary(
+                return reply(
                     try await volumeRouter(services).clone(
                         source: req.source,
                         name: req.name,
@@ -227,19 +260,37 @@ extension APIHandlers {
                         labels: req.labels))
 
             case "CommitVolumeClone":
-                let req = try decode(Micropod_V1_CommitVolumeCloneRequest.self, body)
+                let req = try decodeReq(Micropod_V1_CommitVolumeCloneRequest.self, body)
                 try check(req)
                 let allocated = try await volumeRouter(services).commitClone(
                     containerID: req.containerID, volume: req.volume)
-                return unary(Micropod_V1_CommitVolumeCloneResponse.with { $0.allocatedBytes = allocated })
+                return reply(Micropod_V1_CommitVolumeCloneResponse.with { $0.allocatedBytes = allocated })
 
             case "ListNetworks":
                 var resp = Micropod_V1_ListNetworksResponse()
+                if engineRegistry.defaultName == "hvf",
+                    let hvfEngine = engineRegistry.engine("hvf") as? HVFEngine
+                {
+                    let hvfStatus = hvfEngine.machine.status()
+                    if hvfStatus.installed && hvfStatus.problem == nil {
+                        resp.networks = [
+                            Micropod_V1_Network.with {
+                                $0.id = "default"
+                                $0.plugin = "hvf-nat"
+                                $0.mode = "nat"
+                                $0.ipv4Gateway = "10.42.0.1"
+                                $0.ipv4Subnet = "10.42.0.0/24"
+                                $0.builtin = true
+                            }
+                        ]
+                        return reply(resp)
+                    }
+                }
                 resp.networks = try await networks.list()
-                return unary(resp)
+                return reply(resp)
 
             case "CreateNetwork":
-                let req = try decode(Micropod_V1_CreateNetworkRequest.self, body)
+                let req = try decodeReq(Micropod_V1_CreateNetworkRequest.self, body)
                 try check(req)
                 try await networks.create(
                     name: req.name,
@@ -249,23 +300,23 @@ extension APIHandlers {
                     driver: req.hasDriver ? req.driver : nil,
                     options: req.options,
                     labels: req.labels)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "DeleteNetwork":
-                let req = try decode(Micropod_V1_DeleteNetworkRequest.self, body)
+                let req = try decodeReq(Micropod_V1_DeleteNetworkRequest.self, body)
                 try check(req)
                 try await networks.delete(req.name)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "GetStats":
-                let req = try decode(Micropod_V1_GetStatsRequest.self, body)
+                let req = try decodeReq(Micropod_V1_GetStatsRequest.self, body)
                 var resp = Micropod_V1_GetStatsResponse()
                 // Empty ids = every running container (the pre-`ids` shape).
                 resp.snapshot = try await services.stats.snapshot(ids: req.ids)
-                return unary(resp)
+                return reply(resp)
 
             case "Exec":
-                let req = try decode(Micropod_V1_ExecRequest.self, body)
+                let req = try decodeReq(Micropod_V1_ExecRequest.self, body)
                 try check(req)
                 // `arguments` is a verbatim argv; `command` is the older
                 // split-on-spaces field and only consulted when it is empty.
@@ -279,7 +330,7 @@ extension APIHandlers {
                         arguments: argv,
                         workdir: req.hasWorkdir ? req.workdir : nil,
                         env: req.env))
-                return unary(
+                return reply(
                     Micropod_V1_ExecResponse.with {
                         $0.output = result.output
                         $0.exitCode = result.exitCode
@@ -287,28 +338,28 @@ extension APIHandlers {
                     })
 
             case "GetUsage":
-                return unary(usageReportProto(try await usage(services).report()))
+                return reply(usageReportProto(try await usage(services).report()))
 
             case "GetVolumePolicy":
-                return unary(volumePolicyProto(VolumePolicyStore.load()))
+                return reply(volumePolicyProto(VolumePolicyStore.load()))
 
             case "SetVolumePolicy":
-                let req = try decode(Micropod_V1_VolumePolicy.self, body)
+                let req = try decodeReq(Micropod_V1_VolumePolicy.self, body)
                 let policy = volumePolicy(from: req)
                 try VolumePolicyStore.save(policy)
-                return unary(volumePolicyProto(policy))
+                return reply(volumePolicyProto(policy))
 
             case "CheckForUpdates":
-                return unary(updateStatus(from: try await appControl.checkForUpdates()))
+                return reply(updateStatus(from: try await appControl.checkForUpdates()))
 
             case "GetUpdateStatus":
-                return unary(updateStatus(from: try await appControl.updateStatus()))
+                return reply(updateStatus(from: try await appControl.updateStatus()))
 
             case "ApplyUpdate":
-                return unary(updateStatus(from: try await appControl.applyUpdate()))
+                return reply(updateStatus(from: try await appControl.applyUpdate()))
 
             case "ComposeUp":
-                let req = try decodeStreamRequest(Micropod_V1_ComposeUpRequest.self, body)
+                let req = try decodeStreamRequest(Micropod_V1_ComposeUpRequest.self, body, binary: useBinaryProto)
                 try check(req)
                 let spec = try await compose.parse(url: URL(fileURLWithPath: req.path))
                 let plan = try compose.plan(spec: spec, enabledProfiles: Set(req.profiles))
@@ -330,32 +381,32 @@ extension APIHandlers {
                         }
                     }
                 }
-                return streamEnvelope(events) { $0 }
+                return streamEnvelope(events, binary: useBinaryProto) { $0 }
 
             case "ComposeDown":
-                let req = try decode(Micropod_V1_ComposeDownRequest.self, body)
+                let req = try decodeReq(Micropod_V1_ComposeDownRequest.self, body)
                 try check(req)
                 try await compose.down(composeName: req.name)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "GetK8sStatus":
                 let config = k8s.loadConfig() ?? .defaults
                 let s = try await k8s.status(name: config.clusterName)
-                return unary(k8sStatus(from: s))
+                return reply(k8sStatus(from: s))
 
             case "GetK8sConfig":
-                return unary(k8sConfigProto(from: k8s.loadConfig() ?? .defaults))
+                return reply(k8sConfigProto(from: k8s.loadConfig() ?? .defaults))
 
             case "SetK8sConfig":
-                let req = try decode(Micropod_V1_K8sConfig.self, body)
+                let req = try decodeReq(Micropod_V1_K8sConfig.self, body)
                 try k8s.saveConfig(k8sConfig(from: req))
-                return unary(req)
+                return reply(req)
 
             case "K8sUp":
                 guard k8s.isEnabled else {
                     return connectError(.unavailable, K8sError.disabled.description)
                 }
-                let req = try decodeStreamRequest(Micropod_V1_K8sUpRequest.self, body)
+                let req = try decodeStreamRequest(Micropod_V1_K8sUpRequest.self, body, binary: useBinaryProto)
                 var config = k8s.loadConfig() ?? .defaults
                 if req.hasImage { config.image = req.image }
                 if req.hasMemory { config.memory = req.memory }
@@ -365,7 +416,7 @@ extension APIHandlers {
                 if req.hasLbPool { config.lbPool = req.lbPool }
                 if req.hasClusterName { config.clusterName = req.clusterName }
                 let events = k8s.upEvents(config)
-                return streamEnvelope(events) { event in
+                return streamEnvelope(events, binary: useBinaryProto) { event in
                     Micropod_V1_K8sUpEvent.with {
                         $0.line = event.line
                         if let status = event.status {
@@ -380,14 +431,14 @@ extension APIHandlers {
                     return connectError(.unavailable, K8sError.disabled.description)
                 }
                 try await k8s.down(k8s.loadConfig() ?? .defaults)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "GetKubeconfig":
                 let path = k8s.kubeconfigURL.path
                 guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
                     return connectError(.notFound, "no kubeconfig — run K8sUp first")
                 }
-                return unary(
+                return reply(
                     Micropod_V1_GetKubeconfigResponse.with {
                         $0.path = path
                         $0.contents = contents
@@ -397,7 +448,7 @@ extension APIHandlers {
                 guard k8s.isEnabled else {
                     return connectError(.unavailable, K8sError.disabled.description)
                 }
-                let req = try decodeStreamRequest(Micropod_V1_LoadK8sImageRequest.self, body)
+                let req = try decodeStreamRequest(Micropod_V1_LoadK8sImageRequest.self, body, binary: useBinaryProto)
                 guard !req.ref.isEmpty || !req.archive.isEmpty else {
                     return connectError(.invalidArgument, "LoadK8sImage needs a ref or archive bytes")
                 }
@@ -405,7 +456,7 @@ extension APIHandlers {
                     ref: req.ref.isEmpty ? nil : req.ref,
                     archiveData: req.archive.isEmpty ? nil : req.archive,
                     name: req.hasClusterName ? req.clusterName : nil)
-                return streamEnvelope(events) { event in
+                return streamEnvelope(events, binary: useBinaryProto) { event in
                     Micropod_V1_K8sLoadEvent.with {
                         $0.line = event.line
                         if let image = event.image {
@@ -420,30 +471,33 @@ extension APIHandlers {
                 let req =
                     body.isEmpty
                     ? Micropod_V1_ListK8sImagesRequest()
-                    : (try? decode(Micropod_V1_ListK8sImagesRequest.self, body))
+                    : (try? decodeReq(Micropod_V1_ListK8sImagesRequest.self, body))
                         ?? Micropod_V1_ListK8sImagesRequest()
                 let refs = try await k8s.listImages(
                     name: req.hasClusterName ? req.clusterName : nil)
-                return unary(Micropod_V1_ListK8sImagesResponse.with { $0.refs = refs })
+                return reply(Micropod_V1_ListK8sImagesResponse.with { $0.refs = refs })
 
             case "ListMachines":
                 var resp = Micropod_V1_ListMachinesResponse()
                 resp.machines = try await machines.list().map(machineProto)
-                return unary(resp)
+                return reply(resp)
 
             case "GetMachineStats":
                 let req =
                     body.isEmpty
                     ? Micropod_V1_GetMachineStatsRequest()
-                    : try decode(Micropod_V1_GetMachineStatsRequest.self, body)
-                return unary(try await machineStats.snapshot(id: req.id))
+                    : try decodeReq(Micropod_V1_GetMachineStatsRequest.self, body)
+                return reply(try await machineStats.snapshot(id: req.id))
 
             case "StreamMachineLogs":
-                let req = try decodeStreamRequest(Micropod_V1_StreamMachineLogsRequest.self, body)
+                let req = try decodeStreamRequest(
+                    Micropod_V1_StreamMachineLogsRequest.self, body, binary: useBinaryProto)
                 try check(req)
                 let tail = req.tail > 0 ? Int(req.tail) : nil
                 if req.follow {
-                    return streamEnvelope(machines.streamLogs(req.id, tail: tail, boot: req.boot)) { line in
+                    return streamEnvelope(
+                        machines.streamLogs(req.id, tail: tail, boot: req.boot), binary: useBinaryProto
+                    ) { line in
                         Micropod_V1_LogChunk.with { $0.text = line.text }
                     }
                 }
@@ -452,26 +506,26 @@ extension APIHandlers {
                     for line in lines { continuation.yield(line) }
                     continuation.finish()
                 }
-                return streamEnvelope(events) { line in
+                return streamEnvelope(events, binary: useBinaryProto) { line in
                     Micropod_V1_LogChunk.with { $0.text = line.text }
                 }
 
             // MARK: SandboxService
 
             case "StartSandbox":
-                let req = try decode(Micropod_V1_StartSandboxRequest.self, body)
+                let req = try decodeReq(Micropod_V1_StartSandboxRequest.self, body)
                 let id = try await services.containers.run(try sandboxRunRequest(from: req))
-                return unary(Micropod_V1_ContainerRef.with { $0.id = id })
+                return reply(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "StartProcess":
-                let req = try decode(Micropod_V1_StartProcessRequest.self, body)
+                let req = try decodeReq(Micropod_V1_StartProcessRequest.self, body)
                 try required(req.id, "id")
                 guard !req.command.isEmpty else {
                     throw ConnectDecodeError(code: .invalidArgument, message: "command is required")
                 }
                 let (processID, pid) = try await sandboxEngine.startProcess(
                     req.id, command: req.command, cwd: req.cwd, env: req.env, stdin: req.stdin)
-                return unary(
+                return reply(
                     Micropod_V1_ProcessRef.with {
                         $0.id = req.id
                         $0.processID = processID
@@ -479,95 +533,95 @@ extension APIHandlers {
                     })
 
             case "StreamProcess":
-                let req = try decodeStreamRequest(Micropod_V1_ProcessRef.self, body)
+                let req = try decodeStreamRequest(Micropod_V1_ProcessRef.self, body, binary: useBinaryProto)
                 try required(req.id, "id")
                 try required(req.processID, "process_id")
                 let events = try sandboxEngine.streamProcess(req.id, processID: req.processID)
-                return streamEnvelope(events, coalesce: true, map: Self.processEvent)
+                return streamEnvelope(events, coalesce: true, binary: useBinaryProto, map: Self.processEvent)
 
             case "WriteProcessStdin":
-                let req = try decode(Micropod_V1_WriteProcessStdinRequest.self, body)
+                let req = try decodeReq(Micropod_V1_WriteProcessStdinRequest.self, body)
                 try required(req.id, "id")
                 try required(req.processID, "process_id")
                 try sandboxEngine.writeStdin(req.id, processID: req.processID, data: req.data, close: req.close)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "SignalProcess":
-                let req = try decode(Micropod_V1_SignalProcessRequest.self, body)
+                let req = try decodeReq(Micropod_V1_SignalProcessRequest.self, body)
                 try required(req.id, "id")
                 try required(req.processID, "process_id")
                 try await sandboxEngine.signalProcess(req.id, processID: req.processID, signal: req.signal)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "ReadFile":
-                let req = try decode(Micropod_V1_PathRequest.self, body)
+                let req = try decodeReq(Micropod_V1_PathRequest.self, body)
                 try requiredPath(req.id, req.path)
                 let data = try await sandboxEngine.readFile(req.id, path: req.path)
-                return unary(Micropod_V1_FileContent.with { $0.data = data })
+                return reply(Micropod_V1_FileContent.with { $0.data = data })
 
             case "WriteFile":
-                let req = try decode(Micropod_V1_WriteFileRequest.self, body)
+                let req = try decodeReq(Micropod_V1_WriteFileRequest.self, body)
                 try requiredPath(req.id, req.path)
                 try await sandboxEngine.writeFile(
                     req.id, path: req.path, data: req.data, append: req.append,
                     mode: req.hasMode ? req.mode : nil, createParents: req.createParents)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "ListDir":
-                let req = try decode(Micropod_V1_PathRequest.self, body)
+                let req = try decodeReq(Micropod_V1_PathRequest.self, body)
                 try requiredPath(req.id, req.path)
                 let entries = try await sandboxEngine.listDir(req.id, path: req.path)
-                return unary(Micropod_V1_ListDirResponse.with { $0.entries = entries.map(Self.dirEntry) })
+                return reply(Micropod_V1_ListDirResponse.with { $0.entries = entries.map(Self.dirEntry) })
 
             case "StatPath":
-                let req = try decode(Micropod_V1_PathRequest.self, body)
+                let req = try decodeReq(Micropod_V1_PathRequest.self, body)
                 try requiredPath(req.id, req.path)
                 var stat = Self.fileStat(try await sandboxEngine.stat(req.id, path: req.path))
                 stat.path = req.path
-                return unary(stat)
+                return reply(stat)
 
             case "MakeDir":
-                let req = try decode(Micropod_V1_MakeDirRequest.self, body)
+                let req = try decodeReq(Micropod_V1_MakeDirRequest.self, body)
                 try requiredPath(req.id, req.path)
                 try await sandboxEngine.makeDir(
                     req.id, path: req.path, recursive: req.hasRecursive ? req.recursive : true)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "RemovePath":
-                let req = try decode(Micropod_V1_RemovePathRequest.self, body)
+                let req = try decodeReq(Micropod_V1_RemovePathRequest.self, body)
                 try requiredPath(req.id, req.path)
                 try await sandboxEngine.remove(req.id, path: req.path, recursive: req.recursive)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "RenamePath":
-                let req = try decode(Micropod_V1_RenamePathRequest.self, body)
+                let req = try decodeReq(Micropod_V1_RenamePathRequest.self, body)
                 try requiredPath(req.id, req.from)
                 try required(req.to, "to")
                 try await sandboxEngine.rename(req.id, from: req.from, to: req.to)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "CopyPath":
-                let req = try decode(Micropod_V1_CopyPathRequest.self, body)
+                let req = try decodeReq(Micropod_V1_CopyPathRequest.self, body)
                 try requiredPath(req.id, req.from)
                 try required(req.to, "to")
                 try await sandboxEngine.copy(req.id, from: req.from, to: req.to, recursive: req.recursive)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "ChmodPath":
-                let req = try decode(Micropod_V1_ChmodPathRequest.self, body)
+                let req = try decodeReq(Micropod_V1_ChmodPathRequest.self, body)
                 try requiredPath(req.id, req.path)
                 guard req.mode <= 0o7777 else {
                     throw ConnectDecodeError(code: .invalidArgument, message: "mode must be at most 0o7777")
                 }
                 try await sandboxEngine.chmod(req.id, path: req.path, mode: req.mode)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "WatchPath":
-                let req = try decodeStreamRequest(Micropod_V1_WatchPathRequest.self, body)
+                let req = try decodeStreamRequest(Micropod_V1_WatchPathRequest.self, body, binary: useBinaryProto)
                 try requiredPath(req.id, req.path)
                 let changes = try await sandboxEngine.watch(
                     req.id, path: req.path, recursive: req.hasRecursive ? req.recursive : true)
-                return streamEnvelope(changes) { change in
+                return streamEnvelope(changes, binary: useBinaryProto) { change in
                     Micropod_V1_WatchEvent.with {
                         $0.event = change.event
                         $0.path = change.path
@@ -575,17 +629,17 @@ extension APIHandlers {
                 }
 
             case "CheckpointSandbox":
-                let req = try decode(Micropod_V1_CheckpointSandboxRequest.self, body)
+                let req = try decodeReq(Micropod_V1_CheckpointSandboxRequest.self, body)
                 try required(req.id, "id")
                 try checkpointName(req.name)
                 try await sandboxEngine.checkpoint(req.id, name: req.name)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "ListCheckpoints":
-                return unary(Self.checkpoints())
+                return reply(Self.checkpoints())
 
             case "GetMetricsHistory":
-                let req = try decode(Micropod_V1_GetMetricsHistoryRequest.self, body)
+                let req = try decodeReq(Micropod_V1_GetMetricsHistoryRequest.self, body)
                 guard let kind = MetricsStore.Kind(rawValue: req.kind.isEmpty ? "system" : req.kind) else {
                     throw ConnectDecodeError(
                         code: .invalidArgument, message: "kind must be system, container or machine")
@@ -597,7 +651,7 @@ extension APIHandlers {
                 let range = TimeInterval(req.rangeSeconds == 0 ? 3600 : min(req.rangeSeconds, 30 * 86400))
                 let history = metricsStore.history(kind, kind == .system ? "all" : req.id, range: range)
                 let formatter = ISO8601DateFormatter()
-                return unary(
+                return reply(
                     Micropod_V1_MetricsHistory.with { out in
                         out.resolutionSeconds = UInt32(history.resolution)
                         out.points = history.points.map { point in
@@ -617,23 +671,23 @@ extension APIHandlers {
                     })
 
             case "UpdateSandboxSecret":
-                let req = try decode(Micropod_V1_UpdateSandboxSecretRequest.self, body)
+                let req = try decodeReq(Micropod_V1_UpdateSandboxSecretRequest.self, body)
                 try required(req.id, "id")
                 try required(req.name, "name")
                 try required(req.value, "value")
                 try await sandboxEngine.updateSecret(
                     req.id, name: req.name, value: req.value,
                     expiresAt: try expiry(req.expiresAt, field: "expires_at"))
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             case "DeleteCheckpoint":
-                let req = try decode(Micropod_V1_CheckpointRef.self, body)
+                let req = try decodeReq(Micropod_V1_CheckpointRef.self, body)
                 try checkpointName(req.name)
                 guard SandboxVM.listCheckpoints().contains(where: { $0.name == req.name }) else {
                     throw ConnectDecodeError(code: .notFound, message: "no checkpoint '\(req.name)'")
                 }
                 try SandboxVM.deleteCheckpoint(req.name)
-                return unary(Micropod_V1_Empty())
+                return reply(Micropod_V1_Empty())
 
             default:
                 return nil
@@ -690,7 +744,23 @@ extension APIHandlers {
         if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
             response.features.append(RuntimeCoordinationEnrollment.dataCapability)
         }
-        response.defaultRuntime = EngineRegistry.shared.defaultName
+        response.defaultRuntime = engineRegistry.defaultName
+        // When HVF is the active default runtime (and installed), advertise
+        // rootless `hvf` readiness directly without requiring Apple's `container` daemon.
+        if response.defaultRuntime == "hvf",
+            let hvfEngine = engineRegistry.engine("hvf") as? HVFEngine
+        {
+            let hvfStatus = hvfEngine.machine.status()
+            if hvfStatus.installed && hvfStatus.problem == nil {
+                response.runtimeBackend = "hvf"
+                response.status = "running"
+                response.apiServerVersion = hvfStatus.payload?.current?.version ?? "hvf"
+                response.features += ["hvf", "caches-v2", "buildkit", "rootless", "proto-binary"]
+                await versionManifest(apple: AppleObservation(reported: "", state: .stopped), digests: false)
+                    .apply(to: &response)
+                return response
+            }
+        }
         // Only the native backend sends the apiserver requests it counts;
         // the CLI backend's `container` children are invisible to it.
         if services.kind == .native {
@@ -916,10 +986,16 @@ extension APIHandlers {
             })
         var known = outcome.known
         var exitCode = outcome.exitCode
-        // The sandbox engine records its sessions' exit codes itself.
-        if outcome.exited, !known, let code = await sandboxEngine.exitCode(id) {
-            known = true
-            exitCode = code
+        // Non-Apple engines (HVF guest engine, SandboxVM) record their own
+        // container exit codes outside Apple's ExitCodeRegistry.
+        if outcome.exited, !known {
+            if let router = services.containers as? RuntimeRouter, let code = await router.exitCode(id) {
+                known = true
+                exitCode = code
+            } else if let code = await sandboxEngine.exitCode(id) {
+                known = true
+                exitCode = code
+            }
         }
         return .with {
             $0.exited = outcome.exited
@@ -1119,8 +1195,11 @@ extension APIHandlers {
         try required(req.name, "name")
     }
 
-    private func decode<M: Message>(_ type: M.Type, _ body: Data) throws -> M {
+    private func decode<M: Message>(_ type: M.Type, _ body: Data, binary: Bool = false) throws -> M {
         do {
+            if binary {
+                return try M(serializedBytes: body)
+            }
             return try M(jsonUTF8Data: body.isEmpty ? Data("{}".utf8) : body)
         } catch {
             throw ConnectDecodeError(
@@ -1130,8 +1209,8 @@ extension APIHandlers {
     }
 
     /// Server-streaming requests arrive envelope-framed; the first (and
-    /// only) frame carries the proto-JSON request.
-    private func decodeStreamRequest<M: Message>(_ type: M.Type, _ body: Data) throws -> M {
+    /// only) frame carries the proto-JSON or binary protobuf request.
+    private func decodeStreamRequest<M: Message>(_ type: M.Type, _ body: Data, binary: Bool = false) throws -> M {
         var payload = body
         if body.count >= 5 {
             let length =
@@ -1141,10 +1220,14 @@ extension APIHandlers {
                 payload = Data(body[(body.startIndex + 5)..<(body.startIndex + 5 + length)])
             }
         }
-        return try decode(type, payload)
+        return try decode(type, payload, binary: binary)
     }
 
-    private func unary<M: Message>(_ message: M) -> HTTPResponse {
+    private func unary<M: Message>(_ message: M, binary: Bool = false) -> HTTPResponse {
+        if binary {
+            let body = (try? message.serializedData()) ?? Data()
+            return .data(200, "application/proto", body)
+        }
         let body = (try? message.jsonUTF8Data()) ?? Data("{}".utf8)
         return .data(200, "application/json", body)
     }
@@ -1183,13 +1266,18 @@ extension APIHandlers {
     private func streamEnvelope<E: Sendable, M: Message>(
         _ events: AsyncThrowingStream<E, Error>,
         coalesce: Bool = false,
+        binary: Bool = false,
         map: @escaping @Sendable (E) -> M
     ) -> HTTPResponse {
         let stream = AsyncStream<Data> { continuation in
             let task = Task {
                 do {
                     for try await event in events {
-                        let payload = (try? map(event).jsonUTF8Data()) ?? Data("{}".utf8)
+                        let msg = map(event)
+                        let payload =
+                            binary
+                            ? ((try? msg.serializedData()) ?? Data())
+                            : ((try? msg.jsonUTF8Data()) ?? Data("{}".utf8))
                         continuation.yield(ConnectEnvelope.frame(payload, flags: 0))
                     }
                     continuation.yield(ConnectEnvelope.frame(Data("{}".utf8), flags: 0x02))
@@ -1207,8 +1295,8 @@ extension APIHandlers {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
-        return .stream(
-            200, "application/connect+json", coalesce ? StreamFrameCoalescer.coalesce(stream) : stream)
+        let contentType = binary ? "application/connect+proto" : "application/connect+json"
+        return .stream(200, contentType, coalesce ? StreamFrameCoalescer.coalesce(stream) : stream)
     }
 
     private func connectError(_ code: ConnectWireCode, _ message: String) -> HTTPResponse {

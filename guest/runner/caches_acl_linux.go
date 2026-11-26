@@ -21,15 +21,21 @@ import (
 // stamps, layout) and .trash are outside every mount, so nothing a container
 // does (rm -rf, `go clean -modcache`) can delete them.
 //
-//	/var/lib/micropod/caches            root 0711
+//	/var/lib/micropod/caches            root 0711 (the cache disk's root when there is one)
 //	  scopes/                           root 0711
-//	    <scope>/                        root 0755  (bound at /micropod/cache)
+//	    <scope>/                        root 0755  (bound read-only at /micropod/cache)
 //	      <kind>/                       root 0777 + default ACL
 //	      <kind>/u<uid>/                root 0777 + default ACL (partitioned kinds)
 //	  .meta/layout.json                 {"version":1}
-//	  .meta/<scope>/<unit>.lock         flock: LOCK_SH per running container, LOCK_EX for exclusive kinds
+//	  .meta/maintenance.lock            flock LOCK_EX: startup recovery, prune and janitor passes
+//	  .meta/<scope>/<unit>.lock         flock LOCK_SH: every container holding the unit, writer or reader
+//	  .meta/<scope>/<unit>.writer.lock  flock LOCK_EX: the single writer of an exclusive kind (yarn v1)
+//	  .meta/<scope>/<unit>.dirty        the crash fence's mark (caches_dirty_linux.go)
 //	  .meta/<scope>/<unit>.used         mtime = last container start or exit
+//	  .meta/clean-stop                  boot id of the last stop that synced everything (guest init)
 //	  .trash/                           root 0700
+//	  _buildkit/                        BuildKit's own state, bound at /var/lib/micropod/buildkit by
+//	                                    guest init; outside every store, never locked or marked
 //
 // A variable only so tests can point it at a temporary directory.
 var cacheRoot = "/var/lib/micropod/caches"
@@ -215,8 +221,14 @@ func (l cacheLayout) Close() {
 	}
 }
 
+// openCacheLayout is the one way to the stores: every writer, reader, prune
+// and recovery opens the layout first, so none of them can create a store
+// below an unmounted cache disk's mount point (cacheDiskUnavailable).
 func openCacheLayout() (cacheLayout, error) {
 	var l cacheLayout
+	if why := cacheDiskUnavailable(); why != "" {
+		return l, fmt.Errorf("%w (%s)", errNoCacheDisk, why)
+	}
 	if err := os.Mkdir(cacheRoot, 0711); err != nil && !errors.Is(err, os.ErrExist) {
 		return l, err
 	}
@@ -446,6 +458,65 @@ func preparePnpmStore(dir, trash *os.File) error {
 	return nil
 }
 
+// openExistingStore opens scopes/<scope>/<kind>[/u<uid>] for a reader, never
+// creating or repairing anything in it (a reader holds the unit without a
+// dirty mark, so it must not write there). It returns nil without an error
+// when the store does not exist yet or a component is not a real directory
+// (nothing warm to read; the next writer repairs it).
+func openExistingStore(scopeDir *os.File, kind string, uid *uint32) (*os.File, error) {
+	if cacheToolByKind(kind) == nil {
+		return nil, fmt.Errorf("unknown cache kind %q", kind)
+	}
+	names := []string{kind}
+	if uid != nil {
+		names = append(names, "u"+strconv.FormatUint(uint64(*uid), 10))
+	}
+	return openExistingBelow(scopeDir, names)
+}
+
+// openExistingBelow opens base/<names...> as a directory without following a
+// symlink anywhere and without creating anything; nil, nil when it is absent.
+func openExistingBelow(base *os.File, names []string) (*os.File, error) {
+	cur := base
+	for i, name := range names {
+		if name == "" || name == "." || name == ".." {
+			return nil, fmt.Errorf("invalid store component %q", name)
+		}
+		next, err := openDirNoFollow(int(cur.Fd()), name, filepath.Join(cur.Name(), name))
+		if i > 0 {
+			cur.Close()
+		}
+		if errors.Is(err, unix.ENOENT) || errors.Is(err, unix.ELOOP) || errors.Is(err, unix.ENOTDIR) {
+			return nil, nil
+		} else if err != nil {
+			return nil, err
+		}
+		cur = next
+	}
+	if cur == base {
+		return nil, errors.New("empty store path")
+	}
+	return cur, nil
+}
+
+// openExistingFile opens base/<name> read-only for a reader: a regular file,
+// never a symlink, never created; nil, nil when there is none.
+func openExistingFile(base *os.File, name string) (*os.File, error) {
+	fd, err := unix.Openat(int(base.Fd()), name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
+	if errors.Is(err, unix.ENOENT) || errors.Is(err, unix.ELOOP) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("open %s/%s: %w", base.Name(), name, err)
+	}
+	f := os.NewFile(uintptr(fd), filepath.Join(base.Name(), name))
+	var st unix.Stat_t
+	if err := unix.Fstat(fd, &st); err != nil || st.Mode&unix.S_IFMT != unix.S_IFREG {
+		f.Close()
+		return nil, nil
+	}
+	return f, nil
+}
+
 // ensureStore creates and verifies scopes/<scope>/<kind>[/u<uid>] and returns
 // its path. It is idempotent: it re-applies the owner, mode and default ACL
 // when any of them drifted.
@@ -468,9 +539,11 @@ func ensureStore(scope, kind string, uid *uint32) (string, error) {
 	return filepath.Join(cacheRoot, "scopes", scope, cacheStoreSub(kind, uid)), nil
 }
 
-// unitLock pins a store for a running container. Shared holders block the
-// janitor's LOCK_EX|LOCK_NB eviction; exclusive kinds (yarn v1, unsafe for
-// concurrent cold writers) take LOCK_EX|LOCK_NB themselves and report busy.
+// unitLock takes a unit's lock without waiting. Every container that uses the
+// unit holds it LOCK_SH for its lifetime, a writer (pinUnit) or a reader
+// (holdUnit) alike, so the janitor's, startup recovery's and a mark clearer's
+// LOCK_EX|LOCK_NB fail while any of them runs. exclusive is that LOCK_EX: only
+// those three and the inventory's probe take it, never a container.
 func unitLock(scope, unit string, exclusive bool) (*os.File, error) {
 	path := filepath.Join(cacheRoot, ".meta", scope, unit+".lock")
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
@@ -482,6 +555,27 @@ func unitLock(scope, unit string, exclusive bool) (*os.File, error) {
 		how = unix.LOCK_EX | unix.LOCK_NB
 	}
 	if err := unix.Flock(int(f.Fd()), how); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+// unitWriterLock takes the writer slot of an exclusive kind's unit (yarn v1,
+// whose cold installs corrupt each other): LOCK_EX|LOCK_NB on
+// .meta/<scope>/<unit>.writer.lock. It decides which of several containers is
+// the one that writes the store; it is not the fence's notion of a writer,
+// which stays the unit lock plus the dirty mark. Only a container that already
+// holds the unit lock LOCK_SH takes it (pinUnit), nobody ever waits for it, and
+// the janitor, recovery and clearers never look at it. A container that finds
+// the slot taken reads the store copy-on-write instead (openCacheMounts).
+func unitWriterLock(scope, unit string) (*os.File, error) {
+	path := filepath.Join(cacheRoot, ".meta", scope, unit+".writer.lock")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return nil, err
+	}
+	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		f.Close()
 		return nil, err
 	}

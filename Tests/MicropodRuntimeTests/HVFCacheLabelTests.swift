@@ -62,8 +62,8 @@ final class HVFCacheLabelTests: XCTestCase {
         let bad: [(String?, String?, String)] = [
             ("", nil, "--cache wants auto, off or a comma list"),
             (",", nil, "--cache wants auto, off or a comma list"),
-            ("maven", nil, "unknown tool 'maven'"),
-            ("go,+maven", nil, "unknown tool 'maven'"),
+            ("bogus-tool", nil, "unknown tool 'bogus-tool'"),
+            ("go,+bogus-tool", nil, "unknown tool 'bogus-tool'"),
             ("auto,go", nil, "--cache auto cannot be combined"),
             ("-off", nil, "--cache off cannot be combined"),
             ("++go", nil, "unknown tool '+go'"),

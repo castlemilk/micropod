@@ -31,9 +31,11 @@ import (
 // So a unit is marked dirty (.meta/<scope>/<unit>.dirty) before any writer can
 // touch it, and the mark goes only when no writer is left and a sync has put
 // their writes on disk. Ownership is the unit lock (.meta/<scope>/<unit>.lock),
-// not anything kept in memory: every writer, in any process (this engine, a
-// standalone scheduler job), holds it LOCK_SH (yarn v1 LOCK_EX) from before it
-// marks the unit until its container has exited.
+// not anything kept in memory: every container that uses a unit, in any
+// process (this engine, a standalone scheduler job), holds it LOCK_SH from
+// before it can reach the unit until its container has exited. A writer
+// (pinUnit, claimUnit) also marked the unit while holding the lock; a reader
+// (holdUnit) did not.
 //
 //   - attach (the caller holds the lock) replaces the mark with a new file whose
 //     content is this boot's id, so a mark that changed identity names a writer
@@ -42,40 +44,106 @@ import (
 //     then took the lock LOCK_EX|LOCK_NB (no writer left anywhere) and found the
 //     mark still the file it opened (no writer arrived since it was opened);
 //   - at engine start a unit whose lock is held is left alone. A mark written
-//     in this boot, or in the boot guest init stopped cleanly (it writes
-//     cleanStopPath with that boot's id after every process exited and its final
-//     sync returned), is cleared: its writes are on disk or in this boot's page
-//     cache. Any other mark's unit is moved to .trash while its locks are held.
+//     in this boot, or in a boot guest init stopped cleanly (it adds that
+//     boot's id to the clean-stop record after every process exited and its
+//     final sync returned; the record keeps the last few), is cleared: its
+//     writes are on disk or in this boot's page cache. Any other mark's unit
+//     is moved to .trash while its locks are held.
 //
 // Every writable path into a store is covered: env-mode tools see the scope
-// read-only with a writable bind of each unit they attached (openCacheMounts),
+// read-only with a writable bind of each unit they pinned (openCacheMounts),
 // path-mode binds are per unit, and a writable legacy alias volume pins its
-// kind. A read-only alias volume (or a docker cp out of one) holds the kind's
-// lock LOCK_SH without a mark, so the janitor leaves the store alone; to a
-// clearer such a reader looks like a writer, which only keeps a mark longer.
+// kind. Readers never get a writable path into a store: an untrusted or
+// read-only plan, and a container that finds an exclusive kind's writer slot
+// taken, see each store through a per-container overlayfs view whose upper
+// and work directories live in the container's own directory, outside the
+// cache root, and go with the start (or read-only without overlayfs). A
+// reader holds the store's unit LOCK_SH without a mark for as long as its
+// view exists, so the janitor and recovery leave the store where the view's
+// lower layer is; a read-only alias volume (or a docker cp out of one) holds
+// its kind's lock the same way. To a clearer such a reader looks like a
+// writer, which only keeps a real writer's mark longer; a reader never counts
+// as a writer anywhere else (no mark, nothing in .meta but its lock).
 //
 // The janitor (caches_manage_linux.go) composes with this fence through the
-// same files. Lock order: the cache maintenance lock (.meta/maintenance.lock,
-// LOCK_EX, the only flock anyone waits for without a bound) is taken by startup
-// recovery and by every prune or janitor pass, never by a writer, clearer or
-// inventory read; then unit locks, always LOCK_NB, the unit's own first and
-// then its guards (cacheUnitGuards), all released on the first one that is
-// busy. A pin or a clearer may retry one busy unit lock for a bounded time
-// (pinUnit, clearMarkIfRetired) and never holds the maintenance lock, and the
-// holders it waits out (a probe, a clearer, a janitor batch) wait for nothing
-// while they hold the lock. So no wait-for cycle can form. Under its unit locks
-// the janitor checks the marks of the unit and its guards and skips a marked
-// unit; a mark is only ever made under a lock it then holds, so none appears
-// while it works. Those locks being free means the marks' writers are gone, so
-// it queues this boot's marks for the syncer: a writer killed before its
-// release left one that nobody else would clear. Recovery waits for a janitor
-// pass in flight instead of meeting its locks, so it only ever leaves a unit
-// marked for a real writer.
+// same files. Lock order, one for every process:
+//
+//  1. the cache maintenance lock (.meta/maintenance.lock, LOCK_EX, the only
+//     flock anyone waits for without a bound), taken by startup recovery and
+//     by every prune or janitor pass, never by a container, a clearer or an
+//     inventory read;
+//  2. unit locks (.meta/<scope>/<unit>.lock), always LOCK_NB or a bounded
+//     retry: the unit's own first and then its guards (cacheUnitGuards), all
+//     released on the first one that is busy. Containers take them LOCK_SH;
+//     recovery, the janitor, clearers and the inventory's probe LOCK_EX;
+//  3. an exclusive kind's writer slot (.meta/<scope>/<unit>.writer.lock,
+//     unitWriterLock), LOCK_EX|LOCK_NB and never waited for, taken only by a
+//     container that already holds the unit's lock LOCK_SH (claimUnit). It
+//     picks which of several containers writes the store; the fence's notion
+//     of a writer stays the lock plus the mark, and nobody in 1 or 2 ever
+//     looks at the slot.
+//
+// A pin, a hold or a clearer may retry one busy unit lock for a bounded time
+// (claimUnit, holdUnit, clearMarkIfRetired) and never holds the maintenance
+// lock, and the holders it waits out (a probe, a clearer, a janitor batch)
+// wait for nothing while they hold the lock. So no wait-for cycle can form.
+// Under its unit locks the janitor checks the marks of the unit and its guards
+// and skips a marked unit; a mark is only ever made under a lock it then
+// holds, so none appears while it works. Those locks being free means the
+// marks' writers are gone, so it queues this boot's marks for the syncer: a
+// writer killed before its release left one that nobody else would clear.
+// Recovery waits for a janitor pass in flight instead of meeting its locks, so
+// it only ever leaves a unit marked for a real writer.
+//
+// Where it lives: the marks, locks, .trash and the clean-stop record are all
+// below cacheRoot, on the filesystem that holds the stores. With the
+// persistent cache disk (caches.ext4) that is the cache disk, so replacing the
+// OS disk (disk.ext4) keeps every mark next to the record that decides it.
+// Guest init mounts the cache disk before it starts the engine, so recovery
+// always runs on it; when the disk should be there but is not, shared caches
+// are off for the boot (cacheDiskUnavailable) and the fence does nothing.
 
 var (
-	bootIDPath    = "/proc/sys/kernel/random/boot_id"
-	cleanStopPath = "/var/lib/micropod/clean-stop"
+	bootIDPath = "/proc/sys/kernel/random/boot_id"
+	// cleanStopPath overrides the clean-stop record (tests); empty means
+	// cleanStopRecord().
+	cleanStopPath = ""
+	// legacyCleanStopPath is where guest init kept the record before it moved
+	// to the stores' filesystem. It is honoured only while the new record is
+	// missing and only when it is on the same filesystem as the stores, so a
+	// guest bundle upgrade keeps the previous boot's clean stop.
+	legacyCleanStopPath = "/var/lib/micropod/clean-stop"
 )
+
+// cleanStopRecord is .meta/clean-stop below cacheRoot (vmm/guest-init
+// cleanstop.go writes it there).
+func cleanStopRecord() string {
+	if cleanStopPath != "" {
+		return cleanStopPath
+	}
+	return filepath.Join(cacheRoot, ".meta", "clean-stop")
+}
+
+// readCleanStop returns the boot ids of the recent clean stops of the stores'
+// filesystem (guest init keeps the last few, one per line, so a boot whose
+// engine never started does not hide an earlier clean stop), none when nothing
+// is recorded.
+func readCleanStop() map[string]bool {
+	clean := map[string]bool{}
+	b, err := os.ReadFile(cleanStopRecord())
+	if errors.Is(err, os.ErrNotExist) && cleanStopPath == "" {
+		var legacy, stores unix.Stat_t
+		if unix.Stat(legacyCleanStopPath, &legacy) == nil && unix.Stat(cacheRoot, &stores) == nil && legacy.Dev == stores.Dev {
+			b, err = os.ReadFile(legacyCleanStopPath)
+		}
+	}
+	if err == nil {
+		for _, id := range strings.Fields(string(b)) {
+			clean[id] = true
+		}
+	}
+	return clean
+}
 
 type cacheDirtyTracker struct {
 	mu      sync.Mutex
@@ -289,6 +357,9 @@ func (t *cacheDirtyTracker) run(ctx context.Context) {
 // writer holds any more. Units still held (containers keep running until guest
 // init stops them) stay marked; guest init's clean-stop record covers them.
 func (t *cacheDirtyTracker) shutdown() {
+	if cacheDiskUnavailable() != "" {
+		return
+	}
 	var opened []*os.File
 	var marks [][2]string
 	for _, m := range listDirtyMarks() {
@@ -421,16 +492,20 @@ func cacheRecoveryReport() (discarded, kept []string) {
 	return append([]string{}, cacheDiscarded...), append([]string{}, cacheKept...)
 }
 
-// discardDirtyCaches runs at engine start, before the socket opens. It holds
-// the cache maintenance lock throughout, so a janitor or prune pass in flight
-// finishes first and none starts until recovery is done (in production none
-// can be in flight: the janitor starts after this returns and one engine owns
-// the guest). A unit still held by a writer (another process) is left alone. A
-// mark from this boot or from a cleanly stopped boot is cleared after a sync.
+// discardDirtyCaches runs at engine start, before the socket opens (guest init
+// has mounted the cache disk by then). It holds the cache maintenance lock
+// throughout, so a janitor or prune pass in flight finishes first and none
+// starts until recovery is done (in production none can be in flight: the
+// janitor starts after this returns and one engine owns the guest). A unit
+// still held by a writer or a reader (another process) is left alone. A mark
+// from this boot or from a cleanly stopped boot is cleared after a sync.
 // Every other marked unit may hold torn entries and is moved to .trash under
 // its locks, with the used stamps of what it held (the inventory and the
 // janitor's LRU then no longer list a store that is gone).
 func discardDirtyCaches() {
+	if why := cacheDiskUnavailable(); why != "" {
+		return // nothing below the mount point is a store this boot
+	}
 	if maint, err := lockCacheMaintenance(context.Background()); err != nil {
 		log.Printf("cache recovery: maintenance lock: %v", err)
 	} else if maint != nil {
@@ -443,10 +518,7 @@ func discardDirtyCaches() {
 		return
 	}
 	boot := currentBootID()
-	clean := ""
-	if b, err := os.ReadFile(cleanStopPath); err == nil {
-		clean = strings.TrimSpace(string(b))
-	}
+	clean := readCleanStop()
 	l, err := openCacheLayout()
 	if err != nil {
 		log.Printf("cache recovery: %v", err)
@@ -471,12 +543,12 @@ func discardDirtyCaches() {
 			continue
 		}
 		b, _ := os.ReadFile(dirtyMarker(scope, unit))
-		if from := strings.TrimSpace(string(b)); from != "" && (from == boot || from == clean) {
+		if from := strings.TrimSpace(string(b)); from != "" && (from == boot || clean[from]) {
 			keep = append(keep, m) // on disk (clean stop) or in this boot's page cache
 			continue
 		}
-		if clean == "" {
-			log.Printf("cache %s/%s: no clean-stop record from the previous boot", scope, unit)
+		if len(clean) == 0 {
+			log.Printf("cache %s/%s: no clean-stop record", scope, unit)
 		}
 		if err := discardUnit(l, scope, unit); err != nil {
 			log.Printf("cache %s/%s: discard after an unclean stop: %v", scope, unit, err)

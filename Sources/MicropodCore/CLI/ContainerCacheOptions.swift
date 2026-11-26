@@ -31,6 +31,7 @@ public enum ContainerCacheOptions {
     /// guest engine's cache kinds.
     public static let tools = [
         "go", "gomod", "gobuild", "npm", "pnpm", "yarn", "yarnberry", "pip", "uv", "cargo", "corepack",
+        "maven", "gradle", "bun", "sccache", "playwright",
     ]
 
     public struct Invalid: Error, Equatable, CustomStringConvertible {

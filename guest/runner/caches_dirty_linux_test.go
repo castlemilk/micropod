@@ -18,7 +18,7 @@ func TestParseCacheUnit(t *testing.T) {
 			t.Fatalf("%s: %s %v %v", unit, kind, uid, ok)
 		}
 	}
-	for _, bad := range []string{"", "maven", "pip.uroot", "pip.u-1", "../x"} {
+	for _, bad := range []string{"", "bogus-tool", "pip.uroot", "pip.u-1", "../x"} {
 		if _, _, ok := parseCacheUnit(bad); ok {
 			t.Fatalf("parsed %q", bad)
 		}
@@ -378,9 +378,9 @@ func TestCacheDirtyArchiveWriteIntoAliasVolumePinsTheKind(t *testing.T) {
 	}
 }
 
-// A shared pin waits out a clearer's brief LOCK_EX instead of dropping the
-// tool; an exclusive pin (yarn v1) still reports busy once its short wait
-// (exclusivePinWait) is over.
+// A pin waits out a clearer's brief LOCK_EX instead of dropping the tool, for
+// at most sharedPinWait; one held for longer than that reports busy, an
+// exclusive pin (yarn v1) included: its unit lock is LOCK_SH like any other.
 func TestCachePinWaitsForAClearer(t *testing.T) {
 	needRoot(t)
 	useCacheRoot(t)

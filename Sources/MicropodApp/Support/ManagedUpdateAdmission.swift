@@ -23,7 +23,22 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
     var candidate: Candidate?
     let store: UpdateContinuityStore
     init(store: UpdateContinuityStore = .standard) { self.store = store }
-    var isAvailable: Bool { PersistentDesktopAgents.enabled && AppDependencies.shared.client.usesIsolatedTransport }
+
+    /// Sentinel runtime instance UUID recorded in continuity receipts for rootless
+    /// HVF/Sandbox updates (no root-owned Apple `container` authority exists).
+    static let rootlessRuntimeInstance = UUID(uuidString: "00000000-0000-4000-8000-000000000000")!
+
+    /// Rootless HVF/Sandbox installations do not require the legacy root-owned
+    /// Apple `container` authority to take signed Sparkle desktop updates.
+    var usesRootlessAdmission: Bool {
+        !AppDependencies.shared.client.usesIsolatedTransport
+            && ["hvf", "sandbox"].contains(EngineRegistry.shared.defaultName)
+    }
+
+    var isAvailable: Bool {
+        (PersistentDesktopAgents.enabled && AppDependencies.shared.client.usesIsolatedTransport)
+            || usesRootlessAdmission
+    }
 
     func acquire(operation: UUID) async throws -> any UpdateAdmissionHolding {
         guard isAvailable, let candidate, candidate.isCompatible,
@@ -34,6 +49,24 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
                 throw MicropodError.message(
                     "This desktop owns sandbox records that cannot be handed off. Workload-service jobs can continue; remove or finish the desktop sandboxes before updating."
                 )
+            }
+            if usesRootlessAdmission {
+                guard !Task.isCancelled, let owner = try RuntimeProcessBirth.read(getpid()) else {
+                    throw MicropodError.message("Could not verify desktop process identity for rootless update")
+                }
+                let receipt = UpdateContinuityReceipt(
+                    operation: operation, owner: owner,
+                    sourceVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?",
+                    sourceExecutableSHA256: try ManagedUpdateAdmission.currentExecutableDigest(),
+                    sourceAppPath: Bundle.main.bundlePath,
+                    targetVersion: candidate.version, targetSourceRevision: candidate.source,
+                    artifactURL: candidate.url.absoluteString,
+                    artifactSignature: candidate.signature, artifactBytes: candidate.bytes,
+                    runtimeInstance: Self.rootlessRuntimeInstance,
+                    apiConfigurationSHA256: "",
+                    services: [])
+                try store.prepare(receipt)
+                return Hold(receipt: receipt, store: store)
             }
             let identity = try IsolatedRuntimeIdentity.readRootOwned()
             let services = try await PersistentDesktopAgents.witness(specs: Self.specs)
@@ -171,6 +204,13 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
             try receipt.owner.hasExited()
         else { throw MicropodError.message("The interrupted update needs verified recovery; its receipt was retained") }
         try RuntimeCodeIdentity.verifyExecutable(Bundle.main.bundleURL, identifier: "com.skunkworq.micropod")
+        if receipt.runtimeInstance == Self.rootlessRuntimeInstance {
+            _ = try store.transition(
+                operation: receipt.operation, generation: receipt.generation,
+                from: receipt.phase, to: .succeeded, detail: "Signed rootless replacement verified")
+            DesktopActivity.shared.reopen()
+            return
+        }
         guard UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol else {
             throw MicropodError.message("The replacement does not support the retained workload protocol")
         }

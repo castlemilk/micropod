@@ -201,7 +201,8 @@ struct MicropodCLI {
             run|create --cache auto|off|<tools> --cache-scope <scope>
                                              dependency caches on the hvf machine (labels
                                              io.micropod.cache[.scope]); tools: go,npm,pnpm,yarn,
-                                             yarnberry,pip,uv,cargo,corepack (+tool / -tool)
+                                             yarnberry,pip,uv,cargo,corepack,maven,gradle,bun,
+                                             sccache,playwright (+tool / -tool)
           start|stop|restart|kill <id…>      lifecycle actions (stop --all supported)
           rm <id…> [--force] [--all]         remove containers
           exec <id> <cmd…>                   run a command in a running container

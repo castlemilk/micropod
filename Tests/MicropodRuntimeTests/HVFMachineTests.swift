@@ -185,6 +185,23 @@ final class HVFMachineTests: XCTestCase {
             defaults.firstIndex(of: "--workspace").map { defaults[$0 + 1] }, HVFMachineConfig.defaultWorkspace)
     }
 
+    func testCacheDiskIsAttachedAndAnnouncedToTheGuest() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let without = try HVFVMMCommand.arguments(
+            layout: layout, config: HVFMachineConfig(workspace: nil), parentPID: 1)
+        XCTAssertFalse(without.contains("--cache-disk"))
+        XCTAssertFalse(without.contains(HVFVMMCommand.cacheDiskBootArgument))
+        XCTAssertTrue(FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: Data()))
+        let args = try HVFVMMCommand.arguments(
+            layout: layout, config: HVFMachineConfig(workspace: nil, kernelArguments: ["loglevel=4"]), parentPID: 1)
+        let joined = args.joined(separator: "|")
+        XCTAssertTrue(joined.contains("--disk|\(root.path)/disk.ext4|--cache-disk|\(root.path)/caches.ext4|"))
+        let appended = "--cmdline-append|mp.config=1|--cmdline-append|mp.cache_disk=1|--cmdline-append|loglevel=4"
+        XCTAssertTrue(
+            joined.contains(appended),
+            "guest init learns the disk is attached, so a missing /dev/vdb turns shared caches off")
+    }
+
     func testWorkspaceKernelArgumentsAndExtras() throws {
         let config = HVFMachineConfig(
             cpus: 2, memoryMiB: 2048, workspace: "/Users/me/My Projects", publishedNet: false, console: false,
@@ -1292,7 +1309,7 @@ extension HVFMachineTests {
             (HVFMachineCachePolicy(allowedScopes: ["a*b"]), "allowed scope 'a*b'"),
             (HVFMachineCachePolicy(allowedScopes: ["**"]), "allowed scope '**'"),
             (HVFMachineCachePolicy(allowedScopes: ["ci-*"]), "default scope 'default' is not in the allowed scopes"),
-            (HVFMachineCachePolicy(tools: ["go", "maven"]), "unknown tool 'maven'"),
+            (HVFMachineCachePolicy(tools: ["go", "bogus-tool"]), "unknown tool 'bogus-tool'"),
         ]
         for (policy, message) in invalid {
             XCTAssertThrowsError(try policy.validate(), message) {
@@ -1333,7 +1350,12 @@ extension HVFMachineTests {
                 "pip",
                 "uv",
                 "cargo",
-                "corepack"
+                "corepack",
+                "maven",
+                "gradle",
+                "bun",
+                "sccache",
+                "playwright"
               ],
               "version" : 1
             }

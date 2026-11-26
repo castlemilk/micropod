@@ -129,6 +129,11 @@ type cacheInspection struct {
 	// boot stopped cleanly (or is this one), as "scope/unit".
 	DiscardedAtStart []string `json:"discardedAtStart"`
 	KeptAtStart      []string `json:"keptAtStart"`
+	// CacheDisk is guest init's report on the persistent cache disk
+	// ("mounted", "unavailable", "" without one); Unavailable says why no
+	// store is used this boot (then Units is empty).
+	CacheDisk   string `json:"cacheDisk,omitempty"`
+	Unavailable string `json:"unavailable,omitempty"`
 }
 
 // lockCacheMaintenance takes the cache maintenance lock, waiting for its
@@ -193,11 +198,11 @@ func lockCacheUnits(scope string, units []string) ([]*os.File, error) {
 
 // isUnitInUse reports whether anyone holds the lock of the unit or of one of
 // its guards (cacheUnitGuards: a legacy alias volume's kind-wide lock covers
-// every partition of the kind). Containers hold their units LOCK_SH (yarn v1
-// LOCK_EX) across both Docker and CI scheduler processes, and a read-only alias
-// volume or a docker cp out of one holds its kind-wide unit LOCK_SH, so a
-// LOCK_EX|LOCK_NB probe that fails with EWOULDBLOCK detects any live writer or
-// reader.
+// every partition of the kind). Containers hold their units LOCK_SH, writers
+// and readers (copy-on-write views, read-only plans) alike, across both Docker
+// and CI scheduler processes, and a read-only alias volume or a docker cp out
+// of one holds its kind-wide unit LOCK_SH, so a LOCK_EX|LOCK_NB probe that
+// fails with EWOULDBLOCK detects any live writer or reader.
 func isUnitInUse(scope, unit string) bool {
 	for _, u := range cacheUnitGuards(scope, unit) {
 		if unitLockHeld(scope, u) {
@@ -347,7 +352,11 @@ func discoverCacheUnits() (map[string][]string, []cacheUnitUsage) {
 
 func (s *dockerEngine) inspectCaches(includeStats bool) cacheInspection {
 	pol := s.cachePolicy.get()
-	scopes, units := discoverCacheUnits()
+	why := cacheDiskUnavailable()
+	scopes, units := map[string][]string{}, []cacheUnitUsage(nil)
+	if why == "" { // otherwise what is below the mount point is no store of this boot
+		scopes, units = discoverCacheUnits()
+	}
 	var totals cacheTotals
 	totals.ScopeCount = len(scopes)
 	totals.UnitCount = len(units)
@@ -396,6 +405,8 @@ func (s *dockerEngine) inspectCaches(includeStats bool) cacheInspection {
 		Metrics:          s.metrics.cache.snapshot(),
 		DiscardedAtStart: discarded,
 		KeptAtStart:      kept,
+		CacheDisk:        cacheDiskState,
+		Unavailable:      why,
 	}
 }
 
@@ -421,7 +432,10 @@ func sampleCacheDedupe(buckets int) cacheDedupeSample {
 	if buckets > 256 {
 		buckets = 256
 	}
-	entries, _ := os.ReadDir(filepath.Join(cacheRoot, "scopes"))
+	var entries []os.DirEntry
+	if cacheDiskUnavailable() == "" {
+		entries, _ = os.ReadDir(filepath.Join(cacheRoot, "scopes"))
+	}
 	var scopes []string
 	for _, e := range entries {
 		if !e.IsDir() || !scopeName.MatchString(e.Name()) {
@@ -770,6 +784,9 @@ func (s *dockerEngine) pruneCaches(ctx context.Context, req cachePruneRequest, m
 		}
 	}
 
+	if why := cacheDiskUnavailable(); why != "" {
+		return cachePruneResult{}, fail(http.StatusServiceUnavailable, "no shared caches this boot: "+why)
+	}
 	// One prune or janitor pass at a time, and never while the crash fence's
 	// startup recovery runs; taken before any unit lock (lock order in
 	// caches_dirty_linux.go).
@@ -1013,7 +1030,7 @@ var cachePruneHook func(scope, unit string)
 
 func (s *dockerEngine) runCacheJanitorPass(ctx context.Context) {
 	pol := s.cachePolicy.get()
-	if pol.MaxBytes == 0 && pol.MaxAgeDays == 0 && pol.MinFreeBytes == 0 {
+	if pol.MaxBytes == 0 && pol.MaxAgeDays == 0 && pol.MinFreeBytes == 0 || cacheDiskUnavailable() != "" {
 		return
 	}
 	targetMax := pol.MaxBytes

@@ -24,8 +24,9 @@
 #      that drops to uid 1000, and `--user node`
 #   T3 precedence: image-prewarmed, an image's own cache env, user mounts and
 #      env, opt-outs, scope 400, GOFLAGS merge, postgres:alpine gets only
-#      /micropod/cache
-#   T4 concurrency on one scope
+#      /micropod/cache; an untrusted container builds warm through a
+#      copy-on-write view and writes nothing into the trusted store
+#   T4 concurrency on one scope (yarn v1: one writer, the rest copy-on-write)
 #   T5 restart: machine stop/start, then kill -9 of the VMM mid-download
 #   T6 builds with the stock docker CLI (isolated DOCKER_CONFIG, DOCKER_HOST only)
 #   T7 create-to-start latency, auto vs io.micropod.cache=off, interleaved
@@ -58,6 +59,9 @@
 #   QUAL_TOOLS       guest tool bundle (required with QUAL_INSTALL=1)
 #   QUAL_VMM QUAL_KERNEL QUAL_INITRD QUAL_DISK_FROM QUAL_DISK_IMAGE
 #   QUAL_CPUS (8) QUAL_MEMORY_MIB (12288)   as in scripts/e2e_hvf.sh
+#   QUAL_CACHE_DISK_SIZE  size of the persistent cache disk (caches.ext4) the
+#                    throwaway install creates (default 32g; "none" installs
+#                    without one, the stores then live on the OS disk)
 #   QUAL_MICROPOD    micropod CLI (default .build/debug/micropod)
 #   QUAL_DOCKER      docker CLI (default /opt/homebrew/bin/docker, else PATH)
 #   QUAL_SECTIONS    default "T0 T1 NC T2 T3 T4 T5 T6 T7"
@@ -509,7 +513,9 @@ if [ "$INSTALL" = 1 ]; then
         mkdir -p "$dir" && touch "$dir/$MARKER"
     done
     INSTALLED=1
-    "$M" machine install --vmm "$VMM" --kernel "$KERNEL" --initrd "$INITRD" --tools "$TOOLS" "${DISK_ARGS[@]}" \
+    CACHE_DISK_ARGS=()
+    [ "${QUAL_CACHE_DISK_SIZE:-32g}" = none ] || CACHE_DISK_ARGS=(--cache-disk-size "${QUAL_CACHE_DISK_SIZE:-32g}")
+    "$M" machine install --vmm "$VMM" --kernel "$KERNEL" --initrd "$INITRD" --tools "$TOOLS" "${DISK_ARGS[@]}" "${CACHE_DISK_ARGS[@]}" \
         --cpus "${QUAL_CPUS:-8}" --memory-mib "${QUAL_MEMORY_MIB:-12288}" --workspace "$ROOT_DIR-ws" >"$OUT/install.log" 2>&1 ||
         { cat "$OUT/install.log" >&2 && exit 2; }
 else
@@ -593,6 +599,12 @@ PY
     checkp bundle "engine GET /version MicropodCapabilities include caches" "$t0_vcaps" "caches present" "$(ok words "$(echo "$t0_vcaps" | tr ',' ' ')" caches)"
     check bundle "the bundle ships runner/bin/buildkitd" "$([ -x "$ROOT_DIR/tools/runner/bin/buildkitd" ] && echo present || echo absent)" present
     check bundle "the engine reports BuildKit (GET /micropod/buildkit)" "$(curl -s -o /dev/null -w '%{http_code}' -m 5 --unix-socket "$SOCK" http://d/micropod/buildkit)" 200
+    # The stores, the fence's marks and the clean-stop record are on the
+    # persistent cache disk when the machine has one (guest init mounted it).
+    want_disk=none
+    [ -f "$ROOT_DIR/caches.ext4" ] && want_disk=mounted
+    check engine "the engine's shared caches are on the persistent cache disk when the machine has caches.ext4 (GET /micropod/caches cacheDisk)" \
+        "$(curl -s -m 5 --unix-socket "$SOCK" 'http://d/micropod/caches?stats=0' | python3 -c "import json, sys; d = json.load(sys.stdin); print((d.get('cacheDisk') or 'none') + ('' if not d.get('unavailable') else ' unavailable'))" 2>/dev/null)" "$want_disk"
     echo "    kernel $(sed -n 's/^kernel=//p' "$OUT/environment.txt"); engine /version: $VERSION_JSON"
 fi
 
@@ -972,8 +984,32 @@ qbuild() {
 }
 
 # --- T3 precedence --------------------------------------------------------------------
+# An untrusted container (io.micropod.cache.trust=untrusted) reads the trusted
+# stores warm through copy-on-write views and never writes them: its one-file
+# change compiles, a trusted container then compiles the same change again
+# (the untrusted entry never reached the store), and the next untrusted
+# build hits the trusted entry.
+t3_untrusted() {
+    local sc=q3t-$S u="--label io.micropod.cache.trust=untrusted" n
+    step t3-trust-fill "$IMG_GO" 0 "$sc" on go build base -e "$GO_REQ_FLAGS" -e "$GO_LOCAL"
+    check safety "t3-trust-fill: a trusted cold build fills the scope" "$(r t3-trust-fill rc)" 0
+    n=t3-untrusted-edit
+    step $n "$IMG_GO" 0 "$sc" none go build base -e QEDIT=$n-$S -e "$GO_REQ_FLAGS" -e "$GO_NOPROXY" -e "$GO_LOCAL" $u
+    checkp auto "$n: an untrusted one-file change builds warm offline (it compiles, downloads nothing)" "$(hits_go $n)" "rc=0 compiles>0 downloads=0" \
+        "$(ok test "$(r $n rc)/$(r $n downloads)" = 0/0 -a "$(gt0 "$(r $n compiles)" && echo y)" = y)"
+    check engine "$n: inspect shows trust=untrusted and gomod, gobuild copy-on-write" \
+        "trust=$(insp $n "(c.get('MicropodCache') or {}).get('trust')") gomod=$(mc $n gomod access) gobuild=$(mc $n gobuild access)" \
+        "trust=untrusted gomod=copy-on-write gobuild=copy-on-write"
+    step t3-trusted-edit "$IMG_GO" 0 "$sc" none go build base -e QEDIT=$n-$S -e "$GO_REQ_FLAGS" -e "$GO_NOPROXY" -e "$GO_LOCAL"
+    check auto "t3-trusted-edit: the untrusted compile never reached the trusted store (a trusted build of the same change compiles it again)" \
+        "$(hits_go t3-trusted-edit)" "rc=0 compiles=$(r $n compiles) downloads=0"
+    step t3-untrusted-again "$IMG_GO" 0 "$sc" none go build base -e QEDIT=$n-$S -e "$GO_REQ_FLAGS" -e "$GO_NOPROXY" -e "$GO_LOCAL" $u
+    check auto "t3-untrusted-again: the next untrusted build reads the trusted entry warm" "$(hits_go t3-untrusted-again)" "rc=0 compiles=0 downloads=0"
+}
 t3() {
     local sc=q3-$S n
+    # Hand wiring has no trust tier (QUAL_MANUAL_WIRING=1): nothing to show.
+    want_tool go && [ "$MANUAL" != 1 ] && t3_untrusted
     step t3-control "$IMG_GO" 0 "$sc" on go env base
     local base_ok=0
     [ "$(has_cache_mount t3-control)" = True ] && [ "$(r t3-control goenv.GOMODCACHE)" = /micropod/cache/gomod ] && base_ok=1
@@ -1156,11 +1192,17 @@ t4() {
         check auto "t4-pnpm-warm: offline install downloads nothing" "rc=$(r t4-pnpm-warm rc) downloaded=$(r t4-pnpm-warm downloaded)" "rc=0 downloaded=0"
     fi
     if want_tool yarn1; then
-        local nmode=0 nbusy=0 x
-        for x in $names_yarn; do [ "$(mc $x yarn mode)" = path ] && nmode=$((nmode + 1)); [ "$(mc $x yarn reason)" = busy-exclusive ] && nbusy=$((nbusy + 1)); done
+        # One container wins yarn v1's writer slot; the other three hold the
+        # store too and read it through copy-on-write views of their own.
+        local nwriter=0 ncow=0 nbusy=0 x
+        for x in $names_yarn; do
+            [ "$(mc $x yarn mode)" = path ] && [ "$(mc $x yarn access)" = None ] && nwriter=$((nwriter + 1))
+            [ "$(mc $x yarn access)" = copy-on-write ] && ncow=$((ncow + 1))
+            [ "$(mc $x yarn reason)" = busy-exclusive ] && nbusy=$((nbusy + 1))
+        done
         check safety "t4: 4 concurrent yarn 1 installs all exit 0" "$(rcs $names_yarn)" "0 0 0 0"
-        check auto "t4: exactly one yarn 1 container wrote the shared store (exclusive lease)" "$(on_store yarn "$(expect yarn 0 "$scy")" $names_yarn)" 1
-        check engine "t4: inspect shows one yarn mode=path and three busy-exclusive" "path=$nmode busy=$nbusy" "path=1 busy=3"
+        check auto "t4: exactly one yarn 1 container wrote the shared store (exclusive writer slot)" "$(on_store yarn "$(expect yarn 0 "$scy")" $names_yarn)" 1
+        check engine "t4: inspect shows one yarn 1 writer and three copy-on-write readers" "writer=$nwriter cow=$ncow busy=$nbusy" "writer=1 cow=3 busy=0"
         step t4-yarn1-warm "$IMG_NODE" 0 "$scy" none yarn1 install-offline a
         check auto "t4-yarn1-warm: a later yarn install --offline hits" "$(r t4-yarn1-warm rc)" 0
     fi

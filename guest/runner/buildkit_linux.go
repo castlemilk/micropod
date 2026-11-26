@@ -63,6 +63,7 @@ func (b *buildkitService) dial(ctx context.Context) (*net.UnixConn, error) {
 			return nil, err
 		}
 		cmd := exec.CommandContext(b.lifetime, buildkitBinary, "--config", buildkitConfig)
+		cmd.Env = buildkitEnv()
 		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 		cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
 		if err := cmd.Start(); err != nil {
@@ -174,4 +175,29 @@ func serveBuildKit(ctx context.Context) (string, error) {
 		}
 	}()
 	return buildkitPublic, nil
+}
+
+// buildkitEnv gives buildkitd the rig depproxy settings (from
+// cache-policy.json). BuildKit stays outside the shared stores: its own state
+// (RUN --mount=type=cache contents included) is its root, which guest init
+// binds from the cache disk's _buildkit directory, beside scopes/ and never
+// below it, and nothing hands it a path into scopes/. A build step that wrote
+// a store would bypass the crash fence (no unit lock, no dirty mark) and the
+// janitor's in-use test, so no such path is exported. (An earlier version set
+// MICROPOD_CACHE_L0_DIR to scopes/global and created that directory outside
+// ensureStore; nothing read it, and buildkitd does not pass its environment to
+// build steps.)
+func buildkitEnv() []string {
+	env := append([]string(nil), os.Environ()...)
+	if raw, err := os.ReadFile(cachePolicyFile); err == nil {
+		if pol, err := parseCachePolicy(raw); err == nil {
+			if pol.GoProxy != "" {
+				env = append(env, "GOPROXY="+pol.GoProxy)
+			}
+			if pol.NpmRegistry != "" {
+				env = append(env, "npm_config_registry="+pol.NpmRegistry)
+			}
+		}
+	}
+	return env
 }

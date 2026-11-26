@@ -49,11 +49,24 @@ public struct HVFMachineLayout: Sendable, Equatable {
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/hvf")
     }
 
-    public var vmm: URL { root.appendingPathComponent("micropod-vmm") }
-    public var kernel: URL { root.appendingPathComponent("Image") }
-    public var initrd: URL { root.appendingPathComponent("mp-hvf-init.cpio") }
-    public var tools: URL { root.appendingPathComponent("tools") }
+    public var versionsDirectory: URL { root.appendingPathComponent("versions") }
+    public var currentLink: URL { root.appendingPathComponent("current") }
+    public var previousLink: URL { root.appendingPathComponent("previous") }
+
+    /// Immutable versioned payload directory when `<root>/current` points to a
+    /// valid staged release; otherwise the legacy flat `<root>` directory.
+    public var activePayloadRoot: URL {
+        HVFPayloadStore.resolveLinkTarget(currentLink) ?? root
+    }
+
+    public var vmm: URL { activePayloadRoot.appendingPathComponent("micropod-vmm") }
+    public var kernel: URL { activePayloadRoot.appendingPathComponent("Image") }
+    public var initrd: URL { activePayloadRoot.appendingPathComponent("mp-hvf-init.cpio") }
+    public var tools: URL { activePayloadRoot.appendingPathComponent("tools") }
     public var disk: URL { root.appendingPathComponent("disk.ext4") }
+    /// Optional persistent second VirtioBlk disk (`/dev/vdb` -> `/var/lib/micropod/caches`)
+    /// so dependency and BuildKit caches survive `disk.ext4` OS replacements.
+    public var cacheDisk: URL { root.appendingPathComponent("caches.ext4") }
     public var config: URL { root.appendingPathComponent("machine.json") }
     public var runDirectory: URL { root.appendingPathComponent("run") }
     public var dockerSocket: URL { dockerSocketOverride ?? runDirectory.appendingPathComponent("docker.sock") }
@@ -78,6 +91,17 @@ public struct HVFMachineLayout: Sendable, Equatable {
     /// A BuildKit address for `docker buildx create --driver remote` or
     /// `buildctl --addr`; served only when the tool bundle ships BuildKit.
     public var buildkitEndpoint: String { "unix://" + buildkitSocket.path }
+
+    /// Canonical `~/.micropod/docker.sock` symlink path that exposes the HVF
+    /// Docker Engine v1.47 socket to zero-config Docker/Testcontainers clients.
+    public static func canonicalDockerSocket(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL {
+        if let explicit = environment["MICROPOD_DOCKER_SOCK"], !explicit.isEmpty {
+            return URL(fileURLWithPath: NSString(string: explicit).expandingTildeInPath)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/docker.sock")
+    }
 
     /// `sockaddr_un.sun_path` is 104 bytes on Darwin, NUL included.
     public static let maxSocketPathBytes = 103
@@ -203,6 +227,9 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     public var kernelArguments: [String]
     /// Extra micropod-vmm flags, appended verbatim.
     public var extraArguments: [String]
+    /// Host loopback TCP ports reachable from inside the guest via `10.42.0.1:<port>`
+    /// (`host.micropod.internal:<port>`). Passed as `--allow-host-port` to `micropod-vmm`.
+    public var allowHostPorts: [UInt16]
     /// The dependency-cache policy; nil (absent from the file) means the
     /// defaults. Edited by `micropod machine cache policy`.
     public var cache: HVFMachineCachePolicy?
@@ -211,14 +238,14 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case schema, cpus, memoryMiB, workspace, publishedNet, console, shutdownTimeoutSeconds, kernelArguments
-        case extraArguments, cache
+        case extraArguments, allowHostPorts, cache
     }
 
     public init(
         schema: Int = HVFMachineConfig.currentSchema, cpus: Int = 4, memoryMiB: Int = 4096,
         workspace: String? = HVFMachineConfig.defaultWorkspace, publishedNet: Bool = true, console: Bool = true,
         shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = [],
-        cache: HVFMachineCachePolicy? = nil
+        allowHostPorts: [UInt16] = [], cache: HVFMachineCachePolicy? = nil
     ) {
         self.schema = schema
         self.cpus = cpus
@@ -229,6 +256,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         self.shutdownTimeoutSeconds = shutdownTimeoutSeconds
         self.kernelArguments = kernelArguments
         self.extraArguments = extraArguments
+        self.allowHostPorts = allowHostPorts
         self.cache = cache
     }
 
@@ -247,6 +275,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
             try c.decodeIfPresent(Int.self, forKey: .shutdownTimeoutSeconds) ?? defaults.shutdownTimeoutSeconds
         kernelArguments = try c.decodeIfPresent([String].self, forKey: .kernelArguments) ?? []
         extraArguments = try c.decodeIfPresent([String].self, forKey: .extraArguments) ?? []
+        allowHostPorts = try c.decodeIfPresent([UInt16].self, forKey: .allowHostPorts) ?? []
         cache = try c.decodeIfPresent(HVFMachineCachePolicy.self, forKey: .cache)
     }
 
@@ -261,6 +290,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         try c.encode(shutdownTimeoutSeconds, forKey: .shutdownTimeoutSeconds)
         try c.encode(kernelArguments, forKey: .kernelArguments)
         try c.encode(extraArguments, forKey: .extraArguments)
+        if !allowHostPorts.isEmpty { try c.encode(allowHostPorts, forKey: .allowHostPorts) }
         try c.encodeIfPresent(cache, forKey: .cache)
     }
 
@@ -343,6 +373,11 @@ public enum HVFVMMCommand {
     public static let configShareTag = "mp-config"
     /// Tells guest init to mount `configShareTag` at /run/micropod/host-config.
     public static let configBootArgument = "mp.config=1"
+    /// Tells guest init a persistent cache disk (`caches.ext4`) is attached as
+    /// `/dev/vdb`: when it is then missing or does not mount, the guest turns
+    /// shared caches off for the boot instead of creating stores on the OS
+    /// disk below the mount point.
+    public static let cacheDiskBootArgument = "mp.cache_disk=1"
 
     /// The full micropod-vmm argv (without the executable) for `config`.
     public static func arguments(layout: HVFMachineLayout, config: HVFMachineConfig, parentPID: Int32) throws
@@ -354,6 +389,12 @@ public enum HVFVMMCommand {
             "--kernel", layout.kernel.path,
             "--initrd", layout.initrd.path,
             "--disk", layout.disk.path,
+        ]
+        let cacheDisk = HVFMachineLayout.isRegularFile(layout.cacheDisk)
+        if cacheDisk {
+            args += ["--cache-disk", layout.cacheDisk.path]
+        }
+        args += [
             "--share", "oci-tools:\(layout.tools.path):ro",
             "--share", "\(configShareTag):\(layout.guestConfigDirectory.path)",
         ]
@@ -362,9 +403,13 @@ public enum HVFVMMCommand {
         args += ["--vsock-expose", "\(layout.dockerSocket.path):\(dockerGuestPort)"]
         args += ["--vsock-expose", "\(layout.buildkitSocket.path):\(buildkitGuestPort)"]
         if config.publishedNet { args.append("--published-net") }
+        for port in effectiveAllowHostPorts(config) {
+            args += ["--allow-host-port", String(port)]
+        }
         args += ["--cpus", String(config.cpus), "--memory-mib", String(config.memoryMiB)]
         // Before the configured arguments, so one of them can still override it.
         args += ["--cmdline-append", configBootArgument]
+        if cacheDisk { args += ["--cmdline-append", cacheDiskBootArgument] }
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
         if !config.console { args.append("--quiet") }
         args += [
@@ -372,6 +417,25 @@ public enum HVFVMMCommand {
             "--parent-pid", String(parentPID),
         ]
         return args + config.extraArguments
+    }
+
+    /// Combines explicit `config.allowHostPorts` with any host-gateway port
+    /// referenced by the cache policy's `goProxy` / `npmRegistry` (e.g.
+    /// `http://10.42.0.1:7677/go|direct`), deduplicated in sorted order.
+    public static func effectiveAllowHostPorts(_ config: HVFMachineConfig) -> [UInt16] {
+        var ports = Set(config.allowHostPorts.filter { $0 > 0 })
+        let gatewayHosts: Set<String> = ["10.42.0.1", "10.43.0.1", "host.micropod.internal", "host.docker.internal"]
+        let rawValues = [config.cache?.goProxy, config.cache?.npmRegistry].compactMap { $0 }
+        for raw in rawValues {
+            for token in raw.split(whereSeparator: { $0 == "," || $0 == "|" }) {
+                let s = token.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let url = URL(string: s), let host = url.host?.lowercased(),
+                    gatewayHosts.contains(host), let port = url.port, port > 0, port <= Int(UInt16.max)
+                else { continue }
+                ports.insert(UInt16(port))
+            }
+        }
+        return ports.sorted()
     }
 }
 
@@ -405,16 +469,24 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
     /// (nil after a signal or a failed launch).
     public var lastExitCode: Int32?
     public var lastExitMeaning: String?
+    /// Immutable payload directory and manifest version loaded by the active VMM.
+    public var loadedPayloadPath: String?
+    public var loadedPayloadVersion: String?
+    public var loadedPayloadRevision: String?
     public var updatedAt: Date
 
     public init(
         phase: HVFMachinePhase, supervisorPID: Int32, supervisorStartSeconds: Int64? = nil, vmmPID: Int32? = nil,
         vmmStartSeconds: Int64? = nil, startedAt: Date? = nil, readyAt: Date? = nil, restartCount: Int = 0,
         lastExitReason: String? = nil, lastExitCode: Int32? = nil, lastExitMeaning: String? = nil,
+        loadedPayloadPath: String? = nil, loadedPayloadVersion: String? = nil, loadedPayloadRevision: String? = nil,
         updatedAt: Date = Date()
     ) {
         self.lastExitCode = lastExitCode
         self.lastExitMeaning = lastExitMeaning
+        self.loadedPayloadPath = loadedPayloadPath
+        self.loadedPayloadVersion = loadedPayloadVersion
+        self.loadedPayloadRevision = loadedPayloadRevision
         schema = Self.currentSchema
         self.phase = phase
         self.supervisorPID = supervisorPID

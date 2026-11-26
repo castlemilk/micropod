@@ -100,6 +100,10 @@ pub struct NetConfig {
     /// Linux accepts a segment for any local address on any interface, so the
     /// handshake falls back to these when `guest_ip` refuses the connection.
     pub fallback_guest_ips: Vec<Ipv4Addr>,
+    /// Opt-in host loopback TCP ports reachable from the guest via `host_ip:<port>`.
+    /// Empty by default so all host loopback services stay isolated unless explicitly
+    /// permitted (e.g. a rig-local dependency cache proxy on port 7677).
+    pub host_loopback_ports: Vec<u16>,
 }
 
 impl NetConfig {
@@ -112,6 +116,7 @@ impl NetConfig {
             mtu: 1500,
             enable_port_broker: false,
             fallback_guest_ips: Vec::new(),
+            host_loopback_ports: Vec::new(),
         }
     }
 
@@ -124,7 +129,19 @@ impl NetConfig {
             mtu,
             enable_port_broker: true,
             fallback_guest_ips: Vec::new(),
+            host_loopback_ports: Vec::new(),
         }
+    }
+
+    /// Permit guest egress connections targeting `self.host_ip:<port>` to forward
+    /// to host `127.0.0.1:<port>` for each explicitly allowlisted port.
+    pub fn with_host_loopback_ports(mut self, ports: Vec<u16>) -> Self {
+        for p in ports {
+            if p != 0 && !self.host_loopback_ports.contains(&p) {
+                self.host_loopback_ports.push(p);
+            }
+        }
+        self
     }
 
     /// Also offer published connections to `ip` (another address of the same guest).

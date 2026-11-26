@@ -345,8 +345,10 @@ func gracefulStop(workspace string, total time.Duration, orderly bool) {
 	syscall.Sync()
 	if allGone {
 		// No process is left and everything it wrote is on disk: shared
-		// cache units still marked dirty by this boot are intact.
-		if err := writeCleanStop(cleanStopRecord, readBootID(bootIDFile)); err != nil {
+		// cache units still marked dirty by this boot are intact. The record
+		// goes on the filesystem that holds them (the cache disk when there
+		// is one).
+		if err := recordCleanStop(cacheDisk, readBootID(bootIDFile)); err != nil {
 			fmt.Fprintf(os.Stderr, "[mp-hvf-init] clean-stop record: %v\n", err)
 		}
 	}
@@ -355,6 +357,7 @@ func gracefulStop(workspace string, total time.Duration, orderly bool) {
 	}
 	_ = syscall.Unmount(hostConfigMount, syscall.MNT_DETACH)
 	_ = syscall.Unmount("/opt/micropod-oci", syscall.MNT_DETACH)
+	stopCacheDisk()
 	if err := syscall.Mount("", "/", "", syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
 		fmt.Fprintf(os.Stderr, "[mp-hvf-init] remount / read-only: %v (next boot replays the journal)\n", err)
 	}
@@ -392,6 +395,7 @@ func fatalReset(err error) {
 	armStopDeadline(fatalResetDeadline, false)
 	syscall.Sync()
 	_ = syscall.Unmount(hostConfigMount, syscall.MNT_DETACH)
+	stopCacheDisk()
 	_ = syscall.Mount("", "/", "", syscall.MS_REMOUNT|syscall.MS_RDONLY, "")
 	syscall.Sync()
 	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
@@ -433,6 +437,66 @@ func mountHostConfig(params map[string]string) {
 	if err := syscall.Statfs(hostConfigMount, &st); err == nil {
 		fmt.Printf("[mp-hvf-init] host config: %s ro=%t nosuid=%t nodev=%t noexec=%t\n", hostConfigMount,
 			st.Flags&stRdonly != 0, st.Flags&stNosuid != 0, st.Flags&stNodev != 0, st.Flags&stNoexec != 0)
+	}
+}
+
+// cacheDisk is what became of the persistent cache disk this boot
+// (cacheDiskNone, cacheDiskMounted or cacheDiskUnavailable).
+var cacheDisk = cacheDiskNone
+
+// mountPersistentCacheDisk mounts /dev/vdb (caches.ext4) at cacheDiskMount
+// and binds its _buildkit directory over BuildKit's root, so dependency and
+// BuildKit caches survive a replaced disk.ext4. It runs before the engine
+// starts, so the engine's crash recovery reads the dirty marks and the
+// clean-stop record on the disk that holds the stores. A disk the host
+// attached that is missing or does not mount leaves shared caches off for the
+// boot (reported as a guest failure, the boot goes on); nothing then writes
+// stores below the mount point on the OS disk.
+func mountPersistentCacheDisk(params map[string]string) string {
+	requested, err := cacheDiskRequested(params)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] %v\n", err)
+	}
+	if !cacheDiskDevicePresent(cacheDiskDevice, requested) {
+		if requested {
+			reportGuestFailure("cache-disk", fmt.Sprintf("the host attached a cache disk but %s is missing; shared caches are off", cacheDiskDevice))
+			return cacheDiskUnavailable
+		}
+		return cacheDiskNone
+	}
+	if err := os.MkdirAll(cacheDiskMount, 0711); err != nil {
+		reportGuestFailure("cache-disk", fmt.Sprintf("mkdir %s: %v; shared caches are off", cacheDiskMount, err))
+		return cacheDiskUnavailable
+	}
+	if err := syscall.Mount(cacheDiskDevice, cacheDiskMount, "ext4", syscall.MS_NOATIME, "max_batch_time=15000"); err != nil {
+		reportGuestFailure("cache-disk", fmt.Sprintf("mount %s at %s: %v; shared caches are off", cacheDiskDevice, cacheDiskMount, err))
+		return cacheDiskUnavailable
+	}
+	fmt.Printf("[mp-hvf-init] persistent cache disk mounted: %s -> %s\n", cacheDiskDevice, cacheDiskMount)
+	// BuildKit's state is its own (no store, never locked or marked); it
+	// stays on the OS disk if the bind fails.
+	if err := os.MkdirAll(buildkitStateSub, 0700); err == nil {
+		if err := os.MkdirAll(buildkitRoot, 0700); err == nil {
+			if err := syscall.Mount(buildkitStateSub, buildkitRoot, "", syscall.MS_BIND, ""); err != nil {
+				fmt.Fprintf(os.Stderr, "[mp-hvf-init] bind %s -> %s: %v\n", buildkitStateSub, buildkitRoot, err)
+			}
+		}
+	}
+	return cacheDiskMounted
+}
+
+// stopCacheDisk leaves the cache disk clean at a stop, after the final sync
+// and the clean-stop record: BuildKit's bind goes, then the disk is remounted
+// read-only, which commits its journal, so the next boot mounts it without a
+// replay. It is best effort: a process that would not die keeps it writable,
+// and the next mount replays the journal.
+func stopCacheDisk() {
+	if cacheDisk != cacheDiskMounted {
+		return
+	}
+	_ = syscall.Unmount(buildkitRoot, syscall.MNT_DETACH)
+	if err := syscall.Mount("", cacheDiskMount, "", syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] remount %s read-only: %v (next boot replays its journal)\n", cacheDiskMount, err)
 	}
 }
 
@@ -535,6 +599,7 @@ func stage2Supervise() {
 		}
 	}
 	mountHostConfig(params)
+	cacheDisk = mountPersistentCacheDisk(params)
 
 	// Bring up loopback, eth0 (egress 10.42.0.2/24 via 10.42.0.1) and, with
 	// --published-net, eth1 (published link 10.43.0.2/24, permanent gateway
@@ -550,9 +615,12 @@ func stage2Supervise() {
 	}
 	_ = os.MkdirAll("/sys/fs/cgroup/worker", 0755)
 
-	// Minimal /etc/resolv.conf & /etc/hosts for job engine DNS startup
+	// Minimal /etc/resolv.conf & /etc/hosts for job engine DNS startup.
+	// Point host.docker.internal / host.micropod.internal at the eth0 egress
+	// gateway (10.42.0.1) so allowlisted host loopback services (--allow-host-port)
+	// are reachable directly by hostname or IP from inside containers.
 	_ = os.WriteFile("/etc/resolv.conf", []byte("nameserver 10.42.0.1\n"), 0644)
-	_ = os.WriteFile("/etc/hosts", []byte("127.0.0.1 localhost micropod-hvf\n"), 0644)
+	_ = os.WriteFile("/etc/hosts", []byte("127.0.0.1 localhost micropod-hvf\n10.42.0.1 host.docker.internal host.micropod.internal\n"), 0644)
 
 	// Start AF_VSOCK <-> Unix bridges and host control channel BEFORE start.sh launches job engine!
 	poweroffCh := make(chan struct{}, 1)
@@ -592,6 +660,9 @@ func stage2Supervise() {
 	}
 	if workspace != "" {
 		env = append(env, "MICROPOD_ENGINE_WORKSPACE="+workspace)
+	}
+	if cacheDisk != cacheDiskNone {
+		env = append(env, cacheDiskEnv+"="+cacheDisk)
 	}
 
 	fmt.Println("MICROPOD_VMM_INIT_READY")

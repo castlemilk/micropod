@@ -55,6 +55,11 @@ type dockerRecord struct {
 	// start; CacheSkipped lists tools the latest start had to leave out.
 	Cache        *cachePlan        `json:",omitempty"`
 	CacheSkipped map[string]string `json:",omitempty"`
+	// CacheAccess lists tools the latest start reached through a
+	// copy-on-write view or read-only (accessCopyOnWrite, accessReadOnly):
+	// an untrusted or read-only plan, or an exclusive kind another container
+	// writes.
+	CacheAccess map[string]string `json:",omitempty"`
 	// RunAs is a --user containing names, resolved against the image at create.
 	RunAs *runAsUser `json:",omitempty"`
 }
@@ -450,11 +455,18 @@ func serveEngine(ctx context.Context, n node) error {
 		// and no container of this engine holds a cache unit yet (a unit a
 		// scheduler job still holds is left alone).
 		sweepProbes(ctx)
+		sweepCacheViews()
 		// The crash fence's recovery completes before the janitor exists:
 		// it discards what an unclean stop left marked, then empties .trash
 		// (earlier boots' and its own) in the background. Recovery and every
 		// janitor or prune pass also hold the cache maintenance lock
 		// (caches_manage_linux.go), so they never overlap in any process.
+		// Guest init mounted the cache disk before it started the engine, so
+		// recovery reads the marks and the clean-stop record on the disk that
+		// holds the stores; without that disk it and the janitor do nothing.
+		if why := cacheDiskUnavailable(); why != "" {
+			log.Printf("shared caches are off this boot: %s", why)
+		}
 		discardDirtyCaches()
 		go cacheDirty.run(ctx)
 		go s.runCacheJanitor(ctx)
@@ -757,6 +769,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// Replay the create-time decision; never recompute it. The unit locks and
 	// pinned store directories stay open until the container exits.
 	caches := openCacheMounts(c.Cache, filepath.Join(c.dir(), "shim"))
+	// The attachment's descriptors close with the start's own; release()
+	// (on every failure below and after the container exits) first tears
+	// down its copy-on-write views, then drops its holds and pins.
 	caches.adopt(aliasPins)
 	files = append(files, caches.files...)
 	mounts = append(mounts, caches.mounts...)
@@ -795,6 +810,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	}
 	previous := c.dockerRecord
 	c.CacheSkipped = caches.skipped
+	c.CacheAccess = caches.access
 	c.Phase = "starting"
 	c.OOMKilled = false
 	c.Failure = ""
@@ -825,7 +841,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	go func() {
 		defer lease.Close()
 		defer closeSocket()
-		defer closeMounts(files)
+		// release is idempotent: the exit path below releases the caches
+		// itself once it has stamped them; this covers every other way out.
+		defer func() { caches.release(); closeMounts(files) }()
 		defer f.Close()
 		defer cancel()
 		var forwards []*publishedPort
@@ -1255,20 +1273,32 @@ func (c *dockerContainer) inspect() map[string]any {
 		"NetworkSettings": map[string]any{"Ports": c.effectivePorts(), "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP, "NetworkID": c.NetworkID, "Aliases": c.Config.Aliases}}},
 		"Mounts":          c.mountList()}
 	if c.Cache != nil {
-		tools := map[string]cacheToolState{}
-		for k, st := range c.Cache.Tools {
-			if reason, gone := c.CacheSkipped[k]; gone {
-				st = cacheToolState{Mode: "skipped", Path: st.Path, Reason: reason}
-			}
-			tools[k] = st
-		}
-		mc := map[string]any{"scope": c.Cache.Scope, "uid": c.Cache.UID, "tools": tools}
+		mc := map[string]any{"scope": c.Cache.Scope, "uid": c.Cache.UID, "tools": c.cacheToolStates()}
 		if c.Cache.Reason != "" {
 			mc["reason"] = c.Cache.Reason
+		}
+		if c.Cache.Trust != "" {
+			mc["trust"] = c.Cache.Trust
 		}
 		v["MicropodCache"] = mc
 	}
 	return v
+}
+
+// cacheToolStates is the plan's per-tool decision as the latest start applied
+// it: a tool that start had to leave out shows as skipped with its reason, and
+// one it reached copy-on-write or read-only carries that access.
+func (c *dockerContainer) cacheToolStates() map[string]cacheToolState {
+	tools := map[string]cacheToolState{}
+	for k, st := range c.Cache.Tools {
+		if reason, gone := c.CacheSkipped[k]; gone {
+			st = cacheToolState{Mode: "skipped", Path: st.Path, Reason: reason}
+		} else if how := c.CacheAccess[k]; how != "" && st.Mode != "skipped" {
+			st.Access = how
+		}
+		tools[k] = st
+	}
+	return tools
 }
 
 // mountList is Docker's inspect Mounts: the request's mounts, then the cache
@@ -1296,8 +1326,10 @@ func (c *dockerContainer) mountList() []map[string]any {
 			scopeUsed = true
 		}
 	}
-	scopeDir := filepath.Join(cacheRoot, "scopes", p.Scope)
 	for i, m := range p.Mounts {
+		// A unit in "global" (shared L0) lives in that scope, not the plan's.
+		scope := p.scopeFor(m.Scope)
+		scopeDir := filepath.Join(cacheRoot, "scopes", scope)
 		e := map[string]any{"Type": "volume", "Driver": "local", "Destination": m.Target, "RW": true, "Mode": "", "Propagation": "rprivate"}
 		switch {
 		case m.Shim:
@@ -1306,7 +1338,8 @@ func (c *dockerContainer) mountList() []map[string]any {
 			if !scopeUsed {
 				continue
 			}
-			e["Name"], e["Source"] = "micropod-cache-"+p.Scope, scopeDir
+			// Bound read-only; the units this start uses are bound over it.
+			e["Name"], e["Source"], e["RW"] = "micropod-cache-"+scope, scopeDir, false
 		default:
 			if _, gone := c.CacheSkipped[m.Kind]; gone {
 				continue
@@ -1317,7 +1350,10 @@ func (c *dockerContainer) mountList() []map[string]any {
 					uid = st.UID
 				}
 			}
-			e["Name"], e["Source"] = "micropod-cache-"+p.Scope+"-"+m.Kind, filepath.Join(scopeDir, cacheStoreSub(m.Kind, uid), m.Sub)
+			e["Name"], e["Source"] = "micropod-cache-"+scope+"-"+m.Kind, filepath.Join(scopeDir, cacheStoreSub(m.Kind, uid), m.Sub)
+			if c.CacheAccess[m.Kind] == accessReadOnly && !m.File {
+				e["RW"] = false
+			}
 		}
 		list = append(list, e)
 	}

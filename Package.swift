@@ -36,6 +36,7 @@ let package = Package(
         // ships vminit 0.42.0; pin exactly so the generated SandboxContext
         // stubs match the guest agent on the wire.
         .package(url: "https://github.com/apple/containerization.git", exact: "0.42.0"),
+        .package(url: "https://github.com/apple/swift-system.git", from: "1.4.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
         // Sandbox egress proxy: TLS interception for injected secrets.
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.37.0"),
@@ -85,9 +86,11 @@ let package = Package(
                 "CPublishedTCP",
                 "MicropodCore",
                 .product(name: "Containerization", package: "containerization"),
+                .product(name: "ContainerizationEXT4", package: "containerization"),
                 .product(name: "ContainerizationOS", package: "containerization"),
                 .product(name: "ContainerizationOCI", package: "containerization"),
                 .product(name: "ContainerizationExtras", package: "containerization"),
+                .product(name: "SystemPackage", package: "swift-system"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOSSL", package: "swift-nio-ssl"),

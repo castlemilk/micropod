@@ -4,11 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -16,6 +18,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // Every container started through the Docker socket gets the machine's tool
@@ -49,16 +53,31 @@ const (
 	skipNotSelected   = "not-selected"
 	skipBusyExclusive = "busy-exclusive"
 	skipStoreFailed   = "store-failed"
+	// The plan was made in a boot with the cache disk; this start's boot has
+	// none mounted (cacheDiskUnavailable), so no store is reachable.
+	skipNoCacheDisk = "cache-disk-unavailable"
 )
 
 // Plan-level reasons for attaching nothing.
 const (
-	planPolicyOff = "policy-off"
-	planLabelOff  = "label-off"
-	planEnvOff    = "env-off"
-	planImageOff  = "image-off"
-	planRootless  = "rootless"
-	planNoScope   = "no-scope"
+	planPolicyOff   = "policy-off"
+	planLabelOff    = "label-off"
+	planEnvOff      = "env-off"
+	planImageOff    = "image-off"
+	planRootless    = "rootless"
+	planNoScope     = "no-scope"
+	planNoCacheDisk = "cache-disk-unavailable"
+)
+
+// How one start reaches a store it uses (cacheToolState.Access; empty is the
+// store itself, read-write, as its writer).
+const (
+	// A per-container overlayfs over the store: reads are warm, writes land
+	// in an upper directory of the container's own that goes with the start.
+	accessCopyOnWrite = "copy-on-write"
+	// The store bound read-only (an untrusted or read-only plan on a guest
+	// without overlayfs).
+	accessReadOnly = "read-only"
 )
 
 type cacheToolState struct {
@@ -67,7 +86,78 @@ type cacheToolState struct {
 	Reason string `json:"reason,omitempty"`
 	Layer  string `json:"layer,omitempty"`
 	Scope  string `json:"scope,omitempty"`
+	// Access is set in inspect for the latest start only (accessCopyOnWrite,
+	// accessReadOnly); never in a persisted plan.
+	Access string `json:"access,omitempty"`
 }
+
+// cacheTrustOf reads a request's cache trust: io.micropod.cache.trust (or
+// MICROPOD_CACHE_TRUST) "untrusted", or io.micropod.cache.readonly (or
+// MICROPOD_CACHE_READONLY) set, makes the container a reader of every shared
+// store: it never gets a writable path into one, through the auto-attached
+// caches or a legacy alias volume (openMounts).
+func cacheTrustOf(spec dockerConfig) (trust string, readOnly bool, err error) {
+	trust, _ = cacheLabel(spec.Labels, "io.micropod.cache.trust", "com.micropod.cache.trust")
+	if trust == "" {
+		trust, _ = envLookup(spec.Env, "MICROPOD_CACHE_TRUST", false)
+	}
+	switch strings.ToLower(strings.TrimSpace(trust)) {
+	case "", "trusted":
+		trust = ""
+	case "untrusted":
+		trust, readOnly = "untrusted", true
+	default:
+		return "", false, fail(400, fmt.Sprintf("invalid cache trust %q (expected trusted or untrusted)", trust))
+	}
+	roVal, hasRO := cacheLabel(spec.Labels, "io.micropod.cache.readonly", "com.micropod.cache.readonly")
+	if !hasRO {
+		roVal, hasRO = envLookup(spec.Env, "MICROPOD_CACHE_READONLY", false)
+	}
+	if hasRO && truthy(roVal) {
+		readOnly = true
+		if trust == "" {
+			trust = "readonly"
+		}
+	}
+	return trust, readOnly, nil
+}
+
+// The persistent cache disk (caches.ext4, /dev/vdb). Guest init mounts it at
+// cacheRoot before the engine starts and reports the outcome in
+// MICROPOD_CACHE_DISK: "mounted", "unavailable" (the host attached one but it
+// is missing or did not mount) or unset (no cache disk: the stores, the
+// fence's metadata, .trash and the clean-stop record all live on the OS disk,
+// as before). The fence keeps everything it needs on the filesystem that holds
+// the stores, so it stays valid when the OS disk is replaced. Without a
+// mounted cache disk that should be there, shared caches are off for the
+// boot: nothing may create stores below the mount point on the OS disk, where
+// the next boot's mount would hide them and their marks.
+var cacheDiskState = os.Getenv("MICROPOD_CACHE_DISK")
+
+// cacheDiskUnavailable says why no shared store may be used this boot, or "".
+// A disk reported mounted must really be mounted at cacheRoot (another device
+// than its parent directory's).
+func cacheDiskUnavailable() string {
+	switch strings.TrimSpace(cacheDiskState) {
+	case "":
+		return ""
+	case "mounted":
+		var root, parent unix.Stat_t
+		if err := unix.Stat(cacheRoot, &root); err != nil {
+			return "the cache disk is not mounted at " + cacheRoot + ": " + err.Error()
+		}
+		if err := unix.Stat(filepath.Dir(cacheRoot), &parent); err != nil || root.Dev == parent.Dev {
+			return "the cache disk is not mounted at " + cacheRoot
+		}
+		return ""
+	case "unavailable":
+		return "guest init found the cache disk missing or unmountable"
+	default:
+		return fmt.Sprintf("unknown cache disk state %q", cacheDiskState)
+	}
+}
+
+var errNoCacheDisk = errors.New("shared caches are off this boot")
 
 // cacheStoreRef names one store a plan uses: it is created/verified, locked and
 // stamped on every start. Empty Scope means the plan's own Scope.
@@ -94,6 +184,8 @@ type cacheMount struct {
 
 type cachePlan struct {
 	Scope        string                    `json:"scope"`
+	Trust        string                    `json:"trust,omitempty"`
+	ReadOnly     bool                      `json:"readOnly,omitempty"`
 	UID          uint32                    `json:"uid"`
 	GID          uint32                    `json:"gid"`
 	Home         string                    `json:"home,omitempty"`
@@ -375,6 +467,66 @@ var cacheTable = []*cacheTool{
 			return path.Join(x.cacheHome(), "node/corepack")
 		},
 		Markers: func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "v1"), false}} }},
+	// Extended CI ecosystems (path-mode with binary/dir presence probes so
+	// containers without these tools receive zero extra mounts or env vars).
+	{Kind: "maven", Layer: cacheLayerL0, Mode: "path",
+		DefaultPath: func(x toolCtx) string { return path.Join(x.home, ".m2/repository") },
+		Markers:     func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(x toolCtx, f *imageFacts) bool {
+			if f.Binaries["mvn"] {
+				return true
+			}
+			p, ok := f.Paths[path.Join(x.home, ".m2")]
+			return ok && p.Dir
+		}},
+	{Kind: "gradle", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"GRADLE_USER_HOME"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "GRADLE_USER_HOME"); v != "" {
+				return path.Join(v, "caches/modules-2")
+			}
+			return path.Join(x.home, ".gradle/caches/modules-2")
+		},
+		Markers: func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(x toolCtx, f *imageFacts) bool {
+			if f.Binaries["gradle"] {
+				return true
+			}
+			p, ok := f.Paths[path.Join(x.home, ".gradle")]
+			return ok && p.Dir
+		}},
+	{Kind: "bun", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"BUN_INSTALL_CACHE_DIR"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "BUN_INSTALL_CACHE_DIR"); v != "" {
+				return v
+			}
+			return path.Join(x.home, ".bun/install/cache")
+		},
+		Markers: func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(x toolCtx, f *imageFacts) bool {
+			if f.Binaries["bun"] {
+				return true
+			}
+			p, ok := f.Paths[path.Join(x.home, ".bun")]
+			return ok && p.Dir
+		}},
+	{Kind: "sccache", Layer: cacheLayerL1, Mode: "path", AltKeys: []string{"SCCACHE_DIR"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "SCCACHE_DIR"); v != "" {
+				return v
+			}
+			return path.Join(x.cacheHome(), "sccache")
+		},
+		Markers:  func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(_ toolCtx, f *imageFacts) bool { return f.Binaries["sccache"] }},
+	{Kind: "playwright", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"PLAYWRIGHT_BROWSERS_PATH"},
+		DefaultPath: func(x toolCtx) string {
+			if v := firstEnv(x, false, "PLAYWRIGHT_BROWSERS_PATH"); v != "" {
+				return v
+			}
+			return path.Join(x.cacheHome(), "ms-playwright")
+		},
+		Markers:  func(p string) []cacheMarker { return []cacheMarker{{p, true}} },
+		Presence: func(_ toolCtx, f *imageFacts) bool { return f.Binaries["playwright"] }},
 }
 
 func cacheToolByKind(kind string) *cacheTool {
@@ -612,6 +764,9 @@ func init() { extraRoutes = append(extraRoutes, cacheRoutes) }
 //	POST   /micropod/caches/debug  {"scope":"qual-x","kind":"gobuild","uid":null,"acl":false}
 //	                               strips (acl=false) or restores the default ACL of a
 //	                               qual-*/debug-* store; any other scope is HTTP 400
+//
+// GET reports cacheDisk and, without the cache disk a boot should have,
+// unavailable (and no units); prune, DELETE and debug then answer 503.
 func cacheRoutes(s *dockerEngine, w http.ResponseWriter, r *http.Request, method, p string) (bool, error) {
 	switch {
 	case p == "micropod/caches" && method == "GET":
@@ -644,6 +799,9 @@ func cacheRoutes(s *dockerEngine, w http.ResponseWriter, r *http.Request, method
 		}
 		if err := json.Unmarshal(b, &req); err != nil || cacheToolByKind(req.Kind) == nil {
 			return true, fail(400, "expected {scope, kind, uid, acl} with a cache table kind")
+		}
+		if why := cacheDiskUnavailable(); why != "" {
+			return true, fail(http.StatusServiceUnavailable, "no shared caches this boot: "+why)
 		}
 		store, err := setStoreACL(req.Scope, req.Kind, req.UID, req.ACL)
 		if err != nil {
@@ -884,7 +1042,8 @@ func requestCacheValue(spec dockerConfig) string {
 }
 
 // decideCaches is the whole attach decision. It is pure: everything it reads
-// is in its arguments (plus privateRootless), so it is table-tested directly.
+// is in its arguments (plus privateRootless and cacheDiskUnavailable), so it
+// is table-tested directly.
 func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePlan, error) {
 	plan := cachePlan{Tools: map[string]cacheToolState{}, PolicyDigest: pol.digest()}
 	// (0) everything off
@@ -900,6 +1059,8 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 		plan.Reason = planEnvOff
 	case privateRootless():
 		plan.Reason = planRootless
+	case cacheDiskUnavailable() != "":
+		plan.Reason = planNoCacheDisk
 	}
 	if plan.Reason != "" {
 		return plan, nil
@@ -947,6 +1108,14 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 		return plan, nil
 	}
 	plan.Scope = scope
+	// (1b) trust & read-only isolation: untrusted PR builds or explicit readonly
+	// requests get warm reads through an ephemeral per-container overlayfs upperdir
+	// (or fail-closed read-only bind), never mutating trusted stores. Every
+	// store of such a plan is held as a reader (openCacheMounts): locked so the
+	// janitor and the crash discard leave it alone, never marked dirty.
+	if plan.Trust, plan.ReadOnly, err = cacheTrustOf(spec); err != nil {
+		return plan, err
+	}
 	if !facts.OK {
 		plan.Reason = skipProbeFailed
 		for _, t := range cacheTable {
@@ -1076,7 +1245,8 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 			effectiveScope = storeScope
 		}
 		unit := cacheUnit(t.Kind, storeUID)
-		plan.Stores = append(plan.Stores, cacheStoreRef{Scope: storeScope, Kind: t.Kind, Unit: unit, UID: storeUID, Exclusive: t.Exclusive})
+		exclusive := t.Exclusive && !plan.ReadOnly
+		plan.Stores = append(plan.Stores, cacheStoreRef{Scope: storeScope, Kind: t.Kind, Unit: unit, UID: storeUID, Exclusive: exclusive})
 		var env []string
 		if useScope {
 			value := path.Join(mountRoot, cacheStoreSub(t.Kind, storeUID))

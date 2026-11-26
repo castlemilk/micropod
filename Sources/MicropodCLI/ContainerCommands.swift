@@ -144,13 +144,14 @@ enum ContainerCommands {
     static func run(_ args: [String], _ services: Services, create: Bool) async throws {
         let boolFlags: Set<String> = [
             "--attach", "--tty", "--interactive", "--init", "--read-only", "--rosetta",
+            "--isolated", "--sandbox",
         ]
         let valueFlags: Set<String> = [
             "--name", "--env", "--env-file", "--publish", "--volume",
             "--tmpfs", "--label", "--network", "--memory", "--cpus",
             "--entrypoint", "--workdir", "--user", "--platform",
             "--shm-size", "--dns", "--dns-search", "--cap-add", "--cap-drop", "--ulimit",
-            "--runtime", "--cache", "--cache-scope",
+            "--runtime", "--mode", "--cache", "--cache-scope",
         ]
         let aliases = [
             "-a": "--attach", "-t": "--tty", "-i": "--interactive",
@@ -162,7 +163,8 @@ enum ContainerCommands {
         guard let image = parsed.positionals.first else {
             throw UsageError(message: "run [flags] <image> [args…]")
         }
-        let request = buildRunRequest(parsed, image: image)
+        let resolvedRuntime = try resolveRunMode(parsed)
+        let request = buildRunRequest(parsed, image: image, runtimeOverride: resolvedRuntime)
         try validateCacheFlags(request)
         // Sandbox sessions are owned by the process that boots them, so a
         // detached CLI run would die with this process: run it to
@@ -199,7 +201,32 @@ enum ContainerCommands {
         print(MicropodCLI.jsonOutput ? "{\"id\":\"\(id)\"}" : id)
     }
 
-    static func buildRunRequest(_ parsed: ParsedArgs, image: String) -> ContainerRunRequest {
+    /// Resolves `--isolated` / `--sandbox` / `--mode container|sandbox` / `--runtime`
+    /// into a canonical runtime name, rejecting conflicting selectors up front.
+    static func resolveRunMode(_ parsed: ParsedArgs) throws -> String? {
+        let wantsIsolated = parsed.has("--isolated") || parsed.has("--sandbox")
+        let explicitMode = parsed.value("--mode")
+        let explicitRuntime = parsed.value("--runtime")
+        let specifiedCount = (wantsIsolated ? 1 : 0) + (explicitMode != nil ? 1 : 0) + (explicitRuntime != nil ? 1 : 0)
+        if specifiedCount > 1 {
+            throw UsageError(message: "run: pass only one of --isolated/--sandbox, --mode, or --runtime")
+        }
+        if wantsIsolated { return "sandbox" }
+        if let mode = explicitMode {
+            guard let parsedMode = RuntimeMode(rawValue: mode.lowercased()) else {
+                throw UsageError(
+                    message:
+                        "run: --mode must be 'container' (shared HVF VM) or 'sandbox' (isolated microVM), got '\(mode)'"
+                )
+            }
+            return parsedMode.engineName
+        }
+        return explicitRuntime.map(EngineRegistry.canonicalName)
+    }
+
+    static func buildRunRequest(_ parsed: ParsedArgs, image: String, runtimeOverride: String? = nil)
+        -> ContainerRunRequest
+    {
         ContainerRunRequest(
             image: image,
             name: parsed.value("--name"),
@@ -231,7 +258,7 @@ enum ContainerCommands {
             workdir: parsed.value("--workdir"),
             entrypoint: parsed.value("--entrypoint"),
             arguments: Array(parsed.positionals.dropFirst()),
-            runtime: parsed.value("--runtime"),
+            runtime: runtimeOverride ?? parsed.value("--runtime").map(EngineRegistry.canonicalName),
             cache: parsed.value("--cache"),
             cacheScope: parsed.value("--cache-scope"))
     }

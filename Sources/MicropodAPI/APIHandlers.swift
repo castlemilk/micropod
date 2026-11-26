@@ -33,6 +33,8 @@ final class APIHandlers: Sendable {
     /// The runtime's `vminit.image`, kept for five minutes: it only changes
     /// when the runtime is reconfigured.
     let initImage: RuntimeDefaultInitImage
+    /// Engine registry consulted by `Ping`, `GetSystem` and runtime management.
+    let engineRegistry: EngineRegistry
 
     init(
         client: ContainerCLIClient,
@@ -44,10 +46,12 @@ final class APIHandlers: Sendable {
         managedControl: @escaping @Sendable (String) async throws -> IsolatedRuntimeStatus = {
             try await ManagedRuntimeControl.request($0)
         },
-        versionEnvironment: VersionEnvironment? = nil
+        versionEnvironment: VersionEnvironment? = nil,
+        engineRegistry: EngineRegistry = .shared
     ) {
         self.client = client
         self.versionEnvironment = versionEnvironment ?? .live(client: client)
+        self.engineRegistry = engineRegistry
         let machine = MachineService(client: client)
         self.initImage = RuntimeDefaultInitImage(ttl: .seconds(300)) {
             RuntimeDefaultInitImage.vminitImage(in: try await machine.properties())
@@ -86,6 +90,30 @@ final class APIHandlers: Sendable {
     /// `services.volumes` routed like `imageRouter`.
     func volumeRouter(_ services: RuntimeServices) -> VolumeRouter {
         VolumeRouter(apple: services.volumes, registry: services.router?.registry)
+    }
+
+    private func hvfMachineClient() -> HVFMachineClient {
+        if let hvf = engineRegistry.engine("hvf") as? HVFEngine {
+            return hvf.machine
+        }
+        return HVFMachineClient()
+    }
+
+    private func encodeJSONResponse<T: Encodable>(_ status: Int, _ value: T) throws -> HTTPResponse {
+        let enc = JSONEncoder()
+        enc.dateEncodingStrategy = .iso8601
+        enc.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return .data(status, "application/json", try enc.encode(value))
+    }
+
+    private static func probeLoopbackDepproxy() async -> Bool {
+        guard let url = URL(string: "http://127.0.0.1:7677/healthz") else { return false }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 1.0
+        guard let (_, resp) = try? await URLSession.shared.data(for: req),
+            let http = resp as? HTTPURLResponse
+        else { return false }
+        return http.statusCode == 200
     }
 
     /// A transport error means the native backend's XPC connection may be
@@ -359,6 +387,156 @@ final class APIHandlers: Sendable {
                 } catch {
                     return .json(503, ["error": error.localizedDescription])
                 }
+
+            // MARK: Fleet Caches & Rootless Rig Controls (HVF + Sandbox)
+            case ("caches", .get) where segments == ["v1", "caches"]:
+                let client = hvfMachineClient()
+                let includeStats = request.query["stats"] != "0"
+                let report = try await client.cacheInspection(includeStats: includeStats)
+                return try encodeJSONResponse(200, report)
+
+            case ("caches", .get) where segments == ["v1", "caches", "dedupe"]:
+                let client = hvfMachineClient()
+                let buckets = max(1, min(256, Int(request.query["buckets"] ?? "16") ?? 16))
+                let sample = try await client.cacheDedupe(buckets: buckets)
+                return try encodeJSONResponse(200, sample)
+
+            case ("caches", .post) where segments == ["v1", "caches", "prune"]:
+                let client = hvfMachineClient()
+                let payload = try decodeBody(request.body)
+                let pruneReq = HVFCachePruneRequest(
+                    scope: payload["scope"] as? String,
+                    tool: payload["tool"] as? String,
+                    olderThanSecs: (payload["olderThanSecs"] as? NSNumber)?.int64Value,
+                    maxBytes: (payload["maxBytes"] as? NSNumber)?.uint64Value,
+                    partialGoBuild: payload["partialGoBuild"] as? Bool,
+                    safetyCutoffSecs: (payload["safetyCutoffSecs"] as? NSNumber)?.int64Value,
+                    maxUnits: (payload["maxUnits"] as? NSNumber)?.intValue,
+                    dryRun: (payload["dryRun"] as? Bool) ?? false,
+                    reason: payload["reason"] as? String ?? "api")
+                let result = try await client.cachePrune(pruneReq)
+                return try encodeJSONResponse(200, result)
+
+            case ("caches", .get) where segments == ["v1", "caches", "policy"]:
+                let client = hvfMachineClient()
+                let cfg = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
+                return try encodeJSONResponse(200, cfg.effectiveCachePolicy)
+
+            case ("caches", .put) where segments == ["v1", "caches", "policy"]:
+                let client = hvfMachineClient()
+                var cfg = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
+                var policy = cfg.effectiveCachePolicy
+                let payload = try decodeBody(request.body)
+                if let rawMode = payload["mode"] as? String, let m = HVFMachineCachePolicy.Mode(rawValue: rawMode) {
+                    policy.mode = m
+                }
+                if let scope = payload["defaultScope"] as? String { policy.defaultScope = scope }
+                if let scopes = payload["allowedScopes"] as? [String] { policy.allowedScopes = scopes }
+                if let tools = payload["tools"] as? [String] { policy.tools = tools }
+                if let trim = payload["goTrimpath"] as? Bool { policy.goTrimpath = trim }
+                if let sharedL0 = payload["sharedL0"] as? Bool { policy.sharedL0 = sharedL0 }
+                if let goProxy = payload["goProxy"] as? String {
+                    policy.goProxy = goProxy.isEmpty ? nil : goProxy
+                }
+                if let npmReg = payload["npmRegistry"] as? String {
+                    policy.npmRegistry = npmReg.isEmpty ? nil : npmReg
+                }
+                if let maxB = (payload["maxBytes"] as? NSNumber)?.uint64Value {
+                    policy.maxBytes = maxB == 0 ? nil : maxB
+                }
+                if let maxAge = (payload["maxAgeDays"] as? NSNumber)?.intValue {
+                    policy.maxAgeDays = maxAge <= 0 ? nil : maxAge
+                }
+                try policy.validate()
+                cfg.cache = policy
+                try cfg.save(to: client.layout.config)
+                try HVFMachineCachePolicy.write(policy, layout: client.layout)
+                return try encodeJSONResponse(200, policy)
+
+            case ("caches", .get) where segments.count == 4 && segments[2] == "explain":
+                let client = hvfMachineClient()
+                let explain = try await client.explainContainerCache(segments[3])
+                return try encodeJSONResponse(200, explain)
+
+            case ("rig", .get) where segments == ["v1", "rig", "mode"]:
+                let active = engineRegistry.activeMode?.rawValue ?? engineRegistry.defaultName
+                return .json(
+                    200,
+                    [
+                        "mode": active,
+                        "defaultRuntime": engineRegistry.defaultName,
+                        "modes": RuntimeMode.allCases.map {
+                            ["name": $0.rawValue, "engine": $0.engineName, "summary": $0.summary]
+                        },
+                    ])
+
+            case ("rig", .put) where segments == ["v1", "rig", "mode"]:
+                let payload = try decodeBody(request.body)
+                guard let raw = payload["mode"] as? String, !raw.isEmpty else {
+                    throw BadRequest(message: "expected {\"mode\": \"container|sandbox\"}")
+                }
+                let updated = try await setDefaultRuntime(raw, services)
+                return .json(
+                    200,
+                    [
+                        "mode": engineRegistry.activeMode?.rawValue ?? updated.default,
+                        "defaultRuntime": updated.default,
+                    ])
+
+            case ("rig", .get) where segments == ["v1", "rig", "hvf", "update"]:
+                let client = hvfMachineClient()
+                return try encodeJSONResponse(200, HVFPayloadStore.status(layout: client.layout))
+
+            case ("rig", .post) where segments == ["v1", "rig", "hvf", "update", "rollback"]:
+                let client = hvfMachineClient()
+                let manifest = try await HVFPayloadStore.rollback(layout: client.layout)
+                return try encodeJSONResponse(200, manifest)
+
+            case ("rig", .post) where segments == ["v1", "rig", "hvf", "link-socket"]:
+                let client = hvfMachineClient()
+                let payload = request.body.isEmpty ? [:] : (try? decodeBody(request.body)) ?? [:]
+                let force = (payload["force"] as? Bool) ?? false
+                let linkURL = try client.linkCanonicalDockerSocket(force: force)
+                return .json(
+                    200,
+                    [
+                        "link": linkURL.path,
+                        "target": client.layout.dockerSocket.path,
+                        "dockerEndpoint": "unix://" + linkURL.path,
+                    ])
+
+            case ("rig", .get) where segments == ["v1", "rig", "health"]:
+                let client = hvfMachineClient()
+                let hvf = client.status()
+                let cfg = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
+                let payloadStatus = HVFPayloadStore.status(layout: client.layout)
+                let depproxyOK = await Self.probeLoopbackDepproxy()
+                return .json(
+                    200,
+                    [
+                        "mode": engineRegistry.activeMode?.rawValue ?? engineRegistry.defaultName,
+                        "defaultRuntime": engineRegistry.defaultName,
+                        "hvf": [
+                            "installed": hvf.installed,
+                            "phase": hvf.phase.rawValue,
+                            "summary": hvf.summary,
+                            "root": hvf.root,
+                            "dockerEndpoint": client.layout.dockerEndpoint,
+                            "cacheDiskPresent": FileManager.default.fileExists(atPath: client.layout.cacheDisk.path),
+                            "updatePending": hvf.updatePending,
+                            "payloadVersion": payloadStatus.current?.version ?? "",
+                        ],
+                        "cachePolicy": [
+                            "mode": cfg.effectiveCachePolicy.mode.rawValue,
+                            "sharedL0": cfg.effectiveCachePolicy.sharedL0,
+                            "goProxy": cfg.effectiveCachePolicy.goProxy ?? "",
+                            "toolCount": cfg.effectiveCachePolicy.tools.count,
+                        ],
+                        "depproxy": [
+                            "url": "http://127.0.0.1:7677",
+                            "healthy": depproxyOK,
+                        ],
+                    ])
 
             // MARK: System
             case ("usage", .get):
