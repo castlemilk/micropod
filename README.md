@@ -77,22 +77,38 @@ task bench     # performance benchmark (real runtime)
 task ci        # Go + Node CI pipelines on micropod (below)
 ```
 
-For an HVF build, point `MICROPOD_HVF_DISTRIBUTION` at the qualified payload
-directory before running `task package`. It contains the entitled
-`micropod-vmm`, `vmlinux-hvf`, `mp-hvf-init.cpio` and `micropod-oci-tools/`.
-The app and standalone tarball carry the same runtime. On a fresh machine,
-`micropod machine install --disk-image default` discovers those bundled
-resources. Use `--disk-from <ext4>` to clone an existing worker disk.
+Every package carries the HVF runtime. Point `MICROPOD_HVF_DISTRIBUTION` at
+the qualified payload directory (or `MICROPOD_VMM_DIR` at a built `vmm/`)
+before running `task package`. It contains the entitled `micropod-vmm`,
+`vmlinux-hvf`, `mp-hvf-init.cpio` and `micropod-oci-tools/`. The app and
+standalone tarball carry the same runtime, and `task package` fails unless
+`scripts/verify_release_payload.sh` passes on both. A local development
+package without it needs `MICROPOD_PACKAGE_WITHOUT_HVF=1`, which CI refuses.
+On a fresh machine, `micropod machine install --disk-image default`
+discovers those bundled resources. Use `--disk-from <ext4>` to clone an
+existing worker disk.
 
-For a hosted HVF release, select the successful build of the release commit
-using the qualification workflow's `hvf_run_id` and `hvf_payload_sha256`.
-The run's `micropod-hvf-runtime` artifact contains `micropod-hvf-runtime.tgz`
-with the same four entries at its root. Tag builds can select the pair using
-the repository variables `MICROPOD_HVF_RUN_ID` and `MICROPOD_HVF_PAYLOAD_SHA256`.
-The workflow checks the source commit, archive digest, VMM signature and
-hypervisor entitlement before packaging. The headless `micropod update cli`
-command updates the CLI and MCP binaries. Extract the complete HVF tarball
-when updating a standalone distribution's companion runtime. The [Gamma qualification report](docs/benchmarks/2026-11-26/workspace-reply-wait-and-native-network.md) records the tested package, Docker API coverage and CI timings.
+A hosted release must pin the HVF runtime; there is no release without it.
+Dispatch the **HVF runtime** workflow (`.github/workflows/hvf-runtime.yml`)
+on the release commit with the kernel's https URL and SHA-256. It builds the
+VMM, initramfs and guest tools from that commit and uploads the
+`micropod-hvf-runtime` artifact (`micropod-hvf-runtime.tgz`, the four entries
+at its root); its summary names the run ID and archive digest. Pass them to
+the release as `hvf_run_id` and `hvf_payload_sha256`, or set the repository
+variables `MICROPOD_HVF_RUN_ID` and `MICROPOD_HVF_PAYLOAD_SHA256` for tag
+builds. The release checks the source commit, archive digest, VMM signature
+and hypervisor entitlement before packaging, then verifies the app, DMG and
+tarball (`scripts/verify_release_payload.sh`, Developer ID included once
+signed). Publishing a frozen qualification (`publication_version`) runs the
+same verifier on the frozen DMG and tarball first. `micropod update cli`
+updates the CLI, MCP, API, Docker shim and shared-filesystem binaries beside
+it and stages the HVF payload; `micropod update hvf apply` activates it.
+
+Sandboxes boot Micropod's own HVF kernel: the one `micropod sandbox setup`
+staged and recorded, else the installed machine's, else the `vmlinux-hvf`
+shipped with Micropod. The `com.apple.container` kernel is used only with
+`MICROPOD_LEGACY_APPLE=1`. The sandbox `vminit` is pinned by digest;
+`--vminit` and `MICROPOD_SANDBOX_VMINIT` take only `repo[:tag]@sha256:<digest>`. The [Gamma qualification report](docs/benchmarks/2026-11-26/workspace-reply-wait-and-native-network.md) records the tested package, Docker API coverage and CI timings.
 
 Released Micropod 0.12.6 uses an externally installed Apple `container` CLI and
 service. This branch adds an administrator-approved installer and dedicated

@@ -574,9 +574,51 @@ jobs:
           fi
           [[ "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "::error::$version is not a canonical vX.Y.Z (no leading zeros)"; exit 1; }
 
-  publish-qualified:
+  # The frozen draft's DMG and tarball pass the same HVF payload gate as a
+  # tag build before anything is promoted: a draft qualified before the gate
+  # existed (or one missing the runtime) cannot be published. macOS, for
+  # codesign and hdiutil; the assets are checked against the manifest's
+  # digests first, so the bytes verified are the bytes published.
+  qualified-payload:
     if: github.event_name == 'workflow_dispatch' && inputs.publication_version != '' && inputs.qualification_version == ''
     needs: publication-inputs
+    runs-on: macos-26
+    env:
+      VERSION: ${{ inputs.publication_version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+      - name: Qualify the release payload verifier
+        run: node --test scripts/verify_release_payload.test.mjs
+      - name: Verify the frozen assets carry the full HVF runtime
+        run: |
+          set -euo pipefail
+          manifest="docs/qualified-releases/$VERSION.json"
+          [ -f "$manifest" ]
+          source=$(jq -r .source "$manifest")
+          assets="$RUNNER_TEMP/qualified-payload"
+          mkdir -p "$assets"
+          dmg="Micropod.dmg"
+          tgz="Micropod.${VERSION#v}.tgz"
+          for name in "$dmg" "$tgz"; do
+            asset_id=$(jq -r --arg n "$name" '.assets[$n].id // empty' "$manifest")
+            want=$(jq -r --arg n "$name" '.assets[$n].sha256 // empty' "$manifest")
+            if [ -z "$asset_id" ] || [ -z "$want" ]; then
+              echo "::error::$manifest freezes no $name; it cannot be checked for the HVF runtime"
+              exit 1
+            fi
+            gh api -H "Accept: application/octet-stream" "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > "$assets/$name"
+            got=$(shasum -a 256 "$assets/$name" | awk '{print $1}')
+            [ "$got" = "$want" ] || { echo "::error::$name is $got, the manifest froze $want"; exit 1; }
+          done
+          bash scripts/verify_release_payload.sh --developer-id --source "$source" \
+            --summary "$GITHUB_STEP_SUMMARY" "$assets/$dmg" "$assets/$tgz"
+
+  publish-qualified:
+    if: github.event_name == 'workflow_dispatch' && inputs.publication_version != '' && inputs.qualification_version == ''
+    needs: [publication-inputs, qualified-payload]
     runs-on: ubuntu-latest
     # The optional RELEASE_WORKFLOWS_TOKEN is an environment secret here, used
     # only from master for the Go module tag and the release PATCH

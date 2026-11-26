@@ -10,6 +10,15 @@ release becomes public it creates `sdk/go/vX.Y.Z` at that source (refusing one
 that names another commit), so only published releases become Go module
 versions. `sdk/go/*` does not match the `v*` tag trigger, so it starts no build.
 
+**The HVF runtime.** Before anything is promoted, the `qualified-payload` job
+(macOS) downloads the frozen `Micropod.dmg` and `Micropod.X.Y.Z.tgz`, checks
+them against the manifest's SHA-256s, and runs
+`scripts/verify_release_payload.sh --developer-id --source <frozen source>`
+on both. A draft qualified before that gate existed, or one without the full
+HVF runtime (micropod-vmm with the hypervisor entitlement under Developer ID,
+vmlinux-hvf, mp-hvf-init.cpio, micropod-oci-tools built from the source), is
+not published.
+
 **The runtime security floor.** A release that ships a runtime component
 manifest (`Micropod.app/Contents/Resources/runtime-components.json`, castlemilk/micropod#178)
 must name its floor in the reviewed record: `"runtimeComponentsSecurityFloor":

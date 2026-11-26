@@ -1,0 +1,86 @@
+name: HVF runtime
+
+# Produces the `micropod-hvf-runtime` artifact a release pins (release.yml
+# "Fetch qualified native runtime": hvf_run_id + hvf_payload_sha256, or the
+# MICROPOD_HVF_RUN_ID and MICROPOD_HVF_PAYLOAD_SHA256 repository variables).
+# Dispatch it on the commit being released: scripts/fetch_hvf_distribution.sh
+# accepts only a successful run of that same commit, and the release's
+# payload verifier requires the guest tools' engineCommit to be that commit.
+#
+# The VMM, initramfs and guest tool bundle are built here from this commit.
+# The kernel is built outside Actions (ci/build-worker-kernel.sh needs an
+# ARM64 Linux host and the base guest config); the dispatch names it by an
+# https URL and its SHA-256, and nothing else is accepted.
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_url:
+        description: https URL of the ARM64 Image to ship as vmlinux-hvf
+        required: true
+      kernel_sha256:
+        description: SHA-256 of that Image
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: .go-version
+          cache-dependency-path: guest/runner/go.sum
+      - name: Fetch the pinned kernel
+        env:
+          KERNEL_URL: ${{ inputs.kernel_url }}
+          KERNEL_SHA256: ${{ inputs.kernel_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$KERNEL_URL" == https://* ]] || { echo "::error::kernel_url must be https"; exit 1; }
+          [[ "$KERNEL_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::kernel_sha256 must be a lowercase SHA-256"; exit 1; }
+          payload="$RUNNER_TEMP/payload"
+          mkdir -p "$payload"
+          curl -fsSL --retry 3 -o "$payload/vmlinux-hvf" "$KERNEL_URL"
+          actual=$(shasum -a 256 "$payload/vmlinux-hvf" | awk '{print $1}')
+          [ "$actual" = "$KERNEL_SHA256" ] || { echo "::error::kernel is $actual, not $KERNEL_SHA256"; exit 1; }
+          # The ARM64 Image header carries "ARM\x64" at offset 56.
+          magic=$(dd if="$payload/vmlinux-hvf" bs=1 skip=56 count=4 2>/dev/null | xxd -p)
+          [ "$magic" = 41524d64 ] || { echo "::error::kernel_url is not an ARM64 Image"; exit 1; }
+          echo "PAYLOAD=$payload" >> "$GITHUB_ENV"
+      - name: Build micropod-vmm and the initramfs
+        run: |
+          set -euo pipefail
+          bash vmm/build.sh
+          install -m 755 vmm/target/release/micropod-vmm "$PAYLOAD/micropod-vmm"
+          install -m 644 vmm/target/mp-hvf-init.cpio "$PAYLOAD/mp-hvf-init.cpio"
+      - name: Build the guest tool bundle
+        run: |
+          set -euo pipefail
+          bash ci/build-runner-tools.sh "$RUNNER_TEMP/tools"
+          ditto "$RUNNER_TEMP/tools/guest" "$PAYLOAD/micropod-oci-tools"
+          jq -e --arg sha "$GITHUB_SHA" '.engineCommit == $sha and .engineDirty == false' \
+            "$PAYLOAD/micropod-oci-tools/runner/manifest.json" >/dev/null
+      - name: Check and archive the runtime
+        run: |
+          set -euo pipefail
+          # The layout and checks the release's fetch applies.
+          bash scripts/stage_hvf_assets.sh "$PAYLOAD" "$PAYLOAD" "$RUNNER_TEMP/check" "$RUNNER_TEMP/check"
+          tar -czf "$RUNNER_TEMP/micropod-hvf-runtime.tgz" -C "$PAYLOAD" \
+            micropod-vmm vmlinux-hvf mp-hvf-init.cpio micropod-oci-tools
+          digest=$(shasum -a 256 "$RUNNER_TEMP/micropod-hvf-runtime.tgz" | awk '{print $1}')
+          {
+            echo "### micropod-hvf-runtime for $GITHUB_SHA"
+            echo
+            echo "Pin it on the release dispatch: hvf_run_id \`$GITHUB_RUN_ID\`, hvf_payload_sha256 \`$digest\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: micropod-hvf-runtime
+          path: ${{ runner.temp }}/micropod-hvf-runtime.tgz
+          if-no-files-found: error
+          retention-days: 90
