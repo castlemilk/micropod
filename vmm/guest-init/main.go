@@ -337,11 +337,19 @@ func gracefulStop(workspace string, total time.Duration, orderly bool) {
 	armStopDeadline(deadline, orderly)
 	phases := splitShutdownBudget(total)
 	_ = syscall.Kill(-1, syscall.SIGTERM)
-	if !reapChildrenUntil(time.Now().Add(phases.term)) {
+	allGone := reapChildrenUntil(time.Now().Add(phases.term))
+	if !allGone {
 		_ = syscall.Kill(-1, syscall.SIGKILL)
-		_ = reapChildrenUntil(time.Now().Add(phases.kill))
+		allGone = reapChildrenUntil(time.Now().Add(phases.kill))
 	}
 	syscall.Sync()
+	if allGone {
+		// No process is left and everything it wrote is on disk: shared
+		// cache units still marked dirty by this boot are intact.
+		if err := writeCleanStop(cleanStopRecord, readBootID(bootIDFile)); err != nil {
+			fmt.Fprintf(os.Stderr, "[mp-hvf-init] clean-stop record: %v\n", err)
+		}
+	}
 	if workspace != "" {
 		_ = syscall.Unmount(workspace, syscall.MNT_DETACH)
 	}
