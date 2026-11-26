@@ -41,10 +41,13 @@
 #
 # --sabotage breaks a precondition on purpose so a check must fail:
 #   list-inspect   inspect every container on the guest while a listing is counted
+#   list-ping      ping the guest once per listing while a listing is counted
 #   prune-apply    send the first "dry run" cache_prune as apply: true
 #   replay-proxy   the proxy in front of the API sends a dropped Exec twice
 #   census-blind   the census watches a pid that does not exist (calibration and
 #                  every zero-children check must then fail, never pass on 0)
+#   census-dead    the census is killed after its calibration passed (every
+#                  zero-children check must then fail, never pass on 0)
 #   few-samples    20 samples per latency case (no latency verdict may stand)
 #   expect-flip:ID invert one check's expectation
 # A sabotaged run is marked as such in its receipt and never passes by design.
@@ -61,7 +64,7 @@
 # signing/micropod-cli.entitlements for the sandbox tools), the VMM from
 # vmm/target/release (vmm/build.sh), the newest ~/.micropod/kernels/*/Image
 # (read only) and --tools a guest bundle (ci/build-runner-tools.sh OUT, then
-# OUT/guest). Ports: --port and --port+1 (the replay proxy), both 19530-19559.
+# OUT/guest). Ports: --port and --port+1 (the replay proxy), both 19530-19629.
 #
 # Safety: everything lives under the throwaway root (absent, empty or marked
 # by an earlier run of this gate; removed at exit unless --keep). Every
@@ -142,7 +145,7 @@ for sock in "$ROOT/hvf/run/docker.sock" "$ROOT/hvf/run/buildkit.sock" "$ROOT/api
 done
 case "$PORT" in '' | *[!0-9]*) refuse "--port must be a number" ;; esac
 PROXY_PORT=$((PORT + 1))
-[ "$PORT" -ge 19530 ] && [ "$PROXY_PORT" -le 19559 ] || refuse "--port must leave --port and --port+1 within 19530-19559"
+[ "$PORT" -ge 19530 ] && [ "$PROXY_PORT" -le 19629 ] || refuse "--port must leave --port and --port+1 within 19530-19629"
 for p in "$PORT" "$PROXY_PORT"; do
     python3 -c "import socket,sys; s=socket.socket(); s.bind(('127.0.0.1', int(sys.argv[1])))" "$p" 2>/dev/null ||
         refuse "127.0.0.1:$p is in use; pick another --port"

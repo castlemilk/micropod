@@ -32,8 +32,9 @@ metrics without a verdict. No check passes on a missing number, too few
 samples, a failed instrument or an uncalibrated census.
 
 B25_SABOTAGE (comma list) breaks a precondition on purpose so a check must
-fail: list-inspect, prune-apply, replay-proxy, census-blind, few-samples,
-expect-flip:<ID>. A sabotaged or partial run never passes.
+fail: list-inspect, list-ping, prune-apply, replay-proxy, census-blind,
+census-dead, few-samples, expect-flip:<ID>. A sabotaged or partial run never
+passes.
 """
 
 import bisect
@@ -78,7 +79,8 @@ SECTIONS = E.get("B25_SECTIONS", "L T M").split()
 SABOTAGE = [s for s in E.get("B25_SABOTAGE", "").split(",") if s]
 FLIP = {s.split(":", 1)[1] for s in SABOTAGE if s.startswith("expect-flip:")}
 ALL_SECTIONS = ["L", "T", "M"]
-KNOWN_SABOTAGE = {"list-inspect", "prune-apply", "replay-proxy", "census-blind", "few-samples"}
+KNOWN_SABOTAGE = {"list-inspect", "list-ping", "prune-apply", "replay-proxy", "census-blind", "census-dead",
+                  "few-samples"}
 for s in SABOTAGE:
     if s not in KNOWN_SABOTAGE and not s.startswith("expect-flip:"):
         sys.exit(f"b25: unknown sabotage mode {s!r}")
@@ -133,6 +135,8 @@ COMMANDS = open(LOGS / "commands.log", "a")
 API = {"pid": int(E["B25_API_PID"]), "proc": None}
 WATCHED = {}  # label -> pid (the census's watch list)
 CALIBRATED = {"ok": False}
+CENSUS_PROC = {"p": None}
+CENSUS_BEAT_S = 2.5  # the census writes a beat every second; a longer silence is a census that was not looking
 
 
 def log(msg):
@@ -348,14 +352,42 @@ def kids_summary(kids):
     return dict(c.most_common())
 
 
+def census_blind_spot(label_prefix, t0, t1):
+    """Why the census cannot vouch for [t0, t1], or None when it can. A zero
+    count is only a fact while the census was running and watching: it was
+    calibrated once, at the start, and a census that died or stalled after
+    that would report no children for ever."""
+    p = CENSUS_PROC["p"]
+    if p is None or p.poll() is not None:
+        return f"the census process is not running (exit status {p.poll() if p else None})"
+    evs = census_events()
+    beats = sorted(e["t"] for e in evs if e.get("event") in ("start", "beat") and e["t"] >= t0 - CENSUS_BEAT_S)
+    if not beats or beats[0] > t0 + CENSUS_BEAT_S:
+        return "the census wrote no beat at the start of the window"
+    if beats[-1] < t1 - CENSUS_BEAT_S:
+        return f"the census wrote its last beat {t1 - beats[-1]:.1f} s before the window ended"
+    worst = max((b - a for a, b in zip(beats, beats[1:]) if a <= t1), default=0)
+    if worst > CENSUS_BEAT_S:
+        return f"the census was silent for {worst:.1f} s inside the window"
+    lists = [e for e in evs if e.get("event") in ("start", "watch")]
+    for i, e in enumerate(lists):
+        until = lists[i + 1]["t"] if i + 1 < len(lists) else float("inf")
+        if e["t"] <= t1 and until >= t0 and any(str(v).startswith(label_prefix) for v in (e.get("watched") or {}).values()):
+            return None
+    return f"the census watched no {label_prefix}* process in the window"
+
+
 def zero_children(cid, name, label, t0, t1, source):
     kids = children(label, t0, t1)
     alive = label != "api" or bool(API["pid"])
+    blind = census_blind_spot(label, t0, t1)
     got = {"children": len(kids), "executables": kids_summary(kids), "censusCalibrated": CALIBRATED["ok"],
            "cadence": {k: census_cadence().get(k) for k in ("meanGapMs", "maxGapMs")}}
+    if blind:
+        got["censusBlind"] = blind
     ev = evidence(f"{cid}-children", kids)
-    return check(cid, name, got, "0 children, with a calibrated census",
-                 ok=CALIBRATED["ok"] and alive and len(kids) == 0, ev=ev, source=source), kids
+    return check(cid, name, got, "0 children, with a calibrated census that ran and watched for the whole window",
+                 ok=CALIBRATED["ok"] and alive and not blind and len(kids) == 0, ev=ev, source=source), kids
 
 
 # --- the API process --------------------------------------------------------------
@@ -547,28 +579,46 @@ def proto_list():
     return st, hdrs.get("Content-Type"), len(raw)
 
 
-def rtt_check(cid, size, prefix, calls=5):
-    time.sleep(0.5)
-    r0, routes0 = guest_metrics()
-    answers = [proto_list() for _ in range(calls)]
-    if "list-inspect" in SABOTAGE:
-        log("SABOTAGE list-inspect: one guest inspect per container while the listing is counted")
-        for n in guest_containers(prefix):
-            guest("GET", f"/containers/{n}/json")
-    r1, routes1 = guest_metrics()
-    deltas = {k: (routes1.get(k) or 0) - (routes0.get(k) or 0) for k in set(routes0) | set(routes1)}
-    deltas = {k: v for k, v in deltas.items() if v}
-    counted = {k: v for k, v in deltas.items() if "metrics" not in k and "_ping" not in k}
-    inspects = sum(v for k, v in counted.items() if re.search(r"/containers/[^/]+/json$", k))
-    per_call = sum(counted.values()) / calls if calls else None
+def rtt_check(cid, size, prefix, calls=5, attempts=3):
+    """Every request the guest counted while `calls` listings ran, _ping
+    included: a listing that pings the guest first costs two round trips, not
+    one. The guest's counter is shared with every other client of its socket
+    (the supervisor, a health probe), and those can only add to it, so one
+    attempt in which the guest counted exactly `calls` requests proves the
+    bound; an attempt with more is retried, at most twice."""
+    tries = []
+    for _ in range(attempts):
+        time.sleep(0.5)
+        r0, routes0 = guest_metrics()
+        answers = [proto_list() for _ in range(calls)]
+        if "list-inspect" in SABOTAGE:
+            log("SABOTAGE list-inspect: one guest inspect per container while the listing is counted")
+            for n in guest_containers(prefix):
+                guest("GET", f"/containers/{n}/json")
+        if "list-ping" in SABOTAGE:
+            log("SABOTAGE list-ping: one guest _ping per listing while the listing is counted")
+            for _ in range(calls):
+                guest("GET", "/_ping")
+        r1, routes1 = guest_metrics()
+        deltas = {k: (routes1.get(k) or 0) - (routes0.get(k) or 0) for k in set(routes0) | set(routes1)}
+        # The guest never counts a read of its own counters (this check's two).
+        counted = {k: v for k, v in deltas.items() if v and "/micropod/metrics" not in k}
+        inspects = sum(v for k, v in counted.items() if re.search(r"/containers/[^/]+/json$", k))
+        total = (r1 - r0) if isinstance(r0, int) and isinstance(r1, int) else None
+        ok = (total == calls and all(a[0] == 200 for a in answers) and inspects == 0 and sum(counted.values()) == calls)
+        tries.append({"ok": ok, "requestsTotalDelta": total, "inspects": inspects, "routes": counted,
+                      "status": sorted({a[0] for a in answers}), "before": [r0, routes0], "after": [r1, routes1],
+                      "answers": answers})
+        if ok:
+            break
+    best = min(tries, key=lambda t: (not t["ok"], t["requestsTotalDelta"] if t["requestsTotalDelta"] is not None else 1 << 30))
+    per_call = best["requestsTotalDelta"] / calls if best["requestsTotalDelta"] is not None else None
     METRICS.setdefault("guestRequestsPerListing", {})[str(size)] = per_call
-    ok = (r0 is not None and all(a[0] == 200 for a in answers) and inspects == 0 and sum(counted.values()) == calls)
-    return check(cid, f"ListContainers with {size} containers costs exactly 1 guest request per call and no "
-                 "per-container inspect (guest's own counter, 5 binary calls)",
-                 {"guestRequestsPerCall": per_call, "inspects": inspects, "routes": counted,
-                  "status": sorted({a[0] for a in answers})}, "1 per call, 0 inspects",
-                 ok=ok, ev=evidence(f"{cid}-guest-metrics", {"before": [r0, routes0], "after": [r1, routes1],
-                                                             "answers": answers}), source=SRC_GATE_RTT)
+    return check(cid, f"ListContainers with {size} containers costs exactly 1 guest request per call, _ping included, "
+                 "and no per-container inspect (guest's own counter, 5 binary calls)",
+                 {"guestRequestsPerCall": per_call, "inspects": best["inspects"], "routes": best["routes"],
+                  "status": best["status"], "attempts": len(tries)}, "1 per call, 0 inspects",
+                 ok=best["ok"], ev=evidence(f"{cid}-guest-metrics", tries), source=SRC_GATE_RTT)
 
 
 def time_wait(port):
@@ -1656,7 +1706,8 @@ def mcp_latency():
                 d = (time.perf_counter() - t) * 1e6
                 if i >= 20:
                     lat.append(d)
-                    errs += 1 if r["error"] else 0
+                    # An answer is the tool's JSON object; an error or an empty reply is not a sample.
+                    errs += 1 if r["error"] or not isinstance(r["parsed"], dict) or not r["parsed"] else 0
             lat.sort()
             q = {p: nearest_rank(lat, p) for p in (.5, .95, .99)}
             res[tool] = {"n": len(lat), "p50Us": q[.5], "p95Us": q[.95], "p99Us": q[.99], "errors": errs}
@@ -1665,11 +1716,10 @@ def mcp_latency():
                           "errors": errs, "p50Us": q[.5], "p95Us": q[.95], "p99Us": q[.99],
                           "maxUs": round(lat[-1], 1) if lat else None, "targetP95Us": TARGET_US, "source": SRC_MCP_WIRE})
         METRICS["mcpLatency"] = res
-        r = res["cache_policy"]
-        check("M-LAT", "MCP tool latency (cache_policy, stdio → API): p95 < 1 ms over >= 200 warm calls",
-              res, f"p95 < {TARGET_US:.0f} µs, n >= {SAMPLES_MIN}, no errors",
-              ok=r["n"] >= SAMPLES_MIN and not r["errors"] and r["p95Us"] < TARGET_US and
-              res["runtime_mode"]["n"] >= SAMPLES_MIN and res["runtime_mode"]["p95Us"] < TARGET_US, source=SRC_MCP_WIRE)
+        check("M-LAT", "MCP tool latency (cache_policy and runtime_mode, stdio → API): p95 < 1 ms over >= 200 warm "
+              "calls, every one answered", res, f"p95 < {TARGET_US:.0f} µs, n >= {SAMPLES_MIN}, no errors",
+              ok=all(r["n"] >= SAMPLES_MIN and not r["errors"] and r["p95Us"] < TARGET_US for r in res.values()),
+              source=SRC_MCP_WIRE)
     finally:
         mcp_close(s)
 
@@ -1741,10 +1791,15 @@ def main():
     WATCHED["api"] = API["pid"]
     write_watch()
     census = subprocess.Popen([sys.executable, os.path.join(HERE, "procwatch.py"), WATCH, str(CENSUS), "1"])
+    CENSUS_PROC["p"] = census
     time.sleep(0.3)
     error = None
     try:
         section_C()
+        if "census-dead" in SABOTAGE:
+            log("SABOTAGE census-dead: the census is killed right after its calibration")
+            census.kill()
+            census.wait()
         section("setup")
         if not running():
             rc, out, err = start_machine()
