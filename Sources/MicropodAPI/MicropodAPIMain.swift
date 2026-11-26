@@ -262,14 +262,21 @@ final class HTTPServer: @unchecked Sendable {
     /// Serves `path`, a Unix socket only this user may open (0600, and
     /// checked to be this user's socket once bound). By default it is the
     /// managed runtime's internal socket, whose requests stay `guarded`.
-    /// Throws, serving nothing, when the socket cannot be bound or protected.
+    /// Throws, serving nothing, when the socket cannot be bound or protected,
+    /// or when another live process serves `path`: only a stale socket file
+    /// is replaced, so a second API (a test, a scratch server) never takes
+    /// the path from the one already running there.
     func startPrivateSocket(
         path: String = IsolatedRuntimeAPIConfiguration.internalSocketURL.path, admission: Admission = .guarded
     ) async throws {
         var existing = stat()
         if lstat(path, &existing) == 0 {
-            guard existing.st_uid == getuid(), existing.st_mode & S_IFMT == S_IFSOCK, unlink(path) == 0 else {
+            guard existing.st_uid == getuid(), existing.st_mode & S_IFMT == S_IFSOCK else {
                 throw MicropodError.message("The private API socket has another owner")
+            }
+            try Self.refuseLiveSocket(path)
+            guard unlink(path) == 0 else {
+                throw MicropodError.message("Could not replace the private API socket")
             }
         } else if errno != ENOENT {
             throw MicropodError.message("Could not inspect the private API socket")
@@ -313,6 +320,16 @@ final class HTTPServer: @unchecked Sendable {
             listeners.removeAll { $0 === listener }
             throw error
         }
+    }
+
+    /// Throws when a live process accepts connections on `path`: replacing
+    /// its socket file would leave that server running unreachable.
+    static func refuseLiveSocket(_ path: String) throws {
+        guard let pid = RuntimeUnixSocket.listeningPeerPID(path) else { return }
+        let owner = pid > 0 ? "pid \(pid)" : "another process"
+        throw MicropodError.message(
+            "failedPrecondition: \(owner) is serving unix://\(path); refusing to replace its socket "
+                + "(set MICROPOD_API_SOCK to another path, or to off)")
     }
 
     /// A socket of this user's that nobody else may open.

@@ -25,7 +25,8 @@ trap cleanup EXIT
 
 codesign --force --sign - --entitlements "$ROOT/signing/micropod-cli.entitlements" "$API_BIN" 2>/dev/null
 
-MICROPOD_API_PORT="$PORT" MICROPOD_RUNTIMES_CONFIG="$TMP/runtimes.json" \
+# MICROPOD_API_SOCK: never the owner's ~/.micropod/api.sock (the rig's API serves it).
+MICROPOD_API_PORT="$PORT" MICROPOD_API_SOCK="$TMP/api.sock" MICROPOD_RUNTIMES_CONFIG="$TMP/runtimes.json" \
     "$API_BIN" >"$TMP/api.log" 2>&1 &
 API_PID=$!
 for _ in $(seq 1 50); do

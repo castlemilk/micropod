@@ -28,6 +28,7 @@ export MICROPOD_APP_CONTROL_SOCKET="$SMOKE_DIR/app-control.sock"
 export MICROPOD_AGENT_RUN_DIR="$SMOKE_DIR/run"
 export MICROPOD_SHIM_SOCKET="$SMOKE_DIR/docker.sock"
 export MICROPOD_SHAREDFS_SOCKET="$SMOKE_DIR/sharedfs.sock"
+export MICROPOD_API_SOCK="$SMOKE_DIR/api.sock" # never the owner's ~/.micropod/api.sock
 
 echo "launching $BIN (cli: $CLI_HINT)"
 # A packaged smoke app must not repoint the user's installed CLI links or

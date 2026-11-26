@@ -123,6 +123,56 @@ final class PrivateSocketTests: XCTestCase {
         XCTAssertEqual(kept, sharedSocket)
         XCTAssertEqual(mode(shared.path), 0o755)
     }
+
+    /// A second API never takes the socket path from one that serves it (a
+    /// test or scratch server that forgot MICROPOD_API_SOCK, beside the
+    /// rig's API): it logs, serves only TCP, and the first keeps answering.
+    /// Once nobody serves the path, the stale socket file is replaced.
+    func testALiveSocketIsNeverReplaced() async throws {
+        let path = dir.appendingPathComponent("api.sock").path
+        let first = HTTPServer(port: 45454) { _ in .json(200, ["first": true]) }
+        let firstPath = await MicropodAPI.startOwnerSocket(first, path: path, log: { XCTFail($0) })
+        XCTAssertEqual(firstPath, path)
+        XCTAssertEqual(RuntimeUnixSocket.listeningPeerPID(path), getpid(), "the listener's pid")
+        var before = stat()
+        XCTAssertEqual(lstat(path, &before), 0)
+
+        let logged = LockedLines()
+        let second = server()
+        defer { second.stop() }
+        let refused = await MicropodAPI.startOwnerSocket(second, path: path, log: { logged.append($0) })
+        XCTAssertNil(refused, "a live socket is not replaced, so it is not advertised")
+        XCTAssertEqual(logged.lines.count, 1)
+        XCTAssertTrue(logged.lines[0].contains("pid \(getpid()) is serving unix://\(path)"), logged.lines[0])
+        XCTAssertTrue(logged.lines[0].contains("MICROPOD_API_SOCK"), logged.lines[0])
+        var after = stat()
+        XCTAssertEqual(lstat(path, &after), 0)
+        XCTAssertEqual(after.st_ino, before.st_ino, "the socket file is the first server's still")
+        let answered = try await post(path)
+        XCTAssertEqual(answered, "HTTP/1.1 200 OK", "the first server still answers on its path")
+
+        // The managed runtime's internal socket has the same rule.
+        let managed = HTTPServer(port: 45454) { _ in .json(200, [:]) }
+        defer { managed.stop() }
+        do {
+            try await managed.startPrivateSocket(path: path)
+            XCTFail("the managed listener replaced a live socket")
+        } catch {
+            XCTAssertTrue("\(error)".contains("refusing to replace its socket"), "\(error)")
+        }
+
+        first.stop()
+        for _ in 0..<100 where RuntimeUnixSocket.listeningPeerPID(path) != nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertNil(RuntimeUnixSocket.listeningPeerPID(path), "nobody serves the path any more")
+        let third = server()
+        defer { third.stop() }
+        let replaced = await MicropodAPI.startOwnerSocket(third, path: path, log: { XCTFail($0) })
+        XCTAssertEqual(replaced, path, "a stale socket file is replaced")
+        let fresh = try await post(path)
+        XCTAssertEqual(fresh, "HTTP/1.1 200 OK")
+    }
 }
 
 final class LockedLines: @unchecked Sendable {

@@ -12,7 +12,7 @@ Each worker round does what one CI attempt does to the runtime:
 Prints per-RPC latency (p50/p95/max) and failures by code, and writes the same
 as JSON (--out). Run it against a scratch API, never the shared :45454 one:
 
-  MICROPOD_API_PORT=45491 .build/debug/MicropodAPI &
+  MICROPOD_API_PORT=45491 MICROPOD_API_SOCK=off .build/debug/MicropodAPI &
   python3 scripts/apiserver_contention.py --base http://127.0.0.1:45491
 
 Everything it creates is named <prefix>-* and removed at the end (also on

@@ -229,6 +229,8 @@ final class RealConnectCapsTests: XCTestCase {
         environment.removeValue(forKey: "MICROPOD_CONTAINER_CLI_PATH")
         environment["MICROPOD_RUNTIME"] = backend
         environment["MICROPOD_API_PORT"] = String(port)
+        // Never the owner's ~/.micropod/api.sock, which the rig's API serves.
+        environment["MICROPOD_API_SOCK"] = "off"
         environment["MICROPOD_VOLUME_POLICY"] = stateDir.appendingPathComponent("policy.json").path
         environment["MICROPOD_RUNTIMES_CONFIG"] = stateDir.appendingPathComponent("runtimes.json").path
         environment["MICROPOD_VOLUME_CLONE_ROOT"] = stateDir.appendingPathComponent("clones").path

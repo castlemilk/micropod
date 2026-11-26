@@ -13,12 +13,15 @@ final class ManagedUpdateAdmissionTests: XCTestCase {
             enabledDefaultsKey: "test", endpoint: "test")
         let parent = [
             "MICROPOD_PARENT_PID": "123", "UNRELATED_SECRET": "must-not-inherit", "MICROPOD_API_PORT": "45555",
+            "MICROPOD_API_SOCK": "/tmp/isolated-api.sock",
         ]
         let existing = PersistentDesktopAgents.serviceEnvironment(spec: spec, parent: parent, legacyAvailable: true)
         XCTAssertEqual(existing["MICROPOD_RUNTIME_CONTEXT"], "existing")
         XCTAssertEqual(existing["MICROPOD_PARENT_PID"], "")
         XCTAssertNil(existing["UNRELATED_SECRET"])
         XCTAssertEqual(existing["MICROPOD_API_PORT"], "45555")
+        // An isolated instance's API keeps its own socket with its own port.
+        XCTAssertEqual(existing["MICROPOD_API_SOCK"], "/tmp/isolated-api.sock")
         let fresh = PersistentDesktopAgents.serviceEnvironment(spec: spec, parent: parent, legacyAvailable: false)
         XCTAssertEqual(fresh["MICROPOD_RUNTIME_CONTEXT"], "managed")
         let explicit = PersistentDesktopAgents.serviceEnvironment(

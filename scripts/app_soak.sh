@@ -20,6 +20,7 @@ API_PORT="${SOAK_API_PORT:-45993}"
 REPORTS="$HOME/Library/Logs/DiagnosticReports"
 
 export MICROPOD_API_PORT="$API_PORT"
+export MICROPOD_API_SOCK="$DIR/api.sock" # never the owner's ~/.micropod/api.sock
 export MICROPOD_SHIM_TCP_PORT="${SOAK_SHIM_TCP_PORT:-45992}"
 export MICROPOD_APP_CONTROL_SOCKET="$DIR/app-control.sock"
 export MICROPOD_AGENT_RUN_DIR="$DIR/run"

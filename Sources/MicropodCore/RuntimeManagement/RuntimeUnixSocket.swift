@@ -43,6 +43,25 @@ public enum RuntimeUnixSocket {
             throw error
         }
     }
+    /// The pid of the process that accepts connections on `path`, or nil when
+    /// nobody does (no socket there, or a stale one whose server exited). A
+    /// listener whose pid cannot be read is 0. A server that is about to
+    /// replace a socket file asks this first: unlinking a live socket strands
+    /// its server, still running, without a path anyone can reach.
+    public static func listeningPeerPID(_ path: String) -> pid_t? {
+        guard let fd = try? open() else { return nil }
+        defer { close(fd) }
+        guard var address = try? address(path) else { return nil }
+        let result = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        guard result == 0 else { return nil }
+        var pid: pid_t = 0
+        var length = socklen_t(MemoryLayout<pid_t>.size)
+        return getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &length) == 0 ? pid : 0
+    }
     /// Darwin accept inherits the listener's O_NONBLOCK. The bounded worker
     /// must wait for bytes rather than treating EAGAIN as the peer's EOF.
     public static func configureAccepted(_ fd: Int32) throws {

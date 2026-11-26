@@ -38,6 +38,7 @@ final class IsolatedRuntimeGateway: @unchecked Sendable {
             guard existing.st_uid == identity.serviceUID, existing.st_mode & S_IFMT == S_IFSOCK else {
                 throw MicropodError.message("The managed API socket has another owner")
             }
+            try HTTPServer.refuseLiveSocket(path)
             guard unlink(path) == 0 else { throw MicropodError.message("Could not replace the managed API socket") }
         } else if errno != ENOENT {
             throw MicropodError.message("Could not inspect the managed API socket")

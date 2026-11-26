@@ -43,6 +43,9 @@ final class MicropodAPITests: XCTestCase {
                 "MICROPOD_CONTAINER_CLI_PATH": MockContainerCLI.scriptURL.path,
                 "MICROPOD_MOCK_STATE_DIR": stateDir.path,
                 "MICROPOD_API_PORT": String(port),
+                // Never the owner's ~/.micropod/api.sock, which the rig's
+                // API serves: this suite drives the server over TCP only.
+                "MICROPOD_API_SOCK": "off",
                 "MICROPOD_VOLUME_POLICY": stateDir.appendingPathComponent("policy.json").path,
                 // Never read or write the developer's real engine config.
                 "MICROPOD_RUNTIMES_CONFIG": stateDir.appendingPathComponent("runtimes.json").path,
