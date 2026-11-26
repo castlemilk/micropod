@@ -3,6 +3,7 @@ package main
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Boot-scoped totals avoid per-container and per-image metric cardinality.
@@ -17,13 +18,60 @@ type dockerMetrics struct {
 }
 
 // cacheMetrics counts auto-attach decisions: attaches per tool, skips per
-// reason (create-time rules and start-time busy/store failures) and probes.
-// Both label sets are bounded by the cache table and the reason constants.
+// reason (create-time rules and start-time busy/store failures), probes,
+// bounded LRU eviction measurements and the units prunes left to the crash
+// fence because they were marked dirty.
 type cacheMetrics struct {
 	mu                    sync.Mutex
 	attach, skips         map[string]uint64
 	probes, probeFailures uint64
 	probeMS               int64
+	evictions             uint64
+	evictedUnits          uint64
+	evictedFiles          uint64
+	evictedBytes          uint64
+	lastSweepUnix         int64
+	lastSweepReason       string
+	pruneSkippedDirty     uint64
+}
+
+func (m *cacheMetrics) recordSkippedDirty(units uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.pruneSkippedDirty += units
+}
+
+func (m *cacheMetrics) recordEviction(units, files, bytes uint64, reason string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.evictions++
+	m.evictedUnits += units
+	m.evictedFiles += files
+	m.evictedBytes += bytes
+	m.lastSweepUnix = time.Now().Unix()
+	m.lastSweepReason = reason
+}
+
+type cacheEvictionSummary struct {
+	Evictions       uint64 `json:"evictions"`
+	EvictedUnits    uint64 `json:"evictedUnits"`
+	EvictedFiles    uint64 `json:"evictedFiles"`
+	EvictedBytes    uint64 `json:"evictedBytes"`
+	LastSweepUnix   int64  `json:"lastSweepUnix,omitempty"`
+	LastSweepReason string `json:"lastSweepReason,omitempty"`
+}
+
+func (m *cacheMetrics) evictionSummary() cacheEvictionSummary {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return cacheEvictionSummary{
+		Evictions:       m.evictions,
+		EvictedUnits:    m.evictedUnits,
+		EvictedFiles:    m.evictedFiles,
+		EvictedBytes:    m.evictedBytes,
+		LastSweepUnix:   m.lastSweepUnix,
+		LastSweepReason: m.lastSweepReason,
+	}
 }
 
 func (m *cacheMetrics) recordPlan(p *cachePlan) {
@@ -69,6 +117,9 @@ func (m *cacheMetrics) recordProbe(ms int64, ok bool) {
 }
 
 func (m *cacheMetrics) snapshot() map[string]any {
+	// The crash fence's startup recovery (caches_dirty_linux.go), read before
+	// m.mu so the two mutexes are never held together.
+	discarded, kept := cacheRecoveryReport()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	attach, skips := map[string]uint64{}, map[string]uint64{}
@@ -78,7 +129,21 @@ func (m *cacheMetrics) snapshot() map[string]any {
 	for k, v := range m.skips {
 		skips[k] = v
 	}
-	return map[string]any{"cache_attach": attach, "cache_skip": skips, "cache_probes": m.probes, "cache_probe_failures": m.probeFailures, "cache_probe_ms": m.probeMS}
+	return map[string]any{
+		"cache_attach":              attach,
+		"cache_skip":                skips,
+		"cache_probes":              m.probes,
+		"cache_probe_failures":      m.probeFailures,
+		"cache_probe_ms":            m.probeMS,
+		"cache_evictions":           m.evictions,
+		"cache_evicted_units":       m.evictedUnits,
+		"cache_evicted_files":       m.evictedFiles,
+		"cache_evicted_bytes":       m.evictedBytes,
+		"cache_last_sweep_unix":     m.lastSweepUnix,
+		"cache_prune_skipped_dirty": m.pruneSkippedDirty,
+		"cache_discarded_at_start":  uint64(len(discarded)),
+		"cache_kept_at_start":       uint64(len(kept)),
+	}
 }
 
 func (m *dockerMetrics) record(r result, err error) {

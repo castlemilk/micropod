@@ -902,7 +902,17 @@ struct HVFWorkerTests {
                 { "ts_unix_ns": 1800000000000000000, "kind": "conflict", "source": "docker_api",
                   "method": "POST", "route": "/containers/create", "status": 409, "duration_ms": 2.5,
                   "message": "Conflict" }
-              ]
+              ],
+              "cache_attach": { "gomod": 4, "gobuild": 4, "npm": 2 },
+              "cache_skip": { "store-failed": 1, "busy-exclusive": 2 },
+              "cache_probes": 6,
+              "cache_probe_failures": 1,
+              "cache_probe_ms": 42,
+              "cache_evictions": 3,
+              "cache_evicted_units": 1,
+              "cache_evicted_files": 120,
+              "cache_evicted_bytes": 1048576,
+              "cache_last_sweep_unix": 1800000010
             }
             """
         let decodedEngine = try CIWorker.makeRuntimeMetricsDecoder().decode(
@@ -912,6 +922,29 @@ struct HVFWorkerTests {
         #expect(decodedEngine.api?.routes?["GET /_ping"]?.count == 5)
         #expect(decodedEngine.reaper?.containersReaped == 8)
         #expect(decodedEngine.recentIssues?.first?.kind == "conflict")
+        #expect(decodedEngine.cacheAttach?["gomod"] == 4)
+        #expect(decodedEngine.cacheSkip?["store-failed"] == 1)
+        #expect(decodedEngine.cacheSkip?["busy-exclusive"] == 2)
+        #expect(decodedEngine.cacheProbeFailures == 1)
+        #expect(decodedEngine.cacheEvictions == 3)
+        #expect(decodedEngine.cacheEvictedBytes == 1_048_576)
+        // Verify cache probe/store failures & >=85% cache budget trigger health warnings
+        let highCacheInv = HVFCacheInspection(
+            root: "/var/lib/micropod/caches", mountPoint: "/micropod/cache", mountL0Point: "/micropod/cache-l0",
+            policy: nil, policyDigest: "abc", scopes: [:], units: [],
+            totals: HVFCacheTotals(
+                totalBytes: 9_000_000_000, logicalBytes: 9_000_000_000, totalFiles: 100,
+                scopeCount: 1, unitCount: 1, inUseCount: 0, l0Bytes: 4_000_000_000, l1Bytes: 5_000_000_000),
+            budget: HVFCacheBudgetStatus(
+                maxBytes: 10_000_000_000, minFreeBytes: 0, maxAgeDays: 0, utilizationPct: 90.0),
+            evictions: nil)
+        let evalCacheWarn = CIWorker.evaluateHealth(
+            vmm: .hvf, hypervisor: hv, kernel: okKernel, nativeOCI: nil,
+            runtimeEngine: decodedEngine, cacheInventory: highCacheInv, thresholds: obs.health)
+        #expect(evalCacheWarn.verdict == .degraded)
+        #expect(evalCacheWarn.warnings.contains { $0.contains("cache image probe failed") })
+        #expect(evalCacheWarn.warnings.contains { $0.contains("store-failed") })
+        #expect(evalCacheWarn.warnings.contains { $0.contains("cache budget utilization is high") })
         // Verify re-encoding preserves camelCase HealthReport schema
         let reencoded = String(decoding: try JSONEncoder().encode(decodedEngine), as: UTF8.self)
         #expect(reencoded.contains("\"containersCreated\":9"))

@@ -31,8 +31,12 @@ import MicropodCore
 /// ```
 public struct HVFMachineLayout: Sendable, Equatable {
     public let root: URL
+    private let dockerSocketOverride: URL?
 
-    public init(root: URL) { self.root = root.standardizedFileURL }
+    public init(root: URL, dockerSocketOverride: URL? = nil) {
+        self.root = root.standardizedFileURL
+        self.dockerSocketOverride = dockerSocketOverride?.standardizedFileURL
+    }
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.init(root: Self.defaultRoot(environment: environment))
@@ -52,7 +56,7 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var disk: URL { root.appendingPathComponent("disk.ext4") }
     public var config: URL { root.appendingPathComponent("machine.json") }
     public var runDirectory: URL { root.appendingPathComponent("run") }
-    public var dockerSocket: URL { runDirectory.appendingPathComponent("docker.sock") }
+    public var dockerSocket: URL { dockerSocketOverride ?? runDirectory.appendingPathComponent("docker.sock") }
     public var buildkitSocket: URL { runDirectory.appendingPathComponent("buildkit.sock") }
     public var supervisorLock: URL { runDirectory.appendingPathComponent("supervisor.lock") }
     public var startLock: URL { runDirectory.appendingPathComponent("start.lock") }

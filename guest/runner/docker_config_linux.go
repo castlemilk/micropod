@@ -677,15 +677,22 @@ func openStoreBeneath(p string) (*os.File, error) {
 	return os.NewFile(uintptr(fd), p), nil
 }
 
+// cacheUnitPin names one unit exactly: with shared L0 one plan's stores live
+// in two scopes (the container's and "global").
+type cacheUnitPin struct {
+	Scope string
+	Unit  string
+}
+
 // cacheAttachment is what one start of a container gets from its plan.
 type cacheAttachment struct {
 	files   []*os.File // pinned bind sources and unit locks; closed when the container exits
 	mounts  []*cri.Mount
 	env     []string
-	units   []string          // the plan's locked, stamped and dirty-marked units
-	pins    []cachePin        // every unit this start locked and marked, alias volumes included
+	units   []string          // the plan's locked, stamped and dirty-marked unit names (kept for legacy callers)
+	stamped []cacheUnitPin    // the same units as exact (scope, unit) pairs: stamped used at start and exit
+	pins    []cachePin        // every unit this start locked and marked, alias volumes and failed stores included
 	skipped map[string]string // tool -> reason, for this start only
-	scope   string
 }
 
 // cachePin is one writer's hold on a unit: its lock, held from before the
@@ -717,11 +724,12 @@ func pinUnit(scope, unit string, exclusive bool) (cachePin, error) {
 // release unpins the units after the container exited (or never started): it
 // drops their locks, then queues their dirty marks to be cleared once no
 // writer is left and a sync has put the writes on disk. Calling it again does
-// nothing.
+// nothing; stamp the units (touchAll) before, while they are still held.
 func (a *cacheAttachment) release() {
 	releasePins(a.pins)
 	a.pins = nil
 	a.units = nil
+	a.stamped = nil
 }
 
 // releasePins drops each pin's lock, then queues its unit's dirty mark for a
@@ -739,6 +747,15 @@ func (a *cacheAttachment) adopt(pins []cachePin) {
 	a.pins = append(a.pins, pins...)
 	for _, p := range pins {
 		a.files = append(a.files, p.lock)
+	}
+}
+
+// touchAll stamps the plan's units as used now, in their exact scopes, for the
+// janitor's LRU order. Alias-volume pins are not stamped: their kind-wide unit
+// is not a store the plan names.
+func (a *cacheAttachment) touchAll() {
+	for _, p := range a.stamped {
+		_ = touchUsed(p.Scope, p.Unit)
 	}
 }
 
@@ -772,31 +789,54 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		return dropAll(skipStoreFailed, err)
 	}
 	defer l.Close()
-	scopeDir, err := openScope(l, plan.Scope)
-	if err != nil {
+	scopeDirs := map[string]*os.File{}
+	ensureScopeDir := func(scope string) (*os.File, error) {
+		if scope == "" {
+			scope = plan.Scope
+		}
+		if d, ok := scopeDirs[scope]; ok {
+			return d, nil
+		}
+		d, err := openScope(l, scope)
+		if err != nil {
+			return nil, err
+		}
+		scopeDirs[scope] = d
+		a.files = append(a.files, d)
+		return d, nil
+	}
+	if _, err := ensureScopeDir(plan.Scope); err != nil {
 		return dropAll(skipStoreFailed, err)
 	}
-	a.files = append(a.files, scopeDir)
-	a.scope = plan.Scope
-	stores := map[string]*os.File{}
+	stores := map[string]*os.File{} // scope/unit -> store directory
 	for _, st := range plan.Stores {
-		// Locked and marked before the container can write, cleared after it
-		// exits and a sync (caches_dirty_linux.go): a crash meanwhile discards
-		// the unit instead of leaving torn entries for every container.
-		pin, err := pinUnit(plan.Scope, st.Unit, st.Exclusive)
+		storeScope := plan.scopeFor(st.Scope)
+		scopeDir, err := ensureScopeDir(storeScope)
+		if err != nil {
+			log.Printf("cache scope %s for %s: %v", storeScope, st.Unit, err)
+			a.skip(st.Kind, skipStoreFailed)
+			continue
+		}
+		// Locked and marked in the store's own scope (shared L0 units live in
+		// "global") before the container can write, cleared after it exits
+		// and a sync (caches_dirty_linux.go): a crash meanwhile discards the
+		// unit instead of leaving torn entries for every container. The
+		// janitor (caches_manage_linux.go) never touches a unit locked or
+		// marked like this.
+		pin, err := pinUnit(storeScope, st.Unit, st.Exclusive)
 		if err != nil {
 			reason := skipStoreFailed
 			if errors.Is(err, unix.EWOULDBLOCK) {
 				reason = skipBusyExclusive
 			} else {
-				log.Printf("cache store %s/%s: %v", plan.Scope, st.Unit, err)
+				log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
 			}
 			a.skip(st.Kind, reason)
 			continue
 		}
-		dir, err := openStore(l, plan.Scope, scopeDir, st.Kind, st.UID)
+		dir, err := openStore(l, storeScope, scopeDir, st.Kind, st.UID)
 		if err != nil {
-			log.Printf("cache store %s/%s: %v", plan.Scope, st.Unit, err)
+			log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
 			// The mark stays until a sync after this release: openStore may
 			// have created or repaired part of the store.
 			a.pins = append(a.pins, pin)
@@ -805,12 +845,14 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		}
 		a.files = append(a.files, pin.lock, dir)
 		a.pins = append(a.pins, pin)
-		stores[st.Unit] = dir
+		stores[storeScope+"/"+st.Unit] = dir
 		a.units = append(a.units, st.Unit)
+		a.stamped = append(a.stamped, cacheUnitPin{Scope: storeScope, Unit: st.Unit})
 	}
 	type opened struct {
-		m   cacheMount
-		src *os.File
+		m     cacheMount
+		scope string
+		src   *os.File
 	}
 	var binds []opened
 	for i, m := range plan.Mounts {
@@ -819,6 +861,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 				continue
 			}
 		}
+		mountScope := plan.scopeFor(m.Scope)
 		var src *os.File
 		var err error
 		switch {
@@ -838,12 +881,15 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			}
 			a.files = append(a.files, src)
 		case m.Kind == "":
-			src = scopeDir
+			src = scopeDirs[mountScope]
+			if src == nil {
+				continue
+			}
 		default:
-			base := stores[m.Unit]
+			base := stores[mountScope+"/"+m.Unit]
 			switch {
 			case base == nil:
-				err = fmt.Errorf("store %s not opened", m.Unit)
+				err = fmt.Errorf("store %s/%s not opened", mountScope, m.Unit)
 			case m.Sub == "":
 				src = base
 			case m.File:
@@ -861,43 +907,46 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 				a.files = append(a.files, src)
 			}
 		}
-		binds = append(binds, opened{m, src})
+		binds = append(binds, opened{m, mountScope, src})
 	}
-	scopeUsed := false
+	usedScopes := map[string]bool{}
 	for _, st := range plan.Stores {
 		if _, gone := a.skipped[st.Kind]; !gone && plan.Tools[st.Kind].Mode == "env" {
-			scopeUsed = true
+			usedScopes[plan.scopeFor(st.Scope)] = true
 		}
 	}
 	for _, b := range binds {
-		if b.m.Kind == "" && !b.m.Shim && !scopeUsed {
+		if b.m.Kind == "" && !b.m.Shim && !usedScopes[b.scope] {
 			continue
 		}
 		if _, gone := a.skipped[b.m.Kind]; gone && b.m.Kind != "" {
 			continue
 		}
 		if b.m.Kind == "" && !b.m.Shim {
-			// The scope is visible read-only; each env-mode unit this start
-			// locked and marked is bound writable over it (deeper mounts are
-			// applied after shallower ones). So nothing outside the marked
-			// units, a skipped tool's or another uid's partition included, can
-			// be written through this mount, and an archive write (docker cp)
-			// below the scope is refused as read-only.
+			// The scope (at /micropod/cache, or "global" at /micropod/cache-l0
+			// with shared L0) is visible read-only; each env-mode unit of that
+			// scope this start locked and marked is bound writable over it
+			// (deeper mounts are applied after shallower ones). So nothing
+			// outside the marked units, a skipped tool's or another uid's
+			// partition included, can be written through this mount, and an
+			// archive write (docker cp) below the scope is refused as read-only.
 			a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target, Readonly: true})
 			for _, st := range plan.Stores {
-				if _, gone := a.skipped[st.Kind]; gone || plan.Tools[st.Kind].Mode != "env" || stores[st.Unit] == nil {
+				sc := plan.scopeFor(st.Scope)
+				dir := stores[sc+"/"+st.Unit]
+				if _, gone := a.skipped[st.Kind]; gone || sc != b.scope || plan.Tools[st.Kind].Mode != "env" || dir == nil {
 					continue
 				}
-				a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(stores[st.Unit]), ContainerPath: path.Join(b.m.Target, cacheStoreSub(st.Kind, st.UID))})
+				a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(dir), ContainerPath: path.Join(b.m.Target, cacheStoreSub(st.Kind, st.UID))})
 			}
 			continue
 		}
 		a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target})
 	}
 	a.env = plan.env(a.skipped)
-	for _, u := range a.units {
-		if err := touchUsed(plan.Scope, u); err != nil {
-			log.Printf("cache stamp %s/%s: %v", plan.Scope, u, err)
+	for _, p := range a.stamped {
+		if err := touchUsed(p.Scope, p.Unit); err != nil {
+			log.Printf("cache stamp %s/%s: %v", p.Scope, p.Unit, err)
 		}
 	}
 	return a

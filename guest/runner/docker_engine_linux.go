@@ -450,8 +450,14 @@ func serveEngine(ctx context.Context, n node) error {
 		// and no container of this engine holds a cache unit yet (a unit a
 		// scheduler job still holds is left alone).
 		sweepProbes(ctx)
+		// The crash fence's recovery completes before the janitor exists:
+		// it discards what an unclean stop left marked, then empties .trash
+		// (earlier boots' and its own) in the background. Recovery and every
+		// janitor or prune pass also hold the cache maintenance lock
+		// (caches_manage_linux.go), so they never overlap in any process.
 		discardDirtyCaches()
 		go cacheDirty.run(ctx)
+		go s.runCacheJanitor(ctx)
 	}
 	if st, err := os.Lstat(dockerSocket); err == nil && st.Mode()&os.ModeSocket == 0 {
 		return errors.New("Docker API path is occupied")
@@ -960,9 +966,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		if parentHeld {
 			runErr = errors.Join(runErr, s.jobParents.release(dockerRuntimeCgroupRoot, jobParent))
 		}
-		for _, u := range caches.units {
-			_ = touchUsed(c.Cache.Scope, u)
-		}
+		// Stamp the units in their own scopes while still held, then unpin
+		// them and queue their marks for a clear.
+		caches.touchAll()
 		caches.release()
 		s.mu.Lock()
 		defer s.mu.Unlock()

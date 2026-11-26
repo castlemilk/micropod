@@ -24,7 +24,17 @@ import (
 // with the container and replayed on every start.
 
 const cacheMountRoot = "/micropod/cache"
+const cacheMountL0Root = "/micropod/cache-l0"
+const cacheL0GlobalScope = "global"
 const cachePolicyFile = "/run/micropod/host-config/cache-policy.json"
+
+const (
+	// cacheLayerL0 holds verified content-addressed artifacts (module zips,
+	// tarballs, wheels, crates) whose correctness comes from hash verification.
+	cacheLayerL0 = "L0"
+	// cacheLayerL1 holds content-addressed build artifacts (Go compile objects).
+	cacheLayerL1 = "L1"
+)
 
 // Skip reasons, as shown in docker inspect MicropodCache.tools.<tool>.reason
 // and counted in the cache_skip metric.
@@ -55,20 +65,25 @@ type cacheToolState struct {
 	Mode   string `json:"mode"` // env, path or skipped
 	Path   string `json:"path,omitempty"`
 	Reason string `json:"reason,omitempty"`
+	Layer  string `json:"layer,omitempty"`
+	Scope  string `json:"scope,omitempty"`
 }
 
 // cacheStoreRef names one store a plan uses: it is created/verified, locked and
-// stamped on every start.
+// stamped on every start. Empty Scope means the plan's own Scope.
 type cacheStoreRef struct {
+	Scope     string  `json:"scope,omitempty"`
 	Kind      string  `json:"kind"`
 	Unit      string  `json:"unit"`
 	UID       *uint32 `json:"uid,omitempty"`
 	Exclusive bool    `json:"exclusive,omitempty"`
 }
 
-// cacheMount is one bind of a plan. Kind "" with Shim false is the scope bind
-// at /micropod/cache; Sub is relative to the store directory of Unit.
+// cacheMount is one bind of a plan. Kind "" with Shim false is a scope bind
+// at /micropod/cache (or /micropod/cache-l0 for shared L0); Sub is relative to
+// the store directory of Unit. Empty Scope means the plan's own Scope.
 type cacheMount struct {
+	Scope  string `json:"scope,omitempty"`
 	Kind   string `json:"kind,omitempty"`
 	Unit   string `json:"unit,omitempty"`
 	Sub    string `json:"sub,omitempty"`
@@ -147,6 +162,7 @@ type cacheTarget struct {
 
 type cacheTool struct {
 	Kind, Group string
+	Layer       string   // cacheLayerL0 (verified downloads) or cacheLayerL1 (build artifacts)
 	Mode        string   // "env": a variable points into /micropod/cache; "path": bind at a fixed path
 	EnvKey      string   // env mode: the variable the engine sets
 	AltKeys     []string // other variables that select the same location
@@ -238,7 +254,7 @@ func cargoSrcSub(uid uint32) string { return "src/u" + strconv.FormatUint(uint64
 // S2 matrix: pip < 25 writes 0600 HTTP-cache files (silent miss for the other
 // uid) and yarn v1 creates 0755 dirs (0777 & ~umask) that defeat the ACL.
 var cacheTable = []*cacheTool{
-	{Kind: "gomod", Group: "go", Mode: "env", EnvKey: "GOMODCACHE",
+	{Kind: "gomod", Group: "go", Layer: cacheLayerL0, Mode: "env", EnvKey: "GOMODCACHE",
 		DefaultPath: func(x toolCtx) string {
 			if v := firstEnv(x, false, "GOMODCACHE"); v != "" {
 				return v
@@ -251,7 +267,7 @@ var cacheTable = []*cacheTool{
 			return path.Join(x.home, "go/pkg/mod")
 		},
 		Markers: func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "cache/download"), true}} }},
-	{Kind: "gobuild", Group: "go", Mode: "env", EnvKey: "GOCACHE", OffValues: map[string]string{"GOCACHE": "off"},
+	{Kind: "gobuild", Group: "go", Layer: cacheLayerL1, Mode: "env", EnvKey: "GOCACHE", OffValues: map[string]string{"GOCACHE": "off"},
 		DefaultPath: func(x toolCtx) string {
 			if v := firstEnv(x, false, "GOCACHE"); v != "" {
 				return v
@@ -260,7 +276,7 @@ var cacheTable = []*cacheTool{
 		},
 		// Go creates all 256 two-hex shard directories when it opens a cache.
 		Markers: func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "00"), false}} }},
-	{Kind: "npm", Mode: "env", EnvKey: "npm_config_cache", Fold: true,
+	{Kind: "npm", Layer: cacheLayerL0, Mode: "env", EnvKey: "npm_config_cache", Fold: true,
 		DefaultPath: func(x toolCtx) string {
 			if v := firstEnv(x, true, "npm_config_cache"); v != "" {
 				return v
@@ -272,7 +288,7 @@ var cacheTable = []*cacheTool{
 	// pnpm_config_store_dir (measured), so both are set. npm 11 prints
 	// `npm warn Unknown env config "store-dir"` for the legacy key (npm 10 is
 	// silent); revisit when npm 12 ships.
-	{Kind: "pnpm", Mode: "env", EnvKey: "pnpm_config_store_dir", AltKeys: []string{"npm_config_store_dir"}, Fold: true,
+	{Kind: "pnpm", Layer: cacheLayerL0, Mode: "env", EnvKey: "pnpm_config_store_dir", AltKeys: []string{"npm_config_store_dir"}, Fold: true,
 		Extra: func(pol cachePolicy, value string) [][2]string {
 			if pol.PnpmLegacyEnv {
 				return [][2]string{{"npm_config_store_dir", value}}
@@ -289,7 +305,7 @@ var cacheTable = []*cacheTool{
 	// Yarn classic: no YARN_* variable is ever set (Berry reads the same
 	// names). Shared cold installs corrupt each other (measured 4/4 and 8/8
 	// failures), so one container per store at a time.
-	{Kind: "yarn", Mode: "path", AltKeys: []string{"YARN_CACHE_FOLDER"}, Fold: true, Partition: true, Exclusive: true,
+	{Kind: "yarn", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"YARN_CACHE_FOLDER"}, Fold: true, Partition: true, Exclusive: true,
 		DefaultPath: func(x toolCtx) string {
 			if v := x.get("XDG_CACHE_HOME"); path.IsAbs(v) {
 				return path.Join(v, "yarn")
@@ -301,7 +317,7 @@ var cacheTable = []*cacheTool{
 		},
 		Markers:  func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "v6"), false}} },
 		Presence: nodeOnPath},
-	{Kind: "yarnberry", Mode: "path", AltKeys: []string{"YARN_GLOBAL_FOLDER", "YARN_CACHE_FOLDER", "YARN_ENABLE_GLOBAL_CACHE"}, Fold: true,
+	{Kind: "yarnberry", Layer: cacheLayerL0, Mode: "path", AltKeys: []string{"YARN_GLOBAL_FOLDER", "YARN_CACHE_FOLDER", "YARN_ENABLE_GLOBAL_CACHE"}, Fold: true,
 		OffValues: map[string]string{"YARN_ENABLE_GLOBAL_CACHE": "false"},
 		DefaultPath: func(x toolCtx) string {
 			if v := x.get("XDG_DATA_HOME"); path.IsAbs(v) {
@@ -311,7 +327,7 @@ var cacheTable = []*cacheTool{
 		},
 		Markers:  func(p string) []cacheMarker { return []cacheMarker{{path.Join(p, "cache"), true}} },
 		Presence: nodeOnPath},
-	{Kind: "pip", Mode: "env", EnvKey: "PIP_CACHE_DIR", DisableKeys: []string{"PIP_NO_CACHE_DIR"}, Partition: true,
+	{Kind: "pip", Layer: cacheLayerL0, Mode: "env", EnvKey: "PIP_CACHE_DIR", DisableKeys: []string{"PIP_NO_CACHE_DIR"}, Partition: true,
 		DefaultPath: func(x toolCtx) string {
 			if v := firstEnv(x, false, "PIP_CACHE_DIR"); v != "" {
 				return v
@@ -321,7 +337,7 @@ var cacheTable = []*cacheTool{
 		Markers: func(p string) []cacheMarker {
 			return []cacheMarker{{path.Join(p, "http-v2"), false}, {path.Join(p, "http"), false}, {path.Join(p, "wheels"), false}}
 		}},
-	{Kind: "uv", Mode: "env", EnvKey: "UV_CACHE_DIR", DisableKeys: []string{"UV_NO_CACHE"},
+	{Kind: "uv", Layer: cacheLayerL0, Mode: "env", EnvKey: "UV_CACHE_DIR", DisableKeys: []string{"UV_NO_CACHE"},
 		// The project's venv is never on the cache mount; hardlinks would fail.
 		Extra: func(cachePolicy, string) [][2]string { return [][2]string{{"UV_LINK_MODE", "copy"}} },
 		DefaultPath: func(x toolCtx) string {
@@ -337,7 +353,7 @@ var cacheTable = []*cacheTool{
 	// own modes (fnv 1.0.7 ships 0640 files), which no default ACL can widen,
 	// so another uid could not read sources root extracted (measured rc=101).
 	// The downloads (registry/index and registry/cache) stay shared.
-	{Kind: "cargo", Mode: "path",
+	{Kind: "cargo", Layer: cacheLayerL0, Mode: "path",
 		DefaultPath: cargoHome,
 		Targets: func(x toolCtx) []cacheTarget {
 			h := cargoHome(x)
@@ -351,7 +367,7 @@ var cacheTable = []*cacheTool{
 			p, ok := f.Paths[cargoHome(x)]
 			return ok && p.Dir
 		}},
-	{Kind: "corepack", Mode: "env", EnvKey: "COREPACK_HOME",
+	{Kind: "corepack", Layer: cacheLayerL0, Mode: "env", EnvKey: "COREPACK_HOME",
 		DefaultPath: func(x toolCtx) string {
 			if v := firstEnv(x, false, "COREPACK_HOME"); v != "" {
 				return v
@@ -388,6 +404,15 @@ type cachePolicy struct {
 	Tools         []string `json:"tools"`
 	GoTrimpath    bool     `json:"goTrimpath"`
 	PnpmLegacyEnv bool     `json:"pnpmLegacyEnv"`
+	// Fleet-aligned extensions (all omitempty so default policy JSON/digest is unchanged):
+	// SharedL0 shares verified content-addressed downloads (L0) in scope "global"
+	// even when containers name a project scope, keeping L1 build caches scoped.
+	SharedL0     bool   `json:"sharedL0,omitempty"`
+	GoProxy      string `json:"goProxy,omitempty"`
+	NpmRegistry  string `json:"npmRegistry,omitempty"`
+	MaxBytes     uint64 `json:"maxBytes,omitempty"`
+	MaxAgeDays   int    `json:"maxAgeDays,omitempty"`
+	MinFreeBytes uint64 `json:"minFreeBytes,omitempty"`
 }
 
 func allCacheKinds() []string {
@@ -402,6 +427,22 @@ func defaultCachePolicy() cachePolicy {
 	return cachePolicy{Mode: "auto", DefaultScope: "default", AllowedScopes: []string{"*"}, Tools: allCacheKinds(), GoTrimpath: true, PnpmLegacyEnv: true}
 }
 
+func validProxySetting(v string) bool {
+	if v == "" {
+		return true
+	}
+	for _, part := range strings.Split(v, ",") {
+		part = strings.TrimSpace(part)
+		if part == "direct" || part == "off" {
+			continue
+		}
+		if !strings.HasPrefix(part, "http://") && !strings.HasPrefix(part, "https://") {
+			return false
+		}
+	}
+	return true
+}
+
 // parseCachePolicy reads the host-rendered policy. Absent keys keep their
 // defaults; unknown keys (buildkit, version, future fields) are ignored.
 func parseCachePolicy(b []byte) (cachePolicy, error) {
@@ -413,6 +454,12 @@ func parseCachePolicy(b []byte) (cachePolicy, error) {
 		Tools         *[]string `json:"tools"`
 		GoTrimpath    *bool     `json:"goTrimpath"`
 		PnpmLegacyEnv *bool     `json:"pnpmLegacyEnv"`
+		SharedL0      *bool     `json:"sharedL0"`
+		GoProxy       *string   `json:"goProxy"`
+		NpmRegistry   *string   `json:"npmRegistry"`
+		MaxBytes      *uint64   `json:"maxBytes"`
+		MaxAgeDays    *int      `json:"maxAgeDays"`
+		MinFreeBytes  *uint64   `json:"minFreeBytes"`
 	}
 	if err := json.Unmarshal(b, &wire); err != nil {
 		return pol, err
@@ -454,6 +501,35 @@ func parseCachePolicy(b []byte) (cachePolicy, error) {
 	}
 	if wire.PnpmLegacyEnv != nil {
 		pol.PnpmLegacyEnv = *wire.PnpmLegacyEnv
+	}
+	if wire.SharedL0 != nil {
+		pol.SharedL0 = *wire.SharedL0
+	}
+	if wire.GoProxy != nil {
+		v := strings.TrimSpace(*wire.GoProxy)
+		if !validProxySetting(v) {
+			return defaultCachePolicy(), fmt.Errorf("invalid goProxy %q", v)
+		}
+		pol.GoProxy = v
+	}
+	if wire.NpmRegistry != nil {
+		v := strings.TrimSpace(*wire.NpmRegistry)
+		if v != "" && !strings.HasPrefix(v, "http://") && !strings.HasPrefix(v, "https://") {
+			return defaultCachePolicy(), fmt.Errorf("invalid npmRegistry %q", v)
+		}
+		pol.NpmRegistry = v
+	}
+	if wire.MaxBytes != nil {
+		pol.MaxBytes = *wire.MaxBytes
+	}
+	if wire.MaxAgeDays != nil {
+		if *wire.MaxAgeDays < 0 {
+			return defaultCachePolicy(), fmt.Errorf("invalid maxAgeDays %d", *wire.MaxAgeDays)
+		}
+		pol.MaxAgeDays = *wire.MaxAgeDays
+	}
+	if wire.MinFreeBytes != nil {
+		pol.MinFreeBytes = *wire.MinFreeBytes
 	}
 	return pol, nil
 }
@@ -526,33 +602,36 @@ func init() { extraRoutes = append(extraRoutes, cacheRoutes) }
 
 // cacheRoutes serves:
 //
-//	GET  /micropod/caches        effective policy, its digest, the scopes and units on disk and
-//	                             the units this start discarded after an unclean stop
-//	POST /micropod/caches/debug  {"scope":"qual-x","kind":"gobuild","uid":null,"acl":false}
-//	                             strips (acl=false) or restores the default ACL of a
-//	                             qual-*/debug-* store; any other scope is HTTP 400
+//	GET    /micropod/caches        policy, digest, scopes, per-unit sizes/locks/dirty marks/ages,
+//	                               budget & evictions, and the units this start discarded or kept
+//	                               after the previous stop (?stats=0 skips the size walk)
+//	GET    /micropod/caches/dedupe cross-scope Go build-cache duplication sampler
+//	POST   /micropod/caches/prune  lock-safe LRU & partial gobuild eviction (supports dryRun); a
+//	                               unit a writer holds or one marked dirty is skipped
+//	DELETE /micropod/caches        alias for prune via query params
+//	POST   /micropod/caches/debug  {"scope":"qual-x","kind":"gobuild","uid":null,"acl":false}
+//	                               strips (acl=false) or restores the default ACL of a
+//	                               qual-*/debug-* store; any other scope is HTTP 400
 func cacheRoutes(s *dockerEngine, w http.ResponseWriter, r *http.Request, method, p string) (bool, error) {
 	switch {
 	case p == "micropod/caches" && method == "GET":
-		pol := s.cachePolicy.get()
-		scopes := map[string][]string{}
-		entries, _ := os.ReadDir(path.Join(cacheRoot, "scopes"))
-		for _, e := range entries {
-			if !e.IsDir() || !scopeName.MatchString(e.Name()) {
-				continue
-			}
-			units := []string{}
-			meta, _ := os.ReadDir(path.Join(cacheRoot, ".meta", e.Name()))
-			for _, m := range meta {
-				if u, ok := strings.CutSuffix(m.Name(), ".used"); ok {
-					units = append(units, u)
-				}
-			}
-			scopes[e.Name()] = units
-		}
-		writeJSON(w, 200, map[string]any{"root": cacheRoot, "mountPoint": cacheMountRoot, "policy": pol, "policyDigest": pol.digest(), "scopes": scopes,
-			"discardedAtStart": append([]string{}, cacheDiscarded...), "keptAtStart": append([]string{}, cacheKept...)})
+		includeStats := r.URL.Query().Get("stats") != "0"
+		snap := s.inspectCaches(includeStats)
+		writeJSON(w, 200, snap)
 		return true, nil
+	case p == "micropod/caches/dedupe" && method == "GET":
+		buckets := 16
+		if raw := r.URL.Query().Get("buckets"); raw != "" {
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < 1 || n > 256 {
+				return true, fail(400, "buckets must be an integer between 1 and 256")
+			}
+			buckets = n
+		}
+		writeJSON(w, 200, sampleCacheDedupe(buckets))
+		return true, nil
+	case (p == "micropod/caches/prune" && method == "POST") || (p == "micropod/caches" && method == "DELETE"):
+		return true, s.handleCachePrune(w, r)
 	case p == "micropod/caches/debug" && method == "POST":
 		b, err := readBody(w, r)
 		if err != nil {
@@ -910,20 +989,23 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 		}
 		return false
 	}
-	reserved := overlapsUser(cacheMountRoot)
+	reserved := overlapsUser(cacheMountRoot) || (pol.SharedL0 && overlapsUser(cacheMountL0Root))
 	if p, ok := facts.Paths["/micropod"]; ok && p.NonEmpty {
 		reserved = true
 	}
 	trimpath := pol.GoTrimpath && !strings.EqualFold(spec.Labels["io.micropod.cache.go-trimpath"], "false")
 	plan.ToolEnv = map[string][]string{}
 	scopeBind := false
+	scopeL0Bind := false
 	var shims []string
 	for _, t := range cacheTable {
 		if !selected[t.Kind] {
-			plan.Tools[t.Kind] = cacheToolState{Mode: "skipped", Reason: skipNotSelected}
+			plan.Tools[t.Kind] = cacheToolState{Mode: "skipped", Reason: skipNotSelected, Layer: t.Layer}
 			continue
 		}
-		skip := func(reason, p string) { plan.Tools[t.Kind] = cacheToolState{Mode: "skipped", Path: p, Reason: reason} }
+		skip := func(reason, p string) {
+			plan.Tools[t.Kind] = cacheToolState{Mode: "skipped", Path: p, Reason: reason, Layer: t.Layer}
+		}
 		userSet := false
 		for _, k := range t.userKeys() {
 			if _, ok := envLookup(spec.Env, k, t.Fold); ok {
@@ -980,11 +1062,24 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 			u := uid
 			storeUID = &u
 		}
+		// Fleet L0 sharing: verified content-addressed tools resolve into the
+		// shared "global" store when SharedL0 is enabled, even for named project
+		// scopes, while L1 build artifacts stay in the container's scope.
+		storeScope := ""
+		mountRoot := cacheMountRoot
+		if pol.SharedL0 && t.Layer == cacheLayerL0 && scope != cacheL0GlobalScope {
+			storeScope = cacheL0GlobalScope
+			mountRoot = cacheMountL0Root
+		}
+		effectiveScope := scope
+		if storeScope != "" {
+			effectiveScope = storeScope
+		}
 		unit := cacheUnit(t.Kind, storeUID)
-		plan.Stores = append(plan.Stores, cacheStoreRef{Kind: t.Kind, Unit: unit, UID: storeUID, Exclusive: t.Exclusive})
+		plan.Stores = append(plan.Stores, cacheStoreRef{Scope: storeScope, Kind: t.Kind, Unit: unit, UID: storeUID, Exclusive: t.Exclusive})
 		var env []string
 		if useScope {
-			value := path.Join(cacheMountRoot, cacheStoreSub(t.Kind, storeUID))
+			value := path.Join(mountRoot, cacheStoreSub(t.Kind, storeUID))
 			env = append(env, t.EnvKey+"="+value)
 			if t.Extra != nil {
 				for _, kv := range t.Extra(pol, value) {
@@ -993,21 +1088,25 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 					}
 				}
 			}
-			scopeBind = true
-			plan.Tools[t.Kind] = cacheToolState{Mode: "env", Path: value}
+			if storeScope != "" {
+				scopeL0Bind = true
+			} else {
+				scopeBind = true
+			}
+			plan.Tools[t.Kind] = cacheToolState{Mode: "env", Path: value, Layer: t.Layer, Scope: effectiveScope}
 		} else {
 			nested := func(tg cacheTarget) bool { // inside another bind of this tool: never needs a shim
 				return slices.ContainsFunc(targets, func(o cacheTarget) bool { return !o.File && o.Target == path.Dir(tg.Target) })
 			}
 			for _, tg := range targets {
-				plan.Mounts = append(plan.Mounts, cacheMount{Kind: t.Kind, Unit: unit, Sub: tg.Sub, Target: tg.Target, File: tg.File})
+				plan.Mounts = append(plan.Mounts, cacheMount{Scope: storeScope, Kind: t.Kind, Unit: unit, Sub: tg.Sub, Target: tg.Target, File: tg.File})
 				if t.Mode == "path" && uid != 0 && !tg.File && !nested(tg) {
 					if s := shimFor(tg.Target, home, &facts); s != "" && !slices.Contains(shims, s) {
 						shims = append(shims, s)
 					}
 				}
 			}
-			plan.Tools[t.Kind] = cacheToolState{Mode: "path", Path: targets[0].Target}
+			plan.Tools[t.Kind] = cacheToolState{Mode: "path", Path: targets[0].Target, Layer: t.Layer, Scope: effectiveScope}
 		}
 		// (7) Go: -trimpath keeps build-cache keys independent of checkout paths.
 		if t.Kind == "gobuild" && trimpath {
@@ -1017,6 +1116,18 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 			}
 			if merged, changed := mergeGoflags(flags); changed {
 				env = append(env, "GOFLAGS="+merged)
+			}
+		}
+		// (7b) Optional L0 rig dependency proxy wiring (depproxy): inject only
+		// when neither the container request nor the image set the registry.
+		if t.Kind == "gomod" && pol.GoProxy != "" {
+			if _, ok := envLookup(merged, "GOPROXY", false); !ok {
+				env = append(env, "GOPROXY="+pol.GoProxy)
+			}
+		}
+		if (t.Kind == "npm" || t.Kind == "pnpm") && pol.NpmRegistry != "" {
+			if _, ok := envLookup(merged, "npm_config_registry", true); !ok {
+				env = append(env, "npm_config_registry="+pol.NpmRegistry)
 			}
 		}
 		if len(env) > 0 {
@@ -1032,6 +1143,9 @@ func decideCaches(pol cachePolicy, spec dockerConfig, facts imageFacts) (cachePl
 	}
 	if scopeBind {
 		mounts = append(mounts, cacheMount{Target: cacheMountRoot})
+	}
+	if scopeL0Bind {
+		mounts = append(mounts, cacheMount{Scope: cacheL0GlobalScope, Target: cacheMountL0Root})
 	}
 	plan.Mounts = append(mounts, plan.Mounts...)
 	if len(plan.ToolEnv) == 0 {

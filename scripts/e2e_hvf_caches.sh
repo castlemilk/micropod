@@ -99,6 +99,10 @@ T7_FIRST="${QUAL_T7_FIRST_IMAGES:-alpine:3.19 alpine:3.18}"
 # Pinned harness tools, installed once per workspace into qual-tools/.
 PNPM_VERSIONS="9.15.9 10.34.9 11.29.0 12.23.0"
 YARN4_VERSION=4.19.0
+# Node 26 images ship neither Corepack nor Yarn 1; this is the Yarn 1 that
+# node:22-alpine carried.
+YARN1_VERSION=1.22.22
+QT_VERSIONS="$PNPM_VERSIONS yarn4 $YARN4_VERSION corepack 0.36.0 yarn1 $YARN1_VERSION"
 # Contracts from the cache plan (P1-GE-CACHE and amendments).
 CACHE_ROOT=/var/lib/micropod/caches
 VOL_ROOT=/var/lib/micropod/engine/volumes
@@ -547,18 +551,19 @@ for img in $(echo "$images" | tr ' ' '\n' | sort -u); do
     "$DOCKER" image inspect "$img" >/dev/null 2>&1 && continue
     "$DOCKER" pull -q "$img" >>"$OUT/pull.log" 2>&1 || record harness "pull $img" "failed (see pull.log)" "pulled" 0
 done
-if [ "$(cat "$QT/versions" 2>/dev/null)" != "$PNPM_VERSIONS yarn4 $YARN4_VERSION corepack 0.36.0" ]; then
+if [ "$(cat "$QT/versions" 2>/dev/null)" != "$QT_VERSIONS" ]; then
     rm -rf "${QT:?}/"* && chmod 0755 "$QT"
     cat >"$QW/q/install-tools.sh" <<EOF
 set -e
 for v in $PNPM_VERSIONS; do npm i -g --prefix /qt/pnpm\${v%%.*} pnpm@\$v >/qt/install.log 2>&1; done
 npm i -g --prefix /qt/yarn4 @yarnpkg/cli-dist@$YARN4_VERSION >>/qt/install.log 2>&1
 npm i -g --prefix /qt/corepack corepack@0.36.0 >>/qt/install.log 2>&1
-echo "$PNPM_VERSIONS yarn4 $YARN4_VERSION corepack 0.36.0" >/qt/versions
+npm i -g --prefix /qt/yarn1 yarn@$YARN1_VERSION >>/qt/install.log 2>&1
+echo "$QT_VERSIONS" >/qt/versions
 EOF
     "$DOCKER" run --rm --label "qual-run=$S" --label io.micropod.cache=off -e npm_config_cache=/tmp/npmc -e npm_config_update_notifier=false \
         -v "$QW/q:/q:ro" -v "$QT:/qt" "$IMG_NODE" sh /q/install-tools.sh >"$OUT/install-tools.log" 2>&1
-    check harness "pinned pnpm ($PNPM_VERSIONS) and yarn $YARN4_VERSION installed into the workspace" "$(cat "$QT/versions" 2>/dev/null)" "$PNPM_VERSIONS yarn4 $YARN4_VERSION corepack 0.36.0"
+    check harness "pinned pnpm ($PNPM_VERSIONS), yarn $YARN4_VERSION, corepack 0.36.0 and yarn $YARN1_VERSION installed into the workspace" "$(cat "$QT/versions" 2>/dev/null)" "$QT_VERSIONS"
 fi
 
 # --- T0 preflight -------------------------------------------------------------------
@@ -1238,7 +1243,9 @@ t5() {
     done
     check harness "t5: the supervisor relaunched the VMM and the engine answers" "$(ping_engine && echo up || echo down)" up
     local discarded
-    discarded=$(curl -s -m 5 --unix-socket "$SOCK" http://d/micropod/caches | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin).get('discardedAtStart') or []))" 2>/dev/null)
+    # stats=0: the recovery report without the per-unit size walk, which on a
+    # cold page cache right after the relaunch can outlast the timeout.
+    discarded=$(curl -s -m 5 --unix-socket "$SOCK" 'http://d/micropod/caches?stats=0' | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin).get('discardedAtStart') or []))" 2>/dev/null)
     echo "    units the engine discarded at start: ${discarded:-none}"
     local want_disc="" got_disc=""
     want_tool go && want_disc="gomod" && got_disc=$(words "$discarded" "$sc/gomod" && echo gomod || echo none)

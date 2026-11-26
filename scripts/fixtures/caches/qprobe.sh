@@ -11,7 +11,8 @@
 # goes to /qr/<name>.log.
 #
 # Mounts (from the harness): /q (this script, ro), /qf (fixtures, ro),
-# /qt (harness-installed pnpm<major>/ and yarn4/, ro), /qr (results, rw 0777).
+# /qt (harness-installed pnpm<major>/, yarn4/, corepack/ and yarn1/, ro),
+# /qr (results, rw 0777).
 # Env: QCO checkout dir (default /tmp/qco/<name>), QEDIT one-file-change token,
 #      QWAIT barrier file in /qr to wait for, QDROP uid that a root entrypoint
 #      drops to with busybox su before the tool runs, QPNPM pnpm major,
@@ -217,6 +218,11 @@ pnpm)
     out pnpm_index_db_mode "$(stat -c %a "$SP/index.db" 2>/dev/null || echo absent)"
     ;;
 yarn1)
+    # Node 26 images no longer ship Yarn 1: an image without one uses the
+    # release node:22-alpine carried, from the qualification tool volume. Its
+    # cache location is Yarn's own default either way.
+    command -v yarn >/dev/null 2>&1 || PATH="/qt/yarn1/bin:$PATH"
+    export PATH
     co "yarn1/$VARIANT"
     out version "$(yarn --version 2>/dev/null)"
     case $ACTION in

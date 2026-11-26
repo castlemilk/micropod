@@ -377,6 +377,11 @@ enum TelemetryCommands {
                 let fsErrors: UInt64?
                 let fsNotifyEvents: UInt64?
                 let fsKeepCacheHits: UInt64?
+                let cacheAttach: [String: UInt64]?
+                let cacheSkip: [String: UInt64]?
+                let cacheEvictions: UInt64?
+                let cacheEvictedBytes: UInt64?
+                let cacheTotals: HVFCacheTotals?
                 let recentIssues: [CIWorker.RuntimeIssue]
             }
             try printJSON(
@@ -388,6 +393,11 @@ enum TelemetryCommands {
                     fsErrors: report.hypervisor?.fsErrors,
                     fsNotifyEvents: report.hypervisor?.fsNotifyEvents,
                     fsKeepCacheHits: report.hypervisor?.fsKeepCacheHits,
+                    cacheAttach: report.runtimeEngine?.cacheAttach,
+                    cacheSkip: report.runtimeEngine?.cacheSkip,
+                    cacheEvictions: report.runtimeEngine?.cacheEvictions,
+                    cacheEvictedBytes: report.runtimeEngine?.cacheEvictedBytes,
+                    cacheTotals: report.cacheInventory?.totals,
                     recentIssues: issues
                 ))
             return report.verdict == .unhealthy ? ExitCode.failure : ExitCode.ok
@@ -423,6 +433,21 @@ enum TelemetryCommands {
                     + "ro_cache=\(hv.fsRoCacheHits ?? 0)/\(hv.fsRoCacheMisses ?? 0) "
                     + "notify_events=\(hv.fsNotifyEvents ?? 0) epoch_resets=\(hv.fsNotifyEpochResets ?? 0) "
                     + "errors=\(hv.fsErrors ?? 0)")
+        }
+        if let totals = report.cacheInventory?.totals {
+            let attachTotal = report.runtimeEngine?.cacheAttach?.values.reduce(0, +) ?? 0
+            let skipTotal = report.runtimeEngine?.cacheSkip?.values.reduce(0, +) ?? 0
+            let evictions = report.runtimeEngine?.cacheEvictions ?? 0
+            let evictedMB = Double(report.runtimeEngine?.cacheEvictedBytes ?? 0) / (1024.0 * 1024.0)
+            let totalMB = Double(totals.totalBytes) / (1024.0 * 1024.0)
+            let l0MB = Double(totals.l0Bytes) / (1024.0 * 1024.0)
+            let l1MB = Double(totals.l1Bytes) / (1024.0 * 1024.0)
+            print(
+                String(
+                    format:
+                        "CACHE: total=%.1f MiB (L0=%.1f MiB L1=%.1f MiB) scopes=%d units=%d in_use=%d attach=%llu skip=%llu evictions=%llu (%.1f MiB)",
+                    totalMB, l0MB, l1MB, totals.scopeCount, totals.unitCount, totals.inUseCount,
+                    attachTotal, skipTotal, evictions, evictedMB))
         }
         if issues.isEmpty {
             print("No recent errors, conflicts, or slow API calls (>50 ms).")

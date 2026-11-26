@@ -50,6 +50,18 @@ import (
 // Every writable path into a store is covered: env-mode tools see the scope
 // read-only with a writable bind of each unit they attached (openCacheMounts),
 // path-mode binds are per unit, and a legacy alias volume pins its kind.
+//
+// The janitor (caches_manage_linux.go) composes with this fence through the
+// same files. Lock order: the cache maintenance lock (.meta/maintenance.lock,
+// LOCK_EX, the only flock anyone waits for) is taken by startup recovery and by
+// every prune or janitor pass, never by a writer, clearer or inventory read;
+// then unit locks, always LOCK_NB, the unit's own first and then its guards
+// (cacheUnitGuards), all released on the first one that is busy. Nobody waits
+// for a flock while holding another, so no wait-for cycle can form. Under its
+// unit locks the janitor checks the marks of the unit and its guards and skips
+// a marked unit; a mark is only ever made under a lock it then holds, so none
+// appears while it works. Recovery waits for a janitor pass in flight instead
+// of meeting its locks, so it only ever leaves a unit marked for a real writer.
 
 var (
 	bootIDPath    = "/proc/sys/kernel/random/boot_id"
@@ -319,33 +331,73 @@ func listDirtyMarks() [][2]string {
 	return out
 }
 
-// parseCacheUnit splits <kind> or <kind>.u<uid>.
-func parseCacheUnit(unit string) (string, *uint32, bool) {
-	kind, part, found := strings.Cut(unit, ".u")
-	if cacheToolByKind(kind) == nil {
-		return "", nil, false
+// cacheUnitGuards lists the units whose locks a writer into unit's directory
+// holds: the unit itself and, for a partitioned kind, the kind-wide unit a
+// legacy alias volume pins (for a partition, whose directory it contains) or
+// every partition with a lock file (for the kind-wide unit, whose directory
+// holds them all). The unit comes first and the rest in name order, so every
+// holder of several (startup recovery, the janitor) takes them in one order.
+// (parseCacheUnit is in caches_manage_linux.go.)
+func cacheUnitGuards(scope, unit string) []string {
+	units := []string{unit}
+	kind, uid, ok := parseCacheUnit(unit)
+	if !ok || !cacheToolByKind(kind).Partition {
+		return units
 	}
-	if !found {
-		return kind, nil, true
+	if uid != nil {
+		return append(units, kind)
 	}
-	n, err := strconv.ParseUint(part, 10, 32)
-	if err != nil {
-		return "", nil, false
+	entries, _ := os.ReadDir(filepath.Join(cacheRoot, ".meta", scope))
+	for _, e := range entries {
+		if u, ok := strings.CutSuffix(e.Name(), ".lock"); ok && strings.HasPrefix(u, kind+".u") {
+			units = append(units, u)
+		}
 	}
-	uid := uint32(n)
-	return kind, &uid, true
+	return units
+}
+
+// markedGuard returns the first of units (a cacheUnitGuards list) that has a
+// dirty mark: a writer may have left unsynced entries in the guarded directory.
+func markedGuard(scope string, units []string) (string, bool) {
+	for _, u := range units {
+		if _, err := os.Lstat(dirtyMarker(scope, u)); err == nil {
+			return u, true
+		}
+	}
+	return "", false
 }
 
 // cacheDiscarded lists the units this boot moved to .trash and cacheKept the
 // marked units it kept (marked in this boot or a cleanly stopped one), for
-// GET /micropod/caches.
-var cacheDiscarded, cacheKept []string
+// GET /micropod/caches and the engine metrics. Recovery appends to them under
+// cacheRecoveryMu; readers copy them with cacheRecoveryReport.
+var (
+	cacheRecoveryMu           sync.Mutex
+	cacheDiscarded, cacheKept []string
+)
 
-// discardDirtyCaches runs at engine start, before the socket opens. A unit
-// still held by a writer (another process) is left alone. A mark from this
-// boot or from a cleanly stopped boot is cleared after a sync. Every other
-// marked unit may hold torn entries and is moved to .trash under its locks.
+// cacheRecoveryReport copies what startup recovery discarded and kept.
+func cacheRecoveryReport() (discarded, kept []string) {
+	cacheRecoveryMu.Lock()
+	defer cacheRecoveryMu.Unlock()
+	return append([]string{}, cacheDiscarded...), append([]string{}, cacheKept...)
+}
+
+// discardDirtyCaches runs at engine start, before the socket opens. It holds
+// the cache maintenance lock throughout, so a janitor or prune pass in flight
+// finishes first and none starts until recovery is done (in production none
+// can be in flight: the janitor starts after this returns and one engine owns
+// the guest). A unit still held by a writer (another process) is left alone. A
+// mark from this boot or from a cleanly stopped boot is cleared after a sync.
+// Every other marked unit may hold torn entries and is moved to .trash under
+// its locks, with the used stamps of what it held (the inventory and the
+// janitor's LRU then no longer list a store that is gone).
 func discardDirtyCaches() {
+	if maint, err := lockCacheMaintenance(); err != nil {
+		log.Printf("cache recovery: maintenance lock: %v", err)
+	} else if maint != nil {
+		defer maint.Close()
+	}
 	removeMarkTemps()
 	marks := listDirtyMarks()
 	if len(marks) == 0 {
@@ -395,7 +447,20 @@ func discardDirtyCaches() {
 		if err := os.Remove(dirtyMarker(scope, unit)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			log.Printf("cache %s/%s: clear dirty mark: %v", scope, unit, err)
 		}
+		// The stamps of every unit whose directory went with it (all
+		// partitions, for a kind-wide unit); their locks are held here.
+		inside := []string{unit}
+		if kind, uid, ok := parseCacheUnit(unit); ok && uid == nil && cacheToolByKind(kind).Partition {
+			inside = cacheUnitGuards(scope, unit)
+		}
+		for _, u := range inside {
+			if err := os.Remove(filepath.Join(cacheRoot, ".meta", scope, u+".used")); err != nil && !errors.Is(err, os.ErrNotExist) {
+				log.Printf("cache %s/%s: remove used stamp: %v", scope, u, err)
+			}
+		}
+		cacheRecoveryMu.Lock()
 		cacheDiscarded = append(cacheDiscarded, scope+"/"+unit)
+		cacheRecoveryMu.Unlock()
 		log.Printf("cache %s/%s: discarded: the machine stopped while it could hold unsynced writes", scope, unit)
 	}
 	if err := unix.Syncfs(int(l.root.Fd())); err != nil {
@@ -406,7 +471,9 @@ func discardDirtyCaches() {
 				log.Printf("cache %s/%s: clear dirty mark: %v", m[0], m[1], err)
 				continue
 			}
+			cacheRecoveryMu.Lock()
 			cacheKept = append(cacheKept, m[0]+"/"+m[1])
+			cacheRecoveryMu.Unlock()
 			log.Printf("cache %s/%s: kept: its last writers stopped with the boot cleanly (or this boot is still running)", m[0], m[1])
 		}
 	}
@@ -414,26 +481,12 @@ func discardDirtyCaches() {
 }
 
 // lockForDiscard takes LOCK_EX|LOCK_NB on every lock whose holder could write
-// into the unit's directory: the unit's own, and for a partitioned kind the
-// kind-wide lock of an alias volume (for a partition) or every partition's
-// lock (for the kind-wide unit, whose directory holds them all). Locks already
-// in held are this function's own from an earlier mark; new ones are added.
+// into the unit's directory (cacheUnitGuards). Locks already in held are this
+// function's own from an earlier mark; new ones are added. On a busy lock it
+// drops the ones it took for this unit and returns the error.
 func lockForDiscard(held map[string]*os.File, scope, unit string) error {
-	units := []string{unit}
-	if kind, uid, ok := parseCacheUnit(unit); ok && cacheToolByKind(kind).Partition {
-		if uid != nil {
-			units = append(units, kind)
-		} else {
-			entries, _ := os.ReadDir(filepath.Join(cacheRoot, ".meta", scope))
-			for _, e := range entries {
-				if u, ok := strings.CutSuffix(e.Name(), ".lock"); ok && strings.HasPrefix(u, kind+".u") {
-					units = append(units, u)
-				}
-			}
-		}
-	}
 	var taken []string
-	for _, u := range units {
+	for _, u := range cacheUnitGuards(scope, unit) {
 		k := scope + "/" + u
 		if held[k] != nil {
 			continue

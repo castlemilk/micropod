@@ -29,7 +29,7 @@ public struct CIWorker: Sendable {
     public var socket: URL { directory.appendingPathComponent(isNativeRunner ? "oci.sock" : "docker.sock") }
     var buildkitSocket: URL { directory.appendingPathComponent("buildkit.sock") }
     var portSocket: URL { directory.appendingPathComponent("ports.sock") }
-    var dockerSocket: URL { directory.appendingPathComponent("docker.sock") }
+    public var dockerSocket: URL { directory.appendingPathComponent("docker.sock") }
     var ociSocket: URL { directory.appendingPathComponent("oci.sock") }
     static let guestOCI = "/var/lib/micropod/oci.sock"
     public var endpoint: String { "unix://" + socket.path }
