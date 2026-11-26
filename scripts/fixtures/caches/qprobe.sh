@@ -293,6 +293,9 @@ cargo)
     out store.cargo_lock "$(qstore "$CH/.package-cache")"
     ;;
 corepack)
+    # The qualification tool volume supplies Corepack on Node 26.
+    PATH="/qt/corepack/bin:$PATH"
+    export PATH
     cd /tmp || exit 1
     if [ "$ACTION" = prewarm ]; then cd /prewarm/npm || { out rc no-prewarm; finish; }; fi
     CH=${COREPACK_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/node/corepack}

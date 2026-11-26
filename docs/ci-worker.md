@@ -246,7 +246,7 @@ Set resources before first boot. Later starts reuse the recorded configuration. 
 Set `MICROPOD_CI_POSTGRES_PATH=bridge` for the sample CI pipeline to run a PostgreSQL server and its SQL client on a per-run guest network. The default path continues to exercise Testcontainers and Ryuk. The bridge mode runs a different integration check and should be compared on both engines. [Gamma sizing, scheduler and storage qualification](benchmarks/2026-11-21/gamma-worker-sizing.md)
 
 ```sh
-micropod ci run --cache npm node:24-alpine npm cache verify
+micropod ci run --cache npm node:26.13.1-alpine npm cache verify
 micropod ci run --cache go golang:1.26-alpine go env GOMODCACHE GOCACHE
 ```
 
@@ -255,7 +255,7 @@ The shortcuts attach one guest npm volume, one Go module volume and one Go build
 Use `--cache-scope` to give a group of trusted jobs its own stores. Use the same scope across checkouts and concurrent jobs that should share dependencies. Each requested store gets one named volume on the worker disk. Docker attaches it directly at container creation and skips copying files from the image into a new scoped volume.
 
 ```sh
-micropod ci run --cache npm --cache-scope frontend node:24-alpine npm config get cache
+micropod ci run --cache npm --cache-scope frontend node:26.13.1-alpine npm config get cache
 micropod ci run --cache go --cache-scope backend -e GOFLAGS=-trimpath golang:1.26-alpine go env GOCACHE
 ```
 

@@ -333,11 +333,11 @@ def main():
             repos[k] = ws_root / p.name
 
         # Export common CI base images from local OrbStack cache once so runs are deterministic & fast
-        print("[Setup] Saving local CI base images (alpine:3.23, node:24-alpine, postgres:16-alpine, pause)...", flush=True)
+        print("[Setup] Saving local CI base images (alpine:3.23, node:26.13.1-alpine, postgres:16-alpine, pause)...", flush=True)
         img_tar = work / "ci-images.tar"
         run_cmd([
             "docker", "--host", f"unix://{ORB_SOCK}", "save", "-o", str(img_tar),
-            "registry.k8s.io/pause:3.10.2", "alpine:3.23", "node:24-alpine", "postgres:16-alpine",
+            "registry.k8s.io/pause:3.10.2", "alpine:3.23", "node:26.13.1-alpine", "postgres:16-alpine",
         ], timeout=180)
 
         # =====================================================================
@@ -473,10 +473,10 @@ def main():
 
         # 2d. BuildKit `micropod ci snapshot` reusable checkout image (cold vs warm hit)
         t0 = time.perf_counter()
-        snap_img1 = run_cmd([str(MP_CLI), "ci", "snapshot", "node:24-alpine", str(repos["node"])], env=env).stdout.strip().splitlines()[-1]
+        snap_img1 = run_cmd([str(MP_CLI), "ci", "snapshot", "node:26.13.1-alpine", str(repos["node"])], env=env).stdout.strip().splitlines()[-1]
         ci_snap_cold_s = round(time.perf_counter() - t0, 3)
         t0 = time.perf_counter()
-        snap_img2 = run_cmd([str(MP_CLI), "ci", "snapshot", "node:24-alpine", str(repos["node"])], env=env).stdout.strip().splitlines()[-1]
+        snap_img2 = run_cmd([str(MP_CLI), "ci", "snapshot", "node:26.13.1-alpine", str(repos["node"])], env=env).stdout.strip().splitlines()[-1]
         ci_snap_warm_s = round(time.perf_counter() - t0, 3)
         assert snap_img1 == snap_img2 and snap_img1.startswith("sha256:"), f"snapshot mismatch: {snap_img1} vs {snap_img2}"
 
@@ -494,7 +494,7 @@ def main():
         # Run Node.js test suite inside scoped npm cache volume AND verify cache persistence + scope isolation!
         r_node1 = run_cmd(
             [str(MP_CLI), "ci", "run", "--cache", "npm", "--cache-scope", "scope-alpha",
-             "-v", f"{node_repo}:/work", "-w", "/work", "node:24-alpine",
+             "-v", f"{node_repo}:/work", "-w", "/work", "node:26.13.1-alpine",
              "sh", "-c", "npm test && echo ALPHA_CACHED_V1 > \"$npm_config_cache/marker.txt\""],
             env=env,
         )
@@ -503,14 +503,14 @@ def main():
         # Same scope sees marker; different scope does NOT!
         r_scope_hit = run_cmd(
             [str(MP_CLI), "ci", "run", "--cache", "npm", "--cache-scope", "scope-alpha",
-             "node:24-alpine", "sh", "-c", "cat \"$npm_config_cache/marker.txt\""],
+             "node:26.13.1-alpine", "sh", "-c", "cat \"$npm_config_cache/marker.txt\""],
             env=env,
         )
         assert r_scope_hit.stdout.strip() == "ALPHA_CACHED_V1"
 
         r_scope_iso = run_cmd(
             [str(MP_CLI), "ci", "run", "--cache", "npm", "--cache-scope", "scope-beta",
-             "node:24-alpine", "sh", "-c", "test ! -e \"$npm_config_cache/marker.txt\" && echo ISOLATED_OK"],
+             "node:26.13.1-alpine", "sh", "-c", "test ! -e \"$npm_config_cache/marker.txt\" && echo ISOLATED_OK"],
             env=env,
         )
         assert r_scope_iso.stdout.strip() == "ISOLATED_OK"
@@ -618,7 +618,7 @@ def main():
                   timeout: 3s
                   retries: 30
               api:
-                image: node:24-alpine
+                image: node:26.13.1-alpine
                 depends_on:
                   db:
                     condition: service_healthy
@@ -781,7 +781,7 @@ def main():
         # 5c. Scoped Docker volume caches + native OCI scope cache survived reboot!
         r_npm_after = run_cmd(
             [str(MP_CLI), "ci", "run", "--cache", "npm", "--cache-scope", "scope-alpha",
-             "node:24-alpine", "sh", "-c", "cat \"$npm_config_cache/marker.txt\""],
+             "node:26.13.1-alpine", "sh", "-c", "cat \"$npm_config_cache/marker.txt\""],
             env=env,
         )
         assert r_npm_after.stdout.strip() == "ALPHA_CACHED_V1"
@@ -839,7 +839,7 @@ def main():
 
             r_cache = run_cmd(
                 [str(MP_CLI), "ci", "run", "--cache", "npm", "--cache-scope", "scope-alpha",
-                 "node:24-alpine", "sh", "-c",
+                 "node:26.13.1-alpine", "sh", "-c",
                  f"old=$(cat \"$npm_config_cache/marker.txt\"); "
                  f"echo FORK_{idx}_PRIVATE > \"$npm_config_cache/fork_{idx}.txt\"; "
                  f"echo $old"],
@@ -878,7 +878,7 @@ def main():
         for idx, fenv in enumerate(fork_envs):
             r_iso = run_cmd(
                 [str(MP_CLI), "ci", "run", "--cache", "npm", "--cache-scope", "scope-alpha",
-                 "node:24-alpine", "sh", "-c", "ls \"$npm_config_cache\" | sort | tr '\\n' ','"],
+                 "node:26.13.1-alpine", "sh", "-c", "ls \"$npm_config_cache\" | sort | tr '\\n' ','"],
                 env=fenv,
             )
             files = [x for x in r_iso.stdout.strip().split(",") if x]
