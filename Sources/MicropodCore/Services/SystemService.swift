@@ -75,9 +75,17 @@ public struct SystemService: SystemServing {
     private let client: ContainerCLIClient
     /// Reuse a version only while the installed executable is unchanged.
     private let versionCache = CLIVersionCache()
+    /// The version a package install recorded for the CLI, when the file is
+    /// still the one it wrote (`InstalledCLIVersion`): read before running
+    /// `container system version`.
+    private let installedVersion: @Sendable (URL) -> String?
 
-    public init(client: ContainerCLIClient) {
+    public init(
+        client: ContainerCLIClient,
+        installedVersion: @escaping @Sendable (URL) -> String? = { InstalledCLIVersion.version(of: $0) }
+    ) {
         self.client = client
+        self.installedVersion = installedVersion
     }
 
     public func dependencyStatus(
@@ -181,6 +189,10 @@ public struct SystemService: SystemServing {
         let executable = client.executableURL
         let identity = CLIExecutableIdentity.read(executable)
         if let identity, let cached = versionCache.get(for: identity) { return cached }
+        if let identity, let installed = installedVersion(executable) {
+            versionCache.set(installed, for: identity)
+            return installed
+        }
         let output = try await ContainerCLIClient(executableURL: executable).run(
             ContainerCommandFactory.systemVersion(), timeout: .seconds(15))
         let entries = try MicropodJSON.decodeArray(
