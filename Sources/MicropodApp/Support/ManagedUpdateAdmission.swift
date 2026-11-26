@@ -105,10 +105,24 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
     /// before the desktop reopens: a managed receipt's witnessed services, or
     /// that a rootless receipt names none (it has no runtime to witness or
     /// probe). Nothing is installed on these paths.
-    nonisolated static func verifyRetained(_ receipt: UpdateContinuityReceipt) throws {
+    ///
+    /// A rootless receipt is the receipt's own claim, so it is checked
+    /// against the host too: with a root-managed runtime installed (the
+    /// cheap lstat check), a receipt rewritten to the rootless sentinel is
+    /// refused rather than let skip the service witness.
+    nonisolated static func verifyRetained(
+        _ receipt: UpdateContinuityReceipt,
+        installation: @autoclosure () -> RootManagedRuntimeEvidence = rootManagedRuntimeInstallation()
+    ) throws {
         guard receipt.runtimeInstance == rootlessRuntimeInstance else { return try receipt.verifyServices() }
         guard receipt.services.isEmpty, receipt.apiConfigurationSHA256.isEmpty else {
             throw MicropodError.message("A rootless update receipt cannot name managed services")
+        }
+        switch installation() {
+        case .absent: return
+        case .present(let reason), .indeterminate(let reason):
+            throw MicropodError.message(
+                "A rootless update receipt on a host with a root-managed runtime needs its service witness: \(reason)")
         }
     }
 
@@ -120,8 +134,10 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
         declaresWorkloadProtocol: @autoclosure () -> Bool = UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol,
         evidence: @autoclosure () -> RootManagedRuntimeEvidence = rootManagedRuntimeEvidence()
     ) throws {
-        try verifyRetained(receipt)
-        guard receipt.runtimeInstance == rootlessRuntimeInstance else { return }
+        guard receipt.runtimeInstance == rootlessRuntimeInstance else { return try receipt.verifyServices() }
+        guard receipt.services.isEmpty, receipt.apiConfigurationSHA256.isEmpty else {
+            throw MicropodError.message("A rootless update receipt cannot name managed services")
+        }
         guard declaresWorkloadProtocol() else {
             throw MicropodError.message("The replacement does not support the retained workload protocol")
         }

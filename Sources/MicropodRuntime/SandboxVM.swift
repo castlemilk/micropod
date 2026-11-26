@@ -1028,6 +1028,39 @@ public enum SandboxVM {
         public var origin: String
         public var path: String
         public var sha256: String
+        /// The staged file as setup left it, so a resolve can tell it is
+        /// unchanged without hashing it; nil in records from before them.
+        public var size: UInt64?
+        public var inode: UInt64?
+        public var modifiedNanoseconds: Int64?
+
+        /// The record and `file` agree: the same inode, size and mtime as
+        /// staged, else (an older record, or a file replaced since) the
+        /// same SHA-256.
+        func describes(_ file: URL) -> Bool {
+            var info = stat()
+            guard stat(file.path, &info) == 0 else { return false }
+            if let size, let inode, let modifiedNanoseconds, size == UInt64(info.st_size),
+                inode == UInt64(info.st_ino), modifiedNanoseconds == Self.nanoseconds(info.st_mtimespec)
+            {
+                return true
+            }
+            return (try? HVFPayloadStore.sha256File(file)) == sha256
+        }
+
+        /// `sha256` with the stat fields of `file` as it is now.
+        static func record(origin: String, path: String, sha256: String, file: URL) -> KernelSource {
+            var info = stat()
+            let known = stat(file.path, &info) == 0
+            return KernelSource(
+                origin: origin, path: path, sha256: sha256, size: known ? UInt64(info.st_size) : nil,
+                inode: known ? UInt64(info.st_ino) : nil,
+                modifiedNanoseconds: known ? nanoseconds(info.st_mtimespec) : nil)
+        }
+
+        private static func nanoseconds(_ time: timespec) -> Int64 {
+            Int64(time.tv_sec) * 1_000_000_000 + Int64(time.tv_nsec)
+        }
     }
 
     static func kernelSourceURL(sandboxRoot: URL) -> URL {
@@ -1039,11 +1072,24 @@ public enum SandboxVM {
         return try? JSONDecoder().decode(KernelSource.self, from: data)
     }
 
+    /// The standalone store's kernel is one `sandbox setup` staged and
+    /// recorded, and has not been replaced since. A kernel with no record
+    /// (an earlier setup copied Apple's there, and Apple's install may since
+    /// have changed or gone, so a byte compare proves nothing) or one that
+    /// no longer matches its record (an older CLI copied over it) is not.
+    static func standaloneKernelIsRecorded(_ standalone: URL, sandboxRoot: URL) -> Bool {
+        guard let record = kernelSource(sandboxRoot: sandboxRoot) else { return false }
+        return record.describes(standalone.resolvingSymlinksInPath())
+    }
+
     /// Resolves the ARM64 Linux kernel a sandbox boots, Micropod's own first:
     ///   1. `MICROPOD_SANDBOX_KERNEL` env override
-    ///   2. `~/.micropod/sandbox/kernels/default.kernel-arm64`, staged by
-    ///      `micropod sandbox setup` (a com.apple.container kernel an earlier
-    ///      setup copied there counts as Apple's, step 4)
+    ///   2. `~/.micropod/sandbox/kernels/default.kernel-arm64`, when `micropod
+    ///      sandbox setup` staged and recorded it and it still matches the
+    ///      record. Anything else there (a com.apple.container kernel an
+    ///      earlier setup copied, a file replaced since) is not booted ahead
+    ///      of Micropod's kernel, and only with `MICROPOD_LEGACY_APPLE=1`
+    ///      without one.
     ///   3. Micropod's HVF kernel (``micropodKernel(environment:hvfLayout:packagedExecutable:)``)
     ///   4. `~/Library/Application Support/com.apple.container/kernels/default.kernel-arm64`,
     ///      only with `MICROPOD_LEGACY_APPLE=1`
@@ -1063,19 +1109,17 @@ public enum SandboxVM {
             }
         }
         let standalone = sandboxRoot.appendingPathComponent("kernels/default.kernel-arm64")
-        if fm.fileExists(atPath: standalone.path) {
-            if kernelSource(sandboxRoot: sandboxRoot) != nil
-                || !isLegacyAppleKernel(standalone, legacyAppSupport: legacyAppSupport)
-            {
-                return (standalone.resolvingSymlinksInPath(), .standalone)
-            }
-            if legacyAllowed { return (standalone.resolvingSymlinksInPath(), .legacyApple) }
+        let hasStandalone = fm.fileExists(atPath: standalone.path)
+        if hasStandalone, standaloneKernelIsRecorded(standalone, sandboxRoot: sandboxRoot) {
+            return (standalone.resolvingSymlinksInPath(), .standalone)
         }
         if let micropod = micropodKernel(
             environment: environment, hvfLayout: hvfLayout, packagedExecutable: packagedExecutable)
         {
             return (micropod, .hvfFallback)
         }
+        // Unrecorded, with no Micropod kernel to prefer: it may be Apple's.
+        if hasStandalone, legacyAllowed { return (standalone.resolvingSymlinksInPath(), .legacyApple) }
         let legacy = legacyAppSupport.appendingPathComponent("kernels/default.kernel-arm64")
         if legacyAllowed, fm.fileExists(atPath: legacy.path) {
             return (legacy.resolvingSymlinksInPath(), .legacyApple)
@@ -1090,7 +1134,8 @@ public enum SandboxVM {
             + "shipped with Micropod), and none is installed. Run `micropod machine install`, or "
             + "`micropod sandbox setup --kernel <ARM64 Image>` (or set MICROPOD_SANDBOX_KERNEL). The "
             + "com.apple.container kernel is never copied into the standalone store; MICROPOD_LEGACY_APPLE=1 "
-            + "boots it in place."
+            + "boots it in place. A kernel an earlier setup left in the standalone store without a record of "
+            + "where it came from is not booted: run `micropod sandbox setup` again."
     }
 
     static func kernelURL(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
@@ -1234,26 +1279,36 @@ public enum SandboxVM {
             }
             source = (explicit.resolvingSymlinksInPath(), "explicit")
         } else {
+            let micropod = micropodKernel(
+                environment: environment, hvfLayout: hvfLayout, packagedExecutable: packagedExecutable)
             if fm.fileExists(atPath: targetKernel.path) {
-                if kernelSource(sandboxRoot: sandboxRoot) != nil
-                    || !isLegacyAppleKernel(targetKernel, legacyAppSupport: legacyAppSupport)
-                {
+                if standaloneKernelIsRecorded(targetKernel, sandboxRoot: sandboxRoot) {
                     progress("keeping \(targetKernel.path)")
                     return
                 }
-                // An earlier setup copied Apple's kernel here. Remove the copy
-                // even if Micropod has no kernel to replace it with.
-                progress("removing the com.apple.container kernel an earlier setup copied into \(kernels.path)")
+                // No record, or one that no longer matches: an earlier setup
+                // copied Apple's kernel here (whether or not Apple's install
+                // still has the same bytes), or something replaced the staged
+                // file. Replace it with Micropod's; an Apple copy goes even
+                // with nothing to replace it.
+                let apple = isLegacyAppleKernel(targetKernel, legacyAppSupport: legacyAppSupport)
+                guard micropod != nil || apple else {
+                    throw MicropodError.message(
+                        "failedPrecondition: \(targetKernel.path) has no record of where it was staged from and "
+                            + "Micropod has no kernel to replace it with; run `micropod sandbox setup --kernel "
+                            + "<ARM64 Image>` to stage and record one")
+                }
+                progress(
+                    "replacing \(targetKernel.path): "
+                        + (apple ? "it is the com.apple.container kernel an earlier setup copied" : "it is unrecorded"))
                 let copied = targetKernel.resolvingSymlinksInPath()
                 try fm.removeItem(at: targetKernel)
                 if copied.deletingLastPathComponent().standardizedFileURL == kernels.standardizedFileURL {
                     try? fm.removeItem(at: copied)
                 }
+                try? fm.removeItem(at: kernelSourceURL(sandboxRoot: sandboxRoot))
             }
-            guard
-                let micropod = micropodKernel(
-                    environment: environment, hvfLayout: hvfLayout, packagedExecutable: packagedExecutable)
-            else {
+            guard let micropod else {
                 throw MicropodError.message(missingKernelMessage(environment: environment, hvfLayout: hvfLayout))
             }
             source = (micropod, "hvf")
@@ -1266,11 +1321,11 @@ public enum SandboxVM {
         if clonefile(source.url.path, tmp.path, 0) != 0 {
             try fm.copyItem(at: source.url, to: tmp)
         }
-        let record = KernelSource(
-            origin: source.origin, path: source.url.path, sha256: try HVFPayloadStore.sha256File(tmp))
+        let digest = try HVFPayloadStore.sha256File(tmp)
         guard rename(tmp.path, dstFile.path) == 0 else {
             throw MicropodError.message("installing sandbox kernel: \(String(cString: strerror(errno)))")
         }
+        let record = KernelSource.record(origin: source.origin, path: source.url.path, sha256: digest, file: dstFile)
         try HVFPayloadStore.atomicSymlink(destination: dstFile.lastPathComponent, at: targetKernel)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

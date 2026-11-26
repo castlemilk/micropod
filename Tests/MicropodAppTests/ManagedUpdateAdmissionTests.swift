@@ -179,7 +179,22 @@ final class ManagedUpdateAdmissionTests: XCTestCase {
     func testARootlessReceiptReopensWithoutAManagedRuntimeToWitness() throws {
         let receipt = try rootlessReceipt()
         XCTAssertThrowsError(try receipt.verifyServices())
-        XCTAssertNoThrow(try ManagedUpdateAdmission.verifyRetained(receipt))
+        XCTAssertNoThrow(try ManagedUpdateAdmission.verifyRetained(receipt, installation: .absent))
+    }
+
+    /// The sentinel is the receipt's own claim: on a host with a
+    /// root-managed runtime installed, a receipt rewritten to it does not
+    /// skip the service witness on the abort and reopen paths.
+    func testARootlessReceiptOnAHostWithAManagedRuntimeIsRefused() throws {
+        let receipt = try rootlessReceipt()
+        for installation: Evidence in [
+            .present("the runtime identity /Library/Application Support/Micropod/RuntimeHost/identity.json exists"),
+            .indeterminate("cannot inspect"),
+        ] {
+            XCTAssertThrowsError(try ManagedUpdateAdmission.verifyRetained(receipt, installation: installation)) {
+                XCTAssertTrue("\($0)".contains("needs its service witness"), "\($0)")
+            }
+        }
     }
 
     func testARootlessReceiptCannotCarryManagedServices() throws {
@@ -195,7 +210,7 @@ final class ManagedUpdateAdmissionTests: XCTestCase {
             try altered(receipt) { $0["services"] = [witness] },
             try altered(receipt) { $0["apiConfigurationSHA256"] = String(repeating: "d", count: 64) },
         ] {
-            XCTAssertThrowsError(try ManagedUpdateAdmission.verifyRetained(forged))
+            XCTAssertThrowsError(try ManagedUpdateAdmission.verifyRetained(forged, installation: .absent))
             XCTAssertThrowsError(
                 try ManagedUpdateAdmission.verifyContinuity(forged, declaresWorkloadProtocol: true, evidence: .absent))
         }

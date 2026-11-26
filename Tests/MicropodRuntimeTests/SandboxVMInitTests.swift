@@ -174,6 +174,38 @@ final class SandboxVMInitTests: XCTestCase {
         XCTAssertEqual(initfs, [])
     }
 
+    /// Without `--vminit` (the CLI passes nil), setup prepares the vminit
+    /// runs will boot: MICROPOD_SANDBOX_VMINIT's, not the built-in pin.
+    func testSetupWithoutAReferencePreparesTheVMInitRunsBoot() async throws {
+        let sandboxRoot = tmp.appendingPathComponent("sandbox")
+        let kernel = tmp.appendingPathComponent("Image")
+        try Data("micropod-kernel".utf8).write(to: kernel)
+        let override = "\(repository):0.47.0@\(substituted)"
+        let pin = try SandboxVM.VMInitPin(parsing: override)
+        let served = try image(pin.pullReference, digest: substituted)
+        let pulled = VMInitRecorder()
+        let unpacked = VMInitRecorder()
+        let source = SandboxVM.VMInitSource(
+            list: { [] },
+            pull: { reference in
+                await pulled.add(reference)
+                return served
+            }, remove: { _ in },
+            unpack: { image, path in
+                await unpacked.add(image.digest)
+                try Data("initfs".utf8).write(to: path)
+            })
+        _ = try await SandboxVM.setupStandalone(
+            kernelSource: kernel, vminitReference: nil, sandboxRoot: sandboxRoot,
+            environment: ["MICROPOD_SANDBOX_VMINIT": override],
+            legacyAppSupport: tmp.appendingPathComponent("no-apple"), hvfLayout: nil, packagedExecutable: nil,
+            vminitSource: source, progress: { _ in })
+        let pulls = await pulled.values
+        XCTAssertEqual(pulls, [pin.pullReference])
+        let unpacks = await unpacked.values
+        XCTAssertEqual(unpacks, [substituted])
+    }
+
     func testSetupRefusesAnUnpinnedVMInitBeforeStagingAnything() async throws {
         let sandboxRoot = tmp.appendingPathComponent("sandbox")
         let kernel = tmp.appendingPathComponent("Image")

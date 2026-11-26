@@ -320,7 +320,9 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
                 guard let receipt = try updateStore.read(), receipt.phase == .installing,
                     receipt.owner == (try RuntimeProcessBirth.read(getpid())), DesktopActivity.shared.isClosed
                 else { return false }
-                try receipt.verifyServices()
+                // A managed receipt's service witness, or a rootless one's
+                // continued absence of a root-managed runtime.
+                try ManagedUpdateAdmission.verifyContinuity(receipt)
                 status = .installing
                 handler()
                 return true
@@ -391,7 +393,9 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             [.downloading, .extracting, .installing].contains(receipt.phase),
             receipt.owner == (try RuntimeProcessBirth.read(getpid())), DesktopActivity.shared.isClosed
         else { throw UpdateRestartGuard.Failure.unavailable }
-        try receipt.verifyServices()
+        // Rootless receipts have no root identity to witness: verifyServices
+        // alone would deny every rootless installation here.
+        try ManagedUpdateAdmission.verifyContinuity(receipt)
         if let item {
             let enclosure = item.propertiesDictionary["enclosure"] as? [String: Any]
             guard item.versionString == receipt.targetVersion,

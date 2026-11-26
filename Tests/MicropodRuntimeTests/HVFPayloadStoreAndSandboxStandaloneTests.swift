@@ -135,8 +135,12 @@ final class HVFPayloadStoreAndSandboxStandaloneTests: XCTestCase {
         let legacyApple = tmp.appendingPathComponent("legacy-apple")
         try fm.createDirectory(at: legacyApple.appendingPathComponent("kernels"), withIntermediateDirectories: true)
         try Data("apple-kernel".utf8).write(to: legacyApple.appendingPathComponent("kernels/default.kernel-arm64"))
-        try fm.createDirectory(at: sbxRoot.appendingPathComponent("kernels"), withIntermediateDirectories: true)
-        try Data("standalone-kernel".utf8).write(to: sbxRoot.appendingPathComponent("kernels/default.kernel-arm64"))
+        // Staged (and recorded) by setup: an unrecorded file there is not trusted.
+        let standaloneSource = tmp.appendingPathComponent("standalone.kernel")
+        try Data("standalone-kernel".utf8).write(to: standaloneSource)
+        try SandboxVM.stageStandaloneKernel(
+            explicit: standaloneSource, sandboxRoot: sbxRoot, environment: [:], legacyAppSupport: legacyApple,
+            hvfLayout: HVFMachineLayout(root: hvfRoot), packagedExecutable: nil, progress: { _ in })
 
         let standalone = SandboxVM.resolveKernel(
             environment: [:], sandboxRoot: sbxRoot, legacyAppSupport: legacyApple,

@@ -161,7 +161,12 @@ final class SandboxStandaloneKernelTests: XCTestCase {
         try installMicropodKernel()
         try seedStoreWithAppleCopy()
         XCTAssertEqual(resolve()?.origin, .hvfFallback)
+        // The legacy flag allows Apple's kernel as the last resort, never
+        // ahead of Micropod's: an unrecorded copy ranks after it too.
+        XCTAssertEqual(resolve(["MICROPOD_LEGACY_APPLE": "1"])?.origin, .hvfFallback)
+        try FileManager.default.removeItem(at: hvfRoot.appendingPathComponent("Image"))
         XCTAssertEqual(resolve(["MICROPOD_LEGACY_APPLE": "1"])?.origin, .legacyApple)
+        try installMicropodKernel()
 
         try stage()
         XCTAssertEqual(stagedBytes, micropodBytes)
@@ -179,16 +184,63 @@ final class SandboxStandaloneKernelTests: XCTestCase {
         XCTAssertNil(resolve())
     }
 
-    /// A kernel staged by setup is kept, and a pre-record one that is not
-    /// Apple's (from `--kernel` or Micropod's own) still counts as standalone.
-    func testSetupKeepsAKernelItDidNotCopyFromApple() throws {
+    /// A kernel staged and recorded by setup is kept. One with no record is
+    /// not proven to be anything but a copy of Apple's, so it is never booted
+    /// ahead of Micropod's kernel, and setup asks to stage one it can record.
+    func testOnlyARecordedKernelCountsAsStandalone() throws {
         try installAppleKernel()
         let kernels = sandboxRoot.appendingPathComponent("kernels")
         try FileManager.default.createDirectory(at: kernels, withIntermediateDirectories: true)
-        try micropodBytes.write(to: kernels.appendingPathComponent("default.kernel-arm64"))
+        let custom = Data("custom-kernel".utf8)
+        try custom.write(to: kernels.appendingPathComponent("default.kernel-arm64"))
+        XCTAssertNil(resolve(), "unrecorded, and no Micropod kernel to fall back to")
+        XCTAssertThrowsError(try stage()) { XCTAssertTrue("\($0)".contains("no record"), "\($0)") }
+        XCTAssertEqual(stagedBytes, custom, "kept for the operator to restage")
+
+        let explicit = tmp.appendingPathComponent("Image-custom")
+        try custom.write(to: explicit)
+        try stage(explicit)
+        XCTAssertEqual(SandboxVM.kernelSource(sandboxRoot: sandboxRoot)?.origin, "explicit")
         XCTAssertEqual(resolve()?.origin, .standalone)
         try stage()
+        XCTAssertEqual(stagedBytes, custom, "a recorded kernel is kept")
+    }
+
+    /// The byte compare with Apple's install proves nothing once that
+    /// install changed: a copy an earlier setup made of an older Apple
+    /// kernel is still not booted ahead of Micropod's, and setup replaces it.
+    func testAnAppleCopyIsNotBootedAfterApplesKernelChanged() throws {
+        try seedStoreWithAppleCopy()  // the copy of 6.18; Apple's install now has none
+        try installMicropodKernel()
+        XCTAssertEqual(resolve()?.origin, .hvfFallback)
+        XCTAssertEqual(resolve()?.url.lastPathComponent, "Image")
+        try stage()
         XCTAssertEqual(stagedBytes, micropodBytes)
+        XCTAssertEqual(resolve()?.origin, .standalone)
+    }
+
+    /// A record vouches only for the file it was written for: one replaced
+    /// since (an older CLI copying Apple's kernel over it) is not trusted.
+    func testARecordThatNoLongerMatchesTheStagedKernelIsNotTrusted() throws {
+        try installAppleKernel()
+        try installMicropodKernel()
+        try stage()
+        XCTAssertEqual(resolve()?.origin, .standalone)
+        let staged = sandboxRoot.appendingPathComponent("kernels/vmlinux-arm64")
+        try FileManager.default.removeItem(at: staged)
+        try appleBytes.write(to: staged)
+        XCTAssertNotNil(SandboxVM.kernelSource(sandboxRoot: sandboxRoot), "the record is still there")
+        XCTAssertEqual(resolve()?.origin, .hvfFallback)
+        try stage()
+        XCTAssertEqual(stagedBytes, micropodBytes)
+        XCTAssertEqual(resolve()?.origin, .standalone)
+        // A record from before the stat fields still verifies by digest.
+        var record = try XCTUnwrap(SandboxVM.kernelSource(sandboxRoot: sandboxRoot))
+        record.size = nil
+        record.inode = nil
+        record.modifiedNanoseconds = nil
+        try JSONEncoder().encode(record).write(to: SandboxVM.kernelSourceURL(sandboxRoot: sandboxRoot))
+        XCTAssertEqual(resolve()?.origin, .standalone)
     }
 
     /// The `vmlinux-hvf` shipped in the app (or beside a standalone CLI) is
