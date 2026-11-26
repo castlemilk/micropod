@@ -299,6 +299,11 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     /// The dependency-cache policy; nil (absent from the file) means the
     /// defaults. Edited by `micropod machine cache policy`.
     public var cache: HVFMachineCachePolicy?
+    /// The size of the persistent cache disk (`caches.ext4`) `machine
+    /// install` found or created: every boot expects that disk, and the
+    /// install, the supervisor and `machine status` say so when it is gone.
+    /// nil: no cache disk, the stores live on the OS disk.
+    public var cacheDiskBytes: UInt64?
 
     public static var defaultWorkspace: String { HVFMachineLayout.canonicalPath(NSHomeDirectory()) }
     /// Cuttlefish's depproxy listens on host loopback 7677.
@@ -307,6 +312,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     enum CodingKeys: String, CodingKey {
         case schema, cpus, memoryMiB, workspace, publishedNet, console, shutdownTimeoutSeconds, kernelArguments
         case extraArguments, allowHostPorts, depproxyPort, cache
+        case cacheDiskBytes
     }
 
     public init(
@@ -314,7 +320,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         workspace: String? = HVFMachineConfig.defaultWorkspace, publishedNet: Bool = true, console: Bool = true,
         shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = [],
         allowHostPorts: [UInt16] = [], depproxyPort: UInt16 = HVFMachineConfig.defaultDepproxyPort,
-        cache: HVFMachineCachePolicy? = nil
+        cache: HVFMachineCachePolicy? = nil, cacheDiskBytes: UInt64? = nil
     ) {
         self.schema = schema
         self.cpus = cpus
@@ -328,6 +334,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         self.allowHostPorts = allowHostPorts
         self.depproxyPort = depproxyPort
         self.cache = cache
+        self.cacheDiskBytes = cacheDiskBytes
     }
 
     public init(from decoder: any Decoder) throws {
@@ -348,6 +355,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         allowHostPorts = try c.decodeIfPresent([UInt16].self, forKey: .allowHostPorts) ?? []
         depproxyPort = try c.decodeIfPresent(UInt16.self, forKey: .depproxyPort) ?? defaults.depproxyPort
         cache = try c.decodeIfPresent(HVFMachineCachePolicy.self, forKey: .cache)
+        cacheDiskBytes = try c.decodeIfPresent(UInt64.self, forKey: .cacheDiskBytes)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -364,6 +372,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         if !allowHostPorts.isEmpty { try c.encode(allowHostPorts, forKey: .allowHostPorts) }
         if depproxyPort != Self.defaultDepproxyPort { try c.encode(depproxyPort, forKey: .depproxyPort) }
         try c.encodeIfPresent(cache, forKey: .cache)
+        try c.encodeIfPresent(cacheDiskBytes, forKey: .cacheDiskBytes)
     }
 
     /// `cache`, or the defaults when machine.json has none.

@@ -102,9 +102,19 @@ public protocol HVFProcessInspecting: Sendable {
     func facts(_ pid: Int32) -> HVFProcessFacts?
     /// This user's processes whose executable is exactly `path` (canonical).
     func processes(executable path: String) -> [Int32]
+    /// Those of any of `paths` (canonical), in one look at the process table.
+    func processes(executables paths: [String]) -> [Int32]
     func isAlive(_ pid: Int32) -> Bool
     /// `kill(2)`: nil on success, else why it failed.
     func signal(_ pid: Int32, _ signal: Int32) -> String?
+}
+
+extension HVFProcessInspecting {
+    public func processes(executables paths: [String]) -> [Int32] {
+        var found: [Int32] = []
+        for path in paths { found += processes(executable: path).filter { !found.contains($0) } }
+        return found
+    }
 }
 
 public struct HVFDarwinProcessInspector: HVFProcessInspecting {
@@ -118,14 +128,34 @@ public struct HVFDarwinProcessInspector: HVFProcessInspecting {
             startSeconds: start)
     }
 
-    public func processes(executable path: String) -> [Int32] {
+    public func processes(executable path: String) -> [Int32] { processes(executables: [path]) }
+
+    public func processes(executables paths: [String]) -> [Int32] {
         let capacity = 16384
         var pids = [pid_t](repeating: 0, count: capacity)
         let bytes = proc_listpids(UInt32(PROC_UID_ONLY), UInt32(getuid()), &pids, Int32(capacity * 4))
-        guard bytes > 0 else { return [] }
+        guard bytes > 0, !paths.isEmpty else { return [] }
         return pids.prefix(Int(bytes) / 4).filter { pid in
-            pid > 0 && Self.executablePath(pid).map(HVFMachineLayout.canonicalPath) == path
+            guard pid > 0, let executable = Self.executablePath(pid) else { return false }
+            return paths.contains { Self.isExecutable(executable, canonically: $0) }
         }
+    }
+
+    /// Whether `executable`, as `proc_pidpath` names it, is the file at the
+    /// canonical `path`. `proc_pidpath` names the executable file itself,
+    /// never a link to it, so its file name survives canonicalization: only
+    /// a same-named executable pays for realpath(3). (Canonicalizing every
+    /// process of the user made a supervisor's start-up orphan scan cost
+    /// tens of milliseconds.)
+    static func isExecutable(
+        _ executable: String?, canonically path: String,
+        canonicalize: (String) -> String = HVFMachineLayout.canonicalPath
+    ) -> Bool {
+        func fileName(_ path: String) -> Substring {
+            path[(path.lastIndex(of: "/").map { path.index(after: $0) } ?? path.startIndex)...]
+        }
+        guard let executable, fileName(executable) == fileName(path) else { return false }
+        return executable == path || canonicalize(executable) == path
     }
 
     public func isAlive(_ pid: Int32) -> Bool {

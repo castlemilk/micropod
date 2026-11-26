@@ -68,7 +68,8 @@ public protocol HVFVMMProcess: Sendable {
     var pid: Int32 { get }
     func waitForExit() async -> HVFVMMExit
     /// Delivers `signal` unless the process has already exited (its pid is
-    /// never signalled after it could have been recycled).
+    /// never signalled after it could have been recycled). A stopped process
+    /// has not exited: SIGTERM also continues it, so it can act on it.
     func signal(_ signal: Int32)
 }
 
@@ -247,6 +248,7 @@ public actor HVFMachineSupervisor {
         try await reapOrphans(payload: payload)
         log("supervising \(layout.root.path) (pid \(pid), \(config.cpus) vCPU, \(config.memoryMiB) MiB)")
         log("payload \(payload.id) at \(payload.directory.path), kept for every relaunch")
+        if let missing = layout.missingCacheDisk(config: config) { log("WARNING: \(missing)") }
         if stopRequestedEarly.withLock({ $0 }) {
             log("stop requested before the first launch")
             return finishStopped(reason: "stopped before launch")
@@ -497,11 +499,10 @@ public actor HVFMachineSupervisor {
                 URL(fileURLWithPath: previous).appendingPathComponent("micropod-vmm").path)
             if !binaries.contains(binary) { binaries.append(binary) }
         }
-        for binary in binaries {
-            for other in inspector.processes(executable: binary) where !candidates.contains(where: { $0.pid == other })
-            {
-                if let facts = inspector.facts(other) { candidates.append(facts) }
-            }
+        // One look at the process table for both: it is on every launch's
+        // path, an update's switchover included.
+        for other in inspector.processes(executables: binaries) where !candidates.contains(where: { $0.pid == other }) {
+            if let facts = inspector.facts(other) { candidates.append(facts) }
         }
         for orphan in Self.orphans(among: candidates, layout: layout, supervisorPID: pid) {
             log("reaping orphaned micropod-vmm pid \(orphan) left by a previous supervisor")
@@ -619,7 +620,10 @@ extension HVFMachineSupervisor {
     /// (`logs/supervisor.log` when detached). A failed write — a full disk,
     /// a closed pipe — loses the line and never aborts supervision.
     static func stderrLog(_ line: String, to fd: Int32 = STDERR_FILENO) {
-        let stamp = ISO8601DateFormatter().string(from: Date())
+        // Milliseconds: a relaunch or a switchover is timed from these lines.
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let stamp = formatter.string(from: Date())
         HVFFiles.writeBestEffort(Data("\(stamp) hvf-supervisor: \(line)\n".utf8), to: fd)
     }
 }
@@ -673,7 +677,8 @@ public struct HVFDarwinLauncher: HVFVMMLaunching {
 
 /// A spawned micropod-vmm: a reader thread drains its output into the
 /// console log; a waiter thread observes the exit with `WNOWAIT` first, so
-/// `signal` can never hit a recycled pid, then reaps it.
+/// `signal` can never hit a recycled pid, then reaps it. A stop (SIGSTOP)
+/// and continue on the way are not an exit.
 final class HVFDarwinVMMProcess: HVFVMMProcess, @unchecked Sendable {
     let pid: Int32
     private let lock = NSLock()
@@ -705,6 +710,9 @@ final class HVFDarwinVMMProcess: HVFVMMProcess, @unchecked Sendable {
         lock.withLock {
             guard !exited else { return }
             _ = kill(pid, signal)
+            // A stopped (frozen) VMM acts on SIGTERM only once it runs again;
+            // SIGCONT does nothing to one that runs. SIGKILL needs no help.
+            if signal == SIGTERM { _ = kill(pid, SIGCONT) }
         }
     }
 
@@ -766,9 +774,47 @@ final class HVFDarwinVMMProcess: HVFVMMProcess, @unchecked Sendable {
         return detail.isEmpty ? nil : String(detail.prefix(200))
     }
 
+    /// A `waitid` `si_code` that says the child terminated, not that it
+    /// stopped or continued.
+    static func isTermination(_ code: Int32) -> Bool {
+        code == CLD_EXITED || code == CLD_KILLED || code == CLD_DUMPED
+    }
+
+    /// Blocks until `pid`, a child of this process, has terminated, and
+    /// leaves it unreaped. Darwin's `waitid` reports a stopped child even
+    /// without `WSTOPPED`, and with `WNOWAIT` again on every call while it
+    /// stays stopped: a stop is never taken for an exit, and is polled every
+    /// `stoppedPollMicroseconds` instead of spun on until the child runs
+    /// again or ends.
+    static func awaitTermination(
+        of pid: pid_t, stoppedPollMicroseconds: useconds_t = 20_000, report: @Sendable (String) -> Void
+    ) {
+        var stopped = false
+        while true {
+            var info = siginfo_t()
+            guard waitid(P_PID, id_t(pid), &info, WEXITED | WNOWAIT | (stopped ? WNOHANG : 0)) == 0 else {
+                if errno == EINTR { continue }
+                return  // ECHILD: nothing to wait for; the caller's waitpid says why
+            }
+            if isTermination(info.si_code) { return }
+            if info.si_pid == 0 || info.si_code == CLD_CONTINUED {
+                // Nothing to report (WNOHANG): it runs again.
+                stopped = false
+                report("micropod-vmm pid \(pid) was continued")
+                continue
+            }
+            if !stopped {
+                report(
+                    "micropod-vmm pid \(pid) is stopped (signal \(info.si_status)): the guest is frozen until it is "
+                        + "continued; a stop request still ends it")
+            }
+            stopped = true
+            usleep(stoppedPollMicroseconds)
+        }
+    }
+
     private func awaitExit(report: @Sendable (String) -> Void) {
-        var info = siginfo_t()
-        while waitid(P_PID, id_t(pid), &info, WEXITED | WNOWAIT) != 0, errno == EINTR {}
+        Self.awaitTermination(of: pid, report: report)
         // Still a zombie: the pid cannot be reused until the waitpid below.
         lock.withLock { exited = true }
         var status: Int32 = 0

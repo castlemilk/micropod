@@ -315,6 +315,52 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(again, exit)
     }
 
+    /// `/bin/sleep 5` stopped with SIGSTOP. Should the test fail, the
+    /// process is continued after 3 s and exits 0 on its own, so nothing is
+    /// left behind and the failure shows as status 0.
+    private func stoppedSleep(_ log: LogRecorder) async throws -> (any HVFVMMProcess, Task<Void, any Error>) {
+        let launcher = HVFDarwinLauncher(
+            consoleLog: layout.consoleLog, maxBytes: 1 << 20, environment: [:], report: { log.append($0) })
+        let process = try launcher.launch(executable: URL(fileURLWithPath: "/bin/sleep"), arguments: ["5"])
+        let pid = process.pid
+        XCTAssertEqual(kill(pid, SIGSTOP), 0)
+        try await waitFor("the waiter to see the stop") { log.lines.contains { $0.contains("is stopped") } }
+        let resume = Task {
+            try await Task.sleep(for: .seconds(3))
+            kill(pid, SIGCONT)
+        }
+        return (process, resume)
+    }
+
+    func testAStoppedAndContinuedProcessIsStillSignalled() async throws {
+        // Darwin's waitid(WEXITED) also returns for a stopped child: taken for
+        // an exit, every later signal (machine stop's SIGTERM, SIGKILL) was
+        // dropped and the VMM outlived the stop.
+        let log = LogRecorder()
+        let (process, resume) = try await stoppedSleep(log)
+        defer { resume.cancel() }
+        XCTAssertEqual(kill(process.pid, SIGCONT), 0)
+        try await waitFor("the waiter to see it run again") { log.lines.contains { $0.contains("was continued") } }
+        process.signal(SIGTERM)
+        let exit = await process.waitForExit()
+        XCTAssertEqual(exit.signal, SIGTERM, "a stop and continue is not an exit: \(exit)")
+    }
+
+    func testAStoppedProcessIsEndedByTermAndKill() async throws {
+        let log = LogRecorder()
+        let (frozen, resume) = try await stoppedSleep(log)
+        defer { resume.cancel() }
+        frozen.signal(SIGTERM)  // continued along with it, so it acts on it now
+        let terminated = await frozen.waitForExit()
+        XCTAssertEqual(terminated.signal, SIGTERM, "\(terminated)")
+
+        let (stillFrozen, resumeAgain) = try await stoppedSleep(LogRecorder())
+        defer { resumeAgain.cancel() }
+        stillFrozen.signal(SIGKILL)
+        let killed = await stillFrozen.waitForExit()
+        XCTAssertEqual(killed.signal, SIGKILL, "\(killed)")
+    }
+
     func testRotatingLogKeepsAtMostTwoCaps() throws {
         let url = root.appendingPathComponent("logs/x.log")
         let log = try HVFRotatingLog(url: url, maxBytes: 12)
@@ -678,6 +724,29 @@ final class HVFMachineTests: XCTestCase {
         _ = try await run.value
     }
 
+    func testTheOrphanScanLooksAtTheProcessTableOnce() async throws {
+        // The binary this supervisor boots and the one the last one loaded
+        // (an activation's previous payload): one scan finds both.
+        let previous = root.appendingPathComponent("versions/old")
+        try FileManager.default.createDirectory(at: previous, withIntermediateDirectories: true)
+        try Data().write(to: previous.appendingPathComponent("micropod-vmm"))
+        try HVFMachineState(phase: .stopped, supervisorPID: 999, loadedPayloadPath: previous.path).save(
+            to: layout.state)
+        let inspector = FakeInspector()
+        let oldVMM = HVFMachineLayout.canonicalPath(previous.appendingPathComponent("micropod-vmm").path)
+        inspector.add(
+            HVFProcessFacts(pid: 557, executablePath: oldVMM, arguments: ["--disk", layout.disk.path], startSeconds: 5))
+        let launcher = FakeLauncher([.healthy])
+        let supervisor = supervisor(launcher, inspector: inspector)
+        let run = Task { try await supervisor.run() }
+        try await waitFor("running") { (try? HVFMachineState.load(from: layout.state))?.phase == .running }
+        XCTAssertEqual(inspector.scans.count, 1, "\(inspector.scans)")
+        XCTAssertEqual(inspector.scans.first?.count, 2, "\(inspector.scans)")
+        XCTAssertEqual(inspector.signalled, [557: [SIGTERM]], "the previous payload's VMM on this disk is reaped")
+        supervisor.requestStop()
+        _ = try await run.value
+    }
+
     /// Real processes and the real inspector: a stand-in "VMM" (a copy of
     /// /bin/cat at the root's micropod-vmm path, blocked on an open pipe)
     /// on the root's disk is reaped; the same binary on another disk is not.
@@ -828,6 +897,51 @@ final class HVFMachineTests: XCTestCase {
         supervisor.release()
         let stopped = try await stop.value
         XCTAssertTrue(stopped, "a machine being started is stopped, not reported as not running")
+    }
+
+    func testStopReturnsSoonAfterTheSupervisorLetsGo() async throws {
+        // An update's switchover waits here between the old VMM's exit and
+        // the new supervisor's launch: a 50 ms poll cost 25 ms on average.
+        try installPlaceholders()
+        try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
+        let inspector = FakeInspector()
+        inspector.add(HVFProcessFacts(pid: 4343, executablePath: "/x", arguments: [], startSeconds: 1))
+        let client = HVFMachineClient(layout: layout, environment: [:], inspector: inspector)
+        var lags: [Duration] = []
+        for _ in 0..<8 {
+            let supervisor = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
+            try supervisor.record(pid: 4343)
+            let stop = Task { () -> ContinuousClock.Instant in
+                _ = try await client.stop()
+                return .now
+            }
+            try await Task.sleep(for: .milliseconds(Int.random(in: 30...80)))
+            let released = ContinuousClock.now
+            supervisor.release()
+            lags.append(try await stop.value - released)
+        }
+        let mean = lags.reduce(Duration.zero, +) / lags.count
+        XCTAssertLessThan(mean, .milliseconds(12), "stop noticed the released lock after \(lags) (mean \(mean))")
+    }
+
+    func testTheOrphanScanCanonicalizesOnlySameNamedExecutables() {
+        // A supervisor scans every process of the user at start-up; resolving
+        // each one's path cost tens of milliseconds of every switchover.
+        var canonicalized: [String] = []
+        func matches(_ executable: String?, _ path: String) -> Bool {
+            HVFDarwinProcessInspector.isExecutable(executable, canonically: path) { link in
+                canonicalized.append(link)
+                return link.replacingOccurrences(of: "/link/", with: "/real/")
+            }
+        }
+        XCTAssertFalse(matches("/Applications/Chrome.app/Contents/MacOS/Chrome", "/real/m/micropod-vmm"))
+        XCTAssertFalse(matches(nil, "/real/m/micropod-vmm"))
+        XCTAssertFalse(matches("/real/m/micropod-vmm-old", "/real/m/micropod-vmm"))
+        XCTAssertEqual(canonicalized, [], "another executable's name never matches its canonical path")
+        XCTAssertTrue(matches("/real/m/micropod-vmm", "/real/m/micropod-vmm"))
+        XCTAssertTrue(matches("/link/m/micropod-vmm", "/real/m/micropod-vmm"), "a linked directory still matches")
+        XCTAssertFalse(matches("/elsewhere/micropod-vmm", "/real/m/micropod-vmm"))
+        XCTAssertEqual(canonicalized, ["/link/m/micropod-vmm", "/elsewhere/micropod-vmm"])
     }
 
     func testStopOnARootThatNeverRanCreatesNothing() async throws {
@@ -1264,6 +1378,51 @@ final class HVFMachineTests: XCTestCase {
         let replaced = await installError(request)
         XCTAssertNil(replaced)
         XCTAssertNil(index.load().entry(for: "keep"), "a new disk holds none of the old containers")
+    }
+
+    func testAReplacedDiskWithItsCacheDiskGoneSaysSo() async throws {
+        // B22 b1-lose-cache-disk: `install --replace-disk` with caches.ext4
+        // missing succeeded silently and the machine booted with caches off.
+        var request = try sources()
+        request.cacheDiskBytes = 256 << 20
+        let first = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(first, [])
+        let size: UInt64 = 256 << 20
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes, size, "machine.json records it")
+        XCTAssertNil(layout.missingCacheDisk(config: try HVFMachineConfig.load(from: layout.config)))
+
+        try FileManager.default.removeItem(at: layout.cacheDisk)
+        request.cacheDiskBytes = nil
+        request.replaceDisk = true
+        let warnings = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(warnings.count, 1, "\(warnings)")
+        XCTAssertTrue(warnings.first?.contains("\(layout.cacheDisk.path) is missing") == true, "\(warnings)")
+        XCTAssertTrue(warnings.first?.contains("--cache-disk-size 256m") == true, "\(warnings)")
+        let config = try HVFMachineConfig.load(from: layout.config)
+        XCTAssertEqual(config.cacheDiskBytes, size, "still expected: the next install and status say so again")
+        let observation = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertTrue(observation.summary.hasPrefix("MISSING — machine.json expects"), observation.summary)
+        XCTAssertNotNil(observation.jsonObject["missing"] as? String)
+
+        // Recreated: expected and present again, nothing to say.
+        request.cacheDiskBytes = 256 << 20
+        let recreated = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(recreated, [])
+        let restored = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertNil(restored.missingReason)
+    }
+
+    func testAnInstallThatNeverHadACacheDiskWarnsOfNone() async throws {
+        var request = try sources()
+        let first = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(first, [])
+        XCTAssertNil(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes)
+        request.replaceDisk = true
+        let replaced = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(replaced, [], "no cache disk was ever expected")
+        let observation = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertEqual(observation.summary, "none (no caches.ext4)")
+        XCTAssertNil(observation.jsonObject["missing"])
     }
 }
 
@@ -1994,14 +2153,24 @@ final class FakeInspector: HVFProcessInspecting, @unchecked Sendable {
     private var table: [Int32: HVFProcessFacts] = [:]
     private var sent: [Int32: [Int32]] = [:]
 
+    private var looked: [[String]] = []
+
     func add(_ facts: HVFProcessFacts) { lock.withLock { table[facts.pid] = facts } }
     var signalled: [Int32: [Int32]] { lock.withLock { sent } }
+    /// The executables each look at the process table asked for.
+    var scans: [[String]] { lock.withLock { looked } }
 
     func facts(_ pid: Int32) -> HVFProcessFacts? { lock.withLock { table[pid] } }
 
-    func processes(executable path: String) -> [Int32] {
+    func processes(executable path: String) -> [Int32] { processes(executables: [path]) }
+
+    func processes(executables paths: [String]) -> [Int32] {
         lock.withLock {
-            table.values.filter { $0.executablePath.map(HVFMachineLayout.canonicalPath) == path }.map(\.pid)
+            looked.append(paths)
+            return table.values.filter {
+                $0.executablePath.map(HVFMachineLayout.canonicalPath).map(paths.contains) == true
+            }
+            .map(\.pid)
         }
     }
 

@@ -68,10 +68,14 @@ public enum HVFMachineInstaller {
     /// beside its target before anything installed is replaced: a bad
     /// request or a failed pull changes nothing. Staging an interrupted
     /// install left behind is removed by the next one.
+    ///
+    /// Returns what the installed machine lacks, for the caller to show as
+    /// warnings: a cache disk machine.json expects that is gone.
+    @discardableResult
     public static func install(
         _ request: HVFInstallRequest, layout: HVFMachineLayout, packagedExecutable: URL? = nil,
         progress: @Sendable (String) -> Void
-    ) async throws {
+    ) async throws -> [String] {
         try layout.validatePaths()
         try refuseWhileRunning(layout)
         let fm = FileManager.default
@@ -283,10 +287,21 @@ public enum HVFMachineInstaller {
             try commit(stagedCache, to: layout.cacheDisk)
             staged.removeAll { $0 == stagedCache }
             progress("created persistent caches.ext4 (\(cacheBytes >> 20) MiB sparse ext4)")
+            config.cacheDiskBytes = cacheBytes
         }
+        // Every later boot expects the cache disk this one has (one installed
+        // before machine.json recorded it, by its size); one that was expected
+        // and is gone stays expected, and is reported.
+        if config.cacheDiskBytes == nil, HVFMachineLayout.isRegularFile(layout.cacheDisk),
+            let size = (try? fm.attributesOfItem(atPath: layout.cacheDisk.path))?[.size] as? UInt64
+        {
+            config.cacheDiskBytes = size
+        }
+        let warnings = [layout.missingCacheDisk(config: config)].compactMap { $0 }
         try config.save(to: layout.config)
         progress("wrote \(layout.config.path) (\(config.cpus) vCPU, \(config.memoryMiB) MiB)")
         progress(buildKitReport(layout.missingBuildKitFiles()))
+        return warnings
     }
 
     private static func distributionDirectories(for executable: URL) -> (bin: URL, resources: URL)? {

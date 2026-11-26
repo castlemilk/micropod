@@ -1592,6 +1592,11 @@ func (c *dockerContainer) inspect() map[string]any {
 		if c.Cache.TrustFrom != "" {
 			mc["trustFrom"] = c.Cache.TrustFrom
 		}
+		if c.Cache.PolicyDigest != "" {
+			// The policy the plan was decided under (create), not the one
+			// in force now: a later hot-apply does not rewrite it.
+			mc["policyDigest"] = c.Cache.PolicyDigest
+		}
 		if len(c.Cache.Proxy) > 0 {
 			// The create's decisions, with what the latest start left out.
 			proxy := map[string]string{}

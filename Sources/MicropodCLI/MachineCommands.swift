@@ -218,11 +218,12 @@ enum MachineCommands {
             replaceDisk: parsed.has("--replace-disk"),
             cpus: try int("--cpus"), memoryMiB: try int("--memory-mib"),
             workspace: parsed.value("--workspace").map { $0.isEmpty ? "" : NSString(string: $0).expandingTildeInPath })
-        try await HVFMachineInstaller.install(
+        let warnings = try await HVFMachineInstaller.install(
             request, layout: layout, packagedExecutable: CLIInstall.currentExecutable()
         ) {
             print($0)
         }
+        for warning in warnings { FileHandle.standardError.write(Data("warning: \(warning)\n".utf8)) }
         if let hint = HVFMachineCachePolicy.rigDefaultTrustHint(layout: layout) { print("note: \(hint)") }
         print("hvf machine installed under \(layout.root.path)")
     }

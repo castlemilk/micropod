@@ -126,6 +126,32 @@ func isStreamingRoute(method, route string) bool {
 	return false
 }
 
+// micropodRouteKeys are the engine's own routes under /micropod, each its own
+// route key; any other path there is "/micropod/other", so requests for
+// made-up paths cannot fill the route table.
+var micropodRouteKeys = map[string]bool{
+	"micropod/buildkit":           true,
+	"micropod/caches":             true,
+	"micropod/caches/debug":       true,
+	"micropod/caches/dedupe":      true,
+	"micropod/caches/prune":       true,
+	"micropod/containers/summary": true,
+	"micropod/metrics":            true,
+	"micropod/storage":            true,
+	"micropod/traces":             true,
+	"micropod/traces/clear":       true,
+}
+
+// selfObservationRoute reports whether a route reads (or clears) the
+// counters and traces recordHTTP keeps. Those requests are not counted, so
+// reading the metrics does not change them. Every other /micropod route,
+// the batched container listing (/micropod/containers/summary) and the
+// cache routes included, is a request a client made of the engine and is
+// counted like /_ping or /containers/json.
+func selfObservationRoute(route string) bool {
+	return route == "/micropod/metrics" || route == "/micropod/traces" || route == "/micropod/traces/clear"
+}
+
 // normalizeDockerRoute strips Docker API version prefixes and collapses dynamic IDs/names
 // into bounded-cardinality route templates for safe Prometheus/OTLP aggregation.
 func normalizeDockerRoute(rawPath string) string {
@@ -144,10 +170,10 @@ func normalizeDockerRoute(rawPath string) string {
 	case "_ping", "version", "info", "events", "auth", "grpc", "session":
 		return "/" + parts[0]
 	case "micropod":
-		if len(parts) >= 2 {
-			return "/micropod/" + parts[1]
+		if micropodRouteKeys[path] {
+			return "/" + path
 		}
-		return "/micropod"
+		return "/micropod/other"
 	case "containers":
 		if len(parts) == 1 {
 			return "/containers"
@@ -215,8 +241,7 @@ func (m *apiMetrics) recordHTTP(source, method, rawPath string, status int, star
 		status = 200
 	}
 	route := normalizeDockerRoute(rawPath)
-	// Skip self-observation endpoints from polluting API request/error totals.
-	if source == "docker_api" && strings.HasPrefix(route, "/micropod/") {
+	if source == "docker_api" && selfObservationRoute(route) {
 		return
 	}
 	us := dur.Microseconds()

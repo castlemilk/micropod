@@ -454,10 +454,15 @@ public struct HVFMachineClient: Sendable {
                 throw MicropodError.message(
                     "deadlineExceeded: hvf supervisor pid \(pid) still running \(timeout) after SIGTERM")
             }
-            try await Task.sleep(for: .milliseconds(50))
+            try await Task.sleep(for: Self.stopPollInterval)
         }
         return true
     }
+
+    /// How often `stop` looks for the supervisor's lock to be released. A
+    /// restart (and an update's switchover) waits on it; a probe is one
+    /// open and flock.
+    static let stopPollInterval: Duration = .milliseconds(5)
 
     public func restart(timeout: Duration = .seconds(180)) async throws {
         try await stop()
