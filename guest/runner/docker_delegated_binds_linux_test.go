@@ -188,3 +188,67 @@ func TestDelegatedChildAliasVolumesStayInItsCreatorsScope(t *testing.T) {
 		t.Fatalf("a host container is held to its scope: %+v", r)
 	}
 }
+
+// A child reaches a path no more writably than its owner does: the most
+// specific of the owner's binds over it decides, ignoring case as the host's
+// file system does, and a read-only bind of the owner's nested in a writable
+// one is read-only in a child that binds the parent too.
+func TestDelegatedBindsKeepTheOwnersNestedReadOnlyBinds(t *testing.T) {
+	ws := t.TempDir()
+	for _, d := range []string{"job/.git/hooks", "job/keys", "job/src"} {
+		if err := os.MkdirAll(filepath.Join(ws, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	job := ws + "/job"
+	owner := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("a", 64), Config: dockerConfig{Image: "golang:1", HostConfig: dockerHost{
+		// .git is shadowed read-only inside the writable checkout; keys is
+		// read-only only at another path, so the owner writes it at /work/keys.
+		Binds: []string{job + ":/work", job + "/.git:/work/.git:ro", job + "/keys:/keys:ro", "/var/run/docker.sock:/var/run/docker.sock"}}}}}
+	for _, tc := range []struct {
+		bind, want string
+	}{
+		{job + "/.git:/g", job + "/.git:/g:ro"},
+		{job + "/.git/hooks:/h", job + "/.git/hooks:/h:ro"},
+		{job + "/.GIT/hooks:/H", job + "/.GIT/hooks:/H:ro"},
+		{job + "/keys:/k", job + "/keys:/k"},
+		{job + "/src:/s", job + "/src:/s"},
+	} {
+		spec := dockerConfig{Image: "alpine", HostConfig: dockerHost{Binds: []string{tc.bind}}}
+		if _, err := delegatedBinds(owner, &spec); err != nil {
+			t.Fatal(err)
+		}
+		if spec.HostConfig.Binds[0] != tc.want || len(spec.HostConfig.Mounts) != 0 {
+			t.Errorf("%s: %v %+v, want %s", tc.bind, spec.HostConfig.Binds, spec.HostConfig.Mounts, tc.want)
+		}
+	}
+	// The checkout itself: writable, with .git read-only below it as in the
+	// owner; keys stays writable, as the owner writes it there.
+	spec := dockerConfig{Image: "alpine", HostConfig: dockerHost{Binds: []string{job + ":/x", job + ":/y"}, Tmpfs: map[string]string{"/y/.git": ""}}}
+	roots, err := delegatedBinds(owner, &spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []dockerMount{{Type: "bind", Source: job + "/.git", Target: "/x/.git", ReadOnly: true}}
+	if !slices.Equal(spec.HostConfig.Mounts, want) || roots["/x/.git"] != job+"/.git" || roots["/x"] != job {
+		t.Fatalf("mounts %+v roots %v, want .git read-only below /x only", spec.HostConfig.Mounts, roots)
+	}
+	s := &dockerEngine{workspace: ws}
+	files, mounts, _, err := s.openMountsWith(spec, cacheVolumeRules{}, false, mountSockets{bindRoots: roots}, t.TempDir())
+	closeMounts(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modes := map[string]bool{}
+	for _, m := range mounts {
+		modes[m.ContainerPath] = m.Readonly
+	}
+	if ro, ok := modes["/x/.git"]; !ok || !ro || modes["/x"] || modes["/y"] {
+		t.Fatalf("start mounts %v", modes)
+	}
+	// Read-only already: nothing to add.
+	ro := dockerConfig{Image: "alpine", HostConfig: dockerHost{Binds: []string{job + ":/x:ro"}}}
+	if _, err := delegatedBinds(owner, &ro); err != nil || len(ro.HostConfig.Mounts) != 0 {
+		t.Fatalf("read-only child: %+v %v", ro.HostConfig.Mounts, err)
+	}
+}
