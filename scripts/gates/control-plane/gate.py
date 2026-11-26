@@ -572,13 +572,24 @@ def rtt_check(cid, size, prefix, calls=5):
 
 
 def time_wait(port):
+    """Closed loopback connections to `port` still in TIME_WAIT, by the
+    client's ephemeral port, and how many the server's side holds. Whichever
+    side closes first keeps the TIME_WAIT socket (both, on a simultaneous
+    close), so a connection is counted once, by its client port."""
     out = subprocess.run(["netstat", "-an", "-p", "tcp"], capture_output=True, text=True).stdout
-    n = 0
+    me = f"127.0.0.1.{port}"
+    conns, server_side = set(), 0
     for line in out.splitlines():
         parts = line.split()
-        if len(parts) >= 6 and parts[-1] == "TIME_WAIT" and parts[3] in (f"127.0.0.1.{port}",):
-            n += 1
-    return n
+        if len(parts) < 6 or parts[-1] != "TIME_WAIT":
+            continue
+        local, foreign = parts[3], parts[4]
+        if local == me and foreign.startswith("127.0.0.1."):
+            conns.add(foreign.rsplit(".", 1)[1])
+            server_side += 1
+        elif foreign == me and local.startswith("127.0.0.1."):
+            conns.add(local.rsplit(".", 1)[1])
+    return conns, server_side
 
 
 # =================================================================================================
@@ -752,17 +763,19 @@ def section_L_at8(prefix):
           ok=not valid_samples(ping) and ping.get("dials") is not None and ping["dials"] <= 2, source=SRC_CONN)
     # Server-side corroboration on TCP: the API closes every connection, so
     # each one leaves a TIME_WAIT socket on its port.
-    wait_for(lambda: time_wait(API_PORT) == 0, 45, 1)
-    tw0 = time_wait(API_PORT)
+    wait_for(lambda: not time_wait(API_PORT)[0], 45, 1)
+    tw0, _ = time_wait(API_PORT)
     corr = unary("conn-tcp-proto", "Ping", "tcp", "proto", containers=8, warmup=0, table=False)
-    tw1 = time_wait(API_PORT)
+    tw1, server_side = time_wait(API_PORT)
     calls = (corr.get("requests") or 0) + 1  # + the first call
-    METRICS["serverTimeWait"] = {"before": tw0, "after": tw1, "clientDials": corr.get("dials"), "calls": calls}
     dials = (corr.get("dials") or 0) + 1
-    check("L-CONN-SERVER", "the server's own count agrees with the client's: TIME_WAIT sockets on the API's port "
-          "after a TCP run equal the connections the client opened",
-          {"timeWaitNew": tw1 - tw0, "clientConnections": dials, "calls": calls}, "within 5% (or 5)",
-          ok=not corr.get("error") and tw0 == 0 and abs((tw1 - tw0) - dials) <= max(5, 0.05 * dials))
+    closed = len(tw1 - tw0)
+    METRICS["serverTimeWait"] = {"before": len(tw0), "closedConnections": closed, "serverSideTimeWait": server_side,
+                                 "clientDials": dials, "calls": calls}
+    check("L-CONN-SERVER", "the kernel's count agrees with the client's: loopback connections to the API's port left "
+          "in TIME_WAIT by a TCP run equal the connections the client opened",
+          {"closedConnections": closed, "serverClosedFirst": server_side, "clientConnections": dials, "calls": calls},
+          "within 5% (or 5)", ok=not corr.get("error") and not tw0 and abs(closed - dials) <= max(5, 0.05 * dials))
 
     # 16 concurrent clients.
     conc = {}
@@ -1090,18 +1103,32 @@ def section_M():
     t1 = time.time()
     _, kids = zero_children("M-CENSUS-MCP", "the MCP suite made no CLI/subprocess call (children of every "
                             "MicropodMCP process)", "mcp-", t0, t1, SRC_MCP_GATE)
-    attribution = collections.defaultdict(collections.Counter)
-    for k in kids:
-        tool = next((c["tool"] for c in calls if c["t0"] - 0.05 <= k["t"] <= c["t1"] + 0.05), "?")
-        attribution[tool][os.path.basename(k["path"] or "?")] += 1
-    METRICS["mcpChildrenByTool"] = {t: dict(c) for t, c in attribution.items()}
-    zero_children("M-CENSUS-API", "the MCP suite made the API spawn no child process", "api", t0, t1, SRC_SUBPROC)
+    METRICS["mcpChildrenByTool"] = by_tool(kids, calls)
+    _, api_kids = zero_children("M-CENSUS-API", "the MCP suite made the API spawn no child process", "api", t0, t1,
+                                SRC_SUBPROC)
+    METRICS["apiChildrenByMcpTool"] = by_tool(api_kids, calls)
     summary = collections.Counter(r["class"] for r in results.values())
     METRICS["mcpCoverage"] = {"listed": len(names), "byClass": dict(summary),
                               "unsafe": {k: v for k, v in UNSAFE_TOOLS.items() if k in names},
                               "hostRead": sorted(HOST_READ_TOOLS & set(names)),
                               "verified": sorted(k for k, r in results.items() if r["class"] != HOST_READ
                                                  and r["class"] != UNSAFE and r.get("ok"))}
+
+
+def by_tool(kids, calls):
+    """{tool: {executable: count}}: each child under the tool call whose window
+    holds the moment the census first saw it (else the nearest call, marked ?)."""
+    out = collections.defaultdict(collections.Counter)
+    for k in kids:
+        inside = [c for c in calls if c["t0"] <= k["t"] <= c["t1"]]
+        if inside:
+            tool = inside[-1]["tool"]
+        elif calls:
+            tool = min(calls, key=lambda c: min(abs(k["t"] - c["t0"]), abs(k["t"] - c["t1"])))["tool"] + "?"
+        else:
+            tool = "?"
+        out[tool][" ".join(([os.path.basename(k["path"] or "?")] + (k.get("argv") or [])[1:4]))] += 1
+    return {t: dict(c) for t, c in out.items()}
 
 
 def call(s, calls, tool, args, timeout=600):
