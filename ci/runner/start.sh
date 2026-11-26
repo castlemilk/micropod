@@ -196,14 +196,10 @@ service=
 api=
 trap 'kill "$engine" ${service:+"$service"} ${api:+"$api"} 2>/dev/null || true' EXIT
 trap 'exit 0' TERM INT
-attempts=1200
-until "$tools/runner/bin/job" status >/dev/null 2>&1; do
-    kill -0 "$engine" || exit 1
-    [ "$attempts" -gt 0 ] || exit 1
-    attempts=$((attempts-1))
-    usleep 50000 2>/dev/null || sleep 0.05 2>/dev/null || sleep 1
-done
-"$tools/runner/bin/job" recover
+# The engine starts beside containerd and waits for its CRI itself (every
+# 5 ms, for up to a minute), then recovers interrupted jobs and containers,
+# and only then opens the Docker API socket. If containerd exits first, the
+# wait below returns.
 "$tools/runner/bin/job" engine &
 api=$!
 "$tools/service" serve &

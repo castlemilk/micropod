@@ -459,6 +459,18 @@ func serveEngine(ctx context.Context, n node) error {
 			return fmt.Errorf("prepare the native bridge resolver: %w", err)
 		}
 	}
+	// start.sh starts the engine beside containerd: what is above needs no
+	// containerd, and overlaps its start. Recovery does need it, and the
+	// socket opens only after recovery, so a _ping is never answered by an
+	// engine that cannot serve yet.
+	if err := awaitRuntime(ctx, systemClock{}, runtimeWaitInterval, runtimeWaitBudget, n.runtimeReady); err != nil {
+		return err
+	}
+	// The scheduler jobs a previous boot left, as `job recover` did before
+	// start.sh started the engine.
+	if err := n.recover(ctx); err != nil {
+		return fmt.Errorf("recover interrupted jobs: %w", err)
+	}
 	if err := s.recoverNetworks(ctx); err != nil {
 		return err
 	}
