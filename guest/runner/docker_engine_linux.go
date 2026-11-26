@@ -60,6 +60,10 @@ type dockerRecord struct {
 	// an untrusted or read-only plan, or an exclusive kind another container
 	// writes.
 	CacheAccess map[string]string `json:",omitempty"`
+	// CacheProxy lists the dependency proxies the latest start left out
+	// although the create injected them, because they did not answer then
+	// (tool kind -> proxySkipUnreachable; cachePlan.unreachableProxies).
+	CacheProxy map[string]string `json:",omitempty"`
 	// RunAs is a --user containing names, resolved against the image at create.
 	RunAs *runAsUser `json:",omitempty"`
 }
@@ -723,8 +727,20 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	if err != nil {
 		return nil, nil, fail(400, err.Error())
 	}
+	// The config files the container's tools would read, where a request's
+	// bind or volume puts them: a registry or a GOPROXY they set wins over
+	// the policy's proxy as the image's own files do (decideProxy).
+	env := append(append([]string{}, facts.Env...), spec.Env...)
+	user := spec.User
+	if user == "" {
+		user = facts.User
+	}
 	if pol.NpmRegistry != "" && !off {
-		req.projectNpmRegistry = s.projectNpmRegistry(spec, facts.WorkingDir)
+		req.projectNpmRegistry = s.projectNpmRegistry(spec, facts.WorkingDir) ||
+			s.mountedConfigSets(spec, npmrcCandidates(env, facts.Passwd, user, ""), npmrcSetsRegistry)
+	}
+	if pol.GoProxy != "" && !off {
+		req.projectGoProxy = s.mountedConfigSets(spec, goEnvCandidates(env, facts.Passwd, user), goEnvSetsProxy)
 	}
 	plan, err := decideCachesFor(pol, spec, facts, req)
 	if err != nil {
@@ -784,7 +800,64 @@ func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string
 	return false
 }
 
-// readNpmrc reads up to 64 KiB of an npmrc opened O_PATH by openMount.
+// mountedConfigSets reports whether one of the files at the container paths
+// comes from a bind or a named volume of the request (the mount with the
+// longest target that covers the path decides) and match accepts what it
+// holds now. Files are opened below the workspace or the volume without
+// following symlinks out of it; a missing or unreadable file counts as no
+// setting. A file a step writes after create (a clone into a volume, a cd into
+// a subproject) is not seen: the policy's proxy then wins over it.
+func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, match func([]byte) bool) bool {
+	mounts, _ := spec.mounts()
+	for _, p := range paths {
+		if !filepath.IsAbs(p) {
+			continue
+		}
+		p = filepath.Clean(p)
+		var cover *dockerMount
+		for i, m := range mounts {
+			if !filepath.IsAbs(m.Target) {
+				continue
+			}
+			t := filepath.Clean(m.Target)
+			if (p == t || strings.HasPrefix(p, t+"/") || t == "/") && (cover == nil || len(t) > len(filepath.Clean(cover.Target))) {
+				cover = &mounts[i]
+			}
+		}
+		if cover == nil || cover.tmpfs != nil {
+			continue
+		}
+		rel, err := filepath.Rel(filepath.Clean(cover.Target), p)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		var f *os.File
+		switch {
+		case cover.Type == "bind" && s.workspace != "":
+			f, err = openMount(s.workspace, filepath.Join(cover.Source, rel))
+		case cover.Type == "volume" && dockerName.MatchString(cover.Source):
+			if _, _, shared := legacyCacheVolume(cover.Source); shared {
+				continue
+			}
+			root := filepath.Join(engineRoot, "volumes")
+			f, err = openMount(root, filepath.Join(root, cover.Source, rel))
+		default:
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		b := readNpmrc(f)
+		f.Close()
+		if match(b) {
+			return true
+		}
+	}
+	return false
+}
+
+// readNpmrc reads up to 64 KiB of a config file (an npmrc, a go env file)
+// opened O_PATH by openMount.
 func readNpmrc(f *os.File) []byte {
 	st, err := f.Stat()
 	if err != nil || !st.Mode().IsRegular() {
@@ -824,6 +897,10 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	if err != nil {
 		return err
 	}
+	// Before s.mu (a check waits up to proxyProbeTimeout): the proxies the
+	// create injected that do not answer now are left out of this start. The
+	// plan's proxy fields are written only at create.
+	proxyDown := c.Cache.unreachableProxies(dependencyProxies.up)
 	s.mu.Lock()
 	if c.removed || c.Phase == "removing" {
 		s.mu.Unlock()
@@ -883,6 +960,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// Replay the create-time decision; never recompute it. The unit locks and
 	// pinned store directories stay open until the container exits.
 	caches := openCacheMounts(c.Cache, filepath.Join(c.dir(), "shim"))
+	caches.env = withoutProxies(caches.env, proxyDown)
 	// The attachment's descriptors close with the start's own; release()
 	// (on every failure below and after the container exits) first tears
 	// down its copy-on-write views, then drops its holds and pins.
@@ -925,6 +1003,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	previous := c.dockerRecord
 	c.CacheSkipped = caches.skipped
 	c.CacheAccess = caches.access
+	c.CacheProxy = proxyDown
 	c.Phase = "starting"
 	c.OOMKilled = false
 	c.Failure = ""
@@ -1376,7 +1455,7 @@ func (c *dockerContainer) dockerStatus() string {
 func (c *dockerContainer) inspect() map[string]any {
 	network := networkName(c.Config.HostConfig.NetworkMode)
 	config := c.Config
-	config.Env = mergeEnv(c.Config.Env, c.Cache.env(c.CacheSkipped))
+	config.Env = mergeEnv(c.Config.Env, withoutProxies(c.Cache.env(c.CacheSkipped), c.CacheProxy))
 	config.HostConfig.LogConfig = config.HostConfig.LogConfig.withDefault()
 	state := map[string]any{"Status": c.dockerStatus(), "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure, "LogError": c.LogError}
 	if c.Health != nil {
@@ -1398,7 +1477,15 @@ func (c *dockerContainer) inspect() map[string]any {
 			mc["trustFrom"] = c.Cache.TrustFrom
 		}
 		if len(c.Cache.Proxy) > 0 {
-			mc["proxy"] = c.Cache.Proxy
+			// The create's decisions, with what the latest start left out.
+			proxy := map[string]string{}
+			for k, why := range c.Cache.Proxy {
+				proxy[k] = why
+			}
+			for k, why := range c.CacheProxy {
+				proxy[k] = why
+			}
+			mc["proxy"] = proxy
 		}
 		v["MicropodCache"] = mc
 	}

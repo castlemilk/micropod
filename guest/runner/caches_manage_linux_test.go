@@ -40,7 +40,8 @@ func TestDecideCachesSharedL0AndProxyInjection(t *testing.T) {
 		t.Fatalf("gobuild tool state = %+v", p.Tools["gobuild"])
 	}
 	// Proxy env vars injected automatically when unset by user/image
-	if got, _ := envOf(p, "GOPROXY"); got != "http://10.43.0.1:5555/go,direct" {
+	// A final direct is reached on any proxy error, not only 404 and 410.
+	if got, _ := envOf(p, "GOPROXY"); got != "http://10.43.0.1:5555/go|direct" {
 		t.Fatalf("GOPROXY = %q", got)
 	}
 	if got, _ := envOf(p, "npm_config_registry"); got != "http://10.43.0.1:5555/npm" {

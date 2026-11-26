@@ -91,6 +91,9 @@ const (
 	// A .npmrc of the project or the image sets an unscoped registry, which
 	// npm_config_registry would override.
 	proxySkipNpmrc = "npmrc-registry"
+	// A go env file (`go env -w`, GOENV) of the image or of a mount sets
+	// GOPROXY, which the GOPROXY variable would override.
+	proxySkipGoEnv = "goenv-proxy"
 	// The proxy did not answer the create-time health check.
 	proxySkipUnreachable = "proxy-unreachable"
 )
@@ -834,11 +837,16 @@ func defaultCachePolicy() cachePolicy {
 	return cachePolicy{Mode: "auto", DefaultScope: "default", AllowedScopes: []string{"*"}, Tools: allCacheKinds(), GoTrimpath: true, PnpmLegacyEnv: true}
 }
 
+// validProxySetting accepts what the host's policy validation accepts
+// (HVFMachineCachePolicy.validate): a GOPROXY list whose entries, separated
+// by ',' or '|' as Go separates them, are each an http(s) URL, direct or off.
+// A value the host accepted and the guest refused would make the whole
+// policy fail closed.
 func validProxySetting(v string) bool {
 	if v == "" {
 		return true
 	}
-	for _, part := range strings.Split(v, ",") {
+	for _, part := range strings.FieldsFunc(v, func(r rune) bool { return r == ',' || r == '|' }) {
 		part = strings.TrimSpace(part)
 		if part == "direct" || part == "off" {
 			continue
@@ -1404,8 +1412,14 @@ type cacheRequest struct {
 	// projectNpmRegistry: a .npmrc of the project the container works in
 	// (its working directory or above, inside the same workspace bind) sets
 	// an unscoped registry, which an injected npm_config_registry would
-	// override (projectNpmRegistry in docker_engine_linux.go).
+	// override (projectNpmRegistry in docker_engine_linux.go), or an npmrc
+	// npm reads (the global or the user config) comes from a bind or a volume
+	// of the request and does (mountedConfigSets).
 	projectNpmRegistry bool
+	// projectGoProxy: a go env file Go reads (GOENV, else
+	// $XDG_CONFIG_HOME/go/env or ~/.config/go/env) comes from a bind or a
+	// volume of the request and sets GOPROXY (mountedConfigSets).
+	projectGoProxy bool
 }
 
 // hostFacingRequest is a create on the engine's own socket with every proxy up.
@@ -1675,7 +1689,7 @@ func decideCachesFor(pol cachePolicy, spec dockerConfig, facts imageFacts, req c
 		// (decideProxy): never over a setting of the request, the image or
 		// the project, never when the proxy does not answer, never into a
 		// reader tier unless the policy says so; Go keeps a direct fallback.
-		if kv := req.decideProxy(pol, &plan, t.Kind, merged, &facts, home, spec.WorkingDir); kv != "" {
+		if kv := req.decideProxy(pol, &plan, spec, t.Kind, merged, &facts, home); kv != "" {
 			env = append(env, kv)
 		}
 		if len(env) > 0 {
@@ -1706,12 +1720,18 @@ func decideCachesFor(pol cachePolicy, spec dockerConfig, facts imageFacts, req c
 // and returns the KEY=VALUE to inject, or "". It records the decision in
 // plan.Proxy. The Go proxy goes with gomod; the npm registry with npm and
 // pnpm (one decision, both get it). A setting of the request or the image
-// (env), or of the project or the image (.npmrc registry=), always wins; a
-// reader tier gets nothing unless the policy sets proxyUntrusted; a proxy that
-// does not answer the create-time health check is left out, so its outage
-// never fails an install. The injected GOPROXY always ends in a direct
-// fallback (goProxyWithDirect).
-func (req cacheRequest) decideProxy(pol cachePolicy, plan *cachePlan, kind string, merged []string, facts *imageFacts, home, workDir string) string {
+// always wins: a variable, a config file the request names
+// (npm_config_userconfig, npm_config_globalconfig, GOENV), or a config file
+// that sets it in the image or in a mount of the request (an npmrc
+// registry=, a go env file GOPROXY=). A reader tier gets nothing unless the
+// policy sets proxyUntrusted. A proxy that does not answer the create-time
+// health check is left out, and so is one that does not answer at a later
+// start (cachePlan.unreachableProxies), so its outage never fails an
+// install. The injected GOPROXY always ends in "|direct" (goProxyWithDirect).
+// A config file that appears after create (a clone into a volume, a cd into a
+// subproject with its own .npmrc) is not seen.
+func (req cacheRequest) decideProxy(pol cachePolicy, plan *cachePlan, spec dockerConfig, kind string, merged []string, facts *imageFacts, home string) string {
+	workDir := spec.WorkingDir
 	var key, list, probe string
 	switch {
 	case kind == "gomod" && pol.GoProxy != "":
@@ -1738,8 +1758,15 @@ func (req cacheRequest) decideProxy(pol cachePolicy, plan *cachePlan, kind strin
 		why = proxySkipReader
 	case envSet(merged, key, kind != "gomod"):
 		why = proxySkipRequest
+	case key == "npm_config_registry" && (envSet(spec.Env, "npm_config_userconfig", true) || envSet(spec.Env, "npm_config_globalconfig", true)):
+		// The request points npm at config files of its own.
+		why = proxySkipRequest
+	case key == "GOPROXY" && requestGoEnvFile(spec.Env):
+		why = proxySkipRequest
 	case key == "npm_config_registry" && (req.projectNpmRegistry || facts.imageNpmRegistry(home, workDir)):
 		why = proxySkipNpmrc
+	case key == "GOPROXY" && (req.projectGoProxy || facts.imageGoProxy(merged, home)):
+		why = proxySkipGoEnv
 	case probe != "" && req.proxyUp != nil && !req.proxyUp(probe):
 		why = proxySkipUnreachable
 	}
@@ -1749,6 +1776,70 @@ func (req cacheRequest) decideProxy(pol cachePolicy, plan *cachePlan, kind strin
 	}
 	plan.setProxy(kind, proxyInjected)
 	return key + "=" + list
+}
+
+// proxyKey is the variable a tool kind's dependency proxy is injected as.
+func proxyKey(kind string) string {
+	switch kind {
+	case "gomod":
+		return "GOPROXY"
+	case "npm", "pnpm":
+		return "npm_config_registry"
+	}
+	return ""
+}
+
+// unreachableProxies is a start's own check of the proxies its create
+// injected (kind -> proxySkipUnreachable for each that does not answer now).
+// The create's decision is otherwise replayed, but a container created while
+// the proxy answered and started again while it does not (a restart policy, a
+// machine reboot, `docker compose start`) would fail every npm install (npm
+// has no fallback) and every Go fetch the proxy cannot serve; that start runs
+// on the tools' own registries instead, and the next start checks again.
+func (p *cachePlan) unreachableProxies(up func(string) bool) map[string]string {
+	if p == nil || up == nil {
+		return nil
+	}
+	var down map[string]string
+	for kind, why := range p.Proxy {
+		key := proxyKey(kind)
+		if why != proxyInjected || key == "" {
+			continue
+		}
+		value, ok := envLookup(p.ToolEnv[kind], key, false)
+		if !ok {
+			continue
+		}
+		if key == "GOPROXY" {
+			value = firstProxyURL(value)
+		}
+		if value == "" || up(value) {
+			continue
+		}
+		if down == nil {
+			down = map[string]string{}
+		}
+		down[kind] = proxySkipUnreachable
+	}
+	return down
+}
+
+// withoutProxies is env without the variables of the proxies down names.
+func withoutProxies(env []string, down map[string]string) []string {
+	if len(down) == 0 {
+		return env
+	}
+	drop := map[string]bool{}
+	for kind := range down {
+		drop[proxyKey(kind)] = true
+	}
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); !drop[k] {
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 func (p *cachePlan) setProxy(kind, why string) {
@@ -1766,40 +1857,46 @@ func envSet(env []string, key string, fold bool) bool {
 
 // goProxyWithDirect is the GOPROXY a container gets for the policy's list:
 // "off" entries dropped (a container always keeps a way to the module's
-// origin) and "|direct" appended unless the list already ends in direct, so
-// Go falls back to the origin on any proxy error, not only on 404 and 410.
+// origin) and the list ending in "|direct", so Go falls back to the origin on
+// any proxy error, not only on 404 and 410: "|direct" is appended, and a
+// final direct the list reached with ',' (`http://proxy/go,direct`, the
+// usual idiom) is reached with '|' instead, since a proxy that is down
+// answers neither 404 nor 410.
 func goProxyWithDirect(list string) string {
-	var out strings.Builder
+	type entry struct{ sep, value string } // sep: what Go reaches value after
+	var out []entry
 	sep := ""
-	last := ""
 	for len(list) > 0 {
 		i := strings.IndexAny(list, ",|")
-		entry, next := list, ""
+		value, next := list, ""
 		if i >= 0 {
-			entry, next = list[:i], list[i:i+1]
+			value, next = list[:i], list[i:i+1]
 			list = list[i+1:]
 		} else {
 			list = ""
 		}
-		entry = strings.TrimSpace(entry)
-		if entry != "" && entry != "off" {
-			if out.Len() > 0 {
-				out.WriteString(sep)
-			}
-			out.WriteString(entry)
-			last = entry
+		value = strings.TrimSpace(value)
+		if value == "" || value == "off" {
+			continue
 		}
-		if next != "" && entry != "" && entry != "off" {
+		out = append(out, entry{sep, value})
+		if next != "" {
 			sep = next
 		}
 	}
 	switch {
-	case out.Len() == 0:
+	case len(out) == 0:
 		return "direct"
-	case last != "direct":
-		out.WriteString("|direct")
+	case out[len(out)-1].value != "direct":
+		out = append(out, entry{"|", "direct"})
+	case len(out) > 1:
+		out[len(out)-1].sep = "|"
 	}
-	return out.String()
+	var b strings.Builder
+	for _, e := range out {
+		b.WriteString(e.sep + e.value)
+	}
+	return b.String()
 }
 
 // firstProxyURL is the first http(s) entry of a GOPROXY list, the one the
@@ -1811,6 +1908,50 @@ func firstProxyURL(list string) string {
 		}
 	}
 	return ""
+}
+
+// requestGoEnvFile reports whether the request names a go env file of its own
+// (GOENV=<path>; GOENV=off reads none).
+func requestGoEnvFile(env []string) bool {
+	v, ok := envLookup(env, "GOENV", false)
+	return ok && strings.TrimSpace(v) != "" && strings.TrimSpace(v) != "off"
+}
+
+// goEnvCandidates are the go env files Go could read for some container of an
+// image with this environment (image then request) and passwd: GOENV when it
+// names a file (none for off), else $XDG_CONFIG_HOME/go/env and
+// ~/.config/go/env of every plausible HOME (as npmrcCandidates finds them).
+func goEnvCandidates(env []string, passwd []passwdEntry, user string) []string {
+	if v, ok := envLookup(env, "GOENV", false); ok {
+		if v = strings.TrimSpace(v); path.IsAbs(v) {
+			return []string{path.Clean(v)}
+		}
+		return nil
+	}
+	set := map[string]bool{}
+	if v, ok := envLookup(env, "XDG_CONFIG_HOME", false); ok && path.IsAbs(v) {
+		set[path.Join(path.Clean(v), "go/env")] = true
+	}
+	for _, h := range candidateHomes(env, passwd, user) {
+		set[path.Join(h, ".config/go/env")] = true
+	}
+	out := make([]string, 0, len(set))
+	for p := range set {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// goEnvSetsProxy reports whether a go env file (KEY=VALUE lines, as `go env
+// -w` writes them) sets GOPROXY, to any value: off included.
+func goEnvSetsProxy(b []byte) bool {
+	for _, line := range strings.Split(string(b), "\n") {
+		if key, _, ok := strings.Cut(strings.TrimSpace(line), "="); ok && strings.TrimSpace(key) == "GOPROXY" {
+			return true
+		}
+	}
+	return false
 }
 
 // npmrcSetsRegistry reports whether an npmrc file sets the unscoped registry

@@ -376,14 +376,17 @@ func TestCacheProxyInjectionIsGuarded(t *testing.T) {
 
 func TestGoProxyAlwaysKeepsADirectFallback(t *testing.T) {
 	for in, want := range map[string]string{
-		"http://p/go":                 "http://p/go|direct",
-		"http://p/go,direct":          "http://p/go,direct",
-		"http://p/go|direct":          "http://p/go|direct",
-		"http://p/go,off":             "http://p/go|direct",
-		"http://a/go,http://b/go":     "http://a/go,http://b/go|direct",
-		"http://a/go|off|http://b/go": "http://a/go|http://b/go|direct",
-		"off":                         "direct",
-		" http://p/go , direct ":      "http://p/go,direct",
+		"http://p/go":                    "http://p/go|direct",
+		"http://p/go,direct":             "http://p/go|direct",
+		"http://p/go|direct":             "http://p/go|direct",
+		"http://p/go,off":                "http://p/go|direct",
+		"http://a/go,http://b/go":        "http://a/go,http://b/go|direct",
+		"http://a/go|off|http://b/go":    "http://a/go|http://b/go|direct",
+		"off":                            "direct",
+		" http://p/go , direct ":         "http://p/go|direct",
+		"http://a/go,http://b/go,direct": "http://a/go,http://b/go|direct",
+		"direct":                         "direct",
+		"http://a/go,off,direct":         "http://a/go|direct",
 	} {
 		if got := goProxyWithDirect(in); got != want {
 			t.Errorf("goProxyWithDirect(%q) = %q, want %q", in, got, want)

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -30,10 +31,10 @@ import (
 // once per image ID through a read-only `ctr images mount` view and cached on
 // disk. factsVersion changes whenever the probe learns something new (version
 // 2: the mvn, gradle, bun, sccache and playwright binaries; 3: the npmrc
-// files that set a registry), so facts an older engine cached are probed
-// again.
+// files that set a registry; 4: the go env files that set GOPROXY), so facts
+// an older engine cached are probed again.
 
-const factsVersion = 3
+const factsVersion = 4
 const probeRoot = "/run/micropod/probe"
 
 var imageFactsDir = filepath.Join(engineRoot, "image-facts")
@@ -72,9 +73,12 @@ type imageFacts struct {
 	// NpmRegistry lists the npmrc files of the image that set an unscoped
 	// registry (npmrcCandidates), which npm_config_registry would override.
 	NpmRegistry map[string]bool `json:"npmRegistry,omitempty"`
-	OK          bool            `json:"ok"`
-	ProbeMS     int64           `json:"probeMS"`
-	Error       string          `json:"error,omitempty"`
+	// GoEnvProxy lists the go env files of the image (goEnvCandidates) that
+	// set GOPROXY, which the GOPROXY variable would override.
+	GoEnvProxy map[string]bool `json:"goEnvProxy,omitempty"`
+	OK         bool            `json:"ok"`
+	ProbeMS    int64           `json:"probeMS"`
+	Error      string          `json:"error,omitempty"`
 }
 
 func (f *imageFacts) passwdByUID(uid uint32) *passwdEntry {
@@ -267,22 +271,8 @@ func npmrcCandidates(env []string, passwd []passwdEntry, user, workDir string) [
 			set[path.Clean(v)] = true
 		}
 	}
-	homes := []string{"/root"}
-	if h, ok := envLookup(env, "HOME", false); ok && path.IsAbs(h) {
-		homes = append(homes, h)
-	}
-	if user != "" {
-		if _, _, h, err := resolveUser(user, &imageFacts{OK: true, Passwd: passwd}); err == nil {
-			homes = append(homes, h)
-		}
-	}
-	for _, p := range passwd {
-		if p.UID == 0 || p.UID >= 1000 && p.UID != 65534 {
-			homes = append(homes, p.Home)
-		}
-	}
-	for _, h := range homes {
-		if path.IsAbs(h) && len(set) < 48 {
+	for _, h := range candidateHomes(env, passwd, user) {
+		if len(set) < 48 {
 			set[path.Join(h, ".npmrc")] = true
 		}
 	}
@@ -300,6 +290,51 @@ func npmrcCandidates(env []string, passwd []passwdEntry, user, workDir string) [
 	}
 	sort.Strings(out)
 	return out
+}
+
+// candidateHomes are the HOMEs a container of an image could run with: /root,
+// the environment's HOME, the configured user's passwd home and every login
+// user's (uid 0 or 1000 and above, nobody excepted), at most 40.
+func candidateHomes(env []string, passwd []passwdEntry, user string) []string {
+	homes := []string{"/root"}
+	if h, ok := envLookup(env, "HOME", false); ok && path.IsAbs(h) {
+		homes = append(homes, h)
+	}
+	if user != "" {
+		if _, _, h, err := resolveUser(user, &imageFacts{OK: true, Passwd: passwd}); err == nil {
+			homes = append(homes, h)
+		}
+	}
+	for _, p := range passwd {
+		if p.UID == 0 || p.UID >= 1000 && p.UID != 65534 {
+			homes = append(homes, p.Home)
+		}
+	}
+	out := make([]string, 0, len(homes))
+	for _, h := range homes {
+		if path.IsAbs(h) && !slices.Contains(out, path.Clean(h)) && len(out) < 40 {
+			out = append(out, path.Clean(h))
+		}
+	}
+	return out
+}
+
+// imageGoProxy reports whether the go env file Go reads in a container with
+// this environment (image then request) and HOME is one of the image's that
+// sets GOPROXY.
+func (f *imageFacts) imageGoProxy(env []string, home string) bool {
+	if f == nil || len(f.GoEnvProxy) == 0 {
+		return false
+	}
+	if v, ok := envLookup(env, "GOENV", false); ok {
+		v = strings.TrimSpace(v)
+		return path.IsAbs(v) && f.GoEnvProxy[path.Clean(v)]
+	}
+	file := path.Join(home, ".config/go/env")
+	if v, ok := envLookup(env, "XDG_CONFIG_HOME", false); ok && path.IsAbs(v) {
+		file = path.Join(path.Clean(v), "go/env")
+	}
+	return f.GoEnvProxy[file]
 }
 
 // imageNpmRegistry reports whether an npmrc of the image that npm reads for a
@@ -364,6 +399,14 @@ func rootfsFacts(dir string, f *imageFacts) error {
 				f.NpmRegistry = map[string]bool{}
 			}
 			f.NpmRegistry[p] = true
+		}
+	}
+	for _, p := range goEnvCandidates(f.Env, f.Passwd, f.User) {
+		if goEnvSetsProxy(readInRoot(rootFd, p)) {
+			if f.GoEnvProxy == nil {
+				f.GoEnvProxy = map[string]bool{}
+			}
+			f.GoEnvProxy[p] = true
 		}
 	}
 	f.Binaries = map[string]bool{}
