@@ -485,6 +485,61 @@ final class HVFPayloadUpdateTests: XCTestCase {
         XCTAssertTrue(failure?.contains("/micropod/caches") == true, failure ?? "nil")
     }
 
+    func testTheHealthProbeFailsAGuestWithoutItsAttachedCacheDisk() async throws {
+        // B26 S10: a payload whose VMM dropped --cache-disk booted with shared
+        // caches off and was still made current and known-good.
+        try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
+        let reported = UpdateBox(#""cacheDisk":{"state":"mounted","device":"/dev/vdb","mounted":true}"#)
+        server = try FakeDockerServer(path: layout.dockerSocket.path) { request in
+            switch request.path {
+            case "/micropod/metrics": return (200, Data("{}".utf8))
+            case "/micropod/caches":
+                return (
+                    200,
+                    Data(#"{"root":"/r","mountPoint":"/m","policyDigest":"d","scopes":{},\#(reported.value)}"#.utf8)
+                )
+            default: return (404, Data())
+            }
+        }
+        let probe = HVFGuestHealthProbe(client: HVFMachineClient(layout: layout), timeout: .seconds(2))
+        func failure(_ inventory: String) async -> String? {
+            reported.value = inventory
+            return await probe.failure()
+        }
+        let lost =
+            #""cacheDisk":{"state":"unavailable","mounted":false},"#
+            + #""unavailable":"guest init found the cache disk missing or unmountable""#
+        let detached = #""cacheDisk":{"state":"none","mounted":false}"#
+        let unmounted = #""cacheDisk":{"state":"mounted","device":"/dev/vdb","mounted":false}"#
+        let mounted = #""cacheDisk":{"state":"mounted","device":"/dev/vdb","mounted":true}"#
+        let unknown = #""cacheDisk":{"mounted":false,"mountInfoError":"permission denied"}"#
+
+        // Without caches.ext4 the stores live on the OS disk by design.
+        let withoutDisk = await failure(detached)
+        XCTAssertNil(withoutDisk)
+        let withoutDiskUnmounted = await failure(unmounted)
+        XCTAssertNil(withoutDiskUnmounted, "no disk attached: nothing to have mounted")
+
+        FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: Data())
+        let healthy = await failure(mounted)
+        XCTAssertNil(healthy)
+        let older = await failure(#""cacheDiskless":1"#)
+        XCTAssertNil(older, "an engine that predates the report cannot say; it is not failed for that")
+        let cannotTell = await failure(unknown)
+        XCTAssertNil(cannotTell)
+        for (inventory, reason) in [
+            (lost, "shared caches are off"), (detached, "did not mount"), (unmounted, "did not mount"),
+        ] {
+            let failed = await failure(inventory)
+            XCTAssertTrue(failed?.contains(reason) == true, "\(inventory): \(failed ?? "passed")")
+        }
+        try FileManager.default.removeItem(at: layout.cacheDisk)
+        let lostWithoutDisk = await failure(lost)
+        XCTAssertTrue(
+            lostWithoutDisk?.contains("shared caches are off") == true,
+            "the guest says so itself: \(lostWithoutDisk ?? "")")
+    }
+
     func testBusyWorkloadsDeferUnlessTheyDrainInTimeAndForceSkipsTheCheck() async throws {
         try installFlat("v1")
         let machine = FakeUpdateMachine(layout: layout, runningOn: root)
@@ -795,6 +850,16 @@ final class UpdateFlag: @unchecked Sendable {
     private var stored: Bool
     init(_ value: Bool) { stored = value }
     var value: Bool {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
+}
+
+final class UpdateBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: String
+    init(_ value: String) { stored = value }
+    var value: String {
         get { lock.withLock { stored } }
         set { lock.withLock { stored = newValue } }
     }

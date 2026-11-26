@@ -313,7 +313,8 @@ public struct HVFGuestWorkloadDrain: HVFDrainCoordinating {
     }
 }
 
-/// `/_ping`, `/micropod/metrics` and the cache status (`/micropod/caches`).
+/// `/_ping`, `/micropod/metrics` and the cache status (`/micropod/caches`):
+/// with `caches.ext4` attached, the guest must have mounted it.
 public struct HVFGuestHealthProbe: HVFHealthProbing {
     public let client: HVFMachineClient
     public var timeout: Duration
@@ -333,12 +334,31 @@ public struct HVFGuestHealthProbe: HVFHealthProbing {
         } catch {
             return "GET /micropod/metrics: \(error.localizedDescription)"
         }
+        let inventory: HVFCacheInspection
         do {
-            _ = try await client.cacheInspection(includeStats: false, timeout: timeout)
+            inventory = try await client.cacheInspection(includeStats: false, timeout: timeout)
         } catch {
             return "GET /micropod/caches: \(error.localizedDescription)"
         }
-        return nil
+        return Self.cacheDiskFailure(
+            inventory, attached: HVFMachineLayout.isRegularFile(client.layout.cacheDisk),
+            path: client.layout.cacheDisk.path)
+    }
+
+    /// Why a guest that answers is still not healthy for its caches, or nil.
+    /// `attached`: the root has `caches.ext4`, so micropod-vmm attaches it
+    /// and the guest is told to mount it. A machine without one passes: its
+    /// stores live on the OS disk by design. A guest that cannot tell (an
+    /// engine that predates the report, an unreadable mountinfo) passes too;
+    /// only a guest that says the disk is not mounted, or that shared caches
+    /// are off, fails.
+    static func cacheDiskFailure(_ inventory: HVFCacheInspection, attached: Bool, path: String) -> String? {
+        if let why = inventory.sharedCachesOffReason {
+            return "GET /micropod/caches: shared caches are off this boot: \(why)"
+        }
+        guard attached, let disk = inventory.cacheDisk, !disk.mounted, disk.mountInfoError == nil else { return nil }
+        return "GET /micropod/caches: the guest did not mount its cache disk (\(path) is attached; guest state "
+            + "\(disk.state ?? "unknown"), device \(disk.device ?? "none")); every container would run uncached"
     }
 }
 
