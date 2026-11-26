@@ -66,8 +66,8 @@ final class HVFReadinessAPITests: XCTestCase {
         )
     }
 
-    private func handlers(_ registry: EngineRegistry, helperScans: Tally? = nil) -> APIHandlers {
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
+    private func handlers(_ registry: EngineRegistry, helperScans: Tally? = nil, cli: URL? = nil) -> APIHandlers {
+        let client = ContainerCLIClient(executableURL: cli ?? URL(fileURLWithPath: "/usr/bin/false"))
         var versionEnvironment = VersionEnvironment.live(client: client)
         if let helperScans {
             versionEnvironment.helperPrograms = {
@@ -163,6 +163,36 @@ final class HVFReadinessAPITests: XCTestCase {
         XCTAssertEqual(scans.value, 1, "the flip came from live readiness, not a new host observation")
         let system = try await call(api, "GetSystem", Micropod_V1_Empty(), as: Micropod_V1_SystemSnapshot.self)
         XCTAssertEqual(system.status.status, "not-ready")
+    }
+
+    /// REST `GET /v1/system` always asked Apple's runtime (`container system
+    /// status`, and its `launchctl` grandchild): two children per call in
+    /// B25. With hvf the default it answers from the machine, like GetSystem.
+    func testRESTSystemWithAnHVFDefaultReportsTheMachineWithoutAChild() async throws {
+        try install()
+        _ = try serve { _ in (404, Data()) }
+        let log = root.appendingPathComponent("cli.log")
+        let cli = root.appendingPathComponent("bin/container")
+        try FileManager.default.createDirectory(at: cli.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("#!/bin/sh\necho \"$*\" >> \"\(log.path)\"\nexit 1\n".utf8).write(to: cli)
+        XCTAssertEqual(chmod(cli.path, 0o755), 0)
+        let api = handlers(registry(defaultRuntime: "hvf"), cli: cli)
+
+        let response = await api.handle(
+            HTTPRequest(method: .get, path: "/v1/system", query: [:], body: Data(), headers: [:]))
+        guard case .json(200, let body) = response else { return XCTFail("unexpected \(response)") }
+        XCTAssertEqual(body["status"] as? String, "running")
+        XCTAssertEqual(body["runtimeBackend"] as? String, "hvf")
+        XCTAssertEqual(body["backend"] as? String, "hvf")
+        XCTAssertEqual(body["installRoot"] as? String, root.path)
+        let features = try XCTUnwrap(body["features"] as? [String])
+        XCTAssertTrue(features.contains("caches-v2"), "\(features)")
+        for key in ["cliVersion", "apiServerVersion", "appRoot", "diskUsage"] {
+            XCTAssertNotNil(body[key], "the REST keys stay: \(key)")
+        }
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: log.path),
+            "no `container` child: \((try? String(contentsOf: log, encoding: .utf8)) ?? "")")
     }
 
     func testADefaultHVFMachineThatIsNotInstalledIsNotReported() async throws {

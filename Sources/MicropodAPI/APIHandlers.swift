@@ -651,6 +651,30 @@ final class APIHandlers: Sendable {
                 return .json(200, try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:])
 
             case ("system", .get):
+                // hvf as the default runtime answers for itself, from live
+                // machine state, as GetSystem and Ping do: no `container`
+                // child to report Apple's runtime.
+                if let machine = defaultHVFMachine {
+                    let readiness = await machine.readinessStartingWhenDown()
+                    var body: [String: Any] = [
+                        "status": readiness.status.rawValue,
+                        "detail": readiness.detail,
+                        "cliVersion": "",
+                        "apiServerVersion": readiness.version,
+                        "appRoot": "",
+                        "installRoot": machine.layout.root.path,
+                        "backend": "hvf",
+                        "runtimeBackend": "hvf",
+                        "defaultRuntime": "hvf",
+                        "features": APIFeatures.supported + readiness.features,
+                    ]
+                    var disk = Micropod_V1_DiskUsage()
+                    disk.containers.sizeBytes =
+                        (try? FileManager.default.attributesOfItem(atPath: machine.layout.disk.path)[.size] as? UInt64)
+                        ?? 0
+                    body["diskUsage"] = projection(disk)
+                    return .json(200, body)
+                }
                 let status = try await system.status()
                 var body: [String: Any] = [
                     "status": status.status,
