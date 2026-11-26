@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vishvananda/netlink"
@@ -158,7 +159,12 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 	// until the container releases its port, including across long SQL sessions.
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, lease: control, cancel: cancel}
-	p.relay(relayCtx, l, target, relayGuard{admit: admit})
+	guard := relayGuard{}
+	if admit != nil {
+		guard.admit = func(peer netip.Addr) (string, bool) { return "", admit(peer) }
+		guard.pending = make(chan struct{}, relayPendingAdmissions)
+	}
+	p.relay(relayCtx, l, target, guard)
 	return p, port, nil
 }
 
@@ -169,46 +175,105 @@ const relayDialTimeout = 10 * time.Second
 
 // Container-facing relays (the gateway relay) hold at most relayPortSlots
 // connections each and gatewayRelaySlots between them, so no container can
-// exhaust the engine's descriptors through them (each costs two); a
-// connection over either limit is closed at once. The Mac-facing relay has
-// no limit: it serves only the Mac's port broker (macFacingAdmits), and
-// closes any other peer, a container's included, before it dials anything.
-const relayPortSlots = 128
+// exhaust the engine's descriptors through them (each costs two), and one
+// peer family (a job: a delegated socket's owner and what it created, or a
+// container of the host's alone) at most relayFamilySlots of the shared
+// ones, so a single job cannot hold every other job's gateway relays shut. A
+// connection over a limit is closed at once. The Mac-facing relay has no
+// limit: it serves only the Mac's port broker (macFacingAdmits), and closes
+// any other peer, a container's included, before it dials anything.
+const (
+	relayPortSlots   = 128
+	relayFamilySlots = 128
+	// relayPendingAdmissions bounds a listener's connections waiting for
+	// admit, which takes the engine's lock (a create or a remove can hold
+	// it for a while): past it the accept loop waits, leaving the rest in
+	// the kernel's backlog, instead of holding a descriptor for each.
+	relayPendingAdmissions = 16
+)
 
-var gatewayRelaySlots = make(chan struct{}, 512)
+var (
+	gatewayRelaySlots    = make(chan struct{}, 512)
+	gatewayRelayFamilies = &familySlots{max: relayFamilySlots}
+)
 
-// relayGuard is who a relay serves and how many at once: admit, when set,
-// decides each peer by its address (closing one it refuses before dialing
-// anything); slots and shared, when set, are the listener's and the
-// engine-wide connection limits.
-type relayGuard struct {
-	admit         func(peer netip.Addr) bool
-	slots, shared chan struct{}
+// relayHalfCloseIdle is how long a relayed connection whose one direction
+// has ended may go without a byte in the other before the relay closes it:
+// a peer that never closes its side after the target closed its own would
+// otherwise hold the connection's slots until the port closes. A variable
+// for tests.
+var relayHalfCloseIdle = 60 * time.Second
+
+// familySlots counts the shared gateway relay connections each peer family
+// holds, at most max each.
+type familySlots struct {
+	mu   sync.Mutex
+	held map[string]int
+	max  int
 }
 
-// take reserves a connection in both limits, or reports none is free.
-func (g relayGuard) take() (release func(), ok bool) {
-	for i, ch := range []chan struct{}{g.slots, g.shared} {
+func (f *familySlots) take(family string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.held[family] >= f.max {
+		return false
+	}
+	if f.held == nil {
+		f.held = map[string]int{}
+	}
+	f.held[family]++
+	return true
+}
+
+func (f *familySlots) release(family string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.held[family]--; f.held[family] <= 0 {
+		delete(f.held, family)
+	}
+}
+
+// relayGuard is who a relay serves and how many at once: admit, when set,
+// decides each peer by its address and names the family it counts against
+// (a refused one is closed before anything is dialed or reserved), with at
+// most pending connections waiting for it; slots and shared, when set, are
+// the listener's and the engine-wide connection limits, and families what
+// one family may hold of shared.
+type relayGuard struct {
+	admit         func(peer netip.Addr) (family string, ok bool)
+	pending       chan struct{}
+	slots, shared chan struct{}
+	families      *familySlots
+}
+
+// take reserves a connection of family in every limit, or reports one is full.
+func (g relayGuard) take(family string) (release func(), ok bool) {
+	var undo []func()
+	free := func() {
+		for _, f := range slices.Backward(undo) {
+			f()
+		}
+	}
+	for _, ch := range []chan struct{}{g.slots, g.shared} {
 		if ch == nil {
 			continue
 		}
 		select {
 		case ch <- struct{}{}:
+			undo = append(undo, func() { <-ch })
 		default:
-			if i == 1 && g.slots != nil {
-				<-g.slots
-			}
+			free()
 			return nil, false
 		}
+		if ch == g.slots && g.families != nil {
+			if !g.families.take(family) {
+				free()
+				return nil, false
+			}
+			undo = append(undo, func() { g.families.release(family) })
+		}
 	}
-	return func() {
-		if g.shared != nil {
-			<-g.shared
-		}
-		if g.slots != nil {
-			<-g.slots
-		}
-	}, true
+	return free, true
 }
 
 // tcpAcceptor is what relay accepts from (a *net.TCPListener).
@@ -241,22 +306,34 @@ func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target st
 				continue
 			}
 			pause = 0
-			release, ok := guard.take()
-			if !ok {
-				in.Close()
-				continue
+			if guard.pending != nil {
+				select {
+				case guard.pending <- struct{}{}:
+				case <-relayCtx.Done():
+					in.Close()
+					return
+				}
 			}
 			p.wg.Add(1)
 			go func() {
 				defer p.wg.Done()
-				defer release()
 				defer in.Close()
+				family, ok := "", true
 				if guard.admit != nil {
 					peer, _ := netip.ParseAddrPort(in.RemoteAddr().String())
-					if !guard.admit(peer.Addr().Unmap()) {
-						return
-					}
+					family, ok = guard.admit(peer.Addr().Unmap())
 				}
+				if guard.pending != nil {
+					<-guard.pending
+				}
+				if !ok {
+					return
+				}
+				release, ok := guard.take(family)
+				if !ok {
+					return
+				}
+				defer release()
 				out, err := dial.DialContext(relayCtx, "tcp4", target)
 				if err != nil {
 					return
@@ -264,14 +341,44 @@ func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target st
 				defer out.Close()
 				stop := context.AfterFunc(relayCtx, func() { in.Close(); out.Close() })
 				defer stop()
-				done := make(chan struct{})
-				go func() { io.Copy(out, in); out.(*net.TCPConn).CloseWrite(); close(done) }()
-				io.Copy(in, out)
-				in.CloseWrite()
-				<-done
+				relayPipe(in, out.(*net.TCPConn))
 			}()
 		}
 	}()
+}
+
+// relayPipe copies both directions of a relayed connection until each ends.
+// Once one has ended (its sender closed), the other is closed after
+// relayHalfCloseIdle without a byte, so a peer that keeps its side open and
+// silent does not hold the connection for good.
+func relayPipe(in, out *net.TCPConn) {
+	var half atomic.Bool
+	pipe := func(dst, src *net.TCPConn) {
+		for {
+			n, err := io.Copy(dst, src)
+			var ne net.Error
+			if err != nil && n > 0 && half.Load() && errors.As(err, &ne) && ne.Timeout() {
+				src.SetReadDeadline(time.Now().Add(relayHalfCloseIdle))
+				continue // progress since the last deadline
+			}
+			return
+		}
+	}
+	// What one direction wrote to is what the other reads from.
+	ended := func(c *net.TCPConn) {
+		c.CloseWrite()
+		half.Store(true)
+		c.SetReadDeadline(time.Now().Add(relayHalfCloseIdle))
+	}
+	done := make(chan struct{})
+	go func() {
+		pipe(out, in)
+		ended(out)
+		close(done)
+	}()
+	pipe(in, out)
+	ended(in)
+	<-done
 }
 
 // defaultBridge is the default container network's bridge (10-micropod.conflist).
@@ -327,14 +434,15 @@ func relayGateways(network *workerNetwork) []string {
 // the FORWARD rules that keep networks apart; and the relay dials the target
 // from that namespace. So admit decides each peer (relayAdmits): only one
 // that could reach the target anyway or belongs to the same job is relayed.
-func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) bool) (*publishedPort, error) {
+func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) (string, bool)) (*publishedPort, error) {
 	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(gateway), Port: int(port)})
 	if err != nil {
 		return nil, err
 	}
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, cancel: cancel}
-	p.relay(relayCtx, l, target, relayGuard{admit: admit, slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots})
+	p.relay(relayCtx, l, target, relayGuard{admit: admit, pending: make(chan struct{}, relayPendingAdmissions),
+		slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots, families: gatewayRelayFamilies})
 	return p, nil
 }
 
@@ -343,13 +451,17 @@ func openGatewayRelay(ctx context.Context, gateway string, port uint16, target s
 // dial target's own address anyway) or is of target's family (the delegated
 // socket's owner and what it created there: a Testcontainers job and its
 // siblings, on whatever networks). A peer address that is no container's is
-// refused.
-func (s *dockerEngine) relayAdmits(target *dockerContainer) func(netip.Addr) bool {
-	return func(peer netip.Addr) bool {
+// refused. An admitted peer counts against its own family's share of the
+// relays (relayFamilySlots).
+func (s *dockerEngine) relayAdmits(target *dockerContainer) func(netip.Addr) (string, bool) {
+	return func(peer netip.Addr) (string, bool) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		from := s.containerAtLocked(peer)
-		return from != nil && (from.family() == target.family() || sharesNetwork(from, target))
+		if from == nil || from.family() != target.family() && !sharesNetwork(from, target) {
+			return "", false
+		}
+		return from.family(), true
 	}
 }
 

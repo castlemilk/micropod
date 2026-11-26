@@ -72,9 +72,9 @@ func TestGatewayRelayAdmitsOnlyWhatTheRuleAdmits(t *testing.T) {
 	port := freePort(t)
 	var admit atomic.Bool
 	var asked atomic.Value
-	p, err := openGatewayRelay(context.Background(), "127.0.0.1", port, target, func(peer netip.Addr) bool {
+	p, err := openGatewayRelay(context.Background(), "127.0.0.1", port, target, func(peer netip.Addr) (string, bool) {
 		asked.Store(peer)
-		return admit.Load()
+		return "job", admit.Load()
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -140,8 +140,12 @@ func TestRelayAdmitsTheTargetsNetworkAndJob(t *testing.T) {
 		{"the engine's own address", ryuk, "10.88.0.1", false},
 		{"the Mac", postgres, "192.168.64.1", false},
 	} {
-		if got := s.relayAdmits(tc.target)(netip.MustParseAddr(tc.peer)); got != tc.want {
+		family, got := s.relayAdmits(tc.target)(netip.MustParseAddr(tc.peer))
+		if got != tc.want {
 			t.Errorf("%s: admitted %v, want %v", tc.name, got, tc.want)
+		}
+		if from := s.containerAtLocked(netip.MustParseAddr(tc.peer)); got && family != from.family() {
+			t.Errorf("%s: counted against %.12s, want the peer's family", tc.name, family)
 		}
 	}
 }
