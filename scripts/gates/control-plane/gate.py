@@ -772,23 +772,22 @@ def section_L_at8(prefix):
                                                         codec, containers=8, id_=one)
         res[f"cache-{transport}-rest"] = unary(f"cache-{transport}-rest", "CacheSummary", transport, "rest",
                                                containers=8)
+        for codec in ("proto", "json"):
+            gate = (transport, codec) == ("unix", "proto")
+            res[f"cachestatus-{transport}-{codec}"] = unary(
+                f"cachestatus-{transport}-{codec}", "GetCacheStatus", transport, codec, containers=8,
+                target_us=TARGET_US if gate else None, source=SRC_CACHE_RPC if gate else None)
+        res[f"cacheexplain-{transport}-proto"] = unary(f"cacheexplain-{transport}-proto", "ExplainContainerCache",
+                                                       transport, "proto", containers=8, id_=one)
         res[f"explain-{transport}-rest"] = unary(f"explain-{transport}-rest", "CacheExplain", transport, "rest",
                                                  containers=8, id_=one)
     res["health-unix-rest"] = unary("health-unix-rest", "Health", "unix", "rest", containers=8)
 
     latency_check("L-GATE-PING", "Ping, binary Connect over api.sock: p95 < 1 ms", res["ping-unix-proto"], SRC_GATE)
-    # GetCacheStatus over binary Connect: the RPC the gate names.
-    st, raw, hdrs = request("POST", "/api/micropod.v1.CacheService/GetCacheStatus", b"", unix=API_SOCK,
-                            ctype="application/proto")
-    rest = (res["cache-unix-rest"].get("stats") or {})
-    check("L-GATE-CACHE", "GetCacheStatus, binary Connect over api.sock: p95 < 1 ms",
-          {"binaryConnectStatus": st, "body": short(raw.decode(errors="replace"), 160),
-           "restGETv1cachesP95Us": rest.get("p95Us"), "restN": rest.get("n")},
-          f"a CacheService.GetCacheStatus RPC answering with p95 < {TARGET_US:.0f} µs "
-          "(if it now answers 200, cpbench must learn to measure it before this can pass)",
-          ok=False, ev=evidence("L-GATE-CACHE-probe", {"status": st, "headers": hdrs,
-                                                                              "body": raw.decode(errors="replace")}),
-          source=SRC_CACHE_RPC)
+    # GetCacheStatus over binary Connect: the RPC the gate names, measured by
+    # cpbench like Ping (what it answered is checked in L-OK-8).
+    latency_check("L-GATE-CACHE", "GetCacheStatus, binary Connect over api.sock: p95 < 1 ms",
+                  res["cachestatus-unix-proto"], SRC_CACHE_RPC)
     # Correctness of what was measured (not a latency verdict).
     wrong = {}
     for case, r in res.items():
@@ -800,8 +799,17 @@ def section_L_at8(prefix):
     for case in ("inspect-unix-proto", "inspect-tcp-json"):
         if not str(res[case].get("detail", "")).startswith(one):
             wrong[case + ":detail"] = res[case].get("detail")
+    # GetCacheStatus reports the policy the guest runs; explain names the container asked for.
+    digest = guest_caches(stats=False).get("policyDigest")
+    for case in ("cachestatus-unix-proto", "cachestatus-tcp-proto", "cachestatus-unix-json", "cachestatus-tcp-json"):
+        if not digest or not str(res[case].get("detail", "")).startswith(f"{digest}/"):
+            wrong[case + ":detail"] = {"got": res[case].get("detail"), "guestPolicyDigest": digest}
+    for case in ("cacheexplain-unix-proto", "cacheexplain-tcp-proto"):
+        if not str(res[case].get("detail", "")).startswith(one + "/"):
+            wrong[case + ":detail"] = res[case].get("detail")
     check("L-OK-8", "every Ping/GetSystem/inspect/cache case at 8 containers answered every call, Ping said "
-          "running/hvf and inspect named the container asked for", wrong, {})
+          "running/hvf, inspect and cache explain named the container asked for and GetCacheStatus the guest's "
+          "policy digest", wrong, {})
 
     # Connections opened per call.
     ping = res["ping-unix-proto"]
@@ -1393,6 +1401,65 @@ def mcp_tools(s, by, calls):
                {"reply": short(r["text"], 200), "isError": r["error"], "action": action, "vmmBefore": vmm0,
                 "vmmAfter": state().get("vmmPID")},
                "on a machine with nothing to roll back to, refuses (or is a no-op) and the same VMM keeps running", r)
+    if has("cache_ls"):
+        scope = f"b25s-{RUN}"
+        r = call(s, calls, "cache_ls", {})
+        r2 = call(s, calls, "cache_ls", {"scope": scope})
+        g = guest_caches()
+        p = r["parsed"] if isinstance(r["parsed"], dict) else {}
+        p2 = r2["parsed"] if isinstance(r2["parsed"], dict) else {}
+        record("cache_ls", SAFE_GUEST, not r["error"] and not r2["error"] and unit_facts(g) and
+               unit_facts(p) == unit_facts(g) and p.get("policyDigest") == g.get("policyDigest") and
+               unit_facts(p2) and unit_facts(p2) == unit_facts(g, {scope}),
+               {"units": len(unit_facts(p)), "guestUnits": len(unit_facts(g)), "scopeUnits": sorted(unit_facts(p2)),
+                "guestScopeUnits": sorted(unit_facts(g, {scope}))},
+               "lists the units the guest holds, and only one scope's when asked", {"all": r, "scope": r2, "guest": g})
+    if has("machine_status"):
+        st0 = state()
+        r = call(s, calls, "machine_status", {})
+        p = r["parsed"] if isinstance(r["parsed"], dict) else {}
+        ps = p.get("state") or {}
+        record("machine_status", SAFE_FILES, not r["error"] and p.get("root") == HVF and p.get("phase") == "running"
+               and st0.get("phase") == "running" and ps.get("vmmPID") == st0.get("vmmPID") and st0.get("vmmPID")
+               and ps.get("supervisorPID") == st0.get("supervisorPID") and p.get("supervisorAlive") is True
+               and p.get("installed") is True,
+               {"root": p.get("root"), "phase": p.get("phase"), "vmmPID": ps.get("vmmPID"),
+                "stateJsonVmmPID": st0.get("vmmPID"), "supervisorAlive": p.get("supervisorAlive")},
+               "reports this root's machine as its state.json and supervisor lock do", {"reply": r, "state": st0})
+    if has("machine_control"):
+        # Start on the running machine: answered from its live state, nothing
+        # restarted. (A stop or restart here would take the guest the rest of
+        # this section needs, and a start of a stopped machine launches its
+        # supervisor from the API.)
+        vmm0 = state().get("vmmPID")
+        r = call(s, calls, "machine_control", {"action": "start"}, timeout=300)
+        p = r["parsed"] if isinstance(r["parsed"], dict) else {}
+        record("machine_control", SAFE_GUEST, not r["error"] and p.get("phase") == "running" and vmm0 and
+               (p.get("state") or {}).get("vmmPID") == vmm0 == state().get("vmmPID") and running(),
+               {"phase": p.get("phase"), "vmmBefore": vmm0, "vmmReported": (p.get("state") or {}).get("vmmPID"),
+                "vmmAfter": state().get("vmmPID")},
+               "start on the running machine returns its live status and restarts nothing (the same VMM)", r)
+    if has("update_hvf_apply"):
+        vmm0 = state().get("vmmPID")
+        r = call(s, calls, "update_hvf_apply", {}, timeout=600)
+        time.sleep(1)
+        p = r["parsed"] if isinstance(r["parsed"], dict) else {}
+        same = state().get("vmmPID") == vmm0 and running()
+        # Nothing is staged on a fresh machine: a no-op, the same VMM running.
+        record("update_hvf_apply", SAFE_GUEST, same and not r["error"] and p.get("action") == "noop",
+               {"reply": short(r["text"], 200), "action": p.get("action"), "vmmBefore": vmm0,
+                "vmmAfter": state().get("vmmPID")},
+               "with nothing staged, is a no-op and the same VMM keeps running", r)
+    for tool, path in (("telemetry_health", "/v1/ci/health"), ("telemetry_issues", "/v1/ci/health"),
+                       ("telemetry_traces", "/v1/ci/traces")):
+        if not has(tool):
+            continue
+        r = call(s, calls, tool, {})
+        st, rest = api("GET", path)
+        why = rest.get("error") if isinstance(rest, dict) else None
+        record(tool, REFUSAL, r["error"] and st == 503 and why and why in r["text"],
+               {"reply": r["text"], "restStatus": st, "restError": why},
+               f"refuses with {path}'s own reason: the throwaway CI home runs no worker", {"reply": r, "rest": [st, rest]})
     # --- engines and modes (throwaway runtimes.json) ---
     if has("runtimes"):
         r = call(s, calls, "runtimes", {})
@@ -1486,6 +1553,29 @@ def mcp_tools(s, by, calls):
         record("sandbox_status", SAFE_SANDBOX, not r["error"] and p.get("root") == SANDBOX_ROOT,
                {"root": p.get("root"), "ready": p.get("standaloneReady"), "kernelOrigin": p.get("kernelOrigin"),
                 "kernelPath": p.get("kernelPath")}, "reports the throwaway sandbox root", r)
+    if has("sandbox_exec") | has("sandbox_files"):
+        # A sandbox to work in: a runtime: sandbox container, which boots in the API.
+        r0 = call(s, calls, "run", {"image": IMAGE, "name": f"b25-{RUN}-sbx", "runtime": "sandbox",
+                                    "command": "sleep 600"}, timeout=900)
+        m = re.match(r"Started (\S+) on sandbox", r0["text"])
+        sbx = m.group(1) if m else f"b25-{RUN}-sbx"
+        mark = f"b25-files-{RUN}"
+        w = call(s, calls, "sandbox_files", {"id": sbx, "action": "write", "path": "/tmp/b25-files.txt", "content": mark})
+        e = call(s, calls, "sandbox_exec", {"id": sbx, "command": f"cat /tmp/b25-files.txt; echo; echo b25-exec-{RUN} > "
+                                                                 "/tmp/b25-exec.txt"}, timeout=300)
+        rd = call(s, calls, "sandbox_files", {"id": sbx, "action": "read", "path": "/tmp/b25-exec.txt"})
+        ls = call(s, calls, "sandbox_files", {"id": sbx, "action": "list", "path": "/tmp"})
+        record("sandbox_exec", SAFE_SANDBOX, not r0["error"] and not e["error"] and e["text"].startswith("exit 0")
+               and mark in e["text"] and rd["text"].strip() == f"b25-exec-{RUN}",
+               {"run": short(r0["text"], 120), "reply": short(e["text"], 200), "fileItWrote": short(rd["text"], 80)},
+               "runs in the sandbox: it reads the file sandbox_files wrote, and writes one sandbox_files reads back",
+               {"run": r0, "exec": e, "read": rd})
+        record("sandbox_files", SAFE_SANDBOX, not w["error"] and not rd["error"] and not ls["error"] and mark in e["text"]
+               and "b25-files.txt" in ls["text"] and "b25-exec.txt" in ls["text"],
+               {"write": short(w["text"], 120), "read": short(rd["text"], 80), "list": short(ls["text"], 300)},
+               "writes a file the sandbox's own process reads, reads what that process wrote, lists both",
+               {"write": w, "read": rd, "list": ls})
+        call(s, calls, "delete", {"id": sbx})
     ckpt = f"b25-{RUN}-ckpt"
     if has("sandbox_run"):
         r = call(s, calls, "sandbox_run", {"command": f"echo b25-sbx-{RUN}; uname -s", "image": IMAGE, "memory": 512},
@@ -1513,6 +1603,22 @@ def mcp_tools(s, by, calls):
         on_disk = sorted(os.listdir(cdir)) if os.path.isdir(cdir) else []
         record("sandbox_checkpoint_delete", SAFE_SANDBOX, not r["error"] and not any(ckpt in x for x in on_disk),
                {"reply": short(r["text"], 200), "onDisk": on_disk}, "removes that checkpoint from disk", r)
+    if has("sandbox_checkpoint"):
+        ckpt2 = f"b25-{RUN}-ckpt2"
+        cdir = os.path.join(SANDBOX_ROOT, "checkpoints")
+        c1 = call(s, calls, "sandbox_checkpoint", {"action": "create", "name": ckpt2, "command": "echo b25 > /b25-ckpt2",
+                                                   "image": IMAGE, "memory": 512}, timeout=900)
+        on1 = sorted(os.listdir(cdir)) if os.path.isdir(cdir) else []
+        l1 = call(s, calls, "sandbox_checkpoint", {"action": "list"})
+        d1 = call(s, calls, "sandbox_checkpoint", {"action": "delete", "name": ckpt2})
+        on2 = sorted(os.listdir(cdir)) if os.path.isdir(cdir) else []
+        record("sandbox_checkpoint", SAFE_SANDBOX, not c1["error"] and c1["text"].startswith("exit 0") and
+               any(ckpt2 in x for x in on1) and ckpt2 in l1["text"] and not d1["error"] and
+               not any(ckpt2 in x for x in on2),
+               {"create": short(c1["text"], 160), "onDiskAfterCreate": on1, "listed": ckpt2 in l1["text"],
+                "delete": d1["text"], "onDiskAfterDelete": on2},
+               "create keeps the disk under the throwaway sandbox root, list shows it, delete removes it",
+               {"create": c1, "list": l1, "delete": d1})
     # --- read-only against the host's Apple runtime / app state: answered, not verifiable here ---
     for tool in sorted(HOST_READ_TOOLS & names):
         args = {"kind": "system", "range": "15m"} if tool == "metrics_history" else (
@@ -1665,13 +1771,16 @@ def mcp_replay():
               {"isError": True, "saysNotResent": True, "socketExecs": 1, "tcpExecs": 0, "linesInContainerFile": ["once"]},
               ok=r["error"] and "not resent" in r["text"] and len(ex_unix) == 1 and not ex_tcp and lines == ["once"] and rc == 0,
               ev=evidence("M-REPLAY-EXEC", {"reply": r, "proxyUnix": px.snapshot(), "proxyTcp": pt.snapshot()}))
-        px.rules = {"PUT /v1/caches/policy": "drop-before"}
+        # The policy write as REST or as CacheService.SetCachePolicy, whichever the MCP sends.
+        policy_routes = ("PUT /v1/caches/policy", "POST /api/micropod.v1.CacheService/SetCachePolicy")
+        px.rules = {route: "drop-before" for route in policy_routes}
         pol0 = (guest_caches(stats=False).get("policy") or {}).get("maxAgeDays")
         r = call(s, calls, "cache_policy_set", {"max_age_days": 77})
         time.sleep(1.5)
         pol1 = (guest_caches(stats=False).get("policy") or {}).get("maxAgeDays")
         cfg = (json.load(open(MACHINE_JSON)).get("cache") or {}).get("maxAgeDays")
-        pu, ptc = px.routes("PUT /v1/caches/policy"), pt.routes("PUT /v1/caches/policy")
+        pu = [r for route in policy_routes for r in px.routes(route)]
+        ptc = [r for route in policy_routes for r in pt.routes(route)]
         check("M-REPLAY-POLICY", "a policy write whose connection dies before the daemon reads it is reported, not "
               "resent over TCP, and the guest's policy is unchanged",
               {"isError": r["error"], "socketPuts": len(pu), "tcpPuts": len(ptc), "guestMaxAgeDays": [pol0, pol1],

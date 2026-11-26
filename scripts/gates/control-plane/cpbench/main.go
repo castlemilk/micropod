@@ -210,7 +210,7 @@ func newCaller(c *counted, t target, spec rpcSpec) (caller, error) {
 	base := t.baseURL()
 	if spec.codec == "rest" || spec.rpc == "CacheSummary" || spec.rpc == "CacheExplain" || spec.rpc == "Health" {
 		if spec.codec != "rest" {
-			return nil, fmt.Errorf("%s has no Connect RPC (codec %s unsupported): no CacheService in proto/micropod/v1", spec.rpc, spec.codec)
+			return nil, fmt.Errorf("%s is a REST route (codec %s unsupported); its RPC is CacheService.GetCacheStatus / ExplainContainerCache", spec.rpc, spec.codec)
 		}
 		var path string
 		switch spec.rpc {
@@ -266,6 +266,7 @@ func newCaller(c *counted, t target, spec rpcSpec) (caller, error) {
 	opts := connectOpts(spec.codec)
 	sys := micropodv1connect.NewSystemServiceClient(c.client, base+"/api", opts...)
 	ctr := micropodv1connect.NewContainerServiceClient(c.client, base+"/api", opts...)
+	cache := micropodv1connect.NewCacheServiceClient(c.client, base+"/api", opts...)
 	ct := func(h http.Header) string { return h.Get("Content-Type") }
 	switch spec.rpc {
 	case "Ping":
@@ -303,6 +304,24 @@ func newCaller(c *counted, t target, spec rpcSpec) (caller, error) {
 				return outcome{}, err
 			}
 			return outcome{contentType: ct(r.Header()), detail: r.Msg.GetId() + "/" + r.Msg.GetState()}, nil
+		}, nil
+	case "GetCacheStatus":
+		// The default request: with stats, as GET /v1/caches answers.
+		return func(ctx context.Context) (outcome, error) {
+			r, err := cache.GetCacheStatus(ctx, connect.NewRequest(&micropodv1.GetCacheStatusRequest{}))
+			if err != nil {
+				return outcome{}, err
+			}
+			return outcome{contentType: ct(r.Header()),
+				detail: fmt.Sprintf("%s/%d units", r.Msg.GetPolicyDigest(), len(r.Msg.GetUnits()))}, nil
+		}, nil
+	case "ExplainContainerCache":
+		return func(ctx context.Context) (outcome, error) {
+			r, err := cache.ExplainContainerCache(ctx, connect.NewRequest(&micropodv1.ContainerRef{Id: spec.id}))
+			if err != nil {
+				return outcome{}, err
+			}
+			return outcome{contentType: ct(r.Header()), detail: r.Msg.GetContainerName() + "/" + r.Msg.GetState()}, nil
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown rpc %q", spec.rpc)
@@ -366,8 +385,8 @@ func runUnary(args []string) (any, error) {
 	fs := flag.NewFlagSet("unary", flag.ExitOnError)
 	tspec := fs.String("target", "", "unix:/path or tcp:host:port")
 	codec := fs.String("codec", "proto", "proto | json | rest | auto (Cuttlefish's negotiation)")
-	rpc := fs.String("rpc", "Ping", "Ping | GetSystem | ListContainers | GetContainer | CacheSummary | CacheExplain | Health")
-	id := fs.String("id", "", "container id for GetContainer / CacheExplain")
+	rpc := fs.String("rpc", "Ping", "Ping | GetSystem | ListContainers | GetContainer | GetCacheStatus | ExplainContainerCache | CacheSummary | CacheExplain | Health")
+	id := fs.String("id", "", "container id for GetContainer / ExplainContainerCache / CacheExplain")
 	n := fs.Int("n", 200, "measured calls")
 	warmup := fs.Int("warmup", 20, "unmeasured calls before measuring")
 	conc := fs.Int("concurrency", 1, "parallel clients sharing one transport")
