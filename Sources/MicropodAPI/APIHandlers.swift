@@ -30,11 +30,17 @@ final class APIHandlers: Sendable {
     /// What the version manifest reads (Ping, GetSystem, GetUpdateState).
     let versionEnvironment: VersionEnvironment
     let desktopObserver = DesktopObserver()
+    /// Ping's host-observed components, kept for 2 s (see the type).
+    let hostComponents = HostComponentCache()
     /// The runtime's `vminit.image`, kept for five minutes: it only changes
-    /// when the runtime is reconfigured.
+    /// when the runtime is reconfigured. A failed read is kept 30 s, so a
+    /// stopped runtime is not asked again on every Ping.
     let initImage: RuntimeDefaultInitImage
     /// Engine registry consulted by `Ping`, `GetSystem` and runtime management.
     let engineRegistry: EngineRegistry
+    /// The metrics history `GetMetricsHistory` reads and `DeleteContainer`
+    /// prunes (`MetricsStore.url(environment:)`: beside this API's socket).
+    let metricsDatabase: URL
 
     init(
         client: ContainerCLIClient,
@@ -47,15 +53,16 @@ final class APIHandlers: Sendable {
             try await ManagedRuntimeControl.request($0)
         },
         versionEnvironment: VersionEnvironment? = nil,
-        engineRegistry: EngineRegistry = .shared
+        engineRegistry: EngineRegistry = .shared,
+        metricsDatabase: URL = MetricsStore.sharedURL
     ) {
         self.client = client
-        self.versionEnvironment = versionEnvironment ?? .live(client: client)
+        self.metricsDatabase = metricsDatabase
+        let versionEnvironment = versionEnvironment ?? .live(client: client)
+        self.versionEnvironment = versionEnvironment
         self.engineRegistry = engineRegistry
-        let machine = MachineService(client: client)
-        self.initImage = RuntimeDefaultInitImage(ttl: .seconds(300)) {
-            RuntimeDefaultInitImage.vminitImage(in: try await machine.properties())
-        }
+        self.initImage = RuntimeDefaultInitImage(
+            ttl: .seconds(300), failureTTL: .seconds(30), read: versionEnvironment.vminitImage)
         self.managedTerminals = ManagedTerminalSessions(client: client)
         self.system = system
         self.images = images
@@ -92,7 +99,7 @@ final class APIHandlers: Sendable {
         VolumeRouter(apple: services.volumes, registry: services.router?.registry)
     }
 
-    private func hvfMachineClient() -> HVFMachineClient {
+    func hvfMachineClient() -> HVFMachineClient {
         if let hvf = engineRegistry.engine("hvf") as? HVFEngine {
             return hvf.machine
         }
@@ -125,14 +132,14 @@ final class APIHandlers: Sendable {
         private enum ErrorKey: String, CodingKey { case error }
     }
 
-    private func encodeJSONResponse<T: Encodable>(_ status: Int, _ value: T) throws -> HTTPResponse {
+    func encodeJSONResponse<T: Encodable>(_ status: Int, _ value: T) throws -> HTTPResponse {
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .iso8601
         enc.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return .data(status, "application/json", try enc.encode(value))
     }
 
-    private static func probeLoopbackDepproxy() async -> Bool {
+    static func probeLoopbackDepproxy() async -> Bool {
         guard let url = URL(string: "http://127.0.0.1:7677/healthz") else { return false }
         var req = URLRequest(url: url)
         req.timeoutInterval = 1.0
@@ -153,7 +160,7 @@ final class APIHandlers: Sendable {
     }
 
     func handle(_ request: HTTPRequest) async -> HTTPResponse {
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1",
+        if LiveEnvironment.isIsolatedRuntime,
             !IsolatedRuntimeRequestPolicy.allows(request.path)
         {
             return .json(
@@ -230,7 +237,7 @@ final class APIHandlers: Sendable {
             return .data(204, "text/plain", Data())
         }
 
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1", path == "/v1/managed/maintenance",
+        if LiveEnvironment.isIsolatedRuntime, path == "/v1/managed/maintenance",
             method == .get
         {
             do {
@@ -241,7 +248,7 @@ final class APIHandlers: Sendable {
                 return .json(200, ["idle": idle])
             } catch { return .json(503, ["idle": false]) }
         }
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1", method == .post {
+        if LiveEnvironment.isIsolatedRuntime, method == .post {
             if path == "/v1/managed/dependency" {
                 let services = await runtime.refreshIfNeeded()
                 let report = await RuntimeDependencyProbe.inspect(system: system, services: services)
@@ -356,11 +363,8 @@ final class APIHandlers: Sendable {
             switch (resource, method) {
             // MARK: CI Worker Engine & Workload Health
             case ("ci", .get) where segments == ["v1", "ci", "health"]:
-                var env = ProcessInfo.processInfo.environment
-                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
-                let ciWorker = CIWorker(environment: env)
                 do {
-                    let report = try await ciWorker.health()
+                    let report = try await ciWorker().health()
                     let enc = JSONEncoder()
                     enc.dateEncodingStrategy = .iso8601
                     enc.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -385,10 +389,8 @@ final class APIHandlers: Sendable {
                 }
 
             case ("ci", .get) where segments == ["v1", "ci", "traces"]:
-                var env = ProcessInfo.processInfo.environment
-                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
                 do {
-                    return .data(200, "application/json", try CIWorker(environment: env).tracesOTLPJSON())
+                    return .data(200, "application/json", try ciWorker().tracesOTLPJSON())
                 } catch {
                     return .json(503, ["error": error.localizedDescription])
                 }
@@ -415,85 +417,39 @@ final class APIHandlers: Sendable {
                 }
 
             // MARK: Fleet Caches & Rootless Rig Controls (HVF + Sandbox)
+            // The same functions as CacheService (CacheMount.swift).
             case ("caches", .get) where segments == ["v1", "caches"]:
-                let client = hvfMachineClient()
-                let includeStats = request.query["stats"] != "0"
-                let report = try await client.cacheInspection(includeStats: includeStats)
-                return try encodeJSONResponse(200, report)
+                return try encodeJSONResponse(
+                    200, try await cacheInspection(includeStats: request.query["stats"] != "0"))
 
             case ("caches", .get) where segments == ["v1", "caches", "dedupe"]:
-                let client = hvfMachineClient()
-                let buckets = max(1, min(256, Int(request.query["buckets"] ?? "16") ?? 16))
-                let sample = try await client.cacheDedupe(buckets: buckets)
-                return try encodeJSONResponse(200, sample)
+                let buckets = Int(request.query["buckets"] ?? "16") ?? 16
+                return try encodeJSONResponse(200, try await cacheDedupe(buckets: buckets))
 
             case ("caches", .post) where segments == ["v1", "caches", "prune"]:
-                let pruneRequest = try Self.cachePruneRequest(request.body)
-                let result = try await hvfMachineClient().cachePrune(pruneRequest)
-                return try encodeJSONResponse(200, result)
+                return try encodeJSONResponse(200, try await pruneCaches(body: request.body))
 
             case ("caches", .get) where segments == ["v1", "caches", "policy"]:
-                // A machine.json that does not load is an error, never the
-                // defaults presented as the policy in force.
-                let cfg = try HVFMachineConfig.load(from: hvfMachineClient().layout.config)
-                return try encodeJSONResponse(200, cfg.effectiveCachePolicy)
+                return try encodeJSONResponse(200, try cachePolicyInForce())
 
             case ("caches", .put) where segments == ["v1", "caches", "policy"]:
-                // The body is checked before machine.json is read, and
-                // machine.json must read cleanly: a config that fails to
-                // load is an error, never replaced by the defaults.
-                let patch = try RequestFields(
-                    request.body, allowed: Self.cachePolicyFields, what: "cache policy")
-                guard !patch.namesNothing(clearable: Self.cachePolicyClearableFields) else {
-                    throw BadRequest(
-                        message: "cache policy: name at least one field to change "
-                            + "(\(Self.cachePolicyFields.sorted().joined(separator: ", "))); nothing was written")
-                }
-                let client = hvfMachineClient()
-                let layout = client.layout
-                if layout.installInProgress { throw layout.installInProgressError() }
-                var cfg = try HVFMachineConfig.load(from: layout.config)
-                let policy = try Self.cachePolicy(cfg.effectiveCachePolicy, patchedWith: patch)
-                cfg.cache = policy
-                try cfg.save(to: layout.config)
-                try HVFMachineCachePolicy.write(policy, layout: layout)
-                // The saved policy, plus `warnings` when a policy URL opens
-                // no host port or names one the running machine has not opened.
-                return try encodeJSONResponse(200, HVFCachePolicyUpdateResponse(saved: cfg, client: client))
+                return try encodeJSONResponse(200, try setCachePolicy(body: request.body))
 
             case ("caches", .get) where segments.count == 4 && segments[2] == "explain":
                 let container = segments[3].removingPercentEncoding ?? segments[3]
-                guard container.range(of: HVFMachineClient.containerReference, options: .regularExpression) != nil
-                else {
-                    throw BadRequest(message: "cache explain: '\(container)' is not a container id or name")
-                }
-                let explain = try await hvfMachineClient().explainContainerCache(container)
-                return try encodeJSONResponse(200, explain)
+                return try encodeJSONResponse(200, try await explainCache(container))
 
+            // The same functions as RigService (RigMount.swift).
             case ("rig", .get) where segments == ["v1", "rig", "mode"]:
-                let active = engineRegistry.activeMode?.rawValue ?? engineRegistry.defaultName
-                return .json(
-                    200,
-                    [
-                        "mode": active,
-                        "defaultRuntime": engineRegistry.defaultName,
-                        "modes": RuntimeMode.allCases.map {
-                            ["name": $0.rawValue, "engine": $0.engineName, "summary": $0.summary]
-                        },
-                    ])
+                return .json(200, ControlPlaneJSON.rigMode(rigMode(listingModes: true)))
 
             case ("rig", .put) where segments == ["v1", "rig", "mode"]:
                 let payload = try decodeBody(request.body)
                 guard let raw = payload["mode"] as? String, !raw.isEmpty else {
                     throw BadRequest(message: "expected {\"mode\": \"container|sandbox\"}")
                 }
-                let updated = try await setDefaultRuntime(raw, services)
-                return .json(
-                    200,
-                    [
-                        "mode": engineRegistry.activeMode?.rawValue ?? updated.default,
-                        "defaultRuntime": updated.default,
-                    ])
+                _ = try await setDefaultRuntime(raw, services)
+                return .json(200, ControlPlaneJSON.rigMode(rigMode(listingModes: false)))
 
             case ("rig", .get) where segments == ["v1", "rig", "hvf", "update"]:
                 let client = hvfMachineClient()
@@ -526,49 +482,7 @@ final class APIHandlers: Sendable {
                     ])
 
             case ("rig", .get) where segments == ["v1", "rig", "health"]:
-                let client = hvfMachineClient()
-                let hvf = client.status()
-                // Shown with the defaults' values, but flagged: a machine.json
-                // that does not load is never presented as the config in force.
-                let loaded = Result { try HVFMachineConfig.load(from: client.layout.config) }
-                let cfg = (try? loaded.get()) ?? HVFMachineConfig()
-                let payloadStatus = HVFPayloadStore.status(layout: client.layout)
-                let depproxyOK = await Self.probeLoopbackDepproxy()
-                let cacheDisk = await client.cacheDiskObservation()
-                var health: [String: Any] = [
-                    "mode": engineRegistry.activeMode?.rawValue ?? engineRegistry.defaultName,
-                    "defaultRuntime": engineRegistry.defaultName,
-                    "hvf": [
-                        "installed": hvf.installed,
-                        "phase": hvf.phase.rawValue,
-                        "summary": hvf.summary,
-                        "root": hvf.root,
-                        "dockerEndpoint": client.layout.dockerEndpoint,
-                        // The guest's own account: a caches.ext4 the guest
-                        // failed to mount is not present, and its shared
-                        // caches are then off for the boot.
-                        "cacheDiskPresent": cacheDisk.mounted,
-                        "cacheDisk": cacheDisk.jsonObject,
-                        "sharedCaches": cacheDisk.sharedCaches,
-                        "updatePending": hvf.updatePending,
-                        "payloadVersion": payloadStatus.current?.version ?? "",
-                    ],
-                    "cachePolicy": [
-                        "mode": cfg.effectiveCachePolicy.mode.rawValue,
-                        "sharedL0": cfg.effectiveCachePolicy.sharedL0,
-                        "defaultTrust": cfg.effectiveCachePolicy.effectiveDefaultTrust.rawValue,
-                        "goProxy": cfg.effectiveCachePolicy.goProxy ?? "",
-                        "toolCount": cfg.effectiveCachePolicy.tools.count,
-                    ],
-                    "depproxy": [
-                        "url": "http://127.0.0.1:7677",
-                        "healthy": depproxyOK,
-                    ],
-                ]
-                if case .failure(let error) = loaded {
-                    health["configError"] = error.localizedDescription
-                }
-                return .json(200, health)
+                return .json(200, Self.rigHealthBody(await rigHealthSnapshot()))
 
             // MARK: System
             case ("usage", .get):
@@ -649,6 +563,30 @@ final class APIHandlers: Sendable {
                 return .json(200, try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:])
 
             case ("system", .get):
+                // hvf as the default runtime answers for itself, from live
+                // machine state, as GetSystem and Ping do: no `container`
+                // child to report Apple's runtime.
+                if let machine = defaultHVFMachine {
+                    let readiness = await machine.readinessStartingWhenDown()
+                    var body: [String: Any] = [
+                        "status": readiness.status.rawValue,
+                        "detail": readiness.detail,
+                        "cliVersion": "",
+                        "apiServerVersion": readiness.version,
+                        "appRoot": "",
+                        "installRoot": machine.layout.root.path,
+                        "backend": "hvf",
+                        "runtimeBackend": "hvf",
+                        "defaultRuntime": "hvf",
+                        "features": APIFeatures.supported + readiness.features,
+                    ]
+                    var disk = Micropod_V1_DiskUsage()
+                    disk.containers.sizeBytes =
+                        (try? FileManager.default.attributesOfItem(atPath: machine.layout.disk.path)[.size] as? UInt64)
+                        ?? 0
+                    body["diskUsage"] = projection(disk)
+                    return .json(200, body)
+                }
                 let status = try await system.status()
                 var body: [String: Any] = [
                     "status": status.status,
@@ -1303,7 +1241,7 @@ final class APIHandlers: Sendable {
 }
 
 /// A request the REST handlers refuse before it reaches a service — `400`.
-private struct BadRequest: Error {
+struct BadRequest: Error {
     let message: String
 }
 
@@ -1311,7 +1249,7 @@ private struct BadRequest: Error {
 /// field of the wrong JSON type (`"true"` or `1` for a boolean, `1.5` for an
 /// integer), is a `BadRequest`, never a silent default. `null` reads as
 /// absent.
-private struct RequestFields {
+struct RequestFields {
     private let payload: [String: Any]
     private let what: String
 
@@ -1448,7 +1386,7 @@ extension APIHandlers {
     /// `original` with the fields `PUT /v1/caches/policy` names, validated.
     /// `""` or `null` clears goProxy and npmRegistry; `0` or `null` clears
     /// maxBytes, maxAgeDays and minFreeBytes.
-    private static func cachePolicy(_ original: HVFMachineCachePolicy, patchedWith fields: RequestFields) throws
+    static func cachePolicy(_ original: HVFMachineCachePolicy, patchedWith fields: RequestFields) throws
         -> HVFMachineCachePolicy
     {
         var policy = original

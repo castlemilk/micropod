@@ -9,6 +9,13 @@ import Foundation
 /// reaches `maxBytes`, or `maxDelay` has passed since the batch's first
 /// frame, or the source ends, and then yields the batch as one element.
 ///
+/// Leading edge: a frame that arrives when nothing left within the last
+/// `maxDelay` (the stream's first frame, or the first after a quiet spell)
+/// is yielded at once rather than waiting `maxDelay` for company that a
+/// quiet stream never sends. Frames that follow within `maxDelay` of a
+/// write batch as before, so a flood still costs about one write per
+/// `maxDelay` or per `maxBytes`.
+///
 /// Frames are never split or reordered. A frame that alone exceeds
 /// `maxBytes` travels as its own element. The wire bytes are the exact
 /// concatenation of the source's frames, so a Connect reader still sees one
@@ -23,7 +30,7 @@ public enum StreamFrameCoalescer {
         maxDelay: Duration = defaultMaxDelay
     ) -> AsyncStream<Data> {
         AsyncStream { continuation in
-            let batch = Batch(continuation: continuation, maxBytes: maxBytes)
+            let batch = Batch(continuation: continuation, maxBytes: maxBytes, maxDelay: maxDelay)
             let pump = Task {
                 for await frame in source {
                     if let generation = batch.append(frame) {
@@ -50,12 +57,16 @@ public enum StreamFrameCoalescer {
         private let lock = NSLock()
         private let continuation: AsyncStream<Data>.Continuation
         private let maxBytes: Int
+        private let maxDelay: Duration
         private var buffer = Data()
         private var generation = 0
+        /// When the last batch left; nil before the first.
+        private var lastEmit: ContinuousClock.Instant?
 
-        init(continuation: AsyncStream<Data>.Continuation, maxBytes: Int) {
+        init(continuation: AsyncStream<Data>.Continuation, maxBytes: Int, maxDelay: Duration) {
             self.continuation = continuation
             self.maxBytes = maxBytes
+            self.maxDelay = maxDelay
         }
 
         /// Adds a frame; returns the batch generation when this frame opened
@@ -71,7 +82,14 @@ public enum StreamFrameCoalescer {
                     emit()
                     return nil
                 }
-                return opened ? generation : nil
+                guard opened else { return nil }
+                // Nothing pending and nothing sent within maxDelay: no
+                // batch to join, so this frame leaves now.
+                if lastEmit.map({ ContinuousClock.now - $0 >= maxDelay }) ?? true {
+                    emit()
+                    return nil
+                }
+                return generation
             }
         }
 
@@ -88,6 +106,7 @@ public enum StreamFrameCoalescer {
             continuation.yield(buffer)
             buffer = Data()
             generation += 1
+            lastEmit = .now
         }
     }
 }

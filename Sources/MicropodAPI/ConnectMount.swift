@@ -172,16 +172,21 @@ extension APIHandlers {
                 let req = try decodeReq(Micropod_V1_DeleteContainerRequest.self, body)
                 try check(req)
                 try await services.containers.delete(req.id, force: req.force)
-                MetricsStore.shared?.remove(.container, req.id)
+                // Only a database that already exists has a series to drop.
+                MetricsStore.existing(at: metricsDatabase)?.remove(.container, req.id)
                 return reply(Micropod_V1_Empty())
 
             case "StreamContainerLogs":
                 let req = try decodeStreamRequest(Micropod_V1_StreamLogsRequest.self, body, binary: useBinaryProto)
                 try check(req)
-                let events = services.logs.stream(
-                    id: req.id,
-                    tail: req.tail > 0 ? Int(req.tail) : nil,
-                    boot: req.boot)
+                let events =
+                    req.noFollow
+                    ? Self.lines(
+                        services.logs, id: req.id, tail: req.tail > 0 ? Int(req.tail) : Int(Int32.max), boot: req.boot)
+                    : services.logs.stream(
+                        id: req.id,
+                        tail: req.tail > 0 ? Int(req.tail) : nil,
+                        boot: req.boot)
                 // `skip_lines`: a client re-opening after a transport error
                 // already holds the first N lines — drop them server-side.
                 // Each line stays its own LogChunk envelope (clients count
@@ -193,13 +198,14 @@ extension APIHandlers {
                 }
 
             // Images and volumes route like containers (`ImageRouter`,
-            // `VolumeRouter`). These messages carry no runtime field, so
-            // creates and pulls go to the default runtime and listings say
-            // where an entry came from only for volumes (a
-            // `com.micropod.runtime` label on non-Apple ones).
+            // `VolumeRouter`). Images carry `runtime` and a pull may name one;
+            // volumes say where they came from by a `com.micropod.runtime`
+            // label on non-Apple ones; creates go to the default runtime.
             case "ListImages":
+                // Each image names the engine that keeps it (empty for Apple's).
                 var resp = Micropod_V1_ListImagesResponse()
-                resp.images = try await imageRouter(services).list()
+                resp.images = Self.stampedImages(
+                    try await imageRouter(services).listByRuntime().map { ($0.runtime, $0.image) })
                 return reply(resp)
 
             case "PullImage":
@@ -210,7 +216,8 @@ extension APIHandlers {
                 let budget = try ImagePullBudget.api(headers: headers)
                 let events = imageRouter(services).pullForAPI(
                     req.reference,
-                    platform: req.hasPlatform ? req.platform : nil, budget: budget, runtime: nil)
+                    platform: req.hasPlatform ? req.platform : nil, budget: budget,
+                    runtime: req.hasRuntime && !req.runtime.isEmpty ? req.runtime : nil)
                 return streamEnvelope(events, binary: useBinaryProto) { event in
                     Micropod_V1_ProgressLine.with {
                         $0.line = event.line
@@ -642,7 +649,10 @@ extension APIHandlers {
                         code: .invalidArgument, message: "kind must be system, container or machine")
                 }
                 if kind != .system { try required(req.id, "id") }
-                guard let metricsStore = MetricsStore.shared else {
+                guard
+                    let metricsStore = metricsDatabase == MetricsStore.sharedURL
+                        ? MetricsStore.shared : try? MetricsStore(url: metricsDatabase)
+                else {
                     throw ConnectDecodeError(code: .unavailable, message: "the metrics store can't be opened")
                 }
                 let range = TimeInterval(req.rangeSeconds == 0 ? 3600 : min(req.rangeSeconds, 30 * 86400))
@@ -663,6 +673,10 @@ extension APIHandlers {
                                 $0.networkTxBytesPerSecond = point.average.networkTxRate
                                 $0.blockReadBytesPerSecond = point.average.blockReadRate
                                 $0.blockWriteBytesPerSecond = point.average.blockWriteRate
+                                $0.networkRxBytesPerSecondMax = point.peak.networkRxRate
+                                $0.networkTxBytesPerSecondMax = point.peak.networkTxRate
+                                $0.blockReadBytesPerSecondMax = point.peak.blockReadRate
+                                $0.blockWriteBytesPerSecondMax = point.peak.blockWriteRate
                             }
                         }
                     })
@@ -686,8 +700,11 @@ extension APIHandlers {
                 try SandboxVM.deleteCheckpoint(req.name)
                 return reply(Micropod_V1_Empty())
 
+            // CacheService (CacheMount.swift); RigService, TelemetryService,
+            // GetRuntimeDependency, GetDiskUsage, GetSandboxStatus (RigMount.swift).
             default:
-                return nil
+                if let response = try await cacheRPC(method, body, binary: useBinaryProto) { return response }
+                return try await rigRPC(method, body, binary: useBinaryProto)
             }
         } catch is ImagePullBudget.InvalidHeaders {
             return connectError(.invalidArgument, "Invalid image pull budget headers")
@@ -757,7 +774,7 @@ extension APIHandlers {
         if services.kind == .native {
             response.features.append(InitImageSelection.feature)
         }
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
+        if LiveEnvironment.isIsolatedRuntime {
             response.features.append(RuntimeCoordinationEnrollment.dataCapability)
         }
         response.defaultRuntime = engineRegistry.defaultName
@@ -1221,7 +1238,7 @@ extension APIHandlers {
         try required(req.name, "name")
     }
 
-    private func decode<M: Message>(_ type: M.Type, _ body: Data, binary: Bool = false) throws -> M {
+    func decode<M: Message>(_ type: M.Type, _ body: Data, binary: Bool = false) throws -> M {
         do {
             if binary {
                 return try M(serializedBytes: body)
@@ -1249,13 +1266,40 @@ extension APIHandlers {
         return try decode(type, payload, binary: binary)
     }
 
-    private func unary<M: Message>(_ message: M, binary: Bool = false) -> HTTPResponse {
+    func unary<M: Message>(_ message: M, binary: Bool = false) -> HTTPResponse {
         if binary {
             let body = (try? message.serializedData()) ?? Data()
             return .data(200, "application/proto", body)
         }
         let body = (try? message.jsonUTF8Data()) ?? Data("{}".utf8)
         return .data(200, "application/json", body)
+    }
+
+    /// Listed images with `runtime` naming the engine that keeps each, empty
+    /// for Apple's.
+    static func stampedImages(_ listed: [(runtime: String, image: Micropod_V1_Image)]) -> [Micropod_V1_Image] {
+        listed.map { entry in
+            var image = entry.image
+            image.runtime = entry.runtime == "apple" ? "" : entry.runtime
+            return image
+        }
+    }
+
+    /// `tail`'s lines as a stream that ends after the last (no follow).
+    static func lines(_ logs: any LogStreaming, id: String, tail: Int, boot: Bool)
+        -> AsyncThrowingStream<LogLine, Error>
+    {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for line in try await logs.tail(id: id, lines: tail, boot: boot) { continuation.yield(line) }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     /// Drops the first `count` events and forwards the rest (and the

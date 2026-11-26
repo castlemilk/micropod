@@ -255,6 +255,9 @@ extension HVFMachineClient {
         }
         try ensureSocketReachable()
         let resp = try await docker.request("GET", "/containers/\(container)/json", timeout: timeout)
+        if resp.status == 404 {
+            throw MicropodError.message("notFound: container '\(container)' not found on the hvf machine")
+        }
         guard resp.status == 200 else {
             throw MicropodError.message(
                 "container '\(container)' not found or inspect failed (HTTP \(resp.status))")

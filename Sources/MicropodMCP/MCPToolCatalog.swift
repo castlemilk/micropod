@@ -353,5 +353,79 @@ enum MCPToolCatalog {
         MCPTool(
             name: "sandbox_status",
             description: "Show standalone sandbox VM readiness (cached vminitd/kernel without Apple container CLI)."),
+        MCPTool(
+            name: "cache_ls",
+            description:
+                "List the HVF guest's cache units (scope, kind, layer, bytes, files, lock and dirty state), optionally "
+                + "only one scope, layer or tool.",
+            parameters: [
+                .string("scope", "Only this cache scope."),
+                .choice("layer", ["L0", "L1"], "Only this layer: L0 (fleet-shareable stores) or L1 (build caches)."),
+                .string("tool", "Only this tool's units: a kind (gomod, npm, ...) or go for gomod and gobuild."),
+            ]),
+        MCPTool(
+            name: "machine_status",
+            description:
+                "The shared HVF machine as every process sees it: installed assets, supervisor, phase, VMM pid, "
+                + "restarts, last exit and whether its last stop was asked for. Never boots it."),
+        MCPTool(
+            name: "machine_control",
+            description:
+                "Start (waits until the guest answers), stop (on request: nothing restarts it on demand) or restart "
+                + "the shared HVF machine; returns its status afterwards. Stopping interrupts running containers.",
+            parameters: [
+                .choice("action", ["start", "stop", "restart"], "What to do.", required: true, noun: "machine action")
+            ]),
+        MCPTool(
+            name: "update_hvf_apply",
+            description:
+                "Activate the staged HVF payload: restart the machine onto it, probe it, and return to known-good if "
+                + "it fails. A no-op with nothing staged; deferred, as a tool error, while containers run or "
+                + "idleness cannot be confirmed, unless force is true.",
+            parameters: [.boolean("force", "Restart even while containers run (interrupts them).")]),
+        MCPTool(
+            name: "sandbox_exec",
+            description:
+                "Run a command in a running sandbox (a runtime: sandbox container) and return its exit code and output.",
+            parameters: [
+                .string("id", "Sandbox container id.", required: true),
+                .string("command", "Shell command, run by /bin/sh -c.", required: true),
+                .string("workdir", "Working directory in the guest."),
+                .list("env", "KEY=VAL environment entries."),
+                .duration("timeout", "Kill the process after this long (seconds, or e.g. 10m); it then exits 124."),
+            ]),
+        MCPTool(
+            name: "sandbox_files",
+            description:
+                "Read, write or list files in a running sandbox, through micropod's guest helper (no shell needed).",
+            parameters: [
+                .string("id", "Sandbox container id.", required: true),
+                .choice("action", ["read", "write", "list"], "What to do.", required: true, noun: "file action"),
+                .string("path", "Absolute path in the guest.", required: true),
+                .string("content", "write: the text to write."),
+                .boolean("append", "write: append instead of replacing."),
+            ]),
+        MCPTool(
+            name: "sandbox_checkpoint",
+            description:
+                "Sandbox checkpoints in one tool: create (run a setup command in a fresh sandbox and keep its disk "
+                + "under name if it exits 0), list, or delete.",
+            parameters: [
+                .choice(
+                    "action", ["create", "list", "delete"], "What to do.", required: true, noun: "checkpoint action"),
+                .string("name", "Checkpoint name (create, delete)."),
+                .string("command", "create: setup command, run by /bin/sh -c."),
+            ] + sandboxOptions),
+        MCPTool(
+            name: "telemetry_health",
+            description:
+                "The Linux CI worker's health verdict (healthy, degraded or unhealthy) with its warnings, engine, "
+                + "workloads and cache totals. A tool error when no worker runs."),
+        MCPTool(
+            name: "telemetry_issues",
+            description: "The CI worker's recent request issues (slow or failed guest API calls) and warnings."),
+        MCPTool(
+            name: "telemetry_traces",
+            description: "The CI worker's traces as OTLP/JSON (resourceSpans from the VMM and the guest)."),
     ]
 }

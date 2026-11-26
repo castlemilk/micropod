@@ -64,6 +64,12 @@ public final class MetricsStore: @unchecked Sendable {
         public var timestamp: Date
         public var average: Sample
         public var peak: Sample
+
+        public init(timestamp: Date, average: Sample, peak: Sample) {
+            self.timestamp = timestamp
+            self.average = average
+            self.peak = peak
+        }
     }
 
     public struct Tier: Sendable {
@@ -77,11 +83,42 @@ public final class MetricsStore: @unchecked Sendable {
         Tier(bucket: 900, retention: 30 * 86400),
     ]
 
-    public static let defaultURL = URL(fileURLWithPath: NSHomeDirectory())
-        .appendingPathComponent(".micropod/metrics.sqlite")
+    /// Where this process keeps the metrics database:
+    /// - `MICROPOD_METRICS_DB` when it is set;
+    /// - else `metrics.sqlite` beside the API's owner socket when
+    ///   `MICROPOD_API_SOCK` names one, the isolation that socket already
+    ///   follows (an API started for a throwaway root never opens the rig's
+    ///   database);
+    /// - else `~/.micropod/metrics.sqlite`, also with `MICROPOD_API_SOCK=off`.
+    ///
+    /// With the socket at its default (`~/.micropod/api.sock`) the second
+    /// rule gives the same file as the third, so the app, CLI and API share
+    /// one database as before.
+    public static func url(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        if let explicit = environment["MICROPOD_METRICS_DB"], !explicit.isEmpty {
+            return URL(fileURLWithPath: (explicit as NSString).expandingTildeInPath)
+        }
+        if let socket = environment["MICROPOD_API_SOCK"], !socket.isEmpty, socket != "off" {
+            return URL(fileURLWithPath: (socket as NSString).expandingTildeInPath)
+                .deletingLastPathComponent().appendingPathComponent("metrics.sqlite")
+        }
+        return URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".micropod/metrics.sqlite")
+    }
 
-    /// The process-wide store at ``defaultURL``; nil if it can't be opened.
-    public static let shared: MetricsStore? = try? MetricsStore(url: defaultURL)
+    /// This process's database (``url(environment:)``).
+    public static let sharedURL = url()
+
+    /// The process-wide store at ``sharedURL``; nil if it can't be opened.
+    public static let shared: MetricsStore? = try? MetricsStore(url: sharedURL)
+
+    /// The store at `url` only when its database already exists (the
+    /// process-wide one for ``sharedURL``): nil, and nothing created, when
+    /// it does not. Removing a deleted container's series must not create
+    /// (or open) a database.
+    public static func existing(at url: URL = sharedURL) -> MetricsStore? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url == sharedURL ? shared : try? MetricsStore(url: url)
+    }
 
     private static let columns = ["cpu", "mem", "mem_limit", "rx", "tx", "blk_r", "blk_w"]
 

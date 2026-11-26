@@ -121,6 +121,43 @@ Each native bundle owns its own `ExitCodeRegistry`. Containers started
 before a swap have no registry entry, so `WaitContainer` reports their exit
 with `known: false`.
 
+### A stopped Apple runtime costs no child (MicropodAPI)
+
+With another engine (hvf) the default and Apple's runtime installed but not
+running, the API used to start a `container` child on every listing,
+inspect, wait, delete and status read, and the CLI a `launchctl list`
+grandchild for each status, only to learn the runtime was down. The API's
+`container` client now asks `AppleRuntimeLiveness` first
+(`ContainerRuntimeGate`, `Sources/MicropodRuntime/AppleRuntimeLiveness.swift`):
+
+- One XPC `ping` to `com.apple.container.apiserver` decides, with no child:
+  an answer is up; an unregistered mach service is down (it fails in about
+  50 µs); anything else, such as a timeout, is unknown and never refuses.
+- The state is probed at start, refreshed in the background once it is 1 s
+  old, and expires at 2 s, when a caller waits for the next probe. So a
+  `down` that refuses a command is at most 2 s plus one probe old.
+  `system start` and `system stop` through the API forget it at once.
+- A refusal throws `runtimeNotRunning` (`unavailable`) without spawning: the
+  error class `RuntimeRouter` already tolerates for a non-default Apple
+  runtime, so hvf's containers list as before, and `SystemService` maps it to
+  the `stopped` status the CLI's `unregistered` gives.
+- Never refused: `system start|stop|version|kernel|logs|dns`, `registry`,
+  `--version`; executables other than `container`; the isolated transport;
+  and every command while `MICROPOD_CONTAINER_CLI_PATH` is set (mock CLIs
+  and explicit installs spawn as before).
+- With another engine the default, an Apple runtime that is disabled, or
+  (on the CLI backend) whose `container` CLI is not installed, is left out of
+  listings and stats without being asked.
+- Ping's host-observed manifest components (service sockets, bundles, the
+  root-helper process scan, guest, kernel) are kept for 2 s on the same
+  terms; HVF readiness is still read per request, so a machine that stops
+  shows on the very next Ping.
+
+By design, an Apple runtime that is up but on the CLI backend (an unverified
+apiserver version) still costs one `container` child per Apple call, as
+before. On the native backend nothing spawns except machines and k8s,
+which are CLI-driven on every backend.
+
 ### Transport errors → `unavailable`
 
 `XPCConnection` reports every transport-level failure (a reply of error

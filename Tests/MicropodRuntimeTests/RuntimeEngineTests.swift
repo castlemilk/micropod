@@ -33,14 +33,16 @@ final class RuntimeEngineTests: XCTestCase {
     }
 
     private func apple(
-        _ containers: any ContainerServing = RecordingContainers(ids: ["web"]), stats: any StatsSampling = NoStats()
+        _ containers: any ContainerServing = RecordingContainers(ids: ["web"]), stats: any StatsSampling = NoStats(),
+        installed: Bool = true
     ) -> AppleEngine {
         AppleEngine(
             services: RuntimeServices(
                 kind: .cli, containers: containers, logs: NoLogs(), stats: stats,
                 volumes: VolumeService(
                     client: ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/true"))),
-                api: nil, health: nil, exitCodes: nil))
+                api: nil, health: nil, exitCodes: nil),
+            cliInstalled: { installed })
     }
 
     // MARK: Config
@@ -194,6 +196,37 @@ final class RuntimeEngineTests: XCTestCase {
                 XCTFail("snapshot swallowed \(name)")
             } catch {}
         }
+    }
+
+    /// Another engine the default and Apple's runtime disabled or without
+    /// its CLI: listings and stats leave Apple out without asking it (a
+    /// `container` child each). An Apple default, or an enabled and
+    /// installed Apple runtime, is still asked.
+    func testAppleIsNotAskedWhenAnotherEngineIsDefaultAndAppleIsDisabledOrMissing() async throws {
+        // Asking this Apple engine fails the call (a failure that is not
+        // "down"), so a call that answers did not ask it.
+        let boom = MicropodError.message("internal: Apple was asked")
+        let others = registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"])
+        let missing = RuntimeRouter(
+            apple: apple(FailingContainers(error: boom), stats: FailingStats(boom), installed: false), registry: others)
+        let withoutCLI = try await missing.list()
+        XCTAssertEqual(withoutCLI, [], "no CLI: Apple is not asked")
+        let stats = try await missing.snapshot(ids: [])
+        XCTAssertFalse(stats.sampledAt.isEmpty)
+
+        let installed = try await RuntimeRouter(apple: apple(), registry: others).list()
+        XCTAssertEqual(installed.map(\.id), ["web"], "enabled and installed: asked as before")
+
+        try others.update("apple", enabled: false, endpoint: nil)
+        XCTAssertTrue(others.skipsApple(installed: true))
+        let disabled = RuntimeRouter(
+            apple: apple(FailingContainers(error: boom), stats: FailingStats(boom)), registry: others)
+        let disabledList = try await disabled.list()
+        XCTAssertEqual(disabledList, [], "disabled: Apple is not asked")
+        _ = try await disabled.snapshot(ids: [])
+
+        let appleDefault = try await RuntimeRouter(apple: apple(installed: false), registry: registry()).list()
+        XCTAssertEqual(appleDefault.map(\.id), ["web"], "Apple the default: always asked")
     }
 
     func testAnAppleDefaultSurfacesEveryAppleFailureAsBefore() async throws {

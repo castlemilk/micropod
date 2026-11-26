@@ -38,6 +38,7 @@ const (
 	SandboxService_ListCheckpoints_FullMethodName     = "/micropod.v1.SandboxService/ListCheckpoints"
 	SandboxService_DeleteCheckpoint_FullMethodName    = "/micropod.v1.SandboxService/DeleteCheckpoint"
 	SandboxService_UpdateSandboxSecret_FullMethodName = "/micropod.v1.SandboxService/UpdateSandboxSecret"
+	SandboxService_GetSandboxStatus_FullMethodName    = "/micropod.v1.SandboxService/GetSandboxStatus"
 )
 
 // SandboxServiceClient is the client API for SandboxService service.
@@ -109,6 +110,10 @@ type SandboxServiceClient interface {
 	// the guest noticing (its placeholder never changes). `not_found` when the
 	// sandbox has no such secret.
 	UpdateSandboxSecret(ctx context.Context, in *UpdateSandboxSecretRequest, opts ...grpc.CallOption) (*Empty, error)
+	// Whether sandboxes can boot with nothing from com.apple.container: the
+	// kernel and OCI store they use and where each came from (what
+	// `micropod sandbox status --json` prints).
+	GetSandboxStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SandboxStatus, error)
 }
 
 type sandboxServiceClient struct {
@@ -327,6 +332,16 @@ func (c *sandboxServiceClient) UpdateSandboxSecret(ctx context.Context, in *Upda
 	return out, nil
 }
 
+func (c *sandboxServiceClient) GetSandboxStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SandboxStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SandboxStatus)
+	err := c.cc.Invoke(ctx, SandboxService_GetSandboxStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SandboxServiceServer is the server API for SandboxService service.
 // All implementations must embed UnimplementedSandboxServiceServer
 // for forward compatibility.
@@ -396,6 +411,10 @@ type SandboxServiceServer interface {
 	// the guest noticing (its placeholder never changes). `not_found` when the
 	// sandbox has no such secret.
 	UpdateSandboxSecret(context.Context, *UpdateSandboxSecretRequest) (*Empty, error)
+	// Whether sandboxes can boot with nothing from com.apple.container: the
+	// kernel and OCI store they use and where each came from (what
+	// `micropod sandbox status --json` prints).
+	GetSandboxStatus(context.Context, *Empty) (*SandboxStatus, error)
 	mustEmbedUnimplementedSandboxServiceServer()
 }
 
@@ -462,6 +481,9 @@ func (UnimplementedSandboxServiceServer) DeleteCheckpoint(context.Context, *Chec
 }
 func (UnimplementedSandboxServiceServer) UpdateSandboxSecret(context.Context, *UpdateSandboxSecretRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSandboxSecret not implemented")
+}
+func (UnimplementedSandboxServiceServer) GetSandboxStatus(context.Context, *Empty) (*SandboxStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSandboxStatus not implemented")
 }
 func (UnimplementedSandboxServiceServer) mustEmbedUnimplementedSandboxServiceServer() {}
 func (UnimplementedSandboxServiceServer) testEmbeddedByValue()                        {}
@@ -812,6 +834,24 @@ func _SandboxService_UpdateSandboxSecret_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SandboxService_GetSandboxStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SandboxServiceServer).GetSandboxStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SandboxService_GetSandboxStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SandboxServiceServer).GetSandboxStatus(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SandboxService_ServiceDesc is the grpc.ServiceDesc for SandboxService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -886,6 +926,10 @@ var SandboxService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSandboxSecret",
 			Handler:    _SandboxService_UpdateSandboxSecret_Handler,
+		},
+		{
+			MethodName: "GetSandboxStatus",
+			Handler:    _SandboxService_GetSandboxStatus_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

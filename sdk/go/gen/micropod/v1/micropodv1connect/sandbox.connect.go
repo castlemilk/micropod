@@ -85,6 +85,9 @@ const (
 	// SandboxServiceUpdateSandboxSecretProcedure is the fully-qualified name of the SandboxService's
 	// UpdateSandboxSecret RPC.
 	SandboxServiceUpdateSandboxSecretProcedure = "/micropod.v1.SandboxService/UpdateSandboxSecret"
+	// SandboxServiceGetSandboxStatusProcedure is the fully-qualified name of the SandboxService's
+	// GetSandboxStatus RPC.
+	SandboxServiceGetSandboxStatusProcedure = "/micropod.v1.SandboxService/GetSandboxStatus"
 )
 
 // SandboxServiceClient is a client for the micropod.v1.SandboxService service.
@@ -143,6 +146,10 @@ type SandboxServiceClient interface {
 	// the guest noticing (its placeholder never changes). `not_found` when the
 	// sandbox has no such secret.
 	UpdateSandboxSecret(context.Context, *connect.Request[v1.UpdateSandboxSecretRequest]) (*connect.Response[v1.Empty], error)
+	// Whether sandboxes can boot with nothing from com.apple.container: the
+	// kernel and OCI store they use and where each came from (what
+	// `micropod sandbox status --json` prints).
+	GetSandboxStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.SandboxStatus], error)
 }
 
 // NewSandboxServiceClient constructs a client for the micropod.v1.SandboxService service. By
@@ -270,6 +277,12 @@ func NewSandboxServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(sandboxServiceMethods.ByName("UpdateSandboxSecret")),
 			connect.WithClientOptions(opts...),
 		),
+		getSandboxStatus: connect.NewClient[v1.Empty, v1.SandboxStatus](
+			httpClient,
+			baseURL+SandboxServiceGetSandboxStatusProcedure,
+			connect.WithSchema(sandboxServiceMethods.ByName("GetSandboxStatus")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -294,6 +307,7 @@ type sandboxServiceClient struct {
 	listCheckpoints     *connect.Client[v1.Empty, v1.ListCheckpointsResponse]
 	deleteCheckpoint    *connect.Client[v1.CheckpointRef, v1.Empty]
 	updateSandboxSecret *connect.Client[v1.UpdateSandboxSecretRequest, v1.Empty]
+	getSandboxStatus    *connect.Client[v1.Empty, v1.SandboxStatus]
 }
 
 // StartSandbox calls micropod.v1.SandboxService.StartSandbox.
@@ -391,6 +405,11 @@ func (c *sandboxServiceClient) UpdateSandboxSecret(ctx context.Context, req *con
 	return c.updateSandboxSecret.CallUnary(ctx, req)
 }
 
+// GetSandboxStatus calls micropod.v1.SandboxService.GetSandboxStatus.
+func (c *sandboxServiceClient) GetSandboxStatus(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.SandboxStatus], error) {
+	return c.getSandboxStatus.CallUnary(ctx, req)
+}
+
 // SandboxServiceHandler is an implementation of the micropod.v1.SandboxService service.
 type SandboxServiceHandler interface {
 	// Boot a sandbox and return once it can take processes. With no `command`
@@ -447,6 +466,10 @@ type SandboxServiceHandler interface {
 	// the guest noticing (its placeholder never changes). `not_found` when the
 	// sandbox has no such secret.
 	UpdateSandboxSecret(context.Context, *connect.Request[v1.UpdateSandboxSecretRequest]) (*connect.Response[v1.Empty], error)
+	// Whether sandboxes can boot with nothing from com.apple.container: the
+	// kernel and OCI store they use and where each came from (what
+	// `micropod sandbox status --json` prints).
+	GetSandboxStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.SandboxStatus], error)
 }
 
 // NewSandboxServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -570,6 +593,12 @@ func NewSandboxServiceHandler(svc SandboxServiceHandler, opts ...connect.Handler
 		connect.WithSchema(sandboxServiceMethods.ByName("UpdateSandboxSecret")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sandboxServiceGetSandboxStatusHandler := connect.NewUnaryHandler(
+		SandboxServiceGetSandboxStatusProcedure,
+		svc.GetSandboxStatus,
+		connect.WithSchema(sandboxServiceMethods.ByName("GetSandboxStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.SandboxService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SandboxServiceStartSandboxProcedure:
@@ -610,6 +639,8 @@ func NewSandboxServiceHandler(svc SandboxServiceHandler, opts ...connect.Handler
 			sandboxServiceDeleteCheckpointHandler.ServeHTTP(w, r)
 		case SandboxServiceUpdateSandboxSecretProcedure:
 			sandboxServiceUpdateSandboxSecretHandler.ServeHTTP(w, r)
+		case SandboxServiceGetSandboxStatusProcedure:
+			sandboxServiceGetSandboxStatusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -693,4 +724,8 @@ func (UnimplementedSandboxServiceHandler) DeleteCheckpoint(context.Context, *con
 
 func (UnimplementedSandboxServiceHandler) UpdateSandboxSecret(context.Context, *connect.Request[v1.UpdateSandboxSecretRequest]) (*connect.Response[v1.Empty], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SandboxService.UpdateSandboxSecret is not implemented"))
+}
+
+func (UnimplementedSandboxServiceHandler) GetSandboxStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.SandboxStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SandboxService.GetSandboxStatus is not implemented"))
 }

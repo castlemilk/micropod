@@ -36,6 +36,29 @@ public struct ContainerCommand: Sendable, Equatable {
         return read.contains(metricLabel)
     }
 
+    /// False for the commands a `ContainerRuntimeGate` never refuses: those
+    /// that answer without the apiserver (`--version`, `--help`,
+    /// `system version`, `system logs`, `registry …`) and those that start,
+    /// stop or configure it (`system start`, `system stop`, `system kernel`,
+    /// `system dns`). Everything else talks to the apiserver over XPC and,
+    /// with it down, fails with `XPC connection error: Connection invalid`
+    /// (verified against `container` 1.5.0). `system status` counts as
+    /// needing it: with the apiserver down it can only report `unregistered`,
+    /// which `SystemService` maps the gate's refusal to.
+    public var needsAPIServer: Bool {
+        guard let verb = arguments.first else { return false }
+        if ["--version", "--help", "-h", "registry", "help"].contains(verb) { return false }
+        let label = metricLabel
+        return !["system start", "system stop", "system version", "system kernel", "system logs", "system dns"]
+            .contains(label)
+    }
+
+    /// `system start` or `system stop`: whether the apiserver runs may
+    /// differ once this command finished.
+    public var changesRuntimeLifecycle: Bool {
+        ["system start", "system stop"].contains(metricLabel)
+    }
+
     /// Low-cardinality label for metrics: the verb, plus a sub-verb for
     /// resource-grouped commands (`image list`, `system start`). Arguments
     /// (names, ids, flags) are never included — one label per operation.

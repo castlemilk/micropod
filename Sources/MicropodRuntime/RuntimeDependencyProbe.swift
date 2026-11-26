@@ -31,7 +31,14 @@ public enum RuntimeDependencyProbe {
     public static func inspect(
         system: SystemService, services: RuntimeServices?
     ) async -> RuntimeDependencyStatus {
-        await system.dependencyStatus(backend: services?.kind.rawValue ?? "") {
+        await inspectWithStatus(system: system, services: services).dependency
+    }
+
+    /// `inspect`, with the service status it was judged from.
+    public static func inspectWithStatus(
+        system: SystemService, services: RuntimeServices?
+    ) async -> (dependency: RuntimeDependencyStatus, status: Micropod_V1_SystemStatus?) {
+        await system.dependencyReport(backend: services?.kind.rawValue ?? "") {
             await nativeReadiness(services)
         }
     }

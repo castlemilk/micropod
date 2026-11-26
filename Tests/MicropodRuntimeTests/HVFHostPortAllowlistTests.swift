@@ -288,4 +288,22 @@ final class HVFHostPortAllowlistTests: XCTestCase {
             XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: Data("x".utf8)))
         }
     }
+
+    /// Machine readiness validates the config, and so reads the control
+    /// ports, on every Ping; reading them built `ProcessInfo.environment`
+    /// (~20 µs) each time. They now come from the live variables alone.
+    func testTheControlPortsComeFromTheLiveEnvironmentCheaply() {
+        setenv("MICROPOD_SHIM_TCP_PORT", "19047", 1)
+        let moved = HVFHostPortAllowlist.controlPorts()
+        unsetenv("MICROPOD_SHIM_TCP_PORT")
+        XCTAssertTrue(moved.contains(19047), "the live value, not a snapshot: \(moved)")
+        XCTAssertFalse(HVFHostPortAllowlist.controlPorts().contains(19047))
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        for _ in 0..<2000 { _ = HVFHostPortAllowlist.controlPorts() }
+        let elapsed = clock.now - started
+        // ~45 ms with the dictionary, a few ms without it.
+        XCTAssertLessThan(elapsed, .milliseconds(20), "2000 reads took \(elapsed)")
+    }
 }

@@ -166,13 +166,21 @@ struct MCPArguments: Sendable {
         }
         var values: [String: Value] = [:]
         emptyStrings = Set(raw.compactMap { key, value in value == .string("") ? key : nil })
+        // Every argument's problem, not just the first: a caller that got
+        // two wrong learns both from one refusal.
+        var problems: [String] = []
         for parameter in tool.parameters {
-            if let raw = raw[parameter.name], let value = try Self.read(raw, as: parameter, tool: tool.name) {
-                values[parameter.name] = value
-            } else if parameter.required {
-                throw MCPArgumentError(message: "\(tool.name) requires \(parameter.name)")
+            do {
+                if let raw = raw[parameter.name], let value = try Self.read(raw, as: parameter, tool: tool.name) {
+                    values[parameter.name] = value
+                } else if parameter.required {
+                    problems.append("\(tool.name) requires \(parameter.name)")
+                }
+            } catch let error as MCPArgumentError {
+                problems.append(error.message)
             }
         }
+        guard problems.isEmpty else { throw MCPArgumentError(message: problems.joined(separator: "; ")) }
         self.values = values
     }
 

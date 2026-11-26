@@ -57,9 +57,11 @@ public struct HVFHostPortAllowlist: Sendable, Equatable {
     public static let defaultControlPorts: Set<UInt16> = [45454, 45455]
 
     /// `defaultControlPorts` plus the ports `MICROPOD_API_PORT` and
-    /// `MICROPOD_SHIM_TCP_PORT` move those listeners to.
+    /// `MICROPOD_SHIM_TCP_PORT` move those listeners to. Machine readiness
+    /// validates the config (and so asks this) on every Ping: the live
+    /// variables are read without building `ProcessInfo.environment`.
     public static func controlPorts(
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = LiveEnvironment.values(["MICROPOD_API_PORT", "MICROPOD_SHIM_TCP_PORT"])
     ) -> Set<UInt16> {
         var ports = defaultControlPorts
         for key in ["MICROPOD_API_PORT", "MICROPOD_SHIM_TCP_PORT"] {

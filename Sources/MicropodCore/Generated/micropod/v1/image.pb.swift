@@ -44,6 +44,11 @@ public nonisolated struct Micropod_V1_Image: Sendable {
   /// Per-platform variants of this image.
   public var variants: [Micropod_V1_ImageVariant] = []
 
+  /// The engine that keeps this image when it is not Apple's (docker, ci,
+  /// hvf); empty for Apple's runtime. Set by ListImages, which merges every
+  /// enabled engine.
+  public var runtime: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -103,11 +108,23 @@ public nonisolated struct Micropod_V1_PullImageRequest: Sendable {
   /// Clears the value of `platform`. Subsequent reads from it will return its default value.
   public mutating func clearPlatform() {self._platform = nil}
 
+  /// The engine to pull into (apple, docker, ci, hvf). Unset pulls into the
+  /// default runtime.
+  public var runtime: String {
+    get {_runtime ?? String()}
+    set {_runtime = newValue}
+  }
+  /// Returns true if `runtime` has been explicitly set.
+  public var hasRuntime: Bool {self._runtime != nil}
+  /// Clears the value of `runtime`. Subsequent reads from it will return its default value.
+  public mutating func clearRuntime() {self._runtime = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _platform: String? = nil
+  fileprivate var _runtime: String? = nil
 }
 
 /// One pull-progress event (PullImage stream).
@@ -169,7 +186,7 @@ fileprivate nonisolated let _protobuf_package = "micropod.v1"
 
 nonisolated extension Micropod_V1_Image: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Image"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}names\0\u{3}created_at\0\u{1}digest\0\u{3}size_bytes\0\u{1}variants\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}names\0\u{3}created_at\0\u{1}digest\0\u{3}size_bytes\0\u{1}variants\0\u{1}runtime\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -183,6 +200,7 @@ nonisolated extension Micropod_V1_Image: SwiftProtobuf.Message, SwiftProtobuf._M
       case 4: try { try decoder.decodeSingularStringField(value: &self.digest) }()
       case 5: try { try decoder.decodeSingularUInt64Field(value: &self.sizeBytes) }()
       case 6: try { try decoder.decodeRepeatedMessageField(value: &self.variants) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.runtime) }()
       default: break
       }
     }
@@ -207,6 +225,9 @@ nonisolated extension Micropod_V1_Image: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.variants.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.variants, fieldNumber: 6)
     }
+    if !self.runtime.isEmpty {
+      try visitor.visitSingularStringField(value: self.runtime, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -217,6 +238,7 @@ nonisolated extension Micropod_V1_Image: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.digest != rhs.digest {return false}
     if lhs.sizeBytes != rhs.sizeBytes {return false}
     if lhs.variants != rhs.variants {return false}
+    if lhs.runtime != rhs.runtime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -299,7 +321,7 @@ nonisolated extension Micropod_V1_ListImagesResponse: SwiftProtobuf.Message, Swi
 
 nonisolated extension Micropod_V1_PullImageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PullImageRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reference\0\u{1}platform\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reference\0\u{1}platform\0\u{1}runtime\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -309,6 +331,7 @@ nonisolated extension Micropod_V1_PullImageRequest: SwiftProtobuf.Message, Swift
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.reference) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self._platform) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._runtime) }()
       default: break
       }
     }
@@ -325,12 +348,16 @@ nonisolated extension Micropod_V1_PullImageRequest: SwiftProtobuf.Message, Swift
     try { if let v = self._platform {
       try visitor.visitSingularStringField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._runtime {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_PullImageRequest, rhs: Micropod_V1_PullImageRequest) -> Bool {
     if lhs.reference != rhs.reference {return false}
     if lhs._platform != rhs._platform {return false}
+    if lhs._runtime != rhs._runtime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

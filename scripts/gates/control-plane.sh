@@ -60,8 +60,10 @@
 # and no sabotage has the verdict "pass"; a clean run of fewer says "partial".
 #
 # Defaults: release binaries in .build/release (swift build -c release
-# --product micropod|MicropodAPI|MicropodMCP; the CLI signed with
-# signing/micropod-cli.entitlements for the sandbox tools), the VMM from
+# --product micropod|MicropodAPI|MicropodMCP; the CLI and the API signed with
+# signing/micropod-cli.entitlements, as scripts/package_app.sh signs them: the
+# MCP's sandbox tools boot their micro-VMs in the API, and the CLI's
+# standalone sandbox is the fallback without one), the VMM from
 # vmm/target/release (vmm/build.sh), the newest ~/.micropod/kernels/*/Image
 # (read only) and --tools a guest bundle (ci/build-runner-tools.sh OUT, then
 # OUT/guest). Ports: --port and --port+1 (the replay proxy), both 19530-19629.
@@ -162,8 +164,10 @@ codesign -d --entitlements - --xml "$VMM" 2>/dev/null | grep -q com.apple.securi
     refuse "$VMM lacks the hypervisor entitlement (vmm/build.sh signs it)"
 case " $SECTIONS " in
     *" M "*)
-        codesign -d --entitlements - --xml "$MICROPOD" 2>/dev/null | grep -q com.apple.security.virtualization ||
-            refuse "$MICROPOD lacks the virtualization entitlement the sandbox tools need (codesign --force --sign - --entitlements signing/micropod-cli.entitlements $MICROPOD)"
+        for need in "$MICROPOD" "$API"; do
+            codesign -d --entitlements - --xml "$need" 2>/dev/null | grep -q com.apple.security.virtualization ||
+                refuse "$need lacks the virtualization entitlement the sandbox tools need (codesign --force --sign - --entitlements signing/micropod-cli.entitlements $need)"
+        done
         ;;
 esac
 command -v go >/dev/null || refuse "go is needed to build cpbench"

@@ -6,7 +6,7 @@ import XCTest
 @testable import MicropodMCP
 
 /// The cache and rig tools, driven through the server's JSON-RPC entry
-/// point against a fake API daemon.
+/// point against a fake API daemon that speaks binary Connect.
 final class CacheToolsTests: XCTestCase {
     private var directory: URL!
 
@@ -25,43 +25,24 @@ final class CacheToolsTests: XCTestCase {
     private func makeServer(tcpPort: Int = 1, socketTimeoutSeconds: Int = 5, longCallSeconds: Int? = nil)
         -> MCPServer
     {
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
-        let api = LocalAPI(
-            socketPath: socketPath, baseURL: URL(string: "http://127.0.0.1:\(tcpPort)")!,
-            socketTimeoutSeconds: socketTimeoutSeconds, httpTimeout: 5,
-            longCallSeconds: longCallSeconds ?? socketTimeoutSeconds)
-        return MCPServer(
-            client: client,
-            system: SystemService(client: client),
-            containers: ContainerService(client: client),
-            images: ImageService(client: client),
-            volumes: VolumeService(client: client),
-            networks: NetworkService(client: client),
-            statsSampler: StatsSampler(client: client),
-            logStreamer: LogStreamer(client: client),
-            compose: ComposeService(client: client),
-            sharedFS: nil,
-            api: api)
+        MCPTestServer.make(
+            socketPath: socketPath, tcpPort: tcpPort, socketTimeoutSeconds: socketTimeoutSeconds,
+            longCallSeconds: longCallSeconds)
     }
 
-    private struct ToolReply {
-        var text: String
-        var isError: Bool
+    private func call(_ server: MCPServer, _ tool: String, _ arguments: [String: Any]) async throws
+        -> MCPTestServer.ToolReply
+    {
+        try await MCPTestServer.call(server, tool, arguments)
     }
 
-    private func call(_ server: MCPServer, _ tool: String, _ arguments: [String: Any]) async throws -> ToolReply {
-        let request: [String: Any] = [
-            "jsonrpc": "2.0", "id": 7, "method": "tools/call",
-            "params": ["name": tool, "arguments": arguments],
-        ]
-        let line = String(decoding: try JSONSerialization.data(withJSONObject: request), as: UTF8.self)
-        let handled = await server.handle(line: line)
-        let reply = try XCTUnwrap(handled)
-        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: reply) as? [String: Any])
-        let result = try XCTUnwrap(object["result"] as? [String: Any], "\(object)")
-        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
-        return ToolReply(
-            text: content.compactMap { $0["text"] as? String }.joined(), isError: result["isError"] as? Bool ?? false)
+    private func prunes(_ fake: FakeLocalAPI) throws -> [Micropod_V1_PruneCachesRequest] {
+        try fake.requests.filter { $0.rpc == "PruneCaches" }.map { try $0.message(Micropod_V1_PruneCachesRequest.self) }
+    }
+
+    private func policyWrites(_ fake: FakeLocalAPI) throws -> [Micropod_V1_SetCachePolicyRequest] {
+        try fake.requests.filter { $0.rpc == "SetCachePolicy" }
+            .map { try $0.message(Micropod_V1_SetCachePolicyRequest.self) }
     }
 
     // MARK: cache_prune
@@ -75,14 +56,13 @@ final class CacheToolsTests: XCTestCase {
             let reply = try await call(server, "cache_prune", arguments)
             XCTAssertFalse(reply.isError, "\(arguments): \(reply.text)")
         }
-        XCTAssertEqual(fake.requests.count, calls.count)
-        for (request, arguments) in zip(fake.requests, calls) {
-            XCTAssertEqual(request.method, "POST")
-            XCTAssertEqual(request.path, "/v1/caches/prune")
-            XCTAssertEqual(request.json["dryRun"] as? Bool, true, "\(arguments)")
-            XCTAssertNil(request.json["maxBytes"], "\(arguments)")
+        XCTAssertEqual(
+            fake.requests.map(\.path), Array(repeating: "/api/micropod.v1.CacheService/PruneCaches", count: 4))
+        for (request, arguments) in zip(try prunes(fake), calls) {
+            XCTAssertFalse(request.apply, "\(arguments): apply false is the dry run")
+            XCTAssertFalse(request.hasMaxBytes, "\(arguments)")
+            XCTAssertEqual(request.reason, "mcp")
         }
-        XCTAssertEqual(fake.evictions, 0)
     }
 
     func testPruneApplyCarriesTypedSelectors() async throws {
@@ -101,19 +81,19 @@ final class CacheToolsTests: XCTestCase {
         reply = try await call(server, "cache_prune", ["apply": true, "all": true])
         XCTAssertFalse(reply.isError, reply.text)
 
-        let requests = fake.requests.map(\.json)
+        let requests = try prunes(fake)
         guard requests.count == 3 else { return XCTFail("\(requests.count) requests, want 3") }
-        XCTAssertEqual(requests[0]["dryRun"] as? Bool, false)
-        XCTAssertEqual((requests[0]["maxBytes"] as? NSNumber)?.uint64Value, 1000)
-        XCTAssertEqual(requests[1]["dryRun"] as? Bool, false)
-        XCTAssertEqual((requests[1]["maxBytes"] as? NSNumber)?.uint64Value, 20 << 30)
-        XCTAssertEqual((requests[1]["olderThanSecs"] as? NSNumber)?.int64Value, 14 * 86400)
-        XCTAssertEqual(requests[1]["scope"] as? String, "proj")
-        XCTAssertEqual(requests[1]["tool"] as? String, "go")
-        XCTAssertEqual(requests[1]["partialGoBuild"] as? Bool, false)
-        XCTAssertEqual(requests[2]["dryRun"] as? Bool, false)
-        XCTAssertEqual(requests[2]["all"] as? Bool, true)
-        XCTAssertEqual(fake.evictions, 3)
+        XCTAssertTrue(requests[0].apply)
+        XCTAssertEqual(requests[0].maxBytes, 1000)
+        XCTAssertTrue(requests[1].apply)
+        XCTAssertEqual(requests[1].maxBytes, 20 << 30)
+        XCTAssertEqual(requests[1].olderThanSecs, 14 * 86400)
+        XCTAssertEqual(requests[1].scope, "proj")
+        XCTAssertEqual(requests[1].tool, "go")
+        XCTAssertTrue(requests[1].hasPartialGoBuild)
+        XCTAssertFalse(requests[1].partialGoBuild)
+        XCTAssertTrue(requests[2].apply)
+        XCTAssertTrue(requests[2].all)
     }
 
     func testPruneRefusesAmbiguousOrMistypedCallsBeforeAnyRequest() async throws {
@@ -156,20 +136,20 @@ final class CacheToolsTests: XCTestCase {
             ])
         XCTAssertFalse(reply.isError, reply.text)
 
-        let requests = fake.requests
-        XCTAssertEqual(requests.map(\.method), ["PUT", "PUT"])
-        XCTAssertEqual(requests.map(\.path), ["/v1/caches/policy", "/v1/caches/policy"])
-        guard requests.count == 2 else { return }
-        XCTAssertEqual(requests[0].json.count, 1)
-        XCTAssertEqual(requests[0].json["sharedL0"] as? Bool, true)
-        let second = requests[1].json
-        XCTAssertEqual(second["sharedL0"] as? Bool, false)
-        XCTAssertEqual((second["maxBytes"] as? NSNumber)?.uint64Value, 50 << 30)
-        XCTAssertEqual((second["maxAgeDays"] as? NSNumber)?.intValue, 14)
-        XCTAssertEqual(second["goProxy"] as? String, "", "off clears the proxy")
-        XCTAssertEqual(second["npmRegistry"] as? String, "http://10.43.0.1:5555/npm")
-        XCTAssertEqual(second["defaultScope"] as? String, "", "none: only containers naming a scope")
-        XCTAssertEqual(second["mode"] as? String, "auto")
+        let requests = try policyWrites(fake)
+        guard requests.count == 2 else { return XCTFail("\(requests.count) writes, want 2") }
+        XCTAssertEqual(try requests[0].jsonString(), #"{"sharedL0":true}"#, "only the setting named")
+        let second = requests[1]
+        XCTAssertFalse(second.sharedL0)
+        XCTAssertTrue(second.hasSharedL0)
+        XCTAssertEqual(second.maxBytes, 50 << 30)
+        XCTAssertEqual(second.maxAgeDays, 14)
+        XCTAssertEqual(second.goProxy, "", "off clears the proxy")
+        XCTAssertTrue(second.hasGoProxy)
+        XCTAssertEqual(second.npmRegistry, "http://10.43.0.1:5555/npm")
+        XCTAssertEqual(second.defaultScope, "", "none: only containers naming a scope")
+        XCTAssertTrue(second.hasDefaultScope)
+        XCTAssertEqual(second.mode, "auto")
     }
 
     func testPolicySetSendsTheDefaultTrustTier() async throws {
@@ -179,12 +159,13 @@ final class CacheToolsTests: XCTestCase {
         let reply = try await call(
             server, "cache_policy_set", ["default_trust": "untrusted", "proxy_untrusted": false])
         XCTAssertFalse(reply.isError, reply.text)
-        let requests = fake.requests
+        let requests = try policyWrites(fake)
         XCTAssertEqual(requests.count, 1)
-        guard let body = requests.first?.json else { return }
-        XCTAssertEqual(body["defaultTrust"] as? String, "untrusted")
-        XCTAssertEqual(body["proxyUntrusted"] as? Bool, false)
-        XCTAssertEqual(body.count, 2)
+        guard let body = requests.first else { return }
+        XCTAssertEqual(body.defaultTrust, "untrusted")
+        XCTAssertTrue(body.hasProxyUntrusted)
+        XCTAssertFalse(body.proxyUntrusted)
+        XCTAssertEqual(try body.jsonString(), #"{"defaultTrust":"untrusted","proxyUntrusted":false}"#)
     }
 
     /// `""` for a URL or the default scope is the earlier clear, not an
@@ -199,14 +180,13 @@ final class CacheToolsTests: XCTestCase {
         XCTAssertFalse(reply.isError, reply.text)
         reply = try await call(server, "cache_policy_set", ["default_scope": "", "go_proxy": NSNull()])
         XCTAssertFalse(reply.isError, reply.text)
-        let bodies = fake.requests.map(\.json)
+        let bodies = try policyWrites(fake)
         guard bodies.count == 3 else { return XCTFail("\(bodies.count) requests, want 3") }
-        XCTAssertEqual(bodies[0]["goProxy"] as? String, "")
-        XCTAssertEqual(bodies[0]["sharedL0"] as? Bool, true)
-        XCTAssertEqual(bodies[1].count, 1)
-        XCTAssertEqual(bodies[1]["npmRegistry"] as? String, "")
-        XCTAssertEqual(bodies[2].count, 1, "null still means omitted: \(bodies[2])")
-        XCTAssertEqual(bodies[2]["defaultScope"] as? String, "")
+        XCTAssertTrue(bodies[0].hasGoProxy)
+        XCTAssertEqual(bodies[0].goProxy, "")
+        XCTAssertTrue(bodies[0].sharedL0)
+        XCTAssertEqual(try bodies[1].jsonString(), #"{"npmRegistry":""}"#)
+        XCTAssertEqual(try bodies[2].jsonString(), #"{"defaultScope":""}"#, "null still means omitted")
     }
 
     func testPolicySetNeverTurnsAnOmittedOrMistypedSettingIntoAWrite() async throws {
@@ -251,8 +231,8 @@ final class CacheToolsTests: XCTestCase {
             XCTAssertFalse(reply.isError, reply.text)
         }
         XCTAssertEqual(
-            fake.requests.map(\.path),
-            ["/v1/caches/explain/web-1", "/v1/caches/explain/my.box_2", "/v1/caches/explain/0123abcdef"])
+            try fake.requests.map { try $0.message(Micropod_V1_ContainerRef.self).id },
+            ["web-1", "my.box_2", "0123abcdef"])
         XCTAssertEqual(try LocalAPI.pathSegment("ü:x", name: "id"), "%C3%BC%3Ax", "anything else is encoded")
     }
 
@@ -266,7 +246,8 @@ final class CacheToolsTests: XCTestCase {
         }
         _ = try await call(server, "cache_dedupe", ["buckets": "32"])
         _ = try await call(server, "cache_dedupe", [:])
-        XCTAssertEqual(fake.requests.map(\.path), ["/v1/caches/dedupe?buckets=32", "/v1/caches/dedupe?buckets=16"])
+        XCTAssertEqual(
+            try fake.requests.map { try $0.message(Micropod_V1_SampleCacheDedupeRequest.self).buckets }, [32, 16])
     }
 
     // MARK: update_hvf_rollback
@@ -281,13 +262,16 @@ final class CacheToolsTests: XCTestCase {
         XCTAssertFalse(reply.isError, reply.text)
         reply = try await call(server, "update_hvf_rollback", ["force": "maybe"])
         XCTAssertTrue(reply.isError, reply.text)
-        XCTAssertEqual(fake.requests.map(\.json.count), [0, 1])
-        XCTAssertEqual(fake.requests.last?.json["force"] as? Bool, true)
+        XCTAssertEqual(
+            try fake.requests.map { try $0.message(Micropod_V1_HVFUpdateRequest.self).force }, [false, true])
 
-        // The daemon answers a deferral with 409 and its detail as `error`.
-        fake.reply("/v1/rig/hvf/update/rollback", status: 409)
+        // The daemon answers a deferral with failed_precondition and its detail.
+        fake.respond { _ in
+            .error(status: 400, code: "failed_precondition", message: "deferred: 2 running container(s)")
+        }
         reply = try await call(server, "update_hvf_rollback", [:])
         XCTAssertTrue(reply.isError, "a deferred rollback changed nothing: \(reply.text)")
+        XCTAssertEqual(reply.text, "deferred: 2 running container(s)")
     }
 
     // MARK: Transport
@@ -302,14 +286,12 @@ final class CacheToolsTests: XCTestCase {
             tcp.stop()
         }
         let server = makeServer(tcpPort: tcp.port, socketTimeoutSeconds: 1, longCallSeconds: 6)
-        let pulled = try await call(server, "pull", ["reference": "alpine:3.20", "runtime": "hvf"])
-        XCTAssertFalse(pulled.isError, pulled.text)
         let pruned = try await call(server, "cache_prune", ["dry_run": true])
         XCTAssertFalse(pruned.isError, pruned.text)
         let policy = try await call(server, "cache_policy", [:])
         XCTAssertTrue(policy.isError, "a 2 s reply to a 1 s call: \(policy.text)")
         XCTAssertTrue(policy.text.contains("It was not resent"), policy.text)
-        XCTAssertEqual(fake.requests.map(\.path), ["/v1/images/pull", "/v1/caches/prune", "/v1/caches/policy"])
+        XCTAssertEqual(fake.requests.map(\.rpc), ["PruneCaches", "GetCachePolicy"])
         XCTAssertEqual(tcp.requests.count, 0)
     }
 
@@ -328,6 +310,7 @@ final class CacheToolsTests: XCTestCase {
             ("cache_policy_set", ["shared_l0": true]),
             ("runtime_mode", ["mode": "sandbox"]),
             ("update_hvf_rollback", [:]),
+            ("exec", ["id": "web-1", "command": "echo once >> /out/x"]),
         ]
         for (index, (tool, arguments)) in mutations.enumerated() {
             let reply = try await call(server, tool, arguments)
@@ -337,13 +320,12 @@ final class CacheToolsTests: XCTestCase {
             XCTAssertEqual(tcp.requests.count, 0, "\(tool) was replayed over TCP")
         }
         XCTAssertEqual(
-            socket.requests.map(\.path),
-            ["/v1/caches/prune", "/v1/caches/policy", "/v1/rig/mode", "/v1/rig/hvf/update/rollback"])
+            socket.requests.map(\.rpc), ["PruneCaches", "SetCachePolicy", "SetRigMode", "RollbackHVFUpdate", "Exec"])
     }
 
     /// A socket nobody listens on refused the connection before a byte
-    /// was written, so loopback HTTP may carry the request — once.
-    func testLoopbackHTTPCarriesARequestTheSocketRefused() async throws {
+    /// was written, so loopback TCP may carry the request — once.
+    func testLoopbackTCPCarriesARequestTheSocketRefused() async throws {
         // A stale socket file: bound, never listened on, then closed.
         let stale = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         var address = try RuntimeUnixSocket.address(socketPath)
@@ -362,20 +344,7 @@ final class CacheToolsTests: XCTestCase {
         let reply = try await call(server, "cache_prune", ["apply": true, "scope": "proj"])
         XCTAssertFalse(reply.isError, reply.text)
         XCTAssertEqual(tcp.requests.count, 1)
-        XCTAssertEqual(tcp.requests.first?.path, "/v1/caches/prune")
-        XCTAssertEqual(tcp.requests.first?.json["scope"] as? String, "proj")
-        XCTAssertEqual(tcp.evictions, 1)
-    }
-
-    func testExchangeTellsARefusedConnectionFromALostReply() async throws {
-        let missing = directory.appendingPathComponent("none.sock").path
-        guard case .notSent = await LocalAPI.exchange(missing, "GET", "/v1/caches", nil, timeoutSeconds: 1) else {
-            return XCTFail("a missing socket sends nothing")
-        }
-        let stalled = try FakeLocalAPI(unixSocket: socketPath, behavior: .stall)
-        defer { stalled.stop() }
-        let lost = await LocalAPI.exchange(socketPath, "POST", "/v1/caches/prune", Data("{}".utf8), timeoutSeconds: 1)
-        XCTAssertEqual(lost, .lost("no reply came within 1 s"))
-        XCTAssertEqual(stalled.requests.count, 1)
+        XCTAssertEqual(tcp.requests.first?.contentType, "application/proto")
+        XCTAssertEqual(try tcp.requests.first?.message(Micropod_V1_PruneCachesRequest.self).scope, "proj")
     }
 }

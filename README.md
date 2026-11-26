@@ -40,7 +40,12 @@ agent-driven container management.
   readiness diagnostics. See [dependency management](docs/runtime-dependencies.md).
 - **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, runtime_status, list_containers,
   start/stop/kill/delete, run, pull/push, inspect, logs, df, compose_up,
-  share_mount/unmount/list/sync/gc, build_cache_stats).
+  share_mount/unmount/list/sync/gc, build_cache_stats, the HVF machine's caches
+  and rig, sandboxes, telemetry). With the API daemon running it talks to it in
+  binary Connect over one persistent connection on `api.sock` and starts no
+  process of its own; sandboxes boot in the daemon. Without a daemon, the
+  container, image, machine and sandbox tools drive the `container` CLI and
+  `micropod sandbox` directly, as before.
 
 ## Architecture
 
@@ -549,6 +554,11 @@ window is open, every 30 s otherwise. It's rolled up as it's written:
 Old points are pruned by age. A container's or machine's history is
 deleted with it, including deletions made outside Micropod.
 
+`MICROPOD_METRICS_DB` names another database. Without it, a process whose
+`MICROPOD_API_SOCK` names a socket keeps `metrics.sqlite` beside that socket
+(an API started for a throwaway root never opens the rig's database); with
+the socket at its default that is the same `~/.micropod/metrics.sqlite`.
+
 - **In the app:** the dashboard, container and machine graphs open with
   that history, and add 6 h, 24 h and 7 d windows.
 - **API:** `SystemService.GetMetricsHistory` (kind + id + range) returns
@@ -638,6 +648,30 @@ curl -X DELETE 'http://127.0.0.1:45454/v1/containers/web?force=true'   # no body
 
 `Ping` (and `GET /v1/system`) list the optional `RunContainer` fields the
 server honours in `features` (`cap_add`, `cap_drop`, `rosetta`, `privileged`).
+
+**Connections.** Loopback TCP and the owner's socket keep a connection open
+after a reply framed by `Content-Length` (HTTP/1.1 persistence, pipelining
+included), so a client such as Go's `net/http` or URLSession pays one dial for
+many calls. A reply says `Connection: close` and the server closes instead
+when the request asked to close, is HTTP/1.0 without `Connection: keep-alive`,
+carries both `Transfer-Encoding` and `Content-Length`,
+or was refused before a handler ran (bad framing, the admission checks above);
+when 256 connections are already kept; or once the server is stopping.
+Streams (`text/event-stream`, Connect server streams), the vsock bridge and
+managed-runtime relays are delimited by the close that ends them, as before —
+unless a stream's request sends `X-Micropod-Stream-Framing: chunked` on a
+connection that may persist: its body then comes in chunked transfer coding,
+ends with the zero-length chunk, and the connection serves the next request
+(the MCP server does this; a client that never sends the header sees no
+change). `StreamLogsRequest.no_follow` sends the tail and ends the stream.
+A kept connection with no request for `MICROPOD_API_KEEPALIVE_IDLE_MS`
+(default 120000, longer than Go's 90 s idle timeout) is closed without a
+reply. Inside a request, `MICROPOD_API_READ_IDLE_TIMEOUT_MS` (30000) of
+silence or `MICROPOD_API_READ_DEADLINE_MS` (120000) in total answers `408`;
+on a kept connection those clocks start at the next request's first byte. The
+managed runtime's internal socket answers one request per connection, because
+its gateway checks a caller's capability on the first request head only. The
+API speaks HTTP/1.1 only: an HTTP/2 client's preface gets an HTTP/1.1 `505`.
 
 Configuration: `MICROPOD_API_PORT` (default 45454), `MICROPOD_CONTAINER_CLI_PATH`,
 `MICROPOD_RUNTIME` (`auto`/`native`/`cli`), `MICROPOD_ALLOW_MULTI_ATTACH=1`

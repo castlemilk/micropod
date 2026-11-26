@@ -1,0 +1,317 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "micropod/v1/api.proto";
+import "micropod/v1/container.proto";
+
+// The hvf machine's dependency caches: the units the guest engine keeps per
+// scope and tool, the policy it attaches them by, and bounded pruning. Every
+// call reads the live guest (its Docker socket) or the machine's own
+// machine.json; nothing is cached by the API. The REST routes under
+// /v1/caches answer the same data from the same code.
+//
+// Errors: `failed_precondition` while the machine is not running (no guest
+// to ask) or `machine install` runs; `invalid_argument` for a request the
+// REST twin would answer 400; `not_found` for an unknown container.
+service CacheService {
+  // The guest's cache inventory (GET /v1/caches): policy and digest, scopes,
+  // per-unit sizes and lock state, totals, budget, evictions and the cache
+  // disk.
+  rpc GetCacheStatus(GetCacheStatusRequest) returns (CacheStatus);
+  // The cache units, filtered by scope, layer and tool kind.
+  rpc ListCacheUnits(ListCacheUnitsRequest) returns (ListCacheUnitsResponse);
+  // Which caches attached to a container, or were skipped and why
+  // (GET /v1/caches/explain/{id}).
+  rpc ExplainContainerCache(ContainerRef) returns (ContainerCacheExplain);
+  // Sample cross-scope Go build-cache duplication (GET /v1/caches/dedupe).
+  rpc SampleCacheDedupe(SampleCacheDedupeRequest) returns (CacheDedupeSample);
+  // Lock-safe bounded eviction (POST /v1/caches/prune). A dry run unless
+  // `apply` is true; an apply that selects nothing also needs `all`.
+  rpc PruneCaches(PruneCachesRequest) returns (PruneCachesResponse);
+  // The policy in force (GET /v1/caches/policy): machine.json's `cache`
+  // section with defaults filled in.
+  rpc GetCachePolicy(Empty) returns (CachePolicy);
+  // Patch the policy and hot-apply it to a running guest
+  // (PUT /v1/caches/policy). Only the fields set change; a request that
+  // sets none is `invalid_argument` and writes nothing.
+  rpc SetCachePolicy(SetCachePolicyRequest) returns (SetCachePolicyResponse);
+}
+
+message GetCacheStatusRequest {
+  // Per-unit sizes, totals and budget utilisation. Absent means true (what
+  // GET /v1/caches does); false is `?stats=0`, a cheaper read.
+  optional bool include_stats = 1;
+}
+
+// One unit: a tool's store in one scope.
+message CacheUnit {
+  string scope = 1;
+  // The tool kind (gomod, gobuild, npm, ...).
+  string kind = 2;
+  string unit = 3;
+  optional uint32 uid = 4;
+  // L0 (fleet-shareable) or L1 (per-project build caches).
+  string layer = 5;
+  string path = 6;
+  // Bytes on disk.
+  uint64 bytes = 7;
+  // Bytes before sharing (hard links, reflinks).
+  uint64 logical_bytes = 8;
+  uint64 files = 9;
+  int64 last_used_unix = 10;
+  // A container holds the unit's lock.
+  bool in_use = 11;
+  // The crash fence has the unit marked dirty: prune and the janitor leave
+  // it alone. Absent from guests that predate the fence.
+  optional bool dirty = 12;
+}
+
+message CacheTotals {
+  uint64 total_bytes = 1;
+  uint64 logical_bytes = 2;
+  uint64 total_files = 3;
+  int32 scope_count = 4;
+  int32 unit_count = 5;
+  int32 in_use_count = 6;
+  uint64 l0_bytes = 7;
+  uint64 l1_bytes = 8;
+  optional int32 dirty_count = 9;
+}
+
+message CacheBudget {
+  uint64 max_bytes = 1;
+  uint64 min_free_bytes = 2;
+  int32 max_age_days = 3;
+  optional double utilization_pct = 4;
+}
+
+message CacheEvictions {
+  uint64 evictions = 1;
+  uint64 evicted_units = 2;
+  uint64 evicted_files = 3;
+  uint64 evicted_bytes = 4;
+  optional int64 last_sweep_unix = 5;
+  optional string last_sweep_reason = 6;
+}
+
+// The persistent cache disk (caches.ext4) as the guest sees it.
+message CacheDisk {
+  // Guest init's outcome: mounted, unavailable or none.
+  optional string state = 1;
+  optional string device = 2;
+  bool mounted = 3;
+  optional string mount_info_error = 4;
+  optional uint64 size_bytes = 5;
+  optional uint64 free_bytes = 6;
+}
+
+// The unit names one scope holds.
+message CacheScopeUnits {
+  repeated string units = 1;
+}
+
+// BuildKit settings in the cache policy.
+message CacheBuildKit {
+  bool register_buildx = 1;
+  // Keys this server does not know, passed through unchanged.
+  google.protobuf.Struct extra = 2;
+}
+
+// machine.json's `cache` section, as the guest applies it. Fields named
+// optional are unset when the setting is off or cleared.
+message CachePolicy {
+  int32 version = 1;
+  // auto or off.
+  string mode = 2;
+  string default_scope = 3;
+  repeated string allowed_scopes = 4;
+  // Kinds or groups (go = gomod + gobuild) as configured.
+  repeated string tools = 5;
+  bool go_trimpath = 6;
+  bool pnpm_legacy_env = 7;
+  bool shared_l0 = 8;
+  // trusted or untrusted; unset is trusted.
+  optional string default_trust = 9;
+  bool proxy_untrusted = 10;
+  optional string go_proxy = 11;
+  optional string npm_registry = 12;
+  optional uint64 max_bytes = 13;
+  optional int32 max_age_days = 14;
+  optional uint64 min_free_bytes = 15;
+  CacheBuildKit buildkit = 16;
+  // Keys this server does not know, kept in machine.json and passed to the
+  // guest unchanged.
+  google.protobuf.Struct extra = 17;
+}
+
+message CacheStatus {
+  string root = 1;
+  string mount_point = 2;
+  optional string mount_l0_point = 3;
+  CachePolicy policy = 4;
+  string policy_digest = 5;
+  map<string, CacheScopeUnits> scopes = 6;
+  repeated CacheUnit units = 7;
+  CacheTotals totals = 8;
+  CacheBudget budget = 9;
+  CacheEvictions evictions = 10;
+  // Units (scope/unit) moved to trash at the engine's start because an
+  // unclean stop left them marked dirty.
+  repeated string discarded_at_start = 11;
+  // Marked units kept at the engine's start (their boot stopped cleanly).
+  repeated string kept_at_start = 12;
+  CacheDisk cache_disk = 13;
+  // Why the guest has no shared caches this boot; unset while they work.
+  optional string unavailable = 14;
+}
+
+message ListCacheUnitsRequest {
+  // Only this scope (exact).
+  string scope = 1;
+  // Only this layer (L0 or L1).
+  string layer = 2 [(buf.validate.field).string = {in: ["", "L0", "L1"]}];
+  // Only this tool: a kind (gomod, npm, ...) or a group (go).
+  string tool = 3;
+}
+
+message ListCacheUnitsResponse {
+  repeated CacheUnit units = 1;
+  // The digest of the policy the guest attached them by.
+  string policy_digest = 2;
+}
+
+message SampleCacheDedupeRequest {
+  // Buckets to sample, 1-256; 0 is 16.
+  uint32 buckets = 1 [(buf.validate.field).uint32.lte = 256];
+}
+
+message CacheDedupeSample {
+  repeated string scopes_sampled = 1;
+  int32 buckets_sampled = 2;
+  uint64 total_objects = 3;
+  uint64 unique_objects = 4;
+  uint64 duplicate_objects = 5;
+  uint64 duplicate_bytes = 6;
+  uint64 estimated_full_duplicate_bytes = 7;
+}
+
+message PruneCachesRequest {
+  // Evict for real. The default (false) is a dry run that reports what would
+  // be freed; there is deliberately no `dry_run` field whose default evicts.
+  bool apply = 1;
+  // Confirm an apply that names no scope, tool, max_bytes or
+  // older_than_secs: every idle unit in every scope.
+  bool all = 2;
+  optional string scope = 3;
+  optional string tool = 4;
+  // Evict units idle longer than this; must be positive.
+  optional int64 older_than_secs = 5;
+  // Evict least recently used units until the total is at most this; must
+  // be positive.
+  optional uint64 max_bytes = 6;
+  // Evict old Go build-cache files instead of whole units.
+  optional bool partial_go_build = 7;
+  optional int64 safety_cutoff_secs = 8;
+  optional int64 max_units = 9;
+  // Recorded with the sweep; default "api".
+  optional string reason = 10;
+}
+
+message CachePruneAction {
+  string scope = 1;
+  string unit = 2;
+  string action = 3;
+  optional uint64 files = 4;
+  uint64 bytes = 5;
+}
+
+message PruneCachesResponse {
+  bool dry_run = 1;
+  string reason = 2;
+  uint64 freed_bytes = 3;
+  uint64 freed_files = 4;
+  uint64 evicted_units = 5;
+  uint64 skipped_in_use = 6;
+  uint64 before_bytes = 7;
+  uint64 after_bytes = 8;
+  repeated CachePruneAction actions = 9;
+  optional uint64 skipped_dirty = 10;
+}
+
+// A list that can be set to empty, which an absent list cannot say.
+message CacheStringList {
+  repeated string values = 1;
+}
+
+// Every field is a change when set. "" clears go_proxy and npm_registry; 0
+// clears max_bytes, max_age_days and min_free_bytes (as null does in PUT
+// /v1/caches/policy).
+message SetCachePolicyRequest {
+  optional string mode = 1;
+  optional string default_scope = 2;
+  CacheStringList allowed_scopes = 3;
+  CacheStringList tools = 4;
+  optional bool go_trimpath = 5;
+  optional bool pnpm_legacy_env = 6;
+  optional bool shared_l0 = 7;
+  optional string default_trust = 8;
+  optional bool proxy_untrusted = 9;
+  optional string go_proxy = 10;
+  optional string npm_registry = 11;
+  optional uint64 max_bytes = 12;
+  optional uint32 max_age_days = 13 [(buf.validate.field).uint32.lte = 36500];
+  optional uint64 min_free_bytes = 14;
+}
+
+message SetCachePolicyResponse {
+  // The saved policy.
+  CachePolicy policy = 1;
+  // A policy URL opens no host port, or names one the running machine has
+  // not opened (it takes effect at the next start).
+  repeated string warnings = 2;
+}
+
+// Explain: the cache plan the guest recorded when it created the container.
+message ContainerCacheExplain {
+  string container_id = 1;
+  string container_name = 2;
+  string image = 3;
+  string state = 4;
+  // Absent when the guest recorded no plan.
+  ContainerCachePlan cache = 5;
+}
+
+message ContainerCachePlan {
+  optional string scope = 1;
+  optional uint32 uid = 2;
+  optional uint32 gid = 3;
+  optional string home = 4;
+  optional string reason = 5;
+  optional string policy_digest = 6;
+  map<string, ContainerCacheTool> tools = 7;
+  // untrusted or readonly; unset is trusted.
+  optional string trust = 8;
+  optional string trust_from = 9;
+  // The dependency proxy decision per tool kind.
+  map<string, string> proxy = 10;
+  // True when the guest sent a `tools` map (possibly empty).
+  bool tools_reported = 11;
+  // True when the guest sent a `proxy` map (possibly empty).
+  bool proxy_reported = 12;
+}
+
+message ContainerCacheTool {
+  // attached, env, skipped, ...
+  string mode = 1;
+  optional string path = 2;
+  optional string reason = 3;
+  optional string layer = 4;
+  optional string scope = 5;
+  // copy-on-write or read-only; unset is the store itself.
+  optional string access = 6;
+}

@@ -25,6 +25,72 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// The sandbox engine's assets under its root (MICROPOD_SANDBOX_ROOT).
+public nonisolated struct Micropod_V1_SandboxStatus: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var root: String = String()
+
+  /// env, standalone, hvf, apple_container or missing.
+  public var kernelOrigin: String = String()
+
+  public var kernelPath: String {
+    get {_kernelPath ?? String()}
+    set {_kernelPath = newValue}
+  }
+  /// Returns true if `kernelPath` has been explicitly set.
+  public var hasKernelPath: Bool {self._kernelPath != nil}
+  /// Clears the value of `kernelPath`. Subsequent reads from it will return its default value.
+  public mutating func clearKernelPath() {self._kernelPath = nil}
+
+  /// What `sandbox setup` staged a standalone kernel from.
+  public var kernelSource: Micropod_V1_SandboxKernelSource {
+    get {_kernelSource ?? Micropod_V1_SandboxKernelSource()}
+    set {_kernelSource = newValue}
+  }
+  /// Returns true if `kernelSource` has been explicitly set.
+  public var hasKernelSource: Bool {self._kernelSource != nil}
+  /// Clears the value of `kernelSource`. Subsequent reads from it will return its default value.
+  public mutating func clearKernelSource() {self._kernelSource = nil}
+
+  /// The digest-pinned vminit sandboxes boot.
+  public var vminit: String = String()
+
+  public var contentOrigin: String = String()
+
+  public var contentPath: String = String()
+
+  public var initfsPaths: [String] = []
+
+  public var standaloneReady: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _kernelPath: String? = nil
+  fileprivate var _kernelSource: Micropod_V1_SandboxKernelSource? = nil
+}
+
+public nonisolated struct Micropod_V1_SandboxKernelSource: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// hvf or explicit.
+  public var origin: String = String()
+
+  public var path: String = String()
+
+  public var sha256: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public nonisolated struct Micropod_V1_UpdateSandboxSecretRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -618,6 +684,120 @@ public nonisolated struct Micropod_V1_ListCheckpointsResponse: Sendable {
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "micropod.v1"
+
+nonisolated extension Micropod_V1_SandboxStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SandboxStatus"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}root\0\u{3}kernel_origin\0\u{3}kernel_path\0\u{3}kernel_source\0\u{1}vminit\0\u{3}content_origin\0\u{3}content_path\0\u{3}initfs_paths\0\u{3}standalone_ready\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.root) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.kernelOrigin) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._kernelPath) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._kernelSource) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.vminit) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.contentOrigin) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.contentPath) }()
+      case 8: try { try decoder.decodeRepeatedStringField(value: &self.initfsPaths) }()
+      case 9: try { try decoder.decodeSingularBoolField(value: &self.standaloneReady) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.root.isEmpty {
+      try visitor.visitSingularStringField(value: self.root, fieldNumber: 1)
+    }
+    if !self.kernelOrigin.isEmpty {
+      try visitor.visitSingularStringField(value: self.kernelOrigin, fieldNumber: 2)
+    }
+    try { if let v = self._kernelPath {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._kernelSource {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if !self.vminit.isEmpty {
+      try visitor.visitSingularStringField(value: self.vminit, fieldNumber: 5)
+    }
+    if !self.contentOrigin.isEmpty {
+      try visitor.visitSingularStringField(value: self.contentOrigin, fieldNumber: 6)
+    }
+    if !self.contentPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.contentPath, fieldNumber: 7)
+    }
+    if !self.initfsPaths.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.initfsPaths, fieldNumber: 8)
+    }
+    if self.standaloneReady != false {
+      try visitor.visitSingularBoolField(value: self.standaloneReady, fieldNumber: 9)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SandboxStatus, rhs: Micropod_V1_SandboxStatus) -> Bool {
+    if lhs.root != rhs.root {return false}
+    if lhs.kernelOrigin != rhs.kernelOrigin {return false}
+    if lhs._kernelPath != rhs._kernelPath {return false}
+    if lhs._kernelSource != rhs._kernelSource {return false}
+    if lhs.vminit != rhs.vminit {return false}
+    if lhs.contentOrigin != rhs.contentOrigin {return false}
+    if lhs.contentPath != rhs.contentPath {return false}
+    if lhs.initfsPaths != rhs.initfsPaths {return false}
+    if lhs.standaloneReady != rhs.standaloneReady {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SandboxKernelSource: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SandboxKernelSource"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}origin\0\u{1}path\0\u{1}sha256\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.origin) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.sha256) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.origin.isEmpty {
+      try visitor.visitSingularStringField(value: self.origin, fieldNumber: 1)
+    }
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 2)
+    }
+    if !self.sha256.isEmpty {
+      try visitor.visitSingularStringField(value: self.sha256, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SandboxKernelSource, rhs: Micropod_V1_SandboxKernelSource) -> Bool {
+    if lhs.origin != rhs.origin {return false}
+    if lhs.path != rhs.path {return false}
+    if lhs.sha256 != rhs.sha256 {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
 
 nonisolated extension Micropod_V1_UpdateSandboxSecretRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateSandboxSecretRequest"

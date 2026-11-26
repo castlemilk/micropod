@@ -1,0 +1,216 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+import "buf/validate/validate.proto";
+import "micropod/v1/api.proto";
+
+// The rootless rig: which execution mode new workloads use, the shared hvf
+// machine's state and lifecycle, and its versioned payload (VMM, kernel,
+// initrd, guest tools). The machine is the one MICROPOD_HVF_ROOT names for
+// the API process. The REST routes under /v1/rig answer the same data.
+service RigService {
+  // Mode, machine phase, cache disk and policy summary, staged payloads and
+  // the local dependency proxy (GET /v1/rig/health).
+  rpc GetRigHealth(Empty) returns (RigHealth);
+  // The execution mode in force (GET /v1/rig/mode).
+  rpc GetRigMode(Empty) returns (RigMode);
+  // Switch mode: container (the shared hvf machine) or sandbox (one micro-VM
+  // per workload). Writes the default runtime (PUT /v1/rig/mode).
+  rpc SetRigMode(SetRigModeRequest) returns (RigMode);
+  // Active, staged and known-good payloads (GET /v1/rig/hvf/update).
+  rpc GetHVFUpdateStatus(Empty) returns (HVFUpdateStatus);
+  // Activate the staged payload: restart the machine onto it, probe it, and
+  // return to known-good if it fails. Deferred (`failed_precondition`, nothing
+  // stopped) while containers run or idleness cannot be confirmed, unless
+  // `force`.
+  rpc ApplyHVFUpdate(HVFUpdateRequest) returns (HVFUpdateResult);
+  // Return to the last known-good payload (POST /v1/rig/hvf/update/rollback),
+  // deferred like ApplyHVFUpdate.
+  rpc RollbackHVFUpdate(HVFUpdateRequest) returns (HVFUpdateResult);
+  // The machine as every process sees it: assets, supervisor, phase, the
+  // published state. Never boots anything and never asks the guest.
+  rpc GetMachineStatus(Empty) returns (HVFMachineStatus);
+  // Start (returns once the guest answers), stop (a stop on request: Ping and
+  // GetSystem then say stopped and nothing restarts it on demand) or restart
+  // the machine; replies with its status afterwards.
+  rpc ControlMachine(ControlMachineRequest) returns (HVFMachineStatus);
+}
+
+message RigModeOption {
+  // container or sandbox.
+  string name = 1;
+  // The engine the mode runs on (hvf, sandbox).
+  string engine = 2;
+  string summary = 3;
+}
+
+message RigMode {
+  // The active mode, or the default runtime's name when it maps to no mode.
+  string mode = 1;
+  string default_runtime = 2;
+  repeated RigModeOption modes = 3;
+}
+
+message SetRigModeRequest {
+  // container or sandbox (an engine name is accepted too).
+  string mode = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// The cache disk as rig health reports it: the guest's account when it
+// answered, else why it is unknown.
+message RigCacheDisk {
+  bool mounted = 1;
+  // The host has caches.ext4, so the VMM attaches it.
+  bool configured = 2;
+  // machine.json expects a cache disk that is gone.
+  optional string missing = 3;
+  // guest, or unknown when the guest did not answer.
+  string source = 4;
+  // Why the state is unknown.
+  optional string reason = 5;
+  optional string state = 6;
+  optional string device = 7;
+  optional string mount_info_error = 8;
+  optional uint64 size_bytes = 9;
+  optional uint64 free_bytes = 10;
+  // on, off or unknown.
+  string shared_caches = 11;
+  // Why shared caches are off this boot.
+  optional string unavailable = 12;
+  string summary = 13;
+}
+
+message RigHVFHealth {
+  bool installed = 1;
+  // starting, running, stopping, stopped or failed.
+  string phase = 2;
+  string summary = 3;
+  string root = 4;
+  string docker_endpoint = 5;
+  bool cache_disk_present = 6;
+  RigCacheDisk cache_disk = 7;
+  string shared_caches = 8;
+  bool update_pending = 9;
+  string payload_version = 10;
+}
+
+message RigCachePolicySummary {
+  string mode = 1;
+  bool shared_l0 = 2;
+  string default_trust = 3;
+  string go_proxy = 4;
+  int32 tool_count = 5;
+}
+
+message RigDepproxy {
+  string url = 1;
+  bool healthy = 2;
+}
+
+message RigHealth {
+  string mode = 1;
+  string default_runtime = 2;
+  RigHVFHealth hvf = 3;
+  RigCachePolicySummary cache_policy = 4;
+  RigDepproxy depproxy = 5;
+  // machine.json did not load: the policy summary shows the defaults' values.
+  optional string config_error = 6;
+}
+
+// One payload's manifest.
+message HVFPayloadManifest {
+  int32 schema = 1;
+  string version = 2;
+  string revision = 3;
+  // RFC 3339.
+  string installed_at = 4;
+  map<string, string> digests = 5;
+  // Unset for a staged release; "flat" for an imported flat install.
+  optional string origin = 6;
+}
+
+message HVFUpdateStatus {
+  // What a newly started supervisor boots (unset: the flat layout).
+  optional string current_path = 1;
+  optional string previous_path = 2;
+  // Staged and waiting for ApplyHVFUpdate.
+  optional string staged_path = 3;
+  // The last payload that booted and passed the health probes.
+  optional string known_good_path = 4;
+  HVFPayloadManifest current = 5;
+  HVFPayloadManifest previous = 6;
+  HVFPayloadManifest staged = 7;
+  HVFPayloadManifest known_good = 8;
+  optional string running_path = 9;
+  optional string running_version = 10;
+  optional string running_revision = 11;
+  // An activation would change what runs.
+  bool update_pending = 12;
+  repeated string available_versions = 13;
+  // Why the last apply of the payload still staged failed.
+  optional string last_activation_failure = 14;
+}
+
+message HVFUpdateRequest {
+  // Restart even while containers run (interrupts them).
+  bool force = 1;
+}
+
+message HVFUpdateResult {
+  // noop, activated, rolled_back (success); failed_rollback and failed come
+  // back as errors, deferred as `failed_precondition`.
+  string action = 1;
+  optional string from_version = 2;
+  optional string to_version = 3;
+  // Workloads that held off a restart.
+  int32 active_containers = 4;
+  string detail = 5;
+  optional string target_version = 6;
+  optional int64 switchover_milliseconds = 7;
+}
+
+message HVFMachineState {
+  string phase = 1;
+  int32 supervisor_pid = 2;
+  optional int32 vmm_pid = 3;
+  // RFC 3339.
+  optional string started_at = 4;
+  optional string ready_at = 5;
+  int32 restart_count = 6;
+  optional string last_exit_reason = 7;
+  optional int32 last_exit_code = 8;
+  optional string loaded_payload_path = 9;
+  optional string loaded_payload_version = 10;
+  string updated_at = 11;
+}
+
+message HVFMachineStatus {
+  string root = 1;
+  // The guest Docker socket.
+  string socket = 2;
+  // Missing assets by layout name; empty once installed.
+  repeated string missing = 3;
+  bool installed = 4;
+  // Why an installed layout still cannot host the machine.
+  optional string problem = 5;
+  bool supervisor_alive = 6;
+  // The effective phase: stopped (or failed) whenever no supervisor holds
+  // the lock, whatever a stale state file says.
+  string phase = 7;
+  // The supervisor's last published state.
+  HVFMachineState state = 8;
+  // state.json exists but could not be read.
+  optional string state_error = 9;
+  bool update_pending = 10;
+  // One line, as `micropod machine status` prints it.
+  string summary = 11;
+  // The last machine stop was asked for: nothing starts it on demand.
+  bool stopped_on_request = 12;
+}
+
+message ControlMachineRequest {
+  string action = 1 [(buf.validate.field).string = {in: ["start", "stop", "restart"]}];
+}

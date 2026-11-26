@@ -23,6 +23,179 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// The sandbox engine's assets under its root (MICROPOD_SANDBOX_ROOT).
+type SandboxStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Root  string                 `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
+	// env, standalone, hvf, apple_container or missing.
+	KernelOrigin string  `protobuf:"bytes,2,opt,name=kernel_origin,json=kernelOrigin,proto3" json:"kernel_origin,omitempty"`
+	KernelPath   *string `protobuf:"bytes,3,opt,name=kernel_path,json=kernelPath,proto3,oneof" json:"kernel_path,omitempty"`
+	// What `sandbox setup` staged a standalone kernel from.
+	KernelSource *SandboxKernelSource `protobuf:"bytes,4,opt,name=kernel_source,json=kernelSource,proto3" json:"kernel_source,omitempty"`
+	// The digest-pinned vminit sandboxes boot.
+	Vminit          string   `protobuf:"bytes,5,opt,name=vminit,proto3" json:"vminit,omitempty"`
+	ContentOrigin   string   `protobuf:"bytes,6,opt,name=content_origin,json=contentOrigin,proto3" json:"content_origin,omitempty"`
+	ContentPath     string   `protobuf:"bytes,7,opt,name=content_path,json=contentPath,proto3" json:"content_path,omitempty"`
+	InitfsPaths     []string `protobuf:"bytes,8,rep,name=initfs_paths,json=initfsPaths,proto3" json:"initfs_paths,omitempty"`
+	StandaloneReady bool     `protobuf:"varint,9,opt,name=standalone_ready,json=standaloneReady,proto3" json:"standalone_ready,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SandboxStatus) Reset() {
+	*x = SandboxStatus{}
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SandboxStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SandboxStatus) ProtoMessage() {}
+
+func (x *SandboxStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SandboxStatus.ProtoReflect.Descriptor instead.
+func (*SandboxStatus) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SandboxStatus) GetRoot() string {
+	if x != nil {
+		return x.Root
+	}
+	return ""
+}
+
+func (x *SandboxStatus) GetKernelOrigin() string {
+	if x != nil {
+		return x.KernelOrigin
+	}
+	return ""
+}
+
+func (x *SandboxStatus) GetKernelPath() string {
+	if x != nil && x.KernelPath != nil {
+		return *x.KernelPath
+	}
+	return ""
+}
+
+func (x *SandboxStatus) GetKernelSource() *SandboxKernelSource {
+	if x != nil {
+		return x.KernelSource
+	}
+	return nil
+}
+
+func (x *SandboxStatus) GetVminit() string {
+	if x != nil {
+		return x.Vminit
+	}
+	return ""
+}
+
+func (x *SandboxStatus) GetContentOrigin() string {
+	if x != nil {
+		return x.ContentOrigin
+	}
+	return ""
+}
+
+func (x *SandboxStatus) GetContentPath() string {
+	if x != nil {
+		return x.ContentPath
+	}
+	return ""
+}
+
+func (x *SandboxStatus) GetInitfsPaths() []string {
+	if x != nil {
+		return x.InitfsPaths
+	}
+	return nil
+}
+
+func (x *SandboxStatus) GetStandaloneReady() bool {
+	if x != nil {
+		return x.StandaloneReady
+	}
+	return false
+}
+
+type SandboxKernelSource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// hvf or explicit.
+	Origin        string `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	Path          string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Sha256        string `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SandboxKernelSource) Reset() {
+	*x = SandboxKernelSource{}
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SandboxKernelSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SandboxKernelSource) ProtoMessage() {}
+
+func (x *SandboxKernelSource) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SandboxKernelSource.ProtoReflect.Descriptor instead.
+func (*SandboxKernelSource) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SandboxKernelSource) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
+func (x *SandboxKernelSource) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SandboxKernelSource) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
 type UpdateSandboxSecretRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Sandbox (container) id.
@@ -39,7 +212,7 @@ type UpdateSandboxSecretRequest struct {
 
 func (x *UpdateSandboxSecretRequest) Reset() {
 	*x = UpdateSandboxSecretRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[0]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -51,7 +224,7 @@ func (x *UpdateSandboxSecretRequest) String() string {
 func (*UpdateSandboxSecretRequest) ProtoMessage() {}
 
 func (x *UpdateSandboxSecretRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[0]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,7 +237,7 @@ func (x *UpdateSandboxSecretRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSandboxSecretRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSandboxSecretRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{0}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *UpdateSandboxSecretRequest) GetId() string {
@@ -131,7 +304,7 @@ type StartSandboxRequest struct {
 
 func (x *StartSandboxRequest) Reset() {
 	*x = StartSandboxRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[1]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -143,7 +316,7 @@ func (x *StartSandboxRequest) String() string {
 func (*StartSandboxRequest) ProtoMessage() {}
 
 func (x *StartSandboxRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[1]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -156,7 +329,7 @@ func (x *StartSandboxRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSandboxRequest.ProtoReflect.Descriptor instead.
 func (*StartSandboxRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{1}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *StartSandboxRequest) GetImage() string {
@@ -267,7 +440,7 @@ type SandboxMount struct {
 
 func (x *SandboxMount) Reset() {
 	*x = SandboxMount{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[2]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -279,7 +452,7 @@ func (x *SandboxMount) String() string {
 func (*SandboxMount) ProtoMessage() {}
 
 func (x *SandboxMount) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[2]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -292,7 +465,7 @@ func (x *SandboxMount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SandboxMount.ProtoReflect.Descriptor instead.
 func (*SandboxMount) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{2}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SandboxMount) GetHostPath() string {
@@ -334,7 +507,7 @@ type StartProcessRequest struct {
 
 func (x *StartProcessRequest) Reset() {
 	*x = StartProcessRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[3]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +519,7 @@ func (x *StartProcessRequest) String() string {
 func (*StartProcessRequest) ProtoMessage() {}
 
 func (x *StartProcessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[3]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +532,7 @@ func (x *StartProcessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartProcessRequest.ProtoReflect.Descriptor instead.
 func (*StartProcessRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{3}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StartProcessRequest) GetId() string {
@@ -412,7 +585,7 @@ type ProcessRef struct {
 
 func (x *ProcessRef) Reset() {
 	*x = ProcessRef{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[4]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -424,7 +597,7 @@ func (x *ProcessRef) String() string {
 func (*ProcessRef) ProtoMessage() {}
 
 func (x *ProcessRef) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[4]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -437,7 +610,7 @@ func (x *ProcessRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessRef.ProtoReflect.Descriptor instead.
 func (*ProcessRef) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{4}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProcessRef) GetId() string {
@@ -476,7 +649,7 @@ type ProcessEvent struct {
 
 func (x *ProcessEvent) Reset() {
 	*x = ProcessEvent{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[5]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -488,7 +661,7 @@ func (x *ProcessEvent) String() string {
 func (*ProcessEvent) ProtoMessage() {}
 
 func (x *ProcessEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[5]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -501,7 +674,7 @@ func (x *ProcessEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessEvent.ProtoReflect.Descriptor instead.
 func (*ProcessEvent) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{5}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProcessEvent) GetEvent() isProcessEvent_Event {
@@ -577,7 +750,7 @@ type WriteProcessStdinRequest struct {
 
 func (x *WriteProcessStdinRequest) Reset() {
 	*x = WriteProcessStdinRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[6]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -589,7 +762,7 @@ func (x *WriteProcessStdinRequest) String() string {
 func (*WriteProcessStdinRequest) ProtoMessage() {}
 
 func (x *WriteProcessStdinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[6]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -602,7 +775,7 @@ func (x *WriteProcessStdinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteProcessStdinRequest.ProtoReflect.Descriptor instead.
 func (*WriteProcessStdinRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{6}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WriteProcessStdinRequest) GetId() string {
@@ -645,7 +818,7 @@ type SignalProcessRequest struct {
 
 func (x *SignalProcessRequest) Reset() {
 	*x = SignalProcessRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[7]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +830,7 @@ func (x *SignalProcessRequest) String() string {
 func (*SignalProcessRequest) ProtoMessage() {}
 
 func (x *SignalProcessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[7]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +843,7 @@ func (x *SignalProcessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignalProcessRequest.ProtoReflect.Descriptor instead.
 func (*SignalProcessRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{7}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SignalProcessRequest) GetId() string {
@@ -705,7 +878,7 @@ type PathRequest struct {
 
 func (x *PathRequest) Reset() {
 	*x = PathRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[8]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -717,7 +890,7 @@ func (x *PathRequest) String() string {
 func (*PathRequest) ProtoMessage() {}
 
 func (x *PathRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[8]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -730,7 +903,7 @@ func (x *PathRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathRequest.ProtoReflect.Descriptor instead.
 func (*PathRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{8}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PathRequest) GetId() string {
@@ -756,7 +929,7 @@ type FileContent struct {
 
 func (x *FileContent) Reset() {
 	*x = FileContent{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[9]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -768,7 +941,7 @@ func (x *FileContent) String() string {
 func (*FileContent) ProtoMessage() {}
 
 func (x *FileContent) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[9]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -781,7 +954,7 @@ func (x *FileContent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileContent.ProtoReflect.Descriptor instead.
 func (*FileContent) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{9}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *FileContent) GetData() []byte {
@@ -808,7 +981,7 @@ type WriteFileRequest struct {
 
 func (x *WriteFileRequest) Reset() {
 	*x = WriteFileRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[10]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -820,7 +993,7 @@ func (x *WriteFileRequest) String() string {
 func (*WriteFileRequest) ProtoMessage() {}
 
 func (x *WriteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[10]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -833,7 +1006,7 @@ func (x *WriteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteFileRequest.ProtoReflect.Descriptor instead.
 func (*WriteFileRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{10}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *WriteFileRequest) GetId() string {
@@ -896,7 +1069,7 @@ type FileStat struct {
 
 func (x *FileStat) Reset() {
 	*x = FileStat{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[11]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -908,7 +1081,7 @@ func (x *FileStat) String() string {
 func (*FileStat) ProtoMessage() {}
 
 func (x *FileStat) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[11]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -921,7 +1094,7 @@ func (x *FileStat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileStat.ProtoReflect.Descriptor instead.
 func (*FileStat) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{11}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *FileStat) GetPath() string {
@@ -968,7 +1141,7 @@ type ListDirResponse struct {
 
 func (x *ListDirResponse) Reset() {
 	*x = ListDirResponse{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[12]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -980,7 +1153,7 @@ func (x *ListDirResponse) String() string {
 func (*ListDirResponse) ProtoMessage() {}
 
 func (x *ListDirResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[12]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1166,7 @@ func (x *ListDirResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirResponse.ProtoReflect.Descriptor instead.
 func (*ListDirResponse) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{12}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListDirResponse) GetEntries() []*DirEntry {
@@ -1017,7 +1190,7 @@ type DirEntry struct {
 
 func (x *DirEntry) Reset() {
 	*x = DirEntry{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[13]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1029,7 +1202,7 @@ func (x *DirEntry) String() string {
 func (*DirEntry) ProtoMessage() {}
 
 func (x *DirEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[13]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1042,7 +1215,7 @@ func (x *DirEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirEntry.ProtoReflect.Descriptor instead.
 func (*DirEntry) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{13}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DirEntry) GetName() string {
@@ -1092,7 +1265,7 @@ type MakeDirRequest struct {
 
 func (x *MakeDirRequest) Reset() {
 	*x = MakeDirRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[14]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1104,7 +1277,7 @@ func (x *MakeDirRequest) String() string {
 func (*MakeDirRequest) ProtoMessage() {}
 
 func (x *MakeDirRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[14]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1117,7 +1290,7 @@ func (x *MakeDirRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MakeDirRequest.ProtoReflect.Descriptor instead.
 func (*MakeDirRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{14}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MakeDirRequest) GetId() string {
@@ -1153,7 +1326,7 @@ type RemovePathRequest struct {
 
 func (x *RemovePathRequest) Reset() {
 	*x = RemovePathRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[15]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1165,7 +1338,7 @@ func (x *RemovePathRequest) String() string {
 func (*RemovePathRequest) ProtoMessage() {}
 
 func (x *RemovePathRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[15]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1178,7 +1351,7 @@ func (x *RemovePathRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemovePathRequest.ProtoReflect.Descriptor instead.
 func (*RemovePathRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{15}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RemovePathRequest) GetId() string {
@@ -1213,7 +1386,7 @@ type RenamePathRequest struct {
 
 func (x *RenamePathRequest) Reset() {
 	*x = RenamePathRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[16]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1225,7 +1398,7 @@ func (x *RenamePathRequest) String() string {
 func (*RenamePathRequest) ProtoMessage() {}
 
 func (x *RenamePathRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[16]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1238,7 +1411,7 @@ func (x *RenamePathRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenamePathRequest.ProtoReflect.Descriptor instead.
 func (*RenamePathRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{16}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RenamePathRequest) GetId() string {
@@ -1275,7 +1448,7 @@ type CopyPathRequest struct {
 
 func (x *CopyPathRequest) Reset() {
 	*x = CopyPathRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[17]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1287,7 +1460,7 @@ func (x *CopyPathRequest) String() string {
 func (*CopyPathRequest) ProtoMessage() {}
 
 func (x *CopyPathRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[17]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1300,7 +1473,7 @@ func (x *CopyPathRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyPathRequest.ProtoReflect.Descriptor instead.
 func (*CopyPathRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{17}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CopyPathRequest) GetId() string {
@@ -1343,7 +1516,7 @@ type ChmodPathRequest struct {
 
 func (x *ChmodPathRequest) Reset() {
 	*x = ChmodPathRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[18]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1355,7 +1528,7 @@ func (x *ChmodPathRequest) String() string {
 func (*ChmodPathRequest) ProtoMessage() {}
 
 func (x *ChmodPathRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[18]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1368,7 +1541,7 @@ func (x *ChmodPathRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChmodPathRequest.ProtoReflect.Descriptor instead.
 func (*ChmodPathRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{18}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ChmodPathRequest) GetId() string {
@@ -1404,7 +1577,7 @@ type WatchPathRequest struct {
 
 func (x *WatchPathRequest) Reset() {
 	*x = WatchPathRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[19]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1416,7 +1589,7 @@ func (x *WatchPathRequest) String() string {
 func (*WatchPathRequest) ProtoMessage() {}
 
 func (x *WatchPathRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[19]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1429,7 +1602,7 @@ func (x *WatchPathRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchPathRequest.ProtoReflect.Descriptor instead.
 func (*WatchPathRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{19}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *WatchPathRequest) GetId() string {
@@ -1467,7 +1640,7 @@ type WatchEvent struct {
 
 func (x *WatchEvent) Reset() {
 	*x = WatchEvent{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[20]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1479,7 +1652,7 @@ func (x *WatchEvent) String() string {
 func (*WatchEvent) ProtoMessage() {}
 
 func (x *WatchEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[20]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1492,7 +1665,7 @@ func (x *WatchEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchEvent.ProtoReflect.Descriptor instead.
 func (*WatchEvent) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{20}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *WatchEvent) GetEvent() string {
@@ -1520,7 +1693,7 @@ type CheckpointSandboxRequest struct {
 
 func (x *CheckpointSandboxRequest) Reset() {
 	*x = CheckpointSandboxRequest{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[21]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1532,7 +1705,7 @@ func (x *CheckpointSandboxRequest) String() string {
 func (*CheckpointSandboxRequest) ProtoMessage() {}
 
 func (x *CheckpointSandboxRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[21]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1545,7 +1718,7 @@ func (x *CheckpointSandboxRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckpointSandboxRequest.ProtoReflect.Descriptor instead.
 func (*CheckpointSandboxRequest) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{21}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CheckpointSandboxRequest) GetId() string {
@@ -1571,7 +1744,7 @@ type CheckpointRef struct {
 
 func (x *CheckpointRef) Reset() {
 	*x = CheckpointRef{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[22]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1583,7 +1756,7 @@ func (x *CheckpointRef) String() string {
 func (*CheckpointRef) ProtoMessage() {}
 
 func (x *CheckpointRef) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[22]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1596,7 +1769,7 @@ func (x *CheckpointRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckpointRef.ProtoReflect.Descriptor instead.
 func (*CheckpointRef) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{22}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CheckpointRef) GetName() string {
@@ -1621,7 +1794,7 @@ type SandboxCheckpoint struct {
 
 func (x *SandboxCheckpoint) Reset() {
 	*x = SandboxCheckpoint{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[23]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1633,7 +1806,7 @@ func (x *SandboxCheckpoint) String() string {
 func (*SandboxCheckpoint) ProtoMessage() {}
 
 func (x *SandboxCheckpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[23]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1646,7 +1819,7 @@ func (x *SandboxCheckpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SandboxCheckpoint.ProtoReflect.Descriptor instead.
 func (*SandboxCheckpoint) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{23}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SandboxCheckpoint) GetName() string {
@@ -1686,7 +1859,7 @@ type ListCheckpointsResponse struct {
 
 func (x *ListCheckpointsResponse) Reset() {
 	*x = ListCheckpointsResponse{}
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[24]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1698,7 +1871,7 @@ func (x *ListCheckpointsResponse) String() string {
 func (*ListCheckpointsResponse) ProtoMessage() {}
 
 func (x *ListCheckpointsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_sandbox_proto_msgTypes[24]
+	mi := &file_micropod_v1_sandbox_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1711,7 +1884,7 @@ func (x *ListCheckpointsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCheckpointsResponse.ProtoReflect.Descriptor instead.
 func (*ListCheckpointsResponse) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{24}
+	return file_micropod_v1_sandbox_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListCheckpointsResponse) GetCheckpoints() []*SandboxCheckpoint {
@@ -1725,7 +1898,23 @@ var File_micropod_v1_sandbox_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_sandbox_proto_rawDesc = "" +
 	"\n" +
-	"\x19micropod/v1/sandbox.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x1bmicropod/v1/container.proto\"\xb1\x01\n" +
+	"\x19micropod/v1/sandbox.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x1bmicropod/v1/container.proto\"\xf5\x02\n" +
+	"\rSandboxStatus\x12\x12\n" +
+	"\x04root\x18\x01 \x01(\tR\x04root\x12#\n" +
+	"\rkernel_origin\x18\x02 \x01(\tR\fkernelOrigin\x12$\n" +
+	"\vkernel_path\x18\x03 \x01(\tH\x00R\n" +
+	"kernelPath\x88\x01\x01\x12E\n" +
+	"\rkernel_source\x18\x04 \x01(\v2 .micropod.v1.SandboxKernelSourceR\fkernelSource\x12\x16\n" +
+	"\x06vminit\x18\x05 \x01(\tR\x06vminit\x12%\n" +
+	"\x0econtent_origin\x18\x06 \x01(\tR\rcontentOrigin\x12!\n" +
+	"\fcontent_path\x18\a \x01(\tR\vcontentPath\x12!\n" +
+	"\finitfs_paths\x18\b \x03(\tR\vinitfsPaths\x12)\n" +
+	"\x10standalone_ready\x18\t \x01(\bR\x0fstandaloneReadyB\x0e\n" +
+	"\f_kernel_path\"Y\n" +
+	"\x13SandboxKernelSource\x12\x16\n" +
+	"\x06origin\x18\x01 \x01(\tR\x06origin\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\"\xb1\x01\n" +
 	"\x1aUpdateSandboxSecretRequest\x12\x1a\n" +
 	"\x02id\x18\x01 \x01(\tB\n" +
 	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x126\n" +
@@ -1887,8 +2076,7 @@ const file_micropod_v1_sandbox_proto_rawDesc = "" +
 	"size_bytes\x18\x03 \x01(\x04R\tsizeBytes\x12\x18\n" +
 	"\acreated\x18\x04 \x01(\tR\acreated\"[\n" +
 	"\x17ListCheckpointsResponse\x12@\n" +
-	"\vcheckpoints\x18\x01 \x03(\v2\x1e.micropod.v1.SandboxCheckpointR\vcheckpoints2\xc1\n" +
-	"\n" +
+	"\vcheckpoints\x18\x01 \x03(\v2\x1e.micropod.v1.SandboxCheckpointR\vcheckpoints2\x85\v\n" +
 	"\x0eSandboxService\x12K\n" +
 	"\fStartSandbox\x12 .micropod.v1.StartSandboxRequest\x1a\x19.micropod.v1.ContainerRef\x12I\n" +
 	"\fStartProcess\x12 .micropod.v1.StartProcessRequest\x1a\x17.micropod.v1.ProcessRef\x12E\n" +
@@ -1910,7 +2098,8 @@ const file_micropod_v1_sandbox_proto_rawDesc = "" +
 	"\x11CheckpointSandbox\x12%.micropod.v1.CheckpointSandboxRequest\x1a\x12.micropod.v1.Empty\x12K\n" +
 	"\x0fListCheckpoints\x12\x12.micropod.v1.Empty\x1a$.micropod.v1.ListCheckpointsResponse\x12B\n" +
 	"\x10DeleteCheckpoint\x12\x1a.micropod.v1.CheckpointRef\x1a\x12.micropod.v1.Empty\x12R\n" +
-	"\x13UpdateSandboxSecret\x12'.micropod.v1.UpdateSandboxSecretRequest\x1a\x12.micropod.v1.EmptyBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\x13UpdateSandboxSecret\x12'.micropod.v1.UpdateSandboxSecretRequest\x1a\x12.micropod.v1.Empty\x12B\n" +
+	"\x10GetSandboxStatus\x12\x12.micropod.v1.Empty\x1a\x1a.micropod.v1.SandboxStatusBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_sandbox_proto_rawDescOnce sync.Once
@@ -1924,89 +2113,94 @@ func file_micropod_v1_sandbox_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_sandbox_proto_rawDescData
 }
 
-var file_micropod_v1_sandbox_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_micropod_v1_sandbox_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_micropod_v1_sandbox_proto_goTypes = []any{
-	(*UpdateSandboxSecretRequest)(nil), // 0: micropod.v1.UpdateSandboxSecretRequest
-	(*StartSandboxRequest)(nil),        // 1: micropod.v1.StartSandboxRequest
-	(*SandboxMount)(nil),               // 2: micropod.v1.SandboxMount
-	(*StartProcessRequest)(nil),        // 3: micropod.v1.StartProcessRequest
-	(*ProcessRef)(nil),                 // 4: micropod.v1.ProcessRef
-	(*ProcessEvent)(nil),               // 5: micropod.v1.ProcessEvent
-	(*WriteProcessStdinRequest)(nil),   // 6: micropod.v1.WriteProcessStdinRequest
-	(*SignalProcessRequest)(nil),       // 7: micropod.v1.SignalProcessRequest
-	(*PathRequest)(nil),                // 8: micropod.v1.PathRequest
-	(*FileContent)(nil),                // 9: micropod.v1.FileContent
-	(*WriteFileRequest)(nil),           // 10: micropod.v1.WriteFileRequest
-	(*FileStat)(nil),                   // 11: micropod.v1.FileStat
-	(*ListDirResponse)(nil),            // 12: micropod.v1.ListDirResponse
-	(*DirEntry)(nil),                   // 13: micropod.v1.DirEntry
-	(*MakeDirRequest)(nil),             // 14: micropod.v1.MakeDirRequest
-	(*RemovePathRequest)(nil),          // 15: micropod.v1.RemovePathRequest
-	(*RenamePathRequest)(nil),          // 16: micropod.v1.RenamePathRequest
-	(*CopyPathRequest)(nil),            // 17: micropod.v1.CopyPathRequest
-	(*ChmodPathRequest)(nil),           // 18: micropod.v1.ChmodPathRequest
-	(*WatchPathRequest)(nil),           // 19: micropod.v1.WatchPathRequest
-	(*WatchEvent)(nil),                 // 20: micropod.v1.WatchEvent
-	(*CheckpointSandboxRequest)(nil),   // 21: micropod.v1.CheckpointSandboxRequest
-	(*CheckpointRef)(nil),              // 22: micropod.v1.CheckpointRef
-	(*SandboxCheckpoint)(nil),          // 23: micropod.v1.SandboxCheckpoint
-	(*ListCheckpointsResponse)(nil),    // 24: micropod.v1.ListCheckpointsResponse
-	nil,                                // 25: micropod.v1.StartSandboxRequest.LabelsEntry
-	(*PortMapping)(nil),                // 26: micropod.v1.PortMapping
-	(*SandboxOptions)(nil),             // 27: micropod.v1.SandboxOptions
-	(*Empty)(nil),                      // 28: micropod.v1.Empty
-	(*ContainerRef)(nil),               // 29: micropod.v1.ContainerRef
+	(*SandboxStatus)(nil),              // 0: micropod.v1.SandboxStatus
+	(*SandboxKernelSource)(nil),        // 1: micropod.v1.SandboxKernelSource
+	(*UpdateSandboxSecretRequest)(nil), // 2: micropod.v1.UpdateSandboxSecretRequest
+	(*StartSandboxRequest)(nil),        // 3: micropod.v1.StartSandboxRequest
+	(*SandboxMount)(nil),               // 4: micropod.v1.SandboxMount
+	(*StartProcessRequest)(nil),        // 5: micropod.v1.StartProcessRequest
+	(*ProcessRef)(nil),                 // 6: micropod.v1.ProcessRef
+	(*ProcessEvent)(nil),               // 7: micropod.v1.ProcessEvent
+	(*WriteProcessStdinRequest)(nil),   // 8: micropod.v1.WriteProcessStdinRequest
+	(*SignalProcessRequest)(nil),       // 9: micropod.v1.SignalProcessRequest
+	(*PathRequest)(nil),                // 10: micropod.v1.PathRequest
+	(*FileContent)(nil),                // 11: micropod.v1.FileContent
+	(*WriteFileRequest)(nil),           // 12: micropod.v1.WriteFileRequest
+	(*FileStat)(nil),                   // 13: micropod.v1.FileStat
+	(*ListDirResponse)(nil),            // 14: micropod.v1.ListDirResponse
+	(*DirEntry)(nil),                   // 15: micropod.v1.DirEntry
+	(*MakeDirRequest)(nil),             // 16: micropod.v1.MakeDirRequest
+	(*RemovePathRequest)(nil),          // 17: micropod.v1.RemovePathRequest
+	(*RenamePathRequest)(nil),          // 18: micropod.v1.RenamePathRequest
+	(*CopyPathRequest)(nil),            // 19: micropod.v1.CopyPathRequest
+	(*ChmodPathRequest)(nil),           // 20: micropod.v1.ChmodPathRequest
+	(*WatchPathRequest)(nil),           // 21: micropod.v1.WatchPathRequest
+	(*WatchEvent)(nil),                 // 22: micropod.v1.WatchEvent
+	(*CheckpointSandboxRequest)(nil),   // 23: micropod.v1.CheckpointSandboxRequest
+	(*CheckpointRef)(nil),              // 24: micropod.v1.CheckpointRef
+	(*SandboxCheckpoint)(nil),          // 25: micropod.v1.SandboxCheckpoint
+	(*ListCheckpointsResponse)(nil),    // 26: micropod.v1.ListCheckpointsResponse
+	nil,                                // 27: micropod.v1.StartSandboxRequest.LabelsEntry
+	(*PortMapping)(nil),                // 28: micropod.v1.PortMapping
+	(*SandboxOptions)(nil),             // 29: micropod.v1.SandboxOptions
+	(*Empty)(nil),                      // 30: micropod.v1.Empty
+	(*ContainerRef)(nil),               // 31: micropod.v1.ContainerRef
 }
 var file_micropod_v1_sandbox_proto_depIdxs = []int32{
-	2,  // 0: micropod.v1.StartSandboxRequest.mounts:type_name -> micropod.v1.SandboxMount
-	26, // 1: micropod.v1.StartSandboxRequest.ports:type_name -> micropod.v1.PortMapping
-	27, // 2: micropod.v1.StartSandboxRequest.options:type_name -> micropod.v1.SandboxOptions
-	25, // 3: micropod.v1.StartSandboxRequest.labels:type_name -> micropod.v1.StartSandboxRequest.LabelsEntry
-	13, // 4: micropod.v1.ListDirResponse.entries:type_name -> micropod.v1.DirEntry
-	23, // 5: micropod.v1.ListCheckpointsResponse.checkpoints:type_name -> micropod.v1.SandboxCheckpoint
-	1,  // 6: micropod.v1.SandboxService.StartSandbox:input_type -> micropod.v1.StartSandboxRequest
-	3,  // 7: micropod.v1.SandboxService.StartProcess:input_type -> micropod.v1.StartProcessRequest
-	4,  // 8: micropod.v1.SandboxService.StreamProcess:input_type -> micropod.v1.ProcessRef
-	6,  // 9: micropod.v1.SandboxService.WriteProcessStdin:input_type -> micropod.v1.WriteProcessStdinRequest
-	7,  // 10: micropod.v1.SandboxService.SignalProcess:input_type -> micropod.v1.SignalProcessRequest
-	8,  // 11: micropod.v1.SandboxService.ReadFile:input_type -> micropod.v1.PathRequest
-	10, // 12: micropod.v1.SandboxService.WriteFile:input_type -> micropod.v1.WriteFileRequest
-	8,  // 13: micropod.v1.SandboxService.ListDir:input_type -> micropod.v1.PathRequest
-	8,  // 14: micropod.v1.SandboxService.StatPath:input_type -> micropod.v1.PathRequest
-	14, // 15: micropod.v1.SandboxService.MakeDir:input_type -> micropod.v1.MakeDirRequest
-	15, // 16: micropod.v1.SandboxService.RemovePath:input_type -> micropod.v1.RemovePathRequest
-	16, // 17: micropod.v1.SandboxService.RenamePath:input_type -> micropod.v1.RenamePathRequest
-	17, // 18: micropod.v1.SandboxService.CopyPath:input_type -> micropod.v1.CopyPathRequest
-	18, // 19: micropod.v1.SandboxService.ChmodPath:input_type -> micropod.v1.ChmodPathRequest
-	19, // 20: micropod.v1.SandboxService.WatchPath:input_type -> micropod.v1.WatchPathRequest
-	21, // 21: micropod.v1.SandboxService.CheckpointSandbox:input_type -> micropod.v1.CheckpointSandboxRequest
-	28, // 22: micropod.v1.SandboxService.ListCheckpoints:input_type -> micropod.v1.Empty
-	22, // 23: micropod.v1.SandboxService.DeleteCheckpoint:input_type -> micropod.v1.CheckpointRef
-	0,  // 24: micropod.v1.SandboxService.UpdateSandboxSecret:input_type -> micropod.v1.UpdateSandboxSecretRequest
-	29, // 25: micropod.v1.SandboxService.StartSandbox:output_type -> micropod.v1.ContainerRef
-	4,  // 26: micropod.v1.SandboxService.StartProcess:output_type -> micropod.v1.ProcessRef
-	5,  // 27: micropod.v1.SandboxService.StreamProcess:output_type -> micropod.v1.ProcessEvent
-	28, // 28: micropod.v1.SandboxService.WriteProcessStdin:output_type -> micropod.v1.Empty
-	28, // 29: micropod.v1.SandboxService.SignalProcess:output_type -> micropod.v1.Empty
-	9,  // 30: micropod.v1.SandboxService.ReadFile:output_type -> micropod.v1.FileContent
-	28, // 31: micropod.v1.SandboxService.WriteFile:output_type -> micropod.v1.Empty
-	12, // 32: micropod.v1.SandboxService.ListDir:output_type -> micropod.v1.ListDirResponse
-	11, // 33: micropod.v1.SandboxService.StatPath:output_type -> micropod.v1.FileStat
-	28, // 34: micropod.v1.SandboxService.MakeDir:output_type -> micropod.v1.Empty
-	28, // 35: micropod.v1.SandboxService.RemovePath:output_type -> micropod.v1.Empty
-	28, // 36: micropod.v1.SandboxService.RenamePath:output_type -> micropod.v1.Empty
-	28, // 37: micropod.v1.SandboxService.CopyPath:output_type -> micropod.v1.Empty
-	28, // 38: micropod.v1.SandboxService.ChmodPath:output_type -> micropod.v1.Empty
-	20, // 39: micropod.v1.SandboxService.WatchPath:output_type -> micropod.v1.WatchEvent
-	28, // 40: micropod.v1.SandboxService.CheckpointSandbox:output_type -> micropod.v1.Empty
-	24, // 41: micropod.v1.SandboxService.ListCheckpoints:output_type -> micropod.v1.ListCheckpointsResponse
-	28, // 42: micropod.v1.SandboxService.DeleteCheckpoint:output_type -> micropod.v1.Empty
-	28, // 43: micropod.v1.SandboxService.UpdateSandboxSecret:output_type -> micropod.v1.Empty
-	25, // [25:44] is the sub-list for method output_type
-	6,  // [6:25] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	1,  // 0: micropod.v1.SandboxStatus.kernel_source:type_name -> micropod.v1.SandboxKernelSource
+	4,  // 1: micropod.v1.StartSandboxRequest.mounts:type_name -> micropod.v1.SandboxMount
+	28, // 2: micropod.v1.StartSandboxRequest.ports:type_name -> micropod.v1.PortMapping
+	29, // 3: micropod.v1.StartSandboxRequest.options:type_name -> micropod.v1.SandboxOptions
+	27, // 4: micropod.v1.StartSandboxRequest.labels:type_name -> micropod.v1.StartSandboxRequest.LabelsEntry
+	15, // 5: micropod.v1.ListDirResponse.entries:type_name -> micropod.v1.DirEntry
+	25, // 6: micropod.v1.ListCheckpointsResponse.checkpoints:type_name -> micropod.v1.SandboxCheckpoint
+	3,  // 7: micropod.v1.SandboxService.StartSandbox:input_type -> micropod.v1.StartSandboxRequest
+	5,  // 8: micropod.v1.SandboxService.StartProcess:input_type -> micropod.v1.StartProcessRequest
+	6,  // 9: micropod.v1.SandboxService.StreamProcess:input_type -> micropod.v1.ProcessRef
+	8,  // 10: micropod.v1.SandboxService.WriteProcessStdin:input_type -> micropod.v1.WriteProcessStdinRequest
+	9,  // 11: micropod.v1.SandboxService.SignalProcess:input_type -> micropod.v1.SignalProcessRequest
+	10, // 12: micropod.v1.SandboxService.ReadFile:input_type -> micropod.v1.PathRequest
+	12, // 13: micropod.v1.SandboxService.WriteFile:input_type -> micropod.v1.WriteFileRequest
+	10, // 14: micropod.v1.SandboxService.ListDir:input_type -> micropod.v1.PathRequest
+	10, // 15: micropod.v1.SandboxService.StatPath:input_type -> micropod.v1.PathRequest
+	16, // 16: micropod.v1.SandboxService.MakeDir:input_type -> micropod.v1.MakeDirRequest
+	17, // 17: micropod.v1.SandboxService.RemovePath:input_type -> micropod.v1.RemovePathRequest
+	18, // 18: micropod.v1.SandboxService.RenamePath:input_type -> micropod.v1.RenamePathRequest
+	19, // 19: micropod.v1.SandboxService.CopyPath:input_type -> micropod.v1.CopyPathRequest
+	20, // 20: micropod.v1.SandboxService.ChmodPath:input_type -> micropod.v1.ChmodPathRequest
+	21, // 21: micropod.v1.SandboxService.WatchPath:input_type -> micropod.v1.WatchPathRequest
+	23, // 22: micropod.v1.SandboxService.CheckpointSandbox:input_type -> micropod.v1.CheckpointSandboxRequest
+	30, // 23: micropod.v1.SandboxService.ListCheckpoints:input_type -> micropod.v1.Empty
+	24, // 24: micropod.v1.SandboxService.DeleteCheckpoint:input_type -> micropod.v1.CheckpointRef
+	2,  // 25: micropod.v1.SandboxService.UpdateSandboxSecret:input_type -> micropod.v1.UpdateSandboxSecretRequest
+	30, // 26: micropod.v1.SandboxService.GetSandboxStatus:input_type -> micropod.v1.Empty
+	31, // 27: micropod.v1.SandboxService.StartSandbox:output_type -> micropod.v1.ContainerRef
+	6,  // 28: micropod.v1.SandboxService.StartProcess:output_type -> micropod.v1.ProcessRef
+	7,  // 29: micropod.v1.SandboxService.StreamProcess:output_type -> micropod.v1.ProcessEvent
+	30, // 30: micropod.v1.SandboxService.WriteProcessStdin:output_type -> micropod.v1.Empty
+	30, // 31: micropod.v1.SandboxService.SignalProcess:output_type -> micropod.v1.Empty
+	11, // 32: micropod.v1.SandboxService.ReadFile:output_type -> micropod.v1.FileContent
+	30, // 33: micropod.v1.SandboxService.WriteFile:output_type -> micropod.v1.Empty
+	14, // 34: micropod.v1.SandboxService.ListDir:output_type -> micropod.v1.ListDirResponse
+	13, // 35: micropod.v1.SandboxService.StatPath:output_type -> micropod.v1.FileStat
+	30, // 36: micropod.v1.SandboxService.MakeDir:output_type -> micropod.v1.Empty
+	30, // 37: micropod.v1.SandboxService.RemovePath:output_type -> micropod.v1.Empty
+	30, // 38: micropod.v1.SandboxService.RenamePath:output_type -> micropod.v1.Empty
+	30, // 39: micropod.v1.SandboxService.CopyPath:output_type -> micropod.v1.Empty
+	30, // 40: micropod.v1.SandboxService.ChmodPath:output_type -> micropod.v1.Empty
+	22, // 41: micropod.v1.SandboxService.WatchPath:output_type -> micropod.v1.WatchEvent
+	30, // 42: micropod.v1.SandboxService.CheckpointSandbox:output_type -> micropod.v1.Empty
+	26, // 43: micropod.v1.SandboxService.ListCheckpoints:output_type -> micropod.v1.ListCheckpointsResponse
+	30, // 44: micropod.v1.SandboxService.DeleteCheckpoint:output_type -> micropod.v1.Empty
+	30, // 45: micropod.v1.SandboxService.UpdateSandboxSecret:output_type -> micropod.v1.Empty
+	0,  // 46: micropod.v1.SandboxService.GetSandboxStatus:output_type -> micropod.v1.SandboxStatus
+	27, // [27:47] is the sub-list for method output_type
+	7,  // [7:27] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_sandbox_proto_init() }
@@ -2016,21 +2210,22 @@ func file_micropod_v1_sandbox_proto_init() {
 	}
 	file_micropod_v1_api_proto_init()
 	file_micropod_v1_container_proto_init()
-	file_micropod_v1_sandbox_proto_msgTypes[5].OneofWrappers = []any{
+	file_micropod_v1_sandbox_proto_msgTypes[0].OneofWrappers = []any{}
+	file_micropod_v1_sandbox_proto_msgTypes[7].OneofWrappers = []any{
 		(*ProcessEvent_Stdout)(nil),
 		(*ProcessEvent_Stderr)(nil),
 		(*ProcessEvent_ExitCode)(nil),
 	}
-	file_micropod_v1_sandbox_proto_msgTypes[10].OneofWrappers = []any{}
-	file_micropod_v1_sandbox_proto_msgTypes[14].OneofWrappers = []any{}
-	file_micropod_v1_sandbox_proto_msgTypes[19].OneofWrappers = []any{}
+	file_micropod_v1_sandbox_proto_msgTypes[12].OneofWrappers = []any{}
+	file_micropod_v1_sandbox_proto_msgTypes[16].OneofWrappers = []any{}
+	file_micropod_v1_sandbox_proto_msgTypes[21].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_sandbox_proto_rawDesc), len(file_micropod_v1_sandbox_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -74,6 +74,33 @@ service SandboxService {
   // the guest noticing (its placeholder never changes). `not_found` when the
   // sandbox has no such secret.
   rpc UpdateSandboxSecret(UpdateSandboxSecretRequest) returns (Empty);
+  // Whether sandboxes can boot with nothing from com.apple.container: the
+  // kernel and OCI store they use and where each came from (what
+  // `micropod sandbox status --json` prints).
+  rpc GetSandboxStatus(Empty) returns (SandboxStatus);
+}
+
+// The sandbox engine's assets under its root (MICROPOD_SANDBOX_ROOT).
+message SandboxStatus {
+  string root = 1;
+  // env, standalone, hvf, apple_container or missing.
+  string kernel_origin = 2;
+  optional string kernel_path = 3;
+  // What `sandbox setup` staged a standalone kernel from.
+  SandboxKernelSource kernel_source = 4;
+  // The digest-pinned vminit sandboxes boot.
+  string vminit = 5;
+  string content_origin = 6;
+  string content_path = 7;
+  repeated string initfs_paths = 8;
+  bool standalone_ready = 9;
+}
+
+message SandboxKernelSource {
+  // hvf or explicit.
+  string origin = 1;
+  string path = 2;
+  string sha256 = 3;
 }
 
 message UpdateSandboxSecretRequest {

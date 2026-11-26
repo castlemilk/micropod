@@ -11,10 +11,11 @@
 //	resp, err := client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
 //
 // The API is grouped into per-domain services (ContainerService,
-// ImageService, …); Client embeds all eight so every RPC is reachable as a
-// promoted method — client.ListContainers, client.ComposeUp, etc. Use the
-// generated per-service clients directly (micropodv1connect.New*Client)
-// when you only need one domain.
+// ImageService, …, CacheService, RigService, TelemetryService); Client embeds
+// every one so each RPC is reachable as a promoted method —
+// client.ListContainers, client.GetCacheStatus, client.ControlMachine, etc.
+// Use the generated per-service clients directly
+// (micropodv1connect.New*Client) when you only need one domain.
 //
 // Order matters: pass WithTimeout before WithRetry so each retry shares one
 // deadline (connect-go applies the first interceptor outermost). Reversed,
@@ -46,6 +47,9 @@ type Client struct {
 	micropodv1connect.K8SServiceClient
 	micropodv1connect.MachineServiceClient
 	micropodv1connect.SandboxServiceClient
+	micropodv1connect.CacheServiceClient
+	micropodv1connect.RigServiceClient
+	micropodv1connect.TelemetryServiceClient
 }
 
 type config struct {
@@ -128,5 +132,8 @@ func NewClient(baseURL string, opts ...Option) *Client {
 		K8SServiceClient:       micropodv1connect.NewK8SServiceClient(cfg.httpClient, baseURL, clientOpts...),
 		MachineServiceClient:   micropodv1connect.NewMachineServiceClient(cfg.httpClient, baseURL, clientOpts...),
 		SandboxServiceClient:   micropodv1connect.NewSandboxServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		CacheServiceClient:     micropodv1connect.NewCacheServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		RigServiceClient:       micropodv1connect.NewRigServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		TelemetryServiceClient: micropodv1connect.NewTelemetryServiceClient(cfg.httpClient, baseURL, clientOpts...),
 	}
 }

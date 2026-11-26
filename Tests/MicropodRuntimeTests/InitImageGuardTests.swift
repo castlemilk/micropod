@@ -163,6 +163,36 @@ final class InitImageGuardTests: XCTestCase {
         count = await reads.value
         XCTAssertEqual(count, 5, "an expired read is taken again")
     }
+
+    /// Ping asked a stopped runtime for vminit.image on every call (one
+    /// `container system property list` child each): a kept failure, and
+    /// concurrent callers sharing one read, make that impossible.
+    func testAKeptFailureIsReadOncePerFailureTTLAndConcurrentCallersShareARead() async {
+        let reads = DefaultReads()
+        let failing = RuntimeDefaultInitImage(ttl: .seconds(300), failureTTL: .seconds(30)) {
+            await reads.count()
+            try await Task.sleep(for: .milliseconds(20))
+            throw MicropodError.runtimeNotRunning
+        }
+        await withTaskGroup(of: String?.self) { group in
+            for _ in 0..<50 { group.addTask { await failing.value() } }
+            for await value in group { XCTAssertNil(value) }
+        }
+        for _ in 0..<50 {
+            let value = await failing.value()
+            XCTAssertNil(value)
+        }
+        let count = await reads.value
+        XCTAssertEqual(count, 1, "one read across 100 calls inside the failure TTL")
+
+        let empty = RuntimeDefaultInitImage(ttl: .seconds(300), failureTTL: .seconds(30)) {
+            await reads.count()
+            return nil
+        }
+        for _ in 0..<10 { _ = await empty.value() }
+        let after = await reads.value
+        XCTAssertEqual(after, 2, "an empty answer is kept like a failure")
+    }
 }
 
 private actor DefaultReads {

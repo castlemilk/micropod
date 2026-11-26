@@ -75,53 +75,79 @@ public struct SystemService: SystemServing {
     private let client: ContainerCLIClient
     /// Reuse a version only while the installed executable is unchanged.
     private let versionCache = CLIVersionCache()
+    /// The version a package install recorded for the CLI, when the file is
+    /// still the one it wrote (`InstalledCLIVersion`): read before running
+    /// `container system version`.
+    private let installedVersion: @Sendable (URL) -> String?
 
-    public init(client: ContainerCLIClient) {
+    public init(
+        client: ContainerCLIClient,
+        installedVersion: @escaping @Sendable (URL) -> String? = { InstalledCLIVersion.version(of: $0) }
+    ) {
         self.client = client
+        self.installedVersion = installedVersion
     }
 
     public func dependencyStatus(
         backend: String = "cli",
         nativeReadiness: @Sendable () async -> RuntimeDependencyStatus.NativeReadiness = { .unobserved }
     ) async -> RuntimeDependencyStatus {
+        await dependencyReport(backend: backend, nativeReadiness: nativeReadiness).dependency
+    }
+
+    /// `dependencyStatus`, with the service status it was judged from (nil
+    /// when there was none to read, or reading it failed).
+    public func dependencyReport(
+        backend: String = "cli",
+        nativeReadiness: @Sendable () async -> RuntimeDependencyStatus.NativeReadiness = { .unobserved }
+    ) async -> (dependency: RuntimeDependencyStatus, status: Micropod_V1_SystemStatus?) {
         if client.usesIsolatedTransport {
             do {
                 let bytes = try await IsolatedRuntimeTransport.shared.request(
                     path: "/v1/managed/dependency", body: Data("{}".utf8), timeout: .seconds(10))
-                return try JSONDecoder().decode(RuntimeDependencyStatus.self, from: bytes)
+                return (try JSONDecoder().decode(RuntimeDependencyStatus.self, from: bytes), nil)
             } catch {
                 if let probe = try? await IsolatedRuntimeClient().call(.init(action: .probe)) {
                     var system = Micropod_V1_SystemStatus()
                     system.status = probe.nativeState == "stopped" ? "stopped" : "running"
                     system.cliVersion = (probe.selection ?? probe.pendingSelection)?.version ?? ""
                     system.apiServerVersion = probe.nativeVersion ?? ""
-                    return RuntimeDependencyStatus(
-                        cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
-                        status: probe.nativeState == nil ? nil : system,
-                        statusFailed: probe.nativeState == nil && probe.isTerminal, backend: "managed",
-                        native: .unavailable,
-                        starting: !probe.isTerminal && probe.action != .stop,
-                        stopping: !probe.isTerminal && probe.action == .stop)
+                    let status = probe.nativeState == nil ? nil : system
+                    return (
+                        RuntimeDependencyStatus(
+                            cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
+                            status: status,
+                            statusFailed: probe.nativeState == nil && probe.isTerminal, backend: "managed",
+                            native: .unavailable,
+                            starting: !probe.isTerminal && probe.action != .stop,
+                            stopping: !probe.isTerminal && probe.action == .stop), status
+                    )
                 }
-                return RuntimeDependencyStatus(
-                    cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
-                    status: nil, statusFailed: true, backend: "managed")
+                return (
+                    RuntimeDependencyStatus(
+                        cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
+                        status: nil, statusFailed: true, backend: "managed"), nil
+                )
             }
         }
         let path = client.executableURL.path
         let available = client.isAvailable()
         guard available, RuntimeDependencyStatus.hostSupported else {
-            return RuntimeDependencyStatus(cliAvailable: available, cliPath: path, status: nil, backend: backend)
+            return (RuntimeDependencyStatus(cliAvailable: available, cliPath: path, status: nil, backend: backend), nil)
         }
         do {
             let status = try await status()
             let native = status.status == "running" ? await nativeReadiness() : .unobserved
-            return RuntimeDependencyStatus(
-                cliAvailable: true, cliPath: path, status: status, backend: backend, native: native)
+            return (
+                RuntimeDependencyStatus(
+                    cliAvailable: true, cliPath: path, status: status, backend: backend, native: native), status
+            )
         } catch {
             // Do not expose raw process output/environment in rig diagnostics.
-            return RuntimeDependencyStatus(
-                cliAvailable: true, cliPath: path, status: nil, statusFailed: true, backend: backend)
+            return (
+                RuntimeDependencyStatus(
+                    cliAvailable: true, cliPath: path, status: nil, statusFailed: true, backend: backend), nil
+            )
         }
     }
 
@@ -135,11 +161,19 @@ public struct SystemService: SystemServing {
         async let version = cliVersion()
         // Exit 1 is normal for a stopped service, but its JSON must actually
         // say that. An empty/error response must never trigger auto-start.
-        let output = try await client.run(
-            ContainerCommandFactory.systemStatus(), timeout: .seconds(15), acceptingExitCodes: [0, 1])
+        let response: SystemStatusResponse
+        do {
+            let output = try await client.run(
+                ContainerCommandFactory.systemStatus(), timeout: .seconds(15), acceptingExitCodes: [0, 1])
+            response = try MicropodJSON.decode(
+                SystemStatusResponse.self, from: Data(output.utf8), context: "system status")
+        } catch MicropodError.runtimeNotRunning {
+            // A gated client spawned nothing: its gate's XPC probe found the
+            // apiserver's mach service unregistered, the fact the CLI itself
+            // reports as `{"status":"unregistered"}`.
+            response = SystemStatusResponse(status: "unregistered")
+        }
         let cli = try await version
-        let response = try MicropodJSON.decode(
-            SystemStatusResponse.self, from: Data(output.utf8), context: "system status")
         var status = ModelMapper.systemStatus(from: response, cliVersion: cli)
         if Self.stoppedStatusValues.contains(status.status) {
             status.status = "stopped"
@@ -155,6 +189,10 @@ public struct SystemService: SystemServing {
         let executable = client.executableURL
         let identity = CLIExecutableIdentity.read(executable)
         if let identity, let cached = versionCache.get(for: identity) { return cached }
+        if let identity, let installed = installedVersion(executable) {
+            versionCache.set(installed, for: identity)
+            return installed
+        }
         let output = try await ContainerCLIClient(executableURL: executable).run(
             ContainerCommandFactory.systemVersion(), timeout: .seconds(15))
         let entries = try MicropodJSON.decodeArray(

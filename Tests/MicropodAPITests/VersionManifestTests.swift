@@ -62,20 +62,21 @@ final class VersionManifestTests: XCTestCase {
             dedicatedRequest: upstream ?? { _, _, _ in throw MicropodError.message("no dedicated runtime") })
     }
 
-    private func handlers(_ environment: VersionEnvironment) async -> APIHandlers {
+    private func handlers(_ environment: VersionEnvironment, defaultRuntime: String? = nil) async -> APIHandlers {
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
         let services = await RuntimeBackendResolver.resolveApple(
             client: client, environment: ["MICROPOD_RUNTIME": "cli"])
         // Apple's runtime is the default here whatever this Mac's
         // ~/.micropod/runtimes.json says: with hvf as the default, Ping and
         // GetSystem describe the hvf machine instead (HVFReadinessAPITests).
+        var registryEnvironment = [
+            "MICROPOD_RUNTIMES_CONFIG": root.appendingPathComponent("runtimes.json").path,
+            "MICROPOD_HVF_ROOT": root.appendingPathComponent("hvf").path,
+            "DOCKER_HOST": "unix:///nonexistent.sock", "MICROPOD_HVF_AUTOSTART": "0",
+        ]
+        registryEnvironment["MICROPOD_DEFAULT_RUNTIME"] = defaultRuntime
         let engines = EngineRegistry(
-            environment: [
-                "MICROPOD_RUNTIMES_CONFIG": root.appendingPathComponent("runtimes.json").path,
-                "MICROPOD_HVF_ROOT": root.appendingPathComponent("hvf").path,
-                "DOCKER_HOST": "unix:///nonexistent.sock",
-            ],
-            sandbox: SandboxEngine(root: root.appendingPathComponent("sandbox")))
+            environment: registryEnvironment, sandbox: SandboxEngine(root: root.appendingPathComponent("sandbox")))
         return APIHandlers(
             client: client, system: SystemService(client: client), images: ImageService(client: client),
             networks: NetworkService(client: client), compose: ComposeService(client: client),
@@ -149,6 +150,63 @@ final class VersionManifestTests: XCTestCase {
         XCTAssertEqual(ping.updateState.scope, "desktop")
         XCTAssertEqual(ping.updateState.currentVersion, "0.13.6")
         XCTAssertEqual(ping.updateState.targetVersion, "0.13.7")
+    }
+
+    /// Ping read the host's files, sockets and whole process table on every
+    /// call (~7 ms; the B25 Ping p95 was 9.7 ms against a 1 ms target): the
+    /// host components are now kept for their 2 s bound.
+    func testPingObservesTheHostAtMostOncePerItsBound() async throws {
+        var environment = try environment()
+        let helperScans = Tally()
+        environment.helperPrograms = {
+            helperScans.add()
+            return []
+        }
+        let api = await handlers(environment, defaultRuntime: "hvf")
+        let clock = ContinuousClock()
+        let started = clock.now
+        for _ in 0..<50 {
+            let ping = try await call(api, "Ping", as: Micropod_V1_PingResponse.self)
+            XCTAssertEqual(ping.components.map(\.name), MicropodComponent.allCases.map(\.rawValue) + ["hvf-machine"])
+        }
+        let elapsed = clock.now - started
+        // One observation, plus at most one background refresh per second.
+        XCTAssertLessThanOrEqual(helperScans.value, 1 + Int(elapsed / .seconds(1)), "\(elapsed)")
+        XCTAssertLessThan(helperScans.value, 5)
+    }
+
+    /// The `vminit.image` read (`container system property list`) is not
+    /// started while Apple's runtime is known to be down, and is again once
+    /// it is not.
+    func testPingDoesNotAskADownRuntimeForItsInitImage() async throws {
+        var environment = try environment()
+        let reads = Tally()
+        let down = Flag(true)
+        environment.vminitImage = {
+            reads.add()
+            return "ghcr.io/apple/containerization/vminit:0.42.0"
+        }
+        environment.appleRuntimeKnownDown = { down.value }
+        let api = await handlers(environment, defaultRuntime: "hvf")
+        for _ in 0..<10 {
+            let ping = try await call(api, "Ping", as: Micropod_V1_PingResponse.self)
+            XCTAssertEqual(try component(.vminit, in: ping.components).state, "unknown")
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(reads.value, 0, "a down runtime is not asked")
+
+        down.value = false
+        _ = try await call(api, "Ping", as: Micropod_V1_PingResponse.self)
+        let deadline = ContinuousClock.now + .seconds(5)
+        while reads.value == 0, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(reads.value, 1)
+        var kept = ""
+        while kept.isEmpty, ContinuousClock.now < deadline {
+            kept = try component(.vminit, in: try await call(api, "Ping", as: Micropod_V1_PingResponse.self).components)
+                .version
+            if kept == "unknown" { kept = "" }
+        }
+        XCTAssertEqual(kept, "0.42.0")
     }
 
     func testPingWithoutTheDesktopAppSaysUnknownInsteadOfCurrent() async throws {
@@ -499,5 +557,27 @@ final class VersionManifestTests: XCTestCase {
             "transaction": ["phase": "aborted", "targetVersion": "0.13.7"],
         ])
         XCTAssertEqual(settled.updateState.kind, .current)
+    }
+}
+
+/// A thread-safe call count.
+final class Tally: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func add() { lock.withLock { count += 1 } }
+    var value: Int { lock.withLock { count } }
+}
+
+/// A thread-safe boolean.
+final class Flag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: Bool
+
+    init(_ value: Bool) { current = value }
+
+    var value: Bool {
+        get { lock.withLock { current } }
+        set { lock.withLock { current = newValue } }
     }
 }

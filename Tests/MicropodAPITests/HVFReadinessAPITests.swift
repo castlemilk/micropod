@@ -66,8 +66,15 @@ final class HVFReadinessAPITests: XCTestCase {
         )
     }
 
-    private func handlers(_ registry: EngineRegistry) -> APIHandlers {
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
+    private func handlers(_ registry: EngineRegistry, helperScans: Tally? = nil, cli: URL? = nil) -> APIHandlers {
+        let client = ContainerCLIClient(executableURL: cli ?? URL(fileURLWithPath: "/usr/bin/false"))
+        var versionEnvironment = VersionEnvironment.live(client: client)
+        if let helperScans {
+            versionEnvironment.helperPrograms = {
+                helperScans.add()
+                return []
+            }
+        }
         let services = RuntimeServices(
             kind: .cli, containers: NoAppleContainers(), logs: LogStreamer(client: client),
             stats: StatsSampler(client: client), volumes: VolumeService(client: client), api: nil, health: nil,
@@ -77,7 +84,7 @@ final class HVFReadinessAPITests: XCTestCase {
             client: client, system: SystemService(client: client), images: ImageService(client: client),
             networks: NetworkService(client: client), compose: ComposeService(client: client),
             runtime: RuntimeHolder(initial: services, resolve: { services }, managedSelectionPresent: { false }),
-            engineRegistry: registry)
+            versionEnvironment: versionEnvironment, engineRegistry: registry)
     }
 
     private func call<M: Message>(_ api: APIHandlers, _ method: String, _ request: some Message, as type: M.Type)
@@ -128,6 +135,64 @@ final class HVFReadinessAPITests: XCTestCase {
         let component = try XCTUnwrap(gone.components.first { $0.name == "hvf-machine" })
         XCTAssertEqual(component.state, "stopped")
         XCTAssertTrue(component.detail.hasPrefix("not-ready: "), component.detail)
+    }
+
+    /// The host components Ping keeps for 2 s never include readiness: with
+    /// them warm, the very next Ping after the guest goes away says so.
+    func testReadinessFlipsOnTheNextPingWhileTheHostComponentsAreKept() async throws {
+        try install()
+        let guest = try serve { _ in (404, Data()) }
+        let scans = Tally()
+        let api = handlers(registry(defaultRuntime: "hvf"), helperScans: scans)
+        for _ in 0..<5 {
+            let live = try await ping(api)
+            XCTAssertEqual(live.status, "running")
+            XCTAssertEqual(live.components.first { $0.name == "hvf-machine" }?.state, "running")
+        }
+        XCTAssertEqual(scans.value, 1, "the host was observed once")
+
+        guest.stop()
+        let deadline = ContinuousClock.now + .seconds(5)
+        while FileManager.default.fileExists(atPath: layout.dockerSocket.path) {
+            guard ContinuousClock.now < deadline else { return XCTFail("the fake guest never closed its socket") }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let gone = try await ping(api)
+        XCTAssertEqual(gone.status, "not-ready")
+        XCTAssertEqual(gone.components.first { $0.name == "hvf-machine" }?.state, "stopped")
+        XCTAssertEqual(scans.value, 1, "the flip came from live readiness, not a new host observation")
+        let system = try await call(api, "GetSystem", Micropod_V1_Empty(), as: Micropod_V1_SystemSnapshot.self)
+        XCTAssertEqual(system.status.status, "not-ready")
+    }
+
+    /// REST `GET /v1/system` always asked Apple's runtime (`container system
+    /// status`, and its `launchctl` grandchild): two children per call in
+    /// B25. With hvf the default it answers from the machine, like GetSystem.
+    func testRESTSystemWithAnHVFDefaultReportsTheMachineWithoutAChild() async throws {
+        try install()
+        _ = try serve { _ in (404, Data()) }
+        let log = root.appendingPathComponent("cli.log")
+        let cli = root.appendingPathComponent("bin/container")
+        try FileManager.default.createDirectory(at: cli.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("#!/bin/sh\necho \"$*\" >> \"\(log.path)\"\nexit 1\n".utf8).write(to: cli)
+        XCTAssertEqual(chmod(cli.path, 0o755), 0)
+        let api = handlers(registry(defaultRuntime: "hvf"), cli: cli)
+
+        let response = await api.handle(
+            HTTPRequest(method: .get, path: "/v1/system", query: [:], body: Data(), headers: [:]))
+        guard case .json(200, let body) = response else { return XCTFail("unexpected \(response)") }
+        XCTAssertEqual(body["status"] as? String, "running")
+        XCTAssertEqual(body["runtimeBackend"] as? String, "hvf")
+        XCTAssertEqual(body["backend"] as? String, "hvf")
+        XCTAssertEqual(body["installRoot"] as? String, root.path)
+        let features = try XCTUnwrap(body["features"] as? [String])
+        XCTAssertTrue(features.contains("caches-v2"), "\(features)")
+        for key in ["cliVersion", "apiServerVersion", "appRoot", "diskUsage"] {
+            XCTAssertNotNil(body[key], "the REST keys stay: \(key)")
+        }
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: log.path),
+            "no `container` child: \((try? String(contentsOf: log, encoding: .utf8)) ?? "")")
     }
 
     func testADefaultHVFMachineThatIsNotInstalledIsNotReported() async throws {

@@ -37,7 +37,11 @@ type Image struct {
 	// Total unpacked size in bytes.
 	SizeBytes uint64 `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
 	// Per-platform variants of this image.
-	Variants      []*ImageVariant `protobuf:"bytes,6,rep,name=variants,proto3" json:"variants,omitempty"`
+	Variants []*ImageVariant `protobuf:"bytes,6,rep,name=variants,proto3" json:"variants,omitempty"`
+	// The engine that keeps this image when it is not Apple's (docker, ci,
+	// hvf); empty for Apple's runtime. Set by ListImages, which merges every
+	// enabled engine.
+	Runtime       string `protobuf:"bytes,7,opt,name=runtime,proto3" json:"runtime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -112,6 +116,13 @@ func (x *Image) GetVariants() []*ImageVariant {
 		return x.Variants
 	}
 	return nil
+}
+
+func (x *Image) GetRuntime() string {
+	if x != nil {
+		return x.Runtime
+	}
+	return ""
 }
 
 // One platform variant of a multi-arch image.
@@ -237,7 +248,10 @@ type PullImageRequest struct {
 	// Image reference to pull, e.g. "alpine:3.20" or a full registry path.
 	Reference string `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
 	// Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
-	Platform      *string `protobuf:"bytes,2,opt,name=platform,proto3,oneof" json:"platform,omitempty"`
+	Platform *string `protobuf:"bytes,2,opt,name=platform,proto3,oneof" json:"platform,omitempty"`
+	// The engine to pull into (apple, docker, ci, hvf). Unset pulls into the
+	// default runtime.
+	Runtime       *string `protobuf:"bytes,3,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -282,6 +296,13 @@ func (x *PullImageRequest) GetReference() string {
 func (x *PullImageRequest) GetPlatform() string {
 	if x != nil && x.Platform != nil {
 		return *x.Platform
+	}
+	return ""
+}
+
+func (x *PullImageRequest) GetRuntime() string {
+	if x != nil && x.Runtime != nil {
+		return *x.Runtime
 	}
 	return ""
 }
@@ -408,7 +429,7 @@ var File_micropod_v1_image_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_image_proto_rawDesc = "" +
 	"\n" +
-	"\x17micropod/v1/image.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\xe8\x02\n" +
+	"\x17micropod/v1/image.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\x90\x03\n" +
 	"\x05Image\x12&\n" +
 	"\x02id\x18\x01 \x01(\tB\x16\xbaG\x13:\x11\x12\x0f'sha256:1c4a8f'R\x02id\x12=\n" +
 	"\x05names\x18\x02 \x03(\tB'\xbaG$:\"\x12 ['alpine:3.20', 'alpine:latest']R\x05names\x12H\n" +
@@ -417,18 +438,22 @@ const file_micropod_v1_image_proto_rawDesc = "" +
 	"\x06digest\x18\x04 \x01(\tB0\xbaG-:+\x12)'sha256:8e24b3e4a1f2c9d8e7f6a5b4c3d2e1f0'R\x06digest\x12-\n" +
 	"\n" +
 	"size_bytes\x18\x05 \x01(\x04B\x0e\xbaG\v:\t\x12\a3800000R\tsizeBytes\x125\n" +
-	"\bvariants\x18\x06 \x03(\v2\x19.micropod.v1.ImageVariantR\bvariants\"\xb2\x01\n" +
+	"\bvariants\x18\x06 \x03(\v2\x19.micropod.v1.ImageVariantR\bvariants\x12&\n" +
+	"\aruntime\x18\a \x01(\tB\f\xbaG\t:\a\x12\x05'hvf'R\aruntime\"\xb2\x01\n" +
 	"\fImageVariant\x12\x1e\n" +
 	"\x02os\x18\x01 \x01(\tB\x0e\xbaG\v:\t\x12\a'linux'R\x02os\x122\n" +
 	"\farchitecture\x18\x02 \x01(\tB\x0e\xbaG\v:\t\x12\a'arm64'R\farchitecture\x12%\n" +
 	"\avariant\x18\x03 \x01(\tB\v\xbaG\b:\x06\x12\x04'v8'R\avariant\x12'\n" +
 	"\x0fmanifest_digest\x18\x04 \x01(\tR\x0emanifestDigest\"@\n" +
 	"\x12ListImagesResponse\x12*\n" +
-	"\x06images\x18\x01 \x03(\v2\x12.micropod.v1.ImageR\x06images\"\x94\x01\n" +
+	"\x06images\x18\x01 \x03(\v2\x12.micropod.v1.ImageR\x06images\"\xcd\x01\n" +
 	"\x10PullImageRequest\x12<\n" +
 	"\treference\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x125\n" +
-	"\bplatform\x18\x02 \x01(\tB\x14\xbaG\x11:\x0f\x12\r'linux/arm64'H\x00R\bplatform\x88\x01\x01B\v\n" +
-	"\t_platform\"\xb7\x01\n" +
+	"\bplatform\x18\x02 \x01(\tB\x14\xbaG\x11:\x0f\x12\r'linux/arm64'H\x00R\bplatform\x88\x01\x01\x12+\n" +
+	"\aruntime\x18\x03 \x01(\tB\f\xbaG\t:\a\x12\x05'hvf'H\x01R\aruntime\x88\x01\x01B\v\n" +
+	"\t_platformB\n" +
+	"\n" +
+	"\b_runtime\"\xb7\x01\n" +
 	"\fProgressLine\x125\n" +
 	"\x04line\x18\x01 \x01(\tB!\xbaG\x1e:\x1c\x12\x1a'Downloading layer 3 of 5'R\x04line\x12#\n" +
 	"\x05stage\x18\x02 \x01(\x05B\b\xbaG\x05:\x03\x12\x013H\x00R\x05stage\x88\x01\x01\x120\n" +
