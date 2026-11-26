@@ -315,6 +315,52 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(again, exit)
     }
 
+    /// `/bin/sleep 5` stopped with SIGSTOP. Should the test fail, the
+    /// process is continued after 3 s and exits 0 on its own, so nothing is
+    /// left behind and the failure shows as status 0.
+    private func stoppedSleep(_ log: LogRecorder) async throws -> (any HVFVMMProcess, Task<Void, any Error>) {
+        let launcher = HVFDarwinLauncher(
+            consoleLog: layout.consoleLog, maxBytes: 1 << 20, environment: [:], report: { log.append($0) })
+        let process = try launcher.launch(executable: URL(fileURLWithPath: "/bin/sleep"), arguments: ["5"])
+        let pid = process.pid
+        XCTAssertEqual(kill(pid, SIGSTOP), 0)
+        try await waitFor("the waiter to see the stop") { log.lines.contains { $0.contains("is stopped") } }
+        let resume = Task {
+            try await Task.sleep(for: .seconds(3))
+            kill(pid, SIGCONT)
+        }
+        return (process, resume)
+    }
+
+    func testAStoppedAndContinuedProcessIsStillSignalled() async throws {
+        // Darwin's waitid(WEXITED) also returns for a stopped child: taken for
+        // an exit, every later signal (machine stop's SIGTERM, SIGKILL) was
+        // dropped and the VMM outlived the stop.
+        let log = LogRecorder()
+        let (process, resume) = try await stoppedSleep(log)
+        defer { resume.cancel() }
+        XCTAssertEqual(kill(process.pid, SIGCONT), 0)
+        try await waitFor("the waiter to see it run again") { log.lines.contains { $0.contains("was continued") } }
+        process.signal(SIGTERM)
+        let exit = await process.waitForExit()
+        XCTAssertEqual(exit.signal, SIGTERM, "a stop and continue is not an exit: \(exit)")
+    }
+
+    func testAStoppedProcessIsEndedByTermAndKill() async throws {
+        let log = LogRecorder()
+        let (frozen, resume) = try await stoppedSleep(log)
+        defer { resume.cancel() }
+        frozen.signal(SIGTERM)  // continued along with it, so it acts on it now
+        let terminated = await frozen.waitForExit()
+        XCTAssertEqual(terminated.signal, SIGTERM, "\(terminated)")
+
+        let (stillFrozen, resumeAgain) = try await stoppedSleep(LogRecorder())
+        defer { resumeAgain.cancel() }
+        stillFrozen.signal(SIGKILL)
+        let killed = await stillFrozen.waitForExit()
+        XCTAssertEqual(killed.signal, SIGKILL, "\(killed)")
+    }
+
     func testRotatingLogKeepsAtMostTwoCaps() throws {
         let url = root.appendingPathComponent("logs/x.log")
         let log = try HVFRotatingLog(url: url, maxBytes: 12)
