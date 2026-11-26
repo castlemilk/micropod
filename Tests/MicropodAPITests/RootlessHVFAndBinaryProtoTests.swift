@@ -39,7 +39,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         XCTAssertNotEqual(decoded.cloneMode, .unspecified)
     }
 
-    func testUnixSocketAcceptsBinaryProtoWithoutLoopbackPortHost() async throws {
+    func testOwnerSocketAcceptsBinaryProtoWithoutLoopbackPortHost() async throws {
         let dir = URL(fileURLWithPath: "/tmp/mp-sock-\(UUID().uuidString.prefix(8))")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -47,7 +47,7 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
 
         let api = await makeHandlers()
         let server = HTTPServer(port: 45454, handler: api.handle)
-        try await server.startPrivateSocket(path: sockPath)
+        try await server.startPrivateSocket(path: sockPath, admission: .ownerOnly)
         defer { server.stop() }
 
         let response: Data = try await withCheckedThrowingContinuation { done in
