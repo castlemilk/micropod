@@ -157,6 +157,15 @@ var buildkitRefWait = 10 * time.Second
 // has returned, for a client's trailing Status of it.
 const buildkitRefGrace = time.Minute
 
+// What a delegated socket can make the engine keep is bounded: its build
+// refs are at most buildkitMaxRef bytes (BuildKit's own are 25 characters),
+// and it holds at most buildkitRefsPerSocket of them in dockerBuildRefs (its
+// builds that run, or ended less than buildkitRefGrace ago).
+const (
+	buildkitMaxRef        = 64
+	buildkitRefsPerSocket = 256
+)
+
 // delegatedBuildkitCall reports whether a delegated socket passes method
 // through as it is: the machine's cache, workers and version, a session the
 // client serves, and the health check.
@@ -175,36 +184,59 @@ func delegatedBuildkitCall(method string) bool {
 type dockerBuildRefs struct {
 	mu      sync.Mutex
 	viewers map[string]string
+	// held counts each delegated socket's refs in viewers.
+	held map[string]int
 	// claimed is closed and dropped when a build is recorded, for waiters.
 	claimed chan struct{}
 }
 
 // claim records ref as viewer's build for as long as its Solve runs (and
-// buildkitRefGrace after: call the returned release when it returns); false
-// when ref is another socket's build.
-func (b *dockerBuildRefs) claim(ref, viewer string) (release func(), ok bool) {
+// buildkitRefGrace after: call the returned release when it returns). It
+// refuses a ref that is another socket's build, and on a delegated socket
+// one past its buildkitRefsPerSocket.
+func (b *dockerBuildRefs) claim(ref, viewer string) (release func(), err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if held, taken := b.viewers[ref]; taken && held != viewer {
-		return nil, false
+	held, taken := b.viewers[ref]
+	if taken && held != viewer {
+		return nil, status.Error(codes.AlreadyExists, "the build ref is another build's")
 	}
-	if b.viewers == nil {
-		b.viewers = map[string]string{}
+	if !taken {
+		if viewer != "" && b.held[viewer] >= buildkitRefsPerSocket {
+			return nil, status.Errorf(codes.ResourceExhausted,
+				"this Docker socket has %d builds running or just finished; start the next once one has ended", buildkitRefsPerSocket)
+		}
+		if b.viewers == nil {
+			b.viewers = map[string]string{}
+		}
+		if b.held == nil {
+			b.held = map[string]int{}
+		}
+		b.viewers[ref] = viewer
+		if viewer != "" {
+			b.held[viewer]++
+		}
+		if b.claimed != nil {
+			close(b.claimed)
+			b.claimed = nil
+		}
 	}
-	b.viewers[ref] = viewer
-	if b.claimed != nil {
-		close(b.claimed)
-		b.claimed = nil
+	return func() { time.AfterFunc(buildkitRefGrace, func() { b.forget(ref, viewer) }) }, nil
+}
+
+// forget drops ref, when it is still viewer's build.
+func (b *dockerBuildRefs) forget(ref, viewer string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if held, known := b.viewers[ref]; !known || held != viewer {
+		return
 	}
-	return func() {
-		time.AfterFunc(buildkitRefGrace, func() {
-			b.mu.Lock()
-			defer b.mu.Unlock()
-			if b.viewers[ref] == viewer {
-				delete(b.viewers, ref)
-			}
-		})
-	}, true
+	delete(b.viewers, ref)
+	if viewer != "" {
+		if b.held[viewer]--; b.held[viewer] <= 0 {
+			delete(b.held, viewer)
+		}
+	}
 }
 
 // owns reports whether ref is viewer's build, waiting up to wait for its
@@ -327,18 +359,17 @@ func buildkitMetadata(md metadata.MD) metadata.MD {
 }
 
 func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest) (*control.SolveResponse, error) {
-	if s.builds != nil {
-		if s.viewer != "" && req.GetRef() == "" {
+	ref := req.GetRef()
+	if s.builds != nil && s.viewer != "" {
+		if ref == "" {
 			return nil, status.Error(codes.InvalidArgument, "a build on a container's Docker socket needs its own ref")
 		}
-		if req.GetRef() != "" {
-			release, ok := s.builds.claim(req.GetRef(), s.viewer)
-			if !ok {
-				return nil, status.Error(codes.AlreadyExists, "the build ref is another build's")
-			}
-			defer release()
+		if len(ref) > buildkitMaxRef {
+			return nil, status.Errorf(codes.InvalidArgument, "a build ref on a container's Docker socket is at most %d bytes", buildkitMaxRef)
 		}
 	}
+	// What the proxy refuses, it refuses before it records the build, so a
+	// refused Solve holds no ref: every claimed one reaches buildkitd.
 	tags, err := dockerImageExporter(&req.ExporterDeprecated, &req.ExporterAttrsDeprecated)
 	if err != nil {
 		return nil, err
@@ -356,6 +387,13 @@ func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest)
 				tags = current
 			}
 		}
+	}
+	if s.builds != nil && ref != "" {
+		release, err := s.builds.claim(ref, s.viewer)
+		if err != nil {
+			return nil, err
+		}
+		defer release()
 	}
 	md, _ := metadata.FromIncomingContext(ctx)
 	var header, trailer metadata.MD

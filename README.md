@@ -372,7 +372,9 @@ start does the same for anything whose creator is gone; what cannot be removed a
 cp` still holds, is tried again for about a quarter of an hour). Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
 socket changes them for every job, which is one more reason only a trusted container gets one. A build itself is the
 job's: on that socket another job's build's progress and frontend calls are not there, and the machine's build history
-(`docker buildx history`: every build's args, logs and results) and its content are refused. An untrusted or read-only
+(`docker buildx history`: every build's args, logs and results) and its content are refused. A build ref there is at
+most 64 bytes, and one socket has at most 256 builds running or finished in the last minute (more is refused,
+`ResourceExhausted`). An untrusted or read-only
 container, a container created from inside another, or one an untrusted default leaves unlabelled is refused such a bind
 at create (HTTP 403); the Testcontainers reaper still gets only its session's cleanup socket, and one created through a
 container's socket reaps only what that container created. As under Docker, every container has an empty `/.dockerenv`,

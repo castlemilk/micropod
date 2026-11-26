@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -414,6 +415,67 @@ func TestExtraRoutesAndVersionCapabilities(t *testing.T) {
 	}
 	if !slices.Equal(engineCapabilities(true), []string{"caches", "buildkit", "grpc-build"}) || !slices.Equal(engineCapabilities(false), []string{"caches"}) {
 		t.Fatal("capability lists changed")
+	}
+}
+
+// What a delegated socket can make the engine keep of its builds is bounded:
+// a Solve the proxy refuses records no build (and so reaches no build's
+// progress), a ref longer than buildkitMaxRef is refused before anything,
+// and a socket holds at most buildkitRefsPerSocket refs, while another
+// socket and the host's are not held to its count.
+func TestADelegatedSocketsBuildRefsAreBounded(t *testing.T) {
+	old := buildkitRefWait
+	buildkitRefWait = 200 * time.Millisecond
+	t.Cleanup(func() { buildkitRefWait = old })
+	host := newProxyHarness(t)
+	a := control.NewControlClient(host.delegated(t, strings.Repeat("a", 64)).client(t))
+	b := control.NewControlClient(host.delegated(t, strings.Repeat("b", 64)).client(t))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	code := func(err error) codes.Code { st, _ := status.FromError(err); return st.Code() }
+	refs := func() int {
+		host.engine.builds.mu.Lock()
+		defer host.engine.builds.mu.Unlock()
+		return len(host.engine.builds.viewers)
+	}
+
+	bad := []*control.Exporter{{Type: "moby", Attrs: map[string]string{"name": "Bad Tag!"}}}
+	if _, err := a.Solve(ctx, &control.SolveRequest{Ref: "refused", Exporters: bad}); code(err) != codes.InvalidArgument {
+		t.Fatalf("a Solve with an invalid image name: %v", err)
+	}
+	if n := refs(); n != 0 {
+		t.Errorf("a refused Solve left %d build refs", n)
+	}
+	stream, err := a.Status(ctx, &control.StatusRequest{Ref: "refused"})
+	if err == nil {
+		_, err = stream.Recv()
+	}
+	if code(err) != codes.NotFound || host.up.count(control.Control_Status_FullMethodName) != 0 {
+		t.Errorf("the progress of a refused Solve's ref: %v", err)
+	}
+	if _, err := a.Solve(ctx, &control.SolveRequest{Ref: strings.Repeat("r", 1<<20)}); code(err) != codes.InvalidArgument {
+		t.Errorf("a Solve with a 1 MiB ref: %v", err)
+	}
+	if n := host.up.count(control.Control_Solve_FullMethodName); n != 0 || refs() != 0 {
+		t.Fatalf("refused Solves reached buildkitd %d times and left %d refs", n, refs())
+	}
+
+	for i := range buildkitRefsPerSocket {
+		if _, err := a.Solve(ctx, &control.SolveRequest{Ref: fmt.Sprintf("a-%d", i)}); err != nil {
+			t.Fatalf("build %d of a socket: %v", i, err)
+		}
+	}
+	if _, err := a.Solve(ctx, &control.SolveRequest{Ref: "one-too-many"}); code(err) != codes.ResourceExhausted {
+		t.Errorf("a socket's build past %d: %v", buildkitRefsPerSocket, err)
+	}
+	if _, err := b.Solve(ctx, &control.SolveRequest{Ref: "b-1"}); err != nil {
+		t.Errorf("another socket's build: %v", err)
+	}
+	if _, err := control.NewControlClient(host.client(t)).Solve(ctx, &control.SolveRequest{Ref: "host-1"}); err != nil {
+		t.Errorf("the host's build: %v", err)
+	}
+	if n := refs(); n != buildkitRefsPerSocket+2 {
+		t.Errorf("%d build refs recorded, want %d", n, buildkitRefsPerSocket+2)
 	}
 }
 
