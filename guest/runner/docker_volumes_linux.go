@@ -161,7 +161,10 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		if err == nil {
 			v, err = inspectVolume(opts.Name)
 		}
-		if err == nil && (!s.seesVolumeLocked(viewer, v) || viewer == "" && v.createdBy != "") {
+		if err == nil && !s.seesVolumeLocked(viewer, v) {
+			// Names are the machine's; another job's volume is not there.
+			err = fail(http.StatusConflict, "a volume named "+opts.Name+" is another job's. "+ownNamesAdvice)
+		} else if err == nil && viewer == "" && v.createdBy != "" {
 			// The host's socket does not adopt a volume a container's socket
 			// created (hostJoinLocked).
 			err = fail(http.StatusConflict, "a volume named "+opts.Name+" already exists")

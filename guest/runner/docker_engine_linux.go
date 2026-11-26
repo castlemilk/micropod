@@ -660,7 +660,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		}
 		if !seesContainer(viewerOf(ctx), c) {
 			// Names are the machine's; another job's container is not there.
-			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by another job's container.", "/"+c.Name))
+			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by another job's container. %s", "/"+c.Name, ownNamesAdvice))
 		}
 		return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", "/"+c.Name, c.ID))
 	}

@@ -387,6 +387,55 @@ func TestDelegatedCreateDoesNotTellAnotherJobsNetworkExists(t *testing.T) {
 	}
 }
 
+// Names are the machine's: a create through a delegated socket of a name
+// another job's container, network or volume holds is refused (409) while
+// that object is not there for the socket (404), and the refusal says so and
+// how jobs that run at once keep apart (a compose project name of their own).
+// The host's socket, which sees the object, gets Docker's own answer.
+func TestACreateOfANameAnotherJobHoldsSaysHowJobsKeepApart(t *testing.T) {
+	useVolumeStore(t)
+	s, owner, _, other, otherChild := delegatedFixture(t)
+	imageID := healthConfigDigest([]byte("{}"))
+	s.node = node{images: dockerHealthTestImages{id: imageID}, imageStore: dockerHealthTestImageStore{}}
+	s.healthImages = dockerImageHealthCache{byID: map[string]dockerImageHealth{imageID: {}}}
+	theirs := &workerNetwork{Name: "repo_default", ID: strings.Repeat("3", 64), Driver: "bridge", Subnet: netip.MustParsePrefix("10.90.3.0/24"), CreatedBy: other.ID}
+	s.namedNetworks[theirs.ID] = theirs
+	if err := ensureVolumeBy("repo_data", nil, other.ID); err != nil {
+		t.Fatal(err)
+	}
+	client := delegatedClient(t, s, owner.ID)
+	for _, path := range []string{"/networks/repo_default", "/volumes/repo_data", "/containers/" + otherChild.Name + "/json"} {
+		if code := getJSON(t, client, path, nil); code != http.StatusNotFound {
+			t.Errorf("GET %s on a delegated socket: %d, want 404", path, code)
+		}
+	}
+
+	mine := withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: owner.ID}), owner.ID)
+	refused := func(what string, err error) {
+		t.Helper()
+		var api apiError
+		if !errors.As(err, &api) || api.code != http.StatusConflict || !strings.Contains(api.message, "another job's") || !strings.Contains(api.message, "COMPOSE_PROJECT_NAME") {
+			t.Errorf("%s of another job's name: %v, want a 409 that says so and how jobs keep apart", what, err)
+		}
+	}
+	create := func(ctx context.Context, path, body string) error {
+		req := httptest.NewRequest("POST", path, strings.NewReader(body)).WithContext(ctx)
+		if path == "/networks/create" {
+			return s.createNetwork(httptest.NewRecorder(), req)
+		}
+		return s.volumes(httptest.NewRecorder(), req, "/create")
+	}
+	refused("network create", create(mine, "/networks/create", `{"Name":"repo_default"}`))
+	refused("volume create", create(mine, "/volumes/create", `{"Name":"repo_data"}`))
+	_, err := s.create(mine, dockerConfig{Image: "alpine", Labels: map[string]string{"io.micropod.cache": "off"}}, otherChild.Name)
+	refused("container create", err)
+
+	var api apiError
+	if err := create(context.Background(), "/networks/create", `{"Name":"repo_default"}`); !errors.As(err, &api) || api.message != "network name in use" {
+		t.Errorf("the host's network create of a name in use: %v", err)
+	}
+}
+
 // What a delegated socket's owner creates gets at most the owner's own CPU,
 // memory and process limits, whatever it asks (more, or none), and its
 // family at most delegatedFamilyContainers containers, so the host's limits

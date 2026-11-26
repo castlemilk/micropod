@@ -236,20 +236,25 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 	s.networkMu.Lock()
 	defer s.networkMu.Unlock()
 	s.mu.Lock()
-	exists := false
+	var exists error
 	for _, other := range s.namedNetworks {
-		if other.Name == n.Name {
-			exists = true
-			break
+		if other.Name != n.Name {
+			continue
 		}
+		exists = fail(409, "network name in use")
+		if !s.seesNetworkLocked(n.CreatedBy, other) {
+			// Names are the machine's; another job's network is not there.
+			exists = fail(409, "network name "+n.Name+" is in use by another job's network. "+ownNamesAdvice)
+		}
+		break
 	}
 	gone := s.socketOwnerGoneLocked(n.CreatedBy)
 	s.mu.Unlock()
 	if gone != nil {
 		return gone
 	}
-	if exists {
-		return fail(409, "network name in use")
+	if exists != nil {
+		return exists
 	}
 	if len(req.IPAM.Config) > 0 {
 		cfg := req.IPAM.Config[0]

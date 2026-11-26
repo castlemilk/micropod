@@ -354,7 +354,9 @@ gives, so never hand that socket to untrusted code. A trusted container the host
 `dockerSocket: true`) gets the machine's Docker API on a socket of its own, which is not the host's: through it the
 container sees and acts on only itself and the containers, networks and volumes it created there (plus the built-in
 networks, the networks it is attached to and the volumes it mounts, which it may mount in what it creates but not
-remove); every other job's are not there (404), a network or volume it created
+remove); every other job's are not there (404), though their names are still the machine's: creating a container,
+network or volume of a name another job's holds is refused (409), so two jobs of the same compose project that run at
+the same time on one machine need project names of their own (`-p` or `COMPOSE_PROJECT_NAME`); a network or volume it created
 there is no other container's to join or mount, not even through the machine's own socket (409), and the engine's own routes
 (`/micropod/*`: caches, metrics, traces, the BuildKit probe, which `GET /version` answers too) are refused (403). What it creates there is never more trusted than it is, gets
 at most the container's own CPU, memory and process limits (a request for more, or for none, is lowered to them; at

@@ -59,6 +59,13 @@ func (c *dockerContainer) family() string {
 	return c.ID
 }
 
+// ownNamesAdvice ends the 409 of a create whose name another job's container,
+// network or volume holds. Names are the machine's, and what another job
+// created is not there for this socket (404), so a compose project of the
+// same name in two jobs at once cannot find the other's to share it.
+const ownNamesAdvice = "Jobs that run at once on this machine need names of their own " +
+	"(for compose, a project name for each job: -p or COMPOSE_PROJECT_NAME)."
+
 // seesContainer reports whether viewer may see c. Call with s.mu held.
 func seesContainer(viewer string, c *dockerContainer) bool {
 	return viewer == "" || c.family() == viewer
