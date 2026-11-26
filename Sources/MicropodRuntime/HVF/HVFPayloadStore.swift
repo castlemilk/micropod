@@ -245,15 +245,20 @@ public struct HVFUpdateEnvironment: Sendable {
     public var drain: any HVFDrainCoordinating
     public var probe: any HVFHealthProbing
     public var drainPollInterval: Duration
+    /// Reads a payload's files once an activation has decided to boot it,
+    /// before it stops the machine (`HVFPayloadStore.warm`).
+    public var warm: @Sendable (URL) -> Void
 
     public init(
         machine: any HVFUpdateMachine, drain: any HVFDrainCoordinating, probe: any HVFHealthProbing,
-        drainPollInterval: Duration = .milliseconds(500)
+        drainPollInterval: Duration = .milliseconds(500),
+        warm: @escaping @Sendable (URL) -> Void = { HVFPayloadStore.warm(payloadDirectory: $0) }
     ) {
         self.machine = machine
         self.drain = drain
         self.probe = probe
         self.drainPollInterval = drainPollInterval
+        self.warm = warm
     }
 
     /// The machine under `layout`, its guest Docker API for the drain check
@@ -844,6 +849,9 @@ public enum HVFPayloadStore {
                 targetVersion: target.label)
         }
 
+        // While the old guest still serves: what the new one reads at boot
+        // then comes from the page cache, not the disk, during the switchover.
+        env.warm(target.directory)
         progress("booting \(target.label) to verify it…")
         try atomicSymlink(destination: "versions/\(target.id)", at: layout.trialLink)
         defer { unlink(layout.trialLink.path) }
@@ -1245,6 +1253,41 @@ public enum HVFPayloadStore {
         if v.isEmpty { return "release-\(UUID().uuidString.prefix(8).lowercased())" }
         if r.isEmpty || r == "unknown" { return v }
         return "\(v)-\(r)"
+    }
+
+    /// Reads every regular file under a payload directory once, so the boot
+    /// that follows finds it in the page cache; returns the bytes read.
+    ///
+    /// A staged payload is a fresh copy: an APFS clone shares its source's
+    /// blocks on disk but not their cached pages, and only the files the
+    /// manifest digests (the VMM, kernel, initrd, start.sh and the engine)
+    /// have been read since. The rest of the tools (containerd alone is
+    /// 36 MB) came off the disk while the new guest booted, which cost an
+    /// activation's switchover ~50 ms. Read before the machine stops, it
+    /// costs no downtime. Best effort: what cannot be read is skipped, and
+    /// symbolic links are not followed.
+    @discardableResult
+    public static func warm(payloadDirectory dir: URL) -> Int64 {
+        guard
+            let files = FileManager.default.enumerator(
+                at: dir, includingPropertiesForKeys: [.isRegularFileKey], options: [])
+        else { return 0 }
+        let size = 1 << 20
+        let buffer = UnsafeMutableRawPointer.allocate(byteCount: size, alignment: 16)
+        defer { buffer.deallocate() }
+        var total: Int64 = 0
+        for case let file as URL in files {
+            guard (try? file.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true else { continue }
+            let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+            guard fd >= 0 else { continue }
+            defer { close(fd) }
+            while true {
+                let n = read(fd, buffer, size)
+                if n <= 0 { break }
+                total += Int64(n)
+            }
+        }
+        return total
     }
 
     static func sha256File(_ url: URL) throws -> String {

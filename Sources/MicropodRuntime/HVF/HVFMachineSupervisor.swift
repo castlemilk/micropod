@@ -249,6 +249,15 @@ public actor HVFMachineSupervisor {
         log("supervising \(layout.root.path) (pid \(pid), \(config.cpus) vCPU, \(config.memoryMiB) MiB)")
         log("payload \(payload.id) at \(payload.directory.path), kept for every relaunch")
         if let missing = layout.missingCacheDisk(config: config) { log("WARNING: \(missing)") }
+        // A cache disk machine.json does not expect yet (a machine installed
+        // before it recorded one): from now on its loss is reported.
+        do {
+            if let size = try layout.recordCacheDiskExpectation() {
+                log("machine.json now expects the \(HVFCacheDiskState.gibibytes(size)) caches.ext4 at every boot")
+            }
+        } catch {
+            log("WARNING: could not record the cache disk in machine.json: \(error.localizedDescription)")
+        }
         if stopRequestedEarly.withLock({ $0 }) {
             log("stop requested before the first launch")
             return finishStopped(reason: "stopped before launch")

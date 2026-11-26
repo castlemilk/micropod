@@ -315,6 +315,49 @@ final class HVFPayloadUpdateTests: XCTestCase {
         XCTAssertEqual(machine.stops, 1)
     }
 
+    func testActivationReadsTheTargetPayloadBeforeItStopsTheMachine() async throws {
+        // The new guest reads its tools while it boots. A staged payload is
+        // a fresh copy, not in the page cache: read from disk then, it cost
+        // the switchover ~50 ms.
+        try installFlat("v1")
+        let machine = FakeUpdateMachine(layout: layout, runningOn: root)
+        let v2 = try stage("v2")
+        let warmed = WarmLog()
+        var env = environment(machine)
+        env.warm = { dir in warmed.record("\(dir.lastPathComponent) after \(machine.stops) stop(s)") }
+        let result = try await HVFPayloadStore.activate(layout: layout, environment: env)
+        XCTAssertEqual(result.action, .activated, result.detail)
+        XCTAssertEqual(warmed.entries, ["\(v2) after 0 stop(s)"])
+        XCTAssertEqual(machine.stops, 1)
+    }
+
+    func testAnActivationThatIsDeferredReadsNothing() async throws {
+        try installFlat("v1")
+        let machine = FakeUpdateMachine(layout: layout, runningOn: root)
+        try stage("v2")
+        let warmed = WarmLog()
+        var env = environment(machine, drain: FakeDrain([.success(HVFWorkloads(containers: 1))]))
+        env.warm = { dir in warmed.record(dir.lastPathComponent) }
+        let result = try await HVFPayloadStore.activate(layout: layout, environment: env)
+        XCTAssertEqual(result.action, .deferred, result.detail)
+        XCTAssertEqual(warmed.entries, [])
+    }
+
+    func testWarmReadsEveryRegularFileOnceAndFollowsNoLink() throws {
+        let fm = FileManager.default
+        let dir = sources.appendingPathComponent("warm")
+        try fm.createDirectory(at: dir.appendingPathComponent("tools/runner/bin"), withIntermediateDirectories: true)
+        try Data(repeating: 1, count: 3).write(to: dir.appendingPathComponent("Image"))
+        try Data(repeating: 2, count: 5000).write(to: dir.appendingPathComponent("tools/runner/start.sh"))
+        try Data(repeating: 3, count: (2 << 20) + 17).write(
+            to: dir.appendingPathComponent("tools/runner/bin/containerd"))
+        let outside = sources.appendingPathComponent("outside")
+        try Data(repeating: 4, count: 1 << 20).write(to: outside)
+        try fm.createSymbolicLink(at: dir.appendingPathComponent("tools/link"), withDestinationURL: outside)
+        XCTAssertEqual(HVFPayloadStore.warm(payloadDirectory: dir), 3 + 5000 + (2 << 20) + 17)
+        XCTAssertEqual(HVFPayloadStore.warm(payloadDirectory: sources.appendingPathComponent("absent")), 0)
+    }
+
     func testFlatInstallStageAndAFailedActivationEndOnTheLegacyPayloadRunning() async throws {
         try installFlat("v1")
         let machine = FakeUpdateMachine(layout: layout, runningOn: root)
@@ -973,6 +1016,15 @@ final class FakeDrain: HVFDrainCoordinating, @unchecked Sendable {
         }
         return try answer.get()
     }
+}
+
+/// What an activation's `warm` was called with.
+final class WarmLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var seen: [String] = []
+
+    func record(_ entry: String) { lock.withLock { seen.append(entry) } }
+    var entries: [String] { lock.withLock { seen } }
 }
 
 extension HVFPayloadUpdateTests {

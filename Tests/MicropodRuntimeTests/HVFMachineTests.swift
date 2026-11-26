@@ -177,6 +177,7 @@ final class HVFMachineTests: XCTestCase {
                 "--vsock-expose", "\(root.path)/run/docker.sock:2375",
                 "--vsock-expose", "\(root.path)/run/buildkit.sock:2377", "--published-net",
                 "--cpus", "4", "--memory-mib", "4096", "--cmdline-append", "mp.config=1",
+                "--cmdline-append", "loglevel=6",
                 "--shutdown-timeout", "10", "--json-summary", "--parent-pid", "4242",
             ])
         XCTAssertFalse(args.contains("--cmdline"), "the VMM's own kernel command line is never replaced")
@@ -224,10 +225,26 @@ final class HVFMachineTests: XCTestCase {
             layout: layout, config: HVFMachineConfig(workspace: nil, kernelArguments: ["loglevel=4"]), parentPID: 1)
         let joined = args.joined(separator: "|")
         XCTAssertTrue(joined.contains("--disk|\(root.path)/disk.ext4|--cache-disk|\(root.path)/caches.ext4|"))
-        let appended = "--cmdline-append|mp.config=1|--cmdline-append|mp.cache_disk=1|--cmdline-append|loglevel=4"
+        let appended =
+            "--cmdline-append|mp.config=1|--cmdline-append|mp.cache_disk=1|--cmdline-append|loglevel=6|"
+            + "--cmdline-append|loglevel=4"
         XCTAssertTrue(
             joined.contains(appended),
             "guest init learns the disk is attached, so a missing /dev/vdb turns shared caches off")
+    }
+
+    func testTheGuestKernelPrintsOnlyNoticesAndWorseUnlessConfiguredOtherwise() throws {
+        // Every byte on the guest's serial console is a trapped register
+        // write: the kernel's informational boot messages cost each boot
+        // (each switchover) ~30 ms. Notices, warnings and errors (a panic,
+        // the OOM killer) still print.
+        let appended = { (config: HVFMachineConfig) throws -> [String] in
+            let args = try HVFVMMCommand.arguments(layout: self.layout, config: config, parentPID: 1)
+            return args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
+        }
+        XCTAssertEqual(try appended(HVFMachineConfig(workspace: nil)), ["mp.config=1", "loglevel=6"])
+        let verbose = try appended(HVFMachineConfig(workspace: nil, kernelArguments: ["loglevel=8"]))
+        XCTAssertEqual(verbose.suffix(2), ["loglevel=6", "loglevel=8"], "the kernel takes the last loglevel")
     }
 
     func testWorkspaceKernelArgumentsAndExtras() throws {
@@ -239,7 +256,9 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertTrue(joined.contains("--workspace|/Users/me/My Projects|"), "the VMM shares and encodes it")
         XCTAssertFalse(joined.contains("workspace:"), "no hand-built workspace share")
         XCTAssertTrue(
-            joined.contains("--cmdline-append|mp.config=1|--cmdline-append|mp.mtu=1500|--cmdline-append|loglevel=4"),
+            joined.contains(
+                "--cmdline-append|mp.config=1|--cmdline-append|loglevel=6|--cmdline-append|mp.mtu=1500|"
+                    + "--cmdline-append|loglevel=4"),
             "the config share's boot argument comes first, so a configured one can override it")
         XCTAssertTrue(joined.contains("--shutdown-timeout|30|"))
         XCTAssertFalse(args.contains("--published-net"))
@@ -899,29 +918,31 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertTrue(stopped, "a machine being started is stopped, not reported as not running")
     }
 
-    func testStopReturnsSoonAfterTheSupervisorLetsGo() async throws {
+    func testStopReturnsAtItsFirstLookAfterTheSupervisorLetsGo() async throws {
         // An update's switchover waits here between the old VMM's exit and
         // the new supervisor's launch: a 50 ms poll cost 25 ms on average.
+        // The release lands during one of stop's waits; stop must return at
+        // its next look, and its waits must be short. Counted, not timed, so
+        // a loaded machine cannot fail it.
         try installPlaceholders()
         try FileManager.default.createDirectory(at: layout.runDirectory, withIntermediateDirectories: true)
         let inspector = FakeInspector()
         inspector.add(HVFProcessFacts(pid: 4343, executablePath: "/x", arguments: [], startSeconds: 1))
-        let client = HVFMachineClient(layout: layout, environment: [:], inspector: inspector)
-        var lags: [Duration] = []
-        for _ in 0..<8 {
+        for releaseDuring in [1, 2, 7] {
             let supervisor = try XCTUnwrap(try HVFFileLock.acquire(layout.supervisorLock, wait: .zero))
             try supervisor.record(pid: 4343)
-            let stop = Task { () -> ContinuousClock.Instant in
-                _ = try await client.stop()
-                return .now
+            let waits = StopWaits()
+            var client = HVFMachineClient(layout: layout, environment: [:], inspector: inspector)
+            client.stopPollSleep = { duration in
+                if waits.record(duration) == releaseDuring { supervisor.release() }
             }
-            try await Task.sleep(for: .milliseconds(Int.random(in: 30...80)))
-            let released = ContinuousClock.now
-            supervisor.release()
-            lags.append(try await stop.value - released)
+            let stopped = try await client.stop()
+            XCTAssertTrue(stopped)
+            XCTAssertEqual(waits.durations.count, releaseDuring, "stop waited again after the lock was released")
+            XCTAssertTrue(
+                waits.durations.allSatisfy { $0 > .zero && $0 <= .milliseconds(5) },
+                "stop waited \(waits.durations) between looks")
         }
-        let mean = lags.reduce(Duration.zero, +) / lags.count
-        XCTAssertLessThan(mean, .milliseconds(12), "stop noticed the released lock after \(lags) (mean \(mean))")
     }
 
     func testTheOrphanScanCanonicalizesOnlySameNamedExecutables() {
@@ -1424,6 +1445,66 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(observation.summary, "none (no caches.ext4)")
         XCTAssertNil(observation.jsonObject["missing"])
     }
+
+    func testNoCacheDiskForgetsAnExpectedDiskThatIsGoneAndOnlyThat() async throws {
+        var request = try sources()
+        request.cacheDiskBytes = 256 << 20
+        try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        // Everything else installed stays as it is.
+        request = HVFInstallRequest(noCacheDisk: true)
+
+        // While caches.ext4 is there, micropod-vmm attaches it: refused.
+        let present = await installError(request)
+        XCTAssertTrue(present?.contains("\(layout.cacheDisk.path) exists") == true, present ?? "installed")
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes, 256 << 20)
+        XCTAssertTrue(HVFMachineLayout.isRegularFile(layout.cacheDisk), "nothing deleted")
+
+        // Gone: the warning says how to stop expecting it, and --no-cache-disk does.
+        try FileManager.default.removeItem(at: layout.cacheDisk)
+        let missing = try XCTUnwrap(layout.missingCacheDisk(config: try HVFMachineConfig.load(from: layout.config)))
+        XCTAssertTrue(missing.contains("machine install --no-cache-disk"), missing)
+        let lines = LogRecorder()
+        let warnings = try await HVFMachineInstaller.install(request, layout: layout) { lines.append($0) }
+        XCTAssertEqual(warnings, [])
+        XCTAssertNil(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes)
+        XCTAssertTrue(lines.lines.contains { $0.contains("no longer expects a") }, "\(lines.lines)")
+        let observation = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertEqual(observation.summary, "none (no caches.ext4)")
+
+        var both = request
+        both.cacheDiskBytes = 256 << 20
+        let contradiction = await installError(both)
+        XCTAssertTrue(contradiction?.contains("contradict") == true, contradiction ?? "installed")
+        XCTAssertFalse(HVFMachineLayout.isRegularFile(layout.cacheDisk))
+    }
+
+    func testTheSupervisorRecordsACacheDiskMachineJSONDoesNotExpectYet() async throws {
+        // A machine installed before machine.json recorded its cache disk
+        // (the rig) learns to expect it at its next start, no reinstall.
+        try installPlaceholders()
+        let size: UInt64 = 300 << 20
+        XCTAssertTrue(FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: nil))
+        XCTAssertEqual(truncate(layout.cacheDisk.path, off_t(size)), 0)
+        try HVFMachineConfig(cache: HVFMachineCachePolicy(tools: ["go"])).save(to: layout.config)
+        let launcher = FakeLauncher([.healthy])
+        let log = LogRecorder()
+        let supervisor = supervisor(launcher, log: log)
+        let run = Task { try await supervisor.run() }
+        try await waitFor("running") { (try? HVFMachineState.load(from: layout.state))?.phase == .running }
+        let config = try HVFMachineConfig.load(from: layout.config)
+        XCTAssertEqual(config.cacheDiskBytes, size)
+        XCTAssertEqual(config.cache, HVFMachineCachePolicy(tools: ["go"]), "the rest of machine.json is kept")
+        XCTAssertTrue(log.lines.contains { $0.contains("now expects the 0.3 GiB caches.ext4") }, "\(log.lines)")
+        supervisor.requestStop()
+        _ = try await run.value
+
+        // Already recorded, or no disk: nothing is written.
+        XCTAssertNil(try layout.recordCacheDiskExpectation())
+        try FileManager.default.removeItem(at: layout.cacheDisk)
+        try HVFMachineConfig().save(to: layout.config)
+        XCTAssertNil(try layout.recordCacheDiskExpectation())
+        XCTAssertNil(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes)
+    }
 }
 
 // MARK: - Cache policy, guest config share, capabilities
@@ -1580,7 +1661,7 @@ extension HVFMachineTests {
             shares[1].hasSuffix(":ro"),
             "micropod-vmm caches a :ro share as immutable: the guest would never see a rewritten policy")
         let appended = args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
-        XCTAssertEqual(appended, ["mp.config=1"])
+        XCTAssertEqual(appended, ["mp.config=1", "loglevel=6"])
     }
 
     func testTheSupervisorRendersThePolicyBeforeEveryLaunch() async throws {
@@ -2146,6 +2227,21 @@ final class FakeLauncher: HVFVMMLaunching, @unchecked Sendable {
     var executables: [URL] { lock.withLock { launchedExecutables } }
     var processes: [FakeVMM] { lock.withLock { launched } }
     var currentIsReady: Bool { lock.withLock { launched.last }?.ready ?? false }
+}
+
+/// The waits `stop` asked for, in order.
+final class StopWaits: @unchecked Sendable {
+    private let lock = NSLock()
+    private var seen: [Duration] = []
+
+    /// Records one wait; returns how many there have been.
+    func record(_ duration: Duration) -> Int {
+        lock.withLock {
+            seen.append(duration)
+            return seen.count
+        }
+    }
+    var durations: [Duration] { lock.withLock { seen } }
 }
 
 final class FakeInspector: HVFProcessInspecting, @unchecked Sendable {

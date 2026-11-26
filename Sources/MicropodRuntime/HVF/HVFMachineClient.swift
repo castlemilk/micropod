@@ -63,6 +63,9 @@ public struct HVFMachineClient: Sendable {
     public let layout: HVFMachineLayout
     let environment: [String: String]
     let inspector: any HVFProcessInspecting
+    /// How `stop` waits between two looks at the supervisor's lock
+    /// (`stopPollInterval`); tests replace it.
+    var stopPollSleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
 
     public init(
         layout: HVFMachineLayout? = nil, environment: [String: String] = ProcessInfo.processInfo.environment,
@@ -454,7 +457,7 @@ public struct HVFMachineClient: Sendable {
                 throw MicropodError.message(
                     "deadlineExceeded: hvf supervisor pid \(pid) still running \(timeout) after SIGTERM")
             }
-            try await Task.sleep(for: Self.stopPollInterval)
+            try await stopPollSleep(Self.stopPollInterval)
         }
         return true
     }

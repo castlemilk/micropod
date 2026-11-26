@@ -1078,9 +1078,16 @@ def section_L():
     METRICS["waitTimeoutSeconds"] = took
     METRICS["waitRunning2sGuestRequests"] = (r1 or 0) - (r0 or 0)
     # B15: one guest request per poll. HVF has no state-change parking, so a
-    # wait polls every 150 ms: one ownership probe plus at most
-    # ceil(took / 0.15) + 1 polls; resolving the owner per poll doubles it.
-    bound = 2 + math.ceil(took / 0.15)
+    # wait polls every 150 ms: one ownership probe (the batched listing,
+    # counted since it is a caller's request) plus at most ceil(took / 0.15)
+    # + 1 polls; resolving the owner per poll doubles it. That count is
+    # exact, not a ceiling: the wait always polls once more at its
+    # deadline, so a 2 s wait makes 1 + 15 requests, and so does the bound
+    # for any took in (2.0, 2.1]. The counter is the guest's, shared by
+    # every caller, so the bound allows one request that is not the wait's
+    # (another client's listing or _ping in the same 2 s) and still fails
+    # the per-poll regression by a wide margin.
+    bound = 3 + math.ceil(took / 0.15)
     check("L10", "WaitContainer on a running container costs one guest request per 150 ms poll (B15)",
           (r1 or 0) - (r0 or 0), f"<= {bound} in {took} s", ok=r0 is not None and 0 < (r1 or 0) - r0 <= bound,
           ev=evidence("L10-wait-metrics", {"reply": w, "seconds": took, "bound": bound,

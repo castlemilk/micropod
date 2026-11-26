@@ -15,3 +15,10 @@ version = 3
   privileged_without_host_devices = true
   pod_annotations = []
   cni_conf_dir = "/etc/cni/micropod-private"
+
+# Warnings and errors only: containerd logs to the guest's serial console,
+# where every byte is a trapped register write. Its ~100 info lines at start
+# (one per plugin) cost every boot, and so every payload switchover, ~25 ms,
+# and each container start and exit adds more.
+[debug]
+  level = "warn"

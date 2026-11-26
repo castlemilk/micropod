@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -84,6 +85,11 @@ type node struct {
 	tasks      taskWaitClient
 	execTasks  tasks.TasksClient
 	watchLog   func(string) (<-chan struct{}, func())
+	// probeKeys lists what sweepProbes looks for (image_facts_linux.go).
+	probeKeys probeKeyLister
+	// reconnect lets a connection to containerd that failed be retried at
+	// once rather than after gRPC's reconnect backoff (a second at first).
+	reconnect func()
 }
 
 func connect() (*grpc.ClientConn, node, error) {
@@ -93,6 +99,7 @@ func connect() (*grpc.ClientConn, node, error) {
 	}
 	taskClient := tasks.NewTasksClient(conn)
 	snapshotClient := snapshots.NewSnapshotsClient(conn)
+	leaseClient := leases.NewLeasesClient(conn)
 	return conn, node{
 		runtime: cri.NewRuntimeServiceClient(conn), images: cri.NewImageServiceClient(conn),
 		imageStore: images.NewImagesClient(conn),
@@ -101,10 +108,57 @@ func connect() (*grpc.ClientConn, node, error) {
 		containers: containers.NewContainersClient(conn),
 		snapshots:  snapshotClient,
 		imageUsage: snapshotClient,
-		leases:     leases.NewLeasesClient(conn),
+		leases:     leaseClient,
 		tasks:      taskClient,
 		execTasks:  taskClient,
+		probeKeys:  grpcProbeKeys{leases: leaseClient, snapshots: snapshotClient},
+		reconnect:  conn.ResetConnectBackoff,
 	}, nil
+}
+
+// containerdSocket is endpoint's path.
+var containerdSocket = strings.TrimPrefix(endpoint, "unix://")
+
+// runtimeStatus is what `job status` reports: containerd's CRI answers and
+// says both its runtime and its network are ready.
+func (n node) runtimeStatus(ctx context.Context) (*cri.VersionResponse, error) {
+	v, err := n.runtime.Version(ctx, &cri.VersionRequest{Version: "v1"})
+	if err != nil {
+		return nil, err
+	}
+	health, err := n.runtime.Status(ctx, &cri.StatusRequest{})
+	if err != nil {
+		return nil, err
+	}
+	ready := map[string]bool{}
+	for _, cond := range health.GetStatus().GetConditions() {
+		ready[cond.Type] = cond.Status
+	}
+	if !ready["RuntimeReady"] || !ready["NetworkReady"] {
+		return nil, errors.New("CRI runtime or network is not ready")
+	}
+	return v, nil
+}
+
+// runtimeReady is one poll of awaitRuntime. Until containerd's socket
+// accepts, no gRPC call is made: a failed connection would put the channel
+// into its reconnect backoff, which would then hold back the first call
+// after containerd does listen.
+func (n node) runtimeReady(ctx context.Context) error {
+	c, err := net.DialTimeout("unix", containerdSocket, time.Second)
+	if err != nil {
+		return err
+	}
+	_ = c.Close()
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if _, err := n.runtimeStatus(ctx); err != nil {
+		if n.reconnect != nil {
+			n.reconnect()
+		}
+		return err
+	}
+	return nil
 }
 
 func (n node) image(ctx context.Context, ref string) (string, bool, error) {
@@ -538,20 +592,9 @@ func run() error {
 	if len(os.Args) == 2 && os.Args[1] == "status" {
 		ctx, end := context.WithTimeout(ctx, 2*time.Second)
 		defer end()
-		v, err := n.runtime.Version(ctx, &cri.VersionRequest{Version: "v1"})
+		v, err := n.runtimeStatus(ctx)
 		if err != nil {
 			return err
-		}
-		health, err := n.runtime.Status(ctx, &cri.StatusRequest{})
-		if err != nil {
-			return err
-		}
-		ready := map[string]bool{}
-		for _, cond := range health.GetStatus().GetConditions() {
-			ready[cond.Type] = cond.Status
-		}
-		if !ready["RuntimeReady"] || !ready["NetworkReady"] {
-			return errors.New("CRI runtime or network is not ready")
 		}
 		return out.Encode(map[string]any{"engine": v.RuntimeName, "version": v.RuntimeVersion, "kata_prerequisites_present": kataPrerequisites() == nil})
 	}

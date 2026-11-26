@@ -196,16 +196,24 @@ service=
 api=
 trap 'kill "$engine" ${service:+"$service"} ${api:+"$api"} 2>/dev/null || true' EXIT
 trap 'exit 0' TERM INT
-attempts=1200
-until "$tools/runner/bin/job" status >/dev/null 2>&1; do
-    kill -0 "$engine" || exit 1
-    [ "$attempts" -gt 0 ] || exit 1
-    attempts=$((attempts-1))
-    usleep 50000 2>/dev/null || sleep 0.05 2>/dev/null || sleep 1
-done
-"$tools/runner/bin/job" recover
+# The engine starts beside containerd and waits for its CRI itself (every
+# 5 ms, for up to a minute), then recovers interrupted jobs and containers,
+# and only then opens the Docker API socket. If containerd exits first, the
+# wait below returns.
+# A socket file an earlier boot left would look like this boot's below.
+rm -f /var/lib/micropod/docker.sock
 "$tools/runner/bin/job" engine &
 api=$!
+# The OCI service runs a scheduler job as soon as it is asked to, and the
+# engine's recovery removes every job and ready pod it finds. So the service
+# starts only once the engine has recovered and bound its socket, as it did
+# when `job recover` ran here before either. The engine does not wait for
+# this loop: the first _ping is no later for it.
+until [ -S /var/lib/micropod/docker.sock ]; do
+    kill -0 "$engine" 2>/dev/null || exit 1
+    kill -0 "$api" 2>/dev/null || exit 1
+    usleep 10000 2>/dev/null || sleep 0.01 2>/dev/null || sleep 1
+done
 "$tools/service" serve &
 service=$!
 # BusyBox ash waits for either critical process. The supervisor observes its exit.

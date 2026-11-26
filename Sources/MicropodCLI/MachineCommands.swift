@@ -18,12 +18,14 @@ enum MachineCommands {
           micropod machine install [--vmm <micropod-vmm>] [--kernel <Image>] [--initrd <cpio>]
                                    [--tools <dir>] [--cpus N] [--memory-mib N] [--workspace <dir>|""]
                                    [--disk-from <ext4> | --disk-image <ref>|default [--disk-size 64g]]
-                                   [--cache-disk-size 32g] [--replace-disk]
+                                   [--cache-disk-size 32g | --no-cache-disk] [--replace-disk]
                                                   copy the assets into the machine root; the disk is
                                                   an APFS clone of --disk-from, or a fresh sparse ext4
                                                   unpacked from an OCI image; flags left out keep
                                                   what is installed. Missing runtime files come
                                                   from the app bundle or the extracted CLI package.
+                                                  --no-cache-disk: stop expecting a cache disk
+                                                  (caches.ext4) that is gone
           micropod machine start [--timeout S]    boot it (detached supervisor) and wait for Docker
           micropod machine stop                   power the guest off gracefully
           micropod machine restart
@@ -191,7 +193,7 @@ enum MachineCommands {
 
     static func install(_ args: [String], layout: HVFMachineLayout) async throws {
         let parsed = try parseArgs(
-            args, boolFlags: ["--replace-disk"],
+            args, boolFlags: ["--replace-disk", "--no-cache-disk"],
             valueFlags: [
                 "--vmm", "--kernel", "--initrd", "--tools", "--disk-from", "--disk-image", "--disk-size",
                 "--cache-disk-size", "--cpus", "--memory-mib", "--workspace",
@@ -210,11 +212,14 @@ enum MachineCommands {
         }
         let image = parsed.value("--disk-image").map { $0 == "default" ? HVFMachineInstaller.defaultDiskImage : $0 }
         let cacheDiskBytes = try parsed.value("--cache-disk-size").map { try diskBytes($0) }
+        if cacheDiskBytes != nil, parsed.has("--no-cache-disk") {
+            throw UsageError(message: "machine install: --no-cache-disk and --cache-disk-size contradict each other")
+        }
         let request = HVFInstallRequest(
             vmm: url("--vmm"), kernel: url("--kernel"), initrd: url("--initrd"), tools: url("--tools"),
             diskFrom: url("--disk-from"), diskImage: image,
             diskBytes: try diskBytes(parsed.value("--disk-size") ?? defaultDiskSize),
-            cacheDiskBytes: cacheDiskBytes,
+            cacheDiskBytes: cacheDiskBytes, noCacheDisk: parsed.has("--no-cache-disk"),
             replaceDisk: parsed.has("--replace-disk"),
             cpus: try int("--cpus"), memoryMiB: try int("--memory-mib"),
             workspace: parsed.value("--workspace").map { $0.isEmpty ? "" : NSString(string: $0).expandingTildeInPath })
