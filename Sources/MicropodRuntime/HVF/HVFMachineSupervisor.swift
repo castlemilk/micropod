@@ -248,6 +248,7 @@ public actor HVFMachineSupervisor {
         try await reapOrphans(payload: payload)
         log("supervising \(layout.root.path) (pid \(pid), \(config.cpus) vCPU, \(config.memoryMiB) MiB)")
         log("payload \(payload.id) at \(payload.directory.path), kept for every relaunch")
+        if let missing = layout.missingCacheDisk(config: config) { log("WARNING: \(missing)") }
         if stopRequestedEarly.withLock({ $0 }) {
             log("stop requested before the first launch")
             return finishStopped(reason: "stopped before launch")

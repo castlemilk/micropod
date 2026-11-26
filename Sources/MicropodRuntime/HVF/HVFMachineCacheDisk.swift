@@ -97,6 +97,21 @@ public struct HVFCacheDiskState: Codable, Sendable, Equatable {
     }
 }
 
+extension HVFMachineLayout {
+    /// Why this root boots without the cache disk machine.json expects
+    /// (`cacheDiskBytes`), or nil: `caches.ext4` is there, or none was ever
+    /// installed. micropod-vmm then attaches no cache disk, so the guest keeps
+    /// its stores on the OS disk.
+    public func missingCacheDisk(config: HVFMachineConfig) -> String? {
+        guard let bytes = config.cacheDiskBytes, !Self.isRegularFile(cacheDisk) else { return nil }
+        let size = HVFCacheDiskState.gibibytes(bytes)
+        return "machine.json expects a \(size) cache disk, but \(cacheDisk.path) is missing: the machine boots "
+            + "without one, so its dependency caches start empty on the OS disk (which `machine install "
+            + "--replace-disk` discards). Put caches.ext4 back, or create an empty one with `micropod machine "
+            + "install --cache-disk-size \(max(bytes >> 20, 256))m`"
+    }
+}
+
 /// Whether the guest mounted the cache disk. That `caches.ext4` exists on
 /// the host is no evidence: only the guest's report counts. Without one
 /// (machine stopped, guest silent, a tool bundle that predates the report)
@@ -111,15 +126,19 @@ public struct HVFCacheDiskObservation: Sendable, Equatable, Encodable {
     public var unknownReason: String?
     /// The host has `caches.ext4`, so micropod-vmm attaches it.
     public var configured: Bool
+    /// machine.json expects a cache disk that is gone
+    /// (`HVFMachineLayout.missingCacheDisk`); nil otherwise.
+    public var missingReason: String?
 
     public init(
         state: HVFCacheDiskState?, sharedCachesOffReason: String? = nil, unknownReason: String? = nil,
-        configured: Bool
+        configured: Bool, missingReason: String? = nil
     ) {
         self.state = state
         self.sharedCachesOffReason = state == nil ? nil : sharedCachesOffReason
         self.unknownReason = state == nil ? unknownReason ?? "unknown" : nil
         self.configured = configured
+        self.missingReason = configured ? nil : missingReason
     }
 
     /// Rig health's `cacheDiskPresent`.
@@ -132,6 +151,7 @@ public struct HVFCacheDiskObservation: Sendable, Equatable, Encodable {
 
     /// One line for `machine status`.
     public var summary: String {
+        if let missingReason { return "MISSING — \(missingReason)" }
         if state != nil || sharedCachesOffReason != nil,
             let line = HVFCacheDiskState.summary(state, sharedCachesOff: sharedCachesOffReason)
         {
@@ -146,12 +166,14 @@ public struct HVFCacheDiskObservation: Sendable, Equatable, Encodable {
     private enum CodingKeys: String, CodingKey {
         case mounted, configured, source, reason, state, device, mountInfoError, sizeBytes, freeBytes
         case sharedCaches, unavailable, summary
+        case missing
     }
 
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(mounted, forKey: .mounted)
         try container.encode(configured, forKey: .configured)
+        try container.encodeIfPresent(missingReason, forKey: .missing)
         try container.encode(state == nil ? "unknown" : "guest", forKey: .source)
         try container.encodeIfPresent(unknownReason, forKey: .reason)
         try container.encodeIfPresent(state?.state, forKey: .state)
@@ -179,8 +201,9 @@ extension HVFMachineClient {
     /// never throws: every failure is an `unknown` observation.
     public func cacheDiskObservation(timeout: Duration = .seconds(3)) async -> HVFCacheDiskObservation {
         let configured = HVFMachineLayout.isRegularFile(layout.cacheDisk)
+        let missing = (try? HVFMachineConfig.load(from: layout.config)).flatMap { layout.missingCacheDisk(config: $0) }
         func unknown(_ reason: String) -> HVFCacheDiskObservation {
-            HVFCacheDiskObservation(state: nil, unknownReason: reason, configured: configured)
+            HVFCacheDiskObservation(state: nil, unknownReason: reason, configured: configured, missingReason: missing)
         }
         guard isServing else { return unknown("the hvf machine is not running") }
         let response: DockerClient.Response
@@ -206,6 +229,7 @@ extension HVFMachineClient {
         }
         let off = inventory.unavailable?.trimmingCharacters(in: .whitespacesAndNewlines)
         return HVFCacheDiskObservation(
-            state: disk, sharedCachesOffReason: off?.isEmpty == false ? off : nil, configured: configured)
+            state: disk, sharedCachesOffReason: off?.isEmpty == false ? off : nil, configured: configured,
+            missingReason: missing)
     }
 }

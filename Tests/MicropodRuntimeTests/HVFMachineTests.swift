@@ -1311,6 +1311,51 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertNil(replaced)
         XCTAssertNil(index.load().entry(for: "keep"), "a new disk holds none of the old containers")
     }
+
+    func testAReplacedDiskWithItsCacheDiskGoneSaysSo() async throws {
+        // B22 b1-lose-cache-disk: `install --replace-disk` with caches.ext4
+        // missing succeeded silently and the machine booted with caches off.
+        var request = try sources()
+        request.cacheDiskBytes = 256 << 20
+        let first = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(first, [])
+        let size: UInt64 = 256 << 20
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes, size, "machine.json records it")
+        XCTAssertNil(layout.missingCacheDisk(config: try HVFMachineConfig.load(from: layout.config)))
+
+        try FileManager.default.removeItem(at: layout.cacheDisk)
+        request.cacheDiskBytes = nil
+        request.replaceDisk = true
+        let warnings = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(warnings.count, 1, "\(warnings)")
+        XCTAssertTrue(warnings.first?.contains("\(layout.cacheDisk.path) is missing") == true, "\(warnings)")
+        XCTAssertTrue(warnings.first?.contains("--cache-disk-size 256m") == true, "\(warnings)")
+        let config = try HVFMachineConfig.load(from: layout.config)
+        XCTAssertEqual(config.cacheDiskBytes, size, "still expected: the next install and status say so again")
+        let observation = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertTrue(observation.summary.hasPrefix("MISSING — machine.json expects"), observation.summary)
+        XCTAssertNotNil(observation.jsonObject["missing"] as? String)
+
+        // Recreated: expected and present again, nothing to say.
+        request.cacheDiskBytes = 256 << 20
+        let recreated = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(recreated, [])
+        let restored = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertNil(restored.missingReason)
+    }
+
+    func testAnInstallThatNeverHadACacheDiskWarnsOfNone() async throws {
+        var request = try sources()
+        let first = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(first, [])
+        XCTAssertNil(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes)
+        request.replaceDisk = true
+        let replaced = try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        XCTAssertEqual(replaced, [], "no cache disk was ever expected")
+        let observation = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertEqual(observation.summary, "none (no caches.ext4)")
+        XCTAssertNil(observation.jsonObject["missing"])
+    }
 }
 
 // MARK: - Cache policy, guest config share, capabilities
