@@ -35,7 +35,7 @@ swift build
 base=$(git merge-base origin/master HEAD 2>/dev/null || true)
 changed=""
 [ -n "$base" ] && changed=$(git diff --name-only "$base" HEAD)
-if [ -n "${PRE_PUSH_FULL:-}" ] || [ -z "$base" ] || echo "$changed" | grep -q '^Package\.swift$'; then
+if [ -n "${PRE_PUSH_FULL:-}" ] || [ -z "$base" ] || grep -q '^Package\.swift$' <<< "$changed"; then
     echo "hook: swift test…"
     swift test
     exit 0
