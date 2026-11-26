@@ -466,8 +466,15 @@ enum APIStream {
                 } catch {
                     return (.lost("a stream message did not decode (\(error.localizedDescription))"), false)
                 }
-            case .timedOut, .closed:
+            case .timedOut:
+                // The deadline, or `quiet` after the last message: the
+                // caller's own end (a log tail), not the server's.
                 return (.finished(nil), false)
+            case .closed:
+                // A server ends every stream with its end-of-stream frame;
+                // a close before it is an API (or the runtime behind it)
+                // that went away mid-stream, never a success.
+                return (.lost("the stream ended without its end-of-stream frame"), false)
             case .failed(let detail):
                 return (.lost(detail), false)
             }

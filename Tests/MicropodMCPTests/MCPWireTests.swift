@@ -123,6 +123,37 @@ final class MCPWireTests: XCTestCase {
         XCTAssertEqual(fake.connections, 2)
     }
 
+    /// A close-delimited stream that the API cuts off before its
+    /// end-of-stream frame (it exited, or the runtime behind it did) is a
+    /// lost call, never a pull that finished or a process killed at its
+    /// deadline.
+    func testAStreamCutOffBeforeItsEndIsReportedNotTakenForSuccess() async throws {
+        let fake = try FakeLocalAPI(unixSocket: socketPath)
+        defer { fake.stop() }
+        fake.respond { request in
+            switch request.rpc {
+            case "PullImage":
+                return .streamCutShort([
+                    (try? Micropod_V1_ProgressLine.with { $0.line = "downloading" }.serializedData()) ?? Data()
+                ])
+            case "StreamProcess":
+                return .streamCutShort([
+                    (try? Micropod_V1_ProcessEvent.with { $0.stdout = Data("hi\n".utf8) }.serializedData()) ?? Data()
+                ])
+            default: return Self.daemonLike(request)
+            }
+        }
+        let server = MCPTestServer.make(socketPath: socketPath, tcpPort: 1)
+        let pull = try await MCPTestServer.call(server, "pull", ["reference": "alpine:latest"])
+        XCTAssertTrue(pull.isError, pull.text)
+        XCTAssertFalse(pull.text.contains("Pulled"), pull.text)
+        XCTAssertTrue(pull.text.contains("end-of-stream"), pull.text)
+        let exec = try await MCPTestServer.call(server, "sandbox_exec", ["id": "sbx-1", "command": "echo hi"])
+        XCTAssertTrue(exec.isError, exec.text)
+        XCTAssertFalse(exec.text.contains("killed after"), exec.text)
+        XCTAssertEqual(fake.requests.filter { $0.rpc == "SignalProcess" }.count, 0, "nothing to kill")
+    }
+
     func testAConnectionTheServerClosedWhileIdleIsReplacedBeforeSending() async throws {
         let fake = try FakeLocalAPI(unixSocket: socketPath)
         let tcp = try FakeLocalAPI(tcpLoopback: .respond)
