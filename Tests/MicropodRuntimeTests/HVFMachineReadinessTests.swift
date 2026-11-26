@@ -5,8 +5,9 @@ import XCTest
 
 @testable import MicropodRuntime
 
-/// Readiness from live machine state, over a fake guest Docker API:
-/// installed assets alone are never `running`.
+/// Readiness and the cache disk from live machine state, over a fake guest
+/// Docker API: installed assets alone are never `running`, and a host
+/// `caches.ext4` alone is never a mounted cache disk.
 final class HVFMachineReadinessTests: XCTestCase {
     private var root: URL!
     private var held: [HVFFileLock] = []
@@ -135,5 +136,65 @@ final class HVFMachineReadinessTests: XCTestCase {
         let plain = await client.readiness()
         XCTAssertEqual(plain.status, .running)
         XCTAssertEqual(plain.features, ["hvf", "rootless", "proto-binary"])
+    }
+
+    // MARK: Cache disk
+
+    func testAHostCacheDiskFileIsNotAMountedCacheDisk() async throws {
+        try install()
+        XCTAssertTrue(FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: Data("x".utf8)))
+        let stopped = await client.cacheDiskObservation()
+        XCTAssertTrue(stopped.configured)
+        XCTAssertFalse(stopped.mounted, "the file exists, but nothing says the guest mounted it")
+        XCTAssertNil(stopped.state)
+        XCTAssertEqual(stopped.unknownReason, "the hvf machine is not running")
+        XCTAssertEqual(stopped.jsonObject["source"] as? String, "unknown")
+    }
+
+    func testTheGuestReportDecidesWhetherTheCacheDiskIsMounted() async throws {
+        try install()
+        try supervise(.running)
+        let reply = LockedValue(Data(#"{"root": "/var/lib/micropod/caches", "scopes": {}}"#.utf8))
+        let status = LockedValue(200)
+        let server = try guest { request in
+            request.path == "/micropod/caches" ? (status.value, reply.value) : (404, Data())
+        }
+
+        let older = await client.cacheDiskObservation()
+        XCTAssertFalse(older.mounted, "a guest that does not report the disk is unknown, and unknown is not mounted")
+        XCTAssertTrue(older.unknownReason?.contains("does not report cacheDisk") ?? false, "\(older)")
+        XCTAssertEqual(server.requests.last?.query, ["stats": "0"], "the cheap inventory")
+
+        reply.value = Data(
+            #"{"cacheDisk": {"device": "/dev/vdb", "mounted": false, "sizeBytes": 0, "freeBytes": 0}}"#.utf8)
+        let failed = await client.cacheDiskObservation()
+        XCTAssertFalse(failed.mounted)
+        XCTAssertEqual(failed.state, HVFCacheDiskState(device: "/dev/vdb", mounted: false, sizeBytes: 0, freeBytes: 0))
+        XCTAssertEqual(failed.jsonObject["source"] as? String, "guest")
+
+        reply.value = Data(
+            #"{"cacheDisk": {"device": "/dev/vdb", "mounted": true, "sizeBytes": 1024, "freeBytes": 512}}"#.utf8)
+        let mounted = await client.cacheDiskObservation()
+        XCTAssertTrue(mounted.mounted)
+        XCTAssertEqual(mounted.jsonObject["freeBytes"] as? UInt64, 512)
+        XCTAssertFalse(mounted.configured, "no caches.ext4 on this host")
+
+        status.value = 500
+        let broken = await client.cacheDiskObservation()
+        XCTAssertFalse(broken.mounted)
+        XCTAssertEqual(broken.unknownReason, "the guest cache inventory answered HTTP 500")
+    }
+}
+
+/// A value a fake guest's route reads while the test changes it.
+final class LockedValue<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Value
+
+    init(_ value: Value) { stored = value }
+
+    var value: Value {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
     }
 }
