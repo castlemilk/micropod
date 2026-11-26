@@ -252,3 +252,73 @@ func TestDelegatedBindsKeepTheOwnersNestedReadOnlyBinds(t *testing.T) {
 		t.Fatalf("read-only child: %+v %v", ro.HostConfig.Mounts, err)
 	}
 }
+
+// The config probes a create runs on a child's binds (an .npmrc registry, a
+// go env GOPROXY) read below the creator's binds, as the bind itself would
+// open: a symlink the owner plants there does not read another project's
+// file into a bit of the child's environment. A volume's probe stays in that
+// volume.
+func TestDelegatedConfigProbesStayInsideTheCreatorsBinds(t *testing.T) {
+	ws := t.TempDir()
+	for _, d := range []string{"job/real", "job/go", "other-project"} {
+		if err := os.MkdirAll(filepath.Join(ws, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, body := range map[string]string{"other-project/.npmrc": "registry=https://npm.other/\n", "other-project/goenv": "GOPROXY=https://proxy.other\n", "job/real/.npmrc": "registry=https://npm.job/\n"} {
+		if err := os.WriteFile(filepath.Join(ws, name), []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for link, to := range map[string]string{"job/.npmrc": "../other-project/.npmrc", "job/go/env": "../../other-project/goenv"} {
+		if err := os.Symlink(to, filepath.Join(ws, link)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	owner := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("a", 64), Phase: "running", Config: dockerConfig{Image: "node", HostConfig: dockerHost{Binds: []string{ws + "/job:/work"}}}}}
+	s := &dockerEngine{workspace: ws, containers: map[string]*dockerContainer{owner.ID: owner}}
+	ctx := withViewer(context.Background(), owner.ID)
+	spec := dockerConfig{Image: "node", WorkingDir: "/w", HostConfig: dockerHost{Binds: []string{ws + "/job:/w"}}}
+	roots := s.probeRoots(ctx, spec)
+	if roots["/w"] != ws+"/job" || len(spec.HostConfig.Mounts) != 0 {
+		t.Fatalf("roots %v", roots)
+	}
+	if s.projectNpmRegistry(spec, "", roots) {
+		t.Error("the working directory's .npmrc was read through a symlink out of the creator's bind")
+	}
+	if s.mountedConfigSets(spec, []string{"/w/.npmrc"}, npmrcSetsRegistry, roots) || s.mountedConfigSets(spec, []string{"/w/go/env"}, goEnvSetsProxy, roots) {
+		t.Error("a mounted config file was read through a symlink out of the creator's bind")
+	}
+	if !s.mountedConfigSets(spec, []string{"/w/real/.npmrc"}, npmrcSetsRegistry, roots) {
+		t.Error("a config file inside the creator's bind was not read")
+	}
+	// The host's own containers resolve from the workspace, as their binds do.
+	if s.probeRoots(context.Background(), spec) != nil || !s.projectNpmRegistry(spec, "", nil) {
+		t.Error("the host's create lost its workspace probe")
+	}
+	// A bind outside the creator's (the create is refused anyway) reads nothing.
+	outside := dockerConfig{WorkingDir: "/o", HostConfig: dockerHost{Binds: []string{ws + "/other-project:/o"}}}
+	if r := s.probeRoots(ctx, outside); r == nil || s.projectNpmRegistry(outside, "", r) {
+		t.Error("a probe read outside the creator's binds")
+	}
+
+	vols := t.TempDir()
+	old := configVolumesDir
+	configVolumesDir = vols
+	t.Cleanup(func() { configVolumesDir = old })
+	for _, d := range []string{"tc-data", "job-b"} {
+		if err := os.Mkdir(filepath.Join(vols, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(vols, "job-b", ".npmrc"), []byte("registry=https://npm.b/\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../job-b/.npmrc", filepath.Join(vols, "tc-data", ".npmrc")); err != nil {
+		t.Fatal(err)
+	}
+	inVolume := dockerConfig{HostConfig: dockerHost{Binds: []string{"tc-data:/data"}}}
+	if s.mountedConfigSets(inVolume, []string{"/data/.npmrc"}, npmrcSetsRegistry, roots) || s.mountedConfigSets(inVolume, []string{"/data/.npmrc"}, npmrcSetsRegistry, nil) {
+		t.Error("a volume's .npmrc was read through a symlink into another volume")
+	}
+}

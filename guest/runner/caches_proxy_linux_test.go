@@ -80,23 +80,23 @@ func TestCacheProxyGuardReadsMountedAndImageConfigFiles(t *testing.T) {
 	facts := nodeGoFacts()
 	env := append(append([]string{}, facts.Env...), "HOME=/root")
 	spec := dockerConfig{HostConfig: dockerHost{Binds: []string{npmrc + ":/root/.npmrc:ro", goenv + ":/root/.config/go/env:ro"}}}
-	if !s.mountedConfigSets(spec, npmrcCandidates(env, facts.Passwd, "", ""), npmrcSetsRegistry) {
+	if !s.mountedConfigSets(spec, npmrcCandidates(env, facts.Passwd, "", ""), npmrcSetsRegistry, nil) {
 		t.Fatal("a bind-mounted ~/.npmrc was not read")
 	}
-	if !s.mountedConfigSets(spec, goEnvCandidates(env, facts.Passwd, ""), goEnvSetsProxy) {
+	if !s.mountedConfigSets(spec, goEnvCandidates(env, facts.Passwd, ""), goEnvSetsProxy, nil) {
 		t.Fatal("a bind-mounted go env file was not read")
 	}
-	if s.mountedConfigSets(dockerConfig{}, npmrcCandidates(env, facts.Passwd, "", ""), npmrcSetsRegistry) {
+	if s.mountedConfigSets(dockerConfig{}, npmrcCandidates(env, facts.Passwd, "", ""), npmrcSetsRegistry, nil) {
 		t.Fatal("nothing mounted")
 	}
 	// A deeper tmpfs hides a bind's file.
 	if err := os.WriteFile(filepath.Join(ws, ".npmrc"), []byte("registry=https://npm.corp/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if s.mountedConfigSets(dockerConfig{HostConfig: dockerHost{Binds: []string{ws + ":/root:ro"}, Tmpfs: map[string]string{"/root": ""}}}, []string{"/root/.npmrc"}, npmrcSetsRegistry) {
+	if s.mountedConfigSets(dockerConfig{HostConfig: dockerHost{Binds: []string{ws + ":/root:ro"}, Tmpfs: map[string]string{"/root": ""}}}, []string{"/root/.npmrc"}, npmrcSetsRegistry, nil) {
 		t.Fatal("a tmpfs over the bind")
 	}
-	if !s.mountedConfigSets(dockerConfig{HostConfig: dockerHost{Binds: []string{ws + ":/root:ro"}}}, []string{"/root/.npmrc"}, npmrcSetsRegistry) {
+	if !s.mountedConfigSets(dockerConfig{HostConfig: dockerHost{Binds: []string{ws + ":/root:ro"}}}, []string{"/root/.npmrc"}, npmrcSetsRegistry, nil) {
 		t.Fatal("a bind of the home directory")
 	}
 
@@ -115,14 +115,14 @@ func TestCacheProxyGuardReadsMountedAndImageConfigFiles(t *testing.T) {
 		}
 	}
 	inVolume := dockerConfig{HostConfig: dockerHost{Binds: []string{"proj:/app"}}}
-	if !s.mountedConfigSets(inVolume, npmrcCandidates(env, facts.Passwd, "", "/app/sub"), npmrcSetsRegistry) {
+	if !s.mountedConfigSets(inVolume, npmrcCandidates(env, facts.Passwd, "", "/app/sub"), npmrcSetsRegistry, nil) {
 		t.Fatal("the project's .npmrc in a named volume was not read")
 	}
-	if s.mountedConfigSets(inVolume, npmrcCandidates(env, facts.Passwd, "", "/elsewhere"), npmrcSetsRegistry) {
+	if s.mountedConfigSets(inVolume, npmrcCandidates(env, facts.Passwd, "", "/elsewhere"), npmrcSetsRegistry, nil) {
 		t.Fatal("a working directory outside the volume")
 	}
 	alias := dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-npm:/app"}}}
-	if s.mountedConfigSets(alias, []string{"/app/.npmrc"}, npmrcSetsRegistry) {
+	if s.mountedConfigSets(alias, []string{"/app/.npmrc"}, npmrcSetsRegistry, nil) {
 		t.Fatal("a cache alias volume was read as a project")
 	}
 

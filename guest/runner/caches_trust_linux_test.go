@@ -422,22 +422,22 @@ func TestProjectNpmRegistryThroughTheWorkspaceBind(t *testing.T) {
 	}
 	s := &dockerEngine{workspace: ws}
 	spec := dockerConfig{WorkingDir: "/work/pkg", HostConfig: dockerHost{Binds: []string{project + ":/work"}}}
-	if s.projectNpmRegistry(spec, "") {
+	if s.projectNpmRegistry(spec, "", nil) {
 		t.Fatal("no .npmrc yet")
 	}
 	if err := os.WriteFile(filepath.Join(project, ".npmrc"), []byte("@corp:registry=https://npm.corp/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if s.projectNpmRegistry(spec, "") {
+	if s.projectNpmRegistry(spec, "", nil) {
 		t.Fatal("a scoped registry counted")
 	}
 	if err := os.WriteFile(filepath.Join(project, ".npmrc"), []byte("registry=https://npm.corp/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if !s.projectNpmRegistry(spec, "") || !s.projectNpmRegistry(dockerConfig{HostConfig: spec.HostConfig}, "/work") {
+	if !s.projectNpmRegistry(spec, "", nil) || !s.projectNpmRegistry(dockerConfig{HostConfig: spec.HostConfig}, "/work", nil) {
 		t.Fatal("the project's registry was not found")
 	}
-	if s.projectNpmRegistry(dockerConfig{WorkingDir: "/other", HostConfig: spec.HostConfig}, "") {
+	if s.projectNpmRegistry(dockerConfig{WorkingDir: "/other", HostConfig: spec.HostConfig}, "", nil) {
 		t.Fatal("a working directory outside the bind")
 	}
 	outside := filepath.Join(t.TempDir(), "npmrc")
@@ -450,7 +450,7 @@ func TestProjectNpmRegistryThroughTheWorkspaceBind(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(project, "pkg", ".npmrc")); err != nil {
 		t.Fatal(err)
 	}
-	if s.projectNpmRegistry(spec, "") {
+	if s.projectNpmRegistry(spec, "", nil) {
 		t.Fatal("followed a symlink out of the workspace")
 	}
 }

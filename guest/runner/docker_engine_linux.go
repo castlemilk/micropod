@@ -773,6 +773,10 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	if user == "" {
 		user = facts.User
 	}
+	var roots map[string]string
+	if (pol.NpmRegistry != "" || pol.GoProxy != "") && !off {
+		roots = s.probeRoots(ctx, spec)
+	}
 	if pol.NpmRegistry != "" && !off {
 		wd := spec.WorkingDir
 		if wd == "" {
@@ -780,11 +784,11 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 		}
 		// The working directory and every one above it, as the project's
 		// own .npmrc, wherever a bind or a volume puts them.
-		req.projectNpmRegistry = s.projectNpmRegistry(spec, facts.WorkingDir) ||
-			s.mountedConfigSets(spec, npmrcCandidates(env, facts.Passwd, user, wd), npmrcSetsRegistry)
+		req.projectNpmRegistry = s.projectNpmRegistry(spec, facts.WorkingDir, roots) ||
+			s.mountedConfigSets(spec, npmrcCandidates(env, facts.Passwd, user, wd), npmrcSetsRegistry, roots)
 	}
 	if pol.GoProxy != "" && !off {
-		req.projectGoProxy = s.mountedConfigSets(spec, goEnvCandidates(env, facts.Passwd, user), goEnvSetsProxy)
+		req.projectGoProxy = s.mountedConfigSets(spec, goEnvCandidates(env, facts.Passwd, user), goEnvSetsProxy, roots)
 	}
 	plan, err := decideCachesFor(pol, spec, facts, req)
 	if err != nil {
@@ -793,13 +797,56 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	return &plan, runAs, nil
 }
 
+// probeRoots is what holds the config probes of a create (projectNpmRegistry,
+// mountedConfigSets) to what its container may bind: nil for the host's
+// socket, whose binds resolve from the workspace, else the roots of a child
+// of a delegated socket (delegatedBinds on a copy of the request), empty when
+// its binds are not inside its creator's, so no probe reads outside them:
+// whether a probe found a setting shows in the child's environment.
+func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) map[string]string {
+	viewer := viewerOf(ctx)
+	if viewer == "" || privateRootless() {
+		return nil
+	}
+	spec.HostConfig.Binds = slices.Clone(spec.HostConfig.Binds)
+	spec.HostConfig.Mounts = slices.Clone(spec.HostConfig.Mounts)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if owner := s.containers[viewer]; owner != nil {
+		if roots, err := delegatedBinds(owner, &spec); err == nil {
+			return roots
+		}
+	}
+	return map[string]string{}
+}
+
+// openConfigFile opens the file at p, which the request mount m covers, for a
+// config probe: below m's root for a child of a delegated socket (roots, nil
+// for the host's), else below the workspace for a bind, and below the volume
+// itself for a named one, so a symlink a mount carries cannot lead a probe
+// into another job's files.
+func (s *dockerEngine) openConfigFile(m dockerMount, p string, roots map[string]string) (*os.File, error) {
+	switch {
+	case m.Type == "bind" && roots != nil:
+		if roots[m.Target] == "" {
+			return nil, errors.New("bind source is outside the creating container's binds")
+		}
+		return openMountWithin(s.workspace, roots[m.Target], p)
+	case m.Type == "bind":
+		return openMount(s.workspace, p)
+	case m.Type == "volume" && dockerName.MatchString(m.Source):
+		return openMount(filepath.Join(configVolumesDir, m.Source), p)
+	}
+	return nil, errors.New("not a bind or a named volume")
+}
+
 // projectNpmRegistry reports whether the project a container works in sets
 // its own npm registry: an unscoped registry= in a .npmrc in its working
 // directory (the request's, else the image's) or in any directory above it
 // that the same workspace bind covers. Files are opened below the workspace
-// without following symlinks out of it; a missing or unreadable file counts
-// as no setting.
-func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string) bool {
+// (below roots, openConfigFile) without following symlinks out of it; a
+// missing or unreadable file counts as no setting.
+func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string, roots map[string]string) bool {
 	wd := spec.WorkingDir
 	if wd == "" {
 		wd = imageWorkDir
@@ -829,7 +876,7 @@ func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string
 	}
 	dir := filepath.Join(bind.Source, rel)
 	for i := 0; i < 32; i++ {
-		if f, err := openMount(s.workspace, filepath.Join(dir, ".npmrc")); err == nil {
+		if f, err := s.openConfigFile(*bind, filepath.Join(dir, ".npmrc"), roots); err == nil {
 			b := readNpmrc(f)
 			f.Close()
 			if npmrcSetsRegistry(b) {
@@ -851,11 +898,11 @@ var configVolumesDir = filepath.Join(engineRoot, "volumes")
 // mountedConfigSets reports whether one of the files at the container paths
 // comes from a bind or a named volume of the request (the mount with the
 // longest target that covers the path decides) and match accepts what it
-// holds now. Files are opened below the workspace or the volume without
-// following symlinks out of it; a missing or unreadable file counts as no
-// setting. A file a step writes after create (a clone into a volume, a cd into
-// a subproject) is not seen: the policy's proxy then wins over it.
-func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, match func([]byte) bool) bool {
+// holds now. Files are opened below the bind (openConfigFile) or the volume
+// without following symlinks out of it; a missing or unreadable file counts
+// as no setting. A file a step writes after create (a clone into a volume, a
+// cd into a subproject) is not seen: the policy's proxy then wins over it.
+func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, match func([]byte) bool, roots map[string]string) bool {
 	mounts, _ := spec.mounts()
 	for _, p := range paths {
 		if !filepath.IsAbs(p) {
@@ -882,12 +929,12 @@ func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, matc
 		var f *os.File
 		switch {
 		case cover.Type == "bind" && s.workspace != "":
-			f, err = openMount(s.workspace, filepath.Join(cover.Source, rel))
+			f, err = s.openConfigFile(*cover, filepath.Join(cover.Source, rel), roots)
 		case cover.Type == "volume" && dockerName.MatchString(cover.Source):
 			if _, _, shared := legacyCacheVolume(cover.Source); shared {
 				continue
 			}
-			f, err = openMount(configVolumesDir, filepath.Join(configVolumesDir, cover.Source, rel))
+			f, err = s.openConfigFile(*cover, filepath.Join(configVolumesDir, cover.Source, rel), roots)
 		default:
 			continue
 		}
