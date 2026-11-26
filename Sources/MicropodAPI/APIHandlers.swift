@@ -402,19 +402,8 @@ final class APIHandlers: Sendable {
                 return try encodeJSONResponse(200, sample)
 
             case ("caches", .post) where segments == ["v1", "caches", "prune"]:
-                let client = hvfMachineClient()
-                let payload = try decodeBody(request.body)
-                let pruneReq = HVFCachePruneRequest(
-                    scope: payload["scope"] as? String,
-                    tool: payload["tool"] as? String,
-                    olderThanSecs: (payload["olderThanSecs"] as? NSNumber)?.int64Value,
-                    maxBytes: (payload["maxBytes"] as? NSNumber)?.uint64Value,
-                    partialGoBuild: payload["partialGoBuild"] as? Bool,
-                    safetyCutoffSecs: (payload["safetyCutoffSecs"] as? NSNumber)?.int64Value,
-                    maxUnits: (payload["maxUnits"] as? NSNumber)?.intValue,
-                    dryRun: (payload["dryRun"] as? Bool) ?? false,
-                    reason: payload["reason"] as? String ?? "api")
-                let result = try await client.cachePrune(pruneReq)
+                let pruneRequest = try Self.cachePruneRequest(request.body)
+                let result = try await hvfMachineClient().cachePrune(pruneRequest)
                 return try encodeJSONResponse(200, result)
 
             case ("caches", .get) where segments == ["v1", "caches", "policy"]:
@@ -423,39 +412,32 @@ final class APIHandlers: Sendable {
                 return try encodeJSONResponse(200, cfg.effectiveCachePolicy)
 
             case ("caches", .put) where segments == ["v1", "caches", "policy"]:
-                let client = hvfMachineClient()
-                var cfg = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
-                var policy = cfg.effectiveCachePolicy
-                let payload = try decodeBody(request.body)
-                if let rawMode = payload["mode"] as? String, let m = HVFMachineCachePolicy.Mode(rawValue: rawMode) {
-                    policy.mode = m
+                // The body is checked before machine.json is read, and
+                // machine.json must read cleanly: a config that fails to
+                // load is an error, never replaced by the defaults.
+                let patch = try RequestFields(
+                    request.body, allowed: Self.cachePolicyFields, what: "cache policy")
+                guard !patch.namesNothing(clearable: Self.cachePolicyClearableFields) else {
+                    throw BadRequest(
+                        message: "cache policy: name at least one field to change "
+                            + "(\(Self.cachePolicyFields.sorted().joined(separator: ", "))); nothing was written")
                 }
-                if let scope = payload["defaultScope"] as? String { policy.defaultScope = scope }
-                if let scopes = payload["allowedScopes"] as? [String] { policy.allowedScopes = scopes }
-                if let tools = payload["tools"] as? [String] { policy.tools = tools }
-                if let trim = payload["goTrimpath"] as? Bool { policy.goTrimpath = trim }
-                if let sharedL0 = payload["sharedL0"] as? Bool { policy.sharedL0 = sharedL0 }
-                if let goProxy = payload["goProxy"] as? String {
-                    policy.goProxy = goProxy.isEmpty ? nil : goProxy
-                }
-                if let npmReg = payload["npmRegistry"] as? String {
-                    policy.npmRegistry = npmReg.isEmpty ? nil : npmReg
-                }
-                if let maxB = (payload["maxBytes"] as? NSNumber)?.uint64Value {
-                    policy.maxBytes = maxB == 0 ? nil : maxB
-                }
-                if let maxAge = (payload["maxAgeDays"] as? NSNumber)?.intValue {
-                    policy.maxAgeDays = maxAge <= 0 ? nil : maxAge
-                }
-                try policy.validate()
+                let layout = hvfMachineClient().layout
+                if layout.installInProgress { throw layout.installInProgressError() }
+                var cfg = try HVFMachineConfig.load(from: layout.config)
+                let policy = try Self.cachePolicy(cfg.effectiveCachePolicy, patchedWith: patch)
                 cfg.cache = policy
-                try cfg.save(to: client.layout.config)
-                try HVFMachineCachePolicy.write(policy, layout: client.layout)
+                try cfg.save(to: layout.config)
+                try HVFMachineCachePolicy.write(policy, layout: layout)
                 return try encodeJSONResponse(200, policy)
 
             case ("caches", .get) where segments.count == 4 && segments[2] == "explain":
-                let client = hvfMachineClient()
-                let explain = try await client.explainContainerCache(segments[3])
+                let container = segments[3].removingPercentEncoding ?? segments[3]
+                guard container.range(of: "^[A-Za-z0-9][A-Za-z0-9_.-]{0,254}$", options: .regularExpression) != nil
+                else {
+                    throw BadRequest(message: "cache explain: '\(container)' is not a container id or name")
+                }
+                let explain = try await hvfMachineClient().explainContainerCache(container)
                 return try encodeJSONResponse(200, explain)
 
             case ("rig", .get) where segments == ["v1", "rig", "mode"]:
@@ -1273,6 +1255,191 @@ final class APIHandlers: Sendable {
 /// A request the REST handlers refuse before it reaches a service — `400`.
 private struct BadRequest: Error {
     let message: String
+}
+
+/// A JSON object body read field by field. A key outside `allowed`, or a
+/// field of the wrong JSON type (`"true"` or `1` for a boolean, `1.5` for an
+/// integer), is a `BadRequest`, never a silent default. `null` reads as
+/// absent.
+private struct RequestFields {
+    private let payload: [String: Any]
+    private let what: String
+
+    init(_ body: Data, allowed: Set<String>, what: String) throws {
+        self.what = what
+        guard !body.isEmpty else { throw BadRequest(message: "\(what): expected a JSON object body") }
+        guard let object = try? JSONSerialization.jsonObject(with: body), let payload = object as? [String: Any]
+        else { throw BadRequest(message: "\(what): the body is not a JSON object") }
+        if let unknown = payload.keys.filter({ !allowed.contains($0) }).sorted().first {
+            throw BadRequest(
+                message: "\(what): unknown field '\(unknown)' (accepted: \(allowed.sorted().joined(separator: ", ")))")
+        }
+        self.payload = payload
+    }
+
+    /// No field has a value, apart from `null` for a key in `clearable`
+    /// (where it means "clear this setting").
+    func namesNothing(clearable: Set<String>) -> Bool {
+        !payload.keys.contains { value($0) != nil || clearable.contains($0) }
+    }
+
+    /// The key is in the body, possibly as `null`.
+    func contains(_ key: String) -> Bool { payload[key] != nil }
+
+    private func value(_ key: String) -> Any? {
+        guard let value = payload[key], !(value is NSNull) else { return nil }
+        return value
+    }
+
+    private func invalid(_ key: String, _ want: String) -> BadRequest {
+        BadRequest(message: "\(what): \(key) must be \(want)")
+    }
+
+    func bool(_ key: String) throws -> Bool? {
+        guard let raw = value(key) else { return nil }
+        guard let number = raw as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else {
+            throw invalid(key, "a boolean")
+        }
+        return number.boolValue
+    }
+
+    func string(_ key: String) throws -> String? {
+        guard let raw = value(key) else { return nil }
+        guard let text = raw as? String else { throw invalid(key, "a string") }
+        return text
+    }
+
+    func strings(_ key: String) throws -> [String]? {
+        guard let raw = value(key) else { return nil }
+        guard let strings = raw as? [String] else { throw invalid(key, "an array of strings") }
+        return strings
+    }
+
+    /// A JSON integer (`stringValue` keeps every digit, where `int64Value`
+    /// would truncate 1.5 or wrap 2^64).
+    private func integerText(_ key: String) -> String? {
+        guard let number = value(key) as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        return number.stringValue
+    }
+
+    func int64(_ key: String) throws -> Int64? {
+        guard value(key) != nil else { return nil }
+        guard let text = integerText(key), let number = Int64(text) else { throw invalid(key, "an integer") }
+        return number
+    }
+
+    func uint64(_ key: String) throws -> UInt64? {
+        guard value(key) != nil else { return nil }
+        guard let text = integerText(key), let number = UInt64(text) else {
+            throw invalid(key, "a non-negative integer")
+        }
+        return number
+    }
+}
+
+// MARK: - Cache prune and policy bodies
+
+extension APIHandlers {
+    static let cachePruneFields: Set<String> = [
+        "dryRun", "all", "scope", "tool", "maxBytes", "olderThanSecs", "partialGoBuild", "safetyCutoffSecs",
+        "maxUnits", "reason",
+    ]
+
+    /// `POST /v1/caches/prune`'s body. A prune is a dry run unless the body
+    /// says `"dryRun": false`, and an apply naming no scope, tool, maxBytes
+    /// or olderThanSecs — every idle unit in every scope — also needs
+    /// `"all": true`. An empty, malformed or mistyped body is a 400 and
+    /// never reaches the guest.
+    static func cachePruneRequest(_ body: Data) throws -> HVFCachePruneRequest {
+        let fields = try RequestFields(body, allowed: cachePruneFields, what: "cache prune")
+        func positive<Number: BinaryInteger>(_ value: Number?, _ key: String) throws -> Number? {
+            guard let value else { return nil }
+            guard value > 0 else { throw BadRequest(message: "cache prune: \(key) must be positive") }
+            return value
+        }
+        let request = HVFCachePruneRequest(
+            scope: try fields.string("scope"),
+            tool: try fields.string("tool"),
+            olderThanSecs: try positive(fields.int64("olderThanSecs"), "olderThanSecs"),
+            maxBytes: try positive(fields.uint64("maxBytes"), "maxBytes"),
+            partialGoBuild: try fields.bool("partialGoBuild"),
+            safetyCutoffSecs: try positive(fields.int64("safetyCutoffSecs"), "safetyCutoffSecs"),
+            maxUnits: try positive(fields.int64("maxUnits"), "maxUnits").map { Int($0) },
+            dryRun: try fields.bool("dryRun") ?? true,
+            reason: try fields.string("reason") ?? "api")
+        let all = try fields.bool("all") ?? false
+        if let scope = request.scope, !HVFMachineCachePolicy.isValidScope(scope) {
+            throw BadRequest(message: "cache prune: scope '\(scope)' must match ^[a-z0-9][a-z0-9_-]{0,62}$")
+        }
+        if let tool = request.tool, (try? HVFMachineCachePolicy.normalizedTools([tool])) == nil {
+            throw BadRequest(
+                message: "cache prune: unknown tool '\(tool)' (known: "
+                    + "\(HVFMachineCachePolicy.toolNames.joined(separator: ", ")))")
+        }
+        let selected =
+            request.scope != nil || request.tool != nil || request.maxBytes != nil || request.olderThanSecs != nil
+        if !request.dryRun, !selected, !all {
+            throw BadRequest(
+                message: "cache prune: \"dryRun\": false with no scope, tool, maxBytes or olderThanSecs evicts "
+                    + "every idle cache unit in every scope; add \"all\": true to confirm")
+        }
+        return request
+    }
+
+    static let cachePolicyFields: Set<String> = [
+        "mode", "defaultScope", "allowedScopes", "tools", "goTrimpath", "pnpmLegacyEnv", "sharedL0", "goProxy",
+        "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes",
+    ]
+    /// The optional settings `null` clears.
+    static let cachePolicyClearableFields: Set<String> = [
+        "goProxy", "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes",
+    ]
+
+    /// `original` with the fields `PUT /v1/caches/policy` names, validated.
+    /// `""` or `null` clears goProxy and npmRegistry; `0` or `null` clears
+    /// maxBytes, maxAgeDays and minFreeBytes.
+    private static func cachePolicy(_ original: HVFMachineCachePolicy, patchedWith fields: RequestFields) throws
+        -> HVFMachineCachePolicy
+    {
+        var policy = original
+        if let raw = try fields.string("mode") {
+            guard let mode = HVFMachineCachePolicy.Mode(rawValue: raw) else {
+                throw BadRequest(message: "cache policy: mode must be auto or off, got '\(raw)'")
+            }
+            policy.mode = mode
+        }
+        if let scope = try fields.string("defaultScope") { policy.defaultScope = scope }
+        if let scopes = try fields.strings("allowedScopes") { policy.allowedScopes = scopes }
+        if let tools = try fields.strings("tools") { policy.tools = tools }
+        if let trim = try fields.bool("goTrimpath") { policy.goTrimpath = trim }
+        if let legacy = try fields.bool("pnpmLegacyEnv") { policy.pnpmLegacyEnv = legacy }
+        if let shared = try fields.bool("sharedL0") { policy.sharedL0 = shared }
+        if fields.contains("goProxy") {
+            policy.goProxy = try fields.string("goProxy").flatMap { $0.isEmpty ? nil : $0 }
+        }
+        if fields.contains("npmRegistry") {
+            policy.npmRegistry = try fields.string("npmRegistry").flatMap { $0.isEmpty ? nil : $0 }
+        }
+        if fields.contains("maxBytes") {
+            policy.maxBytes = try fields.uint64("maxBytes").flatMap { $0 == 0 ? nil : $0 }
+        }
+        if fields.contains("minFreeBytes") {
+            policy.minFreeBytes = try fields.uint64("minFreeBytes").flatMap { $0 == 0 ? nil : $0 }
+        }
+        if fields.contains("maxAgeDays") {
+            let days = try fields.uint64("maxAgeDays")
+            guard days.map({ $0 <= 36_500 }) ?? true else {
+                throw BadRequest(message: "cache policy: maxAgeDays must be at most 36500")
+            }
+            policy.maxAgeDays = days.flatMap { $0 == 0 ? nil : Int($0) }
+        }
+        do {
+            try policy.validate()
+        } catch {
+            throw BadRequest(message: error.localizedDescription)
+        }
+        return policy
+    }
 }
 
 // MARK: - Runtime engine management (shared by Connect + REST)

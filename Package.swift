@@ -229,5 +229,12 @@ let package = Package(
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
+        .testTarget(
+            name: "MicropodMCPTests",
+            dependencies: ["MicropodMCP", "MicropodCore"],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
+            ]
+        ),
     ]
 )
