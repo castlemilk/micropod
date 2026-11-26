@@ -381,7 +381,9 @@ final class ControlPlaneServiceTests: XCTestCase {
         XCTAssertNil(APIHandlers.updateFailure(.noop, applying: true))
         XCTAssertNil(APIHandlers.updateFailure(.activated, applying: true))
         XCTAssertNil(APIHandlers.updateFailure(.rolledBack, applying: false), "a rollback that got there succeeded")
-        XCTAssertEqual(APIHandlers.updateFailure(.rolledBack, applying: true), .aborted, "the update did not take")
+        XCTAssertEqual(
+            APIHandlers.updateFailure(.rolledBack, applying: true), .failedPrecondition,
+            "the update did not take, and replaying it would restart the machine again: never a retried code")
         XCTAssertEqual(APIHandlers.updateFailure(.deferred, applying: false), .failedPrecondition)
         XCTAssertEqual(APIHandlers.updateFailure(.failedRollback, applying: false), .internal)
         XCTAssertEqual(APIHandlers.updateFailure(.failed, applying: true), .internal)

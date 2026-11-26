@@ -106,12 +106,15 @@ extension APIHandlers {
 
     /// Success for noop, activated and (for a rollback) rolled_back. A
     /// deferral changed nothing: `failed_precondition`. An activation that
-    /// returned to known-good did not take: `aborted`. A failed boot with no
-    /// way back: `internal`.
+    /// returned to known-good did not take, and taking it again would only
+    /// repeat the stop, the failed trial boot and the rollback, so it is
+    /// `failed_precondition` too (the message says `rolled_back`): never
+    /// `aborted`, which retry policies (the Go SDK's default among them)
+    /// replay. A failed boot with no way back: `internal`.
     static func updateFailure(_ action: HVFActivationResult.Action, applying: Bool) -> ConnectWireCode? {
         switch action {
         case .noop, .activated: return nil
-        case .rolledBack: return applying ? .aborted : nil
+        case .rolledBack: return applying ? .failedPrecondition : nil
         case .deferred: return .failedPrecondition
         case .failedRollback, .failed: return .internal
         }
