@@ -71,6 +71,7 @@ fn malformed_flags_exit_2_instead_of_panicking() {
         "--console-log",
         "--workspace",
         "--cmdline-append",
+        "--disk-flush",
     ];
     let mut cases: Vec<Vec<&str>> = value_flags.iter().map(|f| vec![*f]).collect();
     for numeric in [
@@ -90,10 +91,22 @@ fn malformed_flags_exit_2_instead_of_panicking() {
     cases.push(vec!["--no-such-flag"]);
     cases.push(vec!["--workspace", "/opt"]);
     cases.push(vec!["--workspace", "/tmp/."]);
+    cases.push(vec!["--disk-flush", "fullfsync"]);
+    cases.push(vec!["--disk-flush", ""]);
     for args in cases {
         let output = run(&args);
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert_eq!(output.status.code(), Some(2), "{args:?}: {stderr}");
         assert!(!stderr.contains("panicked"), "{args:?}: {stderr}");
+    }
+}
+
+#[test]
+fn every_disk_flush_mode_is_accepted() {
+    for mode in ["barrier", "full", "fsync"] {
+        let output = run(&["--disk-flush", mode]);
+        assert_eq!(output.status.code(), Some(1), "{mode}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("read kernel"), "{mode}: {stderr}");
     }
 }

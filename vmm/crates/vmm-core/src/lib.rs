@@ -34,6 +34,7 @@ pub mod telemetry;
 pub use ctrl::{DEFAULT_SHUTDOWN_TIMEOUT_SECS, VSOCK_PORT_CTRL};
 pub use snapshot::{Pl011Snapshot, VcpuSnapshot, VmSnapshot};
 pub use telemetry::TelemetryConfig;
+pub use vmm_virtio::DiskFlush;
 
 pub const RAM_BASE: u64 = 0x4000_0000;
 pub const UART_BASE: u64 = 0x0900_0000;
@@ -522,6 +523,8 @@ pub struct VmConfig {
     /// `/var/lib/micropod/caches` so persistent dependency & BuildKit caches
     /// survive `disk.ext4` OS upgrades.
     pub cache_disk_path: Option<PathBuf>,
+    /// The host sync both disks run for a guest flush (`--disk-flush`).
+    pub disk_flush: DiskFlush,
     pub num_vcpus: u32,
     pub memory_mib: usize,
     pub cmdline: String,
@@ -979,15 +982,20 @@ pub fn run_vm_with_parent(
             let file = disk
                 .try_clone()
                 .map_err(|e| format!("duplicate disk descriptor: {e}"))?;
-            let blk = VirtioBlk::new(file, cfg.disk_read_only, blk_metrics.clone())
-                .map_err(|e| format!("init virtio-blk: {e}"))?;
+            let blk = VirtioBlk::new(
+                file,
+                cfg.disk_read_only,
+                blk_metrics.clone(),
+                cfg.disk_flush,
+            )
+            .map_err(|e| format!("init virtio-blk: {e}"))?;
             push_dev(Box::new(blk));
         }
         if let Some(cache_disk) = &cache_disk {
             let file = cache_disk
                 .try_clone()
                 .map_err(|e| format!("duplicate cache disk descriptor: {e}"))?;
-            let blk = VirtioBlk::new(file, false, blk_metrics.clone())
+            let blk = VirtioBlk::new(file, false, blk_metrics.clone(), cfg.disk_flush)
                 .map_err(|e| format!("init cache virtio-blk: {e}"))?;
             push_dev(Box::new(blk));
         }
@@ -2022,6 +2030,7 @@ mod vcpu_lifecycle_tests {
                 disk_path: None,
                 disk_read_only: false,
                 cache_disk_path: None,
+                disk_flush: DiskFlush::default(),
                 num_vcpus,
                 memory_mib,
                 cmdline: String::new(),

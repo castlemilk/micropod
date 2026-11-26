@@ -2,6 +2,7 @@
 //! implementations: RNG, Block, Balloon (Free-Page Reporting -> MADV_FREE),
 //! Vsock (host<->guest Unix socket & port-broker mux), and Virtio-FS (FUSE).
 
+mod blk_flush;
 mod fs_watch;
 pub mod virtiofs;
 pub mod vsock;
@@ -13,6 +14,9 @@ use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+
+pub use blk_flush::DiskFlush;
+use blk_flush::FlushPolicy;
 
 const VIRTIO_MMIO_MAGIC: u32 = 0x7472_6976; // "virt"
 const VIRTIO_MMIO_VERSION: u32 = 2;
@@ -836,7 +840,7 @@ impl VirtioBackend for VirtioRng {
 }
 
 // ============================================================================
-// 2. Virtio-Blk (Device ID 2) — async zero-copy worker thread + coalesced F_BARRIERFSYNC
+// 2. Virtio-Blk (Device ID 2) — async zero-copy worker thread + coalesced flushes (DiskFlush)
 // ============================================================================
 #[derive(Default)]
 pub struct BlkMetrics {
@@ -860,6 +864,8 @@ struct BlkQueueState {
 struct BlkShared {
     file: File,
     read_only: bool,
+    /// How guest flushes (and the device's own) reach the host disk.
+    flush: FlushPolicy,
     metrics: Arc<BlkMetrics>,
     state: (Mutex<BlkQueueState>, Condvar),
     paused: AtomicBool,
@@ -919,14 +925,6 @@ fn darwin_punch_hole(fd: std::os::fd::RawFd, byte_off: u64, byte_len: u64) -> u6
 #[cfg(not(target_vendor = "apple"))]
 fn darwin_punch_hole(_fd: std::os::fd::RawFd, _byte_off: u64, _byte_len: u64) -> u64 {
     0
-}
-
-#[inline]
-fn darwin_fast_flush(fd: std::os::fd::RawFd) -> bool {
-    // On macOS APFS, fsync() flushes dirty pages to the NVMe controller cache in ~30-50 us
-    // (matching Virtualization.framework), whereas F_BARRIERFSYNC triggers a container-wide
-    // APFS transaction barrier that stalls 1-38 ms per BoltDB commit on CoW-cloned images!
-    unsafe { libc::fsync(fd) == 0 }
 }
 
 fn run_blk_io_loop(shared: Arc<BlkShared>) {
@@ -1207,11 +1205,9 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
             }
 
             if !pending_flushes.is_empty() {
-                let flush_status = if darwin_fast_flush(shared.file.as_raw_fd()) {
-                    0
-                } else {
-                    1
-                };
+                // One host sync answers every flush of the batch: each was
+                // submitted after the writes it covers had completed.
+                let flush_status = if shared.flush.flush(fd).is_ok() { 0 } else { 1 };
                 shared
                     .metrics
                     .flush_ops
@@ -1256,7 +1252,21 @@ fn run_blk_io_loop(shared: Arc<BlkShared>) {
 }
 
 impl VirtioBlk {
-    pub fn new(file: File, read_only: bool, metrics: Arc<BlkMetrics>) -> std::io::Result<Self> {
+    pub fn new(
+        file: File,
+        read_only: bool,
+        metrics: Arc<BlkMetrics>,
+        flush: DiskFlush,
+    ) -> std::io::Result<Self> {
+        Self::with_flush_policy(file, read_only, metrics, FlushPolicy::new(flush))
+    }
+
+    fn with_flush_policy(
+        file: File,
+        read_only: bool,
+        metrics: Arc<BlkMetrics>,
+        flush: FlushPolicy,
+    ) -> std::io::Result<Self> {
         let len = file.metadata()?.len();
         Ok(Self {
             capacity_sectors: len / 512,
@@ -1264,6 +1274,7 @@ impl VirtioBlk {
             shared: Arc::new(BlkShared {
                 file,
                 read_only,
+                flush,
                 metrics,
                 state: (
                     Mutex::new(BlkQueueState {
@@ -1363,7 +1374,7 @@ impl VirtioBackend for VirtioBlk {
             }
         }
         if !self.read_only {
-            let _ = darwin_fast_flush(self.shared.file.as_raw_fd());
+            let _ = self.shared.flush.flush(self.shared.file.as_raw_fd());
         }
         Vec::new()
     }
@@ -1411,7 +1422,7 @@ impl Drop for VirtioBlk {
             let _ = h.join();
         }
         if !self.read_only {
-            let _ = darwin_fast_flush(self.shared.file.as_raw_fd());
+            let _ = self.shared.flush.flush(self.shared.file.as_raw_fd());
         }
     }
 }
@@ -1579,7 +1590,7 @@ mod tests {
         let file = File::open(std::env::current_exe().unwrap()).unwrap();
         let mut expected = [0; 32];
         file.read_exact_at(&mut expected, 0).unwrap();
-        let block = VirtioBlk::new(file, true, Arc::default()).unwrap();
+        let block = VirtioBlk::new(file, true, Arc::default(), DiskFlush::default()).unwrap();
         let fs =
             virtiofs::VirtioFs::new("workspace", root.to_owned(), false, Arc::default()).unwrap();
         let devices: [Box<dyn VirtioBackend>; 2] = [Box::new(block), Box::new(fs)];
@@ -1742,5 +1753,126 @@ mod tests {
         assert!(check.iter().all(|&b| b == 0));
         drop(f);
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// A guest's VIRTIO_BLK_T_FLUSH reaches the host as the device's flush
+    /// mode, a barrier unless configured otherwise, and a failed host sync
+    /// is the guest's VIRTIO_BLK_S_IOERR.
+    #[test]
+    fn guest_flushes_run_the_configured_host_sync() {
+        use std::sync::atomic::AtomicU8;
+        const AVAIL: u64 = 0x200;
+        const USED: u64 = 0x300;
+        const HEADER: u64 = 0x400;
+        const STATUS: u64 = 0x800;
+        // The host syncs each case's device ran (the tests share a process).
+        static SEEN: Mutex<Vec<(u8, DiskFlush)>> = Mutex::new(Vec::new());
+        static CASE: AtomicU8 = AtomicU8::new(0);
+        fn record(_fd: std::os::fd::RawFd, mode: DiskFlush) -> std::io::Result<()> {
+            SEEN.lock()
+                .unwrap()
+                .push((CASE.load(Ordering::SeqCst), mode));
+            Ok(())
+        }
+        fn fail(_fd: std::os::fd::RawFd, mode: DiskFlush) -> std::io::Result<()> {
+            SEEN.lock()
+                .unwrap()
+                .push((CASE.load(Ordering::SeqCst), mode));
+            Err(std::io::Error::from_raw_os_error(libc::EIO))
+        }
+        let seen = |case: u8| -> Vec<DiskFlush> {
+            SEEN.lock()
+                .unwrap()
+                .iter()
+                .filter(|(c, _)| *c == case)
+                .map(|(_, m)| *m)
+                .collect()
+        };
+        let path =
+            std::env::temp_dir().join(format!("mp-blk-flush-dev-{}.img", std::process::id()));
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        file.set_len(1 << 20).unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        let cases: [(u8, Option<DiskFlush>, blk_flush::SyncFn, DiskFlush, u8); 3] = [
+            (1, None, record, DiskFlush::Barrier, 0),
+            (2, Some(DiskFlush::Full), record, DiskFlush::Full, 0),
+            (3, None, fail, DiskFlush::Barrier, 1),
+        ];
+        for (case, configured, sync, want_mode, want_status) in cases {
+            CASE.store(case, Ordering::SeqCst);
+            let block = VirtioBlk::with_flush_policy(
+                file.try_clone().unwrap(),
+                false,
+                Arc::default(),
+                FlushPolicy::with_sync(configured.unwrap_or_default(), sync),
+            )
+            .unwrap();
+            let mut backing = [0u64; 512];
+            let mem = Arc::new(unsafe {
+                GuestMemory::new(
+                    backing.as_mut_ptr().cast(),
+                    0,
+                    std::mem::size_of_val(&backing),
+                )
+            });
+            let mut dev = VirtioMmioDevice::new(32, mem.clone(), Box::new(block));
+            mem.write_u32(HEADER, VIRTIO_BLK_T_FLUSH).unwrap();
+            mem.write_slice(STATUS, 1).unwrap()[0] = 0xff;
+            for (i, (addr, len, flags)) in [
+                (HEADER, 16, VIRTQ_DESC_F_NEXT),
+                (STATUS, 1, VIRTQ_DESC_F_WRITE),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let d = 0x100 + i as u64 * 16;
+                mem.write_slice(d, 8)
+                    .unwrap()
+                    .copy_from_slice(&addr.to_le_bytes());
+                mem.write_u32(d + 8, len).unwrap();
+                mem.write_u16(d + 12, flags).unwrap();
+                mem.write_u16(d + 14, i as u16 + 1).unwrap();
+            }
+            for (reg, value) in [
+                (0x030, 0),
+                (0x038, 4),
+                (0x080, 0x100),
+                (0x090, AVAIL),
+                (0x0a0, USED),
+                (0x044, 1),
+            ] {
+                dev.mmio_write(reg, 4, value);
+            }
+            mem.write_u16_release(AVAIL + 2, 1).unwrap();
+            dev.mmio_write(0x050, 4, 0);
+            let limit = Instant::now() + Duration::from_secs(2);
+            while mem.read_u16_acquire(USED + 2) != Some(1) {
+                assert!(
+                    Instant::now() < limit,
+                    "case {case}: the flush never completed"
+                );
+                thread::yield_now();
+            }
+            assert_eq!(
+                mem.read_slice(STATUS, 1).unwrap(),
+                &[want_status],
+                "case {case}: status"
+            );
+            assert_eq!(seen(case), [want_mode], "case {case}: the guest's flush");
+            // A writable device flushes once more when it goes, the same way.
+            drop(dev);
+            assert_eq!(
+                seen(case),
+                [want_mode, want_mode],
+                "case {case}: the exit flush"
+            );
+        }
     }
 }
