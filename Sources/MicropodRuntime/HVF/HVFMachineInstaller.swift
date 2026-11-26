@@ -21,6 +21,10 @@ public struct HVFInstallRequest: Sendable, Equatable {
     /// Optional sparse ext4 cache disk size (`caches.ext4`, mounted at
     /// `/var/lib/micropod/caches`). Created only if absent; never replaced by `--replace-disk`.
     public var cacheDiskBytes: UInt64?
+    /// The machine has no cache disk: machine.json stops expecting one
+    /// (`cacheDiskBytes`). Refused while `caches.ext4` exists, since
+    /// micropod-vmm would still attach it, and with `cacheDiskBytes`.
+    public var noCacheDisk: Bool
     /// Allows a new disk to discard an existing machine disk.
     public var replaceDisk: Bool
     public var cpus: Int?
@@ -30,7 +34,8 @@ public struct HVFInstallRequest: Sendable, Equatable {
     public init(
         vmm: URL? = nil, kernel: URL? = nil, initrd: URL? = nil, tools: URL? = nil, diskFrom: URL? = nil,
         diskImage: String? = nil, diskBytes: UInt64 = 64 << 30, cacheDiskBytes: UInt64? = nil,
-        replaceDisk: Bool = false, cpus: Int? = nil, memoryMiB: Int? = nil, workspace: String? = nil
+        noCacheDisk: Bool = false, replaceDisk: Bool = false, cpus: Int? = nil, memoryMiB: Int? = nil,
+        workspace: String? = nil
     ) {
         self.vmm = vmm
         self.kernel = kernel
@@ -40,6 +45,7 @@ public struct HVFInstallRequest: Sendable, Equatable {
         self.diskImage = diskImage
         self.diskBytes = diskBytes
         self.cacheDiskBytes = cacheDiskBytes
+        self.noCacheDisk = noCacheDisk
         self.replaceDisk = replaceDisk
         self.cpus = cpus
         self.memoryMiB = memoryMiB
@@ -105,6 +111,18 @@ public enum HVFMachineInstaller {
         }
         defer { updating.release() }
         removeLeftovers(in: layout)
+        if request.noCacheDisk {
+            guard request.cacheDiskBytes == nil else {
+                throw MicropodError.message(
+                    "invalidArgument: --no-cache-disk and --cache-disk-size contradict each other")
+            }
+            guard !HVFMachineLayout.isRegularFile(layout.cacheDisk) else {
+                throw MicropodError.message(
+                    "failedPrecondition: \(layout.cacheDisk.path) exists, and micropod-vmm attaches it at every "
+                        + "boot; --no-cache-disk only stops expecting a cache disk that is gone. Move or delete it "
+                        + "first (the dependency caches on it go with it)")
+            }
+        }
 
         var config = try HVFMachineConfig.load(from: layout.config)
         if let cpus = request.cpus { config.cpus = cpus }
@@ -291,10 +309,14 @@ public enum HVFMachineInstaller {
         }
         // Every later boot expects the cache disk this one has (one installed
         // before machine.json recorded it, by its size); one that was expected
-        // and is gone stays expected, and is reported.
-        if config.cacheDiskBytes == nil, HVFMachineLayout.isRegularFile(layout.cacheDisk),
-            let size = (try? fm.attributesOfItem(atPath: layout.cacheDisk.path))?[.size] as? UInt64
-        {
+        // and is gone stays expected, and is reported, until --no-cache-disk.
+        if request.noCacheDisk, let bytes = config.cacheDiskBytes {
+            config.cacheDiskBytes = nil
+            progress(
+                "machine.json no longer expects a \(HVFCacheDiskState.gibibytes(bytes)) cache disk; the "
+                    + "dependency caches live on the OS disk")
+        }
+        if config.cacheDiskBytes == nil, let size = layout.cacheDiskBytes() {
             config.cacheDiskBytes = size
         }
         let warnings = [layout.missingCacheDisk(config: config)].compactMap { $0 }

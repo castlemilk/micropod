@@ -1443,6 +1443,66 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertEqual(observation.summary, "none (no caches.ext4)")
         XCTAssertNil(observation.jsonObject["missing"])
     }
+
+    func testNoCacheDiskForgetsAnExpectedDiskThatIsGoneAndOnlyThat() async throws {
+        var request = try sources()
+        request.cacheDiskBytes = 256 << 20
+        try await HVFMachineInstaller.install(request, layout: layout) { _ in }
+        // Everything else installed stays as it is.
+        request = HVFInstallRequest(noCacheDisk: true)
+
+        // While caches.ext4 is there, micropod-vmm attaches it: refused.
+        let present = await installError(request)
+        XCTAssertTrue(present?.contains("\(layout.cacheDisk.path) exists") == true, present ?? "installed")
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes, 256 << 20)
+        XCTAssertTrue(HVFMachineLayout.isRegularFile(layout.cacheDisk), "nothing deleted")
+
+        // Gone: the warning says how to stop expecting it, and --no-cache-disk does.
+        try FileManager.default.removeItem(at: layout.cacheDisk)
+        let missing = try XCTUnwrap(layout.missingCacheDisk(config: try HVFMachineConfig.load(from: layout.config)))
+        XCTAssertTrue(missing.contains("machine install --no-cache-disk"), missing)
+        let lines = LogRecorder()
+        let warnings = try await HVFMachineInstaller.install(request, layout: layout) { lines.append($0) }
+        XCTAssertEqual(warnings, [])
+        XCTAssertNil(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes)
+        XCTAssertTrue(lines.lines.contains { $0.contains("no longer expects a") }, "\(lines.lines)")
+        let observation = await HVFMachineClient(layout: layout).cacheDiskObservation()
+        XCTAssertEqual(observation.summary, "none (no caches.ext4)")
+
+        var both = request
+        both.cacheDiskBytes = 256 << 20
+        let contradiction = await installError(both)
+        XCTAssertTrue(contradiction?.contains("contradict") == true, contradiction ?? "installed")
+        XCTAssertFalse(HVFMachineLayout.isRegularFile(layout.cacheDisk))
+    }
+
+    func testTheSupervisorRecordsACacheDiskMachineJSONDoesNotExpectYet() async throws {
+        // A machine installed before machine.json recorded its cache disk
+        // (the rig) learns to expect it at its next start, no reinstall.
+        try installPlaceholders()
+        let size: UInt64 = 300 << 20
+        XCTAssertTrue(FileManager.default.createFile(atPath: layout.cacheDisk.path, contents: nil))
+        XCTAssertEqual(truncate(layout.cacheDisk.path, off_t(size)), 0)
+        try HVFMachineConfig(cache: HVFMachineCachePolicy(tools: ["go"])).save(to: layout.config)
+        let launcher = FakeLauncher([.healthy])
+        let log = LogRecorder()
+        let supervisor = supervisor(launcher, log: log)
+        let run = Task { try await supervisor.run() }
+        try await waitFor("running") { (try? HVFMachineState.load(from: layout.state))?.phase == .running }
+        let config = try HVFMachineConfig.load(from: layout.config)
+        XCTAssertEqual(config.cacheDiskBytes, size)
+        XCTAssertEqual(config.cache, HVFMachineCachePolicy(tools: ["go"]), "the rest of machine.json is kept")
+        XCTAssertTrue(log.lines.contains { $0.contains("now expects the 0.3 GiB caches.ext4") }, "\(log.lines)")
+        supervisor.requestStop()
+        _ = try await run.value
+
+        // Already recorded, or no disk: nothing is written.
+        XCTAssertNil(try layout.recordCacheDiskExpectation())
+        try FileManager.default.removeItem(at: layout.cacheDisk)
+        try HVFMachineConfig().save(to: layout.config)
+        XCTAssertNil(try layout.recordCacheDiskExpectation())
+        XCTAssertNil(try HVFMachineConfig.load(from: layout.config).cacheDiskBytes)
+    }
 }
 
 // MARK: - Cache policy, guest config share, capabilities

@@ -107,8 +107,31 @@ extension HVFMachineLayout {
         let size = HVFCacheDiskState.gibibytes(bytes)
         return "machine.json expects a \(size) cache disk, but \(cacheDisk.path) is missing: the machine boots "
             + "without one, so its dependency caches start empty on the OS disk (which `machine install "
-            + "--replace-disk` discards). Put caches.ext4 back, or create an empty one with `micropod machine "
-            + "install --cache-disk-size \(max(bytes >> 20, 256))m`"
+            + "--replace-disk` discards). Put caches.ext4 back, create an empty one with `micropod machine "
+            + "install --cache-disk-size \(max(bytes >> 20, 256))m`, or stop expecting one with `micropod "
+            + "machine install --no-cache-disk`"
+    }
+
+    /// The size of `caches.ext4`, nil when it is not a regular file.
+    func cacheDiskBytes() -> UInt64? {
+        guard Self.isRegularFile(cacheDisk) else { return nil }
+        return (try? FileManager.default.attributesOfItem(atPath: cacheDisk.path))?[.size] as? UInt64
+    }
+
+    /// Records in machine.json the cache disk a machine has but does not
+    /// expect yet (`cacheDiskBytes`, by its size): a machine installed before
+    /// machine.json recorded it then has its disk's loss reported like any
+    /// other's, without a reinstall. Returns the size it recorded, or nil
+    /// when there was nothing to record. Re-reads machine.json right before
+    /// it writes, so a concurrent edit is only lost in that instant.
+    @discardableResult
+    public func recordCacheDiskExpectation() throws -> UInt64? {
+        guard let size = cacheDiskBytes() else { return nil }
+        var config = try HVFMachineConfig.load(from: self.config)
+        guard config.cacheDiskBytes == nil else { return nil }
+        config.cacheDiskBytes = size
+        try config.save(to: self.config)
+        return size
     }
 }
 
