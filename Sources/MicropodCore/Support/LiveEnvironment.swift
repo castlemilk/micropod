@@ -11,6 +11,16 @@ public enum LiveEnvironment {
         getenv(name).map { String(cString: $0) }
     }
 
+    /// The named variables that are set, as `ProcessInfo.environment`
+    /// filtered to `names` would give them.
+    public static func values(_ names: [String]) -> [String: String] {
+        var found: [String: String] = [:]
+        for name in names {
+            if let value = value(name) { found[name] = value }
+        }
+        return found
+    }
+
     /// `MICROPOD_ISOLATED_RUNTIME=1`: this process is the dedicated runtime's API.
     public static var isIsolatedRuntime: Bool { value("MICROPOD_ISOLATED_RUNTIME") == "1" }
 }

@@ -11,11 +11,9 @@ public enum ContainerExecutableLocator {
     /// request; building `ProcessInfo.environment` (a dictionary of the whole
     /// environment, ~20 µs) each time was a quarter of a listing's cost.
     public static func lookupEnvironment() -> [String: String] {
-        var found: [String: String] = [:]
-        for name in ["MICROPOD_CONTAINER_CLI_PATH", "MICROPOD_RUNTIME_CONTEXT", "MICROPOD_ISOLATED_RUNTIME", "PATH"] {
-            if let value = getenv(name) { found[name] = String(cString: value) }
-        }
-        return found
+        LiveEnvironment.values([
+            "MICROPOD_CONTAINER_CLI_PATH", "MICROPOD_RUNTIME_CONTEXT", "MICROPOD_ISOLATED_RUNTIME", "PATH",
+        ])
     }
 
     public static func resolve(
