@@ -282,6 +282,15 @@ final class HVFMachineReadinessTests: XCTestCase {
         XCTAssertTrue(note.contains("micropod machine link-socket"), note)
 
         let canonical = root.appendingPathComponent("canonical.sock")
+        let off = HVFMachineClient(
+            layout: layout,
+            environment: ["MICROPOD_DOCKER_SOCK": canonical.path, "MICROPOD_LINK_DOCKER_SOCK": "0"])
+        guard case .skipped(let offNote) = off.autoLinkCanonicalDockerSocket() else {
+            return XCTFail("MICROPOD_LINK_DOCKER_SOCK=0 linked")
+        }
+        XCTAssertTrue(offNote.contains("MICROPOD_LINK_DOCKER_SOCK turns the link off"), offNote)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: canonical.path))
+
         let asked = HVFMachineClient(layout: layout, environment: ["MICROPOD_DOCKER_SOCK": canonical.path])
         XCTAssertEqual(asked.autoLinkCanonicalDockerSocket(), .linked(canonical))
         XCTAssertEqual(

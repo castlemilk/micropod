@@ -91,20 +91,29 @@ public struct HVFMachineClient: Sendable {
         layout: HVFMachineLayout, environment: [String: String],
         home: URL = FileManager.default.homeDirectoryForCurrentUser
     ) -> Bool {
+        autoLinkRefusal(layout: layout, environment: environment, home: home) == nil
+    }
+
+    /// Why `autoLinksCanonicalDockerSocket` is false, or nil when it is true.
+    static func autoLinkRefusal(
+        layout: HVFMachineLayout, environment: [String: String],
+        home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> String? {
         switch environment["MICROPOD_LINK_DOCKER_SOCK"]?.lowercased() {
-        case "0", "off", "false", "no": return false
-        case "1", "on", "true", "yes": return true
+        case "0", "off", "false", "no": return "MICROPOD_LINK_DOCKER_SOCK turns the link off"
+        case "1", "on", "true", "yes": return nil
         default: break
         }
-        if let explicit = environment["MICROPOD_DOCKER_SOCK"], !explicit.isEmpty { return true }
-        return layout.isStandardRoot(home: home)
+        if let explicit = environment["MICROPOD_DOCKER_SOCK"], !explicit.isEmpty { return nil }
+        return layout.isStandardRoot(home: home) ? nil : "\(layout.root.path) is not the standard machine root"
     }
 
     /// What `autoLinkCanonicalDockerSocket` did.
     public enum CanonicalLinkOutcome: Sendable, Equatable {
         /// The canonical link points at this machine.
         case linked(URL)
-        /// Not attempted: a throwaway root nobody asked to link.
+        /// Not attempted: a throwaway root nobody asked to link, or linking
+        /// turned off.
         case skipped(String)
         /// Attempted and refused (another live daemon holds the link) or failed.
         case refused(String)
@@ -115,10 +124,9 @@ public struct HVFMachineClient: Sendable {
     /// either way.
     public func autoLinkCanonicalDockerSocket() -> CanonicalLinkOutcome {
         let canonical = HVFMachineLayout.canonicalDockerSocket(environment: environment)
-        guard Self.autoLinksCanonicalDockerSocket(layout: layout, environment: environment) else {
+        if let why = Self.autoLinkRefusal(layout: layout, environment: environment) {
             return .skipped(
-                "left \(canonical.path) alone: \(layout.root.path) is not the standard machine root; "
-                    + "`micropod machine link-socket` points it here")
+                "left \(canonical.path) alone: \(why); `micropod machine link-socket` points it here")
         }
         do {
             return .linked(try linkCanonicalDockerSocket())
