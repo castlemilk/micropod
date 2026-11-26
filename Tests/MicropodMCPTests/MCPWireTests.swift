@@ -154,6 +154,24 @@ final class MCPWireTests: XCTestCase {
         XCTAssertEqual(fake.requests.filter { $0.rpc == "SignalProcess" }.count, 0, "nothing to kill")
     }
 
+    /// tools/call params are taken as decoded (no second encode and decode
+    /// per call): arguments absent or null mean none; anything but an object
+    /// is refused as before.
+    func testToolCallParamsAreReadAsDecoded() async throws {
+        let fake = try FakeLocalAPI(unixSocket: socketPath)
+        defer { fake.stop() }
+        fake.respond(Self.daemonLike)
+        let server = MCPTestServer.make(socketPath: socketPath, tcpPort: 1)
+        for params: [String: Any] in [["name": "cache_policy"], ["name": "cache_policy", "arguments": NSNull()]] {
+            let reply = try await MCPTestServer.rpc(server, "tools/call", params)
+            XCTAssertNotNil(reply["result"], "\(params): \(reply)")
+        }
+        for params: [String: Any] in [["name": "cache_policy", "arguments": "x"], ["arguments": [:]], ["name": 7]] {
+            let reply = try await MCPTestServer.rpc(server, "tools/call", params)
+            XCTAssertEqual((reply["error"] as? [String: Any])?["code"] as? Int, -32602, "\(params): \(reply)")
+        }
+    }
+
     func testAConnectionTheServerClosedWhileIdleIsReplacedBeforeSending() async throws {
         let fake = try FakeLocalAPI(unixSocket: socketPath)
         let tcp = try FakeLocalAPI(tcpLoopback: .respond)

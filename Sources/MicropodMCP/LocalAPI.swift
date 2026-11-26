@@ -316,6 +316,9 @@ final class APIConnection: @unchecked Sendable {
     private var fd: Int32 = -1
     private var lastUsed = ContinuousClock.now
     private var dialed = 0
+    /// The send and receive timeout `fd` has, so a call with the same one
+    /// sets nothing.
+    private var fdTimeout = 0
 
     init(_ endpoint: APIEndpoint) { self.endpoint = endpoint }
 
@@ -350,10 +353,12 @@ final class APIConnection: @unchecked Sendable {
             case .failure(let error): return error.localizedDescription
             case .success(let connected):
                 fd = connected
+                fdTimeout = timeoutSeconds
                 lock.withLock { dialed += 1 }
             }
-        } else {
+        } else if fdTimeout != timeoutSeconds {
             try? RuntimeUnixSocket.timeout(fd, seconds: timeoutSeconds)
+            fdTimeout = timeoutSeconds
         }
         return nil
     }
