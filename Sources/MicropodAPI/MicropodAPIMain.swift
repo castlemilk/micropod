@@ -145,7 +145,7 @@ struct MicropodAPI {
     ) async -> String? {
         do {
             try HTTPServer.createPrivateDirectory(URL(fileURLWithPath: path).deletingLastPathComponent())
-            try await server.startPrivateSocket(path: path, admission: .ownerOnly)
+            try await server.startPrivateSocket(path: path, admission: .ownerOnly, keepAlive: true)
             return path
         } catch {
             log("API private socket unix://\(path) failed, not serving it: \(error.localizedDescription)")
@@ -190,14 +190,35 @@ enum HTTPResponse {
     case bridge(Int, @Sendable (NWConnection) async -> Void)
 }
 
+/// The API's HTTP/1.1 server on Network.framework.
+///
+/// Connections persist (RFC 9112 §9.3) on the loopback TCP listener and the
+/// owner's socket: after a reply framed by Content-Length the connection
+/// reads the next request, including one already pipelined behind it. A
+/// reply closes it instead (`Connection: close`) when the request asked to
+/// close, is HTTP/1.0 without `keep-alive`, or was refused before a handler
+/// (bad framing, the request guard, admission); when the listener serves one
+/// request per connection (the managed runtime's internal socket); when the
+/// server already keeps `ConnectionPolicy.maxKeptConnections`; or once it is
+/// stopping. Streams, the vsock bridge and relays are delimited by the close
+/// that ends them, as before. See `ConnectionPolicy` for the timeouts.
 final class HTTPServer: @unchecked Sendable {
     let port: UInt16
     let handler: (HTTPRequest) async -> HTTPResponse
+    let policy: ConnectionPolicy
+    private let kept: KeptConnections
 
-    init(port: UInt16, handler: @escaping (HTTPRequest) async -> HTTPResponse) {
+    init(
+        port: UInt16, policy: ConnectionPolicy = .live, handler: @escaping (HTTPRequest) async -> HTTPResponse
+    ) {
         self.port = port
         self.handler = handler
+        self.policy = policy
+        self.kept = KeptConnections(limit: policy.maxKeptConnections)
     }
+
+    /// Connections the server currently keeps for another request.
+    var keptConnections: Int { kept.count }
 
     /// Loopback addresses the API listens on: IPv4 and IPv6, so
     /// `http://localhost:45454` works whichever family the client's resolver
@@ -224,8 +245,9 @@ final class HTTPServer: @unchecked Sendable {
         try await Task.sleep(for: .seconds(3600 * 24 * 365))
     }
 
-    /// Starts the loopback TCP listeners and returns.
-    func startListening() throws {
+    /// Starts the loopback TCP listeners and returns. `keepAlive`: serve
+    /// more than one request per connection (see the type's comment).
+    func startListening(keepAlive: Bool = true) throws {
         // Loopback only: the API is unauthenticated and can launch privileged
         // workloads, so it must never be reachable from the network.
         // (`NWListener(using:on:)` alone binds every interface.)
@@ -243,7 +265,7 @@ final class HTTPServer: @unchecked Sendable {
             listener.newConnectionHandler = { [weak self] connection in
                 guard let self else { return }
                 connection.start(queue: .global(qos: .userInitiated))
-                self.startReading(connection)
+                self.startReading(connection, keepAlive: keepAlive)
             }
             listener.stateUpdateHandler = { [port] state in
                 if case .failed(let error) = state {
@@ -271,8 +293,15 @@ final class HTTPServer: @unchecked Sendable {
     /// or when another live process serves `path`: only a stale socket file
     /// is replaced, so a second API (a test, a scratch server) never takes
     /// the path from the one already running there.
+    ///
+    /// `keepAlive` is off by default, for the internal socket: its gateway
+    /// (`IsolatedRuntimeGateway`) checks the caller's capability on a
+    /// connection's first request head only, strips it, and then relays
+    /// bytes. A second request on that connection would arrive unchecked,
+    /// so this listener must answer one request per connection and close.
     func startPrivateSocket(
-        path: String = IsolatedRuntimeAPIConfiguration.internalSocketURL.path, admission: Admission = .guarded
+        path: String = IsolatedRuntimeAPIConfiguration.internalSocketURL.path, admission: Admission = .guarded,
+        keepAlive: Bool = false
     ) async throws {
         var existing = stat()
         if lstat(path, &existing) == 0 {
@@ -295,7 +324,7 @@ final class HTTPServer: @unchecked Sendable {
                 return
             }
             connection.start(queue: .global(qos: .userInitiated))
-            self.startReading(connection, admission: admission)
+            self.startReading(connection, admission: admission, keepAlive: keepAlive)
         }
         listeners.append(listener)
         do {
@@ -360,31 +389,47 @@ final class HTTPServer: @unchecked Sendable {
 
     private var listeners: [NWListener] = []
 
+    /// Stops listening and closes the connections kept idle; one with a
+    /// request in flight is answered and then closed.
     func stop() {
         for listener in listeners { listener.cancel() }
         listeners.removeAll()
+        for connection in kept.stop() { connection.cancel() }
     }
 
-    /// A request must make progress: the head and body have to finish
-    /// arriving within `requestDeadline`, with no silence longer than
-    /// `idleTimeout` in between. A stuck or malicious client gets 408
-    /// instead of holding the connection forever. Overridable (milliseconds)
-    /// via `MICROPOD_API_READ_IDLE_TIMEOUT_MS` / `MICROPOD_API_READ_DEADLINE_MS`
-    /// so tests need not wait 30 s.
-    static let idleTimeout = timeout(env: "MICROPOD_API_READ_IDLE_TIMEOUT_MS", defaultMilliseconds: 30_000)
-    static let requestDeadline = timeout(env: "MICROPOD_API_READ_DEADLINE_MS", defaultMilliseconds: 120_000)
-
-    private static func timeout(env: String, defaultMilliseconds: Int) -> DispatchTimeInterval {
-        let raw = ProcessInfo.processInfo.environment[env].flatMap { Int($0) }
-        return .milliseconds(max(1, raw ?? defaultMilliseconds))
+    /// One accepted connection and what its listener allows.
+    private struct Peer: @unchecked Sendable {
+        let connection: NWConnection
+        let admission: Admission
+        /// The listener serves more than one request per connection.
+        let keepAlive: Bool
     }
 
-    /// Per-connection read state: the watchdog and the receive loop race to
-    /// finish the connection; whichever wins first decides.
+    /// The read state of one request: its watchdogs and the receive loop
+    /// race to finish it; whichever wins first decides.
     private final class PendingRead: @unchecked Sendable {
         private let lock = NSLock()
         private var finished = false
         private var generation = 0
+        /// Waiting for the first byte of a request on a kept connection.
+        private var idle: Bool
+
+        init(idle: Bool = false) { self.idle = idle }
+
+        enum Arrival { case finished, began, continuing }
+
+        /// Bytes arrived: `.began` when they are the first of a request on a
+        /// kept connection, `.finished` when a watchdog settled it first.
+        func arrive() -> Arrival {
+            lock.withLock {
+                if finished { return .finished }
+                if idle {
+                    idle = false
+                    return .began
+                }
+                return .continuing
+            }
+        }
 
         /// Marks the read finished; false if it already was.
         func finish() -> Bool {
@@ -393,6 +438,16 @@ final class HTTPServer: @unchecked Sendable {
             if finished { return false }
             finished = true
             return true
+        }
+
+        /// The keep-alive watchdog: finishes the read only while no byte of
+        /// a request has arrived.
+        func finishIdle() -> Bool {
+            lock.withLock {
+                guard !finished, idle else { return false }
+                finished = true
+                return true
+            }
         }
 
         /// Starts a new idle window; returns its token.
@@ -410,53 +465,90 @@ final class HTTPServer: @unchecked Sendable {
         }
     }
 
-    private func startReading(_ connection: NWConnection, admission: Admission = .guarded) {
+    private func startReading(_ connection: NWConnection, admission: Admission = .guarded, keepAlive: Bool) {
+        let peer = Peer(connection: connection, admission: admission, keepAlive: keepAlive)
         let pending = PendingRead()
-        let queue = DispatchQueue.global(qos: .userInitiated)
-        queue.asyncAfter(deadline: .now() + Self.requestDeadline) { [weak self] in
-            guard pending.finish() else { return }
-            self?.reject(connection, status: 408, reason: "request not received in time")
+        armRequestTimers(peer, pending: pending)
+        readRequest(peer, buffer: Data(), pending: pending)
+    }
+
+    /// After a reply that kept the connection: the request already buffered
+    /// behind it (pipelined) is served at once; otherwise the connection
+    /// waits idle for the next one.
+    private func readNext(_ peer: Peer, leftover: Data) {
+        guard leftover.isEmpty else {
+            kept.release(peer.connection)
+            let pending = PendingRead()
+            armRequestTimers(peer, pending: pending)
+            if handleBuffered(peer, leftover, pending: pending) { return }
+            readRequest(peer, buffer: leftover, pending: pending)
+            return
         }
-        armIdleTimer(connection, pending: pending)
-        readRequest(connection, buffer: Data(), pending: pending, admission: admission)
+        guard kept.park(peer.connection) else {
+            peer.connection.cancel()
+            return
+        }
+        let pending = PendingRead(idle: true)
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.keepAliveIdle) {
+            [weak self] in
+            // No byte of another request came: close without a reply.
+            guard pending.finishIdle() else { return }
+            self?.kept.release(peer.connection)
+            peer.connection.cancel()
+        }
+        readRequest(peer, buffer: Data(), pending: pending)
+    }
+
+    /// The request's deadline and its first silence window.
+    private func armRequestTimers(_ peer: Peer, pending: PendingRead) {
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.requestDeadline) {
+            [weak self] in
+            guard pending.finish() else { return }
+            self?.reject(peer.connection, status: 408, reason: "request not received in time")
+        }
+        armIdleTimer(peer.connection, pending: pending)
     }
 
     private func armIdleTimer(_ connection: NWConnection, pending: PendingRead) {
         let token = pending.touch()
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + Self.idleTimeout) {
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.requestIdle) {
             [weak self] in
             guard pending.isCurrent(token), pending.finish() else { return }
             self?.reject(connection, status: 408, reason: "request incomplete: client went idle")
         }
     }
 
-    private func readRequest(
-        _ connection: NWConnection, buffer: Data, pending: PendingRead, admission: Admission = .guarded
-    ) {
+    private func readRequest(_ peer: Peer, buffer: Data, pending: PendingRead) {
+        let connection = peer.connection
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
             [weak self] data, _, isComplete, error in
-            guard let self else { return }
+            guard let self else {
+                connection.cancel()
+                return
+            }
             var newBuffer = buffer
             if let data, !data.isEmpty {
-                newBuffer.append(data)
-                self.armIdleTimer(connection, pending: pending)
-                switch HTTPParser.parse(newBuffer) {
-                case .request(let request):
-                    guard pending.finish() else { return }
-                    self.dispatch(request, connection: connection, admission: admission)
+                switch pending.arrive() {
+                case .finished:
+                    // A watchdog settled this read first (408, or an idle close).
                     return
-                case .reject(let status, let reason):
-                    guard pending.finish() else { return }
-                    self.reject(connection, status: status, reason: reason)
-                    return
-                case .incomplete:
-                    break
+                case .began:
+                    // The next request on a kept connection: no longer idle,
+                    // and its own clocks start at this first byte.
+                    self.kept.release(connection)
+                    self.armRequestTimers(peer, pending: pending)
+                case .continuing:
+                    self.armIdleTimer(connection, pending: pending)
                 }
+                newBuffer.append(data)
+                if self.handleBuffered(peer, newBuffer, pending: pending) { return }
             }
             if isComplete || error != nil || data == nil || data?.isEmpty == true {
                 // Peer closed (or the read failed) before a full request
-                // arrived: say so if we can, then close.
+                // arrived: say so if we can, then close. A kept connection
+                // the client closed while idle just closes.
                 guard pending.finish() else { return }
+                self.kept.release(connection)
                 if !newBuffer.isEmpty && error == nil {
                     self.reject(connection, status: 400, reason: "request truncated")
                 } else {
@@ -464,7 +556,28 @@ final class HTTPServer: @unchecked Sendable {
                 }
                 return
             }
-            self.readRequest(connection, buffer: newBuffer, pending: pending, admission: admission)
+            self.readRequest(peer, buffer: newBuffer, pending: pending)
+        }
+    }
+
+    /// Parses what has arrived of the current request: true once it is
+    /// settled (handed to `dispatch`, or refused and closing), false to read
+    /// more. Bytes after the request are the next one's, kept for it.
+    private func handleBuffered(_ peer: Peer, _ buffer: Data, pending: PendingRead) -> Bool {
+        switch HTTPParser.parse(buffer) {
+        case .incomplete:
+            return false
+        case .reject(let status, let reason):
+            guard pending.finish() else { return true }
+            reject(peer.connection, status: status, reason: reason)
+            return true
+        case .request(let request, let persistence, let consumed):
+            guard pending.finish() else { return true }
+            let leftover =
+                consumed < buffer.count
+                ? buffer.subdata(in: buffer.index(buffer.startIndex, offsetBy: consumed)..<buffer.endIndex) : Data()
+            dispatch(request, peer: peer, persistence: persistence, leftover: leftover)
+            return true
         }
     }
 
@@ -475,7 +588,11 @@ final class HTTPServer: @unchecked Sendable {
             completion: .contentProcessed { _ in connection.cancel() })
     }
 
-    private func dispatch(_ request: HTTPRequest, connection: NWConnection, admission: Admission = .guarded) {
+    private func dispatch(
+        _ request: HTTPRequest, peer: Peer, persistence: HTTPPersistence, leftover: Data
+    ) {
+        let connection = peer.connection
+        let admission = peer.admission
         // Browser-facing CORS/PNA headers — computed once per request so
         // normal, streaming, and preflight responses are all covered.
         let cors = CORSPolicy.responseHeaders(for: request)
@@ -587,14 +704,34 @@ final class HTTPServer: @unchecked Sendable {
                 // The handler has settled; delivery failure cannot replay it.
                 try? claim?.completed()
                 withExtendedLifetime(claim) {}
-                let data = Self.serialize(response, extraHeaders: cors)
-                connection.send(
-                    content: data,
-                    completion: .contentProcessed { _ in
-                        connection.cancel()
-                    })
+                self.reply(response, cors: cors, peer: peer, persistence: persistence, leftover: leftover)
             }
         }
+    }
+
+    /// Writes a reply framed by Content-Length, then serves the
+    /// connection's next request when the listener, the request and the
+    /// server's bound all allow it; otherwise says `Connection: close` and
+    /// closes once the reply is out.
+    private func reply(
+        _ response: HTTPResponse, cors: [(String, String)], peer: Peer, persistence: HTTPPersistence,
+        leftover: Data
+    ) {
+        let connection = peer.connection
+        let keep = peer.keepAlive && persistence != .close && kept.reserve(connection)
+        var headers = cors
+        if keep && persistence == .announced { headers.append(("Connection", "keep-alive")) }
+        let data = Self.serialize(response, extraHeaders: headers, closing: !keep)
+        connection.send(
+            content: data,
+            completion: .contentProcessed { [weak self] error in
+                guard keep, error == nil, let self else {
+                    if keep { self?.kept.release(connection) }
+                    connection.cancel()
+                    return
+                }
+                self.readNext(peer, leftover: leftover)
+            })
     }
 
     /// Calls `onHangup` once the peer closes its side or the connection
@@ -623,7 +760,11 @@ final class HTTPServer: @unchecked Sendable {
         return Data(head.utf8)
     }
 
-    static func serialize(_ response: HTTPResponse, extraHeaders: [(String, String)] = []) -> Data {
+    /// A framed reply. `closing`: it ends the connection, and says so with
+    /// `Connection: close`; otherwise the client may send another request.
+    static func serialize(
+        _ response: HTTPResponse, extraHeaders: [(String, String)] = [], closing: Bool = true
+    ) -> Data {
         let statusLine: String
         var headers: [(String, String)] = []
         var body: Data = Data()
@@ -654,7 +795,8 @@ final class HTTPServer: @unchecked Sendable {
             head += "\(key): \(value)\r\n"
         }
         head += "Content-Length: \(body.count)\r\n"
-        head += "Connection: close\r\n\r\n"
+        if closing { head += "Connection: close\r\n" }
+        head += "\r\n"
         return Data(head.utf8) + body
     }
 
@@ -690,7 +832,9 @@ final class HTTPServer: @unchecked Sendable {
 enum HTTPParser {
     enum Outcome {
         case incomplete
-        case request(HTTPRequest)
+        /// `consumed`: the bytes of the buffer this request occupied;
+        /// anything after them belongs to the next (pipelined) request.
+        case request(HTTPRequest, persistence: HTTPPersistence, consumed: Int)
         /// Answer with `status` and close.
         case reject(status: Int, reason: String)
     }
@@ -701,7 +845,7 @@ enum HTTPParser {
             return .incomplete
         case .invalid(let status, let reason):
             return .reject(status: status, reason: reason)
-        case .complete(let head, let body, _):
+        case .complete(let head, let body, let consumed):
             guard let method = HTTPMethod(rawValue: head.method) else {
                 return .reject(status: 405, reason: "method \(head.method) not allowed")
             }
@@ -717,7 +861,13 @@ enum HTTPParser {
                 }
             }
             return .request(
-                HTTPRequest(method: method, path: path, query: query, body: body, headers: head.headers))
+                HTTPRequest(method: method, path: path, query: query, body: body, headers: head.headers),
+                persistence: HTTPPersistence(
+                    version: head.version,
+                    // Every Connection field counts, not just the last.
+                    connection: head.fields.filter { $0.name.lowercased() == "connection" }.map(\.value)
+                        .joined(separator: ",")),
+                consumed: consumed)
         }
     }
 }

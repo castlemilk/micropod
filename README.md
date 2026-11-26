@@ -644,6 +644,24 @@ curl -X DELETE 'http://127.0.0.1:45454/v1/containers/web?force=true'   # no body
 `Ping` (and `GET /v1/system`) list the optional `RunContainer` fields the
 server honours in `features` (`cap_add`, `cap_drop`, `rosetta`, `privileged`).
 
+**Connections.** Loopback TCP and the owner's socket keep a connection open
+after a reply framed by `Content-Length` (HTTP/1.1 persistence, pipelining
+included), so a client such as Go's `net/http` or URLSession pays one dial for
+many calls. A reply says `Connection: close` and the server closes instead
+when the request asked to close, is HTTP/1.0 without `Connection: keep-alive`,
+or was refused before a handler ran (bad framing, the admission checks above);
+when 256 connections are already kept; or once the server is stopping.
+Streams (`text/event-stream`, Connect server streams), the vsock bridge and
+managed-runtime relays are delimited by the close that ends them, as before.
+A kept connection with no request for `MICROPOD_API_KEEPALIVE_IDLE_MS`
+(default 120000, longer than Go's 90 s idle timeout) is closed without a
+reply. Inside a request, `MICROPOD_API_READ_IDLE_TIMEOUT_MS` (30000) of
+silence or `MICROPOD_API_READ_DEADLINE_MS` (120000) in total answers `408`;
+on a kept connection those clocks start at the next request's first byte. The
+managed runtime's internal socket answers one request per connection, because
+its gateway checks a caller's capability on the first request head only. The
+API speaks HTTP/1.1 only: an HTTP/2 client's preface gets an HTTP/1.1 `505`.
+
 Configuration: `MICROPOD_API_PORT` (default 45454), `MICROPOD_CONTAINER_CLI_PATH`,
 `MICROPOD_RUNTIME` (`auto`/`native`/`cli`), `MICROPOD_ALLOW_MULTI_ATTACH=1`
 (warn instead of refusing a second read-write attach of a named volume).
