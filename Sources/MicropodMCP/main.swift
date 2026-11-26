@@ -35,8 +35,11 @@ private struct MCPToolCall: Codable {
 
 // MARK: - Server entry
 
-@main
-struct MicropodMCP {
+// The target has several files, so the entry point is this file's top-level
+// code rather than `@main`.
+await MicropodMCP.main()
+
+enum MicropodMCP {
     static func main() async {
         let client = ContainerCLIClient()
         let server = MCPServer(
@@ -64,7 +67,7 @@ struct MicropodMCP {
     }
 }
 
-private actor MCPServer {
+actor MCPServer {
     private let client: ContainerCLIClient
     private let system: SystemService
     private let containers: ContainerService
@@ -77,6 +80,8 @@ private actor MCPServer {
     /// Best-effort synchronized file shares (nil when the daemon socket is
     /// absent — the tools then report a clean error instead of failing).
     private let sharedFS: (any SharedFSClient)?
+    /// The Micropod API daemon (engines, sandbox VMs, the HVF machine).
+    private let api: LocalAPI
     /// App control socket — reaches Sparkle in the app process.
     private let appControl = AppControlClient()
     private var machines: MachineService { MachineService(client: client) }
@@ -94,7 +99,8 @@ private actor MCPServer {
         statsSampler: StatsSampler,
         logStreamer: LogStreamer,
         compose: ComposeService,
-        sharedFS: (any SharedFSClient)?
+        sharedFS: (any SharedFSClient)?,
+        api: LocalAPI = .live()
     ) {
         self.client = client
         self.system = system
@@ -106,6 +112,7 @@ private actor MCPServer {
         self.logStreamer = logStreamer
         self.compose = compose
         self.sharedFS = sharedFS
+        self.api = api
     }
 
     private static func sharedFSSocketClient() -> (any SharedFSClient)? {
@@ -174,7 +181,7 @@ private actor MCPServer {
         }
     }
 
-    private func handle(line: String) async -> Data? {
+    func handle(line: String) async -> Data? {
         guard let request = try? JSONDecoder().decode(JSONRPCRequest.self, from: Data(line.utf8)) else {
             return nil
         }
@@ -199,14 +206,7 @@ private actor MCPServer {
             return nil
 
         case "tools/list":
-            let toolArray: [JSONValue] = Self.toolDefinitions.map { name, description in
-                .object([
-                    "name": .string(name),
-                    "description": .string(description),
-                    "inputSchema": .object(["type": .string("object")]),
-                ])
-            }
-            return respond(id: id, result: .object(["tools": .array(toolArray)]))
+            return respond(id: id, result: .object(["tools": .array(MCPToolCatalog.tools.map(\.listing))]))
 
         case "tools/call":
             guard let params = request.params,
@@ -251,217 +251,6 @@ private actor MCPServer {
 
     // MARK: - Tools
 
-    private static let toolDefinitions: [(String, String)] = [
-        (
-            "runtime_manage",
-            "Manage Apple's dedicated runtime through Micropod's approved helper. Arguments: action (install, repair, start, stop, restart, operation, cancel, recover). Reports durable progress; disruptive actions require idle workloads and qualified rig coordination."
-        ),
-        ("status", "Runtime status: running/stopped + CLI + apiserver versions."),
-        (
-            "runtime_status",
-            "Apple container dependency state, detected CLI version and setup/recovery action. Read-only; native readiness is unconfirmed without the native API probe."
-        ),
-        ("list_containers", "List all containers (id, state, image, IP) as tab-separated lines."),
-        ("start", "Start a container. Arguments: id."),
-        ("stop", "Stop a container. Arguments: id."),
-        ("restart", "Restart a container (stop then start). Arguments: id."),
-        ("kill", "Kill a container. Arguments: id."),
-        ("delete", "Force-delete a container. Arguments: id."),
-        (
-            "run",
-            "Run a container. Arguments: image (required), name (optional), memory (optional), "
-                + "command (optional, run by /bin/sh -c instead of the image's default command — e.g. "
-                + "`sleep infinity` keeps a sandbox up for exec), "
-                + "runtime (optional: apple | docker | sandbox | ci | hvf; ci is this account's persistent "
-                + "Linux CI worker (`micropod ci start`), hvf is the shared Linux machine, "
-                + "started on first run once installed with `micropod machine install`)."
-        ),
-        (
-            "runtimes",
-            "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs, the CI worker, "
-                + "the shared hvf machine): "
-                + "availability, enabled, default, capabilities. Needs the Micropod API daemon."
-        ),
-        (
-            "runtime_set_default",
-            "Set the default engine for new containers. Arguments: name (apple|docker|sandbox|ci|hvf)."
-        ),
-        (
-            "runtime_update",
-            "Enable/disable an engine or change its endpoint. Arguments: name (required), "
-                + "enabled (optional bool), endpoint (optional, docker only: unix:///path or tcp://host:port)."
-        ),
-        ("exec", "Run a command in a running container. Arguments: id (required), command (required)."),
-        ("logs", "Last 100 log lines of a container. Arguments: id."),
-        ("stats", "Resource usage for all running containers (memory/CPU/net)."),
-        ("inspect", "Pretty-printed container inspect JSON. Arguments: id."),
-        (
-            "list_machines",
-            "List container machines — persistent VMs (e.g. keep-alive CI): id, state, IP, CPUs, memory."
-        ),
-        (
-            "metrics_history",
-            """
-            Resource usage over time, as recorded by the Micropod app (10 s points for 3 h, 1 min for 48 h, \
-            15 min for 30 days): per metric the peak, average and latest value plus a sparkline. \
-            Arguments: id (container id or machine name; empty for all containers), kind (system|container|machine; \
-            default container when id is set), range (e.g. 15m, 1h, 24h, 7d; default 1h).
-            """
-        ),
-        (
-            "machine_stats",
-            """
-            Resource usage for running machines (CPU % of one core, memory, net, block I/O, pids) from \
-            each machine's backing container — never execs in the guest. Arguments: id (optional; default all running).
-            """
-        ),
-        (
-            "machine_logs",
-            "Tail a machine's stdio log. Arguments: id (required), lines (optional, default 100), boot (true for the vminitd/kernel boot log)."
-        ),
-        (
-            "sandbox_run",
-            """
-            Run a command in a fresh, disposable micro-VM (rootfs discarded on exit) and return its output \
-            and exit code. Offline unless allow_net. Arguments: command (required, run by /bin/sh -c), \
-            image (default alpine) or from (a checkpoint), cpus, memory (MiB), timeout (seconds), \
-            mounts (comma list host:/guest — guest writes are discarded; host:/guest:rw needs \
-            allow_host_writes), allow_net, allow_hosts (comma list; restricts egress), secrets (comma list \
-            NAME=HOST_ENV@host — the guest sees a placeholder, the host proxy injects the real value on \
-            HTTPS to host), env (comma list KEY=VAL), workdir, expose_host (comma list of host loopback ports the \
-            guest reaches as host.micropod.internal:PORT), ports (comma list host:guest to publish).
-            """
-        ),
-        ("sandbox_checkpoints", "List sandbox checkpoints (saved disks to boot from)."),
-        (
-            "sandbox_checkpoint_create",
-            """
-            Run a setup command in a sandbox and keep its disk as a named checkpoint (only if it exits 0). \
-            Arguments: name (required), command (required), image or from, allow_net, timeout.
-            """
-        ),
-        ("sandbox_checkpoint_delete", "Delete a sandbox checkpoint. Arguments: name."),
-        (
-            "list_images",
-            "List local images (name, size, id). Images on other enabled engines (docker, the hvf machine) "
-                + "follow, tagged [runtime], when the Micropod API daemon runs."
-        ),
-        (
-            "list_volumes",
-            "List volumes (name, size, driver). Volumes on other enabled engines follow, tagged [runtime], "
-                + "when the Micropod API daemon runs."
-        ),
-        (
-            "volume_policy",
-            "Show the shared volume-mount policy (clone mode, golden volumes, sync/cache modes)."
-        ),
-        (
-            "volume_policy_set",
-            """
-            Update the volume-mount policy. Arguments: mode (labels|goldens|all), \
-            goldens (comma list), jobsOnly (true|false), sync (full|fsync|nosync|default), \
-            cache (on|off|auto). Only provided fields change.
-            """
-        ),
-        ("list_networks", "List networks (name, mode, subnet)."),
-        (
-            "pull",
-            "Pull an image. Arguments: reference, runtime (optional: apple | docker | ci | hvf; a non-apple runtime "
-                + "pulls through the Micropod API daemon)."
-        ),
-        ("push", "Push an image. Arguments: reference."),
-        ("df", "Disk usage: containers/images/volumes sizes + reclaimable bytes."),
-        ("compose_up", "Parse + run a docker-compose.yml. Arguments: path, profiles (optional comma list)."),
-        ("compose_down", "Tear down a compose stack by its compose name. Arguments: name."),
-        ("compose_ps", "List containers belonging to a compose stack. Arguments: name."),
-        (
-            "share_mount",
-            "Expose a host directory as a synchronized file share. Arguments: src (required), readonly (optional), shared (optional live view)."
-        ),
-        ("share_unmount", "Remove a shared view. Arguments: id."),
-        ("share_list", "List active synchronized file shares."),
-        ("share_sync", "Flush a shared view's writes back to its source. Arguments: id."),
-        ("share_gc", "Remove unreferenced chunks from the shared cache."),
-        (
-            "build_cache_stats",
-            "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root)."
-        ),
-        ("update_check", "Trigger a background app update check (Sparkle) via the Micropod app."),
-        ("update_status", "Last-known app update state (checking/upToDate/updateAvailable/installing)."),
-        (
-            "update_apply",
-            "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches."
-        ),
-        (
-            "k8s_status",
-            "Kubernetes engine state: enabled, cluster VM state, node Ready, kubeconfig path."
-        ),
-        (
-            "k8s_enable",
-            """
-            Enable the lightweight Kubernetes engine (opt-in). Optional args: image, memory, cpus, \
-            metallb (true|false), ingress (true|false), lb_pool (a.b.c.d-e.f.g.h), name.
-            """
-        ),
-        ("k8s_disable", "Disable the Kubernetes engine (a running cluster is left up)."),
-        (
-            "k8s_up",
-            """
-            Create or resume the k3s cluster VM and wait for Ready. Streams progress; \
-            writes ~/.micropod/k8s/kubeconfig. Accepts the same optional args as k8s_enable.
-            """
-        ),
-        ("k8s_down", "Remove the cluster VM and its state."),
-        ("k8s_kubeconfig", "Return the host kubeconfig contents for the cluster."),
-        (
-            "k8s_load_image",
-            """
-            Push an image into the cluster's containerd via the host puller — bypasses the \
-            guest's slow NAT registry path. Args: `ref` (registry ref; uses the local image \
-            store first, pulls on miss) or `path` (local image-save tarball, no registry at all).
-            """
-        ),
-        ("k8s_images", "List image refs present in the cluster's containerd (k8s.io namespace)."),
-        (
-            "cache_status",
-            "Live HVF guest dependency cache inventory: total/L0/L1 usage, per-unit sizes, lock state, budget & eviction counts."
-        ),
-        (
-            "cache_explain",
-            "Explain which caches attached or skipped (and why) for a container. Arguments: id (required)."
-        ),
-        (
-            "cache_dedupe",
-            "Sample cross-scope Go build-cache duplication to quantify reclaimable bytes. Arguments: buckets (optional 1-256, default 16)."
-        ),
-        (
-            "cache_prune",
-            "Run lock-safe bounded LRU / partial Go-build cache eviction. Arguments: dry_run (bool), scope, tool, max_bytes, older_than_secs, partial_go_build (bool)."
-        ),
-        (
-            "cache_policy",
-            "Show the active HVF machine dependency cache policy (sharedL0, goProxy, npmRegistry, tools, budget)."
-        ),
-        (
-            "cache_policy_set",
-            "Update HVF cache policy live. Arguments: mode (auto|off), shared_l0 (bool), go_proxy, npm_registry, default_scope, max_bytes, max_age_days."
-        ),
-        (
-            "runtime_mode",
-            "Show or switch Micropod execution mode: 'container' (fast shared HVF microVM) vs 'sandbox' (isolated 1-microVM-per-workload). Arguments: mode (optional: container|sandbox)."
-        ),
-        (
-            "rig_health",
-            "Combined rootless rig health: active mode, HVF machine status, cache disk & policy, staged payload updates, and local depproxy health."
-        ),
-        (
-            "update_hvf_status",
-            "Show active vs staged versioned HVF VMM/kernel/initrd/tools payload status and rollback history."
-        ),
-        ("update_hvf_rollback", "Atomically roll back HVF payload symlink to the previous verified release."),
-        ("sandbox_status", "Show standalone sandbox VM readiness (cached vminitd/kernel without Apple container CLI)."),
-    ]
-
     /// Sandboxes boot in-process in whoever launches them, which needs the
     /// virtualization entitlement the `micropod` CLI carries and this
     /// server doesn't — so sandbox tools run the CLI. Output is combined
@@ -505,32 +294,32 @@ private actor MCPServer {
     }
 
     private func callTool(id: Int?, _ call: MCPToolCall) async -> Data? {
-        let args = call.arguments ?? [:]
-        func string(_ key: String) -> String {
-            if case .string(let value) = args[key] { return value }
-            return ""
+        guard let tool = MCPToolCatalog.tool(named: call.name) else {
+            return respondError(id: id, code: -32601, message: "Unknown tool: \(call.name)")
         }
-        func flag(_ key: String) -> Bool {
-            ["true", "1", "yes"].contains(string(key).lowercased())
+        let args: MCPArguments
+        do {
+            args = try MCPArguments(call.arguments ?? [:], for: tool)
+        } catch {
+            return toolResult(id, error.localizedDescription, isError: true)
         }
         func applyK8sArgs(config: inout K8sConfig) throws {
-            if !string("image").isEmpty { config.image = string("image") }
-            if !string("memory").isEmpty { config.memory = string("memory") }
-            if let c = Double(string("cpus")), c > 0 { config.cpus = c }
-            if !string("metallb").isEmpty { config.metalLB = flag("metallb") }
-            if !string("ingress").isEmpty { config.ingress = flag("ingress") }
-            if !string("lb_pool").isEmpty { config.lbPool = string("lb_pool") }
-            if !string("name").isEmpty { config.clusterName = string("name") }
+            if let image = args.optionalString("image") { config.image = image }
+            if let memory = args.optionalString("memory") { config.memory = memory }
+            if let cpus = args.number("cpus") {
+                guard cpus > 0 else { throw MCPArgumentError(message: "\(call.name): cpus must be positive") }
+                config.cpus = cpus
+            }
+            if let metalLB = args.bool("metallb") { config.metalLB = metalLB }
+            if let ingress = args.bool("ingress") { config.ingress = ingress }
+            if let pool = args.optionalString("lb_pool") { config.lbPool = pool }
+            if let name = args.optionalString("name") { config.clusterName = name }
         }
 
         do {
             switch call.name {
             case "runtime_manage":
-                let action = string("action")
-                guard
-                    ["install", "repair", "start", "stop", "restart", "operation", "cancel", "recover"].contains(action)
-                else { return toolResult(id, "Unknown runtime action", isError: true) }
-                let report = try await ManagedRuntimeControl.request(action)
+                let report = try await ManagedRuntimeControl.request(args.string("action"))
                 return toolResult(
                     id,
                     String(decoding: try JSONEncoder().encode(report), as: UTF8.self))
@@ -549,29 +338,29 @@ private actor MCPServer {
                 do {
                     local = try await self.containers.list()
                 } catch {
-                    let remote = await LocalAPI.nonAppleContainers()
+                    let remote = await api.nonAppleContainers()
                     guard !remote.isEmpty else { throw error }
                     local = []
                 }
                 var lines = local.map { c -> String in
                     "\(c.id)\t\(c.state)\t\(c.image)\(c.ipv4Address.isEmpty ? "" : "\t\(c.ipv4Address)")"
                 }
-                lines += await LocalAPI.nonAppleContainers().map { c in
+                lines += await api.nonAppleContainers().map { c in
                     "\(c["id"] as? String ?? "?")\t\(c["state"] as? String ?? "?")\t\(c["image"] as? String ?? "")\t[\(c["runtime"] as? String ?? "")]"
                 }
                 return toolResult(id, lines.isEmpty ? "No containers" : lines.joined(separator: "\n"))
 
             case "start", "stop", "restart", "kill", "delete":
-                let target = string("id")
+                let target = args.string("id")
                 let verb = [
                     "start": "Started", "stop": "Stopped", "restart": "Restarted", "kill": "Killed",
                     "delete": "Deleted",
                 ][call.name]!
-                if let engine = await LocalAPI.nonAppleEngine(for: target) {
+                if let engine = await api.nonAppleEngine(for: target) {
                     let method = call.name.prefix(1).uppercased() + call.name.dropFirst() + "Container"
                     var body: [String: Any] = ["id": target]
                     if call.name == "delete" { body["force"] = true }
-                    _ = try await LocalAPI.connect("ContainerService", method, body)
+                    _ = try await api.connect("ContainerService", method, body)
                     return toolResult(id, "\(verb) \(target) [\(engine)]")
                 }
                 switch call.name {
@@ -583,50 +372,44 @@ private actor MCPServer {
                 }
                 return toolResult(id, "\(verb) \(target)")
 
-            case "run" where !string("runtime").isEmpty && string("runtime") != "apple":
+            case "run" where !args.string("runtime").isEmpty && args.string("runtime") != "apple":
                 // Non-apple engines are owned by the API daemon (sandbox VMs
                 // live in its process), so route the run through it.
-                var body: [String: Any] = ["image": string("image"), "runtime": string("runtime")]
-                if !string("name").isEmpty { body["name"] = string("name") }
-                if !string("memory").isEmpty { body["memory"] = string("memory") }
-                if !string("command").isEmpty { body["arguments"] = ["/bin/sh", "-c", string("command")] }
-                let reply = try await LocalAPI.call("POST", "/v1/containers", body)
-                return toolResult(id, "Started \(reply["id"] as? String ?? "?") on \(string("runtime"))")
+                var body: [String: Any] = ["image": args.string("image"), "runtime": args.string("runtime")]
+                if let name = args.optionalString("name") { body["name"] = name }
+                if let memory = args.optionalString("memory") { body["memory"] = memory }
+                if let command = args.optionalString("command") { body["arguments"] = ["/bin/sh", "-c", command] }
+                let reply = try await api.call("POST", "/v1/containers", body)
+                return toolResult(id, "Started \(reply["id"] as? String ?? "?") on \(args.string("runtime"))")
 
             case "runtimes":
-                return toolResult(id, LocalAPI.describe(try await LocalAPI.call("GET", "/v1/runtimes")))
+                return toolResult(id, LocalAPI.describe(try await api.call("GET", "/v1/runtimes")))
 
             case "runtime_set_default":
-                let reply = try await LocalAPI.call("PUT", "/v1/runtimes/default", ["name": string("name")])
+                let reply = try await api.call("PUT", "/v1/runtimes/default", ["name": args.string("name")])
                 return toolResult(id, "Default runtime → \(reply["default"] as? String ?? "?")")
 
             case "runtime_update":
                 var body: [String: Any] = [:]
-                switch args["enabled"] {
-                case .bool(let enabled)?: body["enabled"] = enabled
-                case .string?: body["enabled"] = flag("enabled")
-                default: break
-                }
-                if case .string(let endpoint)? = args["endpoint"] { body["endpoint"] = endpoint }
-                let reply = try await LocalAPI.call("PATCH", "/v1/runtimes/\(string("name"))", body)
+                if let enabled = args.bool("enabled") { body["enabled"] = enabled }
+                if let endpoint = args.optionalString("endpoint") { body["endpoint"] = endpoint }
+                let name = try LocalAPI.pathSegment(args.string("name"), name: "name")
+                let reply = try await api.call("PATCH", "/v1/runtimes/\(name)", body)
                 return toolResult(id, LocalAPI.describe(reply))
 
             case "run":
                 var request = ContainerRunRequest(
-                    image: string("image"),
-                    name: string("name").isEmpty ? nil : string("name"),
-                    detach: true)
-                let memory = string("memory")
-                if !memory.isEmpty { request.memory = memory }
-                if !string("command").isEmpty { request.arguments = ["/bin/sh", "-c", string("command")] }
+                    image: args.string("image"), name: args.optionalString("name"), detach: true)
+                if let memory = args.optionalString("memory") { request.memory = memory }
+                if let command = args.optionalString("command") { request.arguments = ["/bin/sh", "-c", command] }
                 let containerID = try await containers.run(request)
                 return toolResult(id, "Started \(containerID)")
 
             case "exec":
-                if await LocalAPI.nonAppleEngine(for: string("id")) != nil {
-                    let reply = try await LocalAPI.connect(
+                if await api.nonAppleEngine(for: args.string("id")) != nil {
+                    let reply = try await api.connect(
                         "ContainerService", "Exec",
-                        ["id": string("id"), "arguments": ["/bin/sh", "-c", string("command")]])
+                        ["id": args.string("id"), "arguments": ["/bin/sh", "-c", args.string("command")]])
                     let output = (reply["output"] as? String ?? "") + (reply["error"] as? String ?? "")
                     let code = (reply["exitCode"] as? Int) ?? Int(reply["exitCode"] as? String ?? "0") ?? 0
                     return toolResult(
@@ -634,7 +417,7 @@ private actor MCPServer {
                         isError: code != 0)
                 }
                 let output = try await containers.exec(
-                    ContainerExecRequest(containerID: string("id"), arguments: [string("command")]))
+                    ContainerExecRequest(containerID: args.string("id"), arguments: [args.string("command")]))
                 return toolResult(id, output.isEmpty ? "No output" : output)
 
             case "stats":
@@ -646,50 +429,37 @@ private actor MCPServer {
                 return toolResult(id, lines.joined(separator: "\n"))
 
             case "sandbox_run", "sandbox_checkpoint_create":
-                guard !string("command").isEmpty else {
-                    return toolResult(id, "\(call.name) requires command", isError: true)
-                }
                 var argv = ["sandbox"]
                 if call.name == "sandbox_checkpoint_create" {
-                    guard !string("name").isEmpty else {
-                        return toolResult(id, "sandbox_checkpoint_create requires name", isError: true)
-                    }
-                    argv += ["checkpoint", "create", string("name")]
+                    argv += ["checkpoint", "create", args.string("name")]
                 } else {
                     argv.append("run")
                 }
-                if !string("cpus").isEmpty { argv += ["--cpus", string("cpus")] }
-                if !string("memory").isEmpty { argv += ["--memory", string("memory")] }
-                if !string("timeout").isEmpty { argv += ["--timeout", string("timeout")] }
-                if !string("workdir").isEmpty { argv += ["--workdir", string("workdir")] }
-                if flag("allow_net") { argv.append("--allow-net") }
-                if flag("allow_host_writes") { argv.append("--allow-host-writes") }
-                func list(_ key: String) -> [String] {
-                    string(key).split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-                        .filter { !$0.isEmpty }
+                if let cpus = args.integer("cpus") { argv += ["--cpus", String(cpus)] }
+                if let memory = args.integer("memory") { argv += ["--memory", String(memory)] }
+                if let timeout = args.integer("timeout") { argv += ["--timeout", String(timeout)] }
+                if let workdir = args.optionalString("workdir") { argv += ["--workdir", workdir] }
+                if args.flag("allow_net") { argv.append("--allow-net") }
+                if args.flag("allow_host_writes") { argv.append("--allow-host-writes") }
+                for mount in args.list("mounts") { argv += ["--mount", mount] }
+                for host in args.list("allow_hosts") { argv += ["--allow-host", host] }
+                for port in args.list("expose_host") { argv += ["--expose-host", port] }
+                for port in args.list("ports") { argv += ["--publish", port] }
+                for secret in args.list("secrets") { argv += ["--secret", secret] }
+                for env in args.list("env") { argv += ["--env", env] }
+                if let from = args.optionalString("from") {
+                    argv += ["--from", from]
+                } else if let image = args.optionalString("image") {
+                    argv.append(image)
                 }
-                for mount in list("mounts") { argv += ["--mount", mount] }
-                for host in list("allow_hosts") { argv += ["--allow-host", host] }
-                for port in list("expose_host") { argv += ["--expose-host", port] }
-                for port in list("ports") { argv += ["--publish", port] }
-                for secret in list("secrets") { argv += ["--secret", secret] }
-                for env in list("env") { argv += ["--env", env] }
-                if !string("from").isEmpty {
-                    argv += ["--from", string("from")]
-                } else if !string("image").isEmpty {
-                    argv.append(string("image"))
-                }
-                argv += ["--", "/bin/sh", "-c", string("command")]
+                argv += ["--", "/bin/sh", "-c", args.string("command")]
                 let (code, output) = try await Self.runMicropod(argv)
                 return toolResult(id, "exit \(code)\n\(output)", isError: code != 0)
 
             case "sandbox_checkpoints", "sandbox_checkpoint_delete":
                 var argv = ["sandbox", "checkpoint"]
                 if call.name == "sandbox_checkpoint_delete" {
-                    guard !string("name").isEmpty else {
-                        return toolResult(id, "sandbox_checkpoint_delete requires name", isError: true)
-                    }
-                    argv += ["rm", string("name")]
+                    argv += ["rm", args.string("name")]
                 } else {
                     argv.append("ls")
                 }
@@ -710,14 +480,14 @@ private actor MCPServer {
                 return toolResult(id, lines.isEmpty ? "No machines" : lines.joined(separator: "\n"))
 
             case "metrics_history":
-                let target = string("id")
+                let target = args.string("id")
                 guard
                     let kind = MetricsStore.Kind(
-                        rawValue: string("kind").isEmpty ? (target.isEmpty ? "system" : "container") : string("kind"))
+                        rawValue: args.optionalString("kind") ?? (target.isEmpty ? "system" : "container"))
                 else {
                     return toolResult(id, "kind must be system, container or machine", isError: true)
                 }
-                guard let range = MetricsStore.parseRange(string("range").isEmpty ? "1h" : string("range")) else {
+                guard let range = MetricsStore.parseRange(args.optionalString("range") ?? "1h") else {
                     return toolResult(id, "range: want e.g. 15m, 1h, 24h, 7d", isError: true)
                 }
                 guard let store = MetricsStore.shared else {
@@ -731,7 +501,7 @@ private actor MCPServer {
                         store.history(kind, key, range: min(range, 30 * 86400)), title: title, range: range))
 
             case "machine_stats":
-                let snapshot = try await machineStats.snapshot(id: string("id").isEmpty ? nil : string("id"))
+                let snapshot = try await machineStats.snapshot(id: args.optionalString("id"))
                 guard !snapshot.machines.isEmpty else { return toolResult(id, "No running machines") }
                 let lines = snapshot.machines.map { m -> String in
                     [
@@ -746,16 +516,13 @@ private actor MCPServer {
                 return toolResult(id, lines.joined(separator: "\n"))
 
             case "machine_logs":
-                guard !string("id").isEmpty else {
-                    return toolResult(id, "machine_logs requires id", isError: true)
-                }
-                let count = Int(string("lines")).flatMap { $0 > 0 ? $0 : nil } ?? 100
-                let lines = try await machines.logs(string("id"), tail: count, boot: flag("boot"))
+                let count = args.integer("lines").map { Int($0) } ?? 100
+                let lines = try await machines.logs(args.string("id"), tail: count, boot: args.flag("boot"))
                 return toolResult(id, lines.isEmpty ? "No logs" : lines.map(\.text).joined(separator: "\n"))
 
             case "list_images":
                 // Apple's from the runtime; other engines' from the API daemon.
-                let remote = await LocalAPI.nonAppleResources("/v1/images", key: "images")
+                let remote = await api.nonAppleResources("/v1/images", key: "images")
                 let local: [Micropod_V1_Image]
                 do {
                     local = try await images.list()
@@ -775,7 +542,7 @@ private actor MCPServer {
                 return toolResult(id, lines.isEmpty ? "No images" : lines.joined(separator: "\n"))
 
             case "list_volumes":
-                let remote = await LocalAPI.nonAppleResources("/v1/volumes", key: "volumes")
+                let remote = await api.nonAppleResources("/v1/volumes", key: "volumes")
                 let local: [Micropod_V1_Volume]
                 do {
                     local = try await volumes.list()
@@ -808,24 +575,15 @@ private actor MCPServer {
 
             case "volume_policy_set":
                 var policy = VolumePolicyStore.load()
-                let mode = string("mode")
-                if !mode.isEmpty {
+                if let mode = args.optionalString("mode") {
                     guard let parsed = VolumePolicy.CloneMode(rawValue: mode) else {
                         return toolResult(id, "invalid mode '\(mode)' — labels|goldens|all", isError: true)
                     }
                     policy.cloneMode = parsed
                 }
-                let goldens = string("goldens")
-                if !goldens.isEmpty {
-                    policy.goldenVolumes = goldens.split(separator: ",").map {
-                        $0.trimmingCharacters(in: .whitespaces)
-                    }
-                }
-                if args["jobsOnly"] != nil {
-                    policy.jobsOnly = flag("jobsOnly")
-                }
-                let sync = string("sync")
-                if !sync.isEmpty {
+                if args.has("goldens") { policy.goldenVolumes = args.list("goldens") }
+                if let jobsOnly = args.bool("jobsOnly") { policy.jobsOnly = jobsOnly }
+                if let sync = args.optionalString("sync") {
                     if sync == "default" {
                         policy.sync = nil
                     } else if let parsed = VolumePolicy.SyncMode(rawValue: sync) {
@@ -834,8 +592,7 @@ private actor MCPServer {
                         return toolResult(id, "invalid sync '\(sync)' — full|fsync|nosync|default", isError: true)
                     }
                 }
-                let cache = string("cache")
-                if !cache.isEmpty {
+                if let cache = args.optionalString("cache") {
                     guard let parsed = VolumePolicy.CacheMode(rawValue: cache) else {
                         return toolResult(id, "invalid cache '\(cache)' — on|off|auto", isError: true)
                     }
@@ -855,46 +612,40 @@ private actor MCPServer {
                 }
                 return toolResult(id, lines.isEmpty ? "No networks" : lines.joined(separator: "\n"))
 
-            case "pull" where !string("runtime").isEmpty && string("runtime") != "apple":
+            case "pull" where !args.string("runtime").isEmpty && args.string("runtime") != "apple":
                 // Other engines' stores are routed by the API daemon.
-                _ = try await LocalAPI.call(
-                    "POST", "/v1/images/pull", ["reference": string("reference"), "runtime": string("runtime")])
-                return toolResult(id, "Pulled \(string("reference")) on \(string("runtime"))")
+                _ = try await api.call(
+                    "POST", "/v1/images/pull",
+                    ["reference": args.string("reference"), "runtime": args.string("runtime")])
+                return toolResult(id, "Pulled \(args.string("reference")) on \(args.string("runtime"))")
 
             case "pull":
-                var lastLine = ""
-                for try await event in images.pull(string("reference"), platform: nil) {
-                    lastLine = event.line
-                }
-                return toolResult(
-                    id, lastLine.isEmpty ? "Pulled \(string("reference"))" : "Pulled \(string("reference"))")
+                for try await _ in images.pull(args.string("reference"), platform: nil) {}
+                return toolResult(id, "Pulled \(args.string("reference"))")
 
             case "push":
-                var lastLine = ""
-                for try await event in images.push(string("reference"), platform: nil) {
-                    lastLine = event.line
-                }
-                return toolResult(
-                    id, lastLine.isEmpty ? "Pushed \(string("reference"))" : "Pushed \(string("reference"))")
+                for try await _ in images.push(args.string("reference"), platform: nil) {}
+                return toolResult(id, "Pushed \(args.string("reference"))")
 
             case "inspect":
-                if await LocalAPI.nonAppleEngine(for: string("id")) != nil {
-                    let reply = try await LocalAPI.connect("ContainerService", "GetContainer", ["id": string("id")])
+                if await api.nonAppleEngine(for: args.string("id")) != nil {
+                    let reply = try await api.connect("ContainerService", "GetContainer", ["id": args.string("id")])
                     let pretty = try JSONSerialization.data(
                         withJSONObject: reply, options: [.prettyPrinted, .sortedKeys])
                     return toolResult(id, String(data: pretty, encoding: .utf8) ?? "")
                 }
-                let data = try await containers.inspect(string("id"))
+                let data = try await containers.inspect(args.string("id"))
                 let object = try JSONSerialization.jsonObject(with: data)
                 let pretty = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted])
                 return toolResult(id, String(data: pretty, encoding: .utf8) ?? "")
 
             case "logs":
-                if await LocalAPI.nonAppleEngine(for: string("id")) != nil {
-                    let lines = try await LocalAPI.tailLogs(string("id"), lines: 100)
+                let count = args.integer("lines").map { Int($0) } ?? 100
+                if await api.nonAppleEngine(for: args.string("id")) != nil {
+                    let lines = try await api.tailLogs(args.string("id"), lines: count)
                     return toolResult(id, lines.isEmpty ? "No logs" : lines.joined(separator: "\n"))
                 }
-                let lines = try await logStreamer.tail(id: string("id"), lines: 100, boot: false)
+                let lines = try await logStreamer.tail(id: args.string("id"), lines: count, boot: false)
                 return toolResult(id, lines.isEmpty ? "No logs" : lines.map(\.text).joined(separator: "\n"))
 
             case "df":
@@ -908,12 +659,9 @@ private actor MCPServer {
                     """)
 
             case "compose_up":
-                let url = URL(fileURLWithPath: string("path"))
+                let url = URL(fileURLWithPath: args.string("path"))
                 let spec = try await compose.parse(url: url)
-                let profiles = Set(
-                    string("profiles").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-                        .filter { !$0.isEmpty })
-                let plan = try compose.plan(spec: spec, enabledProfiles: profiles)
+                let plan = try compose.plan(spec: spec, enabledProfiles: Set(args.list("profiles")))
                 var lastLine = ""
                 for try await line in await compose.up(plan: plan) {
                     lastLine = line
@@ -921,33 +669,30 @@ private actor MCPServer {
                 return toolResult(id, lastLine.isEmpty ? "Compose up complete" : "Compose up complete — \(lastLine)")
 
             case "compose_down":
-                try await compose.down(composeName: string("name"))
-                return toolResult(id, "Tore down \(string("name"))")
+                try await compose.down(composeName: args.string("name"))
+                return toolResult(id, "Tore down \(args.string("name"))")
 
             case "compose_ps":
                 let containers = try await self.containers.list()
                 let lines =
                     containers
-                    .filter { $0.labels["com.skunkworq.micropod.compose"] == string("name") }
+                    .filter { $0.labels["com.skunkworq.micropod.compose"] == args.string("name") }
                     .map { "\($0.id)\t\($0.state)\t\($0.image)" }
                 return toolResult(
-                    id, lines.isEmpty ? "No containers for stack \(string("name"))" : lines.joined(separator: "\n"))
+                    id,
+                    lines.isEmpty ? "No containers for stack \(args.string("name"))" : lines.joined(separator: "\n"))
 
             case "share_mount":
                 guard let sharedFS else {
                     return toolResult(id, Self.noDaemonMessage, isError: true)
                 }
-                guard !string("src").isEmpty else {
-                    return toolResult(id, "share_mount requires src", isError: true)
-                }
-                let readonly = flag("readonly") || flag("ro")
+                let source = URL(fileURLWithPath: args.string("src"))
+                let readonly = args.flag("readonly") || args.flag("ro")
                 let info: MountInfo
-                if flag("shared") {
-                    info = try await sharedFS.mountShared(
-                        src: URL(fileURLWithPath: string("src")), readonly: readonly)
+                if args.flag("shared") {
+                    info = try await sharedFS.mountShared(src: source, readonly: readonly)
                 } else {
-                    info = try await sharedFS.mount(
-                        src: URL(fileURLWithPath: string("src")), readonly: readonly)
+                    info = try await sharedFS.mount(src: source, readonly: readonly)
                 }
                 return toolResult(
                     id, "\(info.id.value)\t\(info.src) -> \(info.viewPath) (\(info.sizeBytes) bytes)")
@@ -956,8 +701,8 @@ private actor MCPServer {
                 guard let sharedFS else {
                     return toolResult(id, Self.noDaemonMessage, isError: true)
                 }
-                try await sharedFS.unmount(id: ViewID(string("id")))
-                return toolResult(id, "Unmounted \(string("id"))")
+                try await sharedFS.unmount(id: ViewID(args.string("id")))
+                return toolResult(id, "Unmounted \(args.string("id"))")
 
             case "share_list":
                 guard let sharedFS else {
@@ -975,10 +720,10 @@ private actor MCPServer {
                 guard let sharedFS else {
                     return toolResult(id, Self.noDaemonMessage, isError: true)
                 }
-                let result = try await sharedFS.sync(id: ViewID(string("id")))
+                let result = try await sharedFS.sync(id: ViewID(args.string("id")))
                 return toolResult(
                     id,
-                    "Synced \(result.synced.count) files (\(result.bytesWritten) bytes) for \(string("id"))")
+                    "Synced \(result.synced.count) files (\(result.bytesWritten) bytes) for \(args.string("id"))")
 
             case "share_gc":
                 guard let sharedFS else {
@@ -992,9 +737,8 @@ private actor MCPServer {
             case "build_cache_stats":
                 // Read-only directory scan — needs no daemon and no shim.
                 let root =
-                    string("path").isEmpty
-                    ? BuildCacheStore.standardRoot()
-                    : URL(fileURLWithPath: string("path"), isDirectory: true)
+                    args.optionalString("path").map { URL(fileURLWithPath: $0, isDirectory: true) }
+                    ?? BuildCacheStore.standardRoot()
                 let (_, stats) = BuildCacheStore.scan(root: root)
                 return toolResult(
                     id,
@@ -1049,7 +793,7 @@ private actor MCPServer {
                 let k8s = K8sService(client: client)
                 var config = k8s.loadConfig() ?? .defaults
                 config.enabled = call.name == "k8s_enable"
-                try applyK8sArgs(config: &config)
+                if config.enabled { try applyK8sArgs(config: &config) }
                 try k8s.saveConfig(config)
                 return toolResult(
                     id, config.enabled ? "k8s engine enabled — k8s_up creates the cluster" : "k8s engine disabled")
@@ -1092,19 +836,18 @@ private actor MCPServer {
                 guard k8s.isEnabled else {
                     return toolResult(id, "k8s engine disabled — call k8s_enable first", isError: true)
                 }
-                let ref = string("ref")
-                let path = string("path")
-                guard !ref.isEmpty || !path.isEmpty else {
+                let ref = args.optionalString("ref")
+                let path = args.optionalString("path")
+                guard ref != nil || path != nil else {
                     return toolResult(id, "k8s_load_image needs `ref` or `path`", isError: true)
                 }
                 final class LoadLines: @unchecked Sendable {
                     var items: [String] = []
                 }
                 let progress = LoadLines()
-                let archivePath = path.isEmpty ? nil : URL(fileURLWithPath: path)
                 let loaded = try await k8s.loadImage(
-                    ref: ref.isEmpty ? nil : ref,
-                    archivePath: archivePath
+                    ref: ref,
+                    archivePath: path.map { URL(fileURLWithPath: $0) }
                 ) { progress.items.append($0) }
                 progress.items.append("loaded \(loaded.ref) (\(loaded.bytes) bytes)")
                 return toolResult(id, progress.items.joined(separator: "\n"))
@@ -1117,63 +860,8 @@ private actor MCPServer {
                 let refs = try await k8s.listImages()
                 return toolResult(id, refs.isEmpty ? "(no images)" : refs.joined(separator: "\n"))
 
-            case "cache_status":
-                let reply = try await LocalAPI.callRaw("GET", "/v1/caches")
-                return toolResult(id, reply)
-
-            case "cache_explain":
-                let cid = string("id")
-                guard !cid.isEmpty else { return toolResult(id, "cache_explain requires id", isError: true) }
-                let reply = try await LocalAPI.callRaw("GET", "/v1/caches/explain/\(cid)")
-                return toolResult(id, reply)
-
-            case "cache_dedupe":
-                let buckets = Int(string("buckets")) ?? 16
-                let reply = try await LocalAPI.callRaw("GET", "/v1/caches/dedupe?buckets=\(max(1, min(256, buckets)))")
-                return toolResult(id, reply)
-
-            case "cache_prune":
-                var body: [String: Any] = ["dryRun": flag("dry_run")]
-                if !string("scope").isEmpty { body["scope"] = string("scope") }
-                if !string("tool").isEmpty { body["tool"] = string("tool") }
-                if let maxB = UInt64(string("max_bytes")), maxB > 0 { body["maxBytes"] = maxB }
-                if let older = Int64(string("older_than_secs")), older > 0 { body["olderThanSecs"] = older }
-                if args["partial_go_build"] != nil { body["partialGoBuild"] = flag("partial_go_build") }
-                body["reason"] = "mcp"
-                let reply = try await LocalAPI.callRaw("POST", "/v1/caches/prune", body)
-                return toolResult(id, reply)
-
-            case "cache_policy":
-                let reply = try await LocalAPI.callRaw("GET", "/v1/caches/policy")
-                return toolResult(id, reply)
-
-            case "cache_policy_set":
-                var body: [String: Any] = [:]
-                if !string("mode").isEmpty { body["mode"] = string("mode") }
-                if args["shared_l0"] != nil { body["sharedL0"] = flag("shared_l0") }
-                if args["go_proxy"] != nil { body["goProxy"] = string("go_proxy") }
-                if args["npm_registry"] != nil { body["npmRegistry"] = string("npm_registry") }
-                if !string("default_scope").isEmpty { body["defaultScope"] = string("default_scope") }
-                if let maxB = UInt64(string("max_bytes")) { body["maxBytes"] = maxB }
-                if let maxAge = Int(string("max_age_days")) { body["maxAgeDays"] = maxAge }
-                let reply = try await LocalAPI.callRaw("PUT", "/v1/caches/policy", body)
-                return toolResult(id, reply)
-
-            case "runtime_mode":
-                let targetMode = string("mode")
-                if targetMode.isEmpty {
-                    return toolResult(id, try await LocalAPI.callRaw("GET", "/v1/rig/mode"))
-                }
-                return toolResult(id, try await LocalAPI.callRaw("PUT", "/v1/rig/mode", ["mode": targetMode]))
-
-            case "rig_health":
-                return toolResult(id, try await LocalAPI.callRaw("GET", "/v1/rig/health"))
-
-            case "update_hvf_status":
-                return toolResult(id, try await LocalAPI.callRaw("GET", "/v1/rig/hvf/update"))
-
-            case "update_hvf_rollback":
-                return toolResult(id, try await LocalAPI.callRaw("POST", "/v1/rig/hvf/update/rollback", [:]))
+            case _ where CacheTools.names.contains(call.name):
+                return toolResult(id, try await CacheTools.call(call.name, args, api: api))
 
             case "sandbox_status":
                 let (code, output) = try await Self.runMicropod(["sandbox", "status", "--json"])
@@ -1185,187 +873,6 @@ private actor MCPServer {
         } catch {
             return toolResult(id, error.localizedDescription, isError: true)
         }
-    }
-}
-
-/// The local Micropod API daemon — owner of engine config and sandbox VMs.
-/// Prefers the low-latency 0600 Unix domain socket (`~/.micropod/api.sock`,
-/// overridable via `MICROPOD_API_SOCK`), falling back transparently to loopback HTTP.
-enum LocalAPI {
-    static var baseURL: URL {
-        let port = ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454"
-        return URL(string: "http://127.0.0.1:\(port)")!
-    }
-
-    static var unixSocketPath: String? {
-        let env = ProcessInfo.processInfo.environment["MICROPOD_API_SOCK"]
-        if env == "off" { return nil }
-        let path =
-            (env?.isEmpty == false)
-            ? (env! as NSString).expandingTildeInPath
-            : FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/api.sock").path
-        return FileManager.default.fileExists(atPath: path) ? path : nil
-    }
-
-    static func callRaw(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> String {
-        let bodyData = try body.map { try JSONSerialization.data(withJSONObject: $0) }
-        if let sock = unixSocketPath, let (status, data) = try? await callUnixSocket(sock, method, path, bodyData) {
-            if (200..<300).contains(status) {
-                return String(decoding: data, as: UTF8.self)
-            }
-            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-            throw MicropodError.message(
-                json["error"] as? String ?? json["message"] as? String ?? "API error (\(status))")
-        }
-        guard let url = URL(string: baseURL.absoluteString + path) else {
-            throw MicropodError.message("invalid API path: \(path)")
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.timeoutInterval = 120
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = bodyData
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw MicropodError.message(
-                "Micropod API daemon not reachable at \(baseURL) — start MicropodAPI or Micropod.app")
-        }
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-            throw MicropodError.message(json["error"] as? String ?? json["message"] as? String ?? "API error")
-        }
-        return String(decoding: data, as: UTF8.self)
-    }
-
-    static func call(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> [String: Any] {
-        let raw = try await callRaw(method, path, body)
-        return (try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any]) ?? [:]
-    }
-
-    private static func callUnixSocket(
-        _ socketPath: String, _ method: String, _ path: String, _ body: Data?
-    ) async throws -> (Int, Data) {
-        try await withCheckedThrowingContinuation { done in
-            DispatchQueue.global(qos: .userInitiated).async {
-                done.resume(
-                    with: Result {
-                        let fd = try RuntimeUnixSocket.connect(socketPath, expectedUID: getuid())
-                        defer { Darwin.close(fd) }
-                        try RuntimeUnixSocket.timeout(fd, seconds: 60)
-                        let payload = body ?? Data()
-                        var head = "\(method) \(path) HTTP/1.1\r\nHost: localhost\r\n"
-                        head += "Content-Type: application/json\r\n"
-                        head += "Content-Length: \(payload.count)\r\n"
-                        head += "Connection: close\r\n\r\n"
-                        try RuntimeUnixSocket.write(Data(head.utf8) + payload, to: fd)
-                        var response = Data()
-                        var buf = [UInt8](repeating: 0, count: 16384)
-                        while true {
-                            let n = Darwin.read(fd, &buf, buf.count)
-                            if n < 0 {
-                                if errno == EINTR { continue }
-                                throw MicropodError.message("unix socket read failed")
-                            }
-                            if n == 0 { break }
-                            response.append(contentsOf: buf.prefix(n))
-                        }
-                        guard let split = response.range(of: Data("\r\n\r\n".utf8)) else {
-                            throw MicropodError.message("malformed HTTP response over unix socket")
-                        }
-                        let headerText = String(decoding: response[..<split.lowerBound], as: UTF8.self)
-                        let statusLine = headerText.split(separator: "\r\n", maxSplits: 1).first ?? ""
-                        let status = Int(statusLine.split(separator: " ").dropFirst().first ?? "") ?? 500
-                        return (status, Data(response[split.upperBound...]))
-                    })
-            }
-        }
-    }
-
-    /// A Connect unary call on the daemon (`/api/micropod.v1.<service>/<method>`).
-    static func connect(_ service: String, _ method: String, _ body: [String: Any]) async throws -> [String: Any] {
-        try await call("POST", "/api/micropod.v1.\(service)/\(method)", body)
-    }
-
-    /// The engine owning `id` when it isn't Apple's — sandbox micro-VMs and
-    /// Docker containers live in the API daemon (sandbox VMs in its very
-    /// process), so tools must reach them through it. nil for Apple
-    /// containers, unknown ids, or no daemon: the caller's usual path.
-    static func nonAppleEngine(for id: String) async -> String? {
-        guard !id.isEmpty, let reply = try? await connect("ContainerService", "GetContainer", ["id": id]),
-            let runtime = reply["runtime"] as? String, !runtime.isEmpty, runtime != "apple"
-        else { return nil }
-        return runtime
-    }
-
-    /// The daemon's containers on engines other than Apple's.
-    static func nonAppleContainers() async -> [[String: Any]] {
-        guard let reply = try? await connect("ContainerService", "ListContainers", [:]) else { return [] }
-        return (reply["containers"] as? [[String: Any]] ?? []).filter {
-            let runtime = $0["runtime"] as? String ?? "apple"
-            return !runtime.isEmpty && runtime != "apple"
-        }
-    }
-
-    /// The daemon's images or volumes (`GET path` → `{key: [...]}`) kept by
-    /// engines other than Apple's: the entries it stamps with `runtime`.
-    /// Empty without a daemon.
-    static func nonAppleResources(_ path: String, key: String) async -> [[String: Any]] {
-        guard let reply = try? await call("GET", path) else { return [] }
-        return (reply[key] as? [[String: Any]] ?? []).filter {
-            let runtime = $0["runtime"] as? String ?? "apple"
-            return !runtime.isEmpty && runtime != "apple"
-        }
-    }
-
-    /// The last `lines` log lines. The daemon's log route follows the
-    /// container, so read until `lines` arrive or it goes quiet.
-    static func tailLogs(_ id: String, lines: Int) async throws -> [String] {
-        var components = URLComponents(
-            url: baseURL.appendingPathComponent("/v1/containers/\(id)/logs"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "tail", value: String(lines))]
-        let (bytes, response) = try await URLSession.shared.bytes(from: components.url!)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw MicropodError.message("logs for \(id) unavailable from the API daemon")
-        }
-        let collected = LineBox()
-        let reader = Task {
-            for try await line in bytes.lines where line.hasPrefix("data: ") {
-                collected.append(String(line.dropFirst(6)).replacingOccurrences(of: "\\n", with: "\n"))
-                if collected.count >= lines { break }
-            }
-        }
-        // The tail arrives at once; after that the stream only waits.
-        var quietSince = ContinuousClock.now
-        var seen = 0
-        let deadline = ContinuousClock.now + .seconds(5)
-        while !reader.isCancelled, ContinuousClock.now < deadline, collected.count < lines {
-            try? await Task.sleep(for: .milliseconds(100))
-            if collected.count != seen {
-                seen = collected.count
-                quietSince = .now
-            } else if ContinuousClock.now - quietSince > .milliseconds(700) {
-                break
-            }
-        }
-        reader.cancel()
-        return collected.lines
-    }
-
-    /// `/v1/runtimes` → one line per engine.
-    static func describe(_ json: [String: Any]) -> String {
-        let runtimes = json["runtimes"] as? [[String: Any]] ?? []
-        return runtimes.map { r in
-            let name = r["name"] as? String ?? "?"
-            let marker = (r["default"] as? Bool ?? false) ? "*" : " "
-            let available =
-                (r["available"] as? Bool ?? false) ? "available" : "unavailable: \(r["reason"] as? String ?? "")"
-            let enabled = (r["enabled"] as? Bool ?? false) ? "enabled" : "disabled"
-            return
-                "\(marker) \(name)\t\(r["kind"] as? String ?? "")\t\(available)\t\(enabled)\t\(r["endpoint"] as? String ?? "")"
-        }.joined(separator: "\n")
     }
 }
 
@@ -1383,14 +890,4 @@ private final class OutputBuffer: @unchecked Sendable {
     }
 
     var text: String { lock.withLock { String(decoding: data, as: UTF8.self) } }
-}
-
-/// Lines collected by a background reader.
-private final class LineBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage: [String] = []
-
-    func append(_ line: String) { lock.withLock { storage.append(line) } }
-    var count: Int { lock.withLock { storage.count } }
-    var lines: [String] { lock.withLock { storage } }
 }
