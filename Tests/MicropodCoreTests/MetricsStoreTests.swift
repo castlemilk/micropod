@@ -149,14 +149,47 @@ final class MetricsStoreTests: XCTestCase {
     // MARK: Where the database lives (B25 Z07: an API started for a
     // throwaway root held the rig's ~/.micropod/metrics.sqlite open).
 
+    /// A socket directly in a shared directory (`/tmp`) used to put every
+    /// such API's database at `/tmp/metrics.sqlite`: one file they all
+    /// shared, which another local user could create first. Each now gets
+    /// its own in this user's temporary directory.
+    func testASocketInASharedDirectoryGetsAPrivateDatabaseOfItsOwn() throws {
+        let home = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".micropod/metrics.sqlite")
+        let a = MetricsStore.url(environment: ["MICROPOD_API_SOCK": "/tmp/mp-a.sock"])
+        let b = MetricsStore.url(environment: ["MICROPOD_API_SOCK": "/tmp/mp-b.sock"])
+        for url in [a, b] {
+            XCTAssertNotEqual(url.path, "/tmp/metrics.sqlite")
+            XCTAssertNotEqual(url.path, "/private/tmp/metrics.sqlite")
+            XCTAssertNotEqual(url, home, "never the rig's")
+            XCTAssertTrue(url.path.hasPrefix(FileManager.default.temporaryDirectory.path), url.path)
+        }
+        XCTAssertNotEqual(a, b, "one database per socket")
+        XCTAssertFalse(MetricsStore.isPrivateDirectory("/tmp"))
+
+        // A directory this user made 0700 keeps the database beside the socket;
+        // one others may write does not.
+        let mine = URL(fileURLWithPath: "/tmp/mp-mdb-\(UUID().uuidString.prefix(8))")
+        try FileManager.default.createDirectory(at: mine, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: mine) }
+        XCTAssertEqual(chmod(mine.path, 0o700), 0)
+        XCTAssertEqual(
+            MetricsStore.url(environment: ["MICROPOD_API_SOCK": mine.path + "/api.sock"]),
+            mine.appendingPathComponent("metrics.sqlite"))
+        XCTAssertEqual(chmod(mine.path, 0o777), 0)
+        XCTAssertNotEqual(
+            MetricsStore.url(environment: ["MICROPOD_API_SOCK": mine.path + "/api.sock"]),
+            mine.appendingPathComponent("metrics.sqlite"), "a directory anyone may write is not private")
+    }
+
     func testTheDatabaseFollowsTheAPISocketUnlessNamedOrOff() {
         let home = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".micropod/metrics.sqlite")
         XCTAssertEqual(MetricsStore.url(environment: [:]), home)
         XCTAssertEqual(MetricsStore.url(environment: ["MICROPOD_API_SOCK": "off"]), home)
         XCTAssertEqual(MetricsStore.url(environment: ["MICROPOD_API_SOCK": ""]), home)
+        let throwaway = "/tmp/mp-mdb-\(UUID().uuidString.prefix(8))"
         XCTAssertEqual(
-            MetricsStore.url(environment: ["MICROPOD_API_SOCK": "/tmp/mpg-cp/api.sock"]),
-            URL(fileURLWithPath: "/tmp/mpg-cp/metrics.sqlite"), "a throwaway API keeps its own")
+            MetricsStore.url(environment: ["MICROPOD_API_SOCK": throwaway + "/api.sock"]),
+            URL(fileURLWithPath: throwaway + "/metrics.sqlite"), "a throwaway API keeps its own")
         XCTAssertEqual(
             MetricsStore.url(environment: ["MICROPOD_API_SOCK": "~/.micropod/api.sock"]), home,
             "the default socket keeps the shared database")

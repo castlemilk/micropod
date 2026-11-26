@@ -88,7 +88,12 @@ public final class MetricsStore: @unchecked Sendable {
     /// - else `metrics.sqlite` beside the API's owner socket when
     ///   `MICROPOD_API_SOCK` names one, the isolation that socket already
     ///   follows (an API started for a throwaway root never opens the rig's
-    ///   database);
+    ///   database) — when that directory is this user's alone (or does not
+    ///   exist yet, and so is made 0700 with the socket). A socket in a
+    ///   shared directory such as `/tmp` gets a database of its own in this
+    ///   user's temporary directory instead (``sharedDirectoryDatabase``):
+    ///   never one file every such API shares, which another user could
+    ///   create first;
     /// - else `~/.micropod/metrics.sqlite`, also with `MICROPOD_API_SOCK=off`.
     ///
     /// With the socket at its default (`~/.micropod/api.sock`) the second
@@ -99,10 +104,28 @@ public final class MetricsStore: @unchecked Sendable {
             return URL(fileURLWithPath: (explicit as NSString).expandingTildeInPath)
         }
         if let socket = environment["MICROPOD_API_SOCK"], !socket.isEmpty, socket != "off" {
-            return URL(fileURLWithPath: (socket as NSString).expandingTildeInPath)
-                .deletingLastPathComponent().appendingPathComponent("metrics.sqlite")
+            let path = (socket as NSString).expandingTildeInPath
+            let directory = URL(fileURLWithPath: path).deletingLastPathComponent()
+            guard isPrivateDirectory(directory.path) else { return sharedDirectoryDatabase(socket: path) }
+            return directory.appendingPathComponent("metrics.sqlite")
         }
         return URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".micropod/metrics.sqlite")
+    }
+
+    /// The database for an API socket in a directory others may write:
+    /// `micropod-metrics/<socket path>.sqlite` in this user's temporary
+    /// directory, one per socket.
+    static func sharedDirectoryDatabase(socket path: String) -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("micropod-metrics", isDirectory: true)
+            .appendingPathComponent(path.replacingOccurrences(of: "/", with: "_") + ".sqlite")
+    }
+
+    /// A directory (symlinks followed) this user owns and nobody else may
+    /// write, or one that does not exist yet.
+    static func isPrivateDirectory(_ path: String) -> Bool {
+        var info = stat()
+        guard stat(path, &info) == 0 else { return errno == ENOENT }
+        return info.st_mode & S_IFMT == S_IFDIR && info.st_uid == getuid() && info.st_mode & 0o022 == 0
     }
 
     /// This process's database (``url(environment:)``).
