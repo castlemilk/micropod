@@ -60,6 +60,11 @@ const (
 	// A reader (untrusted or read-only) of an env-mode store that does not
 	// exist yet: nothing to read, and a reader never creates a store.
 	skipNoStore = "no-store-to-read"
+	// The plan, made by an engine before the sharing rule (cacheTool.Global),
+	// shares this tool's store across projects in scope "global" although the
+	// tool does not verify it on read. The start leaves it out; recreating
+	// the container attaches the store of its own scope.
+	skipRetiredShare = "shared-store-retired"
 )
 
 // Plan-level reasons for attaching nothing.
@@ -244,18 +249,51 @@ func planTier(tier string) string {
 // legacyTrust gives a plan an engine made before tiers were resolved (no
 // TrustFrom) the tier the policy now gives a container naming none, never a
 // higher one: such an engine read only the request's labels, so nothing in the
-// plan proves the host asked for a trusted container.
+// plan proves the host asked for a trusted container. It is decided again at
+// every start: once the policy trusts by default again, a plan it demoted
+// (trustFromLegacy) is the trusted plan the older engine made, so a machine
+// switched back with `cache policy --default-trust trusted` does not leave its
+// older containers and compose stacks readers until they are recreated.
 func (p *cachePlan) legacyTrust(pol cachePolicy) {
-	if p == nil || p.TrustFrom != "" || p.ReadOnly || !pol.untrustedByDefault() {
+	if p == nil {
 		return
 	}
-	p.Trust, p.ReadOnly, p.TrustFrom = trustUntrusted, true, trustFromLegacy
-	// A reader never asks for an exclusive kind's writer slot; copied, as
-	// the slice may be shared with the plan this one was copied from.
+	switch {
+	case p.TrustFrom == trustFromLegacy && !pol.untrustedByDefault():
+		p.Trust, p.ReadOnly, p.TrustFrom = "", false, ""
+		p.currentExclusive()
+	case p.TrustFrom != "" || p.ReadOnly || !pol.untrustedByDefault():
+	default:
+		p.Trust, p.ReadOnly, p.TrustFrom = trustUntrusted, true, trustFromLegacy
+		p.currentExclusive()
+	}
+}
+
+// currentExclusive sets each store's Exclusive from the cache table as it is
+// now, not as it was when the plan was made: a writer asks for an exclusive
+// kind's writer slot (maven became one after its plans first said otherwise),
+// a reader never does. The slice is copied, as it may be shared with the plan
+// this one was copied from.
+func (p *cachePlan) currentExclusive() {
 	p.Stores = append([]cacheStoreRef(nil), p.Stores...)
 	for i := range p.Stores {
-		p.Stores[i].Exclusive = false
+		t := cacheToolByKind(p.Stores[i].Kind)
+		p.Stores[i].Exclusive = t != nil && t.Exclusive && !p.ReadOnly
 	}
+}
+
+// applyCurrentRules brings a plan made at create up to the rules this engine
+// applies at start, before the start replays it: its tier under the policy as
+// it is now (legacyTrust) and the table's exclusive kinds. A store an engine
+// before the sharing rule put in scope "global" for a tool that does not
+// verify it on read is left out of the start instead (openCacheMounts,
+// skipRetiredShare).
+func (p *cachePlan) applyCurrentRules(pol cachePolicy) {
+	if p == nil {
+		return
+	}
+	p.legacyTrust(pol)
+	p.currentExclusive()
 }
 
 // cacheReadOnly reports whether the container may only read the shared

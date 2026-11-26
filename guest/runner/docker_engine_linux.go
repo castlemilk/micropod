@@ -870,8 +870,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		return err
 	}
 	pol := s.cachePolicy.get()
-	// A plan an older engine made has no tier of its own yet.
-	c.Cache.legacyTrust(pol)
+	// A plan an older engine made has no tier of its own yet, or an older
+	// table's exclusive kinds.
+	c.Cache.applyCurrentRules(pol)
 	files, mounts, aliasPins, err := s.openMounts(c.Config, volumeRules(pol, c.Config, c.Cache), false, socket, filepath.Join(c.dir(), "shim"))
 	if err != nil {
 		s.mu.Unlock()

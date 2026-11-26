@@ -1190,6 +1190,10 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	}
 	views := map[string]cacheUnitView{} // scope/unit -> this start's way to the store
 	for _, st := range plan.Stores {
+		if t := cacheToolByKind(st.Kind); st.Scope == cacheL0GlobalScope && plan.Scope != cacheL0GlobalScope && (t == nil || !t.Global) {
+			a.skip(st.Kind, skipRetiredShare)
+			continue
+		}
 		storeScope := plan.scopeFor(st.Scope)
 		scopeDir, err := ensureScopeDir(storeScope)
 		if err != nil {
