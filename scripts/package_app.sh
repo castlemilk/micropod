@@ -11,6 +11,22 @@ VERSION="${1:-0.1.0}"
 BUNDLE_ID="com.skunkworq.micropod"
 DIST="dist"
 
+# A release carries the whole HVF runtime: the entitled micropod-vmm,
+# vmlinux-hvf, mp-hvf-init.cpio and the micropod-oci-tools guest bundle.
+# scripts/verify_release_payload.sh checks the app and the tarball at the end.
+# CI builds none of them, so it must be handed the qualified distribution (or
+# an explicit VMM tree); say so before the long release build.
+if [[ "${GITHUB_ACTIONS:-false}" == true ]]; then
+    if [[ "${MICROPOD_PACKAGE_WITHOUT_HVF:-0}" == 1 ]]; then
+        echo "!! MICROPOD_PACKAGE_WITHOUT_HVF is for local development packages; CI packages a release" >&2
+        exit 1
+    fi
+    if [[ -z "${MICROPOD_HVF_DISTRIBUTION:-}" && -z "${MICROPOD_VMM_DIR:-}" ]]; then
+        echo "!! CI packaging needs MICROPOD_HVF_DISTRIBUTION (the qualified HVF runtime): a release without micropod-vmm, vmlinux-hvf, mp-hvf-init.cpio and micropod-oci-tools is refused" >&2
+        exit 1
+    fi
+fi
+
 # Stamp the version and source revision into the CLI, MCP and API binaries
 # for this build only.
 # (The backup lives outside the target: SwiftPM warns about stray files.)
@@ -298,5 +314,15 @@ codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$DIS
 
 echo "==> Staging tarball"
 tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod ${oci_archive[@]+"${oci_archive[@]}"} ${hvf_archive[@]+"${hvf_archive[@]}"}
+
+# Nothing above fails when a piece of the HVF runtime could not be built or
+# found: this does, naming each one. MICROPOD_PACKAGE_WITHOUT_HVF=1 makes a
+# local development package without it, which make_dmg.sh then refuses.
+if [[ "${MICROPOD_PACKAGE_WITHOUT_HVF:-0}" == 1 ]]; then
+    echo "!! MICROPOD_PACKAGE_WITHOUT_HVF=1: $APP_BUNDLE is a development package, not a release (no HVF runtime check)"
+elif ! bash scripts/verify_release_payload.sh "$APP_BUNDLE" "$DIST/Micropod.$VERSION.tgz"; then
+    echo "!! The package lacks the HVF runtime. Point MICROPOD_HVF_DISTRIBUTION at a qualified payload (README), or build vmm/ with cargo, go, the aarch64-unknown-linux-musl target and MICROPOD_HVF_KERNEL. MICROPOD_PACKAGE_WITHOUT_HVF=1 packages a local development build without it." >&2
+    exit 1
+fi
 ls -lh "$DIST"
 echo "Done. Install: cp -R $APP_BUNDLE /Applications/"
