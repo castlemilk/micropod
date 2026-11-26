@@ -162,7 +162,10 @@ func engineOwnRoute(raw string) bool {
 // delegatedRoute reports whether a delegated socket serves the route. The
 // container, exec, network and volume handlers scope themselves to the viewer
 // (lookupFor, seesNetworkLocked, seesVolumeLocked); images and BuildKit are
-// the machine's. dispatch still validates the API version.
+// the machine's (a build's own calls scoped by serveDockerBuildControl).
+// None of the engine's own routes is served, its BuildKit probe
+// (/micropod/buildkit) included: GET /version names the same capability.
+// dispatch still validates the API version.
 func delegatedRoute(method, raw string) bool {
 	path := strings.TrimPrefix(raw, "/")
 	if strings.HasPrefix(path, "v1.") {
@@ -174,8 +177,6 @@ func delegatedRoute(method, raw string) bool {
 		return read
 	case "auth", "grpc", "session":
 		return method == http.MethodPost
-	case "micropod/buildkit":
-		return method == http.MethodGet
 	case "networks", "volumes":
 		return true
 	}

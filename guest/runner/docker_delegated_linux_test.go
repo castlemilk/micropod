@@ -132,7 +132,7 @@ func TestDelegatedSocketSeesOnlyItsFamily(t *testing.T) {
 			t.Errorf("the bridge's members show another job's container %.12s", id)
 		}
 	}
-	for _, path := range []string{"/micropod/caches", "/micropod/containers/summary", "/micropod/metrics", "/micropod/traces", "/v1.47/micropod/storage"} {
+	for _, path := range []string{"/micropod/caches", "/micropod/containers/summary", "/micropod/metrics", "/micropod/traces", "/v1.47/micropod/storage", "/micropod/buildkit", "/v1.47/micropod/buildkit"} {
 		if code := getJSON(t, client, path, nil); code != 403 {
 			t.Errorf("%s: %d, want 403", path, code)
 		}
@@ -191,7 +191,7 @@ func TestDelegatedRoute(t *testing.T) {
 		{"POST", "/containers/create", true}, {"GET", "/containers/json", true}, {"POST", "/containers/x/start", true},
 		{"PUT", "/containers/x/archive", true}, {"POST", "/exec/x/start", true}, {"POST", "/images/create", true},
 		{"POST", "/networks/create", true}, {"GET", "/networks", true}, {"DELETE", "/volumes/x", true}, {"GET", "/volumes", true},
-		{"GET", "/micropod/buildkit", true},
+		{"GET", "/micropod/buildkit", false}, {"GET", "/v1.47/micropod/buildkit", false},
 		{"GET", "/micropod/caches", false}, {"POST", "/micropod/caches/prune", false}, {"DELETE", "/v1.47/micropod/caches", false},
 		{"POST", "/micropod/caches/debug", false}, {"GET", "/micropod/containers/summary", false}, {"POST", "/micropod/traces/clear", false},
 		{"GET", "/micropod/metrics", false}, {"GET", "/micropod/storage", false}, {"POST", "/commit", false}, {"POST", "/build", false},

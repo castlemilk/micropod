@@ -353,9 +353,10 @@ gives, so never hand that socket to untrusted code. A trusted container the host
 `-v /var/run/docker.sock:/var/run/docker.sock` (Testcontainers, compose or `docker build` in a CI step, Cuttlefish's
 `dockerSocket: true`) gets the machine's Docker API on a socket of its own, which is not the host's: through it the
 container sees and acts on only itself and the containers, networks and volumes it created there (plus the built-in
-networks and the ones it is attached to); every other job's are not there (404), a network or volume it created
+networks, the networks it is attached to and the volumes it mounts, which it may mount in what it creates but not
+remove); every other job's are not there (404), a network or volume it created
 there is no other container's to join or mount, not even through the machine's own socket (409), and the engine's own routes
-(`/micropod/*`: caches, metrics, traces) are refused (403). What it creates there is never more trusted than it is, gets
+(`/micropod/*`: caches, metrics, traces, the BuildKit probe, which `GET /version` answers too) are refused (403). What it creates there is never more trusted than it is, gets
 at most the container's own CPU, memory and process limits (a request for more, or for none, is lowered to them; at
 most 64 such containers at a time, HTTP 409 past that), is in its cache scope (naming another is refused, HTTP 403, as is mounting another's alias volume, HTTP 400), may bind only paths inside the container's own binds
 (read-only where it reaches them only read-only, as under a read-only bind nested in a writable one; anything else, the rest of the workspace included, is refused, HTTP 403;
