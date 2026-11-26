@@ -73,6 +73,9 @@ struct MicropodCLI {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
         // Global flags may come before the command (`micropod --json machine status`).
+        if let cache = CacheCommands.route(args) {
+            exit(await CacheCommands.main(cache.args, json: cache.json))
+        }
         if let machine = MachineCommands.route(args) {
             exit(await MachineCommands.main(machine.args, json: machine.json))
         }
@@ -183,6 +186,8 @@ struct MicropodCLI {
           ci docker|run|snapshot|job         run builds, compose stacks, cached & native OCI jobs
 
         Observability & configuration:
+          cache status|ls|explain|dedupe|prune|policy
+                                             unified L0/L1 cache usage, diagnosis, pruning & proxy policy
           telemetry init|show|set|validate   manage YAML config (~/.micropod/observability.yaml)
           telemetry enable|disable <target>  toggle prometheus, otlp, or tracing (live on VM!)
           telemetry health|metrics           live engine/workload health, Prometheus & OTLP metrics

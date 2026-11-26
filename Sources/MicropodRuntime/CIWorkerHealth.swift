@@ -224,6 +224,57 @@ extension CIWorker {
         public let api: DockerAPIMetrics?
         public let reaper: ReaperMetrics?
         public let recentIssues: [RuntimeIssue]?
+        public let cacheAttach: [String: UInt64]?
+        public let cacheSkip: [String: UInt64]?
+        public let cacheProbes: UInt64?
+        public let cacheProbeFailures: UInt64?
+        public let cacheProbeMs: Int64?
+        public let cacheEvictions: UInt64?
+        public let cacheEvictedUnits: UInt64?
+        public let cacheEvictedFiles: UInt64?
+        public let cacheEvictedBytes: UInt64?
+        public let cacheLastSweepUnix: Int64?
+
+        public init(
+            containersCreated: UInt64, runsFinished: UInt64, runtimeFailures: UInt64,
+            imageCacheHits: UInt64, preparedPodsUsed: UInt64, sharedCacheAttachments: UInt64,
+            podMsTotal: Int64, createMsTotal: Int64, startMsTotal: Int64,
+            startParallelismLimit: Int, setupSlotsInUse: Int, setupWaitUsecTotal: Int64,
+            network: RuntimeNetworkMetrics?, api: DockerAPIMetrics?, reaper: ReaperMetrics?,
+            recentIssues: [RuntimeIssue]?,
+            cacheAttach: [String: UInt64]? = nil, cacheSkip: [String: UInt64]? = nil,
+            cacheProbes: UInt64? = nil, cacheProbeFailures: UInt64? = nil, cacheProbeMs: Int64? = nil,
+            cacheEvictions: UInt64? = nil, cacheEvictedUnits: UInt64? = nil,
+            cacheEvictedFiles: UInt64? = nil, cacheEvictedBytes: UInt64? = nil,
+            cacheLastSweepUnix: Int64? = nil
+        ) {
+            self.containersCreated = containersCreated
+            self.runsFinished = runsFinished
+            self.runtimeFailures = runtimeFailures
+            self.imageCacheHits = imageCacheHits
+            self.preparedPodsUsed = preparedPodsUsed
+            self.sharedCacheAttachments = sharedCacheAttachments
+            self.podMsTotal = podMsTotal
+            self.createMsTotal = createMsTotal
+            self.startMsTotal = startMsTotal
+            self.startParallelismLimit = startParallelismLimit
+            self.setupSlotsInUse = setupSlotsInUse
+            self.setupWaitUsecTotal = setupWaitUsecTotal
+            self.network = network
+            self.api = api
+            self.reaper = reaper
+            self.recentIssues = recentIssues
+            self.cacheAttach = cacheAttach
+            self.cacheSkip = cacheSkip
+            self.cacheProbes = cacheProbes
+            self.cacheProbeFailures = cacheProbeFailures
+            self.cacheProbeMs = cacheProbeMs
+            self.cacheEvictions = cacheEvictions
+            self.cacheEvictedUnits = cacheEvictedUnits
+            self.cacheEvictedFiles = cacheEvictedFiles
+            self.cacheEvictedBytes = cacheEvictedBytes
+            self.cacheLastSweepUnix = cacheLastSweepUnix
+        }
     }
 
     private struct RawCodingKey: CodingKey {
@@ -234,14 +285,17 @@ extension CIWorker {
     }
 
     /// Decodes snake_case Go `/micropod/metrics` JSON (including digit-prefixed segments like
-    /// `errors_4xx` and `conflicts_409`) while preserving verbatim dictionary keys under `routes`
-    /// and keeping camelCase JSON output when `HealthReport` is re-encoded.
+    /// `errors_4xx` and `conflicts_409`) while preserving verbatim dictionary keys under `routes`,
+    /// `cache_attach`, and `cache_skip` and keeping camelCase JSON output when `HealthReport` is re-encoded.
     static func makeRuntimeMetricsDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .custom { codingPath in
             let last = codingPath.last!
-            if codingPath.count >= 2 && codingPath[codingPath.count - 2].stringValue == "routes" {
-                return last
+            if codingPath.count >= 2 {
+                let parent = codingPath[codingPath.count - 2].stringValue
+                if parent == "routes" || parent == "cache_attach" || parent == "cache_skip" {
+                    return last
+                }
             }
             let parts = last.stringValue.split(separator: "_", omittingEmptySubsequences: false)
             guard parts.count > 1 else { return last }
@@ -311,6 +365,7 @@ extension CIWorker {
         public let kernel: KernelHealthSummary?
         public let workloads: WorkloadSummary
         public let cacheStores: [CacheStoreMetrics]
+        public let cacheInventory: HVFCacheInspection?
         public let nativeOCI: NativeOCIMetrics?
     }
 
@@ -487,6 +542,7 @@ extension CIWorker {
         kernel: KernelHealthSummary?,
         nativeOCI: NativeOCIMetrics?,
         runtimeEngine: RuntimeEngineMetrics? = nil,
+        cacheInventory: HVFCacheInspection? = nil,
         thresholds: ObservabilityConfig.HealthThresholds = .init()
     ) -> (verdict: HealthVerdict, warnings: [String]) {
         var verdict: HealthVerdict = .healthy
@@ -551,6 +607,16 @@ extension CIWorker {
                     escalate(.degraded, "Guest DNS dropped \(net.dnsOverloadDrops) query(s) due to overload")
                 }
             }
+            if let probeFails = re.cacheProbeFailures, probeFails > 0 {
+                escalate(.degraded, "Guest cache image probe failed \(probeFails) time(s)")
+            }
+            if let storeFails = re.cacheSkip?["store-failed"], storeFails > 0 {
+                escalate(.degraded, "Guest cache skipped \(storeFails) attachment(s) due to store-failed")
+            }
+        }
+
+        if let budget = cacheInventory?.budget, let pct = budget.utilizationPct, pct >= 85.0 {
+            escalate(.degraded, "Guest cache budget utilization is high (\(String(format: "%.1f", pct))%)")
         }
 
         return (verdict, warnings)
@@ -568,12 +634,14 @@ extension CIWorker {
         async let buildkitReq = api.request("GET", "/micropod/buildkit", timeout: .seconds(3))
         async let engineMetricsReq = api.request("GET", "/micropod/metrics", timeout: .seconds(3))
         async let storageReq = api.request("GET", "/micropod/storage", timeout: .seconds(3))
+        async let cachesReq = api.request("GET", "/micropod/caches", timeout: .seconds(5))
         async let kernelReq: KernelMetrics? = try? await kernelMetrics()
         async let ociReq: NativeOCIMetrics? = try? await nativeMetrics()
 
-        let (containersResp, volumesResp, buildkitResp, engineMetricsResp, storageResp, km, oci) = try await (
-            containersReq, volumesReq, buildkitReq, engineMetricsReq, storageReq, kernelReq, ociReq
-        )
+        let (containersResp, volumesResp, buildkitResp, engineMetricsResp, storageResp, cachesResp, km, oci) =
+            try await (
+                containersReq, volumesReq, buildkitReq, engineMetricsReq, storageReq, cachesReq, kernelReq, ociReq
+            )
 
         let metricsDecoder = Self.makeRuntimeMetricsDecoder()
         let snakeDecoder = JSONDecoder()
@@ -585,6 +653,10 @@ extension CIWorker {
         let storageSummary: StorageSummary? =
             storageResp.status == 200
             ? try? snakeDecoder.decode(StorageSummary.self, from: storageResp.body)
+            : nil
+        let cacheInventory: HVFCacheInspection? =
+            cachesResp.status == 200
+            ? try? JSONDecoder().decode(HVFCacheInspection.self, from: cachesResp.body)
             : nil
 
         struct RawContainer: Decodable {
@@ -826,7 +898,7 @@ extension CIWorker {
             : nil
         let (verdict, warnings) = Self.evaluateHealth(
             vmm: current.vmm ?? .vz, hypervisor: hvTelemetry, kernel: kernelSummary, nativeOCI: oci,
-            runtimeEngine: runtimeEngineMetrics, thresholds: obs.health)
+            runtimeEngine: runtimeEngineMetrics, cacheInventory: cacheInventory, thresholds: obs.health)
 
         return HealthReport(
             verdict: verdict,
@@ -856,6 +928,7 @@ extension CIWorker {
                 items: items
             ),
             cacheStores: stores,
+            cacheInventory: cacheInventory,
             nativeOCI: oci)
     }
 
@@ -1241,6 +1314,82 @@ extension CIWorker {
             }
         }
 
+        if let inv = report.cacheInventory {
+            if let units = inv.units, !units.isEmpty {
+                lines.append("# HELP micropod_cache_bytes Disk bytes used by each guest cache store unit.")
+                lines.append("# TYPE micropod_cache_bytes gauge")
+                lines.append("# HELP micropod_cache_files File count in each guest cache store unit.")
+                lines.append("# TYPE micropod_cache_files gauge")
+                lines.append("# HELP micropod_cache_in_use 1 when a running container currently pins the cache store.")
+                lines.append("# TYPE micropod_cache_in_use gauge")
+                lines.append(
+                    "# HELP micropod_cache_last_used_timestamp_seconds Last container use timestamp of each cache store."
+                )
+                lines.append("# TYPE micropod_cache_last_used_timestamp_seconds gauge")
+                for u in units {
+                    let lbl =
+                        "worker=\"\(workerLabel)\",scope=\"\(Self.promEscape(u.scope))\",tool=\"\(Self.promEscape(u.kind))\",unit=\"\(Self.promEscape(u.unit))\",layer=\"\(Self.promEscape(u.layer))\""
+                    lines.append("micropod_cache_bytes{\(lbl)} \(u.bytes)")
+                    lines.append("micropod_cache_files{\(lbl)} \(u.files)")
+                    lines.append("micropod_cache_in_use{\(lbl)} \(u.inUse ? 1 : 0)")
+                    lines.append("micropod_cache_last_used_timestamp_seconds{\(lbl)} \(u.lastUsedUnix)")
+                }
+            }
+            if let budget = inv.budget, budget.maxBytes > 0 {
+                lines.append("# HELP micropod_cache_budget_bytes Configured guest cache byte budget ceiling.")
+                lines.append("# TYPE micropod_cache_budget_bytes gauge")
+                lines.append("micropod_cache_budget_bytes{worker=\"\(workerLabel)\"} \(budget.maxBytes)")
+            }
+        }
+        if let re = report.runtimeEngine {
+            if let attaches = re.cacheAttach, !attaches.isEmpty {
+                lines.append("# HELP micropod_cache_attach_total Cumulative cache attachments by tool.")
+                lines.append("# TYPE micropod_cache_attach_total counter")
+                for (tool, count) in attaches.sorted(by: { $0.key < $1.key }) {
+                    lines.append(
+                        "micropod_cache_attach_total{worker=\"\(workerLabel)\",tool=\"\(Self.promEscape(tool))\"} \(count)"
+                    )
+                }
+            }
+            if let skips = re.cacheSkip, !skips.isEmpty {
+                lines.append("# HELP micropod_cache_skip_total Cumulative cache attach skips by reason.")
+                lines.append("# TYPE micropod_cache_skip_total counter")
+                for (reason, count) in skips.sorted(by: { $0.key < $1.key }) {
+                    lines.append(
+                        "micropod_cache_skip_total{worker=\"\(workerLabel)\",reason=\"\(Self.promEscape(reason))\"} \(count)"
+                    )
+                }
+            }
+            if let probes = re.cacheProbes {
+                lines.append("# HELP micropod_cache_probes_total Image fact probes executed for cache planning.")
+                lines.append("# TYPE micropod_cache_probes_total counter")
+                lines.append("micropod_cache_probes_total{worker=\"\(workerLabel)\"} \(probes)")
+            }
+            if let probeFails = re.cacheProbeFailures {
+                lines.append("# HELP micropod_cache_probe_failures_total Failed image fact probes.")
+                lines.append("# TYPE micropod_cache_probe_failures_total counter")
+                lines.append("micropod_cache_probe_failures_total{worker=\"\(workerLabel)\"} \(probeFails)")
+            }
+            if let probeMs = re.cacheProbeMs {
+                lines.append(
+                    "# HELP micropod_cache_probe_duration_milliseconds_total Cumulative image fact probe duration in ms."
+                )
+                lines.append("# TYPE micropod_cache_probe_duration_milliseconds_total counter")
+                lines.append("micropod_cache_probe_duration_milliseconds_total{worker=\"\(workerLabel)\"} \(probeMs)")
+            }
+            if let evictions = re.cacheEvictions {
+                lines.append("# HELP micropod_cache_evictions_total Completed cache prune/janitor eviction sweeps.")
+                lines.append("# TYPE micropod_cache_evictions_total counter")
+                lines.append("micropod_cache_evictions_total{worker=\"\(workerLabel)\"} \(evictions)")
+            }
+            if let evictedBytes = re.cacheEvictedBytes {
+                lines.append(
+                    "# HELP micropod_cache_evicted_bytes_total Cumulative cache bytes freed by eviction sweeps.")
+                lines.append("# TYPE micropod_cache_evicted_bytes_total counter")
+                lines.append("micropod_cache_evicted_bytes_total{worker=\"\(workerLabel)\"} \(evictedBytes)")
+            }
+        }
+
         if let oci = report.nativeOCI {
             lines.append("# HELP micropod_oci_active_sessions Active native OCI job sessions.")
             lines.append("# TYPE micropod_oci_active_sessions gauge")
@@ -1338,6 +1487,35 @@ extension CIWorker {
         if let st = report.storage {
             metrics.append(gaugeInt("micropod.storage.used", "By", Int64(st.usedBytes)))
             metrics.append(gaugeInt("micropod.storage.available", "By", Int64(st.availableBytes)))
+        }
+        if let inv = report.cacheInventory, let totals = inv.totals {
+            metrics.append(gaugeInt("micropod.cache.bytes", "By", Int64(totals.totalBytes)))
+            metrics.append(gaugeInt("micropod.cache.l0.bytes", "By", Int64(totals.l0Bytes)))
+            metrics.append(gaugeInt("micropod.cache.l1.bytes", "By", Int64(totals.l1Bytes)))
+            metrics.append(gaugeInt("micropod.cache.units.in_use", "{unit}", Int64(totals.inUseCount)))
+        }
+        if let re = report.runtimeEngine {
+            if let attaches = re.cacheAttach {
+                for (tool, count) in attaches.sorted(by: { $0.key < $1.key }) {
+                    metrics.append(
+                        sumInt("micropod.cache.attach", "{attach}", count, attrs: [attr("cache.tool", tool)]))
+                }
+            }
+            if let skips = re.cacheSkip {
+                for (reason, count) in skips.sorted(by: { $0.key < $1.key }) {
+                    metrics.append(
+                        sumInt("micropod.cache.skip", "{skip}", count, attrs: [attr("cache.skip_reason", reason)]))
+                }
+            }
+            if let ev = re.cacheEvictions {
+                metrics.append(sumInt("micropod.cache.evictions", "{sweep}", ev))
+            }
+            if let evBytes = re.cacheEvictedBytes {
+                metrics.append(sumInt("micropod.cache.evicted_bytes", "By", evBytes))
+            }
+            if let pf = re.cacheProbeFailures {
+                metrics.append(sumInt("micropod.cache.probe_failures", "{failure}", pf))
+            }
         }
         for w in report.workloads.items where w.state.lowercased() == "running" {
             let wattrs = [

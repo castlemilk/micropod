@@ -675,13 +675,25 @@ func openStoreBeneath(p string) (*os.File, error) {
 	return os.NewFile(uintptr(fd), p), nil
 }
 
+type cacheUnitPin struct {
+	Scope string
+	Unit  string
+}
+
 // cacheAttachment is what one start of a container gets from its plan.
 type cacheAttachment struct {
 	files   []*os.File // pinned bind sources and unit locks; closed when the container exits
 	mounts  []*cri.Mount
 	env     []string
-	units   []string          // locked and stamped units
+	units   []string          // locked and stamped unit names (kept for legacy callers)
+	pins    []cacheUnitPin    // exact (scope, unit) pairs locked and stamped
 	skipped map[string]string // tool -> reason, for this start only
+}
+
+func (a *cacheAttachment) touchAll() {
+	for _, p := range a.pins {
+		_ = touchUsed(p.Scope, p.Unit)
+	}
 }
 
 func (a *cacheAttachment) skip(kind, reason string) {
@@ -714,14 +726,35 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		return dropAll(skipStoreFailed, err)
 	}
 	defer l.Close()
-	scopeDir, err := openScope(l, plan.Scope)
-	if err != nil {
+	scopeDirs := map[string]*os.File{}
+	ensureScopeDir := func(scope string) (*os.File, error) {
+		if scope == "" {
+			scope = plan.Scope
+		}
+		if d, ok := scopeDirs[scope]; ok {
+			return d, nil
+		}
+		d, err := openScope(l, scope)
+		if err != nil {
+			return nil, err
+		}
+		scopeDirs[scope] = d
+		a.files = append(a.files, d)
+		return d, nil
+	}
+	if _, err := ensureScopeDir(plan.Scope); err != nil {
 		return dropAll(skipStoreFailed, err)
 	}
-	a.files = append(a.files, scopeDir)
 	stores := map[string]*os.File{}
 	for _, st := range plan.Stores {
-		lock, err := unitLock(plan.Scope, st.Unit, st.Exclusive)
+		storeScope := plan.scopeFor(st.Scope)
+		scopeDir, err := ensureScopeDir(storeScope)
+		if err != nil {
+			log.Printf("cache scope %s for %s: %v", storeScope, st.Unit, err)
+			a.skip(st.Kind, skipStoreFailed)
+			continue
+		}
+		lock, err := unitLock(storeScope, st.Unit, st.Exclusive)
 		if err != nil {
 			reason := skipStoreFailed
 			if errors.Is(err, unix.EWOULDBLOCK) {
@@ -730,20 +763,22 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			a.skip(st.Kind, reason)
 			continue
 		}
-		dir, err := openStore(l, plan.Scope, scopeDir, st.Kind, st.UID)
+		dir, err := openStore(l, storeScope, scopeDir, st.Kind, st.UID)
 		if err != nil {
-			log.Printf("cache store %s/%s: %v", plan.Scope, st.Unit, err)
+			log.Printf("cache store %s/%s: %v", storeScope, st.Unit, err)
 			lock.Close()
 			a.skip(st.Kind, skipStoreFailed)
 			continue
 		}
 		a.files = append(a.files, lock, dir)
-		stores[st.Unit] = dir
+		stores[storeScope+"/"+st.Unit] = dir
 		a.units = append(a.units, st.Unit)
+		a.pins = append(a.pins, cacheUnitPin{Scope: storeScope, Unit: st.Unit})
 	}
 	type opened struct {
-		m   cacheMount
-		src *os.File
+		m     cacheMount
+		scope string
+		src   *os.File
 	}
 	var binds []opened
 	for i, m := range plan.Mounts {
@@ -752,6 +787,7 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 				continue
 			}
 		}
+		mountScope := plan.scopeFor(m.Scope)
 		var src *os.File
 		var err error
 		switch {
@@ -771,12 +807,15 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 			}
 			a.files = append(a.files, src)
 		case m.Kind == "":
-			src = scopeDir
+			src = scopeDirs[mountScope]
+			if src == nil {
+				continue
+			}
 		default:
-			base := stores[m.Unit]
+			base := stores[mountScope+"/"+m.Unit]
 			switch {
 			case base == nil:
-				err = fmt.Errorf("store %s not opened", m.Unit)
+				err = fmt.Errorf("store %s/%s not opened", mountScope, m.Unit)
 			case m.Sub == "":
 				src = base
 			case m.File:
@@ -794,16 +833,16 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 				a.files = append(a.files, src)
 			}
 		}
-		binds = append(binds, opened{m, src})
+		binds = append(binds, opened{m, mountScope, src})
 	}
-	scopeUsed := false
+	usedScopes := map[string]bool{}
 	for _, st := range plan.Stores {
 		if _, gone := a.skipped[st.Kind]; !gone && plan.Tools[st.Kind].Mode == "env" {
-			scopeUsed = true
+			usedScopes[plan.scopeFor(st.Scope)] = true
 		}
 	}
 	for _, b := range binds {
-		if b.m.Kind == "" && !b.m.Shim && !scopeUsed {
+		if b.m.Kind == "" && !b.m.Shim && !usedScopes[b.scope] {
 			continue
 		}
 		if _, gone := a.skipped[b.m.Kind]; gone && b.m.Kind != "" {
@@ -812,9 +851,9 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target})
 	}
 	a.env = plan.env(a.skipped)
-	for _, u := range a.units {
-		if err := touchUsed(plan.Scope, u); err != nil {
-			log.Printf("cache stamp %s/%s: %v", plan.Scope, u, err)
+	for _, pin := range a.pins {
+		if err := touchUsed(pin.Scope, pin.Unit); err != nil {
+			log.Printf("cache stamp %s/%s: %v", pin.Scope, pin.Unit, err)
 		}
 	}
 	return a

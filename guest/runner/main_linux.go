@@ -187,9 +187,7 @@ func (n node) jobCaches(ctx context.Context, image string, j job, c *cri.Contain
 		c.Envs = append(c.Envs, &cri.KeyValue{Key: k, Value: v})
 	}
 	return func() {
-		for _, u := range a.units {
-			_ = touchUsed(plan.Scope, u)
-		}
+		a.touchAll()
 		closeMounts(a.files)
 	}
 }

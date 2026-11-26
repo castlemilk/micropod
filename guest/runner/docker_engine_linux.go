@@ -448,6 +448,8 @@ func serveEngine(ctx context.Context, n node) error {
 	if !privateRootless() {
 		// Before the socket opens, so no probe of this engine can be swept.
 		sweepProbes(ctx)
+		sweepCacheTrash()
+		go s.runCacheJanitor(ctx)
 	}
 	if st, err := os.Lstat(dockerSocket); err == nil && st.Mode()&os.ModeSocket == 0 {
 		return errors.New("Docker API path is occupied")
@@ -945,9 +947,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		if parentHeld {
 			runErr = errors.Join(runErr, s.jobParents.release(dockerRuntimeCgroupRoot, jobParent))
 		}
-		for _, u := range caches.units {
-			_ = touchUsed(c.Cache.Scope, u)
-		}
+		caches.touchAll()
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		// An admitted explicit kill publishes only after its CRI acknowledgement.

@@ -342,15 +342,18 @@ enum MachineCommands {
 
     static let policyValueFlags: Set<String> = [
         "--mode", "--default-scope", "--allow-scopes", "--tools", "--go-trimpath", "--pnpm-legacy-env",
-        "--register-buildx",
+        "--register-buildx", "--share-l0", "--go-proxy", "--npm-registry", "--max-bytes", "--max-age-days",
+        "--min-free-bytes",
     ]
 
     static func cache(_ args: [String], client: HVFMachineClient, json: Bool) throws {
         guard args.first == "policy" else {
             throw UsageError(
                 message: "machine cache policy [show] [--mode auto|off] [--default-scope S|none] "
-                    + "[--allow-scopes a,b*] [--tools go,npm,…|all] [--go-trimpath on|off] "
-                    + "[--pnpm-legacy-env on|off] [--register-buildx on|off]")
+                    + "[--allow-scopes a,b*] [--tools go,npm,…|all] [--share-l0 on|off] "
+                    + "[--go-proxy URL|off] [--npm-registry URL|off] [--max-bytes SIZE|off] "
+                    + "[--max-age-days N|off] [--min-free-bytes SIZE|off] "
+                    + "[--go-trimpath on|off] [--pnpm-legacy-env on|off] [--register-buildx on|off]")
         }
         let parsed = try parseArgs(
             Array(args.dropFirst()), boolFlags: [], valueFlags: policyValueFlags, commandName: "machine cache policy")
@@ -434,12 +437,96 @@ enum MachineCommands {
         if let value = try toggle("--go-trimpath") { policy.goTrimpath = value }
         if let value = try toggle("--pnpm-legacy-env") { policy.pnpmLegacyEnv = value }
         if let value = try toggle("--register-buildx") { policy.buildkit.registerBuildx = value }
+        if let value = try toggle("--share-l0") { policy.sharedL0 = value }
+        if let raw = parsed.value("--go-proxy") {
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            policy.goProxy = ["off", "none", ""].contains(trimmed.lowercased()) ? nil : trimmed
+        }
+        if let raw = parsed.value("--npm-registry") {
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            policy.npmRegistry = ["off", "none", ""].contains(trimmed.lowercased()) ? nil : trimmed
+        }
+        if let raw = parsed.value("--max-bytes") {
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            if ["off", "none", "0", ""].contains(trimmed.lowercased()) {
+                policy.maxBytes = nil
+            } else {
+                policy.maxBytes = try parseCacheSizeBytes(trimmed, flag: "--max-bytes")
+            }
+        }
+        if let raw = parsed.value("--min-free-bytes") {
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            if ["off", "none", "0", ""].contains(trimmed.lowercased()) {
+                policy.minFreeBytes = nil
+            } else {
+                policy.minFreeBytes = try parseCacheSizeBytes(trimmed, flag: "--min-free-bytes")
+            }
+        }
+        if let raw = parsed.value("--max-age-days") {
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            if ["off", "none", "0", ""].contains(trimmed.lowercased()) {
+                policy.maxAgeDays = nil
+            } else {
+                guard let days = Int(trimmed), days > 0 else {
+                    throw UsageError(
+                        message: "machine cache policy: --max-age-days wants a positive integer or off, got '\(raw)'")
+                }
+                policy.maxAgeDays = days
+            }
+        }
         do {
             try policy.validate()
         } catch {
             throw UsageError(message: "machine cache policy: \(withoutCode(errorMessage(error)))")
         }
         return policy
+    }
+
+    /// Parses human byte sizes like "20g", "512m", "1024k", or raw byte count.
+    static func parseCacheSizeBytes(_ raw: String, flag: String) throws -> UInt64 {
+        let lower = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        let scale: UInt64
+        let numPart: Substring
+        if lower.hasSuffix("gib") {
+            scale = 1 << 30
+            numPart = lower.dropLast(3)
+        } else if lower.hasSuffix("gb") {
+            scale = 1 << 30
+            numPart = lower.dropLast(2)
+        } else if lower.hasSuffix("g") {
+            scale = 1 << 30
+            numPart = lower.dropLast(1)
+        } else if lower.hasSuffix("mib") {
+            scale = 1 << 20
+            numPart = lower.dropLast(3)
+        } else if lower.hasSuffix("mb") {
+            scale = 1 << 20
+            numPart = lower.dropLast(2)
+        } else if lower.hasSuffix("m") {
+            scale = 1 << 20
+            numPart = lower.dropLast(1)
+        } else if lower.hasSuffix("kib") {
+            scale = 1 << 10
+            numPart = lower.dropLast(3)
+        } else if lower.hasSuffix("kb") {
+            scale = 1 << 10
+            numPart = lower.dropLast(2)
+        } else if lower.hasSuffix("k") {
+            scale = 1 << 10
+            numPart = lower.dropLast(1)
+        } else if lower.hasSuffix("b") {
+            scale = 1
+            numPart = lower.dropLast(1)
+        } else {
+            scale = 1
+            numPart = lower[...]
+        }
+        guard let count = UInt64(numPart), count > 0 else {
+            throw UsageError(message: "\(flag) wants a size such as 20g, 512m, or bytes, got '\(raw)'")
+        }
+        let (bytes, overflow) = count.multipliedReportingOverflow(by: scale)
+        guard !overflow else { throw UsageError(message: "\(flag) '\(raw)' is too large") }
+        return bytes
     }
 
     /// "invalidArgument: hvf cache policy: …" → "hvf cache policy: …".
@@ -476,6 +563,12 @@ enum MachineCommands {
         print("tools:           \(kinds.joined(separator: ", "))")
         print("go -trimpath:    \(onOff(policy.goTrimpath))")
         print("pnpm legacy env: \(onOff(policy.pnpmLegacyEnv)) (npm_config_store_dir for pnpm 9 and 10)")
+        print("shared L0 tier:  \(onOff(policy.sharedL0)) (share verified downloads in scope 'global')")
+        if let gp = policy.goProxy { print("go proxy (L0):   \(gp)") }
+        if let nr = policy.npmRegistry { print("npm proxy (L0):  \(nr)") }
+        if let maxB = policy.maxBytes { print("budget ceiling:  \(CacheCommands.formatBytes(maxB))") }
+        if let minF = policy.minFreeBytes { print("min free floor:  \(CacheCommands.formatBytes(minF))") }
+        if let age = policy.maxAgeDays { print("max idle age:    \(age)d") }
         print("register buildx: \(onOff(policy.buildkit.registerBuildx))")
         if !policy.extra.isEmpty { print("other keys:      \(policy.extra.keys.sorted().joined(separator: ", "))") }
         switch applied {

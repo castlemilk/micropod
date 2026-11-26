@@ -87,6 +87,21 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     /// Also set `npm_config_store_dir`, which pnpm 9 and 10 read (pnpm 11
     /// and later read only `pnpm_config_store_dir`).
     public var pnpmLegacyEnv: Bool
+    /// Fleet L0 sharing: share verified content-addressed downloads (gomod,
+    /// npm, pnpm, yarn, pip, uv, cargo, corepack) in scope `global` even when
+    /// containers specify a project scope, keeping L1 build caches scoped.
+    public var sharedL0: Bool
+    /// Optional L0 rig Go proxy URL (e.g. `http://10.43.0.1:5555/go,direct`).
+    public var goProxy: String?
+    /// Optional L0 rig npm registry URL (e.g. `http://10.43.0.1:5555/npm`).
+    public var npmRegistry: String?
+    /// Optional total cache byte ceiling enforced by the bounded LRU janitor.
+    public var maxBytes: UInt64?
+    /// Optional idle age cap in days enforced by the bounded LRU janitor.
+    public var maxAgeDays: Int?
+    /// Optional free-space floor on the guest cache filesystem triggering
+    /// pressure-responsive LRU eviction.
+    public var minFreeBytes: UInt64?
     public var buildkit: BuildKit
     /// Unknown keys, passed through to machine.json and the guest.
     public var extra: [String: JSONValue]
@@ -94,7 +109,9 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     public init(
         version: Int = HVFMachineCachePolicy.currentVersion, mode: Mode = .auto, defaultScope: String = "default",
         allowedScopes: [String] = ["*"], tools: [String] = HVFMachineCachePolicy.toolKinds, goTrimpath: Bool = true,
-        pnpmLegacyEnv: Bool = true, buildkit: BuildKit = BuildKit(), extra: [String: JSONValue] = [:]
+        pnpmLegacyEnv: Bool = true, sharedL0: Bool = false, goProxy: String? = nil, npmRegistry: String? = nil,
+        maxBytes: UInt64? = nil, maxAgeDays: Int? = nil, minFreeBytes: UInt64? = nil,
+        buildkit: BuildKit = BuildKit(), extra: [String: JSONValue] = [:]
     ) {
         self.version = version
         self.mode = mode
@@ -103,12 +120,19 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         self.tools = tools
         self.goTrimpath = goTrimpath
         self.pnpmLegacyEnv = pnpmLegacyEnv
+        self.sharedL0 = sharedL0
+        self.goProxy = goProxy
+        self.npmRegistry = npmRegistry
+        self.maxBytes = maxBytes
+        self.maxAgeDays = maxAgeDays
+        self.minFreeBytes = minFreeBytes
         self.buildkit = buildkit
         self.extra = extra
     }
 
     static let knownKeys: Set<String> = [
-        "version", "mode", "defaultScope", "allowedScopes", "tools", "goTrimpath", "pnpmLegacyEnv", "buildkit",
+        "version", "mode", "defaultScope", "allowedScopes", "tools", "goTrimpath", "pnpmLegacyEnv",
+        "sharedL0", "goProxy", "npmRegistry", "maxBytes", "maxAgeDays", "minFreeBytes", "buildkit",
     ]
 
     /// Missing keys take their defaults, like the rest of machine.json.
@@ -131,6 +155,12 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         tools = try c.decodeIfPresent([String].self, forKey: key("tools")) ?? defaults.tools
         goTrimpath = try c.decodeIfPresent(Bool.self, forKey: key("goTrimpath")) ?? defaults.goTrimpath
         pnpmLegacyEnv = try c.decodeIfPresent(Bool.self, forKey: key("pnpmLegacyEnv")) ?? defaults.pnpmLegacyEnv
+        sharedL0 = try c.decodeIfPresent(Bool.self, forKey: key("sharedL0")) ?? defaults.sharedL0
+        goProxy = try c.decodeIfPresent(String.self, forKey: key("goProxy")).flatMap { $0.isEmpty ? nil : $0 }
+        npmRegistry = try c.decodeIfPresent(String.self, forKey: key("npmRegistry")).flatMap { $0.isEmpty ? nil : $0 }
+        maxBytes = try c.decodeIfPresent(UInt64.self, forKey: key("maxBytes")).flatMap { $0 > 0 ? $0 : nil }
+        maxAgeDays = try c.decodeIfPresent(Int.self, forKey: key("maxAgeDays")).flatMap { $0 > 0 ? $0 : nil }
+        minFreeBytes = try c.decodeIfPresent(UInt64.self, forKey: key("minFreeBytes")).flatMap { $0 > 0 ? $0 : nil }
         buildkit = try c.decodeIfPresent(BuildKit.self, forKey: key("buildkit")) ?? defaults.buildkit
         extra = try HVFJSONKey.unknown(in: c, known: Self.knownKeys)
     }
@@ -149,6 +179,12 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
         try c.encode(tools, forKey: HVFJSONKey("tools"))
         try c.encode(goTrimpath, forKey: HVFJSONKey("goTrimpath"))
         try c.encode(pnpmLegacyEnv, forKey: HVFJSONKey("pnpmLegacyEnv"))
+        if sharedL0 { try c.encode(sharedL0, forKey: HVFJSONKey("sharedL0")) }
+        if let goProxy, !goProxy.isEmpty { try c.encode(goProxy, forKey: HVFJSONKey("goProxy")) }
+        if let npmRegistry, !npmRegistry.isEmpty { try c.encode(npmRegistry, forKey: HVFJSONKey("npmRegistry")) }
+        if let maxBytes, maxBytes > 0 { try c.encode(maxBytes, forKey: HVFJSONKey("maxBytes")) }
+        if let maxAgeDays, maxAgeDays > 0 { try c.encode(maxAgeDays, forKey: HVFJSONKey("maxAgeDays")) }
+        if let minFreeBytes, minFreeBytes > 0 { try c.encode(minFreeBytes, forKey: HVFJSONKey("minFreeBytes")) }
         try c.encode(buildkit, forKey: HVFJSONKey("buildkit"))
         for (name, value) in extra where !Self.knownKeys.contains(name) {
             try c.encode(value, forKey: HVFJSONKey(name))
@@ -224,6 +260,24 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
             )
         }
         _ = try Self.normalizedTools(tools)
+        if let goProxy, !goProxy.isEmpty {
+            let parts = goProxy.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            guard !parts.isEmpty,
+                parts.allSatisfy({
+                    $0 == "direct" || $0 == "off" || $0.hasPrefix("http://") || $0.hasPrefix("https://")
+                })
+            else {
+                throw invalid("goProxy '\(goProxy)' entries must be http://, https://, direct, or off")
+            }
+        }
+        if let npmRegistry, !npmRegistry.isEmpty {
+            guard npmRegistry.hasPrefix("http://") || npmRegistry.hasPrefix("https://") else {
+                throw invalid("npmRegistry '\(npmRegistry)' must start with http:// or https://")
+            }
+        }
+        if let maxAgeDays, maxAgeDays < 0 {
+            throw invalid("maxAgeDays must be non-negative")
+        }
     }
 
     // MARK: Rendering

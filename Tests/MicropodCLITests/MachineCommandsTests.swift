@@ -120,4 +120,57 @@ final class MachineCommandsTests: XCTestCase {
             }
         }
     }
+
+    func testCacheCommandRoutingAndFleetPolicyFlags() throws {
+        XCTAssertEqual(CacheCommands.route(["cache", "status"])?.args, ["status"])
+        XCTAssertEqual(
+            CacheCommands.route(["--json", "cache", "ls", "--scope", "proj"])?.args, ["ls", "--scope", "proj"])
+        XCTAssertEqual(CacheCommands.route(["--json", "cache", "ls"])?.json, true)
+        XCTAssertEqual(CacheCommands.route(["cache", "prune", "--dry-run", "--json"])?.json, true)
+        XCTAssertNil(CacheCommands.route(["machine", "cache", "policy"]))
+
+        XCTAssertEqual(try CacheCommands.parseDurationSeconds("14d"), 14 * 86400)
+        XCTAssertEqual(try CacheCommands.parseDurationSeconds("6h"), 6 * 3600)
+        XCTAssertEqual(try CacheCommands.parseDurationSeconds("30m"), 1800)
+        XCTAssertEqual(try MachineCommands.parseCacheSizeBytes("20g", flag: "--max-bytes"), 20 << 30)
+        XCTAssertEqual(try MachineCommands.parseCacheSizeBytes("512mib", flag: "--max-bytes"), 512 << 20)
+
+        let fleet = try policy([
+            "--share-l0", "on",
+            "--go-proxy", "http://10.43.0.1:5555/go,direct",
+            "--npm-registry", "http://10.43.0.1:5555/npm",
+            "--max-bytes", "20g",
+            "--min-free-bytes", "4g",
+            "--max-age-days", "14",
+        ])
+        XCTAssertTrue(fleet.sharedL0)
+        XCTAssertEqual(fleet.goProxy, "http://10.43.0.1:5555/go,direct")
+        XCTAssertEqual(fleet.npmRegistry, "http://10.43.0.1:5555/npm")
+        XCTAssertEqual(fleet.maxBytes, 20 << 30)
+        XCTAssertEqual(fleet.minFreeBytes, 4 << 30)
+        XCTAssertEqual(fleet.maxAgeDays, 14)
+
+        let cleared = try policy(
+            [
+                "--share-l0", "off", "--go-proxy", "off", "--npm-registry", "none", "--max-bytes", "off",
+                "--max-age-days", "off",
+            ],
+            from: fleet)
+        XCTAssertFalse(cleared.sharedL0)
+        XCTAssertNil(cleared.goProxy)
+        XCTAssertNil(cleared.npmRegistry)
+        XCTAssertNil(cleared.maxBytes)
+        XCTAssertNil(cleared.maxAgeDays)
+
+        for bad in [
+            ["--go-proxy", "ftp://bad"],
+            ["--npm-registry", "not-a-url"],
+            ["--max-bytes", "0g"],
+            ["--max-age-days", "-1"],
+        ] {
+            XCTAssertThrowsError(try policy(bad), "\(bad)") { error in
+                XCTAssertTrue(error is UsageError, "\(bad): \(error)")
+            }
+        }
+    }
 }
