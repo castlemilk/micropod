@@ -46,6 +46,9 @@ def rpc(binary, state_dir, cli_path, requests):
     # And never the developer's real ~/.micropod/api.sock, which the MCP
     # server prefers to TCP whenever it exists.
     env["MICROPOD_API_SOCK"] = "off"
+    # With the socket off the metrics database would be the rig's
+    # ~/.micropod/metrics.sqlite: keep this run's in its state dir.
+    env["MICROPOD_METRICS_DB"] = os.path.join(state_dir, "metrics.sqlite")
     env["MICROPOD_APP_CONTROL_SOCKET"] = os.path.join(state_dir, "app-control.sock")
     payload = "".join(json.dumps(r) + "\n" for r in requests)
     proc = subprocess.run(

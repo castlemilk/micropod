@@ -46,6 +46,10 @@ final class MicropodAPITests: XCTestCase {
                 // Never the owner's ~/.micropod/api.sock, which the rig's
                 // API serves: this suite drives the server over TCP only.
                 "MICROPOD_API_SOCK": "off",
+                // With the socket off the metrics database would be the
+                // rig's ~/.micropod/metrics.sqlite (DeleteContainer opens it
+                // to drop a series): keep it in the state dir.
+                "MICROPOD_METRICS_DB": stateDir.appendingPathComponent("metrics.sqlite").path,
                 "MICROPOD_VOLUME_POLICY": stateDir.appendingPathComponent("policy.json").path,
                 // Never read or write the developer's real engine config.
                 "MICROPOD_RUNTIMES_CONFIG": stateDir.appendingPathComponent("runtimes.json").path,
@@ -116,6 +120,17 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertEqual(report["cliVersion"] as? String, "1.2.3")
         let calls = mockCalls().dropFirst(before)
         XCTAssertFalse(calls.contains { $0.hasPrefix("system start") || $0.hasPrefix("system df") })
+    }
+
+    /// The suite's API keeps its metrics in the state dir: it never opens
+    /// (writes, chmods, locks) the rig's ~/.micropod/metrics.sqlite.
+    func testTheAPIKeepsItsMetricsDatabaseInTheStateDirectory() async throws {
+        let history = try await json(
+            "POST", "api/micropod.v1.SystemService/GetMetricsHistory", body: ["kind": "system", "rangeSeconds": 60])
+        XCTAssertNotNil(history["resolutionSeconds"] ?? history["points"] ?? history, "answered")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: stateDir.appendingPathComponent("metrics.sqlite").path),
+            "the database is the state dir's")
     }
 
     func testDependencyStatusDoesNotConfuseCLIFallbackWithNativeReadiness() async throws {
