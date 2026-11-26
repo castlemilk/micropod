@@ -1,0 +1,14 @@
+{
+  "original": 9000,
+  "disturbed": 1500,
+  "end": 9000,
+  "worker_receipt": {
+    "timestamp": 817218872.704284,
+    "cause": "guest-link-restored",
+    "seconds": 0.01370875,
+    "instance": "F63E3258-1D79-45DF-A333-CE958CC185E8",
+    "gateway": "192.168.128.1"
+  },
+  "seconds": 20.66522141599853,
+  "existing_service": "mp-t-6cv4y0sd-a"
+}

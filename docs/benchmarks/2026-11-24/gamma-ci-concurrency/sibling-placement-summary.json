@@ -1,0 +1,546 @@
+{
+  "runs": [
+    "20261124T204539Z-sibling-kf5k_ct1",
+    "20261124T204646Z-sibling-hiv3hvjw"
+  ],
+  "kernel": {
+    "kernel_page_kib": 16,
+    "kernel_image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+    "kernel_config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98"
+  },
+  "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "guest": "d8ec162788c3873856771d60d0da44d93781519f1db038bff48ce3b8097ba39f",
+  "requests": 316800,
+  "warm_connections": 1584,
+  "min_dense_common_fraction": 0.24142479069569103,
+  "layouts": {
+    "shared-one": {
+      "p50_us": {
+        "first": 38.1355,
+        "second": 72.59325,
+        "median_ratio": 2.119602297695473,
+        "higher": 8,
+        "pairs": 8
+      },
+      "p95_us": {
+        "first": 75.0205,
+        "second": 125.2915,
+        "median_ratio": 1.682460657382873,
+        "higher": 8,
+        "pairs": 8
+      },
+      "p99_us": {
+        "first": 117.25,
+        "second": 185.1875,
+        "median_ratio": 1.5615820277964776,
+        "higher": 7,
+        "pairs": 8
+      },
+      "requests_per_second": {
+        "first": 22092.99294573028,
+        "second": 11681.578226662292,
+        "median_ratio": 0.5333839983523218,
+        "higher": 0,
+        "pairs": 8
+      },
+      "slowest_client_p95_us": {
+        "first": 75.0205,
+        "second": 125.2915,
+        "median_ratio": 1.682460657382873,
+        "higher": 8,
+        "pairs": 8
+      }
+    },
+    "same-one": {
+      "p50_us": {
+        "first": 50.156,
+        "second": 46.656,
+        "median_ratio": 1.0523108938534738,
+        "higher": 5,
+        "pairs": 8
+      },
+      "p95_us": {
+        "first": 79.229,
+        "second": 77.521,
+        "median_ratio": 1.0300064673665734,
+        "higher": 4,
+        "pairs": 8
+      },
+      "p99_us": {
+        "first": 116.104,
+        "second": 115.083,
+        "median_ratio": 0.9720639204688298,
+        "higher": 3,
+        "pairs": 8
+      },
+      "requests_per_second": {
+        "first": 18198.03725490156,
+        "second": 19491.092817769015,
+        "median_ratio": 0.8761741995687033,
+        "higher": 3,
+        "pairs": 8
+      },
+      "slowest_client_p95_us": {
+        "first": 79.229,
+        "second": 77.521,
+        "median_ratio": 1.0300064673665734,
+        "higher": 4,
+        "pairs": 8
+      }
+    },
+    "split-one": {
+      "p50_us": {
+        "first": 71.583,
+        "second": 77.479,
+        "median_ratio": 1.038124343327861,
+        "higher": 4,
+        "pairs": 8
+      },
+      "p95_us": {
+        "first": 157.79149999999998,
+        "second": 149.6045,
+        "median_ratio": 1.023102436979707,
+        "higher": 5,
+        "pairs": 8
+      },
+      "p99_us": {
+        "first": 243.33350000000002,
+        "second": 226.72899999999998,
+        "median_ratio": 0.9755832305703842,
+        "higher": 4,
+        "pairs": 8
+      },
+      "requests_per_second": {
+        "first": 11561.082373822499,
+        "second": 10206.72977193931,
+        "median_ratio": 0.9408482916551649,
+        "higher": 1,
+        "pairs": 8
+      },
+      "slowest_client_p95_us": {
+        "first": 157.79149999999998,
+        "second": 149.6045,
+        "median_ratio": 1.023102436979707,
+        "higher": 5,
+        "pairs": 8
+      }
+    },
+    "shared-all": {
+      "p50_us": {
+        "first": 241.77075,
+        "second": 41.34375,
+        "median_ratio": 0.17330296190591207,
+        "higher": 0,
+        "pairs": 8
+      },
+      "p95_us": {
+        "first": 975.1044999999999,
+        "second": 1417.6455,
+        "median_ratio": 1.490823616216619,
+        "higher": 8,
+        "pairs": 8
+      },
+      "p99_us": {
+        "first": 1717.29,
+        "second": 5013.166499999999,
+        "median_ratio": 2.8785178232680275,
+        "higher": 8,
+        "pairs": 8
+      },
+      "requests_per_second": {
+        "first": 75416.78084935783,
+        "second": 77177.90254631665,
+        "median_ratio": 1.027611678518461,
+        "higher": 5,
+        "pairs": 8
+      },
+      "slowest_client_p95_us": {
+        "first": 1461.0610000000001,
+        "second": 2239.3959999999997,
+        "median_ratio": 1.489967497982652,
+        "higher": 8,
+        "pairs": 8
+      }
+    },
+    "same-all": {
+      "p50_us": {
+        "first": 269.5,
+        "second": 37.09325,
+        "median_ratio": 0.1531549885283905,
+        "higher": 0,
+        "pairs": 8
+      },
+      "p95_us": {
+        "first": 782.6455000000001,
+        "second": 1337.1665,
+        "median_ratio": 1.7070216316545683,
+        "higher": 8,
+        "pairs": 8
+      },
+      "p99_us": {
+        "first": 1296.4785000000002,
+        "second": 4131.0005,
+        "median_ratio": 3.002685490895254,
+        "higher": 8,
+        "pairs": 8
+      },
+      "requests_per_second": {
+        "first": 84960.25372232051,
+        "second": 83699.1544516202,
+        "median_ratio": 1.0158626995580784,
+        "higher": 5,
+        "pairs": 8
+      },
+      "slowest_client_p95_us": {
+        "first": 913.6455,
+        "second": 1871.625,
+        "median_ratio": 2.0030827833850537,
+        "higher": 8,
+        "pairs": 8
+      }
+    },
+    "split-all": {
+      "p50_us": {
+        "first": 329.16650000000004,
+        "second": 118.98949999999999,
+        "median_ratio": 0.35602555581919554,
+        "higher": 0,
+        "pairs": 8
+      },
+      "p95_us": {
+        "first": 939.5625,
+        "second": 1674.0625,
+        "median_ratio": 1.7429902612634358,
+        "higher": 8,
+        "pairs": 8
+      },
+      "p99_us": {
+        "first": 1619.5,
+        "second": 3338.0005,
+        "median_ratio": 2.1583994045538053,
+        "higher": 8,
+        "pairs": 8
+      },
+      "requests_per_second": {
+        "first": 70476.76174957669,
+        "second": 65337.32099058291,
+        "median_ratio": 0.9264185538791052,
+        "higher": 1,
+        "pairs": 8
+      },
+      "slowest_client_p95_us": {
+        "first": 1129.3755,
+        "second": 2214.792,
+        "median_ratio": 1.9548951972675939,
+        "higher": 8,
+        "pairs": 8
+      }
+    }
+  },
+  "changes_from_shared": {
+    "same-one": {
+      "A": {
+        "p50_us": {
+          "first": 72.59325,
+          "second": 46.656,
+          "median_ratio": 0.6380054128188148,
+          "higher": 0,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 125.2915,
+          "second": 77.521,
+          "median_ratio": 0.6440273932655703,
+          "higher": 0,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 185.1875,
+          "second": 115.083,
+          "median_ratio": 0.5655628417220997,
+          "higher": 0,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 11681.578226662292,
+          "second": 19491.092817769015,
+          "median_ratio": 1.6149380502323187,
+          "higher": 7,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 125.2915,
+          "second": 77.521,
+          "median_ratio": 0.6440273932655703,
+          "higher": 0,
+          "pairs": 8
+        }
+      },
+      "B": {
+        "p50_us": {
+          "first": 38.1355,
+          "second": 50.156,
+          "median_ratio": 1.2970395228554583,
+          "higher": 5,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 75.0205,
+          "second": 79.229,
+          "median_ratio": 1.037015038722094,
+          "higher": 5,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 117.25,
+          "second": 116.104,
+          "median_ratio": 1.0602008291959768,
+          "higher": 5,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 22092.99294573028,
+          "second": 18198.03725490156,
+          "median_ratio": 0.818258588982129,
+          "higher": 3,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 75.0205,
+          "second": 79.229,
+          "median_ratio": 1.037015038722094,
+          "higher": 5,
+          "pairs": 8
+        }
+      }
+    },
+    "split-one": {
+      "A": {
+        "p50_us": {
+          "first": 72.59325,
+          "second": 77.479,
+          "median_ratio": 1.0613403063623443,
+          "higher": 5,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 125.2915,
+          "second": 149.6045,
+          "median_ratio": 1.2177904153006827,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 185.1875,
+          "second": 226.72899999999998,
+          "median_ratio": 1.44428524039352,
+          "higher": 6,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 11681.578226662292,
+          "second": 10206.72977193931,
+          "median_ratio": 0.8791448829649784,
+          "higher": 0,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 125.2915,
+          "second": 149.6045,
+          "median_ratio": 1.2177904153006827,
+          "higher": 8,
+          "pairs": 8
+        }
+      },
+      "B": {
+        "p50_us": {
+          "first": 38.1355,
+          "second": 71.583,
+          "median_ratio": 2.05224812798995,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 75.0205,
+          "second": 157.79149999999998,
+          "median_ratio": 2.182751848069337,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 117.25,
+          "second": 243.33350000000002,
+          "median_ratio": 1.6139356447456825,
+          "higher": 8,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 22092.99294573028,
+          "second": 11561.082373822499,
+          "median_ratio": 0.5280976391760654,
+          "higher": 0,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 75.0205,
+          "second": 157.79149999999998,
+          "median_ratio": 2.182751848069337,
+          "higher": 8,
+          "pairs": 8
+        }
+      }
+    },
+    "same-all": {
+      "A": {
+        "p50_us": {
+          "first": 41.34375,
+          "second": 37.09325,
+          "median_ratio": 0.9404624373339725,
+          "higher": 2,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 1417.6455,
+          "second": 1337.1665,
+          "median_ratio": 0.9123475420676603,
+          "higher": 3,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 5013.166499999999,
+          "second": 4131.0005,
+          "median_ratio": 0.8029186038025425,
+          "higher": 1,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 77177.90254631665,
+          "second": 83699.1544516202,
+          "median_ratio": 1.1043756266264695,
+          "higher": 8,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 2239.3959999999997,
+          "second": 1871.625,
+          "median_ratio": 0.8252205919871975,
+          "higher": 2,
+          "pairs": 8
+        }
+      },
+      "B": {
+        "p50_us": {
+          "first": 241.77075,
+          "second": 269.5,
+          "median_ratio": 1.0572899923287993,
+          "higher": 4,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 975.1044999999999,
+          "second": 782.6455000000001,
+          "median_ratio": 0.755383454803437,
+          "higher": 2,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 1717.29,
+          "second": 1296.4785000000002,
+          "median_ratio": 0.710663946217383,
+          "higher": 1,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 75416.78084935783,
+          "second": 84960.25372232051,
+          "median_ratio": 1.1836418793716887,
+          "higher": 6,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 1461.0610000000001,
+          "second": 913.6455,
+          "median_ratio": 0.5912665112320002,
+          "higher": 1,
+          "pairs": 8
+        }
+      }
+    },
+    "split-all": {
+      "A": {
+        "p50_us": {
+          "first": 41.34375,
+          "second": 118.98949999999999,
+          "median_ratio": 2.87210577666019,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 1417.6455,
+          "second": 1674.0625,
+          "median_ratio": 1.1155472163735252,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 5013.166499999999,
+          "second": 3338.0005,
+          "median_ratio": 0.6602168492206759,
+          "higher": 0,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 77177.90254631665,
+          "second": 65337.32099058291,
+          "median_ratio": 0.8428813804614399,
+          "higher": 0,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 2239.3959999999997,
+          "second": 2214.792,
+          "median_ratio": 0.9925449295623399,
+          "higher": 4,
+          "pairs": 8
+        }
+      },
+      "B": {
+        "p50_us": {
+          "first": 241.77075,
+          "second": 329.16650000000004,
+          "median_ratio": 1.454198365123431,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 975.1044999999999,
+          "second": 939.5625,
+          "median_ratio": 0.9928755613895377,
+          "higher": 4,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 1717.29,
+          "second": 1619.5,
+          "median_ratio": 0.8698255279748699,
+          "higher": 2,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 75416.78084935783,
+          "second": 70476.76174957669,
+          "median_ratio": 0.9254164806675573,
+          "higher": 1,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 1461.0610000000001,
+          "second": 1129.3755,
+          "median_ratio": 0.7866931749479031,
+          "higher": 1,
+          "pairs": 8
+        }
+      }
+    }
+  }
+}

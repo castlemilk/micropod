@@ -1,0 +1,445 @@
+{
+  "scope": "The XNU rusage counters cover each VMM and the native process that opens the attachment. Each bracket spans the entire dense wave.",
+  "mac_file_control": {
+    "profiler": {
+      "binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/worker-disk-io-62a3a5d6fb65e4f6/disk-io",
+      "binary_sha256": "c5bdb9ae07b29e5074c021eec25890b0db6cefca942836624b8a73ceb5524364",
+      "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/worker-disk-io-62a3a5d6fb65e4f6/profile_vm_scheduler.c",
+      "source_sha256": "62a3a5d6fb65e4f63555bc5173540481cf627b2ba57d7e825078ee1c573b604f"
+    },
+    "workload_bytes": 8388608,
+    "disk_cache_disabled_for_file": true,
+    "actual": {
+      "diskio_bytes_read": 9109504,
+      "diskio_bytes_written": 8388608,
+      "logical_writes": 8589312,
+      "pageins": 0
+    },
+    "before": {
+      "birth_ticks": 1895015362266,
+      "epoch_ns": 1795581362155055000,
+      "diskio_bytes_read": 0,
+      "diskio_bytes_written": 0,
+      "logical_writes": 0,
+      "pageins": 1
+    },
+    "after": {
+      "birth_ticks": 1895015362266,
+      "epoch_ns": 1795581362168922000,
+      "diskio_bytes_read": 9109504,
+      "diskio_bytes_written": 8388608,
+      "logical_writes": 8589312,
+      "pageins": 1
+    }
+  },
+  "runs": [
+    {
+      "archive": "20261125T045230Z-sibling-worker-disk-k8rqq5jp",
+      "seed": 250231,
+      "mode": "cached",
+      "mac_task_io": {
+        "0-B": {
+          "diskio_bytes_read": 24576,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 153808896,
+          "pageins": 0,
+          "bracket_seconds": 3.930697666
+        },
+        "0-A": {
+          "diskio_bytes_read": 4096,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 1421312,
+          "pageins": 0,
+          "bracket_seconds": 3.864265083
+        },
+        "1-A": {
+          "diskio_bytes_read": 16384,
+          "diskio_bytes_written": 4718592,
+          "logical_writes": 3325952,
+          "pageins": 0,
+          "bracket_seconds": 3.759250959
+        },
+        "1-B": {
+          "diskio_bytes_read": 229376,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156778496,
+          "pageins": 0,
+          "bracket_seconds": 3.721136583
+        },
+        "2-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 1564672,
+          "pageins": 0,
+          "bracket_seconds": 3.777365166
+        },
+        "2-B": {
+          "diskio_bytes_read": 208896,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 155983872,
+          "pageins": 0,
+          "bracket_seconds": 3.775888792
+        },
+        "3-B": {
+          "diskio_bytes_read": 110592,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156209152,
+          "pageins": 0,
+          "bracket_seconds": 3.826488959
+        },
+        "3-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 1662976,
+          "pageins": 0,
+          "bracket_seconds": 3.759022291
+        },
+        "calibration": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 2310144,
+          "logical_writes": 2138112,
+          "pageins": 0,
+          "bracket_seconds": 0.087424458
+        }
+      },
+      "native_attachment_owner_io": {
+        "0-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "1-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "2-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "3-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "calibration": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        }
+      }
+    },
+    {
+      "archive": "20261125T045359Z-sibling-worker-disk-yla9l6l5",
+      "seed": 250231,
+      "mode": "uncached",
+      "mac_task_io": {
+        "0-B": {
+          "diskio_bytes_read": 8192,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 153636864,
+          "pageins": 0,
+          "bracket_seconds": 3.76770525
+        },
+        "0-A": {
+          "diskio_bytes_read": 344064,
+          "diskio_bytes_written": 2826240,
+          "logical_writes": 1769472,
+          "pageins": 0,
+          "bracket_seconds": 3.837075833
+        },
+        "1-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 2019328,
+          "logical_writes": 1433600,
+          "pageins": 0,
+          "bracket_seconds": 3.838927667
+        },
+        "1-B": {
+          "diskio_bytes_read": 237568,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156258304,
+          "pageins": 0,
+          "bracket_seconds": 3.917203958
+        },
+        "2-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 393216,
+          "logical_writes": 1523712,
+          "pageins": 0,
+          "bracket_seconds": 3.800464792
+        },
+        "2-B": {
+          "diskio_bytes_read": 172032,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156377088,
+          "pageins": 0,
+          "bracket_seconds": 3.967790875
+        },
+        "3-B": {
+          "diskio_bytes_read": 159744,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156516352,
+          "pageins": 0,
+          "bracket_seconds": 3.865743917
+        },
+        "3-A": {
+          "diskio_bytes_read": 114688,
+          "diskio_bytes_written": 1949696,
+          "logical_writes": 2252800,
+          "pageins": 0,
+          "bracket_seconds": 3.839703292
+        },
+        "calibration": {
+          "diskio_bytes_read": 2285568,
+          "diskio_bytes_written": 2265088,
+          "logical_writes": 1077248,
+          "pageins": 0,
+          "bracket_seconds": 0.085524625
+        }
+      },
+      "native_attachment_owner_io": {
+        "0-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "1-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "2-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "3-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "calibration": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        }
+      }
+    },
+    {
+      "archive": "20261125T045528Z-sibling-worker-disk-wqbmvehr",
+      "seed": 250233,
+      "mode": "uncached",
+      "mac_task_io": {
+        "0-A": {
+          "diskio_bytes_read": 520192,
+          "diskio_bytes_written": 2015232,
+          "logical_writes": 1511424,
+          "pageins": 0,
+          "bracket_seconds": 3.843860917
+        },
+        "0-B": {
+          "diskio_bytes_read": 94208,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 153665536,
+          "pageins": 0,
+          "bracket_seconds": 3.793771666
+        },
+        "1-A": {
+          "diskio_bytes_read": 4096,
+          "diskio_bytes_written": 5480448,
+          "logical_writes": 6307840,
+          "pageins": 0,
+          "bracket_seconds": 3.765697208
+        },
+        "1-B": {
+          "diskio_bytes_read": 167936,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 155734016,
+          "pageins": 0,
+          "bracket_seconds": 3.863528541
+        },
+        "2-B": {
+          "diskio_bytes_read": 147456,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 155840512,
+          "pageins": 0,
+          "bracket_seconds": 3.826816542
+        },
+        "2-A": {
+          "diskio_bytes_read": 1318912,
+          "diskio_bytes_written": 40161280,
+          "logical_writes": 39223296,
+          "pageins": 0,
+          "bracket_seconds": 3.832680875
+        },
+        "3-B": {
+          "diskio_bytes_read": 1740800,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156790784,
+          "pageins": 0,
+          "bracket_seconds": 3.79757025
+        },
+        "3-A": {
+          "diskio_bytes_read": 12288,
+          "diskio_bytes_written": 1044480,
+          "logical_writes": 2154496,
+          "pageins": 0,
+          "bracket_seconds": 3.728629209
+        },
+        "calibration": {
+          "diskio_bytes_read": 2220032,
+          "diskio_bytes_written": 2400256,
+          "logical_writes": 1073152,
+          "pageins": 0,
+          "bracket_seconds": 0.087728709
+        }
+      },
+      "native_attachment_owner_io": {
+        "0-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "1-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "2-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "3-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "calibration": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        }
+      }
+    },
+    {
+      "archive": "20261125T045705Z-sibling-worker-disk-ls54a5r5",
+      "seed": 250233,
+      "mode": "cached",
+      "mac_task_io": {
+        "0-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 32059392,
+          "pageins": 0,
+          "bracket_seconds": 3.735120167
+        },
+        "0-B": {
+          "diskio_bytes_read": 110592,
+          "diskio_bytes_written": 238190592,
+          "logical_writes": 161873920,
+          "pageins": 0,
+          "bracket_seconds": 3.774092292
+        },
+        "1-A": {
+          "diskio_bytes_read": 16384,
+          "diskio_bytes_written": 1671168,
+          "logical_writes": 1871872,
+          "pageins": 0,
+          "bracket_seconds": 3.748367083
+        },
+        "1-B": {
+          "diskio_bytes_read": 147456,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156065792,
+          "pageins": 0,
+          "bracket_seconds": 3.767593375
+        },
+        "2-B": {
+          "diskio_bytes_read": 49152,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156405760,
+          "pageins": 0,
+          "bracket_seconds": 3.961407125
+        },
+        "2-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 1630208,
+          "pageins": 0,
+          "bracket_seconds": 3.868187166
+        },
+        "3-B": {
+          "diskio_bytes_read": 49152,
+          "diskio_bytes_written": 327680,
+          "logical_writes": 156340224,
+          "pageins": 0,
+          "bracket_seconds": 3.757840416
+        },
+        "3-A": {
+          "diskio_bytes_read": 32768,
+          "diskio_bytes_written": 32505856,
+          "logical_writes": 4288512,
+          "pageins": 0,
+          "bracket_seconds": 3.787350334
+        },
+        "calibration": {
+          "diskio_bytes_read": 4096,
+          "diskio_bytes_written": 6815744,
+          "logical_writes": 2326528,
+          "pageins": 0,
+          "bracket_seconds": 0.076872625
+        }
+      },
+      "native_attachment_owner_io": {
+        "0-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "1-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "2-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "3-A": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        },
+        "calibration": {
+          "diskio_bytes_read": 0,
+          "diskio_bytes_written": 0,
+          "logical_writes": 0,
+          "pageins": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "tool_sha256": {
+    "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+  },
+  "mode": "baseline",
+  "origin": "independent disposable local fixture",
+  "host": "Gamma-128GB.local",
+  "evidence": "local VM with stock idle gate",
+  "ambient_diagnostic": false,
+  "abbreviated_inventory": false,
+  "idle_floor_pct": 90,
+  "paired_idle_gap_max_pp": 5,
+  "minimum_free_GiB": 12.0,
+  "disk_path": "/private/tmp/mp-t-71e27t1_",
+  "seed": 34199,
+  "order": {
+    "warmup": [
+      "A"
+    ],
+    "scored": [
+      "A"
+    ]
+  },
+  "source_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "verifier_revision": "a5f0e19e1b416cf35552221d072383d4ec63b5f0",
+  "adapter_sha256": "e63de9bf68644f58fa070ac45cdc27a35cac08e41309c65cf5ef6d3e84bce3a8"
+}

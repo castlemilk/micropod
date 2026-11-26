@@ -1,0 +1,882 @@
+{
+  "control": {
+    "runs": [
+      "20261124T220013Z-sibling-t0mk87fq",
+      "20261124T220632Z-sibling-zxl0945w"
+    ],
+    "kernel": {
+      "kernel_page_kib": 16,
+      "kernel_image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+      "kernel_config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98"
+    },
+    "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+    "guest": "b4b4bdb7b01c261261d4d6df6468339ddb66b994e93efc4ffb4286ff4115d69c",
+    "requests": 4155665,
+    "warm_connections": 528,
+    "min_dense_common_fraction": 0.983169686922478,
+    "layouts": {
+      "same-one": {
+        "p50_us": {
+          "first": 42.386,
+          "second": 50.43725,
+          "median_ratio": 1.0939014906439954,
+          "higher": 4,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 67.1045,
+          "second": 88.1455,
+          "median_ratio": 1.2822694969654247,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 114.98,
+          "second": 126.0,
+          "median_ratio": 1.1639728934984563,
+          "higher": 8,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 21146.594192365723,
+          "second": 17937.7810875402,
+          "median_ratio": 0.9194004935599216,
+          "higher": 2,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 67.1045,
+          "second": 88.1455,
+          "median_ratio": 1.2822694969654247,
+          "higher": 8,
+          "pairs": 8
+        }
+      },
+      "same-all": {
+        "p50_us": {
+          "first": 154.8975,
+          "second": 18.0,
+          "median_ratio": 0.1163327156163126,
+          "higher": 0,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 332.0025,
+          "second": 741.375,
+          "median_ratio": 2.2222970478820523,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 988.0654999999999,
+          "second": 3124.25,
+          "median_ratio": 3.212453313527063,
+          "higher": 8,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 162026.76283231535,
+          "second": 184264.0404122127,
+          "median_ratio": 1.135754600234944,
+          "higher": 8,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 392.546,
+          "second": 1313.833,
+          "median_ratio": 3.414485467541563,
+          "higher": 8,
+          "pairs": 8
+        },
+        "least_client_requests": {
+          "first": 5085.5,
+          "second": 5870.5,
+          "median_ratio": 1.154341660628892,
+          "higher": 7,
+          "pairs": 8
+        },
+        "most_client_requests": {
+          "first": 8541.5,
+          "second": 10141.5,
+          "median_ratio": 1.1848157765499672,
+          "higher": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "first": 3.2601801105000003,
+          "second": 3.24529948,
+          "median_ratio": 0.9930348828018647,
+          "higher": 3,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "first": 3.2527876119999997,
+          "second": 3.241834126,
+          "median_ratio": 0.9940188669746299,
+          "higher": 3,
+          "pairs": 8
+        }
+      }
+    },
+    "changes_from_shared": {},
+    "idle_cpu_s_per_s": {
+      "micropod_vmm": 0.24660832477836353,
+      "micropod_supervisor": 0.001032725114658296,
+      "orbstack_helper": 0.04550012269784461
+    },
+    "guest_fair": {
+      "setting": "inherit",
+      "before": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "after": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "base_slice_ns": 2100000,
+      "clocksource": "arch_sys_counter"
+    },
+    "worker_scheduler": "hrtick",
+    "fair_scheduler": {
+      "setting": "inherit",
+      "before": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "after": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "base_slice_ns": 2100000,
+      "clocksource": "arch_sys_counter"
+    },
+    "builders": 8,
+    "build_nice": 5,
+    "jobs": 128,
+    "revisions": 256,
+    "test_passes": 2048,
+    "mixed_profiles": {
+      "same-A": {
+        "with_build": {
+          "calls_per_client": 6440.875,
+          "p50_us": 17.6875,
+          "p95_us": 1167.271,
+          "p99_us": 4472.646,
+          "wave_tail_calls_per_1000": 17.69293857565802
+        },
+        "http_only": {
+          "calls_per_client": 9367.854166666668,
+          "p50_us": 18.1455,
+          "p95_us": 671.521,
+          "p99_us": 2705.312,
+          "wave_tail_calls_per_1000": 8.263366345896227
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.9985276703907044
+        }
+      },
+      "same-B": {
+        "with_build": {
+          "calls_per_client": 5391.1875,
+          "p50_us": 160.5845,
+          "p95_us": 354.87649999999996,
+          "p99_us": 2257.2915000000003,
+          "wave_tail_calls_per_1000": 16.33163180394247
+        },
+        "http_only": {
+          "calls_per_client": 8330.208333333332,
+          "p50_us": 152.96,
+          "p95_us": 329.29449999999997,
+          "p99_us": 845.591,
+          "wave_tail_calls_per_1000": 8.597958787237587
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.9955976962346431
+        }
+      }
+    },
+    "builder_cgroup_totals": {
+      "same-A": {
+        "usage_usec": 77193952,
+        "system_usec": 11803591,
+        "nr_periods": 2545,
+        "nr_throttled": 24,
+        "throttled_usec": 20363
+      },
+      "same-B": {
+        "usage_usec": 80816793,
+        "system_usec": 12658631,
+        "nr_periods": 2569,
+        "nr_throttled": 7,
+        "throttled_usec": 3866
+      }
+    }
+  },
+  "candidate": {
+    "runs": [
+      "20261124T220130Z-sibling-3ysxsfc1",
+      "20261124T220516Z-sibling-j9xt29nn"
+    ],
+    "kernel": {
+      "kernel_page_kib": 16,
+      "kernel_image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+      "kernel_config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98"
+    },
+    "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+    "guest": "b4b4bdb7b01c261261d4d6df6468339ddb66b994e93efc4ffb4286ff4115d69c",
+    "requests": 4126732,
+    "warm_connections": 528,
+    "min_dense_common_fraction": 0.9878918477436459,
+    "layouts": {
+      "same-one": {
+        "p50_us": {
+          "first": 42.021,
+          "second": 47.0105,
+          "median_ratio": 1.2687654081807642,
+          "higher": 6,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 81.875,
+          "second": 92.3955,
+          "median_ratio": 1.1702223407339019,
+          "higher": 6,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 121.333,
+          "second": 147.292,
+          "median_ratio": 1.1781940121143646,
+          "higher": 6,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 19637.741981921343,
+          "second": 17731.217094782813,
+          "median_ratio": 0.7961700620038714,
+          "higher": 3,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 81.875,
+          "second": 92.3955,
+          "median_ratio": 1.1702223407339019,
+          "higher": 6,
+          "pairs": 8
+        }
+      },
+      "same-all": {
+        "p50_us": {
+          "first": 153.9185,
+          "second": 17.9585,
+          "median_ratio": 0.11626839362973733,
+          "higher": 0,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 334.4615,
+          "second": 764.354,
+          "median_ratio": 2.268876869571346,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 1035.813,
+          "second": 3112.8540000000003,
+          "median_ratio": 3.0108759081891034,
+          "higher": 8,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 161014.64672081085,
+          "second": 183764.07479993664,
+          "median_ratio": 1.1425234857836268,
+          "higher": 8,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 399.70849999999996,
+          "second": 1278.792,
+          "median_ratio": 3.183768575581629,
+          "higher": 8,
+          "pairs": 8
+        },
+        "least_client_requests": {
+          "first": 4877.5,
+          "second": 6193.5,
+          "median_ratio": 1.2508540147880138,
+          "higher": 8,
+          "pairs": 8
+        },
+        "most_client_requests": {
+          "first": 8491.0,
+          "second": 10032.5,
+          "median_ratio": 1.1763657503101164,
+          "higher": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "first": 3.2264634340000002,
+          "second": 3.2093266475,
+          "median_ratio": 0.9951199221045812,
+          "higher": 2,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "first": 3.2244515825,
+          "second": 3.205821918,
+          "median_ratio": 0.993498100438627,
+          "higher": 2,
+          "pairs": 8
+        }
+      }
+    },
+    "changes_from_shared": {},
+    "idle_cpu_s_per_s": {
+      "micropod_vmm": 0.22166778491806277,
+      "micropod_supervisor": 0.0008341334837157566,
+      "orbstack_helper": 0.043879804994017085
+    },
+    "guest_fair": {
+      "setting": "no-delay-dequeue",
+      "before": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "after": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_DELAY_DEQUEUE",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "base_slice_ns": 2100000,
+      "clocksource": "arch_sys_counter"
+    },
+    "worker_scheduler": "hrtick",
+    "fair_scheduler": {
+      "setting": "no-delay-dequeue",
+      "before": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "after": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_DELAY_DEQUEUE",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_NEXT_BUDDY",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "base_slice_ns": 2100000,
+      "clocksource": "arch_sys_counter"
+    },
+    "builders": 8,
+    "build_nice": 5,
+    "jobs": 128,
+    "revisions": 256,
+    "test_passes": 2048,
+    "mixed_profiles": {
+      "same-A": {
+        "with_build": {
+          "calls_per_client": 6503.5625,
+          "p50_us": 17.5,
+          "p95_us": 1168.875,
+          "p99_us": 4476.9375,
+          "wave_tail_calls_per_1000": 17.4909769196031
+        },
+        "http_only": {
+          "calls_per_client": 9342.791666666668,
+          "p50_us": 18.083,
+          "p95_us": 697.4794999999999,
+          "p99_us": 2697.2709999999997,
+          "wave_tail_calls_per_1000": 8.255186488128272
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.998492647549724
+        }
+      },
+      "same-B": {
+        "with_build": {
+          "calls_per_client": 5171.4375,
+          "p50_us": 160.66649999999998,
+          "p95_us": 362.6665,
+          "p99_us": 2529.8954999999996,
+          "wave_tail_calls_per_1000": 16.674069942852157
+        },
+        "http_only": {
+          "calls_per_client": 8351.0625,
+          "p50_us": 151.8745,
+          "p95_us": 332.0025,
+          "p99_us": 876.104,
+          "wave_tail_calls_per_1000": 8.602976649351909
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.9958341533897792
+        }
+      }
+    },
+    "builder_cgroup_totals": {
+      "same-A": {
+        "usage_usec": 77015014,
+        "system_usec": 11717876,
+        "nr_periods": 2515,
+        "nr_throttled": 10,
+        "throttled_usec": 15495
+      },
+      "same-B": {
+        "usage_usec": 80638364,
+        "system_usec": 12702723,
+        "nr_periods": 2555,
+        "nr_throttled": 12,
+        "throttled_usec": 7058
+      }
+    }
+  },
+  "contrast": {
+    "change": {
+      "guest_fair": [
+        "inherit",
+        "no-delay-dequeue"
+      ]
+    },
+    "modes": {
+      "same-one": {
+        "A": {
+          "p50_us": {
+            "first": 50.43725,
+            "second": 47.0105,
+            "median_ratio": 1.1071996439388714,
+            "higher": 5,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 88.1455,
+            "second": 92.3955,
+            "median_ratio": 1.1037809976422128,
+            "higher": 6,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 126.0,
+            "second": 147.292,
+            "median_ratio": 1.2166678992906013,
+            "higher": 5,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 17937.7810875402,
+            "second": 17731.217094782813,
+            "median_ratio": 0.9817470344895851,
+            "higher": 4,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 88.1455,
+            "second": 92.3955,
+            "median_ratio": 1.1037809976422128,
+            "higher": 6,
+            "pairs": 8
+          }
+        },
+        "B": {
+          "p50_us": {
+            "first": 42.386,
+            "second": 42.021,
+            "median_ratio": 0.9740335012532462,
+            "higher": 4,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 67.1045,
+            "second": 81.875,
+            "median_ratio": 1.1648020388123328,
+            "higher": 5,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 114.98,
+            "second": 121.333,
+            "median_ratio": 1.0385848195795662,
+            "higher": 4,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 21146.594192365723,
+            "second": 19637.741981921343,
+            "median_ratio": 0.9880314848600057,
+            "higher": 4,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 67.1045,
+            "second": 81.875,
+            "median_ratio": 1.1648020388123328,
+            "higher": 5,
+            "pairs": 8
+          }
+        },
+        "relative_to_peer": {
+          "p50_us": 1.2082793433824297,
+          "p95_us": 0.9178124103543028,
+          "p99_us": 1.1070456001921078,
+          "requests_per_second": 0.9015253391345944,
+          "slowest_client_p95_us": 0.9178124103543028
+        }
+      },
+      "same-all": {
+        "A": {
+          "p50_us": {
+            "first": 18.0,
+            "second": 17.9585,
+            "median_ratio": 1.0035259326660602,
+            "higher": 4,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 741.375,
+            "second": 764.354,
+            "median_ratio": 1.030371360644292,
+            "higher": 8,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 3124.25,
+            "second": 3112.8540000000003,
+            "median_ratio": 0.9926905858429362,
+            "higher": 2,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 184264.0404122127,
+            "second": 183764.07479993664,
+            "median_ratio": 0.9943810443653738,
+            "higher": 3,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 1313.833,
+            "second": 1278.792,
+            "median_ratio": 0.9933628918001243,
+            "higher": 4,
+            "pairs": 8
+          },
+          "least_client_requests": {
+            "first": 5870.5,
+            "second": 6193.5,
+            "median_ratio": 1.016220659168966,
+            "higher": 4,
+            "pairs": 8
+          },
+          "most_client_requests": {
+            "first": 10141.5,
+            "second": 10032.5,
+            "median_ratio": 0.9981264029287227,
+            "higher": 4,
+            "pairs": 8
+          },
+          "build_makespan_s": {
+            "first": 3.24529948,
+            "second": 3.2093266475,
+            "median_ratio": 0.9948815339594435,
+            "higher": 3,
+            "pairs": 8
+          },
+          "slowest_build_s": {
+            "first": 3.241834126,
+            "second": 3.205821918,
+            "median_ratio": 0.9936207776310998,
+            "higher": 3,
+            "pairs": 8
+          }
+        },
+        "B": {
+          "p50_us": {
+            "first": 154.8975,
+            "second": 153.9185,
+            "median_ratio": 1.001767313577055,
+            "higher": 5,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 332.0025,
+            "second": 334.4615,
+            "median_ratio": 1.0100598338350482,
+            "higher": 6,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 988.0654999999999,
+            "second": 1035.813,
+            "median_ratio": 1.0611518301515095,
+            "higher": 6,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 162026.76283231535,
+            "second": 161014.64672081085,
+            "median_ratio": 0.9936950261094915,
+            "higher": 2,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 392.546,
+            "second": 399.70849999999996,
+            "median_ratio": 1.037411294948471,
+            "higher": 5,
+            "pairs": 8
+          },
+          "least_client_requests": {
+            "first": 5085.5,
+            "second": 4877.5,
+            "median_ratio": 0.9443344531782578,
+            "higher": 2,
+            "pairs": 8
+          },
+          "most_client_requests": {
+            "first": 8541.5,
+            "second": 8491.0,
+            "median_ratio": 0.9881930234032932,
+            "higher": 3,
+            "pairs": 8
+          },
+          "build_makespan_s": {
+            "first": 3.2601801105000003,
+            "second": 3.2264634340000002,
+            "median_ratio": 0.9927136619461275,
+            "higher": 2,
+            "pairs": 8
+          },
+          "slowest_build_s": {
+            "first": 3.2527876119999997,
+            "second": 3.2244515825,
+            "median_ratio": 0.9931022524392774,
+            "higher": 2,
+            "pairs": 8
+          }
+        },
+        "relative_to_peer": {
+          "p50_us": 1.001942970835077,
+          "p95_us": 1.0354955648421944,
+          "p99_us": 0.9274635583493731,
+          "requests_per_second": 1.0007570948537712,
+          "slowest_client_p95_us": 0.907096009343215,
+          "least_client_requests": 1.0827417528102312,
+          "most_client_requests": 0.9999988634476801,
+          "build_makespan_s": 0.9930340021743223,
+          "slowest_build_s": 0.992503275601846
+        }
+      }
+    }
+  }
+}

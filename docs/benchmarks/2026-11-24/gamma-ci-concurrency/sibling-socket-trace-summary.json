@@ -1,0 +1,321 @@
+{
+  "runs": [
+    "20261124T215845Z-sibling-jl2f8pnw"
+  ],
+  "waves": {
+    "20261124T215845Z-sibling-jl2f8pnw/same-0-all-A": {
+      "building": {
+        "index": 0,
+        "wire_bytes": {
+          "client": 97,
+          "server": 140
+        },
+        "all": {
+          "calls": 5945,
+          "total_ns": 1497887637,
+          "request_delivery_ns": 469654000,
+          "server_ns": 18907000,
+          "reply_delivery_ns": 970275000,
+          "outside_syscalls_ns": 39051637,
+          "server_reader_wait_ns": 434270000,
+          "client_reader_wait_ns": 945355000,
+          "server_any_wait_ns": 461111000,
+          "client_any_wait_ns": 961679000
+        },
+        "tail": {
+          "calls": 107,
+          "total_ns": 608408165,
+          "request_delivery_ns": 214352000,
+          "server_ns": 491000,
+          "reply_delivery_ns": 392340000,
+          "outside_syscalls_ns": 1225165,
+          "server_reader_wait_ns": 198315000,
+          "client_reader_wait_ns": 389549000,
+          "server_any_wait_ns": 214035000,
+          "client_any_wait_ns": 391952000
+        }
+      },
+      "http_only": {
+        "index": 9,
+        "wire_bytes": {
+          "client": 98,
+          "server": 140
+        },
+        "all": {
+          "calls": 7941,
+          "total_ns": 1498418642,
+          "request_delivery_ns": 544791000,
+          "server_ns": 27444000,
+          "reply_delivery_ns": 856597000,
+          "outside_syscalls_ns": 69586642,
+          "server_reader_wait_ns": 515097000,
+          "client_reader_wait_ns": 823005000,
+          "server_any_wait_ns": 538646000,
+          "client_any_wait_ns": 850039000
+        },
+        "tail": {
+          "calls": 77,
+          "total_ns": 476040043,
+          "request_delivery_ns": 146691000,
+          "server_ns": 324000,
+          "reply_delivery_ns": 321491000,
+          "outside_syscalls_ns": 7534043,
+          "server_reader_wait_ns": 143716000,
+          "client_reader_wait_ns": 314436000,
+          "server_any_wait_ns": 146541000,
+          "client_any_wait_ns": 321170000
+        }
+      }
+    },
+    "20261124T215845Z-sibling-jl2f8pnw/same-1-all-A": {
+      "building": {
+        "index": 1,
+        "wire_bytes": {
+          "client": 97,
+          "server": 140
+        },
+        "all": {
+          "calls": 5615,
+          "total_ns": 1500939457,
+          "request_delivery_ns": 458608000,
+          "server_ns": 17737000,
+          "reply_delivery_ns": 988068000,
+          "outside_syscalls_ns": 36526457,
+          "server_reader_wait_ns": 435375000,
+          "client_reader_wait_ns": 965413000,
+          "server_any_wait_ns": 448971000,
+          "client_any_wait_ns": 979135000
+        },
+        "tail": {
+          "calls": 87,
+          "total_ns": 567278579,
+          "request_delivery_ns": 185774000,
+          "server_ns": 345000,
+          "reply_delivery_ns": 380041000,
+          "outside_syscalls_ns": 1118579,
+          "server_reader_wait_ns": 182976000,
+          "client_reader_wait_ns": 376047000,
+          "server_any_wait_ns": 185515000,
+          "client_any_wait_ns": 379622000
+        }
+      },
+      "http_only": {
+        "index": 10,
+        "wire_bytes": {
+          "client": 98,
+          "server": 141
+        },
+        "all": {
+          "calls": 7806,
+          "total_ns": 1500148270,
+          "request_delivery_ns": 602696000,
+          "server_ns": 27621000,
+          "reply_delivery_ns": 799597000,
+          "outside_syscalls_ns": 70234270,
+          "server_reader_wait_ns": 571594000,
+          "client_reader_wait_ns": 767590000,
+          "server_any_wait_ns": 595460000,
+          "client_any_wait_ns": 791709000
+        },
+        "tail": {
+          "calls": 78,
+          "total_ns": 479357167,
+          "request_delivery_ns": 179387000,
+          "server_ns": 383000,
+          "reply_delivery_ns": 287650000,
+          "outside_syscalls_ns": 11937167,
+          "server_reader_wait_ns": 174586000,
+          "client_reader_wait_ns": 282414000,
+          "server_any_wait_ns": 179202000,
+          "client_any_wait_ns": 287322000
+        }
+      }
+    },
+    "20261124T215845Z-sibling-jl2f8pnw/same-2-all-A": {
+      "building": {
+        "index": 2,
+        "wire_bytes": {
+          "client": 97,
+          "server": 140
+        },
+        "all": {
+          "calls": 5579,
+          "total_ns": 1498739296,
+          "request_delivery_ns": 394562000,
+          "server_ns": 17758000,
+          "reply_delivery_ns": 1045535000,
+          "outside_syscalls_ns": 40884296,
+          "server_reader_wait_ns": 370934000,
+          "client_reader_wait_ns": 1022811000,
+          "server_any_wait_ns": 387518000,
+          "client_any_wait_ns": 1038051000
+        },
+        "tail": {
+          "calls": 112,
+          "total_ns": 678578295,
+          "request_delivery_ns": 170728000,
+          "server_ns": 447000,
+          "reply_delivery_ns": 502467000,
+          "outside_syscalls_ns": 4936295,
+          "server_reader_wait_ns": 166288000,
+          "client_reader_wait_ns": 498693000,
+          "server_any_wait_ns": 170463000,
+          "client_any_wait_ns": 502024000
+        }
+      },
+      "http_only": {
+        "index": 11,
+        "wire_bytes": {
+          "client": 98,
+          "server": 141
+        },
+        "all": {
+          "calls": 8680,
+          "total_ns": 1496276616,
+          "request_delivery_ns": 604873000,
+          "server_ns": 38722000,
+          "reply_delivery_ns": 784373000,
+          "outside_syscalls_ns": 68308616,
+          "server_reader_wait_ns": 572589000,
+          "client_reader_wait_ns": 736250000,
+          "server_any_wait_ns": 597961000,
+          "client_any_wait_ns": 778227000
+        },
+        "tail": {
+          "calls": 65,
+          "total_ns": 394317747,
+          "request_delivery_ns": 145466000,
+          "server_ns": 9688000,
+          "reply_delivery_ns": 237537000,
+          "outside_syscalls_ns": 1626747,
+          "server_reader_wait_ns": 143291000,
+          "client_reader_wait_ns": 223839000,
+          "server_any_wait_ns": 145318000,
+          "client_any_wait_ns": 237207000
+        }
+      }
+    },
+    "20261124T215845Z-sibling-jl2f8pnw/same-3-all-A": {
+      "building": {
+        "index": 3,
+        "wire_bytes": {
+          "client": 97,
+          "server": 140
+        },
+        "all": {
+          "calls": 5679,
+          "total_ns": 1497113522,
+          "request_delivery_ns": 416261000,
+          "server_ns": 31523000,
+          "reply_delivery_ns": 1002705000,
+          "outside_syscalls_ns": 46624522,
+          "server_reader_wait_ns": 395397000,
+          "client_reader_wait_ns": 980025000,
+          "server_any_wait_ns": 408721000,
+          "client_any_wait_ns": 994806000
+        },
+        "tail": {
+          "calls": 102,
+          "total_ns": 618976963,
+          "request_delivery_ns": 183897000,
+          "server_ns": 11840000,
+          "reply_delivery_ns": 412477000,
+          "outside_syscalls_ns": 10762963,
+          "server_reader_wait_ns": 180708000,
+          "client_reader_wait_ns": 407715000,
+          "server_any_wait_ns": 183620000,
+          "client_any_wait_ns": 412023000
+        }
+      },
+      "http_only": {
+        "index": 12,
+        "wire_bytes": {
+          "client": 98,
+          "server": 141
+        },
+        "all": {
+          "calls": 8379,
+          "total_ns": 1497884272,
+          "request_delivery_ns": 545811000,
+          "server_ns": 29115000,
+          "reply_delivery_ns": 864586000,
+          "outside_syscalls_ns": 58372272,
+          "server_reader_wait_ns": 514709000,
+          "client_reader_wait_ns": 828639000,
+          "server_any_wait_ns": 538914000,
+          "client_any_wait_ns": 856643000
+        },
+        "tail": {
+          "calls": 71,
+          "total_ns": 407798542,
+          "request_delivery_ns": 107818000,
+          "server_ns": 268000,
+          "reply_delivery_ns": 298369000,
+          "outside_syscalls_ns": 1343542,
+          "server_reader_wait_ns": 104377000,
+          "client_reader_wait_ns": 290835000,
+          "server_any_wait_ns": 107700000,
+          "client_any_wait_ns": 298097000
+        }
+      }
+    }
+  },
+  "groups": {
+    "building-all": {
+      "calls": 22818,
+      "mean_us": 262.71714926812166,
+      "fraction_of_elapsed": {
+        "request_delivery": 0.290104730449201,
+        "server": 0.014333542618013263,
+        "reply_delivery": 0.668356452523799,
+        "outside_syscalls": 0.02720527440898666,
+        "server_reader_wait": 0.27290464612216314,
+        "client_reader_wait": 0.6528461998722977,
+        "server_any_wait": 0.28463921761432653,
+        "client_any_wait": 0.6628662511313749
+      }
+    },
+    "building-tail": {
+      "calls": 408,
+      "mean_us": 6061.867651960784,
+      "fraction_of_elapsed": {
+        "request_delivery": 0.3051666595463229,
+        "server": 0.005305991079477066,
+        "reply_delivery": 0.6822320656998125,
+        "outside_syscalls": 0.007295283674387477,
+        "server_reader_wait": 0.2944665339708233,
+        "client_reader_wait": 0.676037362558102,
+        "server_any_wait": 0.30471462129082827,
+        "client_any_wait": 0.6815430914714022
+      }
+    },
+    "http_only-all": {
+      "calls": 32806,
+      "mean_us": 182.67170029872582,
+      "fraction_of_elapsed": {
+        "request_delivery": 0.38349330667079523,
+        "server": 0.020508523680985477,
+        "reply_delivery": 0.5515273028085808,
+        "outside_syscalls": 0.04447086683963854,
+        "server_reader_wait": 0.36277119077559306,
+        "client_reader_wait": 0.5265521988167058,
+        "server_any_wait": 0.37895614080786383,
+        "client_any_wait": 0.5467656982518044
+      }
+    },
+    "http_only-tail": {
+      "calls": 291,
+      "mean_us": 6039.5652886597945,
+      "fraction_of_elapsed": {
+        "request_delivery": 0.3296486771394067,
+        "server": 0.006067094224918952,
+        "reply_delivery": 0.6515153372372476,
+        "outside_syscalls": 0.01276889139842675,
+        "server_reader_wait": 0.32202882101447805,
+        "client_reader_wait": 0.6324412305410122,
+        "server_any_wait": 0.32930671675028766,
+        "client_any_wait": 0.6508035361610613
+      }
+    }
+  }
+}

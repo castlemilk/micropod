@@ -1,0 +1,51 @@
+        // Only the accept queue calls adopt. The target queue serializes adoption.
+        private var admissions = 0
+        private var submissions = 0
+        private var postWarmSubmissions = 0
+        private var completedAdmissions = 0
+        private var completedBlocks = 0
+
+#if BATCH_TWO
+        private final class AdmissionBatch: @unchecked Sendable {
+            // Guarded by batchLock. The first admitted fd lives in the submitted block.
+            var second: (Int32, UInt64)?
+        }
+        private let batchLock = NSLock()
+        private var tail: AdmissionBatch?
+#endif
+
+        func adopt(_ fd: Int32, accepted: UInt64) {
+            admissions += 1
+#if BATCH_TWO
+            batchLock.lock()
+            if let tail {
+                tail.second = (fd, accepted)
+                self.tail = nil
+                batchLock.unlock()
+                return
+            }
+            let batch = AdmissionBatch()
+            tail = batch
+            batchLock.unlock()
+            submissions += 1
+            if admissions > 17 { postWarmSubmissions += 1 }
+            owner.queue.async {
+                self.batchLock.lock()
+                if self.tail === batch { self.tail = nil }
+                let second = batch.second
+                self.batchLock.unlock()
+                mp_tcp_adopt(self.handle, fd, accepted)
+                if let (next, at) = second { mp_tcp_adopt(self.handle, next, at) }
+                self.completedAdmissions += second == nil ? 1 : 2
+                self.completedBlocks += 1
+            }
+#else
+            submissions += 1
+            if admissions > 17 { postWarmSubmissions += 1 }
+            owner.queue.async {
+                mp_tcp_adopt(self.handle, fd, accepted)
+                self.completedAdmissions += 1
+                self.completedBlocks += 1
+            }
+#endif
+        }

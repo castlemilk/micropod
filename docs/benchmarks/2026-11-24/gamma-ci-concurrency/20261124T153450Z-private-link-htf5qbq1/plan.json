@@ -1,0 +1,12 @@
+{
+  "mtu": 9000,
+  "build": "e74e7fcaf617e0a8f288f1c5706f075ce745fe42654c9932f7731c25c383fff7",
+  "boot_steering": "worker",
+  "guest_publication_sha256": "e330d6ae89a2880e16329f5ec232abe25e6f4f3278f6a6695e0d0537c965c456",
+  "host": "Gamma-128GB.local",
+  "scope": "/private/tmp/mp-t-uawr7w89",
+  "baseline": 24,
+  "guest_start_sha256": "4732dc4adae507e3f136892eb376919e33d79f0e78d6beeb4cc5cf257e44f805",
+  "verified_oom_watch": true,
+  "guest_start_origin": "packaged"
+}

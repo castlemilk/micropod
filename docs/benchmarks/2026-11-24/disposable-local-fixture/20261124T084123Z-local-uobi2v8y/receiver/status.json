@@ -1,0 +1,12 @@
+{
+  "completed_schedule": false,
+  "timed": true,
+  "started": 0,
+  "scored": 0,
+  "scored_clean": 0,
+  "error": "'sched_ext'",
+  "legacy_stock_qualification": false,
+  "ambient_diagnostic": false,
+  "abbreviated_inventory": false,
+  "local_vm_idle_and_delivery_qualified": false
+}

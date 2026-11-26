@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -165,26 +166,32 @@ func pause(ctx context.Context) error {
 	}
 }
 
-// The scope parent is owner-only. Inside its explicitly mounted cache, image users
-// can create entries and the sticky bit preserves other users' top-level entries.
-func cacheDirectory(dir string) error {
-	if err := os.MkdirAll(filepath.Dir(dir), 0700); err != nil {
-		return err
+// jobCaches attaches the scheduler-named scope to a trusted job through the
+// same cache table as Docker containers: env-mode tools only, one bind at
+// /micropod/cache, the uid from the image facts (else 0), and the GOFLAGS
+// -trimpath merge. The returned func stamps the units and releases the pins
+// after the job ends.
+func (n node) jobCaches(ctx context.Context, image string, j job, c *cri.ContainerConfig) func() {
+	facts, _ := (&factsLoader{}).load(ctx, n.images, image)
+	plan := decideJobCaches((&policyLoader{}).get(), j.Cache, facts)
+	if !plan.attached() {
+		if plan.Reason != "" {
+			fmt.Fprintf(os.Stderr, "job cache scope %s not attached: %s\n", j.Cache, plan.Reason)
+		}
+		return func() {}
 	}
-	if err := os.Mkdir(dir, 0700); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
+	a := openCacheMounts(&plan, "")
+	c.Mounts = append(c.Mounts, a.mounts...)
+	for _, kv := range mergeEnv(nil, a.env) {
+		k, v, _ := strings.Cut(kv, "=")
+		c.Envs = append(c.Envs, &cri.KeyValue{Key: k, Value: v})
 	}
-	info, err := os.Lstat(dir)
-	if err != nil {
-		return err
+	return func() {
+		for _, u := range a.units {
+			_ = touchUsed(plan.Scope, u)
+		}
+		closeMounts(a.files)
 	}
-	if !info.IsDir() {
-		return errors.New("invalid cache directory")
-	}
-	if info.Mode().Perm() != 0777 || info.Mode()&os.ModeSticky == 0 {
-		return os.Chmod(dir, 0777|os.ModeSticky)
-	}
-	return nil
 }
 
 func podConfig(id, dir string) *cri.PodSandboxConfig {
@@ -208,18 +215,6 @@ func config(id, dir, image string, j job) (*cri.PodSandboxConfig, *cri.Container
 		// CI packaging preserves an existing file's set-ID bits across writes. no_new_privs
 		// still prevents acquiring privilege by executing that file.
 		container.Linux.SecurityContext.Capabilities.AddCapabilities = []string{"FSETID"}
-	}
-	if j.Cache != "" {
-		for _, cache := range []struct{ name, env string }{{"gomod", "GOMODCACHE"}, {"gobuild", "GOCACHE"}, {"npm", "npm_config_cache"}} {
-			src := filepath.Join(dataRoot, "scopes", j.Cache, cache.name)
-			if err := cacheDirectory(src); err != nil {
-				return nil, nil, err
-			}
-			dest := "/cache/" + cache.name
-			container.Mounts = append(container.Mounts, &cri.Mount{HostPath: src, ContainerPath: dest})
-			container.Envs = append(container.Envs, &cri.KeyValue{Key: cache.env, Value: dest})
-		}
-		container.Envs = append(container.Envs, &cri.KeyValue{Key: "GOFLAGS", Value: "-trimpath"})
 	}
 	return pod, container, nil
 }
@@ -403,8 +398,12 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 	res.PodMS = time.Since(setup).Milliseconds()
 	var binding *dockerRootFSBinding
 	var rootFSDetached bool
+	var releaseCaches func()
 	defer func() {
 		err = errors.Join(err, n.retireProcess(ctx, p, hooks, binding, rootFSDetached))
+		if releaseCaches != nil {
+			releaseCaches()
+		}
 	}()
 	dir := filepath.Join(dataRoot, "jobs", p.id)
 	pod, container, err := config(p.id, dir, image, j)
@@ -421,6 +420,9 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 		// line-oriented logger and the standalone job cap stay on the job path.
 		container.LogPath = ""
 		writeRuntimeLog = nil
+	}
+	if j.Cache != "" && j.Trust == "trusted" {
+		releaseCaches = n.jobCaches(ctx, image, j, container)
 	}
 	startCtx, finishSetup := context.WithTimeout(ctx, 3*time.Minute)
 	defer finishSetup()

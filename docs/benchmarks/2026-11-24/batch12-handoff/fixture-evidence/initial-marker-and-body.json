@@ -1,0 +1,118 @@
+{
+  "stable_id": "230.08",
+  "scope": "Darwin host-only mixed load, native loopback relay and service",
+  "mode": "smoke",
+  "seed": 202611242308,
+  "orders": [
+    [
+      "batch2",
+      "stock"
+    ],
+    [
+      "stock",
+      "batch2"
+    ],
+    [
+      "stock",
+      "batch2"
+    ],
+    [
+      "batch2",
+      "stock"
+    ],
+    [
+      "batch2",
+      "stock"
+    ],
+    [
+      "stock",
+      "batch2"
+    ]
+  ],
+  "attempts": [],
+  "smokes": [
+    {
+      "arm": "stock",
+      "relay_configuration": {
+        "callback_events": 128,
+        "guest_port": 64633,
+        "port": 64636,
+        "read_bytes": 262144,
+        "workers": 2
+      },
+      "owner_accounting": [
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "arm": "batch2",
+      "relay_configuration": {
+        "callback_events": 128,
+        "guest_port": 64633,
+        "port": 64641,
+        "read_bytes": 262144,
+        "workers": 2
+      },
+      "owner_accounting": [
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "build": {
+    "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+    "original_source": {
+      "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+      "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+      "Sources/MicropodRuntime/NativeLoopbackRelay.swift": "549259065039321394cb9b41c7f0011206f589ccca6b19e95af044ef6bf5db1e"
+    },
+    "fixture_sha256": {
+      "build.py": "2074fa314fb472e6afba7ccfcf7a08b52144caef5bbe535be97f83dc290da90c",
+      "handoff.swiftfrag": "b758228170925e991063e2e249bce45073617e86c0a7812162fe174e545f1cc9",
+      "relay-main.swift": "90e03257e5af95a236255d9d64d1ae3b2b6dc787f8725f3e9e442495f476197c",
+      "study.py": "f614dcfc37642708d4ed26c5e37a58933b3a249075749ed7fc800aa6ad4a8b73"
+    },
+    "binaries": {
+      "relay-stock": "1e7ead560a0dfac25419b9c6ccf0f3c6eaefd921ed9d6ace2a122aaa5496938b",
+      "relay-batch2": "dcb2569633ef5b4c822a83aed5c6bf3c71986a6d7ecefe2b4fb0da1dfa1153d7",
+      "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+      "server": "f44e1bd7fe526dbcab18ed20b029923b7070aae2c3542d32e1d045eef1977ae6",
+      "meter.dylib": "0a647ab4b304104c53fc05c17e1b64cfaf8d198b38b099f30bf1d7ddfff1a364",
+      "suite.py": "3f21396ff081b87deb6259904409f524fc0cca7b85e80ee0473531362a5cd15a"
+    },
+    "clang": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+    "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0\n"
+  },
+  "created": "2026-11-24T07:29:09.101618+00:00",
+  "filesystem_floor_GiB": 12,
+  "idle_floor_fraction": 0.9,
+  "accounting_columns": [
+    "accepted",
+    "enqueued_blocks",
+    "adopted",
+    "completed_blocks"
+  ],
+  "status": "smoke complete",
+  "finished": "2026-11-24T07:29:09.182608+00:00"
+}

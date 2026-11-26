@@ -1,0 +1,24 @@
+{
+  "archive": "20261125T053801Z-sibling-file-fault-around-q75skxwh",
+  "checked_utc": "2026-11-25T05:41:08.237459+00:00",
+  "accepted_originals": true,
+  "rejected": {
+    "first touch claims every PTE": "warm executable mapping disagrees with page footprint, fault counts, or byte digest",
+    "mapping already populated": "warm executable mapping disagrees with page footprint, fault counts, or byte digest",
+    "cold pages included": "warm executable mapping disagrees with page footprint, fault counts, or byte digest",
+    "warm scan reports a major fault": "warm executable mapping disagrees with page footprint, fault counts, or byte digest",
+    "wrong executable digest": "mapped Go proof does not match the pinned installed tool",
+    "wrong workload boot": "mapped Go proof has the wrong guest, granule or window",
+    "different builder identity": "wrong reaped build identity or status for grouped-0-all-A slot 0",
+    "wrong measured revision": "wrong reaped build identity or status for grouped-0-all-A slot 0",
+    "build child had not started at the HTTP gate": "actual reaped build child did not span the complete HTTP cohort for grouped-0-all-A slot 0",
+    "usage written before the build exited": "actual reaped build child did not span the complete HTTP cohort for grouped-0-all-A slot 0",
+    "negative tree counter": "invalid Linux child resource accounting for grouped-0-all-A slot 0",
+    "duplicate knob selectors": "native kernel command line has the wrong or duplicate fault-around switch",
+    "wrong effective value on otherwise correct boot": "wrong effective fault-around value, page size or guest boot",
+    "writable final attachment": "post-shutdown APFS history did not use an actual read-only attachment",
+    "different persisted worker inode": "read-only remount has the wrong worker RAW disk inode or size",
+    "journal counter disagrees with directory after eject": "FSEvents journal counts do not match the raw inventory",
+    "post-eject Spotlight query reports indexing enabled": "fresh mdutil output did not confirm disabled indexing on the private volume"
+  }
+}

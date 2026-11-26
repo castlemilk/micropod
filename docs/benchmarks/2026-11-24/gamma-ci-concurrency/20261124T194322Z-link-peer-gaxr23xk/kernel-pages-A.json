@@ -1,0 +1,115 @@
+{
+  "container": "8e7702bc0ef621e4e80a3b27642320d096513fe87317c373ef695108a06730da",
+  "boot": "8354d633-fb07-46da-8062-c4390f08b5f9",
+  "getconf_page_bytes": 4096,
+  "mounts": {
+    "/tmp": {
+      "filesystem": "overlayfs",
+      "mapping": {
+        "os": "linux",
+        "arch": "arm64",
+        "runtime_page_bytes": 4096,
+        "linux_at_pagesz": 4096,
+        "temporary_file_bytes": 20497,
+        "windows": [
+          {
+            "offset": 4096,
+            "raw_mmap": "matched",
+            "aligned_base": 4096,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 8192,
+            "raw_mmap": "matched",
+            "aligned_base": 8192,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 12288,
+            "raw_mmap": "matched",
+            "aligned_base": 12288,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 16384,
+            "raw_mmap": "matched",
+            "aligned_base": 16384,
+            "verified_window_bytes": 4113
+          }
+        ]
+      }
+    },
+    "/cache": {
+      "filesystem": "ext2/ext3",
+      "mapping": {
+        "os": "linux",
+        "arch": "arm64",
+        "runtime_page_bytes": 4096,
+        "linux_at_pagesz": 4096,
+        "temporary_file_bytes": 20497,
+        "windows": [
+          {
+            "offset": 4096,
+            "raw_mmap": "matched",
+            "aligned_base": 4096,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 8192,
+            "raw_mmap": "matched",
+            "aligned_base": 8192,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 12288,
+            "raw_mmap": "matched",
+            "aligned_base": 12288,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 16384,
+            "raw_mmap": "matched",
+            "aligned_base": 16384,
+            "verified_window_bytes": 4113
+          }
+        ]
+      }
+    },
+    "/page-fixture": {
+      "filesystem": "fuseblk",
+      "mapping": {
+        "os": "linux",
+        "arch": "arm64",
+        "runtime_page_bytes": 4096,
+        "linux_at_pagesz": 4096,
+        "temporary_file_bytes": 20497,
+        "windows": [
+          {
+            "offset": 4096,
+            "raw_mmap": "matched",
+            "aligned_base": 4096,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 8192,
+            "raw_mmap": "matched",
+            "aligned_base": 8192,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 12288,
+            "raw_mmap": "matched",
+            "aligned_base": 12288,
+            "verified_window_bytes": 4113
+          },
+          {
+            "offset": 16384,
+            "raw_mmap": "matched",
+            "aligned_base": 16384,
+            "verified_window_bytes": 4113
+          }
+        ]
+      }
+    }
+  }
+}

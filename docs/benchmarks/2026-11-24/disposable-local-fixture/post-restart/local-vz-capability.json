@@ -1,0 +1,12 @@
+{
+  "utc": "2026-11-24T06:47:21.219985+00:00",
+  "method": "Virtualization.framework VZVirtualMachine.isSupported",
+  "rc": 0,
+  "stdout": "false",
+  "stderr": "2026-11-24 17:47:14.773 xcodebuild[62012:220582]  DVTFilePathFSEvents: Failed to start fs event stream.\n2026-11-24 17:47:15.420 xcodebuild[62161:222854]  DVTFilePathFSEvents: Failed to start fs event stream.\n",
+  "effective_available_bytes": 410293334016,
+  "previous_private_scope_present": false,
+  "old_job_observation": "launchctl returned 113, Could not find service for dev.micropod.benchmark.mp-local-bv229a26.a",
+  "process_inventory": "ps denied in agent",
+  "timed_attempts": 0
+}

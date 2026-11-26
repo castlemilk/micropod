@@ -1,0 +1,142 @@
+{
+  "volume": {
+    "schema": "micropod-worker-apfs-v1",
+    "image": "/private/tmp/mp-t-_yhq6ekk/a-worker.sparseimage",
+    "mount": "/private/tmp/mp-t-_yhq6ekk/a",
+    "size_gib": 16,
+    "disabled": true,
+    "volume_name": "MicropodCI-4fa2f2b13c41",
+    "mountpoint_identity": {
+      "dev": 16777232,
+      "ino": 1226499306
+    },
+    "image_identity": {
+      "dev": 16777232,
+      "ino": 1226499311,
+      "format": "SPRS"
+    },
+    "spotlight_apply": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-i",
+        "off",
+        "/private/tmp/mp-t-_yhq6ekk/a"
+      ],
+      "returncode": 0,
+      "observed_at": "2026-11-25T06:15:43.994499+00:00",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-t-_yhq6ekk/a:\n\tIndexing disabled.\n",
+      "stderr": "2026-11-25 17:15:43.978 mdutil[55847:26109809] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-t-_yhq6ekk/a -> kMDConfigSearchLevelFSSearchOnly\n"
+    },
+    "seed_identity": {
+      "volume": {
+        "device": "/dev/disk14s1",
+        "uuid": "695CBC27-A485-4602-A0B8-B0DA0D4097D0",
+        "name": "MicropodCI-4fa2f2b13c41",
+        "dev": 16777259,
+        "fs": "apfs",
+        "snapshot": false
+      },
+      "container": {
+        "device": "/dev/disk14",
+        "uuid": "350DEDCA-5808-4F4C-9112-BFCF01B3C2FF"
+      },
+      "backing": {
+        "image_device": "/dev/disk13",
+        "partition_device": "/dev/disk13s2",
+        "partition_uuid": "E5BF4BA1-4CD7-4DE6-9584-49A1405209B3"
+      }
+    },
+    "seed_detach": {
+      "argv": [
+        "/usr/bin/hdiutil",
+        "detach",
+        "/dev/disk13"
+      ],
+      "returncode": 0,
+      "observed_at": "2026-11-25T06:15:44.259212+00:00",
+      "stdout": "\"disk13\" ejected.\n",
+      "stderr": ""
+    },
+    "remounted": true,
+    "volume": {
+      "device": "/dev/disk14s1",
+      "uuid": "695CBC27-A485-4602-A0B8-B0DA0D4097D0",
+      "name": "MicropodCI-4fa2f2b13c41",
+      "dev": 16777259,
+      "fs": "apfs",
+      "snapshot": false
+    },
+    "container": {
+      "device": "/dev/disk14",
+      "uuid": "350DEDCA-5808-4F4C-9112-BFCF01B3C2FF"
+    },
+    "backing": {
+      "image_device": "/dev/disk13",
+      "partition_device": "/dev/disk13s2",
+      "partition_uuid": "E5BF4BA1-4CD7-4DE6-9584-49A1405209B3"
+    },
+    "markers": {
+      "no_log": {
+        "path": "/private/tmp/mp-t-_yhq6ekk/a/.fseventsd/no_log",
+        "name": "no_log",
+        "dev": 16777259,
+        "ino": 18,
+        "mode": 33188,
+        "size": 0,
+        "mtime_ns": 1795587343970383142
+      },
+      "metadata_never_index": {
+        "path": "/private/tmp/mp-t-_yhq6ekk/a/.metadata_never_index",
+        "name": ".metadata_never_index",
+        "dev": 16777259,
+        "ino": 19,
+        "mode": 33188,
+        "size": 0,
+        "mtime_ns": 1795587343970423184
+      }
+    },
+    "fsevents": {
+      "journal": [],
+      "journal_files": 0,
+      "journal_bytes": 0,
+      "directory_present": true,
+      "identity_file": {
+        "path": "/private/tmp/mp-t-_yhq6ekk/a/.fseventsd/fseventsd-uuid",
+        "name": "fseventsd-uuid",
+        "dev": 16777259,
+        "ino": 17,
+        "mode": 33152,
+        "size": 36,
+        "mtime_ns": 1795587344070354000
+      }
+    },
+    "spotlight": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-s",
+        "-v",
+        "/private/tmp/mp-t-_yhq6ekk/a"
+      ],
+      "returncode": 0,
+      "observed_at": "2026-11-25T06:15:47.111344+00:00",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-t-_yhq6ekk/a:\n\tIndexing and searching disabled.\n",
+      "stderr": "",
+      "disabled": true
+    },
+    "observed_at": "2026-11-25T06:15:47.111377+00:00",
+    "journal_unchanged": true
+  },
+  "disk": {
+    "mount": "/private/tmp/mp-t-_yhq6ekk/a",
+    "raw_disk": "/private/tmp/mp-t-_yhq6ekk/a/worker.ext4",
+    "mount_st_dev": 16777259,
+    "raw_st_dev": 16777259,
+    "parent_st_dev": 16777232,
+    "raw_inode": 27,
+    "raw_bytes": 6576668672,
+    "configured_disk_gib": 6,
+    "volume_uuid": "695CBC27-A485-4602-A0B8-B0DA0D4097D0",
+    "device": "disk14s1",
+    "filesystem": "apfs"
+  }
+}

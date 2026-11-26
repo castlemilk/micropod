@@ -1,0 +1,8 @@
+attaching bulk streams
+warming all streams
+scoring loaded requests
+waiting for final probes
+draining bulk streams
+releasing scored leases
+checking live revocation
+stopping data owners

@@ -1,0 +1,15 @@
+{
+  "purpose": "Established socket tuples on local TCP port 8080 in the current Linux network namespace. The procedure has no congestion controller readback.",
+  "target": "linux/arm64 v8.0; static, CGO_ENABLED=0",
+  "go_version": "go1.27.2",
+  "binary": "socket-inventory",
+  "binary_sha256": "bc63f5f9c68e440a02c8ec204d812b1b81e950303529fd8782d0a580435b87c2",
+  "source_sha256": "95276207e975941b44bedc73114b37092f370f2889242d989893d4857a728d46",
+  "build_script_sha256": "c2027f335f093342feb39f5856f0820c4b9784849694a89291e90499d4dfe8da",
+  "tests_sha256": "5833ee01b7f0179f5913d2781d921965c6f71a737e1cbc42b019721ac4a9b316",
+  "repeat_build_identical": true,
+  "offline_native_parser_tests_passed": 3,
+  "negative_table_subtests": 11,
+  "VMs_started": 0,
+  "guest_runtime_verified": false
+}

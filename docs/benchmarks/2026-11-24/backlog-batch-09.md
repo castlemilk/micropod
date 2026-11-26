@@ -1,0 +1,18 @@
+# Batch nine · 24 November 2026
+
+Ten distinct comparisons, 90 cumulative after the [80-comparison milestone](https://github.com/castlemilk/micropod/issues/227#issuecomment-7121269477). The Linux host-only receipts were checked against the issue register. Their private raw files remain in the originating workspace.
+
+| Entry | Direction and change | Tier | Delivered throughput, control → candidate (MiB/s) | Verdict |
+|---|---|---|---:|---|
+| 1 | [231.07 · 512 MiB/s sender pacing cap](https://github.com/castlemilk/micropod/issues/231#issuecomment-7121343475) | Linux host-only | 1,735.7 → 511.6 | Avoid the cap for throughput. |
+| 2 | [231.08 · Fixed 2 MiB receive-buffer request](https://github.com/castlemilk/micropod/issues/231#issuecomment-7121375512) | Linux host-only | 1,513.3 → 1,547.1 | Window stalls fell, throughput was inconclusive and fresh p99 rose. |
+| 3 | [229.02 · Larger negotiated MSS](https://github.com/castlemilk/micropod/issues/229#issuecomment-7121507056) | Linux host-only | 3,453.1 → 3,447.7 | Segment count fell with no clear throughput gain. |
+| 4 | [237.06 · Lower priority for a CPU competitor](https://github.com/castlemilk/micropod/issues/237#issuecomment-7121532759) | Linux host-only | 1,491.4 → 2,445.9 | Bulk gained at the expense of fresh latency and competing work. |
+| 5 | [235.10 · Lazy preemption with BBR configured](https://github.com/castlemilk/micropod/issues/235#issuecomment-7121824190) | Archived VM, locally raw-verified | 3,659.5 → 3,896.0 | Throughput inconclusive, fresh tails lower. [Receipt](batch09-bbr-preemption/bbr-preemption.receipt.md) |
+| 6 | [234.01 · Splice on the same two-socket forwarding hop](https://github.com/castlemilk/micropod/issues/234#issuecomment-7122449797) | Linux host-only | 1,434.1 → 1,284.8 | Forwarder CPU fell by 60%, but throughput and fresh tails gave no reason to switch. |
+| 7 | [232.01 · Route only fresh requests directly to the guest](https://github.com/castlemilk/micropod/issues/232#issuecomment-7122677427) | Archived VM | 4,894.0 → 5,391.4 | Lower p99, but fresh traffic finished earlier. The bulk rates cannot establish a sustained mixed-load gain. [Receipt](batch09-transport/fresh-route-overlap.receipt.md) |
+| 8 | [239.02 · Device accepts or refuses four queue pairs](https://github.com/castlemilk/micropod/issues/239#issuecomment-7122681971) | Source/fixture | Unmeasured | Guest reported four after both responses. Verify device-side acceptance and per-queue traffic. [Receipt](batch09-virtio/mq-boot.receipt.md) |
+| 9 | [237.05 · Expand publication IRQ mask from CPU 0 to CPUs 0–3](https://github.com/castlemilk/micropod/issues/237#issuecomment-7122685742) | Archived VM | Zero clean attempts in either arm | Every observed interrupt stayed on CPU 0. Failed attempts delivered 268.0 and 9.6 → 320.1 and 3,286.5 MiB/s. [Receipt](batch09-irq-mask/irq-mask.receipt.md) |
+| 10 | [230.03 · Widen a kqueue poll from 24 to 64 events](https://github.com/castlemilk/micropod/issues/230#issuecomment-7122689272) | Archived VM | 4,603.0 → 4,148.0 | The wider poll lost 5/6 throughput pairs and missed the fresh-p95 limit twice. [Receipt](batch09-relay-next/flat-poll-width.receipt.md) |
+
+At 16:06 AEDT on 24 November Cuttlefish showed the Mac draining with 1/6 leases and isolated Linux with 1/1 leased. The project volume showed about 317 GiB free. The two project handoffs and original warm-CI inbox contained no owner-issued current baseline release or qualified baseline pointer. Effective disk clearance for the window and fixture preflight remain pending. The next live measurement is the stock four-vCPU/two-worker baseline, followed by the two-versus-four-worker comparison at fixed four vCPUs.

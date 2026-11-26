@@ -1,0 +1,4 @@
+# T3: an image that turns pip's cache off itself. The engine leaves pip alone
+# (reason disabled-by-image) and sets no PIP_CACHE_DIR.
+FROM python:3.12-alpine
+ENV PIP_NO_CACHE_DIR=1

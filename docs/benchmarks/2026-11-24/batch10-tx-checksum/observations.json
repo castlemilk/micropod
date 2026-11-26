@@ -1,0 +1,152 @@
+{
+  "archive": "docs/benchmarks/2026-11-24/tx-offload-bql-readbacks.json.gz",
+  "archive_sha256": "1ade90ef711545a7ad913c8bd8725cd7fe999dd3da985944f978cd72d0265fc0",
+  "attempts": 2,
+  "compiled_function_sha256": "dbb92a1d4bf8be0a156d9fbbf8258fc978cfd52eaee295fd48950409b62e2eb2",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "date": "2026-11-24",
+  "driver": "virtio_net",
+  "files": {
+    "drivers/net/macvlan.c": "8acd99e9496a3d7cc9c7ad7557549c85f1ae991cb2e42edb6dfc3ddaf5f81f28",
+    "drivers/net/virtio_net.c": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+    "include/linux/netdev_features.h": "023f2d45c9651d29c81451a044fa5071f0481f95cfefff70bc30766a9834d1a0",
+    "include/linux/netdevice.h": "c01410d782e5c984ee118c5f6a041fb7cc91ce5c1ee06493de92d44670fd5907",
+    "include/linux/skbuff.h": "bcc75ea787040e9073f5bd3ae70fc5da4c2f9ae40694d565369c8093b7166e5b",
+    "net/core/dev.c": "8b3c43e8becfd552ead597c2e009edf16b126924a7cbe4c5c961e74563b76274",
+    "net/ethtool/common.c": "74fe941414941ea54fcad596a29976fa038265c7868e6eb361ef0ecebd1b20ee"
+  },
+  "harness_sha256": "9a8d10a4fefdb6530c2ed3d04224a302ff33caefffadb4c2204243aa79f8ff9f",
+  "id": "231.01",
+  "linux": "7.3.5",
+  "reproducer_sha256": "963286ee5d0c06f3dad6a71622002713427dd8a1825eb66e739e96cde7c7bf04",
+  "request_delta": [
+    "-NETIF_F_HW_CSUM"
+  ],
+  "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "rows": {
+    "checksum-off": {
+      "eth1": {
+        "generic_checksum": 0,
+        "ipv4_checksum": 0,
+        "ipv4_needs_gso": 1,
+        "ipv4_tso": 0,
+        "ipv4_tso_mangleid": 0,
+        "ipv6_checksum": 0,
+        "ipv6_needs_gso": 1,
+        "ipv6_tso": 0,
+        "mask": "0080010000024821",
+        "scatter_gather": 1,
+        "software_gso": 1
+      },
+      "macvlan": {
+        "generic_checksum": 1,
+        "ipv4_checksum": 0,
+        "ipv4_needs_gso": 0,
+        "ipv4_tso": 1,
+        "ipv4_tso_mangleid": 1,
+        "ipv6_checksum": 0,
+        "ipv6_needs_gso": 0,
+        "ipv6_tso": 1,
+        "mask": "0000010e4fdf4869",
+        "scatter_gather": 1,
+        "software_gso": 1
+      }
+    },
+    "stock": {
+      "eth1": {
+        "generic_checksum": 1,
+        "ipv4_checksum": 0,
+        "ipv4_needs_gso": 0,
+        "ipv4_tso": 1,
+        "ipv4_tso_mangleid": 1,
+        "ipv6_checksum": 0,
+        "ipv6_needs_gso": 0,
+        "ipv6_tso": 1,
+        "mask": "00800100001b4829",
+        "scatter_gather": 1,
+        "software_gso": 1
+      },
+      "macvlan": {
+        "generic_checksum": 1,
+        "ipv4_checksum": 0,
+        "ipv4_needs_gso": 0,
+        "ipv4_tso": 1,
+        "ipv4_tso_mangleid": 1,
+        "ipv6_checksum": 0,
+        "ipv6_needs_gso": 0,
+        "ipv6_tso": 1,
+        "mask": "0000010e4fdf4869",
+        "scatter_gather": 1,
+        "software_gso": 1
+      }
+    }
+  },
+  "scope": "One unchanged and one checksum-disabled request. One partial-checksum TCP GSO skb per protocol, no fragments, gso_size 1448. Macvlan modeled with fixed upper requested capabilities. No kernel boot, device mutation, packet send, CPU time or delivery measurement.",
+  "stock_readbacks": {
+    "original-repeat1": {
+      "enabled_bits": [
+        "NETIF_F_GRO",
+        "NETIF_F_GRO_HW",
+        "NETIF_F_GSO",
+        "NETIF_F_GSO_ROBUST",
+        "NETIF_F_HIGHDMA",
+        "NETIF_F_HW_CSUM",
+        "NETIF_F_RXCSUM",
+        "NETIF_F_SG",
+        "NETIF_F_TSO",
+        "NETIF_F_TSO6",
+        "NETIF_F_TSO_MANGLEID"
+      ],
+      "raw_feature_sha256": "7248c6107d0e6e0123f1cd05c7c9e2db82c1721f8ca68b10a09e42eb5d6dfe4c"
+    },
+    "original-repeat2": {
+      "enabled_bits": [
+        "NETIF_F_GRO",
+        "NETIF_F_GRO_HW",
+        "NETIF_F_GSO",
+        "NETIF_F_GSO_ROBUST",
+        "NETIF_F_HIGHDMA",
+        "NETIF_F_HW_CSUM",
+        "NETIF_F_RXCSUM",
+        "NETIF_F_SG",
+        "NETIF_F_TSO",
+        "NETIF_F_TSO6",
+        "NETIF_F_TSO_MANGLEID"
+      ],
+      "raw_feature_sha256": "bdba9c64a21a47a6f420cf19bb4ac6d46b8fc4cf0531fecd1a5c6a1b7be4f3d4"
+    },
+    "original1": {
+      "enabled_bits": [
+        "NETIF_F_GRO",
+        "NETIF_F_GRO_HW",
+        "NETIF_F_GSO",
+        "NETIF_F_GSO_ROBUST",
+        "NETIF_F_HIGHDMA",
+        "NETIF_F_HW_CSUM",
+        "NETIF_F_RXCSUM",
+        "NETIF_F_SG",
+        "NETIF_F_TSO",
+        "NETIF_F_TSO6",
+        "NETIF_F_TSO_MANGLEID"
+      ],
+      "raw_feature_sha256": "098d91ab4fe9cff89fbe3dc5ad93d2916393e27799dd744a145485cc4e86875a"
+    },
+    "original2": {
+      "enabled_bits": [
+        "NETIF_F_GRO",
+        "NETIF_F_GRO_HW",
+        "NETIF_F_GSO",
+        "NETIF_F_GSO_ROBUST",
+        "NETIF_F_HIGHDMA",
+        "NETIF_F_HW_CSUM",
+        "NETIF_F_RXCSUM",
+        "NETIF_F_SG",
+        "NETIF_F_TSO",
+        "NETIF_F_TSO6",
+        "NETIF_F_TSO_MANGLEID"
+      ],
+      "raw_feature_sha256": "2d34841df226a9bcf2868f71b281191733ae9bd0b9adafa686aeea8da4fda469"
+    }
+  },
+  "tier": "source/fixture"
+}

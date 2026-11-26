@@ -1,0 +1,4 @@
+Preparing the CI disk at /tmp/mp-t-qguq2c7w/a/worker.ext4
+Worker kernel: /Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T192542Z-cny_trn8/full-16k/Image
+using ghcr.io/apple/containerization/vminit:0.47.0; micropod's sandbox is built for vminit 0.42.0
+micropod ci: Guest container engine did not become ready after boot

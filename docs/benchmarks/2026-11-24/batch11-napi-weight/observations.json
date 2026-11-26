@@ -1,0 +1,43 @@
+{
+  "kernel": "Linux 7.3.5",
+  "virtio_net_sha256": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+  "net_core_sha256": "8b3c43e8becfd552ead597c2e009edf16b126924a7cbe4c5c961e74563b76274",
+  "tx_skb_bytes": 16384,
+  "rx_buffer_bytes": 128,
+  "arms": [
+    {
+      "weight": 64,
+      "polls": [
+        {
+          "poll": 1,
+          "tx_completed": 96,
+          "tx_bytes_completed": 1572864,
+          "rx_processed": 64,
+          "rx_remaining": 32,
+          "tx_done_before_first_rx": 96
+        },
+        {
+          "poll": 2,
+          "tx_completed": 0,
+          "tx_bytes_completed": 0,
+          "rx_processed": 32,
+          "rx_remaining": 0,
+          "tx_done_before_first_rx": 96
+        }
+      ]
+    },
+    {
+      "weight": 128,
+      "polls": [
+        {
+          "poll": 1,
+          "tx_completed": 96,
+          "tx_bytes_completed": 1572864,
+          "rx_processed": 96,
+          "rx_remaining": 0,
+          "tx_done_before_first_rx": 96
+        }
+      ]
+    }
+  ]
+}

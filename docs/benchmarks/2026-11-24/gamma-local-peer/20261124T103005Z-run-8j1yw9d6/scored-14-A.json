@@ -1,0 +1,211 @@
+{
+  "arm": "A",
+  "pair": 14,
+  "phase": "scored",
+  "clean": true,
+  "fresh_failed": 0,
+  "fixed_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+  "idle_observations": [
+    {
+      "elapsed_seconds": 1.0054063750012574,
+      "idle_pct": 89.31,
+      "paired_idle_gap_pp": 1.9699999999999989,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 3.0158572920008737,
+      "idle_pct": 88.92,
+      "paired_idle_gap_pp": 2.3599999999999994,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 5.02509637500043,
+      "idle_pct": 93.79,
+      "paired_idle_gap_pp": 2.510000000000005,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 7.04603062500064,
+      "idle_pct": 90.23,
+      "paired_idle_gap_pp": 1.0499999999999972,
+      "eligible": true
+    }
+  ],
+  "idle_pct": 90.23,
+  "paired_idle_gap_pp": 1.0499999999999972,
+  "idle_gate_passed": true,
+  "guard_before_ns": 1795516603431725000,
+  "before": {
+    "epoch_ns": 1795516603436415000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 78350,
+        "birth_ticks": 331285323789,
+        "user_ticks": 4510119332,
+        "system_ticks": 2103827166,
+        "runnable_ticks": 7487082189,
+        "background_ticks": 2626,
+        "utility_ticks": 2109,
+        "default_ticks": 31769,
+        "initiated_ticks": 3215,
+        "interactive_ticks": 1232572,
+        "instructions": 1750704052150,
+        "cycles": 1133458506817
+      },
+      {
+        "pid": 78346,
+        "birth_ticks": 331279528689,
+        "user_ticks": 62493477,
+        "system_ticks": 3927497289,
+        "runnable_ticks": 4688563506,
+        "background_ticks": 0,
+        "utility_ticks": 3989878934,
+        "default_ticks": 27026,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 747319945539,
+        "cycles": 700908130858
+      }
+    ]
+  },
+  "client_arguments": [
+    "http://127.0.0.1:64715",
+    "mp-t-2isnhr80-a"
+  ],
+  "client_spawn_start_ns": 1795516603437123000,
+  "client_reaped_ns": 1795516609512139000,
+  "exit_code": 0,
+  "stdout": "{\"arrivals\":240,\"bulk_body_bytes\":{\"warmup\":{\"bytes\":271185760,\"per_stream_bytes\":[8388608,8388608,8388608,8388608,8388608,8388608,9339016,8388608,8388608,8650608,8552208,8388608,8388608,8617368,8388608,8388608,8388608,8388608,8388608,8388608,8388608,9174896,8388608,8388608,8388608,8388608,8388608,8388608,8747856,8388608,8388608,8388608]},\"scored\":{\"bytes\":50534125832,\"per_stream_bytes\":[1580203888,1574433712,1579111816,1577320304,1581250960,1574348224,1580804512,1579153800,1579415952,1587018272,1578729560,1582560176,1576008080,1578664400,1579592600,1579155304,1579155312,1578368880,1578631024,1578325376,1574174576,1580464672,1578106736,1584920976,1580464528,1575829744,1581494280,1577011656,1585087664,1577058304,1577056656,1580203888]},\"drain\":{\"bytes\":155482008,\"per_stream_bytes\":[5243024,2624592,6335096,8126608,4195952,2710080,3691992,6293112,6030960,6555248,6553752,2886736,1050224,6553752,5854312,6291608,6291600,7078032,6815888,7121536,2883728,4195952,7340176,525936,4982384,1228560,3952632,46648,8388608,8388608,1648,5243024]},\"invocation\":{\"bytes\":50960793600,\"per_stream_bytes\":[1593835520,1585446912,1593835520,1593835520,1593835520,1585446912,1593835520,1593835520,1593835520,1602224128,1593835520,1593835520,1585446912,1593835520,1593835520,1593835520,1593835520,1593835520,1593835520,1593835520,1585446912,1593835520,1593835520,1593835520,1593835520,1585446912,1593835520,1585446912,1602224128,1593835520,1585446912,1593835520]}},\"bytes\":50534125832,\"dispatch_max_us\":297,\"dispatch_p95_us\":177,\"errors\":null,\"fresh_p50_us\":6473,\"fresh_p95_us\":9846,\"fresh_p99_us\":13373,\"mib_s\":8032.166027428825,\"per_stream_bytes\":[1580203888,1574433712,1579111816,1577320304,1581250960,1574348224,1580804512,1579153800,1579415952,1587018272,1578729560,1582560176,1576008080,1578664400,1579592600,1579155304,1579155312,1578368880,1578631024,1578325376,1574174576,1580464672,1578106736,1584920976,1580464528,1575829744,1581494280,1577011656,1585087664,1577058304,1577056656,1580203888],\"period_us\":25000,\"published_ports\":1,\"reopened\":0,\"streams\":32,\"window_s\":6.000012667}\n",
+  "stderr": "",
+  "after": {
+    "epoch_ns": 1795516609514718000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 78350,
+        "birth_ticks": 331285323789,
+        "user_ticks": 4770216790,
+        "system_ticks": 2229313538,
+        "runnable_ticks": 7924029313,
+        "background_ticks": 2626,
+        "utility_ticks": 2109,
+        "default_ticks": 31769,
+        "initiated_ticks": 3215,
+        "interactive_ticks": 1232572,
+        "instructions": 1856292028858,
+        "cycles": 1201572428211
+      },
+      {
+        "pid": 78346,
+        "birth_ticks": 331279528689,
+        "user_ticks": 65860920,
+        "system_ticks": 4172897899,
+        "runnable_ticks": 4980221215,
+        "background_ticks": 0,
+        "utility_ticks": 4238646987,
+        "default_ticks": 27026,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 793996758315,
+        "cycles": 744813007738
+      }
+    ]
+  },
+  "host": {
+    "vmm": {
+      "cpu_s": 16.065992916666666,
+      "runnable_s": 18.206130166666664,
+      "wait_s": 2.14013725,
+      "sample_seconds": 6.078303,
+      "cpu_s_per_gib": 0.34136790247569637,
+      "runnable_s_per_s": 2.9952653177485007,
+      "wait_s_per_s": 0.3520945319770995,
+      "mean_host_cores": 2.6431707857714013,
+      "instructions_per_byte": 2.089439066563173,
+      "cycles_per_byte": 1.347879680761547,
+      "instructions_per_cycle": 1.5501673453394949,
+      "invocation_cpu_s_per_bulk_gib": 0.3385098096021948,
+      "invocation_instructions_per_bulk_byte": 2.0719452985127766,
+      "invocation_cycles_per_bulk_byte": 1.336594597184609
+    },
+    "relay": {
+      "cpu_s": 10.365335541666665,
+      "runnable_s": 12.152404541666666,
+      "wait_s": 1.7870689999999998,
+      "sample_seconds": 6.078303,
+      "cpu_s_per_gib": 0.22024115600380043,
+      "runnable_s_per_s": 1.9993087777405414,
+      "wait_s_per_s": 0.2940078834503643,
+      "mean_host_cores": 1.7053008942901768,
+      "instructions_per_byte": 0.9236691445138759,
+      "cycles_per_byte": 0.8688163920349815,
+      "instructions_per_cycle": 1.0631350340322376,
+      "invocation_cpu_s_per_bulk_gib": 0.21839719330589846,
+      "invocation_instructions_per_bulk_byte": 0.9159357513616114,
+      "invocation_cycles_per_bulk_byte": 0.8615422519636743
+    }
+  },
+  "fresh_p50_us": 6473,
+  "bulk_streams_with_bytes": 32,
+  "mib_s": 8032.166027428825,
+  "fresh_p95_us": 9846,
+  "fresh_p99_us": 13373,
+  "arrivals": 240,
+  "reopened": 0,
+  "guard_after_ns": 1795516609525476000,
+  "interfaces_before": {
+    "eth0": {
+      "addr": "[10.88.0.2/16 fe80::20af:ddff:fe77:8b86/64]",
+      "mac": "22:af:dd:77:8b:86",
+      "rx_bytes": 1026,
+      "rx_dropped": 0,
+      "tx_bytes": 892,
+      "tx_dropped": 0
+    },
+    "lo": {
+      "addr": "[127.0.0.1/8 ::1/128]",
+      "mac": "",
+      "rx_bytes": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_dropped": 0
+    },
+    "mppub0": {
+      "addr": "[]",
+      "mac": "ca:51:20:cf:73:27",
+      "rx_bytes": 888933442,
+      "rx_dropped": 0,
+      "tx_bytes": 812332611732,
+      "tx_dropped": 0
+    }
+  },
+  "interfaces_after": {
+    "eth0": {
+      "addr": "[10.88.0.2/16 fe80::20af:ddff:fe77:8b86/64]",
+      "mac": "22:af:dd:77:8b:86",
+      "rx_bytes": 1026,
+      "rx_dropped": 0,
+      "tx_bytes": 892,
+      "tx_dropped": 0
+    },
+    "lo": {
+      "addr": "[127.0.0.1/8 ::1/128]",
+      "mac": "",
+      "rx_bytes": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_dropped": 0
+    },
+    "mppub0": {
+      "addr": "[]",
+      "mac": "ca:51:20:cf:73:27",
+      "rx_bytes": 944022584,
+      "rx_dropped": 0,
+      "tx_bytes": 863357111344,
+      "tx_dropped": 0
+    }
+  }
+}

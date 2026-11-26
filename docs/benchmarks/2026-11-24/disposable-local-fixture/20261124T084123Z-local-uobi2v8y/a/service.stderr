@@ -1,0 +1,148 @@
+Preparing the CI disk at /tmp/mp-t-71e27t1_/a/worker.ext4
+Worker kernel: /Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image
+using ghcr.io/apple/containerization/vminit:0.47.0; micropod's sandbox is built for vminit 0.42.0
+time="2026-11-24T08:41:24Z" level=warning msg="Configuration migrated from version 3, use `containerd config migrate` to avoid migration" t="4.709µs"
+time="2026-11-24T08:41:24.720808041Z" level=info msg="starting containerd" revision=b7a25261e029d68978bbf290df0a62fc819b3c51 version=v2.4.2
+time="2026-11-24T08:41:24.721091291Z" level=info msg="loading plugin" id=io.containerd.content.v1.content type=io.containerd.content.v1
+time="2026-11-24T08:41:24.721178375Z" level=warning msg="failed check for fsverity support" error="enable fsverity failed: operation not supported" path=/var/lib/containerd/io.containerd.content.v1.content
+time="2026-11-24T08:41:24.721186791Z" level=info msg="loading plugin" id=io.containerd.image-verifier.v1.bindir type=io.containerd.image-verifier.v1
+time="2026-11-24T08:41:24.721190125Z" level=info msg="loading plugin" id=io.containerd.internal.v1.opt type=io.containerd.internal.v1
+time="2026-11-24T08:41:24.721220958Z" level=info msg="loading plugin" id=io.containerd.warning.v1.deprecations type=io.containerd.warning.v1
+time="2026-11-24T08:41:24.721224666Z" level=info msg="loading plugin" id=io.containerd.event.v1.exchange type=io.containerd.event.v1
+time="2026-11-24T08:41:24.721552958Z" level=info msg="loading plugin" id=io.containerd.mount-handler.v1.erofs type=io.containerd.mount-handler.v1
+time="2026-11-24T08:41:24.721562166Z" level=info msg="loading plugin" id=io.containerd.snapshotter.v1.blockfile type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721578791Z" level=info msg="skip loading plugin" error="no scratch file generator: skip plugin" id=io.containerd.snapshotter.v1.blockfile type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721584291Z" level=info msg="loading plugin" id=io.containerd.snapshotter.v1.devmapper type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721588000Z" level=info msg="skip loading plugin" error="devmapper not configured: skip plugin" id=io.containerd.snapshotter.v1.devmapper type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721589583Z" level=info msg="loading plugin" id=io.containerd.snapshotter.v1.native type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721604500Z" level=info msg="loading plugin" id=io.containerd.snapshotter.v1.overlayfs type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721687000Z" level=info msg="loading plugin" id=io.containerd.snapshotter.v1.zfs type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721699666Z" level=info msg="skip loading plugin" error="lstat /var/lib/containerd/io.containerd.snapshotter.v1.zfs: no such file or directory: skip plugin" id=io.containerd.snapshotter.v1.zfs type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.721702708Z" level=info msg="loading plugin" id=io.containerd.monitor.task.v1.cgroups type=io.containerd.monitor.task.v1
+time="2026-11-24T08:41:24.722286750Z" level=info msg="loading plugin" id=io.containerd.snapshotter.v1.erofs type=io.containerd.snapshotter.v1
+time="2026-11-24T08:41:24.722353166Z" level=info msg="loading plugin" id=io.containerd.metadata.v1.bolt type=io.containerd.metadata.v1
+time="2026-11-24T08:41:24.722367083Z" level=info msg="metadata content store policy set" policy=shared
+time="2026-11-24T08:41:24.724082458Z" level=info msg="loading plugin" id=io.containerd.gc.v1.scheduler type=io.containerd.gc.v1
+time="2026-11-24T08:41:24.724100250Z" level=info msg="loading plugin" id=io.containerd.server.v1.metrics type=io.containerd.server.v1
+time="2026-11-24T08:41:24.724103833Z" level=info msg="skip loading plugin" error="skip plugin" id=io.containerd.server.v1.metrics type=io.containerd.server.v1
+time="2026-11-24T08:41:24.724105583Z" level=info msg="loading plugin" id=io.containerd.tracing.processor.v1.otlp type=io.containerd.tracing.processor.v1
+time="2026-11-24T08:41:24.724109000Z" level=info msg="skip loading plugin" error="skip plugin: tracing endpoint not configured" id=io.containerd.tracing.processor.v1.otlp type=io.containerd.tracing.processor.v1
+time="2026-11-24T08:41:24.724116958Z" level=info msg="loading plugin" id=io.containerd.internal.v1.tracing type=io.containerd.internal.v1
+time="2026-11-24T08:41:24.724119291Z" level=info msg="skip loading plugin" error="skip plugin: tracing endpoint not configured" id=io.containerd.internal.v1.tracing type=io.containerd.internal.v1
+time="2026-11-24T08:41:24.724121500Z" level=info msg="loading plugin" id=io.containerd.nri.v1.nri type=io.containerd.nri.v1
+time="2026-11-24T08:41:24.724177000Z" level=info msg="built-in NRI default validator is disabled"
+time="2026-11-24T08:41:24.724182833Z" level=info msg="runtime interface created"
+time="2026-11-24T08:41:24.724184000Z" level=info msg="created NRI interface"
+time="2026-11-24T08:41:24.724185458Z" level=info msg="loading plugin" id=io.containerd.ttrpc.v1.otelttrpc type=io.containerd.ttrpc.v1
+time="2026-11-24T08:41:24.724187333Z" level=info msg="loading plugin" id=io.containerd.service.v1.containers-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724190583Z" level=info msg="loading plugin" id=io.containerd.service.v1.content-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724192875Z" level=info msg="loading plugin" id=io.containerd.differ.v1.erofs type=io.containerd.differ.v1
+time="2026-11-24T08:41:24.724371666Z" level=info msg="skip loading plugin" error="failed to check mkfs.erofs availability: failed to run mkfs.erofs --help: exec: \"mkfs.erofs\": executable file not found in $PATH: skip plugin" id=io.containerd.differ.v1.erofs type=io.containerd.differ.v1
+time="2026-11-24T08:41:24.724381625Z" level=info msg="loading plugin" id=io.containerd.mount-manager.v1.bolt type=io.containerd.mount-manager.v1
+time="2026-11-24T08:41:24.724438458Z" level=info msg="loading plugin" id=io.containerd.differ.v1.walking type=io.containerd.differ.v1
+time="2026-11-24T08:41:24.724446166Z" level=info msg="loading plugin" id=io.containerd.service.v1.diff-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724449500Z" level=info msg="loading plugin" id=io.containerd.service.v1.images-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724452583Z" level=info msg="loading plugin" id=io.containerd.service.v1.introspection-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724455250Z" level=info msg="loading plugin" id=io.containerd.service.v1.namespaces-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724473416Z" level=info msg="loading plugin" id=io.containerd.service.v1.snapshots-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724482250Z" level=info msg="loading plugin" id=io.containerd.shim.v1.manager type=io.containerd.shim.v1
+time="2026-11-24T08:41:24.724490500Z" level=info msg="loading plugin" id=io.containerd.runtime.v2.task type=io.containerd.runtime.v2
+time="2026-11-24T08:41:24.724525791Z" level=info msg="loading plugin" id=io.containerd.service.v1.tasks-service type=io.containerd.service.v1
+time="2026-11-24T08:41:24.724536291Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.containers type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724539833Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.content type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724542083Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.diff type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724544666Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.events type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724549500Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.images type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724552500Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.introspection type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724554500Z" level=info msg="loading plugin" id=io.containerd.lease.v1.manager type=io.containerd.lease.v1
+time="2026-11-24T08:41:24.724557000Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.leases type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724562083Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.mounts type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724564041Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.namespaces type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.724566666Z" level=info msg="loading plugin" id=io.containerd.sandbox.store.v1.local type=io.containerd.sandbox.store.v1
+time="2026-11-24T08:41:24.724568666Z" level=info msg="loading plugin" id=io.containerd.transfer.v1.local type=io.containerd.transfer.v1
+time="2026-11-24T08:41:24.724584791Z" level=info msg="loading plugin" id=io.containerd.cri.v1.images type=io.containerd.cri.v1
+time="2026-11-24T08:41:24.724883791Z" level=info msg="Get image filesystem path \"/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs\" for snapshotter \"overlayfs\""
+time="2026-11-24T08:41:24.724892291Z" level=info msg="Start snapshots syncer"
+time="2026-11-24T08:41:24.725093625Z" level=info msg="loading plugin" id=io.containerd.cri.v1.runtime type=io.containerd.cri.v1
+time="2026-11-24T08:41:24.726451166Z" level=info msg="starting cri plugin" config="{\"containerd\":{\"defaultRuntimeName\":\"crun\",\"runtimes\":{\"crun\":{\"runtimeType\":\"io.containerd.runc.v2\",\"runtimePath\":\"\",\"PodAnnotations\":null,\"ContainerAnnotations\":null,\"options\":{\"BinaryName\":\"/opt/micropod-oci/crun-1.31-arm64\"},\"privileged_without_host_devices\":false,\"privileged_without_host_devices_all_devices_allowed\":false,\"cgroupWritable\":false,\"baseRuntimeSpec\":\"\",\"cniConfDir\":\"\",\"cniMaxConfNum\":0,\"snapshotter\":\"\",\"sandboxer\":\"podsandbox\",\"disablePauseImagePull\":false,\"io_type\":\"\"},\"kata\":{\"runtimeType\":\"io.containerd.kata.v2\",\"runtimePath\":\"\",\"PodAnnotations\":[],\"ContainerAnnotations\":null,\"options\":null,\"privileged_without_host_devices\":true,\"privileged_without_host_devices_all_devices_allowed\":false,\"cgroupWritable\":false,\"baseRuntimeSpec\":\"\",\"cniConfDir\":\"/etc/cni/micropod-private\",\"cniMaxConfNum\":0,\"snapshotter\":\"\",\"sandboxer\":\"podsandbox\",\"disablePauseImagePull\":false,\"io_type\":\"\"},\"runc\":{\"runtimeType\":\"io.containerd.runc.v2\",\"runtimePath\":\"\",\"PodAnnotations\":null,\"ContainerAnnotations\":null,\"options\":{\"BinaryName\":\"\",\"CriuImagePath\":\"\",\"CriuWorkPath\":\"\",\"IoGid\":0,\"IoUid\":0,\"NoNewKeyring\":false,\"Root\":\"\",\"ShimCgroup\":\"\",\"SystemdCgroup\":false},\"privileged_without_host_devices\":false,\"privileged_without_host_devices_all_devices_allowed\":false,\"cgroupWritable\":false,\"baseRuntimeSpec\":\"\",\"cniConfDir\":\"\",\"cniMaxConfNum\":0,\"snapshotter\":\"\",\"sandboxer\":\"podsandbox\",\"disablePauseImagePull\":false,\"io_type\":\"\"}},\"ignoreBlockIONotEnabledErrors\":false,\"ignoreRdtNotEnabledErrors\":false},\"cni\":{\"binDirs\":[\"/opt/micropod-oci/runner/cni\"],\"confDir\":\"/etc/cni/net.d\",\"maxConfNum\":1,\"setupSerially\":false,\"confTemplate\":\"\",\"ipPref\":\"\",\"useInternalLoopback\":false},\"enableSelinux\":false,\"selinuxCategoryRange\":1024,\"maxContainerLogLineSize\":16384,\"disableApparmor\":false,\"restrictOOMScoreAdj\":false,\"disableProcMount\":false,\"unsetSeccompProfile\":\"\",\"tolerateMissingHugetlbController\":true,\"disableHugetlbController\":true,\"device_ownership_from_security_context\":false,\"ignoreImageDefinedVolumes\":false,\"netnsMountsUnderStateDir\":false,\"enableUnprivilegedPorts\":true,\"enableUnprivilegedICMP\":true,\"cdiSpecDirs\":[\"/etc/cdi\",\"/var/run/cdi\"],\"drainExecSyncIOTimeout\":\"0s\",\"ignoreDeprecationWarnings\":null,\"statsCollectPeriod\":\"\",\"statsRetentionPeriod\":\"\",\"enableCRIU\":true,\"containerdRootDir\":\"/var/lib/containerd\",\"containerdEndpoint\":\"/run/containerd/containerd.sock\",\"rootDir\":\"/var/lib/containerd/io.containerd.grpc.v1.cri\",\"stateDir\":\"/run/containerd/io.containerd.grpc.v1.cri\"}"
+time="2026-11-24T08:41:24.726473833Z" level=info msg="loading plugin" id=io.containerd.podsandbox.controller.v1.podsandbox type=io.containerd.podsandbox.controller.v1
+time="2026-11-24T08:41:24.726680333Z" level=info msg="loading plugin" id=io.containerd.sandbox.controller.v1.shim type=io.containerd.sandbox.controller.v1
+time="2026-11-24T08:41:24.726701416Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.sandbox-controllers type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726713750Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.sandboxes type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726716041Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.snapshots type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726717958Z" level=info msg="loading plugin" id=io.containerd.streaming.v1.manager type=io.containerd.streaming.v1
+time="2026-11-24T08:41:24.726720583Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.streaming type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726722833Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.tasks type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726724916Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.transfer type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726728541Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.version type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726733166Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.healthcheck type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726735333Z" level=info msg="loading plugin" id=io.containerd.grpc.v1.cri type=io.containerd.grpc.v1
+time="2026-11-24T08:41:24.726739500Z" level=info msg="Connect containerd service"
+time="2026-11-24T08:41:24.726747166Z" level=info msg="using experimental NRI integration - disable nri plugin to prevent this"
+time="2026-11-24T08:41:24.757454583Z" level=info msg="loading plugin" id=io.containerd.server.v1.ttrpc type=io.containerd.server.v1
+time="2026-11-24T08:41:24.757485166Z" level=info msg="loading plugin" id=io.containerd.monitor.container.v1.restart type=io.containerd.monitor.container.v1
+time="2026-11-24T08:41:24.757513916Z" level=info msg="loading plugin" id=io.containerd.metrics.v1.grpc-prometheus type=io.containerd.metrics.v1
+time="2026-11-24T08:41:24.757530708Z" level=info msg="loading plugin" id=io.containerd.metrics.v1.grpc-otel type=io.containerd.metrics.v1
+time="2026-11-24T08:41:24.757540541Z" level=info msg="loading plugin" id=io.containerd.server.v1.grpc type=io.containerd.server.v1
+time="2026-11-24T08:41:24.757547083Z" level=info msg="Start subscribing containerd event"
+time="2026-11-24T08:41:24.757587791Z" level=info msg="Start stats collector"
+time="2026-11-24T08:41:24.757594333Z" level=info msg="Start recovering state"
+time="2026-11-24T08:41:24.758153541Z" level=info msg="Start event monitor"
+time="2026-11-24T08:41:24.758562166Z" level=info msg="Start cni network conf syncer for default"
+time="2026-11-24T08:41:24.758565333Z" level=info msg="Start cni network conf syncer for kata"
+time="2026-11-24T08:41:24.758589083Z" level=info msg="Start streaming server"
+time="2026-11-24T08:41:24.758616583Z" level=info msg="Registered namespace \"k8s.io\" with NRI"
+time="2026-11-24T08:41:24.758619708Z" level=info msg="runtime interface starting up..."
+time="2026-11-24T08:41:24.758622083Z" level=info msg="starting plugins..."
+time="2026-11-24T08:41:24.758630000Z" level=info msg="Synchronizing NRI (plugin) with current runtime state"
+time="2026-11-24T08:41:24.761084208Z" level=info msg="loading plugin" id=io.containerd.server.v1.grpc-tcp type=io.containerd.server.v1
+time="2026-11-24T08:41:24.761092625Z" level=info msg="skip loading plugin" error="skip plugin" id=io.containerd.server.v1.grpc-tcp type=io.containerd.server.v1
+time="2026-11-24T08:41:24.761157666Z" level=info msg="loading plugin" id=io.containerd.http.v1.pprof type=io.containerd.http.v1
+time="2026-11-24T08:41:24.761572041Z" level=info msg="loading plugin" id=io.containerd.server.v1.debug type=io.containerd.server.v1
+time="2026-11-24T08:41:24.761588208Z" level=info msg="skip loading plugin" error="skip plugin" id=io.containerd.server.v1.debug type=io.containerd.server.v1
+time="2026-11-24T08:41:24.761627625Z" level=info msg=serving... address=/run/containerd/containerd.sock.ttrpc
+time="2026-11-24T08:41:24.761640666Z" level=info msg="starting GRPC server" address=/run/containerd/containerd.sock gid=0 uid=0
+time="2026-11-24T08:41:24.761656250Z" level=info msg=serving... address=/run/containerd/containerd.sock
+time="2026-11-24T08:41:24.761663750Z" level=info msg="containerd successfully booted in 0.042235s"
+micropod OCI listening on /var/lib/micropod/oci.sock
+time="2026-11-24T08:41:26.114696417Z" level=info msg="ImageCreate event name:\"registry.k8s.io/pause:3.10.2\""
+time="2026-11-24T08:41:26.117507792Z" level=info msg="ImageCreate event name:\"import-2026-11-24@sha256:a433214620b407678934ebd69690a9ed6066247231eacfba181fab20dbc3dbf1\""
+time="2026-11-24T08:41:26.118819542Z" level=info msg="ImageCreate event name:\"sha256:3884a337192318652b28de0de1aeb07f446a14f220feb5066f03e93f23ea3b60\"  labels:{key:\"io.cri-containerd.image\"  value:\"managed\"}  labels:{key:\"io.cri-containerd.pinned\"  value:\"pinned\"}"
+time="2026-11-24T08:41:26.118950375Z" level=info msg="ImageUpdate event name:\"registry.k8s.io/pause:3.10.2\"  labels:{key:\"io.cri-containerd.image\"  value:\"managed\"}  labels:{key:\"io.cri-containerd.pinned\"  value:\"pinned\"}"
+time="2026-11-24T08:41:26.119063917Z" level=info msg="ImageUpdate event name:\"import-2026-11-24@sha256:a433214620b407678934ebd69690a9ed6066247231eacfba181fab20dbc3dbf1\"  labels:{key:\"io.cri-containerd.image\"  value:\"managed\"}"
+time="2026-11-24T08:41:26.416492250Z" level=info msg="ImageCreate event name:\"docker.io/micropod-qa/netbench:local\""
+time="2026-11-24T08:41:26.418066584Z" level=info msg="ImageCreate event name:\"sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889\"  labels:{key:\"io.cri-containerd.image\"  value:\"managed\"}"
+time="2026-11-24T08:41:26.418137084Z" level=info msg="ImageCreate event name:\"import-2026-11-24@sha256:43c8761c8d7d97587c47c1b2a8f87941c24d919cb89b1d9268592dbc4025e93f\""
+time="2026-11-24T08:41:26.418611625Z" level=info msg="ImageUpdate event name:\"docker.io/micropod-qa/netbench:local\"  labels:{key:\"io.cri-containerd.image\"  value:\"managed\"}"
+time="2026-11-24T08:41:26.418671209Z" level=info msg="ImageUpdate event name:\"import-2026-11-24@sha256:43c8761c8d7d97587c47c1b2a8f87941c24d919cb89b1d9268592dbc4025e93f\"  labels:{key:\"io.cri-containerd.image\"  value:\"managed\"}"
+time="2026-11-24T08:41:26.692128876Z" level=info msg="RunPodSandbox for name:\"mp-4c18b71c42c32d2eadad88ff927e801f\"  uid:\"4c18b71c42c32d2eadad88ff927e801f\"  namespace:\"micropod-ci\""
+time="2026-11-24T08:41:26.733845084Z" level=info msg="connecting to shim 4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941" address="unix:///run/containerd/s/ad52d403f91316229db99221204c4261b1bcfaae9f17b7bbd24b1a3d2021d2fe" namespace=k8s.io protocol=ttrpc version=3
+time="2026-11-24T08:41:26.750769792Z" level=info msg="RunPodSandbox for name:\"mp-4c18b71c42c32d2eadad88ff927e801f\"  uid:\"4c18b71c42c32d2eadad88ff927e801f\"  namespace:\"micropod-ci\" returns sandbox id \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\""
+time="2026-11-24T08:41:26.757618584Z" level=info msg="CreateContainer within sandbox \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\" for container name:\"job\""
+time="2026-11-24T08:41:26.761375626Z" level=info msg="CreateContainer within sandbox \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\" for name:\"job\" returns container id \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\""
+time="2026-11-24T08:41:26.761554709Z" level=info msg="StartContainer for \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\""
+time="2026-11-24T08:41:26.762236709Z" level=info msg="connecting to shim 7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b" address="unix:///run/containerd/s/ad52d403f91316229db99221204c4261b1bcfaae9f17b7bbd24b1a3d2021d2fe" protocol=ttrpc version=3
+time="2026-11-24T08:41:26.773335751Z" level=info msg="StartContainer for \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\" returns successfully"
+time="2026-11-24T08:41:28.904480502Z" level=info msg="StopContainer for \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\" with timeout 0 (s)"
+time="2026-11-24T08:41:28.904767543Z" level=info msg="Kill container \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\""
+time="2026-11-24T08:41:28.916554252Z" level=info msg="received container exit event container_id:\"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\"  id:\"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\"  pid:256  exit_status:137  exited_at:{seconds:1795509688  nanos:916286543}"
+time="2026-11-24T08:41:28.944070960Z" level=info msg="shim disconnected" id=7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b
+time="2026-11-24T08:41:28.944089752Z" level=info msg="cleaning up after shim disconnected" id=7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b
+time="2026-11-24T08:41:28.944092210Z" level=info msg="cleaning up dead shim" id=7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b
+time="2026-11-24T08:41:28.962172210Z" level=info msg="StopContainer for \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\" returns successfully"
+micropod: published TCP port 57262 retried 12 guest handshakes, recovered 1
+time="2026-11-24T08:41:29.151547960Z" level=info msg="StopPodSandbox for \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\""
+time="2026-11-24T08:41:29.151596877Z" level=info msg="Container to stop \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\" must be in running or unknown state, current state \"CONTAINER_EXITED\""
+time="2026-11-24T08:41:29.157802502Z" level=info msg="received sandbox exit event container_id:\"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\"  id:\"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\"  exit_status:137  exited_at:{seconds:1795509689  nanos:157618127}" monitor_name=podsandbox
+time="2026-11-24T08:41:29.169913168Z" level=info msg="shim disconnected" id=4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941 namespace=k8s.io
+time="2026-11-24T08:41:29.170061460Z" level=info msg="cleaning up after shim disconnected" id=4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941 namespace=k8s.io
+time="2026-11-24T08:41:29.170070960Z" level=info msg="cleaning up dead shim" id=4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941 namespace=k8s.io
+time="2026-11-24T08:41:29.195576543Z" level=info msg="received sandbox container exit event sandbox_id:\"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\"  exit_status:137  exited_at:{seconds:1795509689  nanos:157618127}" monitor_name=criService
+time="2026-11-24T08:41:29.228252293Z" level=info msg="TearDown network for sandbox \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\" successfully"
+time="2026-11-24T08:41:29.228275335Z" level=info msg="StopPodSandbox for \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\" returns successfully"
+time="2026-11-24T08:41:29.228585293Z" level=info msg="RemovePodSandbox for \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\""
+time="2026-11-24T08:41:29.228594835Z" level=info msg="Forcibly stopping sandbox \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\""
+time="2026-11-24T08:41:29.228613960Z" level=info msg="Container to stop \"7ff1e47366d190b6d278341928868eb82faba16b9c9cdcfba22a7e83772ba73b\" must be in running or unknown state, current state \"CONTAINER_EXITED\""
+time="2026-11-24T08:41:29.236702377Z" level=info msg="TearDown network for sandbox \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\" successfully"
+time="2026-11-24T08:41:29.238098460Z" level=info msg="Ensure that sandbox 4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941 in task-service has been cleanup successfully"
+time="2026-11-24T08:41:29.238888210Z" level=info msg="RemovePodSandbox \"4c032d53cc468d7c5a68af4ce4bd771af868233cdd108cc42a8b247d36545941\" returns successfully"

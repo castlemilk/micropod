@@ -1,0 +1,184 @@
+{
+  "mount": "/private/tmp/mp-t-esqg5rgu/b",
+  "image": "/private/tmp/mp-t-esqg5rgu/b-worker.sparseimage",
+  "mounted": false,
+  "image_exists": false,
+  "result": {
+    "schema": "micropod-worker-apfs-v1",
+    "image": "/private/tmp/mp-t-esqg5rgu/b-worker.sparseimage",
+    "mount": "/private/tmp/mp-t-esqg5rgu/b",
+    "image_identity": {
+      "dev": 16777232,
+      "ino": 1226408986,
+      "format": "SPRS"
+    },
+    "volume": {
+      "device": "/dev/disk16s1",
+      "uuid": "65B71AF4-F6C3-4B90-A6AD-0C7691F3F6FB",
+      "name": "MicropodCI-e43704750c91",
+      "dev": 16777264,
+      "fs": "apfs",
+      "snapshot": false
+    },
+    "container": {
+      "device": "/dev/disk16",
+      "uuid": "F5D882B4-06F7-415E-98E6-88E147FDEC04"
+    },
+    "backing": {
+      "image_device": "/dev/disk15",
+      "partition_device": "/dev/disk15s2",
+      "partition_uuid": "6C28BC08-7DDB-4189-B92F-BC543CE666CC"
+    },
+    "detach": {
+      "argv": [
+        "/usr/bin/hdiutil",
+        "detach",
+        "/dev/disk15"
+      ],
+      "returncode": 0,
+      "observed_at": "2026-11-25T05:36:47.929192+00:00",
+      "stdout": "\"disk15\" ejected.\n",
+      "stderr": ""
+    },
+    "detached": true,
+    "image_absent": true,
+    "removed_image": true,
+    "mountpoint_identity": {
+      "dev": 16777232,
+      "ino": 1226408982
+    },
+    "mount_restored": true,
+    "observed_at": "2026-11-25T05:36:52.370087+00:00",
+    "persisted_policy": {
+      "volume": {
+        "device": "/dev/disk16s1",
+        "uuid": "65B71AF4-F6C3-4B90-A6AD-0C7691F3F6FB",
+        "name": "MicropodCI-e43704750c91",
+        "dev": 16777264,
+        "fs": "apfs",
+        "snapshot": false
+      },
+      "container": {
+        "device": "/dev/disk16",
+        "uuid": "F5D882B4-06F7-415E-98E6-88E147FDEC04"
+      },
+      "backing": {
+        "image_device": "/dev/disk15",
+        "partition_device": "/dev/disk15s2",
+        "partition_uuid": "6C28BC08-7DDB-4189-B92F-BC543CE666CC"
+      },
+      "markers": {
+        "no_log": {
+          "path": "/private/tmp/mp-t-esqg5rgu/b/.fseventsd/no_log",
+          "name": "no_log",
+          "dev": 16777264,
+          "ino": 18,
+          "mode": 33188,
+          "size": 0,
+          "mtime_ns": 1795584997763129391
+        },
+        "metadata_never_index": {
+          "path": "/private/tmp/mp-t-esqg5rgu/b/.metadata_never_index",
+          "name": ".metadata_never_index",
+          "dev": 16777264,
+          "ino": 19,
+          "mode": 33188,
+          "size": 0,
+          "mtime_ns": 1795584997763167517
+        }
+      },
+      "fsevents": {
+        "journal": [],
+        "journal_files": 0,
+        "journal_bytes": 0,
+        "directory_present": true,
+        "identity_file": {
+          "path": "/private/tmp/mp-t-esqg5rgu/b/.fseventsd/fseventsd-uuid",
+          "name": "fseventsd-uuid",
+          "dev": 16777264,
+          "ino": 24,
+          "mode": 33152,
+          "size": 36,
+          "mtime_ns": 1795584998346584000
+        }
+      },
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-t-esqg5rgu/b"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T05:36:48.551650+00:00",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-t-esqg5rgu/b:\n\tIndexing and searching disabled.\n",
+        "stderr": "",
+        "disabled": true
+      },
+      "observed_at": "2026-11-25T05:36:48.551678+00:00",
+      "attach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "attach",
+          "-readonly",
+          "-noautoopen",
+          "-owners",
+          "off",
+          "-mountpoint",
+          "/private/tmp/mp-t-esqg5rgu/b",
+          "-plist",
+          "/private/tmp/mp-t-esqg5rgu/b-worker.sparseimage"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T05:36:48.184143+00:00",
+        "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EFI</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk15s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>C12A7328-F81F-11D2-BA4B-00A0C93EC93B</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>msdos</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk16s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/private/tmp/mp-t-esqg5rgu/b</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk15s2</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk16</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk15</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+        "stderr": ""
+      },
+      "detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk15"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T05:36:52.356627+00:00",
+        "stdout": "\"disk15\" ejected.\n",
+        "stderr": ""
+      },
+      "image_identity": {
+        "dev": 16777232,
+        "ino": 1226408986,
+        "format": "SPRS"
+      },
+      "mounted_read_only": true,
+      "mount_flags": 3,
+      "mount_read_only_bit": 1,
+      "diskutil_writable": {
+        "Writable": false,
+        "WritableMedia": false,
+        "WritableVolume": false
+      },
+      "journal_unchanged": true,
+      "markers_unchanged": true,
+      "raw_disk_before_detach": {
+        "path": "/private/tmp/mp-t-esqg5rgu/b/worker.ext4",
+        "name": "worker.ext4",
+        "dev": 16777264,
+        "ino": 28,
+        "mode": 33188,
+        "size": 6576668672,
+        "mtime_ns": 1795585003438925809
+      },
+      "raw_disk": {
+        "path": "/private/tmp/mp-t-esqg5rgu/b/worker.ext4",
+        "name": "worker.ext4",
+        "dev": 16777264,
+        "ino": 28,
+        "mode": 33188,
+        "size": 6576668672,
+        "mtime_ns": 1795585003438925809
+      },
+      "raw_disk_unchanged": true
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "source_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "archives_sha256": {
+    "gamma-direct-macvlan": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+    "gamma-vcpu-priority": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+    "gamma-vnic": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f"
+  },
+  "rounds_sha256": "82f9803d9d423015d1f2a26086e8bee172b219acf8a3cb5fb72a89b3d6ae686a",
+  "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "full_kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+  "full_kernel_config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+  "confirmation_path_readback": {
+    "full-bridge": {
+      "release": "7.3.5-micropod",
+      "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+      "cpu_max": "400000 100000",
+      "cpuset": "0-3",
+      "memory": "1073741824",
+      "pids": "512",
+      "route": {
+        "RtoMin": 20,
+        "RtoMinLock": true,
+        "Congctl": "reno",
+        "QuickACK": 0,
+        "MTU": 0
+      },
+      "accepted_controller": null,
+      "path_tx_bytes": {
+        "eth0": 210679795243,
+        "lo": 0
+      }
+    },
+    "full-reno": {
+      "release": "7.3.5-micropod",
+      "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+      "cpu_max": "400000 100000",
+      "cpuset": "0-3",
+      "memory": "1073741824",
+      "pids": "512",
+      "route": {
+        "RtoMin": 20,
+        "RtoMinLock": true,
+        "Congctl": "reno",
+        "QuickACK": 0,
+        "MTU": 0
+      },
+      "accepted_controller": "reno",
+      "path_tx_bytes": {
+        "eth0": 350,
+        "lo": 0,
+        "mppub0": 244082976085
+      }
+    }
+  },
+  "older_holdout_host_binary": "a41976076b67e466c02aab5494334229f03c343a4191c915b71327a22aca6eb2"
+}

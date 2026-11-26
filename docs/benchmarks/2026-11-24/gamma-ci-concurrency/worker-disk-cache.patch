@@ -1,0 +1,181 @@
+--- a/Sources/MicropodRuntime/SandboxVM.swift
++++ b/Sources/MicropodRuntime/SandboxVM.swift
+@@ -5,6 +5,7 @@
+ import ContainerizationOS
+ import Foundation
+ import MicropodCore
++import Synchronization
+ import Virtualization
+ import vmnet
+ 
+@@ -205,11 +206,14 @@
+             try clone(baseDisk, to: rootfsPath)
+         }
+         let imageConfig = try await image.config(for: .current).config
++        let diskCache = try WorkerDiskCacheFixture.select(
++            worker: ciWorker, workspace: options.ciWorkspace, runDir: runDir, disk: rootfsPath, vmID: id)
+         // Adaptive batching is the mixed CI default. Dedicated workers can tune the fsync wait
+         // while retaining ext4 write barriers and ordered journaling on their journaled disks.
+         let rootfs = Containerization.Mount.block(
+             format: "ext4", source: rootfsPath.path, destination: "/",
+-            options: options.ciExt4MaxBatchUS.map { ["max_batch_time=\($0)"] } ?? [])
++            options: options.ciExt4MaxBatchUS.map { ["max_batch_time=\($0)"] } ?? [],
++            runtimeOptions: diskCache?.runtimeOptions ?? [])
+         trace.mark("clone")
+ 
+         let bootKernel = try options.ciKernel ?? kernelURL()
+@@ -226,9 +230,14 @@
+         if let extra = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_KERNEL_ARGS"] {
+             kernel.commandLine.kernelArgs += extra.split(separator: " ").map(String.init)
+         }
+-        let manager = VZVirtualMachineManager(
++        let vmm = VZVirtualMachineManager(
+             kernel: kernel,
+             initialFilesystem: try await initfs(store: store, progress: progress))
++        let manager: any VirtualMachineManager = if let diskCache {
++            WorkerDiskCacheManager(base: vmm, observation: diskCache)
++        } else {
++            vmm
++        }
+         trace.mark("initfs")
+ 
+         // One vmnet network per sandbox. Host mode (published ports or
+@@ -950,3 +959,138 @@
+         }
+     }
+ }
++
++// This selector belongs to the disposable worker disk fixture. Its caller
++// provides a private workspace separate from the worker disk directory.
++private final class WorkerDiskCacheFixture: VZInstanceExtension {
++    enum Mode: String, Sendable {
++        case cached, uncached
++
++        var cachingMode: VZDiskImageCachingMode {
++            self == .cached ? .cached : .uncached
++        }
++    }
++
++    private struct Readback: Encodable {
++        let cache_mode: String
++        let sync_mode: String
++        let disk_path: String
++        let read_only: Bool
++        let device_type: String
++        let image_format: String
++        let vm_id: String
++        let pid: Int32
++        let storage_device_index: Int
++    }
++
++    let mode: Mode
++    let diskPath: String
++    let vmID: String
++    private let receipt = Mutex<String?>(nil)
++
++    init(mode: Mode, diskPath: String, vmID: String) {
++        self.mode = mode
++        self.diskPath = diskPath
++        self.vmID = vmID
++    }
++
++    // Foundation file URLs normalize both spellings of /private/tmp to
++    // /tmp on macOS. Resolve the existing paths with Darwin before checking ownership.
++    private static func canonicalPath(_ path: String) -> String? {
++        guard let value = realpath(path, nil) else { return nil }
++        defer { free(value) }
++        return String(cString: value)
++    }
++
++    static func select(
++        worker: CIWorker?, workspace: String?, runDir: URL, disk: URL,
++        vmID: String
++    ) throws -> WorkerDiskCacheFixture? {
++        guard let worker, worker.isNativeRunner, let workspace, workspace.hasPrefix("/"),
++            let home = canonicalPath(worker.directory.path), canonicalPath(runDir.path) == home,
++            let diskPath = canonicalPath(disk.path), diskPath == canonicalPath(worker.disk.path),
++            diskPath == home + "/worker.ext4", (home as NSString).lastPathComponent == "a"
++        else { return nil }
++        let scope = (home as NSString).deletingLastPathComponent
++        let owner = (scope as NSString).lastPathComponent
++        let expectedWorkspace = scope + "/workspace"
++        guard scope == "/private/tmp/" + owner,
++            owner.wholeMatch(of: /mp-t-[a-z0-9_]{8}/) != nil,
++            canonicalPath(workspace) == expectedWorkspace,
++            vmID.hasPrefix("ci-"), let instance = UUID(uuidString: String(vmID.dropFirst(3))),
++            vmID == "ci-" + instance.uuidString.lowercased()
++        else { return nil }
++
++        let selector = expectedWorkspace + "/worker-disk-cache.mode"
++        let fd = open(selector, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
++        if fd < 0 {
++            if errno == ENOENT { return nil }
++            throw POSIXError(.init(rawValue: errno) ?? .EIO)
++        }
++        let file = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
++        defer { try? file.close() }
++        var attributes = stat()
++        guard fstat(fd, &attributes) == 0, attributes.st_mode & S_IFMT == S_IFREG,
++            attributes.st_uid == getuid(), attributes.st_nlink == 1,
++            let data = try file.read(upToCount: 16)
++        else {
++            throw MicropodError.message("Worker disk cache selector must be an owned regular file")
++        }
++        let mode: Mode
++        switch data {
++        case Data("cached\n".utf8): mode = .cached
++        case Data("uncached\n".utf8): mode = .uncached
++        default:
++            throw MicropodError.message("Worker disk cache selector requires cached or uncached")
++        }
++        return WorkerDiskCacheFixture(mode: mode, diskPath: diskPath, vmID: vmID)
++    }
++
++    var runtimeOptions: [String] {
++        ["vzDiskImageCachingMode=\(mode.rawValue)", "vzDiskImageSynchronizationMode=fsync"]
++    }
++
++    func configureVZ(
++        _ config: inout VZVirtualMachineConfiguration,
++        allocator: any AddressAllocator<Character>, storageDeviceCount: Int, mountsByID: [String: [Containerization.Mount]]
++    ) throws {
++        let observed = config.storageDevices.enumerated().compactMap { index, device -> (Int, VZDiskImageStorageDeviceAttachment)? in
++            guard let block = device as? VZVirtioBlockDeviceConfiguration,
++                let raw = block.attachment as? VZDiskImageStorageDeviceAttachment,
++                Self.canonicalPath(raw.url.path) == diskPath
++            else { return nil }
++            return (index, raw)
++        }
++        guard observed.count == 1, let (index, raw) = observed.first, index == 1,
++            raw.cachingMode == mode.cachingMode, raw.synchronizationMode == .fsync, !raw.isReadOnly
++        else {
++            throw MicropodError.message("Worker disk attachment does not match the cache fixture")
++        }
++        let readback = Readback(
++            cache_mode: mode.rawValue, sync_mode: "fsync", disk_path: raw.url.path,
++            read_only: raw.isReadOnly, device_type: "VZVirtioBlockDeviceConfiguration", image_format: "raw",
++            vm_id: vmID, pid: getpid(), storage_device_index: index)
++        let encoder = JSONEncoder()
++        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
++        let data = try encoder.encode(readback)
++        receipt.withLock { $0 = String(decoding: data, as: UTF8.self) }
++    }
++
++    func didCreate(_ instance: VZVirtualMachineInstance) throws {
++        guard let proof = receipt.withLock({ $0 }) else {
++            throw MicropodError.message("Worker disk attachment readback is missing")
++        }
++        FileHandle.standardError.write(Data(("micropod-bench-worker-disk " + proof + "\n").utf8))
++    }
++}
++
++private struct WorkerDiskCacheManager: VirtualMachineManager {
++    let base: VZVirtualMachineManager
++    let observation: WorkerDiskCacheFixture
++
++    func create(config: some VMCreationConfig) throws -> any VirtualMachineInstance {
++        var configuration = config.configuration
++        configuration.extensions.append(observation)
++        return try base.create(config: StandardVMConfig(configuration: configuration))
++    }
++}

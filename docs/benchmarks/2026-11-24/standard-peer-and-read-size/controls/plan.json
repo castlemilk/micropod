@@ -1,0 +1,55 @@
+{
+  "host": "Gamma-128GB.local",
+  "macos": "26.5.1",
+  "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "factor": "read-size",
+  "ports": 1,
+  "seed": 241126,
+  "order": {
+    "warmup": [
+      "AB",
+      "AB",
+      "BA"
+    ],
+    "scored": [
+      "AB",
+      "BA",
+      "BA",
+      "AB",
+      "AB",
+      "BA",
+      "AB",
+      "BA"
+    ]
+  },
+  "action": "check",
+  "callback_events": 128,
+  "seconds": 6,
+  "fixture_sha256": "9dee1715d392456b921807c183ae6260c882f311fd5c24b94b9a576cf4a133b5",
+  "relay_read_kib": {
+    "A": 256,
+    "B": 512
+  },
+  "arm_binaries": {
+    "A": "False",
+    "B": "False"
+  },
+  "binaries": {
+    "False": {
+      "binary": "6bc65ea263752394bdba707411800ad89ba9c827d50af997ccd9f17b4be8f645",
+      "flags": [
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fblocks",
+        "-DMICROPOD_BENCH_512K_READS=1",
+        "-DRELAYBENCH_NATIVE_WORKERS",
+        "-DMICROPOD_BENCH_FIXED_RELAY_BUDGET=1",
+        "-DRELAYBENCH_STAGE_CONNECT"
+      ],
+      "c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+      "header": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9"
+    }
+  }
+}

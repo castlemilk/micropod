@@ -1,0 +1,2182 @@
+{
+  "issue": 230,
+  "direction": "230.14",
+  "control": "eager",
+  "candidate": "defer asynchronous read filter registration",
+  "source": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "tier": "Darwin host-only TCP loopback",
+  "predeclared_mode": "ambient host load diagnostic",
+  "floor_free_gib": 60,
+  "endpoints": "two-worker native relay between Darwin Go service and fixed client, one published port per attempt",
+  "workers": 2,
+  "callback_events": 128,
+  "read_bytes": 262144,
+  "profiling": false,
+  "fixture_source_sha256": "fcfd72afcef6539068bc5eac4128d11155d0190669116c70e3c7c3b5b14f731b",
+  "build_receipt_sha256": "917178c4243b3ffbf6b018a0abbac9459a0b41324e031ab9c13aff47fda1d601",
+  "started": "2026-11-24T06:57:41.283186+00:00",
+  "order_seed": 202611242314,
+  "order": [
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      0
+    ]
+  ],
+  "raw": [
+    {
+      "block": 1,
+      "arm": 1,
+      "started": "2026-11-24T06:57:43.393940+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 396.4004936218262,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:57:43.393907+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 20968839532,
+        "dispatch_max_us": 25783,
+        "dispatch_p95_us": 6581,
+        "errors": null,
+        "fresh_p95_us": 105890,
+        "fresh_p99_us": 134250,
+        "mib_s": 3332.8916381589465,
+        "per_stream_bytes": [
+          662962032,
+          641727856,
+          662437744,
+          642515088,
+          652738416,
+          642843248,
+          654311424,
+          667943056,
+          651165840,
+          645922816,
+          642514944,
+          659554160,
+          650804592,
+          645391448,
+          693370880,
+          651149772,
+          657719296,
+          678166384,
+          659816304,
+          669514520,
+          651165840,
+          645922816,
+          626000016,
+          643267952,
+          678952816,
+          651427840,
+          634650768,
+          671088640,
+          659554448,
+          645922816,
+          669777776,
+          658537984
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.000028167
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 353131,
+          "runnable_ticks": 3360503,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1060406537000
+        },
+        "relay": {
+          "birth": 25400620776,
+          "cpu_ticks": 169681,
+          "runnable_ticks": 785870,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77363,
+          "clock": 1060406554083
+        },
+        "client": {
+          "birth": 25449770823,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77591,
+          "clock": 1066693608916
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 163840417,
+          "runnable_ticks": 939292046,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1066693550833
+        },
+        "relay": {
+          "birth": 25400620776,
+          "cpu_ticks": 119040895,
+          "runnable_ticks": 324407969,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77363,
+          "clock": 1066693602375
+        },
+        "client": {
+          "birth": 25449770823,
+          "cpu_ticks": 79397889,
+          "runnable_ticks": 1147785085,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77591,
+          "clock": 1066693608916
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          13858967,
+          13858967,
+          0,
+          0,
+          0
+        ],
+        [
+          17156901,
+          17156901,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 3297934,
+        "out_packets": 3297934,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 6.811970249999999,
+          "cpu_s_per_scored_GiB": 0.348817460790168,
+          "runnable_s": 38.997147625,
+          "runnable_thread_s_per_wall_s": 6.202955528499001,
+          "runnable_minus_cpu_s": 32.185177374999995
+        },
+        "relay": {
+          "cpu_s": 4.9529672499999995,
+          "cpu_s_per_scored_GiB": 0.2536243401124456,
+          "runnable_s": 13.484254124999998,
+          "runnable_thread_s_per_wall_s": 2.144829398207921,
+          "runnable_minus_cpu_s": 8.531286875
+        },
+        "client": {
+          "cpu_s": 3.308245375,
+          "cpu_s_per_scored_GiB": 0.1694038154935156,
+          "runnable_s": 47.82437854166666,
+          "runnable_thread_s_per_wall_s": 7.607030548097946,
+          "runnable_minus_cpu_s": 44.51613316666666
+        }
+      },
+      "client_wait4_cpu_s": 3.309519,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.286865583000008,
+      "minimum_observed_free_GiB": 396.3906135559082,
+      "finished": "2026-11-24T06:57:49.682258+00:00"
+    },
+    {
+      "block": 1,
+      "arm": 0,
+      "started": "2026-11-24T06:57:51.702753+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 396.30456161499023,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:57:51.702723+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 7056524160,
+        "dispatch_max_us": 71063,
+        "dispatch_p95_us": 21417,
+        "errors": null,
+        "fresh_p95_us": 272410,
+        "fresh_p99_us": 412964,
+        "mib_s": 1121.5717367695092,
+        "per_stream_bytes": [
+          215220224,
+          212599296,
+          222822256,
+          211583488,
+          227803136,
+          226492416,
+          235667456,
+          218103808,
+          218365440,
+          204996464,
+          218103808,
+          223019520,
+          214433648,
+          219676528,
+          226492416,
+          218103808,
+          198802800,
+          220594688,
+          218103808,
+          231834112,
+          229408768,
+          214893056,
+          214760816,
+          234881024,
+          208666480,
+          218103808,
+          214433648,
+          234881024,
+          221413376,
+          228983296,
+          226787328,
+          226492416
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.00017425
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 163915102,
+          "runnable_ticks": 939472349,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1068715248083
+        },
+        "relay": {
+          "birth": 25600717498,
+          "cpu_ticks": 180798,
+          "runnable_ticks": 258164,
+          "numer": 125,
+          "denom": 3,
+          "pid": 78282,
+          "clock": 1068715260958
+        },
+        "client": {
+          "birth": 25649203006,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 78545,
+          "clock": 1075229208000
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 214457500,
+          "runnable_ticks": 1740772281,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1075229182000
+        },
+        "relay": {
+          "birth": 25600717498,
+          "cpu_ticks": 44134382,
+          "runnable_ticks": 348393682,
+          "numer": 125,
+          "denom": 3,
+          "pid": 78282,
+          "clock": 1075229202125
+        },
+        "client": {
+          "birth": 25649203006,
+          "cpu_ticks": 29093630,
+          "runnable_ticks": 1074779542,
+          "numer": 125,
+          "denom": 3,
+          "pid": 78545,
+          "clock": 1075229208000
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          17158538,
+          17158538,
+          0,
+          0,
+          0
+        ],
+        [
+          18390071,
+          18390071,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 1231533,
+        "out_packets": 1231533,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 2.1059332499999996,
+          "cpu_s_per_scored_GiB": 0.320445102688807,
+          "runnable_s": 33.38749716666666,
+          "runnable_thread_s_per_wall_s": 5.125648585221804,
+          "runnable_minus_cpu_s": 31.281563916666663
+        },
+        "relay": {
+          "cpu_s": 1.8313993333333332,
+          "cpu_s_per_scored_GiB": 0.27867120072975377,
+          "runnable_s": 14.505646583333332,
+          "runnable_thread_s_per_wall_s": 2.2269068722473824,
+          "runnable_minus_cpu_s": 12.674247249999999
+        },
+        "client": {
+          "cpu_s": 1.2122345833333332,
+          "cpu_s_per_scored_GiB": 0.18445724029437932,
+          "runnable_s": 44.782480916666664,
+          "runnable_thread_s_per_wall_s": 6.875006497414303,
+          "runnable_minus_cpu_s": 43.57024633333333
+        }
+      },
+      "client_wait4_cpu_s": 1.2139099999999998,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.513809249999895,
+      "minimum_observed_free_GiB": 396.30389404296875,
+      "finished": "2026-11-24T06:57:58.217758+00:00"
+    },
+    {
+      "block": 2,
+      "arm": 0,
+      "started": "2026-11-24T06:58:00.382385+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 397.0838737487793,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:58:00.382365+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 6164496960,
+        "dispatch_max_us": 107567,
+        "dispatch_p95_us": 18155,
+        "errors": null,
+        "fresh_p95_us": 311564,
+        "fresh_p99_us": 411565,
+        "mib_s": 979.6467412585392,
+        "per_stream_bytes": [
+          194249816,
+          192610816,
+          184549376,
+          183238512,
+          196870144,
+          189529968,
+          195559424,
+          172752752,
+          209190768,
+          199229440,
+          194248560,
+          183468544,
+          189792112,
+          186384384,
+          200278016,
+          198705008,
+          204210176,
+          190316400,
+          200343468,
+          181141360,
+          188661676,
+          186122240,
+          187138048,
+          182714224,
+          207355760,
+          209715200,
+          192937984,
+          181141360,
+          189334128,
+          184549376,
+          208142192,
+          200015728
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.001063625
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 214530502,
+          "runnable_ticks": 1742973864,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1077395210625
+        },
+        "relay": {
+          "birth": 25805853488,
+          "cpu_ticks": 233380,
+          "runnable_ticks": 3634536,
+          "numer": 125,
+          "denom": 3,
+          "pid": 79184,
+          "clock": 1077395223916
+        },
+        "client": {
+          "birth": 25857496537,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 79401,
+          "clock": 1084088461083
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 259547994,
+          "runnable_ticks": 2318851387,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1084088330166
+        },
+        "relay": {
+          "birth": 25805853488,
+          "cpu_ticks": 39109426,
+          "runnable_ticks": 342231276,
+          "numer": 125,
+          "denom": 3,
+          "pid": 79184,
+          "clock": 1084088351291
+        },
+        "client": {
+          "birth": 25857496537,
+          "cpu_ticks": 26678791,
+          "runnable_ticks": 813317532,
+          "numer": 125,
+          "denom": 3,
+          "pid": 79401,
+          "clock": 1084088461083
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          18392046,
+          18392046,
+          0,
+          0,
+          0
+        ],
+        [
+          19469833,
+          19469833,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 1077787,
+        "out_packets": 1077787,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 1.875728833333333,
+          "cpu_s_per_scored_GiB": 0.3267174129375716,
+          "runnable_s": 23.994896791666665,
+          "runnable_thread_s_per_wall_s": 3.5850755760979207,
+          "runnable_minus_cpu_s": 22.119167958333332
+        },
+        "relay": {
+          "cpu_s": 1.61983525,
+          "cpu_s_per_scored_GiB": 0.28214546413118774,
+          "runnable_s": 14.1081975,
+          "runnable_thread_s_per_wall_s": 2.107904639855822,
+          "runnable_minus_cpu_s": 12.48836225
+        },
+        "client": {
+          "cpu_s": 1.1116162916666665,
+          "cpu_s_per_scored_GiB": 0.19362308268577402,
+          "runnable_s": 33.8882305,
+          "runnable_thread_s_per_wall_s": 5.063237759994045,
+          "runnable_minus_cpu_s": 32.776614208333335
+        }
+      },
+      "client_wait4_cpu_s": 1.1133259999999998,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.6929960839997875,
+      "minimum_observed_free_GiB": 397.0745048522949,
+      "finished": "2026-11-24T06:58:07.077453+00:00"
+    },
+    {
+      "block": 2,
+      "arm": 1,
+      "started": "2026-11-24T06:58:09.189961+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 397.8489189147949,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:58:09.189941+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 9851701696,
+        "dispatch_max_us": 91122,
+        "dispatch_p95_us": 5699,
+        "errors": null,
+        "fresh_p95_us": 251573,
+        "fresh_p99_us": 293593,
+        "mib_s": 1565.884138682096,
+        "per_stream_bytes": [
+          257425408,
+          348651376,
+          257687696,
+          272367472,
+          356254208,
+          258900480,
+          269877248,
+          355500544,
+          264667792,
+          343932928,
+          262930288,
+          365166592,
+          274202768,
+          356515696,
+          352845968,
+          348127088,
+          262930432,
+          353107824,
+          347340656,
+          264241152,
+          351797104,
+          343932928,
+          255852688,
+          256869008,
+          357039984,
+          348389232,
+          344719216,
+          258081424,
+          377487360,
+          251658240,
+          264241152,
+          268959744
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.000006417
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 259609456,
+          "runnable_ticks": 2319964814,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1086202972625
+        },
+        "relay": {
+          "birth": 26019334780,
+          "cpu_ticks": 204823,
+          "runnable_ticks": 1282206,
+          "numer": 125,
+          "denom": 3,
+          "pid": 80252,
+          "clock": 1086202984416
+        },
+        "client": {
+          "birth": 26068892128,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 80490,
+          "clock": 1093132452541
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 333056579,
+          "runnable_ticks": 2824058390,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1093132426875
+        },
+        "relay": {
+          "birth": 26019334780,
+          "cpu_ticks": 60577866,
+          "runnable_ticks": 354904710,
+          "numer": 125,
+          "denom": 3,
+          "pid": 80252,
+          "clock": 1093132447000
+        },
+        "client": {
+          "birth": 26068892128,
+          "cpu_ticks": 43895270,
+          "runnable_ticks": 693721079,
+          "numer": 125,
+          "denom": 3,
+          "pid": 80490,
+          "clock": 1093132452541
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          19471442,
+          19471442,
+          0,
+          0,
+          0
+        ],
+        [
+          21134989,
+          21134989,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 1663547,
+        "out_packets": 1663547,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 3.0602967916666666,
+          "cpu_s_per_scored_GiB": 0.33354325582144734,
+          "runnable_s": 21.003898999999997,
+          "runnable_thread_s_per_wall_s": 3.0311624668571855,
+          "runnable_minus_cpu_s": 17.94360220833333
+        },
+        "relay": {
+          "cpu_s": 2.515543458333333,
+          "cpu_s_per_scored_GiB": 0.27417032149875004,
+          "runnable_s": 14.734270999999998,
+          "runnable_thread_s_per_wall_s": 2.1263656443835637,
+          "runnable_minus_cpu_s": 12.218727541666665
+        },
+        "client": {
+          "cpu_s": 1.8289695833333333,
+          "cpu_s_per_scored_GiB": 0.19934029643287052,
+          "runnable_s": 28.90504495833333,
+          "runnable_thread_s_per_wall_s": 4.17141062145269,
+          "runnable_minus_cpu_s": 27.076075375
+        }
+      },
+      "client_wait4_cpu_s": 1.830198,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.929321416999983,
+      "minimum_observed_free_GiB": 397.8477363586426,
+      "finished": "2026-11-24T06:58:16.121040+00:00"
+    },
+    {
+      "block": 3,
+      "arm": 1,
+      "started": "2026-11-24T06:58:18.203082+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 398.16020584106445,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:58:18.203061+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 9152240352,
+        "dispatch_max_us": 41891,
+        "dispatch_p95_us": 3757,
+        "errors": null,
+        "fresh_p95_us": 268161,
+        "fresh_p99_us": 351652,
+        "mib_s": 1454.4294795056921,
+        "per_stream_bytes": [
+          308281488,
+          262668288,
+          306441064,
+          326369424,
+          254902928,
+          310378216,
+          314502168,
+          299360680,
+          257687552,
+          268435456,
+          308018688,
+          267124592,
+          266076160,
+          258211840,
+          271318896,
+          299358184,
+          317194384,
+          298052456,
+          306179200,
+          276299920,
+          265814016,
+          299884136,
+          266338304,
+          262602096,
+          268435312,
+          305654912,
+          264765296,
+          305163288,
+          265027584,
+          307559936,
+          263454576,
+          300679312
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.001154875
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 333128698,
+          "runnable_ticks": 2825440557,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1095215834791
+        },
+        "relay": {
+          "birth": 26235534615,
+          "cpu_ticks": 216601,
+          "runnable_ticks": 1295604,
+          "numer": 125,
+          "denom": 3,
+          "pid": 81044,
+          "clock": 1095215849250
+        },
+        "client": {
+          "birth": 26285190929,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 81174,
+          "clock": 1101620094625
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 404554757,
+          "runnable_ticks": 3209954274,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1101620070041
+        },
+        "relay": {
+          "birth": 26235534615,
+          "cpu_ticks": 57107274,
+          "runnable_ticks": 317554299,
+          "numer": 125,
+          "denom": 3,
+          "pid": 81044,
+          "clock": 1101620089333
+        },
+        "client": {
+          "birth": 26285190929,
+          "cpu_ticks": 46599262,
+          "runnable_ticks": 504499707,
+          "numer": 125,
+          "denom": 3,
+          "pid": 81174,
+          "clock": 1101620094625
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          21136717,
+          21136717,
+          0,
+          0,
+          0
+        ],
+        [
+          22650515,
+          22650515,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 1513798,
+        "out_packets": 1513798,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 2.9760857916666663,
+          "cpu_s_per_scored_GiB": 0.34915470567010853,
+          "runnable_s": 16.021404874999998,
+          "runnable_thread_s_per_wall_s": 2.501735387699508,
+          "runnable_minus_cpu_s": 13.045319083333332
+        },
+        "relay": {
+          "cpu_s": 2.3704447083333333,
+          "cpu_s_per_scored_GiB": 0.27810082853219426,
+          "runnable_s": 13.177445624999999,
+          "runnable_thread_s_per_wall_s": 2.057652390458584,
+          "runnable_minus_cpu_s": 10.807000916666667
+        },
+        "client": {
+          "cpu_s": 1.9416359166666666,
+          "cpu_s_per_scored_GiB": 0.22779293490145205,
+          "runnable_s": 21.020821124999998,
+          "runnable_thread_s_per_wall_s": 3.2823920559534505,
+          "runnable_minus_cpu_s": 19.07918520833333
+        }
+      },
+      "client_wait4_cpu_s": 1.941717,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.404116499999873,
+      "minimum_observed_free_GiB": 398.0892143249512,
+      "finished": "2026-11-24T06:58:24.608665+00:00"
+    },
+    {
+      "block": 3,
+      "arm": 0,
+      "started": "2026-11-24T06:58:26.636322+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 398.024959564209,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:58:26.636303+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 16923924768,
+        "dispatch_max_us": 41810,
+        "dispatch_p95_us": 3572,
+        "errors": null,
+        "fresh_p95_us": 121040,
+        "fresh_p99_us": 182898,
+        "mib_s": 2689.441980346567,
+        "per_stream_bytes": [
+          554532312,
+          502530048,
+          550240112,
+          552344996,
+          535822192,
+          515112816,
+          522519040,
+          510132224,
+          539754496,
+          551288688,
+          549913232,
+          525927220,
+          511442800,
+          518782832,
+          510656368,
+          506986352,
+          553123696,
+          506199920,
+          544210800,
+          510394224,
+          538967920,
+          511705088,
+          545259520,
+          511967088,
+          542375936,
+          519307408,
+          535822192,
+          522977136,
+          531890032,
+          515112816,
+          550502400,
+          526122864
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.001212334
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 404625461,
+          "runnable_ticks": 3210082059,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1103658870750
+        },
+        "relay": {
+          "birth": 26439012245,
+          "cpu_ticks": 187502,
+          "runnable_ticks": 290282,
+          "numer": 125,
+          "denom": 3,
+          "pid": 82242,
+          "clock": 1103658883125
+        },
+        "client": {
+          "birth": 26487823387,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 82638,
+          "clock": 1109937590916
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 538469586,
+          "runnable_ticks": 3712467070,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1109937564166
+        },
+        "relay": {
+          "birth": 26439012245,
+          "cpu_ticks": 100344885,
+          "runnable_ticks": 309580683,
+          "numer": 125,
+          "denom": 3,
+          "pid": 82242,
+          "clock": 1109937585583
+        },
+        "client": {
+          "birth": 26487823387,
+          "cpu_ticks": 84847008,
+          "runnable_ticks": 556721078,
+          "numer": 125,
+          "denom": 3,
+          "pid": 82638,
+          "clock": 1109937590916
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          22652581,
+          22652581,
+          0,
+          0,
+          0
+        ],
+        [
+          25333223,
+          25333223,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 2680642,
+        "out_packets": 2680642,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 5.576838541666666,
+          "cpu_s_per_scored_GiB": 0.35382364729043364,
+          "runnable_s": 20.932708791666666,
+          "runnable_thread_s_per_wall_s": 3.3339994520548766,
+          "runnable_minus_cpu_s": 15.35587025
+        },
+        "relay": {
+          "cpu_s": 4.173224291666666,
+          "cpu_s_per_scored_GiB": 0.26477105779670845,
+          "runnable_s": 12.887100041666665,
+          "runnable_thread_s_per_wall_s": 2.052557311388084,
+          "runnable_minus_cpu_s": 8.71387575
+        },
+        "client": {
+          "cpu_s": 3.5352919999999997,
+          "cpu_s_per_scored_GiB": 0.22429731474758868,
+          "runnable_s": 23.196711583333332,
+          "runnable_thread_s_per_wall_s": 3.69459225167727,
+          "runnable_minus_cpu_s": 19.661419583333334
+        }
+      },
+      "client_wait4_cpu_s": 3.5363569999999998,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.278557957999965,
+      "minimum_observed_free_GiB": 397.9611511230469,
+      "finished": "2026-11-24T06:58:32.926470+00:00"
+    },
+    {
+      "block": 4,
+      "arm": 0,
+      "started": "2026-11-24T06:58:34.979689+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 398.4842185974121,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:58:34.979670+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 20246331000,
+        "dispatch_max_us": 22065,
+        "dispatch_p95_us": 2636,
+        "errors": null,
+        "fresh_p95_us": 95939,
+        "fresh_p99_us": 114026,
+        "mib_s": 3217.9620566466274,
+        "per_stream_bytes": [
+          645660816,
+          641990512,
+          639631216,
+          632029184,
+          632291184,
+          631242608,
+          636485632,
+          638058496,
+          641990512,
+          622067712,
+          628883600,
+          645922816,
+          644611952,
+          630915728,
+          641728368,
+          638058352,
+          648806400,
+          628621456,
+          620920936,
+          629669888,
+          621281280,
+          620756992,
+          629145600,
+          638320496,
+          624360816,
+          629244560,
+          629669888,
+          638320496,
+          620790416,
+          633339760,
+          624689008,
+          616824320
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.000196875
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 538557184,
+          "runnable_ticks": 3712703117,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1111995287291
+        },
+        "relay": {
+          "birth": 26639141561,
+          "cpu_ticks": 206399,
+          "runnable_ticks": 297371,
+          "numer": 125,
+          "denom": 3,
+          "pid": 83887,
+          "clock": 1111995301708
+        },
+        "client": {
+          "birth": 26688028981,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 84340,
+          "clock": 1118261756208
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 736081262,
+          "runnable_ticks": 4292811995,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1118261734833
+        },
+        "relay": {
+          "birth": 26639141561,
+          "cpu_ticks": 130810655,
+          "runnable_ticks": 275918068,
+          "numer": 125,
+          "denom": 3,
+          "pid": 83887,
+          "clock": 1118261753166
+        },
+        "client": {
+          "birth": 26688028981,
+          "cpu_ticks": 114789309,
+          "runnable_ticks": 578296282,
+          "numer": 125,
+          "denom": 3,
+          "pid": 84340,
+          "clock": 1118261756208
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          25336051,
+          25336051,
+          0,
+          0,
+          0
+        ],
+        [
+          28509232,
+          28509232,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 3173181,
+        "out_packets": 3173181,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 8.230169916666666,
+          "cpu_s_per_scored_GiB": 0.4364779800424874,
+          "runnable_s": 24.171203249999998,
+          "runnable_thread_s_per_wall_s": 3.8577063852692675,
+          "runnable_minus_cpu_s": 15.941033333333332
+        },
+        "relay": {
+          "cpu_s": 5.441844,
+          "cpu_s_per_scored_GiB": 0.2886021917987736,
+          "runnable_s": 11.484195708333333,
+          "runnable_thread_s_per_wall_s": 1.8328692475712571,
+          "runnable_minus_cpu_s": 6.042351708333333
+        },
+        "client": {
+          "cpu_s": 4.782887874999999,
+          "cpu_s_per_scored_GiB": 0.2536551808270833,
+          "runnable_s": 24.095678416666665,
+          "runnable_thread_s_per_wall_s": 3.845652677028806,
+          "runnable_minus_cpu_s": 19.312790541666665
+        }
+      },
+      "client_wait4_cpu_s": 4.784766,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.265692833000003,
+      "minimum_observed_free_GiB": 398.45988845825195,
+      "finished": "2026-11-24T06:58:41.250448+00:00"
+    },
+    {
+      "block": 4,
+      "arm": 1,
+      "started": "2026-11-24T06:58:43.391940+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 398.5824546813965,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:58:43.391921+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 10527271952,
+        "dispatch_max_us": 53448,
+        "dispatch_p95_us": 3303,
+        "errors": null,
+        "fresh_p95_us": 189070,
+        "fresh_p99_us": 283623,
+        "mib_s": 1673.1616240076298,
+        "per_stream_bytes": [
+          345243648,
+          325320704,
+          333447168,
+          318504816,
+          340000768,
+          317980528,
+          333709312,
+          315883376,
+          351535104,
+          315883376,
+          340262912,
+          316669808,
+          340787344,
+          317194096,
+          340000912,
+          313524224,
+          340525056,
+          322436976,
+          340000912,
+          318504960,
+          346292224,
+          317718384,
+          332660736,
+          313261936,
+          343670784,
+          308281200,
+          340787344,
+          302870528,
+          342097920,
+          325058560,
+          342884352,
+          324271984
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.000370041
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 736149744,
+          "runnable_ticks": 4294580062,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1120419186500
+        },
+        "relay": {
+          "birth": 26839420332,
+          "cpu_ticks": 204609,
+          "runnable_ticks": 1848785,
+          "numer": 125,
+          "denom": 3,
+          "pid": 85429,
+          "clock": 1120419199166
+        },
+        "client": {
+          "birth": 26890201018,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 85626,
+          "clock": 1126732437791
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 814698419,
+          "runnable_ticks": 4716974607,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1126732418625
+        },
+        "relay": {
+          "birth": 26839420332,
+          "cpu_ticks": 62877504,
+          "runnable_ticks": 310712346,
+          "numer": 125,
+          "denom": 3,
+          "pid": 85429,
+          "clock": 1126732434500
+        },
+        "client": {
+          "birth": 26890201018,
+          "cpu_ticks": 51456675,
+          "runnable_ticks": 602020855,
+          "numer": 125,
+          "denom": 3,
+          "pid": 85626,
+          "clock": 1126732437791
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          28511207,
+          28511207,
+          0,
+          0,
+          0
+        ],
+        [
+          30224479,
+          30224479,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 1713272,
+        "out_packets": 1713272,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 3.272861458333333,
+          "cpu_s_per_scored_GiB": 0.3338194593996875,
+          "runnable_s": 17.599772708333333,
+          "runnable_thread_s_per_wall_s": 2.7878120286864667,
+          "runnable_minus_cpu_s": 14.32691125
+        },
+        "relay": {
+          "cpu_s": 2.6113706249999997,
+          "cpu_s_per_scored_GiB": 0.26634990250202667,
+          "runnable_s": 12.869315041666665,
+          "runnable_thread_s_per_wall_s": 2.0385053755339957,
+          "runnable_minus_cpu_s": 10.257944416666666
+        },
+        "client": {
+          "cpu_s": 2.1440281249999997,
+          "cpu_s_per_scored_GiB": 0.2186827394733955,
+          "runnable_s": 25.084202291666664,
+          "runnable_thread_s_per_wall_s": 3.9733490902187456,
+          "runnable_minus_cpu_s": 22.940174166666665
+        }
+      },
+      "client_wait4_cpu_s": 2.144072,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.313113124999973,
+      "minimum_observed_free_GiB": 398.4292297363281,
+      "finished": "2026-11-24T06:58:49.721119+00:00"
+    },
+    {
+      "block": 5,
+      "arm": 0,
+      "started": "2026-11-24T06:58:51.751962+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 398.4648246765137,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:58:51.751943+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 13492094008,
+        "dispatch_max_us": 27534,
+        "dispatch_p95_us": 4929,
+        "errors": null,
+        "fresh_p95_us": 191671,
+        "fresh_p99_us": 248085,
+        "mib_s": 2144.0700416111085,
+        "per_stream_bytes": [
+          385351824,
+          391380992,
+          385613680,
+          461373440,
+          391380992,
+          452984832,
+          400293888,
+          384434832,
+          402129040,
+          400293888,
+          382992384,
+          432013924,
+          436207616,
+          400293888,
+          461373440,
+          444596224,
+          391577808,
+          428081008,
+          444596224,
+          470024048,
+          469762048,
+          391905280,
+          391905136,
+          457179748,
+          401604464,
+          461635440,
+          392167280,
+          436469616,
+          436469616,
+          444596224,
+          461373440,
+          400031744
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.001232833
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 814785763,
+          "runnable_ticks": 4717281830,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1128764454458
+        },
+        "relay": {
+          "birth": 27041714355,
+          "cpu_ticks": 208721,
+          "runnable_ticks": 300730,
+          "numer": 125,
+          "denom": 3,
+          "pid": 86659,
+          "clock": 1128764466250
+        },
+        "client": {
+          "birth": 27090357303,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 86865,
+          "clock": 1135096180333
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 917318712,
+          "runnable_ticks": 5307295843,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1135096160250
+        },
+        "relay": {
+          "birth": 27041714355,
+          "cpu_ticks": 76914535,
+          "runnable_ticks": 309563347,
+          "numer": 125,
+          "denom": 3,
+          "pid": 86659,
+          "clock": 1135096177083
+        },
+        "client": {
+          "birth": 27090357303,
+          "cpu_ticks": 55012725,
+          "runnable_ticks": 743401660,
+          "numer": 125,
+          "denom": 3,
+          "pid": 86865,
+          "clock": 1135096180333
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          30229049,
+          30229049,
+          0,
+          0,
+          0
+        ],
+        [
+          32382077,
+          32382077,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 2153028,
+        "out_packets": 2153028,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 4.2722062083333325,
+          "cpu_s_per_scored_GiB": 0.3399951470779847,
+          "runnable_s": 24.583917208333332,
+          "runnable_thread_s_per_wall_s": 3.88275159062564,
+          "runnable_minus_cpu_s": 20.311711
+        },
+        "relay": {
+          "cpu_s": 3.196075583333333,
+          "cpu_s_per_scored_GiB": 0.2543534031452323,
+          "runnable_s": 12.885942374999999,
+          "runnable_thread_s_per_wall_s": 2.0351888118253862,
+          "runnable_minus_cpu_s": 9.689866791666667
+        },
+        "client": {
+          "cpu_s": 2.2921968749999997,
+          "cpu_s_per_scored_GiB": 0.18241998996376987,
+          "runnable_s": 30.975069166666664,
+          "runnable_thread_s_per_wall_s": 4.8921617355531195,
+          "runnable_minus_cpu_s": 28.682872291666666
+        }
+      },
+      "client_wait4_cpu_s": 2.2936170000000002,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.331570957999929,
+      "minimum_observed_free_GiB": 398.4470977783203,
+      "finished": "2026-11-24T06:58:58.085035+00:00"
+    },
+    {
+      "block": 5,
+      "arm": 1,
+      "started": "2026-11-24T06:59:00.122027+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 398.8562774658203,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:59:00.122005+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 14413194536,
+        "dispatch_max_us": 36037,
+        "dispatch_p95_us": 9602,
+        "errors": null,
+        "fresh_p95_us": 155436,
+        "fresh_p99_us": 180526,
+        "mib_s": 2290.9099265350774,
+        "per_stream_bytes": [
+          437780336,
+          461635584,
+          415236096,
+          461963920,
+          466354176,
+          446955664,
+          463237784,
+          447217664,
+          454033408,
+          466092176,
+          465175040,
+          449314816,
+          461893632,
+          452722688,
+          438861824,
+          446169088,
+          445939200,
+          461373584,
+          428867440,
+          452460544,
+          452984832,
+          464487056,
+          446431376,
+          452460544,
+          439091344,
+          446431232,
+          450100592,
+          445644800,
+          447741808,
+          438304624,
+          445382512,
+          460849152
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.000014792
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 917388699,
+          "runnable_ticks": 5307912491,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1137134951458
+        },
+        "relay": {
+          "birth": 27242513348,
+          "cpu_ticks": 198522,
+          "runnable_ticks": 538628,
+          "numer": 125,
+          "denom": 3,
+          "pid": 87793,
+          "clock": 1137134963916
+        },
+        "client": {
+          "birth": 27291249273,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 88078,
+          "clock": 1143515877916
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 1027549270,
+          "runnable_ticks": 5969357774,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1143515857291
+        },
+        "relay": {
+          "birth": 27242513348,
+          "cpu_ticks": 84868756,
+          "runnable_ticks": 310139149,
+          "numer": 125,
+          "denom": 3,
+          "pid": 87793,
+          "clock": 1143515874958
+        },
+        "client": {
+          "birth": 27291249273,
+          "cpu_ticks": 55595501,
+          "runnable_ticks": 906411255,
+          "numer": 125,
+          "denom": 3,
+          "pid": 88078,
+          "clock": 1143515877916
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          32385049,
+          32385049,
+          0,
+          0,
+          0
+        ],
+        [
+          34716969,
+          34716969,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 2331920,
+        "out_packets": 2331920,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 4.590023791666666,
+          "cpu_s_per_scored_GiB": 0.3419436618271952,
+          "runnable_s": 27.560220124999997,
+          "runnable_thread_s_per_wall_s": 4.319244970019857,
+          "runnable_minus_cpu_s": 22.97019633333333
+        },
+        "relay": {
+          "cpu_s": 3.5279264166666664,
+          "cpu_s_per_scored_GiB": 0.26282044109707353,
+          "runnable_s": 12.900021708333332,
+          "runnable_thread_s_per_wall_s": 2.021694805925129,
+          "runnable_minus_cpu_s": 9.372095291666666
+        },
+        "client": {
+          "cpu_s": 2.316479208333333,
+          "cpu_s_per_scored_GiB": 0.1725710843769818,
+          "runnable_s": 37.767135624999995,
+          "runnable_thread_s_per_wall_s": 5.918875460372941,
+          "runnable_minus_cpu_s": 35.45065641666666
+        }
+      },
+      "client_wait4_cpu_s": 2.317879,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.380795790999855,
+      "minimum_observed_free_GiB": 398.806640625,
+      "finished": "2026-11-24T06:59:06.504695+00:00"
+    },
+    {
+      "block": 6,
+      "arm": 1,
+      "started": "2026-11-24T06:59:08.546632+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 399.5815086364746,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:59:08.546610+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 18311577536,
+        "dispatch_max_us": 22389,
+        "dispatch_p95_us": 11399,
+        "errors": null,
+        "fresh_p95_us": 112139,
+        "fresh_p99_us": 150948,
+        "mib_s": 2908.5653644377967,
+        "per_stream_bytes": [
+          587202560,
+          565444464,
+          578813952,
+          578289520,
+          578813952,
+          563871744,
+          549061264,
+          571473920,
+          563085312,
+          583532400,
+          547618672,
+          575405936,
+          596377456,
+          551486096,
+          572522352,
+          550502400,
+          567870096,
+          584056976,
+          579338240,
+          569901056,
+          571474064,
+          584056688,
+          579862672,
+          579862672,
+          585498624,
+          553385984,
+          592183296,
+          571735408,
+          563085312,
+          587202560,
+          566525296,
+          562036592
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.004087583
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 1027615853,
+          "runnable_ticks": 5969884986,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1145559480916
+        },
+        "relay": {
+          "birth": 27444518581,
+          "cpu_ticks": 176781,
+          "runnable_ticks": 649523,
+          "numer": 125,
+          "denom": 3,
+          "pid": 89085,
+          "clock": 1145559494416
+        },
+        "client": {
+          "birth": 27493440289,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 89485,
+          "clock": 1151886856291
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 1173984078,
+          "runnable_ticks": 6774998762,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1151886831583
+        },
+        "relay": {
+          "birth": 27444518581,
+          "cpu_ticks": 106258199,
+          "runnable_ticks": 319738705,
+          "numer": 125,
+          "denom": 3,
+          "pid": 89085,
+          "clock": 1151886853291
+        },
+        "client": {
+          "birth": 27493440289,
+          "cpu_ticks": 72973517,
+          "runnable_ticks": 962083573,
+          "numer": 125,
+          "denom": 3,
+          "pid": 89485,
+          "clock": 1151886856291
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          34718723,
+          34718723,
+          0,
+          0,
+          0
+        ],
+        [
+          37654093,
+          37654093,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 2935370,
+        "out_packets": 2935370,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 6.098676041666666,
+          "cpu_s_per_scored_GiB": 0.3576100160726352,
+          "runnable_s": 33.54640733333333,
+          "runnable_thread_s_per_wall_s": 5.301918206864071,
+          "runnable_minus_cpu_s": 27.447731291666663
+        },
+        "relay": {
+          "cpu_s": 4.420059083333333,
+          "cpu_s_per_scored_GiB": 0.2591804170337376,
+          "runnable_s": 13.295382583333332,
+          "runnable_thread_s_per_wall_s": 2.1012989643083233,
+          "runnable_minus_cpu_s": 8.875323499999999
+        },
+        "client": {
+          "cpu_s": 3.040563208333333,
+          "cpu_s_per_scored_GiB": 0.17829047655149688,
+          "runnable_s": 40.08681554166666,
+          "runnable_thread_s_per_wall_s": 6.335611890229958,
+          "runnable_minus_cpu_s": 37.04625233333333
+        }
+      },
+      "client_wait4_cpu_s": 3.0414320000000004,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.327220833000183,
+      "minimum_observed_free_GiB": 399.5797004699707,
+      "finished": "2026-11-24T06:59:14.875728+00:00"
+    },
+    {
+      "block": 6,
+      "arm": 0,
+      "started": "2026-11-24T06:59:16.910867+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.0,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 399.82540130615234,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:59:16.910842+00:00"
+      },
+      "marker": "two-worker-filter-5ad9907a999a412c9be19e55a6ca4687",
+      "client": {
+        "arrivals": 240,
+        "bytes": 18087408912,
+        "dispatch_max_us": 36437,
+        "dispatch_p95_us": 10205,
+        "errors": null,
+        "fresh_p95_us": 130638,
+        "fresh_p99_us": 177709,
+        "mib_s": 2873.573544380041,
+        "per_stream_bytes": [
+          593493872,
+          587202560,
+          593198960,
+          603979776,
+          595066736,
+          586678128,
+          594018160,
+          530317168,
+          525074288,
+          578813952,
+          534511616,
+          599392112,
+          546045808,
+          601882480,
+          612106096,
+          532414320,
+          542834544,
+          539819376,
+          530055024,
+          538443632,
+          513539952,
+          603979776,
+          528122368,
+          594804592,
+          530055024,
+          603979776,
+          538967920,
+          609092096,
+          538967920,
+          607846256,
+          547815424,
+          504889200
+        ],
+        "period_us": 25000,
+        "reopened": 0,
+        "streams": 32,
+        "window_s": 6.0028035
+      },
+      "exit": 0,
+      "delivery_clean": true,
+      "raw_initial": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 1174061459,
+          "runnable_ticks": 6775444562,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1153923454166
+        },
+        "relay": {
+          "birth": 27645490414,
+          "cpu_ticks": 195822,
+          "runnable_ticks": 438487,
+          "numer": 125,
+          "denom": 3,
+          "pid": 90249,
+          "clock": 1153923466625
+        },
+        "client": {
+          "birth": 27694173311,
+          "cpu_ticks": 0,
+          "runnable_ticks": 0,
+          "numer": 125,
+          "denom": 3,
+          "pid": 90453,
+          "clock": 1160066124375
+        }
+      },
+      "raw_final": {
+        "server": {
+          "birth": 25399344747,
+          "cpu_ticks": 1308265946,
+          "runnable_ticks": 7596363051,
+          "numer": 125,
+          "denom": 3,
+          "pid": 77355,
+          "clock": 1160066104333
+        },
+        "relay": {
+          "birth": 27645490414,
+          "cpu_ticks": 101312089,
+          "runnable_ticks": 316786175,
+          "numer": 125,
+          "denom": 3,
+          "pid": 90249,
+          "clock": 1160066121500
+        },
+        "client": {
+          "birth": 27694173311,
+          "cpu_ticks": 67221362,
+          "runnable_ticks": 995038819,
+          "numer": 125,
+          "denom": 3,
+          "pid": 90453,
+          "clock": 1160066124375
+        }
+      },
+      "latency_p95_at_most_75_ms": false,
+      "loopback_host_shared_raw": [
+        [
+          37657068,
+          37657068,
+          0,
+          0,
+          0
+        ],
+        [
+          40511175,
+          40511175,
+          0,
+          0,
+          0
+        ]
+      ],
+      "loopback_host_shared_delta": {
+        "in_packets": 2854107,
+        "out_packets": 2854107,
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 0
+      },
+      "cost_per_role": {
+        "server": {
+          "cpu_s": 5.591853625,
+          "cpu_s_per_scored_GiB": 0.3319550710696351,
+          "runnable_s": 34.20493704166666,
+          "runnable_thread_s_per_wall_s": 5.568550771621699,
+          "runnable_minus_cpu_s": 28.61308341666666
+        },
+        "relay": {
+          "cpu_s": 4.213177791666666,
+          "cpu_s_per_scored_GiB": 0.25011129172068,
+          "runnable_s": 13.181153666666665,
+          "runnable_thread_s_per_wall_s": 2.1458868154608473,
+          "runnable_minus_cpu_s": 8.967975874999999
+        },
+        "client": {
+          "cpu_s": 2.800890083333333,
+          "cpu_s_per_scored_GiB": 0.16627217538641365,
+          "runnable_s": 41.459950791666664,
+          "runnable_thread_s_per_wall_s": 6.749664257270729,
+          "runnable_minus_cpu_s": 38.65906070833333
+        }
+      },
+      "client_wait4_cpu_s": 2.8009630000000003,
+      "cpu_scope": "full fixed-client lifetime including establish/warm/drain; denominator scored bytes",
+      "period_s": 6.142520459000025,
+      "minimum_observed_free_GiB": 399.80300521850586,
+      "finished": "2026-11-24T06:59:23.055297+00:00"
+    }
+  ],
+  "status": "complete",
+  "joint_clean": 6,
+  "finished": "2026-11-24T06:59:23.064330+00:00",
+  "clean_summary": {
+    "mib_s": {
+      "control_median": 2416.756010978838,
+      "candidate_median": 1982.0357752713535,
+      "paired_median_pct": 4.033181227808036,
+      "descriptive_paired_bootstrap_95_pct": [
+        -46.963161400705786,
+        128.5021525457211
+      ],
+      "larger_pairs": 4
+    },
+    "fresh_p95_us": {
+      "control_median": 161154.5,
+      "candidate_median": 172253.0,
+      "paired_median_pct": -16.532647289580222,
+      "descriptive_paired_bootstrap_95_pct": [
+        -40.19161902257228,
+        109.31028128212006
+      ],
+      "larger_pairs": 2
+    },
+    "fresh_p99_us": {
+      "control_median": 215491.5,
+      "candidate_median": 232074.5,
+      "paired_median_pct": -21.145543524523625,
+      "descriptive_paired_bootstrap_95_pct": [
+        -48.0776790213885,
+        120.50105202263376
+      ],
+      "larger_pairs": 2
+    }
+  }
+}

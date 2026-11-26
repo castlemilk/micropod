@@ -1,0 +1,31 @@
+{
+  "as_of_utc": "2026-11-24T07:09:32.293980+00:00",
+  "launchd_label": "com.skunkworq.micropod.ci-worker",
+  "launchctl_rc": 0,
+  "state": "not running",
+  "current_session": false,
+  "current_worker_socket": false,
+  "initial_serving_pid": 3358,
+  "initial_workload_activity": "not established",
+  "receipts": [
+    {
+      "local_status": "20261124T070524Z-local-enhn7iu0/status.json",
+      "sha256": "22be4af892abd0e3f7ef9af9caa0f7a07309c44cda64cdad593ec1de7b584a93",
+      "start": "2026-11-24T07:05:24.222007+00:00",
+      "end": "2026-11-24T07:05:24.571803+00:00",
+      "error": "another local worker or timed client is serving",
+      "mode": "baseline",
+      "scored_windows": 0
+    },
+    {
+      "local_status": "20261124T070812Z-local-jabgpfvf/status.json",
+      "sha256": "e96583a4fe03f90de2ed40499ac393d8d171b5d6d5f5675146d4386e9271c171",
+      "start": "2026-11-24T07:08:12.055509+00:00",
+      "end": "2026-11-24T07:08:13.044497+00:00",
+      "error": "[Errno 1] Operation not permitted: '/bin/ps'",
+      "mode": "baseline",
+      "scored_windows": 0
+    }
+  ],
+  "execution_access": "Host-mode request rejected automatically because this session has sandbox_approval=false. Earlier agent VZ probe false; operator-pasted normal Terminal probe true."
+}

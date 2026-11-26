@@ -1,0 +1,58 @@
+{
+  "archive": "20261125T051112Z-sibling-build-phases-5fsnq3a6",
+  "verified_host_volume": {
+    "host_worker_volume": "apfs-no-index",
+    "scope": "/private/tmp/mp-t-u_e6944s",
+    "mount": "/private/tmp/mp-t-u_e6944s/a",
+    "image": "/private/tmp/mp-t-u_e6944s/a-worker.sparseimage",
+    "volume_uuid": "b3b95868-9623-4a5d-94db-a3005795b556",
+    "container_uuid": "84eac503-bb89-4553-99ea-ffafdde578ef",
+    "partition_uuid": "64601c43-dad3-4ab8-8067-e34c8036cfe3",
+    "device": "disk14s1",
+    "container_device": "disk14",
+    "image_device": "disk13",
+    "partition_device": "disk13s2",
+    "volume_st_dev": 16777259,
+    "image_st_dev": 16777232,
+    "image_inode": 1226392466,
+    "volume_name": "MicropodCI-7a5a04231301",
+    "mountpoint_inode": 1226392461,
+    "raw_disk": {
+      "path": "/private/tmp/mp-t-u_e6944s/a/worker.ext4",
+      "raw_st_dev": 16777259,
+      "parent_st_dev": 16777232,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "configured_disk_gib": 6
+    },
+    "spotlight": {
+      "live": "Indexing and searching disabled.",
+      "post": "Indexing and searching disabled."
+    },
+    "journal_files": 0,
+    "journal_bytes": 0,
+    "journal_observed_through": "read_only_remount",
+    "live_observed_unix_ns": 1795583478954219000,
+    "post_observed_unix_ns": 1795583560700135000,
+    "detached": true,
+    "persisted_policy": {
+      "read_only": true,
+      "device": "disk14s1",
+      "volume_st_dev": 16777259,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "spotlight": "Indexing and searching disabled.",
+      "journal_files": 0,
+      "journal_bytes": 0
+    }
+  },
+  "http_and_build_totals": {
+    "offered_requests": 768000,
+    "completed_requests": 768000,
+    "warm_connections": 256,
+    "jobs": 64,
+    "revisions": 128,
+    "test_passes": 1024
+  },
+  "baseline": 24
+}

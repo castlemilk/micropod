@@ -1,0 +1,11 @@
+{
+  "utc": "2026-11-24T07:11:24.406526+00:00",
+  "label": "dev.micropod.benchmark.mp-t-k8khsjnx.a",
+  "process_type": "Interactive",
+  "executable": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+  "plist_lint_exit": 0,
+  "after_cleanup_launchctl_exit": 113,
+  "unified_log_exit": 64,
+  "unified_log_stderr": "log: Cannot run while sandboxed",
+  "observations": []
+}

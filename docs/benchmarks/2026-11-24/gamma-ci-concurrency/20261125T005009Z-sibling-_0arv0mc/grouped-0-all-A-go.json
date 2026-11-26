@@ -1,0 +1,258 @@
+[
+  {
+    "id": "e682319db995a56c02de928f19eb4c6e328de6f24198f42248a82e9d01e8b2c2",
+    "revision": "sibling-0-0",
+    "code": 0,
+    "stdout": "sibling-0-0-a mp-t-tidkfwj4-a-grouped-c0 8 8639914 9236131 3 2 3 b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-0-b mp-t-tidkfwj4-a-grouped-c0 8 9266855 9716199 3 2 3 d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567858946952549 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855426972047,
+    "policy": {
+      "dispatcher": {
+        "tid": 1619,
+        "cpus_allowed_list": "1",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 1625,
+        "cpus_allowed_list": "1",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 1619,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 1619
+      }
+    }
+  },
+  {
+    "id": "f401148cddf23857c6a9fdff2309b4766be2a871189a6b88647150652016b7f7",
+    "revision": "sibling-0-1",
+    "code": 0,
+    "stdout": "sibling-0-1-a mp-t-tidkfwj4-a-grouped-c1 8 28609 656417 3 2 3 56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-1-b mp-t-tidkfwj4-a-grouped-c1 8 692694 1190392 3 2 3 fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567859194353424 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855427050672,
+    "policy": {
+      "dispatcher": {
+        "tid": 28,
+        "cpus_allowed_list": "0",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 34,
+        "cpus_allowed_list": "0",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 28,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 28
+      }
+    }
+  },
+  {
+    "id": "5852ba4f3429224a84e28a923647fff1a1a05942bdd450d669584be5feec25d1",
+    "revision": "sibling-0-2",
+    "code": 0,
+    "stdout": "sibling-0-2-a mp-t-tidkfwj4-a-grouped-c2 8 19989 624385 3 2 3 cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-2-b mp-t-tidkfwj4-a-grouped-c2 8 655129 1132146 3 2 3 b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567858998303716 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855426941881,
+    "policy": {
+      "dispatcher": {
+        "tid": 31,
+        "cpus_allowed_list": "3",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 37,
+        "cpus_allowed_list": "3",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 31,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 31
+      }
+    }
+  },
+  {
+    "id": "ed2d9c267d19831faa4eebe8ec9fb53c475b4b8a22c651c66a689f27622c5bfc",
+    "revision": "sibling-0-3",
+    "code": 0,
+    "stdout": "sibling-0-3-a mp-t-tidkfwj4-a-grouped-c3 8 21352 627433 3 2 3 1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-3-b mp-t-tidkfwj4-a-grouped-c3 8 660073 1110436 3 2 3 72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567858907038799 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855429382589,
+    "policy": {
+      "dispatcher": {
+        "tid": 31,
+        "cpus_allowed_list": "2",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 37,
+        "cpus_allowed_list": "2",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 31,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 31
+      }
+    }
+  },
+  {
+    "id": "8f9f2a4dd1378f29ce5d53948b2592e58733bd95b3103cdb9424aeeb9a44506e",
+    "revision": "sibling-0-4",
+    "code": 0,
+    "stdout": "sibling-0-4-a mp-t-tidkfwj4-a-grouped-c4 8 21734 624982 3 2 3 42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-4-b mp-t-tidkfwj4-a-grouped-c4 8 655029 1114520 3 2 3 fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567858950357007 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855427429756,
+    "policy": {
+      "dispatcher": {
+        "tid": 29,
+        "cpus_allowed_list": "1",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 35,
+        "cpus_allowed_list": "1",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 29,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 29
+      }
+    }
+  },
+  {
+    "id": "78860b3483e54028bc44d629a365bdca3cbb50ca2b767a9d7c957daa0deb2083",
+    "revision": "sibling-0-5",
+    "code": 0,
+    "stdout": "sibling-0-5-a mp-t-tidkfwj4-a-grouped-c5 8 24220 653378 3 2 3 36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-5-b mp-t-tidkfwj4-a-grouped-c5 8 684082 1168927 3 2 3 2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567859232291216 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855434743297,
+    "policy": {
+      "dispatcher": {
+        "tid": 29,
+        "cpus_allowed_list": "0",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 35,
+        "cpus_allowed_list": "0",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 29,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 29
+      }
+    }
+  },
+  {
+    "id": "df237e015560ec9f5415aeef395dc1e6bc0fbc00c11f3293d39e7608434ddcba",
+    "revision": "sibling-0-6",
+    "code": 0,
+    "stdout": "sibling-0-6-a mp-t-tidkfwj4-a-grouped-c6 8 19116 626957 3 2 3 90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-6-b mp-t-tidkfwj4-a-grouped-c6 8 659204 1124276 3 2 3 b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567858935569924 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855434568547,
+    "policy": {
+      "dispatcher": {
+        "tid": 30,
+        "cpus_allowed_list": "3",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 36,
+        "cpus_allowed_list": "3",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 30,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 30
+      }
+    }
+  },
+  {
+    "id": "c8c324521ba37104ad1c47a839c8e034b34c2c52d05de1516cc7ef2a87047521",
+    "revision": "sibling-0-7",
+    "code": 0,
+    "stdout": "sibling-0-7-a mp-t-tidkfwj4-a-grouped-c7 8 19540 619132 3 2 3 b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nsibling-0-7-b mp-t-tidkfwj4-a-grouped-c7 8 649701 1105599 3 2 3 81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b 65040:295217 65040:98675 caa573a7-c0ac-4caa-ae20-d2718e7f8ff0 7637 110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d\nend 1795567858919445841 5\n",
+    "stderr": "",
+    "started_unix_ns": 1795567855444063006,
+    "policy": {
+      "dispatcher": {
+        "tid": 32,
+        "cpus_allowed_list": "2",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child": {
+        "tid": 38,
+        "cpus_allowed_list": "2",
+        "policy": 0,
+        "nice": 5,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      "child_parent_pid": 32,
+      "slice": {
+        "requested_us": 250,
+        "inherited_ns": 2100000,
+        "dispatcher_pid": 32
+      }
+    }
+  }
+]

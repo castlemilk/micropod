@@ -1,0 +1,437 @@
+{
+  "created": {
+    "backing": {
+      "image_device": "/dev/disk15",
+      "partition_device": "/dev/disk15s1",
+      "partition_uuid": "9671941D-3A55-451A-9BA8-743452D04920"
+    },
+    "container": {
+      "device": "/dev/disk16",
+      "uuid": "4123A687-8C0F-4D15-96B2-C1864CBE15E5"
+    },
+    "disabled": true,
+    "fsevents": {
+      "directory_present": true,
+      "identity_file": {
+        "dev": 16777263,
+        "ino": 24,
+        "mode": 33152,
+        "mtime_ns": 1795583372442214000,
+        "name": "fseventsd-uuid",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.fseventsd/fseventsd-uuid",
+        "size": 36
+      },
+      "journal": [],
+      "journal_bytes": 0,
+      "journal_files": 0
+    },
+    "image": "/private/tmp/mp-apfs-retirement-yjty2t2_/canary.sparseimage",
+    "image_identity": {
+      "dev": 16777232,
+      "format": "SPRS",
+      "ino": 1226390532
+    },
+    "markers": {
+      "metadata_never_index": {
+        "dev": 16777263,
+        "ino": 19,
+        "mode": 33188,
+        "mtime_ns": 1795583371964479746,
+        "name": ".metadata_never_index",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.metadata_never_index",
+        "size": 0
+      },
+      "no_log": {
+        "dev": 16777263,
+        "ino": 18,
+        "mode": 33188,
+        "mtime_ns": 1795583371964432453,
+        "name": "no_log",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.fseventsd/no_log",
+        "size": 0
+      }
+    },
+    "mount": "/private/tmp/mp-apfs-retirement-yjty2t2_/a",
+    "mountpoint_identity": {
+      "dev": 16777232,
+      "ino": 1226390531
+    },
+    "observed_at": "2026-11-25T05:09:32.886505+00:00",
+    "remounted": true,
+    "schema": "micropod-worker-apfs-v1",
+    "seed_detach": {
+      "argv": [
+        "/usr/bin/hdiutil",
+        "detach",
+        "/dev/disk15"
+      ],
+      "observed_at": "2026-11-25T05:09:32.222767+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\"disk15\" ejected.\n"
+    },
+    "seed_identity": {
+      "backing": {
+        "image_device": "/dev/disk15",
+        "partition_device": "/dev/disk15s1",
+        "partition_uuid": "9671941D-3A55-451A-9BA8-743452D04920"
+      },
+      "container": {
+        "device": "/dev/disk16",
+        "uuid": "4123A687-8C0F-4D15-96B2-C1864CBE15E5"
+      },
+      "volume": {
+        "dev": 16777263,
+        "device": "/dev/disk16s1",
+        "fs": "apfs",
+        "name": "MicropodCI-545165dbb79e",
+        "snapshot": false,
+        "uuid": "A4A25DF4-A917-41AC-B36F-28A9705AECDB"
+      }
+    },
+    "size_gib": 1,
+    "spotlight": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-s",
+        "-v",
+        "/private/tmp/mp-apfs-retirement-yjty2t2_/a"
+      ],
+      "disabled": true,
+      "observed_at": "2026-11-25T05:09:32.886463+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-retirement-yjty2t2_/a:\n\tIndexing and searching disabled.\n"
+    },
+    "spotlight_apply": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-i",
+        "off",
+        "/private/tmp/mp-apfs-retirement-yjty2t2_/a"
+      ],
+      "observed_at": "2026-11-25T05:09:31.991508+00:00",
+      "returncode": 0,
+      "stderr": "2026-11-25 16:09:31.973 mdutil[66663:24935625] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-apfs-retirement-yjty2t2_/a -> kMDConfigSearchLevelFSSearchOnly\n",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-retirement-yjty2t2_/a:\n\tIndexing disabled.\n"
+    },
+    "volume": {
+      "dev": 16777263,
+      "device": "/dev/disk16s1",
+      "fs": "apfs",
+      "name": "MicropodCI-545165dbb79e",
+      "snapshot": false,
+      "uuid": "A4A25DF4-A917-41AC-B36F-28A9705AECDB"
+    },
+    "volume_name": "MicropodCI-545165dbb79e"
+  },
+  "live": {
+    "backing": {
+      "image_device": "/dev/disk15",
+      "partition_device": "/dev/disk15s1",
+      "partition_uuid": "9671941D-3A55-451A-9BA8-743452D04920"
+    },
+    "container": {
+      "device": "/dev/disk16",
+      "uuid": "4123A687-8C0F-4D15-96B2-C1864CBE15E5"
+    },
+    "disabled": true,
+    "fsevents": {
+      "directory_present": true,
+      "identity_file": {
+        "dev": 16777263,
+        "ino": 24,
+        "mode": 33152,
+        "mtime_ns": 1795583372442214000,
+        "name": "fseventsd-uuid",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.fseventsd/fseventsd-uuid",
+        "size": 36
+      },
+      "journal": [],
+      "journal_bytes": 0,
+      "journal_files": 0
+    },
+    "image": "/private/tmp/mp-apfs-retirement-yjty2t2_/canary.sparseimage",
+    "image_identity": {
+      "dev": 16777232,
+      "format": "SPRS",
+      "ino": 1226390532
+    },
+    "journal_unchanged": true,
+    "markers": {
+      "metadata_never_index": {
+        "dev": 16777263,
+        "ino": 19,
+        "mode": 33188,
+        "mtime_ns": 1795583371964479746,
+        "name": ".metadata_never_index",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.metadata_never_index",
+        "size": 0
+      },
+      "no_log": {
+        "dev": 16777263,
+        "ino": 18,
+        "mode": 33188,
+        "mtime_ns": 1795583371964432453,
+        "name": "no_log",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.fseventsd/no_log",
+        "size": 0
+      }
+    },
+    "mount": "/private/tmp/mp-apfs-retirement-yjty2t2_/a",
+    "mountpoint_identity": {
+      "dev": 16777232,
+      "ino": 1226390531
+    },
+    "observed_at": "2026-11-25T05:09:33.777518+00:00",
+    "remounted": true,
+    "schema": "micropod-worker-apfs-v1",
+    "seed_detach": {
+      "argv": [
+        "/usr/bin/hdiutil",
+        "detach",
+        "/dev/disk15"
+      ],
+      "observed_at": "2026-11-25T05:09:32.222767+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\"disk15\" ejected.\n"
+    },
+    "seed_identity": {
+      "backing": {
+        "image_device": "/dev/disk15",
+        "partition_device": "/dev/disk15s1",
+        "partition_uuid": "9671941D-3A55-451A-9BA8-743452D04920"
+      },
+      "container": {
+        "device": "/dev/disk16",
+        "uuid": "4123A687-8C0F-4D15-96B2-C1864CBE15E5"
+      },
+      "volume": {
+        "dev": 16777263,
+        "device": "/dev/disk16s1",
+        "fs": "apfs",
+        "name": "MicropodCI-545165dbb79e",
+        "snapshot": false,
+        "uuid": "A4A25DF4-A917-41AC-B36F-28A9705AECDB"
+      }
+    },
+    "size_gib": 1,
+    "spotlight": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-s",
+        "-v",
+        "/private/tmp/mp-apfs-retirement-yjty2t2_/a"
+      ],
+      "disabled": true,
+      "observed_at": "2026-11-25T05:09:33.777476+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-retirement-yjty2t2_/a:\n\tIndexing and searching disabled.\n"
+    },
+    "spotlight_apply": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-i",
+        "off",
+        "/private/tmp/mp-apfs-retirement-yjty2t2_/a"
+      ],
+      "observed_at": "2026-11-25T05:09:31.991508+00:00",
+      "returncode": 0,
+      "stderr": "2026-11-25 16:09:31.973 mdutil[66663:24935625] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-apfs-retirement-yjty2t2_/a -> kMDConfigSearchLevelFSSearchOnly\n",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-retirement-yjty2t2_/a:\n\tIndexing disabled.\n"
+    },
+    "volume": {
+      "dev": 16777263,
+      "device": "/dev/disk16s1",
+      "fs": "apfs",
+      "name": "MicropodCI-545165dbb79e",
+      "snapshot": false,
+      "uuid": "A4A25DF4-A917-41AC-B36F-28A9705AECDB"
+    },
+    "volume_name": "MicropodCI-545165dbb79e"
+  },
+  "retired": {
+    "backing": {
+      "image_device": "/dev/disk15",
+      "partition_device": "/dev/disk15s1",
+      "partition_uuid": "9671941D-3A55-451A-9BA8-743452D04920"
+    },
+    "container": {
+      "device": "/dev/disk16",
+      "uuid": "4123A687-8C0F-4D15-96B2-C1864CBE15E5"
+    },
+    "detach": {
+      "argv": [
+        "/usr/bin/hdiutil",
+        "detach",
+        "/dev/disk15"
+      ],
+      "observed_at": "2026-11-25T05:09:34.478159+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\"disk15\" ejected.\n"
+    },
+    "detached": true,
+    "image": "/private/tmp/mp-apfs-retirement-yjty2t2_/canary.sparseimage",
+    "image_absent": true,
+    "image_identity": {
+      "dev": 16777232,
+      "format": "SPRS",
+      "ino": 1226390532
+    },
+    "mount": "/private/tmp/mp-apfs-retirement-yjty2t2_/a",
+    "mount_restored": true,
+    "mountpoint_identity": {
+      "dev": 16777232,
+      "ino": 1226390531
+    },
+    "observed_at": "2026-11-25T05:09:35.112295+00:00",
+    "persisted_policy": {
+      "attach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "attach",
+          "-readonly",
+          "-noautoopen",
+          "-owners",
+          "off",
+          "-mountpoint",
+          "/private/tmp/mp-apfs-retirement-yjty2t2_/a",
+          "-plist",
+          "/private/tmp/mp-apfs-retirement-yjty2t2_/canary.sparseimage"
+        ],
+        "observed_at": "2026-11-25T05:09:34.623756+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk15</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk15s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk16s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/private/tmp/mp-apfs-retirement-yjty2t2_/a</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk16</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n"
+      },
+      "backing": {
+        "image_device": "/dev/disk15",
+        "partition_device": "/dev/disk15s1",
+        "partition_uuid": "9671941D-3A55-451A-9BA8-743452D04920"
+      },
+      "container": {
+        "device": "/dev/disk16",
+        "uuid": "4123A687-8C0F-4D15-96B2-C1864CBE15E5"
+      },
+      "detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk15"
+        ],
+        "observed_at": "2026-11-25T05:09:35.100794+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "\"disk15\" ejected.\n"
+      },
+      "diskutil_writable": {
+        "Writable": false,
+        "WritableMedia": false,
+        "WritableVolume": false
+      },
+      "fsevents": {
+        "directory_present": true,
+        "identity_file": {
+          "dev": 16777263,
+          "ino": 24,
+          "mode": 33152,
+          "mtime_ns": 1795583372442214000,
+          "name": "fseventsd-uuid",
+          "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.fseventsd/fseventsd-uuid",
+          "size": 36
+        },
+        "journal": [],
+        "journal_bytes": 0,
+        "journal_files": 0
+      },
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226390532
+      },
+      "journal_unchanged": true,
+      "markers": {
+        "metadata_never_index": {
+          "dev": 16777263,
+          "ino": 19,
+          "mode": 33188,
+          "mtime_ns": 1795583371964479746,
+          "name": ".metadata_never_index",
+          "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.metadata_never_index",
+          "size": 0
+        },
+        "no_log": {
+          "dev": 16777263,
+          "ino": 18,
+          "mode": 33188,
+          "mtime_ns": 1795583371964432453,
+          "name": "no_log",
+          "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/.fseventsd/no_log",
+          "size": 0
+        }
+      },
+      "markers_unchanged": true,
+      "mount_flags": 3,
+      "mount_read_only_bit": 1,
+      "mounted_read_only": true,
+      "observed_at": "2026-11-25T05:09:35.016524+00:00",
+      "raw_disk": {
+        "dev": 16777263,
+        "ino": 25,
+        "mode": 33188,
+        "mtime_ns": 1795583372886674119,
+        "name": "worker.ext4",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/worker.ext4",
+        "size": 12582912
+      },
+      "raw_disk_before_detach": {
+        "dev": 16777263,
+        "ino": 25,
+        "mode": 33188,
+        "mtime_ns": 1795583372886674119,
+        "name": "worker.ext4",
+        "path": "/private/tmp/mp-apfs-retirement-yjty2t2_/a/worker.ext4",
+        "size": 12582912
+      },
+      "raw_disk_unchanged": true,
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-apfs-retirement-yjty2t2_/a"
+        ],
+        "disabled": true,
+        "observed_at": "2026-11-25T05:09:35.016489+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-retirement-yjty2t2_/a:\n\tIndexing and searching disabled.\n"
+      },
+      "volume": {
+        "dev": 16777263,
+        "device": "/dev/disk16s1",
+        "fs": "apfs",
+        "name": "MicropodCI-545165dbb79e",
+        "snapshot": false,
+        "uuid": "A4A25DF4-A917-41AC-B36F-28A9705AECDB"
+      }
+    },
+    "removed_image": true,
+    "schema": "micropod-worker-apfs-v1",
+    "volume": {
+      "dev": 16777263,
+      "device": "/dev/disk16s1",
+      "fs": "apfs",
+      "name": "MicropodCI-545165dbb79e",
+      "snapshot": false,
+      "uuid": "A4A25DF4-A917-41AC-B36F-28A9705AECDB"
+    }
+  },
+  "schema": "micropod-worker-apfs-readonly-qualification-v1",
+  "source_sha256": "960ef6351e07de71aa6676aea1e104f124ff36bba2f2c2c9adc5e90b8d8bf4ee",
+  "temporary_directory_absent": true,
+  "wrong_uuid_refused": true
+}

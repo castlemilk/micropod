@@ -1,0 +1,18 @@
+{
+  "observed_at": "2026-11-24T10:22:50.738249643Z",
+  "source": "Cuttlefish fleet summary",
+  "runners": [
+    {
+      "name": "Gamma-128GB.local",
+      "connection": "offline",
+      "last_seen": "2026-11-24T05:48:16.953687Z",
+      "last_reported_leases": 0
+    },
+    {
+      "name": "Gamma-128GB Linux CI (isolated VM)",
+      "connection": "offline",
+      "last_seen": "2026-11-24T05:49:45.17589Z",
+      "last_reported_leases": 1
+    }
+  ]
+}

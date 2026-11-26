@@ -1,0 +1,18 @@
+{
+  "observed": "2026-11-24T15:36:33.367982+00:00",
+  "source": "/Library/Preferences/com.apple.networkextension.plist",
+  "workers": {
+    "published_reference": {
+      "code_identifier": "micropod-555549441c019ce1ef153bf8ad386c81f829109e",
+      "sha256": "be2379179932ee039e06700e56069fd10beb0f682fc86cb2051890d5b99fe8e5",
+      "identifier_found": true,
+      "executable_path_found": true
+    },
+    "combined_release": {
+      "code_identifier": "micropod-55554944883b41a8fd8f3786b3ab82cc5b88a08c",
+      "sha256": "e74e7fcaf617e0a8f288f1c5706f075ce745fe42654c9932f7731c25c383fff7",
+      "identifier_found": false,
+      "executable_path_found": false
+    }
+  }
+}

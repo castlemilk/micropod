@@ -291,12 +291,46 @@ Volumes and images route the same way: `micropod volume ls` and `micropod images
 that keeps its own (Docker, the CI worker, the hvf machine) and name the runtime once more than one is listed; `volume create`
 and `pull` take `--runtime` or the default runtime; `volume rm`, `rmi`, `tag` and `image inspect` go to the engine
 that has the name. The hvf guest engine lists, creates, inspects and removes volumes, and lists, inspects and pulls
-(linux/arm64) images; volume prune, volume sizes, image removal, tagging, save, load, push and build are refused as
-unsupported. A tool bundle built from this tree (`ci/build-runner-tools.sh`) also serves networks, `docker save`
-and `docker load` to stock Docker clients on `micropod machine docker-endpoint`; micropod's own save, load and network
-commands stay with Apple. `micropod machine status --json` reports the installed bundle's `capabilities` (BuildKit, the engine's
-Docker API range, the published-port path); `micropod machine buildkit-endpoint` prints the BuildKit socket for a
-remote `docker buildx` builder, and fails when the tool bundle ships no `runner/bin/buildkitd`.
+(linux/arm64) images. With a tool bundle built from this tree (`ci/build-runner-tools.sh`) it also saves and loads
+image archives: `micropod save --runtime hvf <ref> -o x.tar` and `micropod load --runtime hvf -i x.tar` (an unnamed
+`load` stays Apple's). Volume prune, volume sizes, image removal, tagging, push and `micropod build` are refused as
+unsupported, and micropod's network commands stay with Apple; stock Docker clients on
+`micropod machine docker-endpoint` also get networks. `micropod machine status --json` reports the installed
+bundle's `capabilities` (caches, `docker build`, BuildKit, the engine's Docker API range and commit, the
+published-port path); `micropod machine buildkit-endpoint` prints the BuildKit socket for a remote `docker buildx`
+builder, and fails when the tool bundle ships no `runner/bin/buildkitd`.
+
+Dependency caches on the hvf machine are on by default. Every container created through the machine's Docker socket
+gets shared Go module and build caches and npm, pnpm, yarn, pip, uv, cargo and corepack caches in one scope,
+`default`, whatever uid it runs as. The machine-wide policy lives in `machine.json` (`cache`) and applies at once
+while the machine runs:
+
+```bash
+micropod machine cache policy                          # show it
+micropod machine cache policy --mode off               # no caches for anyone
+micropod machine cache policy --tools go,npm --default-scope none --allow-scopes 'ci-*'
+micropod run --runtime hvf --cache off golang:alpine -- go env GOCACHE   # this container only
+micropod run --runtime hvf --cache-scope proj-a golang:alpine -- go build ./...
+```
+
+`--cache auto|off|<tools>` (`go`, `gomod`, `gobuild`, `npm`, `pnpm`, `yarn`, `yarnberry`, `pip`, `uv`, `cargo`,
+`corepack`; `+tool` forces one on, `-tool` leaves one out) and `--cache-scope` become the labels
+`io.micropod.cache` and `io.micropod.cache.scope`, which compose files and Testcontainers can set too; a label the
+container already has wins. On other runtimes `--cache off` maps to `com.micropod.cache.shared=false` and a tool
+list or scope is refused. The host renders the policy into `<root>/run/guest-config/cache-policy.json`, shared with
+the guest as `mp-config` (read-only in the guest at `/run/micropod/host-config`).
+
+Stock `docker build` with `DOCKER_HOST=$(micropod machine docker-endpoint)` works when the engine serves BuildKit on
+its Docker socket (`machine status` says `docker build: ready (docker socket)`). For an older engine,
+`micropod machine builder install` adds a docker context `micropod` on the machine's Docker socket and a remote
+buildx builder `micropod-buildkit` on its BuildKit socket (the default builder of that context only), which loads
+every build into the machine. Build with `BUILDX_BUILDER=micropod-buildkit docker --context micropod build …`: the
+docker CLI hands `docker build` to buildx with `BUILDX_BUILDER=<context>` unless it is set, so without it buildx
+picks the context's own builder and fails. `docker --context micropod buildx build …` works too, but buildx then
+rewrites its current-builder file, forgetting a builder chosen without `--default` for another context. (buildx
+gives each docker context an implicit builder of the same name, so the builder cannot be called `micropod`.)
+Installing changes neither the current docker context nor the current builder; each build pays a tarball load and
+leaves an `import-<date>` image record. `micropod machine builder rm` removes exactly those two. `micropod machine cache policy --register-buildx on` makes `machine start` install it when needed.
 
 Sandbox VMs are owned by the process that boots them: long-lived sandbox
 containers live in the API daemon; the CLI's `run --runtime sandbox` runs in

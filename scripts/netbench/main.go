@@ -21,7 +21,9 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
+	"unsafe"
 )
 
 const size = 8 << 20
@@ -37,6 +39,8 @@ func main() {
 	bursts := flag.Int("bursts", 1, "number of parallel transfer batches")
 	barrier := flag.Bool("stream-barrier", false, "wait for every response to begin before draining the parallel streams")
 	profile := flag.String("profile", "", "profile fresh requests, sustained bulk streams, or fresh requests during continuous downloads (fresh, bulk, mixed, burst-fresh, or burst-warm)")
+	reportCongestion := flag.Bool("report-tcp-congestion", false, "report the Linux congestion algorithm of every warmed bulk socket")
+	congestion := flag.String("verify-tcp-congestion", "", "require this Linux congestion algorithm on every warmed bulk socket")
 	traceMixed := flag.Bool("trace-mixed", false, "sample per-stream bytes and fresh HTTP phase timestamps around the mixed interval")
 	freshURL := flag.String("fresh-url", "", "mixed profile only: send fresh requests to a second URL serving the same marker")
 	netInfo := flag.Bool("net-info", false, "snapshot Linux network-namespace and cgroup counters")
@@ -45,6 +49,7 @@ func main() {
 	dns := flag.Int("lookups", 0, "number of single-family service DNS lookups")
 	dnsClients := flag.Int("dns-clients", 1, "independent resolvers issuing parallel service lookups")
 	flag.Parse()
+	observeCongestion := *reportCongestion || *congestion != ""
 	if *selfDigest {
 		executable, err := os.Open("/proc/self/exe")
 		if err != nil {
@@ -92,7 +97,7 @@ func main() {
 		return
 	}
 	if *listen != "" {
-		log.Fatal(serveAddresses(strings.Split(*listen, ","), *marker))
+		log.Fatal(serveAddresses(strings.Split(*listen, ","), *marker, observeCongestion))
 	}
 	maxBursts := 100
 	if *profile == "bulk" {
@@ -108,6 +113,9 @@ func main() {
 	}
 	if *freshURL != "" && *profile != "mixed" {
 		log.Fatal("-fresh-url is only used with -profile mixed")
+	}
+	if observeCongestion && *profile != "bulk" {
+		log.Fatal("TCP congestion reporting is only used in server or bulk mode")
 	}
 	tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}
 	client := &http.Client{Transport: tr, Timeout: 15 * time.Second}
@@ -130,7 +138,7 @@ func main() {
 			if *streams == 0 {
 				log.Fatal("bulk profiling needs at least one stream")
 			}
-			result = profileBulk(*target, *marker, *streams, *bursts)
+			result = profileBulk(*target, *marker, *streams, *bursts, observeCongestion, *congestion)
 		case "mixed":
 			if *streams == 0 {
 				log.Fatal("mixed profiling needs at least one stream")
@@ -279,7 +287,9 @@ func main() {
 	}
 }
 
-func serveAddresses(addresses []string, marker string) error {
+type congestionConnKey struct{}
+
+func serveAddresses(addresses []string, marker string, reportCongestion bool) error {
 	done := make(chan error, len(addresses))
 	for i, address := range addresses {
 		listener, err := net.Listen("tcp", address)
@@ -297,10 +307,55 @@ func serveAddresses(addresses []string, marker string) error {
 			http.ServeContent(w, r, "data", time.Time{}, bytes.NewReader(payload))
 		})
 		server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+		if reportCongestion {
+			server.ConnContext = func(ctx context.Context, conn net.Conn) context.Context {
+				return context.WithValue(ctx, congestionConnKey{}, conn)
+			}
+			mux.HandleFunc("/tcp-congestion", func(w http.ResponseWriter, r *http.Request) {
+				conn, _ := r.Context().Value(congestionConnKey{}).(*net.TCPConn)
+				name, err := tcpCongestion(conn)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				fmt.Fprint(w, name)
+			})
+		}
 		go func() { done <- server.Serve(listener) }()
 	}
 	return <-done
 }
+
+func tcpCongestion(conn *net.TCPConn) (string, error) {
+	if runtime.GOOS != "linux" || conn == nil {
+		return "", fmt.Errorf("TCP congestion readback requires a Linux TCP socket")
+	}
+	// Linux TCP_CONGESTION and TCP_CA_NAME_MAX. Keep the probe buildable as a
+	// single file using the standard library, like the other netbench modes.
+	const tcpCongestionOption = 13
+	var name [16]byte
+	length := uint32(len(name))
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		return "", err
+	}
+	var sockErr syscall.Errno
+	err = raw.Control(func(fd uintptr) {
+		_, _, sockErr = syscall.Syscall6(syscall.SYS_GETSOCKOPT, fd, syscall.IPPROTO_TCP, tcpCongestionOption,
+			uintptr(unsafe.Pointer(&name[0])), uintptr(unsafe.Pointer(&length)), 0)
+	})
+	if err != nil {
+		return "", err
+	}
+	if sockErr != 0 {
+		return "", fmt.Errorf("read accepted TCP congestion algorithm: %w", sockErr)
+	}
+	if length < 1 || length > uint32(len(name)) {
+		return "", fmt.Errorf("unexpected TCP congestion algorithm length %d", length)
+	}
+	return strings.TrimRight(string(name[:length]), "\x00"), nil
+}
+
 func hashPayload() []byte { h := sha256.Sum256(payload); return h[:] }
 
 func readBody(client *http.Client, target string, ctx context.Context, path string, w io.Writer) (int64, error) {
@@ -504,15 +559,31 @@ func profileBurst(target, marker string, streams, transfers int, warm, barrier b
 		"unexpected_reconnects": reopened.Load(), "stream_phases": phases}
 }
 
-func profileBulk(target, marker string, streams, transfers int) map[string]any {
+func profileBulk(target, marker string, streams, transfers int, reportCongestion bool, congestion string) map[string]any {
 	var ready, done sync.WaitGroup
 	var newConnections atomic.Int64
+	var acceptedAlgorithms []string
+	if reportCongestion {
+		acceptedAlgorithms = make([]string, streams)
+	}
 	gate := make(chan struct{})
 	ready.Add(streams)
-	for range streams {
+	for stream := range streams {
 		done.Go(func() {
 			client, ctx := downloadClient(target, marker, &newConnections)
 			defer client.CloseIdleConnections()
+			if reportCongestion {
+				var reply strings.Builder
+				requestBody(client, target, ctx, "/tcp-congestion", &reply)
+				actual := reply.String()
+				if actual == "" || len(actual) >= 16 || strings.ContainsAny(actual, "\x00\t\r\n ") {
+					log.Fatalf("invalid TCP congestion readback on stream %d: %q", stream, actual)
+				}
+				if congestion != "" && actual != congestion {
+					log.Fatalf("accepted bulk stream %d uses %q, want %q", stream, actual, congestion)
+				}
+				acceptedAlgorithms[stream] = actual
+			}
 			ready.Done()
 			<-gate
 			for range transfers {
@@ -528,8 +599,15 @@ func profileBulk(target, marker string, streams, transfers int) map[string]any {
 	done.Wait()
 	elapsed := time.Since(start).Seconds()
 	total := int64(streams) * int64(transfers) * size
-	return map[string]any{"mode": "bulk", "iterations": transfers, "streams": streams, "bytes": total,
+	result := map[string]any{"mode": "bulk", "iterations": transfers, "streams": streams, "bytes": total,
 		"elapsed_s": elapsed, "mib_s": float64(total) / (1 << 20) / elapsed, "reopened_connections": newConnections.Load()}
+	if reportCongestion {
+		result["accepted_tcp_congestion"] = acceptedAlgorithms
+	}
+	if congestion != "" {
+		result["verified_tcp_congestion"] = congestion
+	}
+	return result
 }
 
 // Each downloader uses one verified connection. Counters are per stream so

@@ -1,0 +1,1 @@
+{"diskGiB":6,"schema":1,"workspace":"\/private\/tmp\/mp-t-2isnhr80\/workspace","kernel":"\/Users\/benebsworth\/.micropod\/kernels\/7.3.5-micropod-7e3713940eec\/Image","cpus":4,"image":"docker.io\/library\/alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2","publishedPath":"macvlan","worker":"BE3A8174-E175-49DD-A436-A64D3E55758E","memoryMiB":4096}

@@ -1,0 +1,150 @@
+{
+  "pairs": [
+    {
+      "pair": 1,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 1351,
+      "p95_gap_us": 5187,
+      "p95_ratio": 2.0308028616852147,
+      "post_dispatch_p95_gap_lower_bound_us": 4880
+    },
+    {
+      "pair": 2,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 1033,
+      "p95_gap_us": 4137,
+      "p95_ratio": 1.7042900919305413,
+      "post_dispatch_p95_gap_lower_bound_us": 3785
+    },
+    {
+      "pair": 3,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 1338,
+      "p95_gap_us": 4543,
+      "p95_ratio": 1.8916584887144259,
+      "post_dispatch_p95_gap_lower_bound_us": 4237
+    },
+    {
+      "pair": 4,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 2115,
+      "p95_gap_us": 4986,
+      "p95_ratio": 2.010743969187107,
+      "post_dispatch_p95_gap_lower_bound_us": 4704
+    },
+    {
+      "pair": 5,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 1102,
+      "p95_gap_us": 5032,
+      "p95_ratio": 1.9157415832575069,
+      "post_dispatch_p95_gap_lower_bound_us": 4685
+    },
+    {
+      "pair": 6,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 1080,
+      "p95_gap_us": 5018,
+      "p95_ratio": 1.8960714285714286,
+      "post_dispatch_p95_gap_lower_bound_us": 4595
+    },
+    {
+      "pair": 7,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 984,
+      "p95_gap_us": 4581,
+      "p95_ratio": 1.8877906976744185,
+      "post_dispatch_p95_gap_lower_bound_us": 4094
+    },
+    {
+      "pair": 8,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 1252,
+      "p95_gap_us": 4490,
+      "p95_ratio": 1.8793576184880532,
+      "post_dispatch_p95_gap_lower_bound_us": 4155
+    },
+    {
+      "pair": 9,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 678,
+      "p95_gap_us": 4152,
+      "p95_ratio": 1.7062425582582073,
+      "post_dispatch_p95_gap_lower_bound_us": 3860
+    },
+    {
+      "pair": 10,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 1570,
+      "p95_gap_us": 4615,
+      "p95_ratio": 1.8679706601466992,
+      "post_dispatch_p95_gap_lower_bound_us": 4306
+    },
+    {
+      "pair": 11,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 1059,
+      "p95_gap_us": 4367,
+      "p95_ratio": 1.772373540856031,
+      "post_dispatch_p95_gap_lower_bound_us": 3925
+    },
+    {
+      "pair": 12,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 1709,
+      "p95_gap_us": 4759,
+      "p95_ratio": 1.946876243533625,
+      "post_dispatch_p95_gap_lower_bound_us": 4374
+    },
+    {
+      "pair": 13,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 991,
+      "p95_gap_us": 4020,
+      "p95_ratio": 1.694300518134715,
+      "post_dispatch_p95_gap_lower_bound_us": 3580
+    },
+    {
+      "pair": 14,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 1317,
+      "p95_gap_us": 4690,
+      "p95_ratio": 1.9096198603568657,
+      "post_dispatch_p95_gap_lower_bound_us": 4391
+    },
+    {
+      "pair": 15,
+      "order": "BA",
+      "micropod_p50_minus_orbstack_p95_us": 591,
+      "p95_gap_us": 4427,
+      "p95_ratio": 1.8019927536231883,
+      "post_dispatch_p95_gap_lower_bound_us": 4056
+    },
+    {
+      "pair": 16,
+      "order": "AB",
+      "micropod_p50_minus_orbstack_p95_us": 1448,
+      "p95_gap_us": 5210,
+      "p95_ratio": 2.076668733209341,
+      "post_dispatch_p95_gap_lower_bound_us": 4851
+    }
+  ],
+  "micropod_p50_above_orbstack_p95_pairs": 16,
+  "micropod_p50_minus_orbstack_p95_range_us": [
+    591,
+    2115
+  ],
+  "paired_median_p95_gap_us": 4598.0,
+  "paired_median_p95_ratio": 1.8897245931944222,
+  "minimum_post_dispatch_p95_gap_lower_bound_us": 3580,
+  "per_arm_medians": {
+    "A": {
+      "slowest_eight_share_pct": 24.93593706666909,
+      "dispatch_p95_us": 154.5
+    },
+    "B": {
+      "slowest_eight_share_pct": 24.623997607652832,
+      "dispatch_p95_us": 66.5
+    }
+  }
+}

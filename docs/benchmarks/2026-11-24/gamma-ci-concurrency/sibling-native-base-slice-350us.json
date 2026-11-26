@@ -1,0 +1,1001 @@
+{
+  "effective_slice_us": [
+    250,
+    350
+  ],
+  "offered_rps": 64000,
+  "boot_pairs": 2,
+  "engine_windows": 32,
+  "windows_per_boot": 4,
+  "offered_requests": 3072000,
+  "minimum_first_build_end_margin_ns": 1140446625,
+  "timer_slack_ns": {
+    "micropod": 50000,
+    "orbstack": 50000
+  },
+  "promotion_gate_met": false,
+  "by_seed": [
+    {
+      "seed": 250191,
+      "treatment_order_us": [
+        250,
+        350
+      ],
+      "boots": {
+        "250": {
+          "archive": "20261125T025758Z-sibling-slice350-v3yjhpq1",
+          "native_boot": "298a00db-1fef-41e5-a7b9-398dd527d8bc",
+          "guest_facts": "a/guest-facts.txt"
+        },
+        "350": {
+          "archive": "20261125T025921Z-sibling-slice350-_jxmsarh",
+          "native_boot": "25b554d3-2095-4f88-b499-43262cdca0c4",
+          "guest_facts": "a/guest-facts.txt"
+        }
+      },
+      "engine_order": [
+        "BA",
+        "AB",
+        "AB",
+        "BA"
+      ],
+      "micropod_won_both_350us_boot_medians": false,
+      "within_level": {
+        "250": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1251.98,
+              "orbstack": 3124.6710000000003,
+              "paired_ratio": 0.39752255887465804,
+              "paired_difference": -1808.6,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.8195983140000003,
+              "orbstack": 2.7855917555,
+              "paired_ratio": 1.010041033163096,
+              "paired_difference": 0.0279053709999999,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 4551.063,
+              "orbstack": 5954.7135,
+              "paired_ratio": 0.6956661293067343,
+              "paired_difference": -1844.213,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 366.5,
+              "orbstack": 227.119,
+              "paired_ratio": 1.587689161861213,
+              "paired_difference": 131.33950000000002,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 759.188,
+              "orbstack": 2814.2794999999996,
+              "paired_ratio": 0.26637368031251485,
+              "paired_difference": -1982.584,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1534272.0,
+              "orbstack": 7117531.5,
+              "paired_ratio": 0.19707270515279848,
+              "paired_difference": -5583259.5,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "orbstack": 0,
+            "micropod": 1,
+            "split_or_tied": 3
+          },
+          "simultaneous_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              0
+            ]
+          }
+        },
+        "350": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 2755.7085,
+              "orbstack": 3129.4965,
+              "paired_ratio": 0.9078239505323107,
+              "paired_difference": -294.50249999999994,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.8657672305000004,
+              "orbstack": 2.85210778,
+              "paired_ratio": 0.9928985183517227,
+              "paired_difference": -0.020561924499999717,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 13672.771,
+              "orbstack": 6238.4655,
+              "paired_ratio": 2.3221378113282194,
+              "paired_difference": 7698.210499999999,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 281.791,
+              "orbstack": 264.776,
+              "paired_ratio": 1.0505931459614084,
+              "paired_difference": 13.327999999999975,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 2264.667,
+              "orbstack": 2821.0485,
+              "paired_ratio": 0.8337031107581365,
+              "paired_difference": -471.4210000000003,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 724646.5,
+              "orbstack": 4147479.0,
+              "paired_ratio": 0.20233371711740822,
+              "paired_difference": -2828182.5,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "orbstack": 1,
+            "micropod": 1,
+            "split_or_tied": 2
+          },
+          "simultaneous_win_positions": {
+            "orbstack": [
+              3
+            ],
+            "micropod": [
+              0
+            ]
+          }
+        }
+      },
+      "within_engine": {
+        "micropod": {
+          "metrics": {
+            "p95_us": {
+              "350us": 2755.7085,
+              "250us": 1251.98,
+              "paired_ratio": 2.187098053923147,
+              "paired_difference": 1503.7285000000002,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "350us": 2.8657672305000004,
+              "250us": 2.8195983140000003,
+              "paired_ratio": 1.0132741323037182,
+              "paired_difference": 0.03742039550000009,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "350us": 13672.771,
+              "250us": 4551.063,
+              "paired_ratio": 2.8281768645527436,
+              "paired_difference": 8861.875,
+              "350us_higher": 4,
+              "350us_lower": 0,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "350us": 281.791,
+              "250us": 366.5,
+              "paired_ratio": 0.7688622780893033,
+              "paired_difference": -84.709,
+              "350us_higher": 0,
+              "350us_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "350us": 2264.667,
+              "250us": 759.188,
+              "paired_ratio": 2.944668479956099,
+              "paired_difference": 1505.479,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "350us": 724646.5,
+              "250us": 1534272.0,
+              "paired_ratio": 1.538847455495913,
+              "paired_difference": 80708.0,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "250us": 2,
+            "350us": 0,
+            "split_or_tied": 2
+          },
+          "simultaneous_win_positions": {
+            "250us": [
+              1,
+              3
+            ],
+            "350us": []
+          }
+        },
+        "orbstack": {
+          "metrics": {
+            "p95_us": {
+              "350us": 3129.4965,
+              "250us": 3124.6710000000003,
+              "paired_ratio": 1.0626724273732706,
+              "paired_difference": 170.84449999999993,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "350us": 2.85210778,
+              "250us": 2.7855917555,
+              "paired_ratio": 1.0259450781640438,
+              "paired_difference": 0.07214023099999989,
+              "350us_higher": 4,
+              "350us_lower": 0,
+              "pairs": 4
+            },
+            "p99_us": {
+              "350us": 6238.4655,
+              "250us": 5954.7135,
+              "paired_ratio": 1.1498065873590482,
+              "paired_difference": 806.7635,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "350us": 264.776,
+              "250us": 227.119,
+              "paired_ratio": 1.1802780174433116,
+              "paired_difference": 38.78200000000001,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "350us": 2821.0485,
+              "250us": 2814.2794999999996,
+              "paired_ratio": 1.0611811836407923,
+              "paired_difference": 149.13750000000027,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "350us": 4147479.0,
+              "250us": 7117531.5,
+              "paired_ratio": 0.8595389307620614,
+              "paired_difference": -1212765.0,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "250us": 2,
+            "350us": 0,
+            "split_or_tied": 2
+          },
+          "simultaneous_win_positions": {
+            "250us": [
+              0,
+              2
+            ],
+            "350us": []
+          }
+        }
+      }
+    },
+    {
+      "seed": 250193,
+      "treatment_order_us": [
+        350,
+        250
+      ],
+      "boots": {
+        "250": {
+          "archive": "20261125T030213Z-sibling-slice350-da3ouh_n",
+          "native_boot": "02fd0ede-868d-471d-aee3-b57c005bbcbf",
+          "guest_facts": "a/guest-facts.txt"
+        },
+        "350": {
+          "archive": "20261125T030047Z-sibling-slice350-dcnyt1po",
+          "native_boot": "da1189ef-b1be-40bc-ac66-73757302288a",
+          "guest_facts": "a/guest-facts.txt"
+        }
+      },
+      "engine_order": [
+        "BA",
+        "AB",
+        "BA",
+        "AB"
+      ],
+      "micropod_won_both_350us_boot_medians": true,
+      "within_level": {
+        "250": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 2111.188,
+              "orbstack": 3032.632,
+              "paired_ratio": 0.6876112698816531,
+              "paired_difference": -959.6380000000001,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.9398435225000004,
+              "orbstack": 2.8602443935,
+              "paired_ratio": 1.0295051362172627,
+              "paired_difference": 0.0845140430000002,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 6299.1255,
+              "orbstack": 6107.331,
+              "paired_ratio": 1.0245572562462084,
+              "paired_difference": 191.79449999999997,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 690.937,
+              "orbstack": 259.692,
+              "paired_ratio": 2.6249523549063856,
+              "paired_difference": 431.245,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1619.1675,
+              "orbstack": 2716.2635,
+              "paired_ratio": 0.5842511463481532,
+              "paired_difference": -1151.39,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1621625.5,
+              "orbstack": 8085820.0,
+              "paired_ratio": 0.23058223353661506,
+              "paired_difference": -6952924.0,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "orbstack": 0,
+            "micropod": 1,
+            "split_or_tied": 3
+          },
+          "simultaneous_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              2
+            ]
+          }
+        },
+        "350": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 2169.105,
+              "orbstack": 2949.467,
+              "paired_ratio": 0.7109122104097124,
+              "paired_difference": -861.7165,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.8878451055000003,
+              "orbstack": 2.911162198,
+              "paired_ratio": 0.996936230929016,
+              "paired_difference": -0.008891283999999944,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 12709.542000000001,
+              "orbstack": 6098.5395,
+              "paired_ratio": 2.0703076393011797,
+              "paired_difference": 6358.157000000001,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 286.3955,
+              "orbstack": 230.685,
+              "paired_ratio": 1.2137417994199722,
+              "paired_difference": 48.210999999999984,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1682.3975,
+              "orbstack": 2652.8685,
+              "paired_ratio": 0.6108348770821987,
+              "paired_difference": -1049.761,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 11906084.5,
+              "orbstack": 3659903.5,
+              "paired_ratio": 2.092655108414239,
+              "paired_difference": 9782564.5,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "orbstack": 0,
+            "micropod": 3,
+            "split_or_tied": 1
+          },
+          "simultaneous_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              0,
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "within_engine": {
+        "micropod": {
+          "metrics": {
+            "p95_us": {
+              "350us": 2169.105,
+              "250us": 2111.188,
+              "paired_ratio": 1.027927765527601,
+              "paired_difference": 57.917000000000144,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "350us": 2.8878451055000003,
+              "250us": 2.9398435225000004,
+              "paired_ratio": 0.9755031723659746,
+              "paired_difference": -0.07347383350000003,
+              "350us_higher": 1,
+              "350us_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "350us": 12709.542000000001,
+              "250us": 6299.1255,
+              "paired_ratio": 1.9547289458905097,
+              "paired_difference": 6020.354,
+              "350us_higher": 4,
+              "350us_lower": 0,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "350us": 286.3955,
+              "250us": 690.937,
+              "paired_ratio": 0.4151351864526141,
+              "paired_difference": -404.5415,
+              "350us_higher": 0,
+              "350us_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "350us": 1682.3975,
+              "250us": 1619.1675,
+              "paired_ratio": 1.0394388983154093,
+              "paired_difference": 62.333999999999946,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "350us": 11906084.5,
+              "250us": 1621625.5,
+              "paired_ratio": 3.7711716287770574,
+              "paired_difference": 9716938.5,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "250us": 1,
+            "350us": 1,
+            "split_or_tied": 2
+          },
+          "simultaneous_win_positions": {
+            "250us": [
+              1
+            ],
+            "350us": [
+              0
+            ]
+          }
+        },
+        "orbstack": {
+          "metrics": {
+            "p95_us": {
+              "350us": 2949.467,
+              "250us": 3032.632,
+              "paired_ratio": 1.0190626837065986,
+              "paired_difference": 57.14599999999996,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "350us": 2.911162198,
+              "250us": 2.8602443935,
+              "paired_ratio": 1.0251023427617534,
+              "paired_difference": 0.07189029699999994,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "350us": 6098.5395,
+              "250us": 6107.331,
+              "paired_ratio": 1.0317238123085863,
+              "paired_difference": 167.51199999999972,
+              "350us_higher": 3,
+              "350us_lower": 1,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "350us": 230.685,
+              "250us": 259.692,
+              "paired_ratio": 0.912904391518486,
+              "paired_difference": -24.400999999999996,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "350us": 2652.8685,
+              "250us": 2716.2635,
+              "paired_ratio": 1.0176277052706835,
+              "paired_difference": 50.201499999999896,
+              "350us_higher": 2,
+              "350us_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "350us": 3659903.5,
+              "250us": 8085820.0,
+              "paired_ratio": 0.578359913832021,
+              "paired_difference": -4021779.5,
+              "350us_higher": 1,
+              "350us_lower": 3,
+              "pairs": 4
+            }
+          },
+          "same_window_wins": {
+            "250us": 2,
+            "350us": 1,
+            "split_or_tied": 1
+          },
+          "simultaneous_win_positions": {
+            "250us": [
+              1,
+              2
+            ],
+            "350us": [
+              0
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "within_level": {
+    "250": {
+      "metrics": {
+        "p95_us": {
+          "micropod": 1379.2710000000002,
+          "orbstack": 3090.0950000000003,
+          "paired_ratio": 0.48915389908538043,
+          "paired_difference": -1446.3975,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "micropod": 2.86080946,
+          "orbstack": 2.821231551,
+          "paired_ratio": 1.0184213907403041,
+          "paired_difference": 0.0516631045,
+          "micropod_higher": 6,
+          "micropod_lower": 2,
+          "pairs": 8
+        },
+        "p99_us": {
+          "micropod": 5231.125,
+          "orbstack": 6050.949500000001,
+          "paired_ratio": 0.8629171269234182,
+          "paired_difference": -690.7814999999996,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "micropod": 491.6665,
+          "orbstack": 247.83100000000002,
+          "paired_ratio": 2.206524844894309,
+          "paired_difference": 269.27549999999997,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "micropod": 892.792,
+          "orbstack": 2766.425,
+          "paired_ratio": 0.3520790266147863,
+          "paired_difference": -1664.5714999999998,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "micropod": 1621625.5,
+          "orbstack": 7194313.5,
+          "paired_ratio": 0.23058223353661506,
+          "paired_difference": -5583259.5,
+          "micropod_higher": 1,
+          "micropod_lower": 7,
+          "pairs": 8
+        }
+      },
+      "same_window_wins": {
+        "orbstack": 0,
+        "micropod": 2,
+        "split_or_tied": 6
+      },
+      "simultaneous_win_positions": {
+        "orbstack": [],
+        "micropod": [
+          0,
+          6
+        ]
+      }
+    },
+    "350": {
+      "metrics": {
+        "p95_us": {
+          "micropod": 2169.105,
+          "orbstack": 3068.5725,
+          "paired_ratio": 0.7109122104097124,
+          "paired_difference": -861.7165,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "micropod": 2.8672215220000004,
+          "orbstack": 2.883745328,
+          "paired_ratio": 0.996936230929016,
+          "paired_difference": -0.008891283999999944,
+          "micropod_higher": 3,
+          "micropod_lower": 5,
+          "pairs": 8
+        },
+        "p99_us": {
+          "micropod": 12709.542000000001,
+          "orbstack": 6238.4655,
+          "paired_ratio": 2.110830543593775,
+          "paired_difference": 6358.157000000001,
+          "micropod_higher": 7,
+          "micropod_lower": 1,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "micropod": 284.187,
+          "orbstack": 253.9995,
+          "paired_ratio": 1.0891763179035214,
+          "paired_difference": 22.323499999999996,
+          "micropod_higher": 7,
+          "micropod_lower": 1,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "micropod": 1682.3975,
+          "orbstack": 2753.5005,
+          "paired_ratio": 0.6108348770821987,
+          "paired_difference": -1049.761,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "micropod": 915813.5,
+          "orbstack": 3963582.5,
+          "paired_ratio": 0.21134368287276206,
+          "paired_difference": -1887112.5,
+          "micropod_higher": 3,
+          "micropod_lower": 5,
+          "pairs": 8
+        }
+      },
+      "same_window_wins": {
+        "orbstack": 1,
+        "micropod": 4,
+        "split_or_tied": 3
+      },
+      "simultaneous_win_positions": {
+        "orbstack": [
+          3
+        ],
+        "micropod": [
+          0,
+          4,
+          5,
+          6
+        ]
+      }
+    }
+  },
+  "within_engine": {
+    "micropod": {
+      "metrics": {
+        "p95_us": {
+          "350us": 2169.105,
+          "250us": 1379.2710000000002,
+          "paired_ratio": 1.322665026382968,
+          "paired_difference": 412.35400000000016,
+          "350us_higher": 6,
+          "350us_lower": 2,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "350us": 2.8672215220000004,
+          "250us": 2.86080946,
+          "paired_ratio": 1.0032559875065519,
+          "paired_difference": 0.009300208000000199,
+          "350us_higher": 4,
+          "350us_lower": 4,
+          "pairs": 8
+        },
+        "p99_us": {
+          "350us": 12709.542000000001,
+          "250us": 5231.125,
+          "paired_ratio": 2.37463327707895,
+          "paired_difference": 6833.896000000001,
+          "350us_higher": 8,
+          "350us_lower": 0,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "350us": 284.187,
+          "250us": 491.6665,
+          "paired_ratio": 0.5669346583094427,
+          "paired_difference": -216.31249999999997,
+          "350us_higher": 0,
+          "350us_lower": 8,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "350us": 1682.3975,
+          "250us": 892.792,
+          "paired_ratio": 1.5411802979810687,
+          "paired_difference": 419.56249999999994,
+          "350us_higher": 6,
+          "350us_lower": 2,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "350us": 915813.5,
+          "250us": 1621625.5,
+          "paired_ratio": 1.629313765257111,
+          "paired_difference": 130313.0,
+          "350us_higher": 4,
+          "350us_lower": 4,
+          "pairs": 8
+        }
+      },
+      "same_window_wins": {
+        "250us": 3,
+        "350us": 1,
+        "split_or_tied": 4
+      },
+      "simultaneous_win_positions": {
+        "250us": [
+          1,
+          3,
+          5
+        ],
+        "350us": [
+          4
+        ]
+      }
+    },
+    "orbstack": {
+      "metrics": {
+        "p95_us": {
+          "350us": 3068.5725,
+          "250us": 3090.0950000000003,
+          "paired_ratio": 1.0302929272010894,
+          "paired_difference": 92.6869999999999,
+          "350us_higher": 4,
+          "350us_lower": 4,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "350us": 2.883745328,
+          "250us": 2.821231551,
+          "paired_ratio": 1.0259450781640438,
+          "paired_difference": 0.07214023099999989,
+          "350us_higher": 7,
+          "350us_lower": 1,
+          "pairs": 8
+        },
+        "p99_us": {
+          "350us": 6238.4655,
+          "250us": 6050.949500000001,
+          "paired_ratio": 1.0712625483886822,
+          "paired_difference": 415.21900000000005,
+          "350us_higher": 6,
+          "350us_lower": 2,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "350us": 253.9995,
+          "250us": 247.83100000000002,
+          "paired_ratio": 1.0478630861509868,
+          "paired_difference": 11.597999999999999,
+          "350us_higher": 5,
+          "350us_lower": 3,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "350us": 2753.5005,
+          "250us": 2766.425,
+          "paired_ratio": 1.0311423872226684,
+          "paired_difference": 84.72650000000021,
+          "350us_higher": 4,
+          "350us_lower": 4,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "350us": 3963582.5,
+          "250us": 7194313.5,
+          "paired_ratio": 0.7417315709038681,
+          "paired_difference": -1994349.0,
+          "350us_higher": 3,
+          "350us_lower": 5,
+          "pairs": 8
+        }
+      },
+      "same_window_wins": {
+        "250us": 4,
+        "350us": 1,
+        "split_or_tied": 3
+      },
+      "simultaneous_win_positions": {
+        "250us": [
+          0,
+          2,
+          5,
+          6
+        ],
+        "350us": [
+          4
+        ]
+      }
+    }
+  },
+  "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+  "kernel": {
+    "kernel_ipvlan": true,
+    "kernel_page_kib": 16,
+    "kernel_image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "kernel_config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c"
+  },
+  "signed_product": {
+    "host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+    "new_guest_sha256": "d584a6099ec4130cba3fa73d8b12193c2ea60aa5f8a83e28d5dab4714048e0ff",
+    "new_bootstrap_sha256": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e"
+  },
+  "placements": {
+    "grouped": {
+      "groups": {
+        "job-00": "0",
+        "job-01": "1",
+        "job-02": "2",
+        "job-03": "3",
+        "job-04": "0",
+        "job-05": "1",
+        "job-06": "2",
+        "job-07": "3",
+        "job-08": "0",
+        "job-09": "1",
+        "job-10": "2",
+        "job-11": "3",
+        "job-12": "0",
+        "job-13": "1",
+        "job-14": "2",
+        "job-15": "3",
+        "job-16": "0",
+        "job-17": "1",
+        "job-18": "2",
+        "job-19": "3",
+        "job-20": "0",
+        "job-21": "1",
+        "job-22": "2",
+        "job-23": "3",
+        "job-24": "0",
+        "job-25": "1",
+        "job-26": "2",
+        "job-27": "3",
+        "job-28": "0",
+        "job-29": "1",
+        "job-30": "2",
+        "job-31": "3"
+      },
+      "groups_per_cpu": {
+        "0": 8,
+        "1": 8,
+        "2": 8,
+        "3": 8
+      },
+      "builders_per_cpu": {
+        "0": 2,
+        "1": 2,
+        "2": 2,
+        "3": 2
+      }
+    }
+  },
+  "scheduler_implementation": "disposable fixture after the signed 250 \u00b5s startup",
+  "baseline_files": 24
+}

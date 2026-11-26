@@ -1,0 +1,18 @@
+{
+  "phase": "scored",
+  "pair": 4,
+  "arm": "A",
+  "workers": 2,
+  "clean": true,
+  "fresh_offered": 240,
+  "mib_s": 15461.47367817192,
+  "p95_ms": 15.012416,
+  "p99_ms": 16.010583,
+  "cpu_s_per_gib": 0.30934501480307364,
+  "runnable_s_per_s": 5.2046957225971795,
+  "wait_s_per_s": 0.5338754250898149,
+  "submitted": 240,
+  "completed": 240,
+  "never_submitted": 0,
+  "submitted_without_reply": 0
+}

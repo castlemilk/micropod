@@ -1,0 +1,226 @@
+[
+  {
+    "id": "12550e4c2eb1d6dcdd3ab6ebf7054bfaab93d685458fc98dcf37acd3940ba61e",
+    "name": "mci-17172de349-a-0",
+    "mask": "0",
+    "threads": 5,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "1cca6483a1847bf6d2efa97093ca0daf2cd2cdeea46e12ba97b11cce8dc584fe",
+    "name": "mci-17172de349-a-1",
+    "mask": "0",
+    "threads": 4,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "cc91c83a051527192c5a243d208a22ececcd2c9bfc8edf48f37c512f4ac62712",
+    "name": "mci-17172de349-a-2",
+    "mask": "1",
+    "threads": 4,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "f955b7a8eee972aa1f12869a7e3a213a83fc58abc8e52611a92236fe5eacce05",
+    "name": "mci-17172de349-a-3",
+    "mask": "1",
+    "threads": 4,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "6817351854b5e13402d9ada3abc24ac72a68661a41c976191b4be0841a1fb650",
+    "name": "mci-17172de349-a-4",
+    "mask": "2",
+    "threads": 4,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "4cb8a40af526e267ea2f9d1ab4fa86de1227ec0fbda188840049666a0f637ab1",
+    "name": "mci-17172de349-a-5",
+    "mask": "2",
+    "threads": 4,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "ac1c0073594efee45718384585a0fd31b2d4797bfe636487d3d020e16a1aa79f",
+    "name": "mci-17172de349-a-6",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  },
+  {
+    "id": "91c586b275c6a9743157062eb365f2d21c876fd0785590cf05c3fd1e162c3a76",
+    "name": "mci-17172de349-a-7",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  },
+  {
+    "id": "ef73db3d44c4e5d2e3f57dfbd5cb276fc09210441a6aa0d50ba181be856f23fa",
+    "name": "mci-17172de349-a-8",
+    "mask": "0",
+    "threads": 5,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "54f1a4ec5fc3d3ebd9099c98cad7d39939c014d978a5e7aac6b68e96fd2d183c",
+    "name": "mci-17172de349-a-9",
+    "mask": "0",
+    "threads": 5,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "303531c0bd15da379cb14587af45b129e4e64fd3fef3ae3091849798735f99b6",
+    "name": "mci-17172de349-a-10",
+    "mask": "1",
+    "threads": 4,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "318eb1b1a9975276d05292ff3e2a0b4bf98e7748eba3c2130641939f2abff589",
+    "name": "mci-17172de349-a-11",
+    "mask": "1",
+    "threads": 4,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "3553d5fa771774f056c22d9b351a6a9c5c06400ab03a6a12931f9ecd67099a5e",
+    "name": "mci-17172de349-a-12",
+    "mask": "2",
+    "threads": 5,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "c53e82a145f7690fde141277da3c1835cb7b38134af520b9d48ffaea342eeea8",
+    "name": "mci-17172de349-a-13",
+    "mask": "2",
+    "threads": 5,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "70fdd712a3ce3b10c6486b16e41092636279c8204fd5cc363e5f431f1fc9e78a",
+    "name": "mci-17172de349-a-14",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  },
+  {
+    "id": "067671dffbe8b016cbc77c18aadc2153734f46060f6222d39c6fed3d305daa3c",
+    "name": "mci-17172de349-a-15",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  },
+  {
+    "id": "71f0b09a8be41f8622a1a47aaca4a5c1477125a16e3fce50b9da385572e2d393",
+    "name": "mci-17172de349-a-16",
+    "mask": "0",
+    "threads": 4,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "2ef6179b42ef121446b4b0cbea8b483acac12055da85954d6ef84cb70b0d7490",
+    "name": "mci-17172de349-a-17",
+    "mask": "0",
+    "threads": 4,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "5dde3f145aed5b269edf91ddc3a0f59fa07dbb711f607ef2701081a97430ed87",
+    "name": "mci-17172de349-a-18",
+    "mask": "1",
+    "threads": 5,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "52eba1bc31f87ed5a1842bfb5a844e6b4106b9874771ed133c09c778cef56532",
+    "name": "mci-17172de349-a-19",
+    "mask": "1",
+    "threads": 5,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "a35399f54c0f5512fdff4bfc8089af9d5374cea81dcd690f9a9f117fb04d43e7",
+    "name": "mci-17172de349-a-20",
+    "mask": "2",
+    "threads": 4,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "99e94012c21d23c725373bd37f0b2b76c2c59dd0c61505b5f035064e1dc34652",
+    "name": "mci-17172de349-a-21",
+    "mask": "2",
+    "threads": 5,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "d21c62556c8dd9c75b7b7d0359c7785afe1971f013b9843c3c17c458e0867772",
+    "name": "mci-17172de349-a-22",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  },
+  {
+    "id": "170bfd1176db7ee798165c511d4cff83aff4fd7f418756e19624148b2166b7e2",
+    "name": "mci-17172de349-a-23",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  },
+  {
+    "id": "b454f8cd22321dc3512d21c568bee0dc6ff4f3394d413cf1cb3c31479cca8673",
+    "name": "mci-17172de349-a-24",
+    "mask": "0",
+    "threads": 4,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "df47e27b1cfed89239a964b7e141f7b52932c5c224525f136d4f4e01234e3995",
+    "name": "mci-17172de349-a-25",
+    "mask": "0",
+    "threads": 5,
+    "cgroup_cpus": "0"
+  },
+  {
+    "id": "d8f439b8586aec233a72fe0be2397c33b73691f6908080c18917b04a3c7c5680",
+    "name": "mci-17172de349-a-26",
+    "mask": "1",
+    "threads": 5,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "30434d83bfc6c02314f94c58b5a7ca998e4adb9a136bd2e32c7b356c0921f289",
+    "name": "mci-17172de349-a-27",
+    "mask": "1",
+    "threads": 4,
+    "cgroup_cpus": "1"
+  },
+  {
+    "id": "6c20847fc780871e46e5951e8e189c22260540c99b1a69bc5b256b103eeb91dc",
+    "name": "mci-17172de349-a-28",
+    "mask": "2",
+    "threads": 4,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "7c8d17d1e980414b2e94bc0cd9a14d2d62cd82432847491cbaaa9d49298308fc",
+    "name": "mci-17172de349-a-29",
+    "mask": "2",
+    "threads": 5,
+    "cgroup_cpus": "2"
+  },
+  {
+    "id": "feea99b320771e71aaba84e8eb8f1d83553219397563f5af74287c5d1d1e14f6",
+    "name": "mci-17172de349-a-30",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  },
+  {
+    "id": "c02d8676560d463a659c65c0e15de5fe14598bcec36239c16a01e20c95fdd7d9",
+    "name": "mci-17172de349-a-31",
+    "mask": "3",
+    "threads": 5,
+    "cgroup_cpus": "3"
+  }
+]

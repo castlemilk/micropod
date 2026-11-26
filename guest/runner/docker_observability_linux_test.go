@@ -10,19 +10,19 @@ import (
 
 func TestNormalizeDockerRoute(t *testing.T) {
 	cases := map[string]string{
-		"/v1.47/containers/create":                                    "/containers/create",
-		"/v1.47/containers/abcdef123456/start":                        "/containers/{id}/start",
-		"/v1.44/containers/mp-tc-123/json":                            "/containers/{id}/json",
-		"/v1.47/containers/abcdef123456":                              "/containers/{id}",
-		"/v1.47/containers/json":                                      "/containers/json",
-		"/v1.47/networks/create":                                      "/networks/create",
-		"/v1.47/networks/net123/connect":                              "/networks/{id}/connect",
-		"/v1.47/volumes/my-vol":                                       "/volumes/{id}",
-		"/v1.47/images/alpine:3.23/json":                              "/images/{id}/json",
-		"/v1.47/images/ghcr.io/foo/bar:v1/json":                       "/images/{id}/json",
-		"/v1.47/exec/exec123/start":                                   "/exec/{id}/start",
-		"/_ping":                                                      "/_ping",
-		"/v1.47/micropod/metrics":                                     "/micropod/metrics",
+		"/v1.47/containers/create":              "/containers/create",
+		"/v1.47/containers/abcdef123456/start":  "/containers/{id}/start",
+		"/v1.44/containers/mp-tc-123/json":      "/containers/{id}/json",
+		"/v1.47/containers/abcdef123456":        "/containers/{id}",
+		"/v1.47/containers/json":                "/containers/json",
+		"/v1.47/networks/create":                "/networks/create",
+		"/v1.47/networks/net123/connect":        "/networks/{id}/connect",
+		"/v1.47/volumes/my-vol":                 "/volumes/{id}",
+		"/v1.47/images/alpine:3.23/json":        "/images/{id}/json",
+		"/v1.47/images/ghcr.io/foo/bar:v1/json": "/images/{id}/json",
+		"/v1.47/exec/exec123/start":             "/exec/{id}/start",
+		"/_ping":                                "/_ping",
+		"/v1.47/micropod/metrics":               "/micropod/metrics",
 	}
 	for in, want := range cases {
 		if got := normalizeDockerRoute(in); got != want {

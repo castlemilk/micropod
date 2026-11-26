@@ -1,0 +1,10 @@
+{
+  "date_local": "2026-11-24",
+  "timezone": "Australia/Melbourne",
+  "scope": "regular macOS Terminal on Gamma",
+  "source": "operator-pasted command and stdout in this conversation",
+  "command": "xcrun swift -e 'import Virtualization; print(VZVirtualMachine.isSupported)'",
+  "stdout": "true",
+  "vm_started": false,
+  "throughput_samples": 0
+}

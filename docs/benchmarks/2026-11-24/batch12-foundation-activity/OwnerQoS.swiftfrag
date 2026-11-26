@@ -1,0 +1,16 @@
+extension NativeLoopbackRelay {
+    // Sample each production queue before and after the client, with no per-packet instrumentation.
+    func captureOwnerQoS(_ phase: String) {
+        for owner in [accept] + workers {
+            let done = DispatchSemaphore(value: 0)
+            owner.queue.async {
+                let observed = observe_thread()
+                Evidence.record(["event": "owner_sample", "phase": phase, "owner": owner.queue.label,
+                                 "qos_class": observed.qos, "tid": observed.tid,
+                                 "base_priority": observed.base, "current_priority": observed.current])
+                done.signal()
+            }
+            done.wait()
+        }
+    }
+}

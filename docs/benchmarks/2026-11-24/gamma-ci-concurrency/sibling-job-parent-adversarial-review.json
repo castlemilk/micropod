@@ -1,0 +1,15 @@
+{
+  "archive": "20261125T042246Z-sibling-job-parent-q6faac0l",
+  "native_paths": 64,
+  "job_parents": 32,
+  "intact_offered_requests_replayed_in_one_engine_window": 96000,
+  "in_memory_rejections": {
+    "two service leaves exchanged between otherwise complete job parents": "native CPU parent differs from its pair's named network and group",
+    "worker quota changed to eight vCPUs with all leaf quotas intact": "native worker root CPU or memory allocation changed",
+    "one grouped parent survives cleanup": "native payload leaves, job parents or observer remained after cleanup",
+    "one scheduled arrival moved by one nanosecond": "invalid paced timing for client 0, offer 32",
+    "one response absent from the final offer count": "incomplete offers for client 0",
+    "host counter alignment samples a different guest boot": "guest clock identity or host realtime clock changed"
+  },
+  "baseline_files": 24
+}

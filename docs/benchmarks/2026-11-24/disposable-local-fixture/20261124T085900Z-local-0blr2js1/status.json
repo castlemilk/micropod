@@ -1,0 +1,31 @@
+{
+  "mode": "suite",
+  "action": "run",
+  "time": "2026-11-24T08:59:00.293847+00:00",
+  "plan": [
+    "baseline",
+    "host-role",
+    "workers"
+  ],
+  "stages": {
+    "baseline": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085900Z-local-0blr2js1/inputs/baseline",
+      "state": "failed",
+      "evidence": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085900Z-local-0blr2js1/baseline",
+      "start": "2026-11-24T08:59:00.730505+00:00",
+      "end": "2026-11-24T08:59:07.412598+00:00"
+    },
+    "host-role": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085900Z-local-0blr2js1/inputs/host-role",
+      "state": "inputs verified"
+    },
+    "workers": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085900Z-local-0blr2js1/inputs/workers",
+      "state": "inputs verified"
+    }
+  },
+  "complete": false,
+  "socket_evidence": "route",
+  "error": "baseline: receiver exited 1: host idle below 90 percent (see /Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085900Z-local-0blr2js1/baseline/receiver/status.json)",
+  "end": "2026-11-24T08:59:07.412615+00:00"
+}

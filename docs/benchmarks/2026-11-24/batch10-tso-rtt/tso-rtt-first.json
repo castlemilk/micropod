@@ -1,0 +1,5784 @@
+{
+  "date": "2026-11-24",
+  "stable_id": "231.01",
+  "tier": "source/fixture",
+  "analysis_base": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "kernel": "Linux 7.3.5",
+  "kernel_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "kernel_sources": {
+    "net/ipv4/tcp_output.c": "b55846bf35be5799cc19318c9215aa1b8a9a4881f8e3794cf5dc08b8aa4ea5b7",
+    "net/ipv4/tcp_ipv4.c": "bbe547fe1e0a079d42c3c05ccf9f94f70fa70ac33a37d950882bf36890adfdcc",
+    "net/core/sock.c": "0b693d70e0d9752caaca9816fadc82802ff8c2c62612b7bd5fb2691045a2e4a0"
+  },
+  "compiled_functions_sha256": "a0ba9cfc893ef8f95e6697e50b4b3354b63832478466317b7acea53844c4bbd1",
+  "raw_archive_file": "gamma-direct-macvlan.json.gz",
+  "raw_archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "raw_archive_commit": "7a4eb51a04b51f6332ed49561b3dd0bb42ffacd9",
+  "raw_archive_recording_base": "816121afd30fba52bda7828418cd963d4216166b",
+  "fixture_sha256": "1359417f7b2a13bac19b006b0739c4114bba8c244c3dc66a3ff59f42d4fa8c27",
+  "reproducer_sha256": "8f4213d482a88e5479a90db354a1d187a0809bcae6bfb6a53a31edff7fc1155f",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "fixed": {
+    "mss_B": 1448,
+    "socket_gso_limit_B": 64512,
+    "max_segs": 64,
+    "pacing_shift": 10,
+    "min_segs": 2
+  },
+  "output_units": "desired TCP segments per TSO packet before send path constraints",
+  "assumptions": "Archived per-stream delivered B/s are substituted for socket pacing B/s. The study did not measure matched pacing rate, minimum RTT or socket GSO limit. Every RTT and socket limit is a fixture input.",
+  "rows": [
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 0,
+      "delivered_bytes": 1001712680,
+      "window_s": 6.000035167,
+      "pacing_Bps": 166951134,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 1,
+      "delivered_bytes": 984350576,
+      "window_s": 6.000035167,
+      "pacing_Bps": 164057467,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 2,
+      "delivered_bytes": 974132784,
+      "window_s": 6.000035167,
+      "pacing_Bps": 162354512,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 3,
+      "delivered_bytes": 988517240,
+      "window_s": 6.000035167,
+      "pacing_Bps": 164751907,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 4,
+      "delivered_bytes": 987213568,
+      "window_s": 6.000035167,
+      "pacing_Bps": 164534630,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 5,
+      "delivered_bytes": 965547192,
+      "window_s": 6.000035167,
+      "pacing_Bps": 160923588,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 6,
+      "delivered_bytes": 970596096,
+      "window_s": 6.000035167,
+      "pacing_Bps": 161765067,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 7,
+      "delivered_bytes": 994493944,
+      "window_s": 6.000035167,
+      "pacing_Bps": 165748019,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 8,
+      "delivered_bytes": 1000685352,
+      "window_s": 6.000035167,
+      "pacing_Bps": 166779914,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 9,
+      "delivered_bytes": 984350576,
+      "window_s": 6.000035167,
+      "pacing_Bps": 164057467,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 10,
+      "delivered_bytes": 973043544,
+      "window_s": 6.000035167,
+      "pacing_Bps": 162172973,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 11,
+      "delivered_bytes": 998768496,
+      "window_s": 6.000035167,
+      "pacing_Bps": 166460440,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 12,
+      "delivered_bytes": 968891408,
+      "window_s": 6.000035167,
+      "pacing_Bps": 161480954,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 13,
+      "delivered_bytes": 971240176,
+      "window_s": 6.000035167,
+      "pacing_Bps": 161872413,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 14,
+      "delivered_bytes": 998244352,
+      "window_s": 6.000035167,
+      "pacing_Bps": 166373083,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 15,
+      "delivered_bytes": 939892008,
+      "window_s": 6.000035167,
+      "pacing_Bps": 156647749,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 16,
+      "delivered_bytes": 977790768,
+      "window_s": 6.000035167,
+      "pacing_Bps": 162964172,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 17,
+      "delivered_bytes": 1010040688,
+      "window_s": 6.000035167,
+      "pacing_Bps": 168339128,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 18,
+      "delivered_bytes": 987234304,
+      "window_s": 6.000035167,
+      "pacing_Bps": 164538086,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 19,
+      "delivered_bytes": 990642032,
+      "window_s": 6.000035167,
+      "pacing_Bps": 165106037,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 20,
+      "delivered_bytes": 970719088,
+      "window_s": 6.000035167,
+      "pacing_Bps": 161785566,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 21,
+      "delivered_bytes": 977393936,
+      "window_s": 6.000035167,
+      "pacing_Bps": 162898034,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 22,
+      "delivered_bytes": 981898856,
+      "window_s": 6.000035167,
+      "pacing_Bps": 163648850,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 23,
+      "delivered_bytes": 975416432,
+      "window_s": 6.000035167,
+      "pacing_Bps": 162568452,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 24,
+      "delivered_bytes": 981974544,
+      "window_s": 6.000035167,
+      "pacing_Bps": 163661464,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 25,
+      "delivered_bytes": 970719232,
+      "window_s": 6.000035167,
+      "pacing_Bps": 161785590,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 26,
+      "delivered_bytes": 988195144,
+      "window_s": 6.000035167,
+      "pacing_Bps": 164698225,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 27,
+      "delivered_bytes": 972884552,
+      "window_s": 6.000035167,
+      "pacing_Bps": 162146474,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 28,
+      "delivered_bytes": 999606360,
+      "window_s": 6.000035167,
+      "pacing_Bps": 166600083,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 29,
+      "delivered_bytes": 967573504,
+      "window_s": 6.000035167,
+      "pacing_Bps": 161261305,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 30,
+      "delivered_bytes": 979107696,
+      "window_s": 6.000035167,
+      "pacing_Bps": 163183659,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 1,
+      "stream": 31,
+      "delivered_bytes": 987371808,
+      "window_s": 6.000035167,
+      "pacing_Bps": 164561003,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 0,
+      "delivered_bytes": 1135083376,
+      "window_s": 6.0000275,
+      "pacing_Bps": 189179695,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 1,
+      "delivered_bytes": 1149089088,
+      "window_s": 6.0000275,
+      "pacing_Bps": 191513970,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 2,
+      "delivered_bytes": 1123286896,
+      "window_s": 6.0000275,
+      "pacing_Bps": 187213624,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 3,
+      "delivered_bytes": 1118765200,
+      "window_s": 6.0000275,
+      "pacing_Bps": 186460012,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 4,
+      "delivered_bytes": 1132462080,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188742814,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 5,
+      "delivered_bytes": 1121714032,
+      "window_s": 6.0000275,
+      "pacing_Bps": 186951481,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 6,
+      "delivered_bytes": 1138395816,
+      "window_s": 6.0000275,
+      "pacing_Bps": 189731766,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 7,
+      "delivered_bytes": 1129505480,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188250050,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 8,
+      "delivered_bytes": 1125226464,
+      "window_s": 6.0000275,
+      "pacing_Bps": 187536884,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 9,
+      "delivered_bytes": 1128761648,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188126079,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 10,
+      "delivered_bytes": 1136428984,
+      "window_s": 6.0000275,
+      "pacing_Bps": 189403962,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 11,
+      "delivered_bytes": 1141112688,
+      "window_s": 6.0000275,
+      "pacing_Bps": 190184576,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 12,
+      "delivered_bytes": 1123270160,
+      "window_s": 6.0000275,
+      "pacing_Bps": 187210835,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 13,
+      "delivered_bytes": 1123549040,
+      "window_s": 6.0000275,
+      "pacing_Bps": 187257315,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 14,
+      "delivered_bytes": 1119728960,
+      "window_s": 6.0000275,
+      "pacing_Bps": 186620637,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 15,
+      "delivered_bytes": 1099085264,
+      "window_s": 6.0000275,
+      "pacing_Bps": 183180037,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 16,
+      "delivered_bytes": 1130151064,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188357647,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 17,
+      "delivered_bytes": 1121753432,
+      "window_s": 6.0000275,
+      "pacing_Bps": 186958048,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 18,
+      "delivered_bytes": 1134034800,
+      "window_s": 6.0000275,
+      "pacing_Bps": 189004933,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 19,
+      "delivered_bytes": 1112402464,
+      "window_s": 6.0000275,
+      "pacing_Bps": 185399560,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 20,
+      "delivered_bytes": 1115684864,
+      "window_s": 6.0000275,
+      "pacing_Bps": 185946625,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 21,
+      "delivered_bytes": 1131583080,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188596315,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 22,
+      "delivered_bytes": 1132631656,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188771077,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 23,
+      "delivered_bytes": 1133155944,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188858458,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 24,
+      "delivered_bytes": 1130102784,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188349600,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 25,
+      "delivered_bytes": 1139579368,
+      "window_s": 6.0000275,
+      "pacing_Bps": 189929024,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 26,
+      "delivered_bytes": 1128329592,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188054070,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 27,
+      "delivered_bytes": 1126275040,
+      "window_s": 6.0000275,
+      "pacing_Bps": 187711646,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 28,
+      "delivered_bytes": 1132199792,
+      "window_s": 6.0000275,
+      "pacing_Bps": 188699100,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 29,
+      "delivered_bytes": 1118830448,
+      "window_s": 6.0000275,
+      "pacing_Bps": 186470886,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 30,
+      "delivered_bytes": 1125941104,
+      "window_s": 6.0000275,
+      "pacing_Bps": 187655990,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 2,
+      "stream": 31,
+      "delivered_bytes": 1138760024,
+      "window_s": 6.0000275,
+      "pacing_Bps": 189792467,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 0,
+      "delivered_bytes": 1056964608,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176157210,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 1,
+      "delivered_bytes": 1060526864,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176750907,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 2,
+      "delivered_bytes": 1055846552,
+      "window_s": 6.000121167,
+      "pacing_Bps": 175970871,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 3,
+      "delivered_bytes": 1048313856,
+      "window_s": 6.000121167,
+      "pacing_Bps": 174715447,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 4,
+      "delivered_bytes": 1049916992,
+      "window_s": 6.000121167,
+      "pacing_Bps": 174982631,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 5,
+      "delivered_bytes": 1056702608,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176113544,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 6,
+      "delivered_bytes": 1067439840,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177903047,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 7,
+      "delivered_bytes": 1063525728,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177250708,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 8,
+      "delivered_bytes": 1064104840,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177347225,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 9,
+      "delivered_bytes": 1055422072,
+      "window_s": 6.000121167,
+      "pacing_Bps": 175900126,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 10,
+      "delivered_bytes": 1066659232,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177772948,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 11,
+      "delivered_bytes": 1049879008,
+      "window_s": 6.000121167,
+      "pacing_Bps": 174976301,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 12,
+      "delivered_bytes": 1059541624,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176586704,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 13,
+      "delivered_bytes": 1062742680,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177120203,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 14,
+      "delivered_bytes": 1061761896,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176956742,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 15,
+      "delivered_bytes": 1058170768,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176358233,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 16,
+      "delivered_bytes": 1058713400,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176448670,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 17,
+      "delivered_bytes": 1063029000,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177167922,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 18,
+      "delivered_bytes": 1049144392,
+      "window_s": 6.000121167,
+      "pacing_Bps": 174853867,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 19,
+      "delivered_bytes": 1065350208,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177554782,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 20,
+      "delivered_bytes": 1068526016,
+      "window_s": 6.000121167,
+      "pacing_Bps": 178084073,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 21,
+      "delivered_bytes": 1066918200,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177816109,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 22,
+      "delivered_bytes": 1059901640,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176646706,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 23,
+      "delivered_bytes": 1061114808,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176848896,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 24,
+      "delivered_bytes": 1058792096,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176461785,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 25,
+      "delivered_bytes": 1074513216,
+      "window_s": 6.000121167,
+      "pacing_Bps": 179081919,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 26,
+      "delivered_bytes": 1055922668,
+      "window_s": 6.000121167,
+      "pacing_Bps": 175983557,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 27,
+      "delivered_bytes": 1053247480,
+      "window_s": 6.000121167,
+      "pacing_Bps": 175537701,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 28,
+      "delivered_bytes": 1058916400,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176482502,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 29,
+      "delivered_bytes": 1056964608,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176157210,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 30,
+      "delivered_bytes": 1060728360,
+      "window_s": 6.000121167,
+      "pacing_Bps": 176784489,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 3,
+      "stream": 31,
+      "delivered_bytes": 1064170000,
+      "window_s": 6.000121167,
+      "pacing_Bps": 177358085,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 0,
+      "delivered_bytes": 1333390008,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222231288,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 1,
+      "delivered_bytes": 1332087328,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222014175,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 2,
+      "delivered_bytes": 1334967568,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222494214,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 3,
+      "delivered_bytes": 1342639416,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223772853,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 4,
+      "delivered_bytes": 1332935576,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222155549,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 5,
+      "delivered_bytes": 1329627944,
+      "window_s": 6.00001025,
+      "pacing_Bps": 221604278,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 6,
+      "delivered_bytes": 1331797584,
+      "window_s": 6.00001025,
+      "pacing_Bps": 221965884,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 7,
+      "delivered_bytes": 1345792528,
+      "window_s": 6.00001025,
+      "pacing_Bps": 224298371,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 8,
+      "delivered_bytes": 1319652640,
+      "window_s": 6.00001025,
+      "pacing_Bps": 219941730,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 9,
+      "delivered_bytes": 1335019192,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222502818,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 10,
+      "delivered_bytes": 1337583592,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222930217,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 11,
+      "delivered_bytes": 1344560832,
+      "window_s": 6.00001025,
+      "pacing_Bps": 224093089,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 12,
+      "delivered_bytes": 1333264528,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222210375,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 13,
+      "delivered_bytes": 1354922480,
+      "window_s": 6.00001025,
+      "pacing_Bps": 225820027,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 14,
+      "delivered_bytes": 1343745632,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223957222,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 15,
+      "delivered_bytes": 1324528920,
+      "window_s": 6.00001025,
+      "pacing_Bps": 220754442,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 16,
+      "delivered_bytes": 1340634984,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223438782,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 17,
+      "delivered_bytes": 1340766808,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223460752,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 18,
+      "delivered_bytes": 1343618320,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223936004,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 19,
+      "delivered_bytes": 1324798776,
+      "window_s": 6.00001025,
+      "pacing_Bps": 220799418,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 20,
+      "delivered_bytes": 1326538200,
+      "window_s": 6.00001025,
+      "pacing_Bps": 221089322,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 21,
+      "delivered_bytes": 1341286584,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223547382,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 22,
+      "delivered_bytes": 1340121032,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223353123,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 23,
+      "delivered_bytes": 1340146984,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223357449,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 24,
+      "delivered_bytes": 1333035624,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222172224,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 25,
+      "delivered_bytes": 1340959280,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223492831,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 26,
+      "delivered_bytes": 1332832816,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222138423,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 27,
+      "delivered_bytes": 1334402520,
+      "window_s": 6.00001025,
+      "pacing_Bps": 222400040,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 28,
+      "delivered_bytes": 1338733312,
+      "window_s": 6.00001025,
+      "pacing_Bps": 223121837,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 29,
+      "delivered_bytes": 1346809656,
+      "window_s": 6.00001025,
+      "pacing_Bps": 224467892,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 30,
+      "delivered_bytes": 1352199720,
+      "window_s": 6.00001025,
+      "pacing_Bps": 225366234,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 4,
+      "stream": 31,
+      "delivered_bytes": 1344450360,
+      "window_s": 6.00001025,
+      "pacing_Bps": 224074677,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 0,
+      "delivered_bytes": 954592304,
+      "window_s": 6.000027333,
+      "pacing_Bps": 159097992,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 1,
+      "delivered_bytes": 931558368,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155259020,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 2,
+      "delivered_bytes": 953170960,
+      "window_s": 6.000027333,
+      "pacing_Bps": 158861102,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 3,
+      "delivered_bytes": 936278464,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156045699,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 4,
+      "delivered_bytes": 940469616,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156744221,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 5,
+      "delivered_bytes": 937689088,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156280802,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 6,
+      "delivered_bytes": 936998232,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156165660,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 7,
+      "delivered_bytes": 935104232,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155849995,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 8,
+      "delivered_bytes": 941224224,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156869989,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 9,
+      "delivered_bytes": 933984328,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155663345,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 10,
+      "delivered_bytes": 932269112,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155377477,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 11,
+      "delivered_bytes": 938738176,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156455649,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 12,
+      "delivered_bytes": 938289400,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156380854,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 13,
+      "delivered_bytes": 922054672,
+      "window_s": 6.000027333,
+      "pacing_Bps": 153675078,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 14,
+      "delivered_bytes": 942931968,
+      "window_s": 6.000027333,
+      "pacing_Bps": 157154612,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 15,
+      "delivered_bytes": 937721160,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156286148,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 16,
+      "delivered_bytes": 940063760,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156676579,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 17,
+      "delivered_bytes": 945482192,
+      "window_s": 6.000027333,
+      "pacing_Bps": 157579647,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 18,
+      "delivered_bytes": 949296440,
+      "window_s": 6.000027333,
+      "pacing_Bps": 158215352,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 19,
+      "delivered_bytes": 943718400,
+      "window_s": 6.000027333,
+      "pacing_Bps": 157285683,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 20,
+      "delivered_bytes": 947746136,
+      "window_s": 6.000027333,
+      "pacing_Bps": 157956969,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 21,
+      "delivered_bytes": 941092448,
+      "window_s": 6.000027333,
+      "pacing_Bps": 156848026,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 22,
+      "delivered_bytes": 949614720,
+      "window_s": 6.000027333,
+      "pacing_Bps": 158268399,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 23,
+      "delivered_bytes": 919616528,
+      "window_s": 6.000027333,
+      "pacing_Bps": 153268723,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 24,
+      "delivered_bytes": 945253512,
+      "window_s": 6.000027333,
+      "pacing_Bps": 157541534,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 25,
+      "delivered_bytes": 932979856,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155495934,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 26,
+      "delivered_bytes": 930314312,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155051678,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 27,
+      "delivered_bytes": 943683656,
+      "window_s": 6.000027333,
+      "pacing_Bps": 157279892,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 28,
+      "delivered_bytes": 947350664,
+      "window_s": 6.000027333,
+      "pacing_Bps": 157891058,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 29,
+      "delivered_bytes": 949500944,
+      "window_s": 6.000027333,
+      "pacing_Bps": 158249436,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 30,
+      "delivered_bytes": 932667592,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155443890,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 5,
+      "stream": 31,
+      "delivered_bytes": 932017496,
+      "window_s": 6.000027333,
+      "pacing_Bps": 155335541,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 0,
+      "delivered_bytes": 1399978112,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233323654,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 1,
+      "delivered_bytes": 1396632056,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232765992,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 2,
+      "delivered_bytes": 1401677952,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233606953,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 3,
+      "delivered_bytes": 1394725872,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232448303,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 4,
+      "delivered_bytes": 1391107480,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231845254,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 5,
+      "delivered_bytes": 1392153048,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232019510,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 6,
+      "delivered_bytes": 1399847792,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233301935,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 7,
+      "delivered_bytes": 1398227808,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233031944,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 8,
+      "delivered_bytes": 1399462512,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233237723,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 9,
+      "delivered_bytes": 1401328008,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233548631,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 10,
+      "delivered_bytes": 1389191840,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231525989,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 11,
+      "delivered_bytes": 1388714800,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231446484,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 12,
+      "delivered_bytes": 1397951800,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232985944,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 13,
+      "delivered_bytes": 1400309592,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233378899,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 14,
+      "delivered_bytes": 1402364336,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233721348,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 15,
+      "delivered_bytes": 1389008824,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231495487,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 16,
+      "delivered_bytes": 1389433064,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231566192,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 17,
+      "delivered_bytes": 1391498248,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231910380,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 18,
+      "delivered_bytes": 1399739864,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233283947,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 19,
+      "delivered_bytes": 1392171096,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232022518,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 20,
+      "delivered_bytes": 1391757384,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231953568,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 21,
+      "delivered_bytes": 1394210944,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232362484,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 22,
+      "delivered_bytes": 1393983400,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232324561,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 23,
+      "delivered_bytes": 1392899888,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232143981,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 24,
+      "delivered_bytes": 1395506288,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232578369,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 25,
+      "delivered_bytes": 1402576656,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233756734,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 26,
+      "delivered_bytes": 1391498248,
+      "window_s": 6.000155083,
+      "pacing_Bps": 231910380,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 27,
+      "delivered_bytes": 1393859520,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232303915,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 28,
+      "delivered_bytes": 1401712224,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233612665,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 29,
+      "delivered_bytes": 1401677952,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233606953,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 30,
+      "delivered_bytes": 1393554496,
+      "window_s": 6.000155083,
+      "pacing_Bps": 232253079,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 6,
+      "stream": 31,
+      "delivered_bytes": 1403429664,
+      "window_s": 6.000155083,
+      "pacing_Bps": 233898898,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 0,
+      "delivered_bytes": 1529085952,
+      "window_s": 6.000004,
+      "pacing_Bps": 254847488,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 1,
+      "delivered_bytes": 1537474560,
+      "window_s": 6.000004,
+      "pacing_Bps": 256245589,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 2,
+      "delivered_bytes": 1535639552,
+      "window_s": 6.000004,
+      "pacing_Bps": 255939754,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 3,
+      "delivered_bytes": 1525678080,
+      "window_s": 6.000004,
+      "pacing_Bps": 254279510,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 4,
+      "delivered_bytes": 1532493968,
+      "window_s": 6.000004,
+      "pacing_Bps": 255415491,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 5,
+      "delivered_bytes": 1534229776,
+      "window_s": 6.000004,
+      "pacing_Bps": 255704792,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 6,
+      "delivered_bytes": 1534557552,
+      "window_s": 6.000004,
+      "pacing_Bps": 255759421,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 7,
+      "delivered_bytes": 1538260992,
+      "window_s": 6.000004,
+      "pacing_Bps": 256376661,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 8,
+      "delivered_bytes": 1527775232,
+      "window_s": 6.000004,
+      "pacing_Bps": 254629035,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 9,
+      "delivered_bytes": 1534427232,
+      "window_s": 6.000004,
+      "pacing_Bps": 255737701,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 10,
+      "delivered_bytes": 1532493968,
+      "window_s": 6.000004,
+      "pacing_Bps": 255415491,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 11,
+      "delivered_bytes": 1535148688,
+      "window_s": 6.000004,
+      "pacing_Bps": 255857944,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 12,
+      "delivered_bytes": 1533901624,
+      "window_s": 6.000004,
+      "pacing_Bps": 255650100,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 13,
+      "delivered_bytes": 1527775088,
+      "window_s": 6.000004,
+      "pacing_Bps": 254629011,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 14,
+      "delivered_bytes": 1539833712,
+      "window_s": 6.000004,
+      "pacing_Bps": 256638780,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 15,
+      "delivered_bytes": 1526726656,
+      "window_s": 6.000004,
+      "pacing_Bps": 254454273,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 16,
+      "delivered_bytes": 1538097248,
+      "window_s": 6.000004,
+      "pacing_Bps": 256349370,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 17,
+      "delivered_bytes": 1523646464,
+      "window_s": 6.000004,
+      "pacing_Bps": 253940908,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 18,
+      "delivered_bytes": 1534853264,
+      "window_s": 6.000004,
+      "pacing_Bps": 255808706,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 19,
+      "delivered_bytes": 1534328832,
+      "window_s": 6.000004,
+      "pacing_Bps": 255721301,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 20,
+      "delivered_bytes": 1531248736,
+      "window_s": 6.000004,
+      "pacing_Bps": 255207952,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 21,
+      "delivered_bytes": 1533018256,
+      "window_s": 6.000004,
+      "pacing_Bps": 255502872,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 22,
+      "delivered_bytes": 1538523136,
+      "window_s": 6.000004,
+      "pacing_Bps": 256420351,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 23,
+      "delivered_bytes": 1534066544,
+      "window_s": 6.000004,
+      "pacing_Bps": 255677586,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 24,
+      "delivered_bytes": 1535115264,
+      "window_s": 6.000004,
+      "pacing_Bps": 255852373,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 25,
+      "delivered_bytes": 1536983512,
+      "window_s": 6.000004,
+      "pacing_Bps": 256163747,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 26,
+      "delivered_bytes": 1540358144,
+      "window_s": 6.000004,
+      "pacing_Bps": 256726186,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 27,
+      "delivered_bytes": 1526988656,
+      "window_s": 6.000004,
+      "pacing_Bps": 254497939,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 28,
+      "delivered_bytes": 1539309568,
+      "window_s": 6.000004,
+      "pacing_Bps": 256551423,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 29,
+      "delivered_bytes": 1533804688,
+      "window_s": 6.000004,
+      "pacing_Bps": 255633944,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 30,
+      "delivered_bytes": 1532919672,
+      "window_s": 6.000004,
+      "pacing_Bps": 255486441,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 7,
+      "stream": 31,
+      "delivered_bytes": 1536720896,
+      "window_s": 6.000004,
+      "pacing_Bps": 256119978,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 0,
+      "delivered_bytes": 895456640,
+      "window_s": 6.000257292,
+      "pacing_Bps": 149236373,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 1,
+      "delivered_bytes": 913032008,
+      "window_s": 6.000257292,
+      "pacing_Bps": 152165476,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 2,
+      "delivered_bytes": 908050272,
+      "window_s": 6.000257292,
+      "pacing_Bps": 151335222,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 3,
+      "delivered_bytes": 903480240,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150573583,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 4,
+      "delivered_bytes": 904588048,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150758209,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 5,
+      "delivered_bytes": 895592832,
+      "window_s": 6.000257292,
+      "pacing_Bps": 149259071,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 6,
+      "delivered_bytes": 906980344,
+      "window_s": 6.000257292,
+      "pacing_Bps": 151156908,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 7,
+      "delivered_bytes": 898649520,
+      "window_s": 6.000257292,
+      "pacing_Bps": 149768497,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 8,
+      "delivered_bytes": 914096272,
+      "window_s": 6.000257292,
+      "pacing_Bps": 152342845,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 9,
+      "delivered_bytes": 903707600,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150611474,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 10,
+      "delivered_bytes": 904770880,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150788680,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 11,
+      "delivered_bytes": 915406848,
+      "window_s": 6.000257292,
+      "pacing_Bps": 152561265,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 12,
+      "delivered_bytes": 901233024,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150199063,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 13,
+      "delivered_bytes": 905401760,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150893822,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 14,
+      "delivered_bytes": 900464496,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150070980,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 15,
+      "delivered_bytes": 890235008,
+      "window_s": 6.000257292,
+      "pacing_Bps": 148366139,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 16,
+      "delivered_bytes": 900149048,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150018408,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 17,
+      "delivered_bytes": 910199048,
+      "window_s": 6.000257292,
+      "pacing_Bps": 151693336,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 18,
+      "delivered_bytes": 913029168,
+      "window_s": 6.000257292,
+      "pacing_Bps": 152165002,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 19,
+      "delivered_bytes": 878379576,
+      "window_s": 6.000257292,
+      "pacing_Bps": 146390318,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 20,
+      "delivered_bytes": 916884280,
+      "window_s": 6.000257292,
+      "pacing_Bps": 152807493,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 21,
+      "delivered_bytes": 900905720,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150144514,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 22,
+      "delivered_bytes": 899416064,
+      "window_s": 6.000257292,
+      "pacing_Bps": 149896249,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 23,
+      "delivered_bytes": 900802808,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150127363,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 24,
+      "delivered_bytes": 919366416,
+      "window_s": 6.000257292,
+      "pacing_Bps": 153221165,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 25,
+      "delivered_bytes": 904921088,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150813714,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 26,
+      "delivered_bytes": 900071280,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150005447,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 27,
+      "delivered_bytes": 901810440,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150295295,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 28,
+      "delivered_bytes": 904505728,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150744490,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 29,
+      "delivered_bytes": 903545400,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150584442,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 30,
+      "delivered_bytes": 904790016,
+      "window_s": 6.000257292,
+      "pacing_Bps": 150791869,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 8,
+      "stream": 31,
+      "delivered_bytes": 909098848,
+      "window_s": 6.000257292,
+      "pacing_Bps": 151509977,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 0,
+      "delivered_bytes": 907117536,
+      "window_s": 6.000071458,
+      "pacing_Bps": 151184455,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 1,
+      "delivered_bytes": 978912552,
+      "window_s": 6.000071458,
+      "pacing_Bps": 163150148,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 2,
+      "delivered_bytes": 985538976,
+      "window_s": 6.000071458,
+      "pacing_Bps": 164254539,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 3,
+      "delivered_bytes": 937634792,
+      "window_s": 6.000071458,
+      "pacing_Bps": 156270604,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 4,
+      "delivered_bytes": 923656448,
+      "window_s": 6.000071458,
+      "pacing_Bps": 153940907,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 5,
+      "delivered_bytes": 934958720,
+      "window_s": 6.000071458,
+      "pacing_Bps": 155824597,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 6,
+      "delivered_bytes": 969357080,
+      "window_s": 6.000071458,
+      "pacing_Bps": 161557589,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 7,
+      "delivered_bytes": 979430968,
+      "window_s": 6.000071458,
+      "pacing_Bps": 163236550,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 8,
+      "delivered_bytes": 936901488,
+      "window_s": 6.000071458,
+      "pacing_Bps": 156148388,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 9,
+      "delivered_bytes": 976962408,
+      "window_s": 6.000071458,
+      "pacing_Bps": 162825128,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 10,
+      "delivered_bytes": 976101792,
+      "window_s": 6.000071458,
+      "pacing_Bps": 162681694,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 11,
+      "delivered_bytes": 945777800,
+      "window_s": 6.000071458,
+      "pacing_Bps": 157627756,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 12,
+      "delivered_bytes": 943012360,
+      "window_s": 6.000071458,
+      "pacing_Bps": 157166854,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 13,
+      "delivered_bytes": 965894720,
+      "window_s": 6.000071458,
+      "pacing_Bps": 160980536,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 14,
+      "delivered_bytes": 969285904,
+      "window_s": 6.000071458,
+      "pacing_Bps": 161545726,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 15,
+      "delivered_bytes": 941220096,
+      "window_s": 6.000071458,
+      "pacing_Bps": 156868147,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 16,
+      "delivered_bytes": 974804608,
+      "window_s": 6.000071458,
+      "pacing_Bps": 162465499,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 17,
+      "delivered_bytes": 976956392,
+      "window_s": 6.000071458,
+      "pacing_Bps": 162824126,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 18,
+      "delivered_bytes": 958398464,
+      "window_s": 6.000071458,
+      "pacing_Bps": 159731174,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 19,
+      "delivered_bytes": 944242832,
+      "window_s": 6.000071458,
+      "pacing_Bps": 157371931,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 20,
+      "delivered_bytes": 950853888,
+      "window_s": 6.000071458,
+      "pacing_Bps": 158473760,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 21,
+      "delivered_bytes": 934105624,
+      "window_s": 6.000071458,
+      "pacing_Bps": 155682416,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 22,
+      "delivered_bytes": 943980688,
+      "window_s": 6.000071458,
+      "pacing_Bps": 157328240,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 23,
+      "delivered_bytes": 917368000,
+      "window_s": 6.000071458,
+      "pacing_Bps": 152892845,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 24,
+      "delivered_bytes": 983526392,
+      "window_s": 6.000071458,
+      "pacing_Bps": 163919113,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 25,
+      "delivered_bytes": 960977640,
+      "window_s": 6.000071458,
+      "pacing_Bps": 160161032,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 26,
+      "delivered_bytes": 958357704,
+      "window_s": 6.000071458,
+      "pacing_Bps": 159724381,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 27,
+      "delivered_bytes": 951184576,
+      "window_s": 6.000071458,
+      "pacing_Bps": 158528874,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 28,
+      "delivered_bytes": 947976696,
+      "window_s": 6.000071458,
+      "pacing_Bps": 157994234,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 29,
+      "delivered_bytes": 943980688,
+      "window_s": 6.000071458,
+      "pacing_Bps": 157328240,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 30,
+      "delivered_bytes": 925327560,
+      "window_s": 6.000071458,
+      "pacing_Bps": 154219423,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 9,
+      "stream": 31,
+      "delivered_bytes": 923924608,
+      "window_s": 6.000071458,
+      "pacing_Bps": 153985600,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 0,
+      "delivered_bytes": 694201224,
+      "window_s": 6.000804166,
+      "pacing_Bps": 115684699,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 1,
+      "delivered_bytes": 753116960,
+      "window_s": 6.000804166,
+      "pacing_Bps": 125502672,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 2,
+      "delivered_bytes": 740021984,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123320468,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 3,
+      "delivered_bytes": 754959872,
+      "window_s": 6.000804166,
+      "pacing_Bps": 125809783,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 4,
+      "delivered_bytes": 720276280,
+      "window_s": 6.000804166,
+      "pacing_Bps": 120029959,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 5,
+      "delivered_bytes": 743475464,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123895971,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 6,
+      "delivered_bytes": 740349288,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123375012,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 7,
+      "delivered_bytes": 687737040,
+      "window_s": 6.000804166,
+      "pacing_Bps": 114607479,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 8,
+      "delivered_bytes": 708875464,
+      "window_s": 6.000804166,
+      "pacing_Bps": 118130077,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 9,
+      "delivered_bytes": 743229672,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123855012,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 10,
+      "delivered_bytes": 761589160,
+      "window_s": 6.000804166,
+      "pacing_Bps": 126914516,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 11,
+      "delivered_bytes": 754405312,
+      "window_s": 6.000804166,
+      "pacing_Bps": 125717369,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 12,
+      "delivered_bytes": 754373432,
+      "window_s": 6.000804166,
+      "pacing_Bps": 125712056,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 13,
+      "delivered_bytes": 743278480,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123863145,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 14,
+      "delivered_bytes": 697036384,
+      "window_s": 6.000804166,
+      "pacing_Bps": 116157162,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 15,
+      "delivered_bytes": 706920664,
+      "window_s": 6.000804166,
+      "pacing_Bps": 117804321,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 16,
+      "delivered_bytes": 729745240,
+      "window_s": 6.000804166,
+      "pacing_Bps": 121607907,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 17,
+      "delivered_bytes": 738182656,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123013955,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 18,
+      "delivered_bytes": 741585824,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123581074,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 19,
+      "delivered_bytes": 716974560,
+      "window_s": 6.000804166,
+      "pacing_Bps": 119479746,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 20,
+      "delivered_bytes": 747401312,
+      "window_s": 6.000804166,
+      "pacing_Bps": 124550192,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 21,
+      "delivered_bytes": 700009624,
+      "window_s": 6.000804166,
+      "pacing_Bps": 116652635,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 22,
+      "delivered_bytes": 749763424,
+      "window_s": 6.000804166,
+      "pacing_Bps": 124943824,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 23,
+      "delivered_bytes": 713878760,
+      "window_s": 6.000804166,
+      "pacing_Bps": 118963848,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 24,
+      "delivered_bytes": 706990336,
+      "window_s": 6.000804166,
+      "pacing_Bps": 117815932,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 25,
+      "delivered_bytes": 733394200,
+      "window_s": 6.000804166,
+      "pacing_Bps": 122215986,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 26,
+      "delivered_bytes": 769229232,
+      "window_s": 6.000804166,
+      "pacing_Bps": 128187691,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 27,
+      "delivered_bytes": 748868216,
+      "window_s": 6.000804166,
+      "pacing_Bps": 124794643,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 28,
+      "delivered_bytes": 724547968,
+      "window_s": 6.000804166,
+      "pacing_Bps": 120741811,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 29,
+      "delivered_bytes": 751618280,
+      "window_s": 6.000804166,
+      "pacing_Bps": 125252925,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 30,
+      "delivered_bytes": 740153808,
+      "window_s": 6.000804166,
+      "pacing_Bps": 123342436,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "archived-rate proxy",
+      "block": 10,
+      "stream": 31,
+      "delivered_bytes": 685925080,
+      "window_s": 6.000804166,
+      "pacing_Bps": 114305526,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 8388608,
+      "min_rtt_us": 8,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 5,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 8388608,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 5
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 8388608,
+      "min_rtt_us": 511,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 5,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 8388608,
+      "min_rtt_us": 512,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 27,
+        "0": 5
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 8388608,
+      "min_rtt_us": 1024,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 5,
+        "9": 16
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 8388608,
+      "min_rtt_us": 4096,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 5,
+        "9": 5
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 33554432,
+      "min_rtt_us": 8,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 22,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 33554432,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 22,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 33554432,
+      "min_rtt_us": 511,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 22
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 33554432,
+      "min_rtt_us": 512,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 22
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 33554432,
+      "min_rtt_us": 1024,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 22,
+        "9": 33
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 33554432,
+      "min_rtt_us": 4096,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 22,
+        "0": 22
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 67108864,
+      "min_rtt_us": 8,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 67108864,
+      "min_rtt_us": 128,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 67108864,
+      "min_rtt_us": 511,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 67108864,
+      "min_rtt_us": 512,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 67108864,
+      "min_rtt_us": 1024,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 67108864,
+      "min_rtt_us": 4096,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 134217728,
+      "min_rtt_us": 8,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 134217728,
+      "min_rtt_us": 128,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 134217728,
+      "min_rtt_us": 511,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 134217728,
+      "min_rtt_us": 512,
+      "order": [
+        9,
+        0
+      ],
+      "wanted_segments": {
+        "9": 44,
+        "0": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 134217728,
+      "min_rtt_us": 1024,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    },
+    {
+      "group": "sensitivity control",
+      "pacing_Bps": 134217728,
+      "min_rtt_us": 4096,
+      "order": [
+        0,
+        9
+      ],
+      "wanted_segments": {
+        "0": 44,
+        "9": 44
+      }
+    }
+  ]
+}

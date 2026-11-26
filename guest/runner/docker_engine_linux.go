@@ -51,6 +51,12 @@ type dockerRecord struct {
 	Config                                       dockerConfig
 	RootFS                                       *dockerRootFS        `json:",omitempty"`
 	RootFSBinding                                *dockerRootFSBinding `json:",omitempty"`
+	// Cache is the attach decision made once at create and replayed on every
+	// start; CacheSkipped lists tools the latest start had to leave out.
+	Cache        *cachePlan        `json:",omitempty"`
+	CacheSkipped map[string]string `json:",omitempty"`
+	// RunAs is a --user containing names, resolved against the image at create.
+	RunAs *runAsUser `json:",omitempty"`
 }
 type dockerContainer struct {
 	outputBytes int64
@@ -89,6 +95,8 @@ type dockerEngine struct {
 	containers     map[string]*dockerContainer
 	execs          map[string]*dockerExec
 	execPipeDir    string
+	cachePolicy    policyLoader
+	imageFacts     factsLoader
 }
 
 type dockerCPUGroup struct {
@@ -350,6 +358,9 @@ func (s *dockerEngine) recover(ctx context.Context) error {
 	return s.recoverCPUGroupPlacements()
 }
 func serveEngine(ctx context.Context, n node) error {
+	// start.sh runs everything under umask 077. Directories the engine creates
+	// (named volumes, cache scopes) set their modes explicitly as well.
+	unix.Umask(022)
 	if privateRootless() && !inAllocationUserNS() {
 		return errors.New("private engine requires the allocation user namespace")
 	}
@@ -433,6 +444,10 @@ func serveEngine(ctx context.Context, n node) error {
 	}
 	if err := os.Mkdir(s.execPipeDir, 0700); err != nil {
 		return err
+	}
+	if !privateRootless() {
+		// Before the socket opens, so no probe of this engine can be swept.
+		sweepProbes(ctx)
 	}
 	if st, err := os.Lstat(dockerSocket); err == nil && st.Mode()&os.ModeSocket == 0 {
 		return errors.New("Docker API path is occupied")
@@ -543,6 +558,12 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, fail(400, err.Error())
 		}
 	}
+	// Before s.mu: a first probe of an image mounts it (tens of ms, seconds
+	// when containerd must unpack it first).
+	plan, runAs, err := s.cacheDecision(ctx, spec, img.Image.Id)
+	if err != nil {
+		return nil, err
+	}
 	id := engineID()
 	if name == "" {
 		name = "mp-" + id[:12]
@@ -576,7 +597,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		return nil, fail(400, err.Error())
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != ""}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}
@@ -605,9 +626,39 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			}
 		}
 	}
+	s.metrics.cache.recordPlan(plan)
 	return c, nil
 }
 
+// cacheDecision loads the image facts when anything needs them and makes the
+// attach decision. Only a disallowed scope, an unknown tool name or an
+// unresolvable user fails the create; a failed probe attaches nothing.
+func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, imageID string) (*cachePlan, *runAsUser, error) {
+	pol := s.cachePolicy.get()
+	off := pol.Mode == "off" || isOff(requestCacheValue(spec)) || strings.EqualFold(spec.Labels["micropod.cache.shared"], "false")
+	u, g, _ := strings.Cut(spec.User, ":")
+	_, uNum := numericID(u)
+	_, gNum := numericID(g)
+	named := spec.User != "" && (!uNum || g != "" && !gNum)
+	needFacts := !privateRootless() && (!off || named)
+	var facts imageFacts
+	if needFacts {
+		var probed bool
+		facts, probed = s.imageFacts.load(ctx, s.node.images, imageID)
+		if probed {
+			s.metrics.cache.recordProbe(facts.ProbeMS, facts.OK)
+		}
+	}
+	runAs, err := runAsFor(spec.User, &facts)
+	if err != nil {
+		return nil, nil, fail(400, err.Error())
+	}
+	plan, err := decideCaches(pol, spec, facts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &plan, runAs, nil
+}
 func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) {
 	defer func() {
 		if startErr == nil {
@@ -686,6 +737,14 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		lease.Close()
 		return err
 	}
+	// Replay the create-time decision; never recompute it. The unit locks and
+	// pinned store directories stay open until the container exits.
+	caches := openCacheMounts(c.Cache, filepath.Join(c.dir(), "shim"))
+	files = append(files, caches.files...)
+	mounts = append(mounts, caches.mounts...)
+	for _, reason := range caches.skipped {
+		s.metrics.cache.skip(reason)
+	}
 	f, err := os.OpenFile(c.logPath(), os.O_APPEND|os.O_WRONLY, 0)
 	if err == nil && c.LogError != "" {
 		// A previous failed write may have left bytes beyond the last complete
@@ -715,6 +774,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		}
 	}
 	previous := c.dockerRecord
+	c.CacheSkipped = caches.skipped
 	c.Phase = "starting"
 	c.OOMKilled = false
 	c.Failure = ""
@@ -833,7 +893,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 				if resolver != "" {
 					mounts = append(mounts, &cri.Mount{HostPath: resolver, ContainerPath: "/etc/resolv.conf", Readonly: true})
 				}
-				return c.Config.configure(cfg, mounts)
+				return c.Config.configure(cfg, mounts, containerExtras{Env: caches.env, RunAs: c.RunAs})
 			},
 			started: func(id string) {
 				releaseStart()
@@ -884,6 +944,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		logOffset, logPersisted := sealLog()
 		if parentHeld {
 			runErr = errors.Join(runErr, s.jobParents.release(dockerRuntimeCgroupRoot, jobParent))
+		}
+		for _, u := range caches.units {
+			_ = touchUsed(c.Cache.Scope, u)
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -1139,6 +1202,7 @@ func (c *dockerContainer) effectivePorts() portMap {
 	}
 	return c.Ports.withExposed(c.Config.ExposedPorts)
 }
+
 // dockerStatus maps internal engine phases onto valid Docker Engine API v1.47
 // container states ("created", "running", "paused", "restarting", "removing",
 // "exited", "dead"). Moby keeps a container in "created" (or "exited" on
@@ -1158,14 +1222,84 @@ func (c *dockerContainer) dockerStatus() string {
 func (c *dockerContainer) inspect() map[string]any {
 	network := networkName(c.Config.HostConfig.NetworkMode)
 	config := c.Config
+	config.Env = mergeEnv(c.Config.Env, c.Cache.env(c.CacheSkipped))
 	config.HostConfig.LogConfig = config.HostConfig.LogConfig.withDefault()
 	state := map[string]any{"Status": c.dockerStatus(), "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure, "LogError": c.LogError}
 	if c.Health != nil {
 		state["Health"] = c.Health.snapshot()
 	}
-	return map[string]any{"Id": c.ID, "Name": "/" + c.Name, "Created": formatTime(c.Created), "Image": c.ImageID, "Config": config, "HostConfig": config.HostConfig, "Driver": "overlayfs", "Platform": "linux",
+	v := map[string]any{"Id": c.ID, "Name": "/" + c.Name, "Created": formatTime(c.Created), "Image": c.ImageID, "Config": config, "HostConfig": config.HostConfig, "Driver": "overlayfs", "Platform": "linux",
 		"State":           state,
-		"NetworkSettings": map[string]any{"Ports": c.effectivePorts(), "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP, "NetworkID": c.NetworkID, "Aliases": c.Config.Aliases}}}}
+		"NetworkSettings": map[string]any{"Ports": c.effectivePorts(), "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP, "NetworkID": c.NetworkID, "Aliases": c.Config.Aliases}}},
+		"Mounts":          c.mountList()}
+	if c.Cache != nil {
+		tools := map[string]cacheToolState{}
+		for k, st := range c.Cache.Tools {
+			if reason, gone := c.CacheSkipped[k]; gone {
+				st = cacheToolState{Mode: "skipped", Path: st.Path, Reason: reason}
+			}
+			tools[k] = st
+		}
+		mc := map[string]any{"scope": c.Cache.Scope, "uid": c.Cache.UID, "tools": tools}
+		if c.Cache.Reason != "" {
+			mc["reason"] = c.Cache.Reason
+		}
+		v["MicropodCache"] = mc
+	}
+	return v
+}
+
+// mountList is Docker's inspect Mounts: the request's mounts, then the cache
+// binds the latest start used.
+func (c *dockerContainer) mountList() []map[string]any {
+	list := []map[string]any{}
+	user, _ := c.Config.mounts()
+	for _, m := range user {
+		e := map[string]any{"Type": m.Type, "Source": m.Source, "Destination": m.Target, "RW": !m.ReadOnly, "Mode": "", "Propagation": "rprivate"}
+		if m.Type == "volume" {
+			e["Name"], e["Driver"], e["Source"] = m.Source, "local", volumePath(m.Source)
+			if p, ok := sharedCachePath(m.Source); ok {
+				e["Source"] = p
+			}
+		}
+		list = append(list, e)
+	}
+	p := c.Cache
+	if !p.attached() {
+		return list
+	}
+	scopeUsed := false
+	for _, st := range p.Stores {
+		if _, gone := c.CacheSkipped[st.Kind]; !gone && p.Tools[st.Kind].Mode == "env" {
+			scopeUsed = true
+		}
+	}
+	scopeDir := filepath.Join(cacheRoot, "scopes", p.Scope)
+	for i, m := range p.Mounts {
+		e := map[string]any{"Type": "volume", "Driver": "local", "Destination": m.Target, "RW": true, "Mode": "", "Propagation": "rprivate"}
+		switch {
+		case m.Shim:
+			e["Type"], e["Source"] = "bind", filepath.Join(c.dir(), "shim", strconv.Itoa(i))
+		case m.Kind == "":
+			if !scopeUsed {
+				continue
+			}
+			e["Name"], e["Source"] = "micropod-cache-"+p.Scope, scopeDir
+		default:
+			if _, gone := c.CacheSkipped[m.Kind]; gone {
+				continue
+			}
+			var uid *uint32
+			for _, st := range p.Stores {
+				if st.Unit == m.Unit {
+					uid = st.UID
+				}
+			}
+			e["Name"], e["Source"] = "micropod-cache-"+p.Scope+"-"+m.Kind, filepath.Join(scopeDir, cacheStoreSub(m.Kind, uid), m.Sub)
+		}
+		list = append(list, e)
+	}
+	return list
 }
 func (s *dockerEngine) info() map[string]any {
 	labels := []string{"io.micropod.instance=" + os.Getenv("MICROPOD_CI_INSTANCE")}

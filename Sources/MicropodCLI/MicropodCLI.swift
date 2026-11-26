@@ -193,6 +193,10 @@ struct MicropodCLI {
           ps [-a] [-s] [--json]              list containers (add -a for stopped, -s for stats)
           run <image> [args…]                create+start a container (default detached; -a to attach)
           create <image> [args…]             prepare a container without starting it
+            run|create --cache auto|off|<tools> --cache-scope <scope>
+                                             dependency caches on the hvf machine (labels
+                                             io.micropod.cache[.scope]); tools: go,npm,pnpm,yarn,
+                                             yarnberry,pip,uv,cargo,corepack (+tool / -tool)
           start|stop|restart|kill <id…>      lifecycle actions (stop --all supported)
           rm <id…> [--force] [--all]         remove containers
           exec <id> <cmd…>                   run a command in a running container
@@ -233,6 +237,7 @@ struct MicropodCLI {
           runtime ls|use|enable|disable      execution engines: apple, docker, sandbox, ci, hvf
           machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
           machine install|start|stop|restart|status|logs|serve|docker-endpoint|buildkit-endpoint
+          machine cache policy|builder install|status|rm
                                              the shared hvf Linux machine behind --runtime hvf
                                              (`micropod machine help`)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)

@@ -1,0 +1,17 @@
+=== RUN   TestCRIOutputRecordBoundaries
+--- PASS: TestCRIOutputRecordBoundaries (0.00s)
+=== RUN   TestCRIOutputErrorsAndLimit
+--- PASS: TestCRIOutputErrorsAndLimit (0.00s)
+=== RUN   TestCRIFollowStreamsWhileWaitingForTask
+--- PASS: TestCRIFollowStreamsWhileWaitingForTask (0.02s)
+=== RUN   TestCRIFollowWaitRechecksUncommittedExit
+=== RUN   TestCRIFollowWaitRechecksUncommittedExit/OK
+=== RUN   TestCRIFollowWaitRechecksUncommittedExit/NotFound
+=== RUN   TestCRIFollowWaitRechecksUncommittedExit/Unavailable
+--- PASS: TestCRIFollowWaitRechecksUncommittedExit (0.02s)
+    --- PASS: TestCRIFollowWaitRechecksUncommittedExit/OK (0.01s)
+    --- PASS: TestCRIFollowWaitRechecksUncommittedExit/NotFound (0.01s)
+    --- PASS: TestCRIFollowWaitRechecksUncommittedExit/Unavailable (0.01s)
+=== RUN   TestCRIFollowCancelsTaskWait
+--- PASS: TestCRIFollowCancelsTaskWait (0.00s)
+PASS

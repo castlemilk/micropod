@@ -1,0 +1,964 @@
+{
+  "completed_utc": "2026-11-24T10:13:08.341092+00:00",
+  "host": "arm64",
+  "darwin": "25.5.0",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "measured_defines": {
+    "MICROPOD_BENCH_ONESHOT_CONNECT": {
+      "stock": 0,
+      "oneshot": 1
+    },
+    "MICROPOD_BENCH_DEFER_HANDSHAKE_READS": 0,
+    "MICROPOD_BATCH_STREAM_FILTERS": 0
+  },
+  "binary_sha256": {
+    "stock": "6b27567b00572cf0e40586d108fad9ea388342a9b03fcbf39167a03ba3e55593",
+    "oneshot": "5ff3d80c8d7a057d5b48b4d13f4c3e73c5a10714077c5635028f061001870bfd"
+  },
+  "source_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "25e430d2722de84ce8aff942c80d47e9e4919c456e7832d70996ad9912a3f669",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/handshake_reads.c": "b3ad2675a428538ae9670c5f61b53df56c3f30e2f1df7d7ea543b6cabb2c57fe",
+    "scripts/relaybench/check_handshake_reads.py": "96006a226369bb667ba20ba6c75372285f19fe808ab7335259ad257550f8cf68",
+    "scripts/relaybench/check_oneshot_connect.py": "b3e029c711d16a509eafa66e729e20671309b6dd971cfe87b506e1233f2e6028"
+  },
+  "scope": "Darwin anonymous streams, real kqueue and relay. Guest connect outcome and TCP-only options are substituted. One warmup per arm, 12 balanced randomized pairs. Each arm verifies 512 immediate and 512 asynchronous connections per pair, 98 request and 148 response bytes per flow. Thread CPU covers adoption and the first drain, then the response and close drains for lifecycle. Setup counter counts filter-change syscalls. The fixture does not measure guest TCP timing.",
+  "qualification": "ASan and UBSan, both owner types, both batch settings, both read-registration settings. Exercises retry, revocation, failed registration, both directions under backpressure, idle wakeup after the handshake, ordered delivery and FIN.",
+  "qualifications": [
+    {
+      "arm": "stock",
+      "owner": "qualify",
+      "deferred": false,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 29125,
+          "relay_cpu_ns": 55458
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 6,
+          "setup_filters": 6,
+          "setup_cpu_ns": 23958,
+          "relay_cpu_ns": 47584
+        }
+      ]
+    },
+    {
+      "arm": "stock",
+      "owner": "qualify-split",
+      "deferred": false,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 19667,
+          "relay_cpu_ns": 49167
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 6,
+          "setup_filters": 6,
+          "setup_cpu_ns": 24000,
+          "relay_cpu_ns": 51374
+        }
+      ]
+    },
+    {
+      "arm": "stock",
+      "owner": "qualify",
+      "deferred": false,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 19458,
+          "relay_cpu_ns": 37374
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 4,
+          "setup_filters": 6,
+          "setup_cpu_ns": 23208,
+          "relay_cpu_ns": 42583
+        }
+      ]
+    },
+    {
+      "arm": "stock",
+      "owner": "qualify-split",
+      "deferred": false,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 18250,
+          "relay_cpu_ns": 37084
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 6,
+          "setup_filters": 6,
+          "setup_cpu_ns": 22834,
+          "relay_cpu_ns": 42542
+        }
+      ]
+    },
+    {
+      "arm": "stock",
+      "owner": "qualify",
+      "deferred": true,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 14292,
+          "relay_cpu_ns": 30542
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 4,
+          "setup_filters": 4,
+          "setup_cpu_ns": 23208,
+          "relay_cpu_ns": 43709
+        }
+      ]
+    },
+    {
+      "arm": "stock",
+      "owner": "qualify-split",
+      "deferred": true,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 18500,
+          "relay_cpu_ns": 43625
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 4,
+          "setup_filters": 4,
+          "setup_cpu_ns": 19042,
+          "relay_cpu_ns": 42626
+        }
+      ]
+    },
+    {
+      "arm": "stock",
+      "owner": "qualify",
+      "deferred": true,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 27708,
+          "relay_cpu_ns": 58624
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 4,
+          "setup_cpu_ns": 29375,
+          "relay_cpu_ns": 55834
+        }
+      ]
+    },
+    {
+      "arm": "stock",
+      "owner": "qualify-split",
+      "deferred": true,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 28875,
+          "relay_cpu_ns": 126667
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 4,
+          "setup_filters": 4,
+          "setup_cpu_ns": 46917,
+          "relay_cpu_ns": 75834
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify",
+      "deferred": false,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 29083,
+          "relay_cpu_ns": 65876
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 5,
+          "setup_filters": 5,
+          "setup_cpu_ns": 20000,
+          "relay_cpu_ns": 41584
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify-split",
+      "deferred": false,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 23834,
+          "relay_cpu_ns": 56041
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 5,
+          "setup_filters": 5,
+          "setup_cpu_ns": 35209,
+          "relay_cpu_ns": 74875
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify",
+      "deferred": false,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 22708,
+          "relay_cpu_ns": 61750
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 4,
+          "setup_filters": 5,
+          "setup_cpu_ns": 38500,
+          "relay_cpu_ns": 64875
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify-split",
+      "deferred": false,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 33833,
+          "relay_cpu_ns": 89333
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 5,
+          "setup_filters": 5,
+          "setup_cpu_ns": 45458,
+          "relay_cpu_ns": 78749
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify",
+      "deferred": true,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 17459,
+          "relay_cpu_ns": 33916
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 15083,
+          "relay_cpu_ns": 27958
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify-split",
+      "deferred": true,
+      "batched": false,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 50250,
+          "relay_cpu_ns": 94542
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 38500,
+          "relay_cpu_ns": 76292
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify",
+      "deferred": true,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 53209,
+          "relay_cpu_ns": 109417
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 3,
+          "setup_cpu_ns": 37625,
+          "relay_cpu_ns": 67292
+        }
+      ]
+    },
+    {
+      "arm": "oneshot",
+      "owner": "qualify-split",
+      "deferred": true,
+      "batched": true,
+      "rows": [
+        {
+          "async": false,
+          "flows": 1,
+          "setup_change_syscalls": 2,
+          "setup_filters": 2,
+          "setup_cpu_ns": 25833,
+          "relay_cpu_ns": 63167
+        },
+        {
+          "async": true,
+          "flows": 1,
+          "setup_change_syscalls": 3,
+          "setup_filters": 3,
+          "setup_cpu_ns": 30625,
+          "relay_cpu_ns": 67333
+        }
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "order": [
+        "stock",
+        "oneshot"
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 7314372,
+          "relay_cpu_ns": 19379787
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 5682725,
+          "relay_cpu_ns": 13660826
+        }
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6217677,
+          "relay_cpu_ns": 16838708
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 8216208,
+          "relay_cpu_ns": 19705473
+        }
+      ]
+    },
+    {
+      "order": [
+        "oneshot",
+        "stock"
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6974789,
+          "relay_cpu_ns": 18498917
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 8769506,
+          "relay_cpu_ns": 20905103
+        }
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 7016753,
+          "relay_cpu_ns": 18999315
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 8720930,
+          "relay_cpu_ns": 21268142
+        }
+      ]
+    },
+    {
+      "order": [
+        "stock",
+        "oneshot"
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6408485,
+          "relay_cpu_ns": 16176811
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 8484673,
+          "relay_cpu_ns": 19453850
+        }
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6727208,
+          "relay_cpu_ns": 18953136
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 8629950,
+          "relay_cpu_ns": 20795529
+        }
+      ]
+    },
+    {
+      "order": [
+        "oneshot",
+        "stock"
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6266747,
+          "relay_cpu_ns": 16643877
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 8739931,
+          "relay_cpu_ns": 21587689
+        }
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 5713041,
+          "relay_cpu_ns": 16381968
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 6327671,
+          "relay_cpu_ns": 15392294
+        }
+      ]
+    },
+    {
+      "order": [
+        "oneshot",
+        "stock"
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6831080,
+          "relay_cpu_ns": 18714752
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 5929655,
+          "relay_cpu_ns": 14378372
+        }
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6914526,
+          "relay_cpu_ns": 17444001
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 9047455,
+          "relay_cpu_ns": 21424638
+        }
+      ]
+    },
+    {
+      "order": [
+        "oneshot",
+        "stock"
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6273803,
+          "relay_cpu_ns": 16470182
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 8512996,
+          "relay_cpu_ns": 19133492
+        }
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 7138117,
+          "relay_cpu_ns": 17730519
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 7581665,
+          "relay_cpu_ns": 17125005
+        }
+      ]
+    },
+    {
+      "order": [
+        "stock",
+        "oneshot"
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6811676,
+          "relay_cpu_ns": 18272300
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 7804566,
+          "relay_cpu_ns": 18604975
+        }
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6199758,
+          "relay_cpu_ns": 16742973
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 9208130,
+          "relay_cpu_ns": 22915151
+        }
+      ]
+    },
+    {
+      "order": [
+        "oneshot",
+        "stock"
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 7207582,
+          "relay_cpu_ns": 20408082
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 9218538,
+          "relay_cpu_ns": 23231735
+        }
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6800590,
+          "relay_cpu_ns": 18870049
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 9207570,
+          "relay_cpu_ns": 22777199
+        }
+      ]
+    },
+    {
+      "order": [
+        "oneshot",
+        "stock"
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6632002,
+          "relay_cpu_ns": 18253267
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 8186157,
+          "relay_cpu_ns": 19170440
+        }
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6857951,
+          "relay_cpu_ns": 17014881
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 8388910,
+          "relay_cpu_ns": 18749837
+        }
+      ]
+    },
+    {
+      "order": [
+        "stock",
+        "oneshot"
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6584449,
+          "relay_cpu_ns": 17897961
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 8635074,
+          "relay_cpu_ns": 20517434
+        }
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6314747,
+          "relay_cpu_ns": 17044040
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 8884164,
+          "relay_cpu_ns": 22275232
+        }
+      ]
+    },
+    {
+      "order": [
+        "stock",
+        "oneshot"
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 7018710,
+          "relay_cpu_ns": 19661745
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 8950942,
+          "relay_cpu_ns": 22110165
+        }
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 7141333,
+          "relay_cpu_ns": 20071834
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 7898448,
+          "relay_cpu_ns": 19575289
+        }
+      ]
+    },
+    {
+      "order": [
+        "stock",
+        "oneshot"
+      ],
+      "stock": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 7538253,
+          "relay_cpu_ns": 20260092
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 3072,
+          "setup_filters": 3072,
+          "setup_cpu_ns": 8348523,
+          "relay_cpu_ns": 19814629
+        }
+      ],
+      "oneshot": [
+        {
+          "async": false,
+          "flows": 512,
+          "setup_change_syscalls": 1536,
+          "setup_filters": 1536,
+          "setup_cpu_ns": 6340620,
+          "relay_cpu_ns": 17658114
+        },
+        {
+          "async": true,
+          "flows": 512,
+          "setup_change_syscalls": 2560,
+          "setup_filters": 2560,
+          "setup_cpu_ns": 7772036,
+          "relay_cpu_ns": 19321112
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "immediate": {
+      "setup_cpu_ns": {
+        "median_ns_per_flow": {
+          "stock": 13449.6845703125,
+          "oneshot": 12668.576171875
+        },
+        "paired_median_percent": -2.25076149293737,
+        "oneshot_lower_pairs": 8
+      },
+      "relay_cpu_ns": {
+        "median_ns_per_flow": {
+          "stock": 35322.5205078125,
+          "oneshot": 35069.7080078125
+        },
+        "paired_median_percent": -0.5175023402354761,
+        "oneshot_lower_pairs": 6
+      }
+    },
+    "async": {
+      "setup_cpu_ns": {
+        "median_ns_per_flow": {
+          "stock": 16478.1083984375,
+          "oneshot": 16741.158203125
+        },
+        "paired_median_percent": 1.134616720848114,
+        "oneshot_lower_pairs": 4
+      },
+      "relay_cpu_ns": {
+        "median_ns_per_flow": {
+          "stock": 38348.1240234375,
+          "oneshot": 39551.759765625
+        },
+        "paired_median_percent": 4.569981442102778,
+        "oneshot_lower_pairs": 4
+      }
+    }
+  }
+}

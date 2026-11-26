@@ -1,0 +1,31 @@
+{
+  "observed": "2026-11-24T14:07:41.460933+00:00",
+  "source": "/Library/Preferences/com.apple.networkextension.plist",
+  "workers": {
+    "previous": {
+      "identifier": "micropod-555549441c019ce1ef153bf8ad386c81f829109e",
+      "executable": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-b4ef88232d07d2a0/micropod",
+      "matching_local_network_records": [
+        {
+          "MulticastPreferenceSet": true,
+          "DenyMulticast": false
+        }
+      ]
+    },
+    "revised": {
+      "identifier": "micropod-555549440f2d23e5f20e35b2a28724c089a85cca",
+      "executable": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-c5f08a0b332bd4c6/micropod",
+      "matching_local_network_records": []
+    }
+  },
+  "relay": {
+    "accepted": 22,
+    "connected": 0,
+    "connect_errors": 17,
+    "connect_retries": 735,
+    "route_waits": 735,
+    "handshake_timeouts": 0,
+    "last_connect_errno": 60,
+    "recovered": 0
+  }
+}

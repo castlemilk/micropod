@@ -1,0 +1,15 @@
+{
+  "source_targets": 145,
+  "target_limits": [
+    [
+      "1",
+      "-j1"
+    ]
+  ],
+  "swiftpm_jobs": 2,
+  "swift_frontend_observed_threads": [
+    "1"
+  ],
+  "frontend_command_only": true,
+  "first_build_interrupted": true
+}

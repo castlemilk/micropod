@@ -1,6 +1,9 @@
 package main
 
-import "sync/atomic"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 // Boot-scoped totals avoid per-container and per-image metric cardinality.
 type dockerMetrics struct {
@@ -10,6 +13,72 @@ type dockerMetrics struct {
 	setupWaitUS                                                       atomic.Int64
 	creates, completions, failures, imageHits, prepared, sharedMounts atomic.Uint64
 	podMS, createMS, startMS                                          atomic.Int64
+	cache                                                             cacheMetrics
+}
+
+// cacheMetrics counts auto-attach decisions: attaches per tool, skips per
+// reason (create-time rules and start-time busy/store failures) and probes.
+// Both label sets are bounded by the cache table and the reason constants.
+type cacheMetrics struct {
+	mu                    sync.Mutex
+	attach, skips         map[string]uint64
+	probes, probeFailures uint64
+	probeMS               int64
+}
+
+func (m *cacheMetrics) recordPlan(p *cachePlan) {
+	if p == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.attach == nil {
+		m.attach, m.skips = map[string]uint64{}, map[string]uint64{}
+	}
+	if p.Reason != "" && len(p.Tools) == 0 {
+		m.skips[p.Reason]++
+	}
+	for tool, st := range p.Tools {
+		if st.Mode == "skipped" {
+			if st.Reason != skipNotSelected {
+				m.skips[st.Reason]++
+			}
+		} else {
+			m.attach[tool]++
+		}
+	}
+}
+
+func (m *cacheMetrics) skip(reason string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.skips == nil {
+		m.attach, m.skips = map[string]uint64{}, map[string]uint64{}
+	}
+	m.skips[reason]++
+}
+
+func (m *cacheMetrics) recordProbe(ms int64, ok bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.probes++
+	m.probeMS += ms
+	if !ok {
+		m.probeFailures++
+	}
+}
+
+func (m *cacheMetrics) snapshot() map[string]any {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	attach, skips := map[string]uint64{}, map[string]uint64{}
+	for k, v := range m.attach {
+		attach[k] = v
+	}
+	for k, v := range m.skips {
+		skips[k] = v
+	}
+	return map[string]any{"cache_attach": attach, "cache_skip": skips, "cache_probes": m.probes, "cache_probe_failures": m.probeFailures, "cache_probe_ms": m.probeMS}
 }
 
 func (m *dockerMetrics) record(r result, err error) {
@@ -28,5 +97,9 @@ func (m *dockerMetrics) record(r result, err error) {
 	m.startMS.Add(r.StartMS)
 }
 func (m *dockerMetrics) snapshot() map[string]any {
-	return map[string]any{"containers_created": m.creates.Load(), "runs_finished": m.completions.Load(), "runtime_failures": m.failures.Load(), "image_cache_hits": m.imageHits.Load(), "prepared_pods_used": m.prepared.Load(), "shared_cache_attachments": m.sharedMounts.Load(), "pod_ms_total": m.podMS.Load(), "create_ms_total": m.createMS.Load(), "start_ms_total": m.startMS.Load()}
+	out := map[string]any{"containers_created": m.creates.Load(), "runs_finished": m.completions.Load(), "runtime_failures": m.failures.Load(), "image_cache_hits": m.imageHits.Load(), "prepared_pods_used": m.prepared.Load(), "shared_cache_attachments": m.sharedMounts.Load(), "pod_ms_total": m.podMS.Load(), "create_ms_total": m.createMS.Load(), "start_ms_total": m.startMS.Load()}
+	for k, v := range m.cache.snapshot() {
+		out[k] = v
+	}
+	return out
 }

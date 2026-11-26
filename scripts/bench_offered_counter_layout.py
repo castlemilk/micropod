@@ -80,7 +80,7 @@ def main():
     parser.add_argument("--go", default="go")
     args = parser.parse_args()
     env = dict(os.environ, GO111MODULE="off", GOWORK="off", GOPROXY="off", GOTOOLCHAIN="local", GOTELEMETRY="off",
-               GOMAXPROCS="4", CGO_ENABLED="0", GOFLAGS="")
+               GOMAXPROCS="4", CGO_ENABLED="0", GOFLAGS="-trimpath")
     env.pop("GOROOT", None)
     with tempfile.TemporaryDirectory() as tmp:
         binary = Path(tmp) / "layout.test"

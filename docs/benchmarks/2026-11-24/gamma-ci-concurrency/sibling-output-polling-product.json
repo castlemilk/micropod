@@ -1,0 +1,73 @@
+{
+  "arms": {
+    "optimized": {
+      "build_manifest": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-4c4106ce58d8120e/output-polling-arm.json",
+      "build_manifest_sha256": "3bf5af982ec59ed0b23b5f1d89d75574e37182b8b26e43e142db98c6373dd01a",
+      "product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-4c4106ce58d8120e/product.json",
+      "product_sha256": "28d82911155732e3208a64c99430740b85af6370666f1d061d15db416d0845b5",
+      "runner_sha256": "3e8abc928350bd4d384044dd87b8cc3ba67ba787581a922dd105b1e5c879ad0c"
+    },
+    "stock": {
+      "build_manifest": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-37a59cce7cd9565f/output-polling-arm.json",
+      "build_manifest_sha256": "cdbd1a0c8eadca11a1c3f0f7899dfb8d545371f59eec643d69fa66ef7e57b418",
+      "product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-37a59cce7cd9565f/product.json",
+      "product_sha256": "517a405c17df8942803aa0d93d4710b4c53da6319e90bdc0e92ef5e6c0a81a72",
+      "runner_sha256": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895"
+    }
+  },
+  "host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "kernel": {
+    "allowed_windows_bytes": [
+      65536,
+      1048576
+    ],
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "debugfs_file": "fault_around_bytes",
+    "default_window_bytes": 65536,
+    "embedded_config_verified": true,
+    "image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "kconfig": {
+      "CONFIG_ARM64_16K_PAGES": "y",
+      "CONFIG_DEBUG_FS": "y",
+      "CONFIG_DEBUG_FS_ALLOW_ALL": "y",
+      "CONFIG_IKCONFIG": "y",
+      "CONFIG_IPVLAN": "y",
+      "CONFIG_PAGE_SHIFT": "14",
+      "CONFIG_PROC_PAGE_MONITOR": "y",
+      "CONFIG_TRANSPARENT_HUGEPAGE": "n"
+    },
+    "maximum_effective_window_bytes": 33554432,
+    "page_size_bytes": 16384,
+    "ptes_per_page_table": 2048,
+    "release": "7.3.5-micropod",
+    "source_files_sha256": {
+      "arch/arm64/include/asm/pgtable-hwdef.h": "b6bc393bc34fe5237efb464d7426094523619f39241fac87588adfa1edf81140",
+      "mm/filemap.c": "5e78edb19bf7a2b3713f7d8c648617d8b20e614f8b9a9dda7b1b7b86b0e4d7df",
+      "mm/memory.c": "77daf1ece7086d469ed6806f6503927c945054e2ca58484ceaabd43c56f219c7"
+    },
+    "source_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990"
+  },
+  "new_bootstrap_sha256": "7bc36703e98c2e02026da6e5a58a87ea77caa6e040fa127ea10be43e761c2a9f",
+  "parent_manifest_sha256": "c6c36ce79c466b7e49a8b61ca4b2bed53252e706e77a4ec6fd443235f3870e9e",
+  "previous_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-cc0ed728a9291a8d/product.json",
+  "previous_product_sha256": "403c6adc2196451e98f2710e6003c4b9e850225eb6c48205cfa4abdc98181285",
+  "schema": "micropod-output-polling-product-v1",
+  "toolchain": {
+    "compiler_sha256": "8a3add4030b0f724c535afe946a4fcd27ca235ba869d4d4b91091e0ef8a611e2",
+    "environment": {
+      "CGO_ENABLED": "0",
+      "GOARCH": "arm64",
+      "GOOS": "linux",
+      "GOPROXY": "off"
+    },
+    "go_flags": "-trimpath",
+    "linker_sha256": "5dfb0e5cb785cbd930b87c96095117bb7844b13c1dbad13dc6932d9cf0820f35",
+    "path": "/Users/benebsworth/.local/share/mise/installs/go/1.27.2/bin/go",
+    "sha256": "516c1fbb53b5f8f4852f0c3c379d45bcff53a1032e5cd1a9ca1738f03ba07cb1",
+    "version": "go version go1.27.2 darwin/arm64"
+  },
+  "tree_guards": {
+    "source_except_follower": "852b5cfdc363eeb2085a95f4668fa0a0a3dbf68583df1697ae7c22602da16b47",
+    "tools_except_job": "719c1d5fac32d6113e07f67f1dc400d4a79979917b3b918cb94a2bab1445cc08"
+  }
+}

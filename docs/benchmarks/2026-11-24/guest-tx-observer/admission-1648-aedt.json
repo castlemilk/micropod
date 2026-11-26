@@ -1,0 +1,156 @@
+{
+  "kind": "admission observation only",
+  "observed_at": "2026-11-24T05:48:01+00:00",
+  "project": "cuttlefish",
+  "date_local": "2026-11-24 Australia/Melbourne",
+  "source": "Read-only Cuttlefish operator fleet and pool, GitHub job API, local launchd registration",
+  "fleet_observed_at": "2026-11-24T05:48:00.451320772Z",
+  "rigs": [
+    {
+      "id": "d835fecb-224b-45a4-b91e-20c90bfc4a06",
+      "displayName": "Gamma-128GB Linux CI (isolated VM)",
+      "capacity": 1,
+      "activeLeases": 1,
+      "acceptingWork": false,
+      "lastSeenAt": "2026-11-24T05:48:00.143148Z",
+      "snapshotFreshness": "fresh",
+      "snapshotFreshUntil": "2026-11-24T05:49:30.128761Z",
+      "connectionState": "online"
+    },
+    {
+      "id": "81c07046-e484-4d84-8698-9ba4f36a074a",
+      "displayName": "Gamma-128GB.local",
+      "capacity": 6,
+      "activeLeases": 0,
+      "acceptingWork": false,
+      "lastSeenAt": "2026-11-24T05:47:55.793528Z",
+      "snapshotFreshness": "fresh",
+      "snapshotFreshUntil": "2026-11-24T05:49:25.417688Z",
+      "connectionState": "online"
+    }
+  ],
+  "pool": {
+    "id": "grp_f8527ef2-34ab-4c7f-800c-759a0d822d07",
+    "repository": "skunkworq/cuttlefish",
+    "runsOn": "cuttlefish-31ae19517823781166dabcef0d074d83",
+    "minRunners": 1,
+    "maxRunners": 1,
+    "warmIdle": 0,
+    "revision": 8,
+    "heldSlots": 1,
+    "allocations": {
+      "busy": 1
+    },
+    "demand": {
+      "assignedJobs": 1,
+      "availableJobs": 0,
+      "complete": true,
+      "fresh": true,
+      "observedAt": "2026-11-24T05:47:47.691441Z",
+      "poolRevision": 8,
+      "sequence": 13777
+    }
+  },
+  "github_jobs_for_scale_set": [
+    {
+      "id": 138245036816,
+      "name": "CI contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "runner_id": 2302,
+      "runner_name": "cuttlefish-1a1881d283c78c049d8035914dca9614a99a5b80",
+      "started_at": "2026-11-24T05:41:15Z",
+      "completed_at": "2026-11-24T05:42:14Z",
+      "labels": [
+        "cuttlefish-31ae19517823781166dabcef0d074d83"
+      ],
+      "html_url": "https://github.com/skunkworq/cuttlefish/actions/runs/45335045120/job/138245036816"
+    },
+    {
+      "id": 138245037029,
+      "name": "Proto (buf)",
+      "status": "completed",
+      "conclusion": "success",
+      "runner_id": 2303,
+      "runner_name": "cuttlefish-b3c56946297c3f4af10ae1fb46a38b965133db43",
+      "started_at": "2026-11-24T05:42:48Z",
+      "completed_at": "2026-11-24T05:43:11Z",
+      "labels": [
+        "cuttlefish-31ae19517823781166dabcef0d074d83"
+      ],
+      "html_url": "https://github.com/skunkworq/cuttlefish/actions/runs/45335045120/job/138245037029"
+    },
+    {
+      "id": 138245037050,
+      "name": "Embedded app",
+      "status": "queued",
+      "conclusion": null,
+      "runner_id": 0,
+      "runner_name": "",
+      "started_at": "2026-11-24T05:41:12Z",
+      "completed_at": null,
+      "labels": [
+        "cuttlefish-31ae19517823781166dabcef0d074d83"
+      ],
+      "html_url": "https://github.com/skunkworq/cuttlefish/actions/runs/45335045120/job/138245037050"
+    },
+    {
+      "id": 138245037112,
+      "name": "Docker integration",
+      "status": "in_progress",
+      "conclusion": null,
+      "runner_id": 2304,
+      "runner_name": "cuttlefish-305597e25da6172b563d9b473c9dc61b1d85f02d",
+      "started_at": "2026-11-24T05:43:36Z",
+      "completed_at": null,
+      "labels": [
+        "cuttlefish-31ae19517823781166dabcef0d074d83"
+      ],
+      "html_url": "https://github.com/skunkworq/cuttlefish/actions/runs/45335045120/job/138245037112"
+    }
+  ],
+  "machine": {
+    "name": "cuttlefish-linux-ci-gamma128",
+    "loaded_keeper": true,
+    "keeper_label": "dev.cuttlefish.worker.linux",
+    "interval_seconds": 60,
+    "action": "container machine run on this named machine invokes /opt/cuttle-provision/ensure-service.sh",
+    "keeper_runs": 11251,
+    "confirmed_guest_process_inventory": false
+  },
+  "previous_observations": [
+    {
+      "at": "2026-11-24T05:37:47Z",
+      "pool_allocation": "idle",
+      "held_slots": 1,
+      "assigned_jobs": 0
+    },
+    {
+      "at": "2026-11-24T05:41:35Z",
+      "pool_allocation": "busy",
+      "held_slots": 1,
+      "assigned_jobs": 2
+    },
+    {
+      "at": "2026-11-24T05:45:45Z",
+      "mac_accepting": false,
+      "mac_held": 0,
+      "linux_accepting": false,
+      "linux_held": 1
+    },
+    {
+      "at": "2026-11-24T05:46:14Z",
+      "linux_last_seen": "2026-11-24T05:46:00.136399Z",
+      "linux_fresh_until": "2026-11-24T05:47:30.141389Z",
+      "linux_held": 1
+    }
+  ],
+  "attribution": "GitHub job label and runner ID confirm pool execution; these endpoints do not join a job to a host PID. The keeper and on-disk machine name confirm local configuration, not a guest process or a restart event.",
+  "benchmark": {
+    "new_measurements": 0,
+    "new_throughput_MiB_s": null,
+    "fixture_preflight": "not run",
+    "scoped_owner_handoff_or_qualified_revised_baseline_found": false,
+    "next": "Revised stock four-vCPU/two-worker baseline on released serving scope, after fresh effective disk clearance and successful fixture preflight."
+  }
+}

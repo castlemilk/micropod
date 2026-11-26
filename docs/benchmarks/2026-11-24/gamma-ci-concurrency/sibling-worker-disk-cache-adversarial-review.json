@@ -1,0 +1,40 @@
+{
+  "archive": "20261125T050424Z-sibling-worker-disk-azaqu2f8",
+  "native_guest_boot": "aafd7d8c-b6d0-4d0c-bb86-98afd34dccb0",
+  "actual_attachment": {
+    "cache_mode": "cached",
+    "device_type": "VZVirtioBlockDeviceConfiguration",
+    "disk_path": "/tmp/mp-t-zm8nx15q/a/worker.ext4",
+    "image_format": "raw",
+    "pid": 49939,
+    "read_only": false,
+    "storage_device_index": 1,
+    "sync_mode": "fsync",
+    "vm_id": "ci-556071ac-4cbe-4f18-80d3-bafbc9528d9d"
+  },
+  "calibrated_bytes": 1048576,
+  "in_memory_rejections": {
+    "opposite requested host cache mode": "actual native VZ attachment cache, fsync, block device or owning process differs",
+    "different synchronization mode": "actual native VZ attachment cache, fsync, block device or owning process differs",
+    "sibling worker image with identical device index": "actual native VZ attachment cache, fsync, block device or owning process differs",
+    "warm read with wrong content": "invalid calibrated warm timestamps, byte count or checksum",
+    "calibration file survives": "calibration used a different cache backing device or left its files",
+    "guest I/O from the peer boot": "mount or ext4 durability options differ on the native cache volume",
+    "warm control rereads an entire MiB from the block device": "disk calibration did not distinguish the fsynced write, device reads and warm guest read",
+    "guest device sample starts after the builders": "disk snapshots did not bound native window 0 and all eight builds",
+    "Mac I/O from a reused PID": "Mac VMM identity or monotonic clock changed",
+    "worker RAW file actually lives on parent filesystem": "worker RAW disk is on the wrong host device",
+    "missing FSEvents opt-out marker after work": "invalid no_log marker on the private APFS volume",
+    "Spotlight reports enabled for the actual volume": "fresh Spotlight status did not query the attested private volume",
+    "different volume UUID after clean marker remount": "APFS volume was not observed after remounting its seeded policy markers",
+    "backing image remains attached": "detach receipt does not retire the attested APFS image"
+  },
+  "baseline_files": 24,
+  "post_eject_archive": "20261125T051112Z-sibling-build-phases-5fsnq3a6",
+  "post_eject_rejections": {
+    "diagnostic remount was actually writable": "post-shutdown APFS history did not use an actual read-only attachment",
+    "raw worker inode substituted after eject": "read-only remount has the wrong worker RAW disk inode or size",
+    "zero-byte count with hidden journal record": "FSEvents journal counts do not match the raw inventory",
+    "different physical APFS store after eject": "read-only history was observed on a different APFS image or volume"
+  }
+}

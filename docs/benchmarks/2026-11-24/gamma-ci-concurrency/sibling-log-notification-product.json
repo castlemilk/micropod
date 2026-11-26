@@ -1,0 +1,195 @@
+{
+  "builds": {
+    "candidate": {
+      "argv": [
+        "/Users/benebsworth/.local/share/mise/installs/go/1.27.2/bin/go",
+        "build",
+        "-trimpath",
+        "-o",
+        "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/cri-log-watch-0l1917gc/product/micropod-oci-tools/runner/bin/job",
+        "."
+      ],
+      "cwd": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/cri-log-watch-0l1917gc/product/src/guest/runner",
+      "stderr": "",
+      "stdout": ""
+    },
+    "reproduced_parent": {
+      "argv": [
+        "/Users/benebsworth/.local/share/mise/installs/go/1.27.2/bin/go",
+        "build",
+        "-trimpath",
+        "-o",
+        "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/cri-log-watch-0l1917gc/reproduced-stock-job",
+        "."
+      ],
+      "cwd": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/cri-log-watch-0l1917gc/product/src/guest/runner",
+      "stderr": "",
+      "stdout": ""
+    },
+    "tests": {
+      "argv": [
+        "/Users/benebsworth/.local/share/mise/installs/go/1.27.2/bin/go",
+        "test",
+        "-c",
+        "-buildvcs=false",
+        "-trimpath",
+        "-o",
+        "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/cri-log-watch-0l1917gc/product/cri-log-watch-runner.test",
+        "."
+      ],
+      "cwd": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/cri-log-watch-0l1917gc/product/src/guest/runner",
+      "stderr": "",
+      "stdout": ""
+    }
+  },
+  "delta_sha256": "4a115e42db11cda69166f8aef8fb1c86fb29c4fcee448ec1315bbc660434e9bb",
+  "identity": {
+    "changed_sources": {
+      "guest/runner/cri_log_follow_linux_test.go": "3c9bad0c1a38f2e013aa6ff5261f05cd273c93c1711cb4ed929eea1f8f14eeb6",
+      "guest/runner/cri_log_watch_linux.go": "0594f5f6080f504203f71dcdeeb329e6551ca2019fde473019ffb12e0e1f0cfd",
+      "guest/runner/cri_log_watch_linux_test.go": "5d1af735035ed66cc75f1614aaefdab6a41ede69941cd8170724604153c5bed8",
+      "guest/runner/docker_engine_linux.go": "d94b3c3e23e727f093dc845e1442721d30e9ffa465959aed2914e83f19bbe943",
+      "guest/runner/main_linux.go": "9739c58afaa116fc8c39b6bf9f62786a7708df0a54126fe045fd2f4afa4def29",
+      "guest/runner/output_linux.go": "95366dccae8b1ed6a7652a811965753da32e6a00552ce4d160ecaadd22d9f94e"
+    },
+    "packager_sha256": "bfad5ca8dc9b9ad366ed62eadabc36daa6b460dcce55a8591e3b7942f72d6f98",
+    "parent_product_sha256": "28d82911155732e3208a64c99430740b85af6370666f1d061d15db416d0845b5",
+    "toolchain": {
+      "compiler_sha256": "8a3add4030b0f724c535afe946a4fcd27ca235ba869d4d4b91091e0ef8a611e2",
+      "environment": {
+        "CGO_ENABLED": "0",
+        "GOARCH": "arm64",
+        "GOOS": "linux",
+        "GOPROXY": "off"
+      },
+      "go_flags": "-trimpath",
+      "linker_sha256": "5dfb0e5cb785cbd930b87c96095117bb7844b13c1dbad13dc6932d9cf0820f35",
+      "path": "/Users/benebsworth/.local/share/mise/installs/go/1.27.2/bin/go",
+      "sha256": "516c1fbb53b5f8f4852f0c3c379d45bcff53a1032e5cd1a9ca1738f03ba07cb1",
+      "version": "go version go1.27.2 darwin/arm64"
+    }
+  },
+  "kernel": {
+    "allowed_windows_bytes": [
+      65536,
+      1048576
+    ],
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "debugfs_file": "fault_around_bytes",
+    "default_window_bytes": 65536,
+    "embedded_config_verified": true,
+    "image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "kconfig": {
+      "CONFIG_ARM64_16K_PAGES": "y",
+      "CONFIG_DEBUG_FS": "y",
+      "CONFIG_DEBUG_FS_ALLOW_ALL": "y",
+      "CONFIG_IKCONFIG": "y",
+      "CONFIG_IPVLAN": "y",
+      "CONFIG_PAGE_SHIFT": "14",
+      "CONFIG_PROC_PAGE_MONITOR": "y",
+      "CONFIG_TRANSPARENT_HUGEPAGE": "n"
+    },
+    "maximum_effective_window_bytes": 33554432,
+    "page_size_bytes": 16384,
+    "ptes_per_page_table": 2048,
+    "release": "7.3.5-micropod",
+    "source_files_sha256": {
+      "arch/arm64/include/asm/pgtable-hwdef.h": "b6bc393bc34fe5237efb464d7426094523619f39241fac87588adfa1edf81140",
+      "mm/filemap.c": "5e78edb19bf7a2b3713f7d8c648617d8b20e614f8b9a9dda7b1b7b86b0e4d7df",
+      "mm/memory.c": "77daf1ece7086d469ed6806f6503927c945054e2ca58484ceaabd43c56f219c7"
+    },
+    "source_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990"
+  },
+  "parent_manifest_sha256": "cce41bbb97e4cf81c9ccbbfaa5af6650488307da345a49191bd2b88b6614e7d4",
+  "parent_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-4c4106ce58d8120e/product.json",
+  "product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-6bd12bc5c593a999/product.json",
+  "product_sha256": "fb8ac000ac36940926475d22f6fbb5c6a2b39d9face4f28ed690771aad49aa8c",
+  "purpose": "diagnostic-only",
+  "runner_build_info": [
+    "go1.27.2",
+    "path\tgithub.com/castlemilk/micropod/guest/runner",
+    "mod\tgithub.com/castlemilk/micropod/guest/runner\t(devel)\t",
+    "dep\tgithub.com/containerd/containerd/api\tv1.11.1\th1:h8nfoDW9+fNsC/9TwiAHj8B1GzXKtR4eFtkhi/X5RLU=",
+    "dep\tgithub.com/containerd/log\tv0.1.0\th1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=",
+    "dep\tgithub.com/containerd/ttrpc\tv1.2.5\th1:IFckT1EFQoFBMG4c3sMdT8EP3/aKfumK1msY+Ze4oLU=",
+    "dep\tgithub.com/opencontainers/go-digest\tv1.0.0\th1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=",
+    "dep\tgithub.com/opencontainers/image-spec\tv1.1.1\th1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=",
+    "dep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=",
+    "dep\tgithub.com/vishvananda/netlink\tv1.3.1\th1:3AEMt62VKqz90r0tmNhog0r/PpWKmrEShJU0wJW6bV0=",
+    "dep\tgithub.com/vishvananda/netns\tv0.0.5\th1:DfiHV+j8bA32MFM7bfEunvT8IAqQ/NzSJHtcmW5zdEY=",
+    "dep\tgolang.org/x/net\tv0.48.0\th1:zyQRTTrjc33Lhh0fBgT/H3oZq9WuvRR5gPC70xpDiQU=",
+    "dep\tgolang.org/x/sys\tv0.39.0\th1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=",
+    "dep\tgolang.org/x/text\tv0.32.0\th1:ZD01bjUt1FQ9WJ0ClOL5vxgxOI/sVCNgX1YtKwcY0mU=",
+    "dep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20251202230838-ff82c1b0f217\th1:gRkg/vSppuSQoDjxyiGfN4Upv/h/DQmIR10ZU8dh4Ww=",
+    "dep\tgoogle.golang.org/grpc\tv1.79.3\th1:sybAEdRIEtvcD68Gx7dmnwjZKlyfuc61Dyo9pGXXkKE=",
+    "dep\tgoogle.golang.org/protobuf\tv1.36.10\th1:AYd7cD/uASjIL6Q9LiTjz8JLcrh/88q5UObnmY3aOOE=",
+    "dep\tk8s.io/cri-api\tv0.35.3\th1:gONTLBvK1eBPyveXEQ39mtTqi2oANeHj1mCo1YhQosI=",
+    "build\t-buildmode=exe",
+    "build\t-compiler=gc",
+    "build\t-trimpath=true",
+    "build\tDefaultGODEBUG=cryptocustomrand=1,httpservecontentmaxranges=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0",
+    "build\tCGO_ENABLED=0",
+    "build\tGOARCH=arm64",
+    "build\tGOOS=linux",
+    "build\tGOARM64=v8.0",
+    "build\tvcs=git",
+    "build\tvcs.revision=2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+    "build\tvcs.time=2026-11-24T03:37:43Z",
+    "build\tvcs.modified=true"
+  ],
+  "runner_sha256": "58846d9c91426bf22efdb37752d1d0f6bb9014ab33e8fdd00f16e829fe96726a",
+  "schema": "micropod-cri-log-watch-diagnostic-product-v1",
+  "stock_rebuilt_sha256": "3e8abc928350bd4d384044dd87b8cc3ba67ba787581a922dd105b1e5c879ad0c",
+  "tests": {
+    "build_info": [
+      "go1.27.2",
+      "path\tgithub.com/castlemilk/micropod/guest/runner.test",
+      "mod\tgithub.com/castlemilk/micropod/guest/runner\t(devel)\t",
+      "dep\tgithub.com/containerd/containerd/api\tv1.11.1\th1:h8nfoDW9+fNsC/9TwiAHj8B1GzXKtR4eFtkhi/X5RLU=",
+      "dep\tgithub.com/containerd/log\tv0.1.0\th1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=",
+      "dep\tgithub.com/containerd/ttrpc\tv1.2.5\th1:IFckT1EFQoFBMG4c3sMdT8EP3/aKfumK1msY+Ze4oLU=",
+      "dep\tgithub.com/opencontainers/go-digest\tv1.0.0\th1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=",
+      "dep\tgithub.com/opencontainers/image-spec\tv1.1.1\th1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=",
+      "dep\tgithub.com/sirupsen/logrus\tv1.9.3\th1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=",
+      "dep\tgithub.com/vishvananda/netlink\tv1.3.1\th1:3AEMt62VKqz90r0tmNhog0r/PpWKmrEShJU0wJW6bV0=",
+      "dep\tgithub.com/vishvananda/netns\tv0.0.5\th1:DfiHV+j8bA32MFM7bfEunvT8IAqQ/NzSJHtcmW5zdEY=",
+      "dep\tgolang.org/x/net\tv0.48.0\th1:zyQRTTrjc33Lhh0fBgT/H3oZq9WuvRR5gPC70xpDiQU=",
+      "dep\tgolang.org/x/sys\tv0.39.0\th1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=",
+      "dep\tgolang.org/x/text\tv0.32.0\th1:ZD01bjUt1FQ9WJ0ClOL5vxgxOI/sVCNgX1YtKwcY0mU=",
+      "dep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20251202230838-ff82c1b0f217\th1:gRkg/vSppuSQoDjxyiGfN4Upv/h/DQmIR10ZU8dh4Ww=",
+      "dep\tgoogle.golang.org/grpc\tv1.79.3\th1:sybAEdRIEtvcD68Gx7dmnwjZKlyfuc61Dyo9pGXXkKE=",
+      "dep\tgoogle.golang.org/protobuf\tv1.36.10\th1:AYd7cD/uASjIL6Q9LiTjz8JLcrh/88q5UObnmY3aOOE=",
+      "dep\tk8s.io/cri-api\tv0.35.3\th1:gONTLBvK1eBPyveXEQ39mtTqi2oANeHj1mCo1YhQosI=",
+      "build\t-buildmode=exe",
+      "build\t-compiler=gc",
+      "build\t-trimpath=true",
+      "build\tDefaultGODEBUG=cryptocustomrand=1,httpservecontentmaxranges=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0",
+      "build\tCGO_ENABLED=0",
+      "build\tGOARCH=arm64",
+      "build\tGOOS=linux",
+      "build\tGOARM64=v8.0"
+    ],
+    "environment": {
+      "MICROPOD_CRI_LOG_TEST_TMPFS": "/dev/shm",
+      "TMPDIR": "/dev/shm"
+    },
+    "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-6bd12bc5c593a999/cri-log-watch-runner.test",
+    "pattern": "^TestCRI(Log|Follow|Output)",
+    "roots": [
+      "TestCRIFollowCancelsTaskWait",
+      "TestCRIFollowLogNotificationsAndFinalDrain",
+      "TestCRIFollowLogNotificationsDoNotPostponeStatusPolling",
+      "TestCRIFollowLogNotificationsFallBackToPolling",
+      "TestCRIFollowStreamsWhileWaitingForTask",
+      "TestCRIFollowWaitRechecksUncommittedExit",
+      "TestCRILogSplitAcrossReads",
+      "TestCRILogWatcherCreateRenameAndReuse",
+      "TestCRILogWatcherDisablesAllWatchesOnOverflow",
+      "TestCRILogWatcherSharesOneFDAndRetiresWatches",
+      "TestCRIOutputErrorsAndLimit",
+      "TestCRIOutputRecordBoundaries"
+    ],
+    "sha256": "2f4de1449ee909a3ef0c9f10e51a66da6c437c3454739991f52121d022d48066"
+  },
+  "untouched_package_tree_sha256": "c97fa0489404b7c032268ae3536aa91d98f493560c5f621164b42a45139131d6"
+}

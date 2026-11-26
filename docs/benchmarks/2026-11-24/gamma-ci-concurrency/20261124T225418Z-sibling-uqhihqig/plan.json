@@ -1,0 +1,32 @@
+{
+  "scope": "/private/tmp/mp-t-iia7sxtm",
+  "host": "Gamma-128GB.local",
+  "pages": {
+    "kernel_page_kib": 16,
+    "kernel_image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+    "kernel_config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98"
+  },
+  "baseline_files": 24,
+  "healthy_pairs": 32,
+  "requests_per_client": 200,
+  "seed": 224613,
+  "quiet_sha256": "c8aedee551d9c9e204cf62063ce0d74398a881a7485c8610ef24ef75903ba019",
+  "quiet_source_sha256": "568ec87401b60bda95ae8c51871feddb801ef4d4244d4b3d16be0b5f47a88fbf",
+  "harness_sha256": "4a41ebf15f9e36502f677ec01771d62185faed56c9984ffc5aad4d42af03af8b",
+  "rounds": 4,
+  "layouts": [
+    "shared",
+    "free-server",
+    "free-client",
+    "duo",
+    "same"
+  ],
+  "mac_process_type": "Standard",
+  "dense_ms": 1500,
+  "fair_hook_sha256": "46f3d614d832318b55d3e877afdcc3aaff6fa53a1dbf36c51c181e5929649c15",
+  "worker_scheduler": "hrtick-125us",
+  "worker_next_buddy": true,
+  "builders": 8,
+  "build_nice": 5,
+  "build_driver_sha256": "5d13aaae1b31463a84b3b71838e2399ecd615aafc8f3a09fd69e9d8031465e86"
+}

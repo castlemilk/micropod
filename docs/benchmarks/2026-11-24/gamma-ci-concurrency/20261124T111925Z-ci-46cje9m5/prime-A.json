@@ -1,0 +1,21 @@
+{
+  "revision": "prime",
+  "container": "mp-c47fe268c9563497d0a32acc2b41edb7",
+  "tests": 8,
+  "seconds": 8.917217707999953,
+  "cpu_s": 8.886469,
+  "compile": 134,
+  "vet": 226,
+  "link": 3,
+  "product": "8d7314d01310517faefd064a9669d1b9ee1f0463db5e08453d4dba5c19e49882",
+  "module_inode": "65040:262191",
+  "dependency_inode": "65040:262216",
+  "boot": "b14966ba-072a-4e43-b35c-08fbe9fe6c78",
+  "toolchain_inode": "7637",
+  "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d",
+  "name": "mci-c88961a76b-a-0",
+  "submitted_s": 1.5420009731315076e-06,
+  "build_done_s": 8.917219250000926,
+  "done_s": 8.921583749997808,
+  "artifact_bytes": 3106033
+}

@@ -1,0 +1,25 @@
+{
+  "experimental_image_sha256": "b40f164eed8e410b3477776abb6463bca076b49c35781d98f865380d6d0eab64",
+  "profile_image_sha256": "8a758aee9fccb7871df5a3589eb619d5596fbf6569d222fe5699490f094d156e",
+  "image_bytes": 29637120,
+  "differences": [
+    {
+      "descriptor_file_offset": 15893168,
+      "name": "GNU",
+      "type": 3,
+      "length": 20,
+      "experimental_build_id": "433ef72d1a92ea67e832d09e57b8998447c7ed88",
+      "profile_build_id": "35051292d6dd89204540a40c4e7146c1637e2a69"
+    },
+    {
+      "descriptor_file_offset": 19691868,
+      "name": "GNU",
+      "type": 3,
+      "length": 20,
+      "experimental_build_id": "fd773be591683657a6d7b0aff4ddcde038ed7bc5",
+      "profile_build_id": "814fbce0fc378e9d4d0c9ce73d2195362236058e"
+    }
+  ],
+  "sha256_with_both_build_id_descriptors_zeroed": "40c18ae1a8590d4a54b42bacec048999dcd8d76ccafa25b11f69582e7c570389",
+  "all_other_image_bytes_identical": true
+}

@@ -1,0 +1,12 @@
+{
+  "revised-runtime-build.json": {
+    "binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+    "sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+    "revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb"
+  },
+  "fixed-workers-runtime-build.json": {
+    "binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/fixed-workers-5b8ea1a6/micropod",
+    "sha256": "9618161826b37f5a3d7433c9d6a88fa3637e6a6fcc16cfd14b2a263dbcb89aeb",
+    "revision": "5b8ea1a6a79d1741e521c080f968fcf04c591e68"
+  }
+}

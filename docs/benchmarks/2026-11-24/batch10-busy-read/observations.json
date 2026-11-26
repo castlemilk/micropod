@@ -1,0 +1,113 @@
+{
+  "kernel_inputs": {
+    "include/net/busy_poll.h": "f6b0ecee25b0081a4c62778021b2bb2424e048db522a79c68e4a631140ea067c",
+    "include/net/sock.h": "3669c26dc04a88bc5171e1aee82e1c2007181a5c565d6ccfb547641e792d70b6",
+    "net/core/dev.c": "8b3c43e8becfd552ead597c2e009edf16b126924a7cbe4c5c961e74563b76274",
+    "net/core/sock.c": "0b693d70e0d9752caaca9816fadc82802ff8c2c62612b7bd5fb2691045a2e4a0",
+    "net/ipv4/tcp.c": "ddac70efc3730e0f6be6d63b8b08df3a028996403716d8298e097320ee9386df",
+    "net/ipv4/tcp_minisocks.c": "f874f19978fa92c57a0eb90c7e3be44c6208010550d484bde3eecb099e6823dd",
+    "net/ipv4/inet_connection_sock.c": "186a4d560ced1c58b52a0636b434315ce979f0864ea4b6629d45cfdb7d3fc6e7",
+    "net/socket.c": "2a22530e9b5ee06c7023beac9e31c8a1bbadc75d3e42cd77c11198ae61fe8c20"
+  },
+  "config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+  "image_config": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "service_sha256": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+  "go": "go1.27.2 linux arm64",
+  "go_inputs": {
+    "internal/poll/sock_cloexec.go": "3ae8a5856c703f68eae5343f575727ed6123310c8d4bfc0ebf1814efa8028cfd",
+    "internal/poll/fd_unix.go": "675f74e8cbfc73170e08b43947c131706cd59e498d722555fe3b793618f5f162"
+  },
+  "busy_poll_us": 0,
+  "cases": [
+    {
+      "case": "older-listener-new-child",
+      "busy_read_us": 0,
+      "effective_socket_us": 0,
+      "dontwait": true,
+      "napi_id": 256,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "new-empty-valid",
+      "busy_read_us": 0,
+      "effective_socket_us": 0,
+      "dontwait": true,
+      "napi_id": 256,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "new-queued-valid",
+      "busy_read_us": 0,
+      "effective_socket_us": 0,
+      "dontwait": true,
+      "napi_id": 256,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "new-empty-unknown-napi",
+      "busy_read_us": 0,
+      "effective_socket_us": 0,
+      "dontwait": true,
+      "napi_id": 0,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "blocking-positive",
+      "busy_read_us": 0,
+      "effective_socket_us": 0,
+      "dontwait": false,
+      "napi_id": 256,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "older-listener-new-child",
+      "busy_read_us": 50,
+      "effective_socket_us": 0,
+      "dontwait": true,
+      "napi_id": 256,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "new-empty-valid",
+      "busy_read_us": 50,
+      "effective_socket_us": 50,
+      "dontwait": true,
+      "napi_id": 256,
+      "napi_calls": 1,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "new-queued-valid",
+      "busy_read_us": 50,
+      "effective_socket_us": 50,
+      "dontwait": true,
+      "napi_id": 256,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "new-empty-unknown-napi",
+      "busy_read_us": 50,
+      "effective_socket_us": 50,
+      "dontwait": true,
+      "napi_id": 0,
+      "napi_calls": 0,
+      "calls_with_timeout": 0
+    },
+    {
+      "case": "blocking-positive",
+      "busy_read_us": 50,
+      "effective_socket_us": 50,
+      "dontwait": false,
+      "napi_id": 256,
+      "napi_calls": 1,
+      "calls_with_timeout": 1
+    }
+  ]
+}

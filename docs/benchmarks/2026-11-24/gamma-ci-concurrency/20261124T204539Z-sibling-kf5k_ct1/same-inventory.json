@@ -1,0 +1,1934 @@
+{
+  "A": {
+    "network": "mp-t-5uzc28lx-a-same",
+    "network_id": "c000f464e755fe948ba380832a2ad966deba498c55dea4cfb6340688fb1ce887",
+    "jobs": [
+      {
+        "id": "049036fd26f5f96551b62b81b6517254da2173d74e794b52318cf61a68aa398d",
+        "name": "mp-t-5uzc28lx-a-same-s0",
+        "ip": "10.90.0.2",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5267\nuser_usec 5267\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "ae9167b5808d7dbd4ebd604174c9b4d858612ac922140fa1ea4d459c59b4e694",
+        "name": "mp-t-5uzc28lx-a-same-s1",
+        "ip": "10.90.0.3",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4568\nuser_usec 2305\nsystem_usec 2262\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "8a944b27349c2801f70287af24fd5bc38bc2324fa53919d7a698a1ac726920db",
+        "name": "mp-t-5uzc28lx-a-same-s2",
+        "ip": "10.90.0.4",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4836\nuser_usec 4836\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "735b1c7ee2107e47716f4e2fe3044f41fe005b43d4680a4b8599f24d5d16facc",
+        "name": "mp-t-5uzc28lx-a-same-s3",
+        "ip": "10.90.0.5",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4602\nuser_usec 2301\nsystem_usec 2301\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "f36f05af3b9212e170c8778c4f9e1857a85551e30c1b134a41e92da926edd325",
+        "name": "mp-t-5uzc28lx-a-same-s4",
+        "ip": "10.90.0.7",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4111\nuser_usec 0\nsystem_usec 4111\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b22ab86c7b4c11e3da3e9af3f78ecaf0f47408a4b8390f5b88695b62aa50f6e0",
+        "name": "mp-t-5uzc28lx-a-same-s5",
+        "ip": "10.90.0.6",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3076\nuser_usec 0\nsystem_usec 3076\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9a8fec0063a483653dca8ccc312b7b64dc4567b15258228203459d7180231dfe",
+        "name": "mp-t-5uzc28lx-a-same-s6",
+        "ip": "10.90.0.8",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3338\nuser_usec 2144\nsystem_usec 1194\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "fc53009b5e6b144ff5043f8a566e38810d8718994cb402d3e6d6b56db6e70f0d",
+        "name": "mp-t-5uzc28lx-a-same-s7",
+        "ip": "10.90.0.9",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3871\nuser_usec 2446\nsystem_usec 1424\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "f555dab23ea9014793599e69eac223abe811d363a5a086953f2f151159ffd2fb",
+        "name": "mp-t-5uzc28lx-a-same-s8",
+        "ip": "10.90.0.11",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4596\nuser_usec 4596\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "fa8dc57ba054e23056cad11b914cbf3c7a16bed4738c57e49ce54041de0ff397",
+        "name": "mp-t-5uzc28lx-a-same-s9",
+        "ip": "10.90.0.10",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4581\nuser_usec 4581\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "4ed94ae075f49f16027a22030c30adef5fa637dae3787089244bb5878f163705",
+        "name": "mp-t-5uzc28lx-a-same-s10",
+        "ip": "10.90.0.13",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3446\nuser_usec 0\nsystem_usec 3446\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "15d6aa64d2566216c05da56f1758eba7b9fd1aeb4c82e9b281a1c83e25b0290a",
+        "name": "mp-t-5uzc28lx-a-same-s11",
+        "ip": "10.90.0.12",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3438\nuser_usec 3438\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "abb57a662eb986549518604ecb8c17615086670c7d314ae15836ad319bf5b166",
+        "name": "mp-t-5uzc28lx-a-same-s12",
+        "ip": "10.90.0.14",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4793\nuser_usec 2425\nsystem_usec 2368\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "6c5cc06e908f4a0500e57cc236f3258ead0f49a6baa9b30586a8e80a60a59e03",
+        "name": "mp-t-5uzc28lx-a-same-s13",
+        "ip": "10.90.0.15",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4278\nuser_usec 0\nsystem_usec 4278\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "3522f42695580cdab06ba007bb9473d169d32d93885111881a07d74bd54a8b6a",
+        "name": "mp-t-5uzc28lx-a-same-s14",
+        "ip": "10.90.0.16",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4443\nuser_usec 4443\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b80991ca1d190ce2f070d391ea6077505f69d6e433ee2671ba0e262b732e2817",
+        "name": "mp-t-5uzc28lx-a-same-s15",
+        "ip": "10.90.0.17",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3910\nuser_usec 2215\nsystem_usec 1695\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "4fcfee9ab4d6a64ca7e3960dbe5133e7aa665ffed4b748f38dcfc2e4ea82e04e",
+        "name": "mp-t-5uzc28lx-a-same-s16",
+        "ip": "10.90.0.18",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4361\nuser_usec 4361\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "25826d7d15fe297feea29572658f188d6899fe99ce1dac455becac22e0673178",
+        "name": "mp-t-5uzc28lx-a-same-s17",
+        "ip": "10.90.0.19",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3964\nuser_usec 0\nsystem_usec 3964\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "d18f0fd52045294af7bf37282e6a86b88a4c87c34f27da402fcfa7aa890e78c6",
+        "name": "mp-t-5uzc28lx-a-same-s18",
+        "ip": "10.90.0.20",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3203\nuser_usec 0\nsystem_usec 3203\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "11e02f275b3f825bcd73f8fd3837ce5ed6bcff53168963c875ca4e3f04cba0f7",
+        "name": "mp-t-5uzc28lx-a-same-s19",
+        "ip": "10.90.0.22",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3523\nuser_usec 3523\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "696317c69d298751f4d22b386b50112314d3f079462cef143c34bbbd4936b4a8",
+        "name": "mp-t-5uzc28lx-a-same-s20",
+        "ip": "10.90.0.21",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4847\nuser_usec 2495\nsystem_usec 2352\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "308c04f35c7853c538a53d18f8c7d15341c0d458b47a5fc5807274bcd710ad9c",
+        "name": "mp-t-5uzc28lx-a-same-s21",
+        "ip": "10.90.0.24",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3705\nuser_usec 3705\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "86d81bcaf18205f117ec5bb5a0d3d326ac173d2ce26130017ce2657e4475049c",
+        "name": "mp-t-5uzc28lx-a-same-s22",
+        "ip": "10.90.0.23",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3818\nuser_usec 3818\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "e020ed36483b2693f7cadd3b8a14d1165ad021aa95aaba9b11e2895851523c5f",
+        "name": "mp-t-5uzc28lx-a-same-s23",
+        "ip": "10.90.0.25",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3730\nuser_usec 3730\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "af31e3dcbf87aca14b40f530717373e4cec3cd4a3148e855cd702a128c690631",
+        "name": "mp-t-5uzc28lx-a-same-s24",
+        "ip": "10.90.0.26",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5626\nuser_usec 0\nsystem_usec 5626\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "fba272a51544df4e3053d643ef893d0d209abfbb47e3c2b9d22b0f5a7e16f6de",
+        "name": "mp-t-5uzc28lx-a-same-s25",
+        "ip": "10.90.0.27",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4669\nuser_usec 0\nsystem_usec 4669\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9981df0f0ad7b00b9c4f9d210051350385dbebc84592291dcb1ffabd9615493c",
+        "name": "mp-t-5uzc28lx-a-same-s26",
+        "ip": "10.90.0.28",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3877\nuser_usec 3877\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "75e5e039865b9f5e9c62206d8cd90d2c6169729840422f4c3c82b2b3d65d890e",
+        "name": "mp-t-5uzc28lx-a-same-s27",
+        "ip": "10.90.0.29",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4539\nuser_usec 4539\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "7bc404d65d41672b7839d22d2240297fca9da0105266751e2dc826ddee9742aa",
+        "name": "mp-t-5uzc28lx-a-same-s28",
+        "ip": "10.90.0.30",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5428\nuser_usec 1802\nsystem_usec 3626\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "87a3892f512f631612d064a643841e9584de8909577711cb6a69258e5ff78aab",
+        "name": "mp-t-5uzc28lx-a-same-s29",
+        "ip": "10.90.0.32",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4343\nuser_usec 1494\nsystem_usec 2849\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "ec18a172a936ea0055d2e90c7ccff54a11cd037732235c1552551fc334850697",
+        "name": "mp-t-5uzc28lx-a-same-s30",
+        "ip": "10.90.0.33",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4166\nuser_usec 0\nsystem_usec 4166\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9e09fa981f45614407fb08986d5740883d7adb0debb42e093e4b7c2e5fc6197e",
+        "name": "mp-t-5uzc28lx-a-same-s31",
+        "ip": "10.90.0.31",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4090\nuser_usec 0\nsystem_usec 4090\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "46d77836793c14a8bff4035b2d5f24e782c4ac41daf49377b5346c05e0e33b45",
+        "name": "mp-t-5uzc28lx-a-same-c0",
+        "ip": "10.90.0.34",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4800\nuser_usec 4800\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "09cb65f348452ebd226d0e10103f8bff5b45c8ff7a24c68c3b741a9f14870444",
+        "name": "mp-t-5uzc28lx-a-same-c1",
+        "ip": "10.90.0.35",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4353\nuser_usec 2258\nsystem_usec 2095\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "42753494bdb270d40a999f6d68b8cc9640acb2225a05cb3514047043f4dffd70",
+        "name": "mp-t-5uzc28lx-a-same-c2",
+        "ip": "10.90.0.36",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4231\nuser_usec 4231\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "69ecc5497116496085390139ce275e5cc989047ab8a18d7f5c94da01271e9017",
+        "name": "mp-t-5uzc28lx-a-same-c3",
+        "ip": "10.90.0.37",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4355\nuser_usec 4355\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "21baa4d46b5c17c9f105b82d56c6aec35450d1c0b1a39cd857a005c6de3de73b",
+        "name": "mp-t-5uzc28lx-a-same-c4",
+        "ip": "10.90.0.38",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5052\nuser_usec 3095\nsystem_usec 1956\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b6c75f064f663475c461bb6b56444ef13f8bd24dafa6e143b8e9137e569256c2",
+        "name": "mp-t-5uzc28lx-a-same-c5",
+        "ip": "10.90.0.41",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4092\nuser_usec 4092\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "c6accddc4e2b53333fc9d1dc3c4485efb63f74da6a20aeb5973ef8d9f2331efd",
+        "name": "mp-t-5uzc28lx-a-same-c6",
+        "ip": "10.90.0.40",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4184\nuser_usec 0\nsystem_usec 4184\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "72883018a1681f4dd828692df597a67bfb10b751d842af8c3ea966d7cc97fc4c",
+        "name": "mp-t-5uzc28lx-a-same-c7",
+        "ip": "10.90.0.39",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4411\nuser_usec 0\nsystem_usec 4411\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b7b28a5e20fff034d23ed2863f64804863e0c30895eddd1b8d1c39b47bfc4b77",
+        "name": "mp-t-5uzc28lx-a-same-c8",
+        "ip": "10.90.0.42",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4773\nuser_usec 0\nsystem_usec 4773\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "034d8a0b956eec20476cdd7e04f69fcd25d4f4883964f1cb93dfa0a32df1269c",
+        "name": "mp-t-5uzc28lx-a-same-c9",
+        "ip": "10.90.0.44",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3809\nuser_usec 3809\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "e24071126198d1b281f56f9e7cf716feaf340867db9876e3f735d42023b83fc4",
+        "name": "mp-t-5uzc28lx-a-same-c10",
+        "ip": "10.90.0.43",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3876\nuser_usec 0\nsystem_usec 3876\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "c1db443d1e4a7657d96aeaf636b7cf66cf7318ac5c92fc99be7834245ba705ea",
+        "name": "mp-t-5uzc28lx-a-same-c11",
+        "ip": "10.90.0.45",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3567\nuser_usec 3567\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "a5ed338d2891ae115fdb5d3eccad9f0cadcb7ae55fd3928be8b68c6ec9d2c59d",
+        "name": "mp-t-5uzc28lx-a-same-c12",
+        "ip": "10.90.0.46",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5081\nuser_usec 3250\nsystem_usec 1830\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "cd1da6045f51048f26ed5b181ec75a16f4e996abccfa766cfd602d58fc415d18",
+        "name": "mp-t-5uzc28lx-a-same-c13",
+        "ip": "10.90.0.47",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4388\nuser_usec 4388\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "43f13c4ef169dad749949f78a16141ab3d1878de0f1b1a6eaf93ac5689fa1ed1",
+        "name": "mp-t-5uzc28lx-a-same-c14",
+        "ip": "10.90.0.48",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3982\nuser_usec 3982\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "8c1320b6db1add39bcb02af1be35cb4c4065b1cf1c208ef58e670cdc6b733f46",
+        "name": "mp-t-5uzc28lx-a-same-c15",
+        "ip": "10.90.0.49",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3645\nuser_usec 0\nsystem_usec 3645\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "09e50c4eedfa3787cf64e14bcd626b42f48bf181e006a928de7cd56527dc5600",
+        "name": "mp-t-5uzc28lx-a-same-c16",
+        "ip": "10.90.0.50",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 6358\nuser_usec 0\nsystem_usec 6358\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "86a6ae143b3a848fe3477dc55e9b7a74e4d56b213dff2f908eb6a1da4c48a282",
+        "name": "mp-t-5uzc28lx-a-same-c17",
+        "ip": "10.90.0.51",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4568\nuser_usec 0\nsystem_usec 4568\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "d6d06c095f244f5d6c364bed0bff0b4f91b19415c436f97097f1f7be95ce71b6",
+        "name": "mp-t-5uzc28lx-a-same-c18",
+        "ip": "10.90.0.52",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4226\nuser_usec 4226\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "18290a793378911df01d7da5c82c2318740c72598fc55d96b528d3eefd4f3ff7",
+        "name": "mp-t-5uzc28lx-a-same-c19",
+        "ip": "10.90.0.53",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3980\nuser_usec 0\nsystem_usec 3980\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "2754bdc7bdb72947b8ea002fb5ba6c5d386ed6707e7ec5ef2b9540e8406fc50e",
+        "name": "mp-t-5uzc28lx-a-same-c20",
+        "ip": "10.90.0.54",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5293\nuser_usec 0\nsystem_usec 5293\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "114d5615a2c01aede5c94d8112ea2644eb5f35522b0853b7ef2cd39303bccb20",
+        "name": "mp-t-5uzc28lx-a-same-c21",
+        "ip": "10.90.0.55",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4857\nuser_usec 0\nsystem_usec 4857\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "db34e6e9fbf3960ebb3f0ea90ca7a5a8d1b83c934f09a929ef00f11f129e56bc",
+        "name": "mp-t-5uzc28lx-a-same-c22",
+        "ip": "10.90.0.56",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4558\nuser_usec 2637\nsystem_usec 1921\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "037b4877b8b230a8504f83e0983d37749a43ec0cdb39ee133510ae0aed8f8c85",
+        "name": "mp-t-5uzc28lx-a-same-c23",
+        "ip": "10.90.0.57",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 3916\nuser_usec 0\nsystem_usec 3916\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "8ba01e3a31a178fa4d4a1eaf0533582c78f845f39de0bac8da96267aac9b4ace",
+        "name": "mp-t-5uzc28lx-a-same-c24",
+        "ip": "10.90.0.58",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 6027\nuser_usec 0\nsystem_usec 6027\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "cc96207d0ba2e884a6fe2544bea97f8a79a4636977b4b3642cde76572ff5e136",
+        "name": "mp-t-5uzc28lx-a-same-c25",
+        "ip": "10.90.0.59",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5039\nuser_usec 0\nsystem_usec 5039\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "ee47b093fc1a94cadc544edb7054faec05b11fdd5ede1e0a705ca763b12dbce9",
+        "name": "mp-t-5uzc28lx-a-same-c26",
+        "ip": "10.90.0.60",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4997\nuser_usec 0\nsystem_usec 4997\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "ea6f684de6f76e7fc8626d57df76fc1fa5d5b716721f0c521f4f64476941a8b8",
+        "name": "mp-t-5uzc28lx-a-same-c27",
+        "ip": "10.90.0.61",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4102\nuser_usec 0\nsystem_usec 4102\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9d3d9764d7bfd14bbcec7ebecbedda93085bda9844b01bcafd83e78aef8495ce",
+        "name": "mp-t-5uzc28lx-a-same-c28",
+        "ip": "10.90.0.62",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5514\nuser_usec 0\nsystem_usec 5514\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "210a295ed36202a3cf3c89b3bbed824282963fecc00d8262f455d6b92b2e326e",
+        "name": "mp-t-5uzc28lx-a-same-c29",
+        "ip": "10.90.0.63",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4284\nuser_usec 0\nsystem_usec 4284\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "6fcebae2aa6b2395c7886845e87036f201d9e171bae07b3372b983fde03665d3",
+        "name": "mp-t-5uzc28lx-a-same-c30",
+        "ip": "10.90.0.64",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5252\nuser_usec 5252\nsystem_usec 0\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "d5e0d4a602b3ad46c54f20d649e75fa69f93fa64770336d6a67612d3fc3ffa22",
+        "name": "mp-t-5uzc28lx-a-same-c31",
+        "ip": "10.90.0.65",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 4080\nuser_usec 4080\nsystem_usec 0\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      }
+    ]
+  },
+  "B": {
+    "network": "mp-t-5uzc28lx-b-same",
+    "network_id": "aa1c06d6cb286483cce2eb5556b855744ef66088a1b429cfd1a29c81bdd43792",
+    "jobs": [
+      {
+        "id": "c575e5ba4aabf6531b47b54c69c6e977dbb6f947f283ee000d57fe274762ab63",
+        "name": "mp-t-5uzc28lx-b-same-s0",
+        "ip": "192.168.97.2",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17402\nuser_usec 12761\nsystem_usec 4640\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "975f5ac741af8473e5b097478ba9bf24874a7573adb0a7f45590355c706ce6f7",
+        "name": "mp-t-5uzc28lx-b-same-s1",
+        "ip": "192.168.97.3",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15617\nuser_usec 10736\nsystem_usec 4880\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "5b6057bf240be09eabc149e6bc0dce6f9bfec9ddd8a525a867fe96586c7ff9b4",
+        "name": "mp-t-5uzc28lx-b-same-s2",
+        "ip": "192.168.97.5",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15004\nuser_usec 7502\nsystem_usec 7502\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "0aaa0bec164474f47830bb707e16f3db71c659fad42b714b2061e9e36197095b",
+        "name": "mp-t-5uzc28lx-b-same-s3",
+        "ip": "192.168.97.6",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15234\nuser_usec 9902\nsystem_usec 5331\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "e038d64543271a4b1d76a9845713af9de5d35f70055822d05afe3d5e1311343b",
+        "name": "mp-t-5uzc28lx-b-same-s4",
+        "ip": "192.168.97.7",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15771\nuser_usec 9705\nsystem_usec 6066\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "099b7d82b066649d19ad766d63d7fcd6ee746195fd10758f08efe061b0056985",
+        "name": "mp-t-5uzc28lx-b-same-s5",
+        "ip": "192.168.97.4",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15278\nuser_usec 8987\nsystem_usec 6291\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "149313baccfd1d90c633f029a1551c52fbc5e2ac630569df99082bccbd732e91",
+        "name": "mp-t-5uzc28lx-b-same-s6",
+        "ip": "192.168.97.8",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15852\nuser_usec 9687\nsystem_usec 6164\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "f469c99a8744accac25a5b62b2bd1ef16aa8363dd6686d2d70199280dff4f599",
+        "name": "mp-t-5uzc28lx-b-same-s7",
+        "ip": "192.168.97.9",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15757\nuser_usec 5908\nsystem_usec 9848\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "41a8c52ea6c6d61e8d8a2444e73963c9e167e299d9331ad3d19e9e248ccdf770",
+        "name": "mp-t-5uzc28lx-b-same-s8",
+        "ip": "192.168.97.10",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17223\nuser_usec 9971\nsystem_usec 7251\nnice_usec 0\nnr_periods 4\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "bee5870daeb05b61df61ec53305be470a3033234776af995403955be6999508c",
+        "name": "mp-t-5uzc28lx-b-same-s9",
+        "ip": "192.168.97.11",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15439\nuser_usec 9082\nsystem_usec 6357\nnice_usec 0\nnr_periods 4\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "edeb6a22ce2980768def855cfa74d15afd64bea5038e35ff45bd8563245bd2ed",
+        "name": "mp-t-5uzc28lx-b-same-s10",
+        "ip": "192.168.97.12",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15183\nuser_usec 6251\nsystem_usec 8931\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "d9db61584334704e26dd1ede5eb89f71c8a9d4d67a4380b766701015451c7c7b",
+        "name": "mp-t-5uzc28lx-b-same-s11",
+        "ip": "192.168.97.15",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15851\nuser_usec 11888\nsystem_usec 3962\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "067d817f886888246ea60ba04027d5427a5990037bbed687a0bad46797135ab7",
+        "name": "mp-t-5uzc28lx-b-same-s12",
+        "ip": "192.168.97.13",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16039\nuser_usec 9165\nsystem_usec 6874\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "af6277275bcf203d3280fd2c36cdfe67687e3e930ab8f46f2ee184ffdcefb0ad",
+        "name": "mp-t-5uzc28lx-b-same-s13",
+        "ip": "192.168.97.14",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15864\nuser_usec 11105\nsystem_usec 4759\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "8c5f898583628bf2cbff5fd9183c94439b423e6ab1ca2f615e5d09e451e60abb",
+        "name": "mp-t-5uzc28lx-b-same-s14",
+        "ip": "192.168.97.16",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16713\nuser_usec 13579\nsystem_usec 3133\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "268324292f1d8b7dbd6907ee9f13592a77adb8f7ef99f7fe3e5a1ed1d26a0067",
+        "name": "mp-t-5uzc28lx-b-same-s15",
+        "ip": "192.168.97.17",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17201\nuser_usec 10321\nsystem_usec 6880\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "af7376c5b2d7bd599800ab1d1523cdf06c0e9f20056496efb0539007647be05a",
+        "name": "mp-t-5uzc28lx-b-same-s16",
+        "ip": "192.168.97.18",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17253\nuser_usec 10783\nsystem_usec 6470\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "13a604ad5a6ca6d0d06b1b5ac1fcafc49069ada2f2ad86fcecdaeeca68ace2d9",
+        "name": "mp-t-5uzc28lx-b-same-s17",
+        "ip": "192.168.97.19",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16708\nuser_usec 11139\nsystem_usec 5569\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "da61374c72d8a70f0245e2dc5d15e9c110ec3f079c608f5ddc194e23bbc5a499",
+        "name": "mp-t-5uzc28lx-b-same-s18",
+        "ip": "192.168.97.20",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17186\nuser_usec 11457\nsystem_usec 5728\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "00478a90c5de5b8b192574b2188f093563914b4c2de706e389103df288ddcd15",
+        "name": "mp-t-5uzc28lx-b-same-s19",
+        "ip": "192.168.97.21",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14733\nuser_usec 8840\nsystem_usec 5893\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "4db36ce5d2b6021ef75d5ce64d192452c3f9c3fe22484b6c034c18bf945cfabf",
+        "name": "mp-t-5uzc28lx-b-same-s20",
+        "ip": "192.168.97.22",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16451\nuser_usec 9253\nsystem_usec 7197\nnice_usec 0\nnr_periods 4\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "ba45f1b31a5df4d0fc840a5ac02e7d9c5ada41f7cebd41f6be9f2877a1cdc251",
+        "name": "mp-t-5uzc28lx-b-same-s21",
+        "ip": "192.168.97.23",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15729\nuser_usec 8988\nsystem_usec 6741\nnice_usec 0\nnr_periods 4\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "120ecbbb81d1e3a147c7c2b8888275f4f8c4b245518052b0c1f339dd58015dd5",
+        "name": "mp-t-5uzc28lx-b-same-s22",
+        "ip": "192.168.97.25",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17129\nuser_usec 11134\nsystem_usec 5995\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "338a3dad9d286cb6e1988a2407eb3f7ed31beb812336012106666b9ef1a42dab",
+        "name": "mp-t-5uzc28lx-b-same-s23",
+        "ip": "192.168.97.24",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17025\nuser_usec 10641\nsystem_usec 6384\nnice_usec 0\nnr_periods 6\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "8716c095182b70e913f806cc54d89900e1fb5c0196a7002c6246acb52995e695",
+        "name": "mp-t-5uzc28lx-b-same-s24",
+        "ip": "192.168.97.26",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16212\nuser_usec 8106\nsystem_usec 8106\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9d0678053da2e1ddd1cd537caef989bf99608fb62f33d04744500d9fa1a0cdc8",
+        "name": "mp-t-5uzc28lx-b-same-s25",
+        "ip": "192.168.97.27",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16457\nuser_usec 7744\nsystem_usec 8712\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "7eb4416f2d330ee5e04601bcacc42d265ed6aa136406a7bfd502f9982d1103a4",
+        "name": "mp-t-5uzc28lx-b-same-s26",
+        "ip": "192.168.97.28",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16241\nuser_usec 7643\nsystem_usec 8598\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "5ee013c0c35a311f5e2ffa3cbb56ac6e7402c074a53ab8898bf4f30c0f381c09",
+        "name": "mp-t-5uzc28lx-b-same-s27",
+        "ip": "192.168.97.29",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17116\nuser_usec 8558\nsystem_usec 8558\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "2c2254bc3a9f38e7be466cfd67cbb6abdd9179c9c1458ccfef3d1cf6f48853ba",
+        "name": "mp-t-5uzc28lx-b-same-s28",
+        "ip": "192.168.97.30",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 18441\nuser_usec 10245\nsystem_usec 8196\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "d0aeec39e50814704497bdfd1e292ce7baffeb19b2e44bbbb8951b10a6beb0d1",
+        "name": "mp-t-5uzc28lx-b-same-s29",
+        "ip": "192.168.97.31",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17842\nuser_usec 10903\nsystem_usec 6938\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "40e65080feaf4a6ea76038aeea10c04378c9a9dcd53f42dd46fe685f08b4f391",
+        "name": "mp-t-5uzc28lx-b-same-s30",
+        "ip": "192.168.97.32",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16731\nuser_usec 11810\nsystem_usec 4921\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "7a8e0fab6f74bab22f012376e196a7aa37fb3c4e18670b1cb49353dac575c8fb",
+        "name": "mp-t-5uzc28lx-b-same-s31",
+        "ip": "192.168.97.33",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16151\nuser_usec 9085\nsystem_usec 7066\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b868d0bad1f2a67fc353660b7f07aeaaa255dc80d2caae48c915b9bb3e19b862",
+        "name": "mp-t-5uzc28lx-b-same-c0",
+        "ip": "192.168.97.34",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17615\nuser_usec 8807\nsystem_usec 8807\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "c262e9d4174aa8ffe137f722bc9465efce639f62a0e81a307147f146a1197fc3",
+        "name": "mp-t-5uzc28lx-b-same-c1",
+        "ip": "192.168.97.35",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 18771\nuser_usec 11262\nsystem_usec 7508\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "97e2f886cd7fba1a67a662a3c02192a39a90f0931c0b795d30b775deffef3837",
+        "name": "mp-t-5uzc28lx-b-same-c2",
+        "ip": "192.168.97.36",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 18211\nuser_usec 10712\nsystem_usec 7498\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "346c95908dfaf215bfb48d06e7b9147c44f62de32f2c734edd71dac6eec7eccb",
+        "name": "mp-t-5uzc28lx-b-same-c3",
+        "ip": "192.168.97.37",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16389\nuser_usec 10926\nsystem_usec 5463\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "fef96af7df4c9c3244cc9721380fbbec283002e5aaeb960cab8dd4ed835cc7f5",
+        "name": "mp-t-5uzc28lx-b-same-c4",
+        "ip": "192.168.97.38",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 18117\nuser_usec 9058\nsystem_usec 9058\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "d9583ed33f7ec3f5e7b719d71e31bc93844012837687d4779299c94248169583",
+        "name": "mp-t-5uzc28lx-b-same-c5",
+        "ip": "192.168.97.39",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16722\nuser_usec 10451\nsystem_usec 6270\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "3464cd3135b2ae0bafcd4242192528fa91af9048ec7574fbc0d3cb8965c71b10",
+        "name": "mp-t-5uzc28lx-b-same-c6",
+        "ip": "192.168.97.41",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15822\nuser_usec 12306\nsystem_usec 3516\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b8239786a4954a1d8ad99c88bbf162ff624ac44652d36b5171c6316770a454d0",
+        "name": "mp-t-5uzc28lx-b-same-c7",
+        "ip": "192.168.97.40",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16771\nuser_usec 11475\nsystem_usec 5296\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "27eabd762abe2aa9cf3da7de37300606ccddb7fb47cf506c91635ae98873edb4",
+        "name": "mp-t-5uzc28lx-b-same-c8",
+        "ip": "192.168.97.43",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15958\nuser_usec 11398\nsystem_usec 4559\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "74ca543faf8d36bc17f0421fddb771c9f1d6b9e99e531b19837773fc6ef414d7",
+        "name": "mp-t-5uzc28lx-b-same-c9",
+        "ip": "192.168.97.42",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16605\nuser_usec 11070\nsystem_usec 5535\nnice_usec 0\nnr_periods 4\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9dd04fd82eaa96924f0e07a85ed2e598d6fab9f7e3be1ae577526ae24662596d",
+        "name": "mp-t-5uzc28lx-b-same-c10",
+        "ip": "192.168.97.45",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17263\nuser_usec 5394\nsystem_usec 11868\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b25355ff4cb608e55b7b0fabc339d66a4a56d46ac2cebe810acb42f7df48ae18",
+        "name": "mp-t-5uzc28lx-b-same-c11",
+        "ip": "192.168.97.44",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15970\nuser_usec 9125\nsystem_usec 6844\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "d1c14ec57ecccbd59059053ea6f65c7841e864466dd6938a53af555250c36340",
+        "name": "mp-t-5uzc28lx-b-same-c12",
+        "ip": "192.168.97.46",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16416\nuser_usec 9850\nsystem_usec 6566\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "5250d4e2041de7b3c32f55059c42296e8314dcc45dc1cf8a028019c819eceab6",
+        "name": "mp-t-5uzc28lx-b-same-c13",
+        "ip": "192.168.97.47",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17608\nuser_usec 10357\nsystem_usec 7250\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "e196273cf51b2f590e0d46ad7b7bc8f15e124094a6aedce2840c98399e17e09a",
+        "name": "mp-t-5uzc28lx-b-same-c14",
+        "ip": "192.168.97.48",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15575\nuser_usec 4153\nsystem_usec 11421\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "a704068ab4e3d75ed903f4b6cfc2cd3a4df74db3c919170cfe63a3195ef13e1e",
+        "name": "mp-t-5uzc28lx-b-same-c15",
+        "ip": "192.168.97.49",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15758\nuser_usec 9952\nsystem_usec 5805\nnice_usec 0\nnr_periods 4\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "b43c747da25c050f55c6f7064821699510a4e35c95dd60200a9351739376d9c9",
+        "name": "mp-t-5uzc28lx-b-same-c16",
+        "ip": "192.168.97.50",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16064\nuser_usec 10040\nsystem_usec 6024\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "94e9d1c8cd294bcc2758e1df29b779727b53e4e67addc7af5a895fee306fdf2d",
+        "name": "mp-t-5uzc28lx-b-same-c17",
+        "ip": "192.168.97.51",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16129\nuser_usec 10753\nsystem_usec 5376\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "01666caae54643082a49df1119256054f6a28c1557f01b6be08aea3ceba17e66",
+        "name": "mp-t-5uzc28lx-b-same-c18",
+        "ip": "192.168.97.52",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16088\nuser_usec 13407\nsystem_usec 2681\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "1b9f023951d39c8c7c8b491e8ba61a319661ef65326a7f7766c7a4f76df35daf",
+        "name": "mp-t-5uzc28lx-b-same-c19",
+        "ip": "192.168.97.53",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15406\nuser_usec 7002\nsystem_usec 8403\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "05c5820e85a54f23c466440d15e2607b71df78465b8834ffde7553e8071ebd8a",
+        "name": "mp-t-5uzc28lx-b-same-c20",
+        "ip": "192.168.97.54",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15770\nuser_usec 7885\nsystem_usec 7885\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "1692a6d4c5a75d8009d3de3aaf6bd0a2b4b7f9cf9d80c126cbe82b7d816984ac",
+        "name": "mp-t-5uzc28lx-b-same-c21",
+        "ip": "192.168.97.55",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14969\nuser_usec 6549\nsystem_usec 8420\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "112b4274933c045ef23248199b425e8d3ac2b96c429f81bbe08bf53b1542b82d",
+        "name": "mp-t-5uzc28lx-b-same-c22",
+        "ip": "192.168.97.56",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15812\nuser_usec 8514\nsystem_usec 7297\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "2c4b770f64f0c2edffd3130b70afb23829699935167fbc9c4787cbf627996ee2",
+        "name": "mp-t-5uzc28lx-b-same-c23",
+        "ip": "192.168.97.57",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14770\nuser_usec 11361\nsystem_usec 3408\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9a84685dc122f498f2369c409186f35d38e02955323f075b5d8c178550edee2e",
+        "name": "mp-t-5uzc28lx-b-same-c24",
+        "ip": "192.168.97.58",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16895\nuser_usec 7509\nsystem_usec 9386\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "9109337cfa1844c575571904b0de461dbfd5d7483e6efeb48f3df6f328677b73",
+        "name": "mp-t-5uzc28lx-b-same-c25",
+        "ip": "192.168.97.59",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15767\nuser_usec 7883\nsystem_usec 7883\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "eb0a7137acf6e823b04cd909d0f550c744073e2e544a3cb659b2245500121fcc",
+        "name": "mp-t-5uzc28lx-b-same-c26",
+        "ip": "192.168.97.60",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15551\nuser_usec 8886\nsystem_usec 6664\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "4d4fa3c45a2c18b2deb3ffdc2f482ed83759ea4cb63e7a92388410b5905dcedd",
+        "name": "mp-t-5uzc28lx-b-same-c27",
+        "ip": "192.168.97.61",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15678\nuser_usec 9222\nsystem_usec 6456\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "3d7f624940cb23cee1cc4120becaba249b3045ee2d5abca9c24442079b4357f1",
+        "name": "mp-t-5uzc28lx-b-same-c28",
+        "ip": "192.168.97.63",
+        "mask": "0",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16406\nuser_usec 9651\nsystem_usec 6755\nnice_usec 0\nnr_periods 3\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "82b34f2e1e0dc9b741996e1b546d7c764e8cdd7324933c94fba54a8ed82f0a72",
+        "name": "mp-t-5uzc28lx-b-same-c29",
+        "ip": "192.168.97.62",
+        "mask": "1",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17369\nuser_usec 11579\nsystem_usec 5789\nnice_usec 0\nnr_periods 4\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "1",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "fc9ca2d6094f5ee17001d42950b7d3f846715948b5c02ae1692fbc5c0fbc543f",
+        "name": "mp-t-5uzc28lx-b-same-c30",
+        "ip": "192.168.97.65",
+        "mask": "2",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14328\nuser_usec 9919\nsystem_usec 4408\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "2",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      },
+      {
+        "id": "e1ac7a30cc253657a4dd737c008ba05ced706bae99553023e42b0381a7825e0e",
+        "name": "mp-t-5uzc28lx-b-same-c31",
+        "ip": "192.168.97.64",
+        "mask": "3",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14602\nuser_usec 8761\nsystem_usec 5841\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 1
+        }
+      }
+    ]
+  }
+}

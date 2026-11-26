@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 383, in <module>
+    run(p.parse_args())
+    ~~~^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 271, in run
+    fixtures[arm], dockers[arm] = scope_fixture(args, arm)
+                                  ~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 152, in scope_fixture
+    path_pilot.socket_proof(relay, docker, fixture, args.ss)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/kernel-path-20261122/scripts/gamma_path_pilot.py", line 275, in socket_proof
+    require(
+    ~~~~~~~^
+        len(re.findall(r"(?m)^.*:8080\s+", raw)) == 1
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        and len(re.findall(r"(?m)^\s+reno(?:\s|$)", raw)) == 1,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "accepted service socket did not prove Reno",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/benebsworth/projects/micropod/bench/kernel-path-20261122/scripts/gamma_path_study.py", line 41, in require
+    raise ValueError(detail)
+ValueError: accepted service socket did not prove Reno

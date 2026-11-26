@@ -1,0 +1,23 @@
+{
+  "order": [
+    [
+      "loopback",
+      "direct"
+    ],
+    [
+      "direct",
+      "loopback"
+    ],
+    [
+      "direct",
+      "loopback"
+    ],
+    [
+      "loopback",
+      "direct"
+    ]
+  ],
+  "source": "memory",
+  "direct_sha256": "e946b13621c3f3c55ae9d7ed1edcef6220887af4d88a3eb699b947e80bff6c46",
+  "client": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53"
+}

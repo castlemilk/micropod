@@ -1,0 +1,34 @@
+{
+  "fleet_observed_at_utc": "2026-11-22T11:01:59.585349759Z",
+  "source": "cuttlefish_fleet_summary",
+  "runners": [
+    {
+      "runner": "Gamma-128GB.local",
+      "latest_heartbeat_utc": "2026-11-22T11:01:46.935357Z",
+      "connection": "online",
+      "active_leases": 0,
+      "capacity": 6
+    },
+    {
+      "runner": "Gamma-128GB Linux CI (isolated VM)",
+      "latest_heartbeat_utc": "2026-11-22T11:01:51.491088Z",
+      "connection": "online",
+      "active_leases": 1,
+      "capacity": 1
+    }
+  ],
+  "apfs": {
+    "command": "df -kP .",
+    "filesystem": "/dev/disk3s5",
+    "type": "apfs",
+    "available_kib": 42755132,
+    "capacity_pct": 98
+  },
+  "effective_pressure": {
+    "command": "sysctl -n kern.memorystatus_vm_pressure_level",
+    "value": null,
+    "error": "Operation not permitted"
+  },
+  "isolated_slot_release_from_warm_ci_owner": null,
+  "live_benchmark_attempts": 0
+}

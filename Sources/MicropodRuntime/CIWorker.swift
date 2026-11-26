@@ -403,7 +403,8 @@ public struct CIWorker: Sendable {
             let requested = try selectedVMM()
             guard requested == active.activeVMM else {
                 throw MicropodError.message(
-                    "Requested VMM \(requested.rawValue), but the active worker uses \(active.activeVMM.rawValue) at \(directory.path)")
+                    "Requested VMM \(requested.rawValue), but the active worker uses \(active.activeVMM.rawValue) at \(directory.path)"
+                )
             }
         }
         return active
@@ -908,11 +909,13 @@ public struct CIWorker: Sendable {
                 else {
                     throw MicropodError.message(
                         "HVF warm snapshot topology (\(meta.cpus) vCPU, \(meta.memoryMiB) MiB, MTU \(meta.publishedMTU)) "
-                            + "does not match worker config (\(cpuAllocation.count) vCPU, \(config.memoryMiB) MiB, MTU \(config.publishedMTU ?? 9000))")
+                            + "does not match worker config (\(cpuAllocation.count) vCPU, \(config.memoryMiB) MiB, MTU \(config.publishedMTU ?? 9000))"
+                    )
                 }
                 guard meta.workerID == config.worker else {
                     throw MicropodError.message(
-                        "HVF warm snapshot worker ID \(meta.workerID.uuidString) differs from \(manifest.path); use a fresh MICROPOD_CI_HOME")
+                        "HVF warm snapshot worker ID \(meta.workerID.uuidString) differs from \(manifest.path); use a fresh MICROPOD_CI_HOME"
+                    )
                 }
                 // A warm fork keeps the captured guest worker, instance, and boot identity.
                 // Each launch owns its own supervisor, Unix endpoints and writable disk.

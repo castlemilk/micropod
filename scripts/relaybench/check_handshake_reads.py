@@ -18,9 +18,11 @@ ARMS = ('stock', 'deferred')
 PAIRS = 12
 
 
-def compile_arm(output, deferred, batched, sanitize=False):
+def compile_arm(output, deferred, batched, sanitize=False, *, oneshot=False):
     flags = [*FLAGS, f'-DMICROPOD_BENCH_DEFER_HANDSHAKE_READS={int(deferred)}',
              f'-DMICROPOD_BATCH_STREAM_FILTERS={int(batched)}']
+    if oneshot:
+        flags.append('-DMICROPOD_BENCH_ONESHOT_CONNECT=1')
     if sanitize:
         flags += ['-O1', '-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all']
     subprocess.run(['clang', *flags, '-I', str(RELAY / 'include'), str(HERE / 'handshake_reads.c'),

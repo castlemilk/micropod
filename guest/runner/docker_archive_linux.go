@@ -29,10 +29,11 @@ const archiveIdleTimeout = 30 * time.Second
 // renamed after start, so reopening its configured host path would copy to a
 // different filesystem view from the container's.
 type dockerLiveArchive struct {
-	mounts map[string]*os.File
-	users  sync.WaitGroup
-	ctx    context.Context
-	cancel context.CancelFunc
+	mounts     map[string]*os.File
+	configured []dockerMount
+	users      sync.WaitGroup
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 func newDockerLiveArchive(files []*os.File, mounts []*cri.Mount) *dockerLiveArchive {
@@ -41,14 +42,15 @@ func newDockerLiveArchive(files []*os.File, mounts []*cri.Mount) *dockerLiveArch
 	if len(files) == 0 {
 		return view
 	}
+	sources := make(map[string]*os.File, len(files))
+	for _, file := range files {
+		sources[dockerMountFDPath(file)] = file
+	}
 	view.mounts = make(map[string]*os.File, len(files))
 	for _, mount := range mounts {
-		if mount.HostPath == dockerMountFDPath(files[0]) {
-			view.mounts[mount.ContainerPath] = files[0]
-			files = files[1:]
-			if len(files) == 0 {
-				break
-			}
+		if source := sources[mount.HostPath]; source != nil {
+			view.mounts[mount.ContainerPath] = source
+			view.configured = append(view.configured, dockerMount{Target: mount.ContainerPath, ReadOnly: mount.Readonly})
 		}
 	}
 	return view
@@ -253,20 +255,26 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 	if err != nil {
 		return dockerArchiveView{}, nil, err
 	}
-	mount := archiveMountAt(mounts, absolute)
-	if write && ((mount.Target == "" && c.Config.HostConfig.ReadonlyRootfs) || mount.ReadOnly) {
-		return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is on a read-only filesystem")
-	}
-	if mount.tmpfs != nil || c.Config.cleanupMount(mount) || privateRootless() && dockerSocketMount(mount) {
-		return dockerArchiveView{}, nil, fail(http.StatusNotImplemented, "archive access to the requested mount type is unavailable")
-	}
-
 	s.mu.Lock()
 	if c.removed || c.Phase == "removing" {
 		s.mu.Unlock()
 		return dockerArchiveView{}, nil, fail(http.StatusNotFound, "container removed")
 	}
 	phase, id, live, binding := c.Phase, c.RuntimeID, c.archive, c.RootFSBinding
+	if phase == "running" && live != nil {
+		// Include auto-mounted caches. A path below one of these binds belongs
+		// to the running cache, and a parent archive must not traverse it.
+		mounts = append(mounts, live.configured...)
+	}
+	mount := archiveMountAt(mounts, absolute)
+	if write && ((mount.Target == "" && c.Config.HostConfig.ReadonlyRootfs) || mount.ReadOnly) {
+		s.mu.Unlock()
+		return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is on a read-only filesystem")
+	}
+	if mount.tmpfs != nil || c.Config.cleanupMount(mount) || privateRootless() && dockerSocketMount(mount) {
+		s.mu.Unlock()
+		return dockerArchiveView{}, nil, fail(http.StatusNotImplemented, "archive access to the requested mount type is unavailable")
+	}
 	if phase == "running" && live != nil {
 		live.users.Add(1)
 	}

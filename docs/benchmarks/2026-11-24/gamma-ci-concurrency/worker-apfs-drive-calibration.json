@@ -1,0 +1,808 @@
+{
+  "canary_file_count": 24,
+  "control": {
+    "after_write_remount": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "4817C99A-9028-4995-9DB4-0B708A53ACD7"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "5A1B469F-FA69-4768-A6D3-175C2B639337"
+      },
+      "disabled": false,
+      "fsevents": {
+        "directory_present": true,
+        "identity_file": {
+          "dev": 16777267,
+          "ino": 17,
+          "mode": 33152,
+          "mtime_ns": 1795583113159624000,
+          "name": "fseventsd-uuid",
+          "path": "/private/tmp/mp-apfs-canary-fkpzvgv_/a/.fseventsd/fseventsd-uuid",
+          "size": 36
+        },
+        "journal": [
+          {
+            "dev": 16777267,
+            "ino": 220,
+            "mode": 33152,
+            "mtime_ns": 1795583113159384250,
+            "name": "0000000004392ef5",
+            "path": "/private/tmp/mp-apfs-canary-fkpzvgv_/a/.fseventsd/0000000004392ef5",
+            "size": 470
+          },
+          {
+            "dev": 16777267,
+            "ino": 221,
+            "mode": 33152,
+            "mtime_ns": 1795583113159593671,
+            "name": "0000000004392ef6",
+            "path": "/private/tmp/mp-apfs-canary-fkpzvgv_/a/.fseventsd/0000000004392ef6",
+            "size": 72
+          }
+        ],
+        "journal_bytes": 542,
+        "journal_files": 2
+      },
+      "image": "/private/tmp/mp-apfs-canary-fkpzvgv_/canary.sparseimage",
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385240
+      },
+      "markers": {
+        "metadata_never_index": null,
+        "no_log": null
+      },
+      "mount": "/private/tmp/mp-apfs-canary-fkpzvgv_/a",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385239
+      },
+      "observed_at": "2026-11-25T05:05:13.801997+00:00",
+      "remounted": false,
+      "schema": "micropod-worker-apfs-v1",
+      "size_gib": 1,
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-apfs-canary-fkpzvgv_/a"
+        ],
+        "disabled": false,
+        "observed_at": "2026-11-25T05:05:13.801958+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-fkpzvgv_/a:\n\tIndexing enabled. \n\tScan base time: 2026-11-25 05:05:13 +0000 (0 seconds ago), reasoning: '(null)'\n"
+      },
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-37c09c6095b9",
+        "snapshot": false,
+        "uuid": "A27F17AF-B36B-4081-8420-BE916C2D7A2F"
+      },
+      "volume_name": "MicropodCI-37c09c6095b9"
+    },
+    "before": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "4817C99A-9028-4995-9DB4-0B708A53ACD7"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "5A1B469F-FA69-4768-A6D3-175C2B639337"
+      },
+      "disabled": false,
+      "fsevents": {
+        "directory_present": true,
+        "identity_file": {
+          "dev": 16777267,
+          "ino": 17,
+          "mode": 33152,
+          "mtime_ns": 1795583104930873287,
+          "name": "fseventsd-uuid",
+          "path": "/private/tmp/mp-apfs-canary-fkpzvgv_/a/.fseventsd/fseventsd-uuid",
+          "size": 36
+        },
+        "journal": [],
+        "journal_bytes": 0,
+        "journal_files": 0
+      },
+      "image": "/private/tmp/mp-apfs-canary-fkpzvgv_/canary.sparseimage",
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385240
+      },
+      "markers": {
+        "metadata_never_index": null,
+        "no_log": null
+      },
+      "mount": "/private/tmp/mp-apfs-canary-fkpzvgv_/a",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385239
+      },
+      "observed_at": "2026-11-25T05:05:05.224469+00:00",
+      "remounted": false,
+      "schema": "micropod-worker-apfs-v1",
+      "size_gib": 1,
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-apfs-canary-fkpzvgv_/a"
+        ],
+        "disabled": true,
+        "observed_at": "2026-11-25T05:05:05.224443+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-fkpzvgv_/a:\n\tIndexing disabled.\n"
+      },
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-37c09c6095b9",
+        "snapshot": false,
+        "uuid": "A27F17AF-B36B-4081-8420-BE916C2D7A2F"
+      },
+      "volume_name": "MicropodCI-37c09c6095b9"
+    },
+    "enabled_status": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-s",
+        "-v",
+        "/private/tmp/mp-apfs-canary-fkpzvgv_/a"
+      ],
+      "disabled": false,
+      "observed_at": "2026-11-25T05:05:05.489968+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-fkpzvgv_/a:\n\tIndexing enabled. \n"
+    },
+    "flush_detach": {
+      "argv": [
+        "/usr/bin/hdiutil",
+        "detach",
+        "/dev/disk17"
+      ],
+      "observed_at": "2026-11-25T05:05:13.322770+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\"disk17\" ejected.\n"
+    },
+    "live_after_write": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "4817C99A-9028-4995-9DB4-0B708A53ACD7"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "5A1B469F-FA69-4768-A6D3-175C2B639337"
+      },
+      "disabled": false,
+      "fsevents": {
+        "directory_present": true,
+        "identity_file": {
+          "dev": 16777267,
+          "ino": 17,
+          "mode": 33152,
+          "mtime_ns": 1795583104930873287,
+          "name": "fseventsd-uuid",
+          "path": "/private/tmp/mp-apfs-canary-fkpzvgv_/a/.fseventsd/fseventsd-uuid",
+          "size": 36
+        },
+        "journal": [],
+        "journal_bytes": 0,
+        "journal_files": 0
+      },
+      "image": "/private/tmp/mp-apfs-canary-fkpzvgv_/canary.sparseimage",
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385240
+      },
+      "journal_unchanged": true,
+      "markers": {
+        "metadata_never_index": null,
+        "no_log": null
+      },
+      "mount": "/private/tmp/mp-apfs-canary-fkpzvgv_/a",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385239
+      },
+      "observed_at": "2026-11-25T05:05:13.080603+00:00",
+      "remounted": false,
+      "schema": "micropod-worker-apfs-v1",
+      "size_gib": 1,
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-apfs-canary-fkpzvgv_/a"
+        ],
+        "disabled": false,
+        "observed_at": "2026-11-25T05:05:13.080567+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-fkpzvgv_/a:\n\tIndexing enabled. \n"
+      },
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-37c09c6095b9",
+        "snapshot": false,
+        "uuid": "A27F17AF-B36B-4081-8420-BE916C2D7A2F"
+      },
+      "volume_name": "MicropodCI-37c09c6095b9"
+    },
+    "retired": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "4817C99A-9028-4995-9DB4-0B708A53ACD7"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "5A1B469F-FA69-4768-A6D3-175C2B639337"
+      },
+      "detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk17"
+        ],
+        "observed_at": "2026-11-25T05:05:14.269950+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "\"disk17\" ejected.\n"
+      },
+      "detached": true,
+      "image": "/private/tmp/mp-apfs-canary-fkpzvgv_/canary.sparseimage",
+      "image_absent": true,
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385240
+      },
+      "mount": "/private/tmp/mp-apfs-canary-fkpzvgv_/a",
+      "mount_restored": true,
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385239
+      },
+      "observed_at": "2026-11-25T05:05:14.282310+00:00",
+      "removed_image": true,
+      "schema": "micropod-worker-apfs-v1",
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-37c09c6095b9",
+        "snapshot": false,
+        "uuid": "A27F17AF-B36B-4081-8420-BE916C2D7A2F"
+      }
+    },
+    "sentinels": [
+      "canary-00.txt",
+      "canary-01.txt",
+      "canary-02.txt",
+      "canary-03.txt",
+      "canary-04.txt",
+      "canary-05.txt",
+      "canary-06.txt",
+      "canary-07.txt",
+      "canary-08.txt",
+      "canary-09.txt",
+      "canary-10.txt",
+      "canary-11.txt",
+      "canary-12.txt",
+      "canary-13.txt",
+      "canary-14.txt",
+      "canary-15.txt",
+      "canary-16.txt",
+      "canary-17.txt",
+      "canary-18.txt",
+      "canary-19.txt",
+      "canary-20.txt",
+      "canary-21.txt",
+      "canary-22.txt",
+      "canary-23.txt"
+    ],
+    "spotlight_on": {
+      "argv": [
+        "/usr/bin/mdutil",
+        "-i",
+        "on",
+        "/private/tmp/mp-apfs-canary-fkpzvgv_/a"
+      ],
+      "observed_at": "2026-11-25T05:05:05.482725+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-fkpzvgv_/a:\n\tIndexing enabled. \n"
+    },
+    "temporary_directory_absent": true
+  },
+  "disabled": {
+    "after_write_remount": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "53EFADED-C37B-4D00-A756-7CD64EC5D919"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "4619BE63-82E5-4379-868E-F5FD95C5358C"
+      },
+      "disabled": true,
+      "fsevents": {
+        "directory_present": true,
+        "identity_file": {
+          "dev": 16777267,
+          "ino": 17,
+          "mode": 33152,
+          "mtime_ns": 1795583115991558000,
+          "name": "fseventsd-uuid",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.fseventsd/fseventsd-uuid",
+          "size": 36
+        },
+        "journal": [],
+        "journal_bytes": 0,
+        "journal_files": 0
+      },
+      "image": "/private/tmp/mp-apfs-canary-qwcw2_ar/canary.sparseimage",
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385431
+      },
+      "markers": {
+        "metadata_never_index": {
+          "dev": 16777267,
+          "ino": 19,
+          "mode": 33188,
+          "mtime_ns": 1795583115894176667,
+          "name": ".metadata_never_index",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.metadata_never_index",
+          "size": 0
+        },
+        "no_log": {
+          "dev": 16777267,
+          "ino": 18,
+          "mode": 33188,
+          "mtime_ns": 1795583115894123583,
+          "name": "no_log",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.fseventsd/no_log",
+          "size": 0
+        }
+      },
+      "mount": "/private/tmp/mp-apfs-canary-qwcw2_ar/a",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385430
+      },
+      "observed_at": "2026-11-25T05:05:24.861050+00:00",
+      "remounted": true,
+      "schema": "micropod-worker-apfs-v1",
+      "seed_detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk17"
+        ],
+        "observed_at": "2026-11-25T05:05:16.142487+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "\"disk17\" ejected.\n"
+      },
+      "seed_identity": {
+        "backing": {
+          "image_device": "/dev/disk17",
+          "partition_device": "/dev/disk17s1",
+          "partition_uuid": "53EFADED-C37B-4D00-A756-7CD64EC5D919"
+        },
+        "container": {
+          "device": "/dev/disk18",
+          "uuid": "4619BE63-82E5-4379-868E-F5FD95C5358C"
+        },
+        "volume": {
+          "dev": 16777267,
+          "device": "/dev/disk18s1",
+          "fs": "apfs",
+          "name": "MicropodCI-46e46579ddfd",
+          "snapshot": false,
+          "uuid": "A55913D4-BD58-4896-BB71-8EFCC390A59D"
+        }
+      },
+      "size_gib": 1,
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-apfs-canary-qwcw2_ar/a"
+        ],
+        "disabled": true,
+        "observed_at": "2026-11-25T05:05:24.861021+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a:\n\tIndexing and searching disabled.\n"
+      },
+      "spotlight_apply": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-i",
+          "off",
+          "/private/tmp/mp-apfs-canary-qwcw2_ar/a"
+        ],
+        "observed_at": "2026-11-25T05:05:15.918215+00:00",
+        "returncode": 0,
+        "stderr": "2026-11-25 16:05:15.901 mdutil[53138:24821410] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a -> kMDConfigSearchLevelFSSearchOnly\n",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a:\n\tIndexing disabled.\n"
+      },
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-46e46579ddfd",
+        "snapshot": false,
+        "uuid": "A55913D4-BD58-4896-BB71-8EFCC390A59D"
+      },
+      "volume_name": "MicropodCI-46e46579ddfd"
+    },
+    "before": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "53EFADED-C37B-4D00-A756-7CD64EC5D919"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "4619BE63-82E5-4379-868E-F5FD95C5358C"
+      },
+      "disabled": true,
+      "fsevents": {
+        "directory_present": true,
+        "identity_file": {
+          "dev": 16777267,
+          "ino": 17,
+          "mode": 33152,
+          "mtime_ns": 1795583115991558000,
+          "name": "fseventsd-uuid",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.fseventsd/fseventsd-uuid",
+          "size": 36
+        },
+        "journal": [],
+        "journal_bytes": 0,
+        "journal_files": 0
+      },
+      "image": "/private/tmp/mp-apfs-canary-qwcw2_ar/canary.sparseimage",
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385431
+      },
+      "markers": {
+        "metadata_never_index": {
+          "dev": 16777267,
+          "ino": 19,
+          "mode": 33188,
+          "mtime_ns": 1795583115894176667,
+          "name": ".metadata_never_index",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.metadata_never_index",
+          "size": 0
+        },
+        "no_log": {
+          "dev": 16777267,
+          "ino": 18,
+          "mode": 33188,
+          "mtime_ns": 1795583115894123583,
+          "name": "no_log",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.fseventsd/no_log",
+          "size": 0
+        }
+      },
+      "mount": "/private/tmp/mp-apfs-canary-qwcw2_ar/a",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385430
+      },
+      "observed_at": "2026-11-25T05:05:16.568302+00:00",
+      "remounted": true,
+      "schema": "micropod-worker-apfs-v1",
+      "seed_detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk17"
+        ],
+        "observed_at": "2026-11-25T05:05:16.142487+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "\"disk17\" ejected.\n"
+      },
+      "seed_identity": {
+        "backing": {
+          "image_device": "/dev/disk17",
+          "partition_device": "/dev/disk17s1",
+          "partition_uuid": "53EFADED-C37B-4D00-A756-7CD64EC5D919"
+        },
+        "container": {
+          "device": "/dev/disk18",
+          "uuid": "4619BE63-82E5-4379-868E-F5FD95C5358C"
+        },
+        "volume": {
+          "dev": 16777267,
+          "device": "/dev/disk18s1",
+          "fs": "apfs",
+          "name": "MicropodCI-46e46579ddfd",
+          "snapshot": false,
+          "uuid": "A55913D4-BD58-4896-BB71-8EFCC390A59D"
+        }
+      },
+      "size_gib": 1,
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-apfs-canary-qwcw2_ar/a"
+        ],
+        "disabled": true,
+        "observed_at": "2026-11-25T05:05:16.568277+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a:\n\tIndexing and searching disabled.\n"
+      },
+      "spotlight_apply": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-i",
+          "off",
+          "/private/tmp/mp-apfs-canary-qwcw2_ar/a"
+        ],
+        "observed_at": "2026-11-25T05:05:15.918215+00:00",
+        "returncode": 0,
+        "stderr": "2026-11-25 16:05:15.901 mdutil[53138:24821410] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a -> kMDConfigSearchLevelFSSearchOnly\n",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a:\n\tIndexing disabled.\n"
+      },
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-46e46579ddfd",
+        "snapshot": false,
+        "uuid": "A55913D4-BD58-4896-BB71-8EFCC390A59D"
+      },
+      "volume_name": "MicropodCI-46e46579ddfd"
+    },
+    "flush_detach": {
+      "argv": [
+        "/usr/bin/hdiutil",
+        "detach",
+        "/dev/disk17"
+      ],
+      "observed_at": "2026-11-25T05:05:24.406472+00:00",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\"disk17\" ejected.\n"
+    },
+    "live_after_write": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "53EFADED-C37B-4D00-A756-7CD64EC5D919"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "4619BE63-82E5-4379-868E-F5FD95C5358C"
+      },
+      "disabled": true,
+      "fsevents": {
+        "directory_present": true,
+        "identity_file": {
+          "dev": 16777267,
+          "ino": 17,
+          "mode": 33152,
+          "mtime_ns": 1795583115991558000,
+          "name": "fseventsd-uuid",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.fseventsd/fseventsd-uuid",
+          "size": 36
+        },
+        "journal": [],
+        "journal_bytes": 0,
+        "journal_files": 0
+      },
+      "image": "/private/tmp/mp-apfs-canary-qwcw2_ar/canary.sparseimage",
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385431
+      },
+      "journal_unchanged": true,
+      "markers": {
+        "metadata_never_index": {
+          "dev": 16777267,
+          "ino": 19,
+          "mode": 33188,
+          "mtime_ns": 1795583115894176667,
+          "name": ".metadata_never_index",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.metadata_never_index",
+          "size": 0
+        },
+        "no_log": {
+          "dev": 16777267,
+          "ino": 18,
+          "mode": 33188,
+          "mtime_ns": 1795583115894123583,
+          "name": "no_log",
+          "path": "/private/tmp/mp-apfs-canary-qwcw2_ar/a/.fseventsd/no_log",
+          "size": 0
+        }
+      },
+      "mount": "/private/tmp/mp-apfs-canary-qwcw2_ar/a",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385430
+      },
+      "observed_at": "2026-11-25T05:05:24.145677+00:00",
+      "remounted": true,
+      "schema": "micropod-worker-apfs-v1",
+      "seed_detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk17"
+        ],
+        "observed_at": "2026-11-25T05:05:16.142487+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "\"disk17\" ejected.\n"
+      },
+      "seed_identity": {
+        "backing": {
+          "image_device": "/dev/disk17",
+          "partition_device": "/dev/disk17s1",
+          "partition_uuid": "53EFADED-C37B-4D00-A756-7CD64EC5D919"
+        },
+        "container": {
+          "device": "/dev/disk18",
+          "uuid": "4619BE63-82E5-4379-868E-F5FD95C5358C"
+        },
+        "volume": {
+          "dev": 16777267,
+          "device": "/dev/disk18s1",
+          "fs": "apfs",
+          "name": "MicropodCI-46e46579ddfd",
+          "snapshot": false,
+          "uuid": "A55913D4-BD58-4896-BB71-8EFCC390A59D"
+        }
+      },
+      "size_gib": 1,
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-apfs-canary-qwcw2_ar/a"
+        ],
+        "disabled": true,
+        "observed_at": "2026-11-25T05:05:24.145637+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a:\n\tIndexing and searching disabled.\n"
+      },
+      "spotlight_apply": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-i",
+          "off",
+          "/private/tmp/mp-apfs-canary-qwcw2_ar/a"
+        ],
+        "observed_at": "2026-11-25T05:05:15.918215+00:00",
+        "returncode": 0,
+        "stderr": "2026-11-25 16:05:15.901 mdutil[53138:24821410] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a -> kMDConfigSearchLevelFSSearchOnly\n",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-apfs-canary-qwcw2_ar/a:\n\tIndexing disabled.\n"
+      },
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-46e46579ddfd",
+        "snapshot": false,
+        "uuid": "A55913D4-BD58-4896-BB71-8EFCC390A59D"
+      },
+      "volume_name": "MicropodCI-46e46579ddfd"
+    },
+    "retired": {
+      "backing": {
+        "image_device": "/dev/disk17",
+        "partition_device": "/dev/disk17s1",
+        "partition_uuid": "53EFADED-C37B-4D00-A756-7CD64EC5D919"
+      },
+      "container": {
+        "device": "/dev/disk18",
+        "uuid": "4619BE63-82E5-4379-868E-F5FD95C5358C"
+      },
+      "detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk17"
+        ],
+        "observed_at": "2026-11-25T05:05:25.264268+00:00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "\"disk17\" ejected.\n"
+      },
+      "detached": true,
+      "image": "/private/tmp/mp-apfs-canary-qwcw2_ar/canary.sparseimage",
+      "image_absent": true,
+      "image_identity": {
+        "dev": 16777232,
+        "format": "SPRS",
+        "ino": 1226385431
+      },
+      "mount": "/private/tmp/mp-apfs-canary-qwcw2_ar/a",
+      "mount_restored": true,
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226385430
+      },
+      "observed_at": "2026-11-25T05:05:25.275136+00:00",
+      "removed_image": true,
+      "schema": "micropod-worker-apfs-v1",
+      "volume": {
+        "dev": 16777267,
+        "device": "/dev/disk18s1",
+        "fs": "apfs",
+        "name": "MicropodCI-46e46579ddfd",
+        "snapshot": false,
+        "uuid": "A55913D4-BD58-4896-BB71-8EFCC390A59D"
+      }
+    },
+    "sentinels": [
+      "canary-00.txt",
+      "canary-01.txt",
+      "canary-02.txt",
+      "canary-03.txt",
+      "canary-04.txt",
+      "canary-05.txt",
+      "canary-06.txt",
+      "canary-07.txt",
+      "canary-08.txt",
+      "canary-09.txt",
+      "canary-10.txt",
+      "canary-11.txt",
+      "canary-12.txt",
+      "canary-13.txt",
+      "canary-14.txt",
+      "canary-15.txt",
+      "canary-16.txt",
+      "canary-17.txt",
+      "canary-18.txt",
+      "canary-19.txt",
+      "canary-20.txt",
+      "canary-21.txt",
+      "canary-22.txt",
+      "canary-23.txt"
+    ],
+    "temporary_directory_absent": true
+  },
+  "payload_bytes_per_file": 960,
+  "schema": "micropod-worker-apfs-calibration-v1",
+  "source_sha256": "db5e846f38ef2b9e86d9e9a34f260cf3694412f7d92fcbbfed7483465815904e"
+}

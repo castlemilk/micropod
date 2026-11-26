@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-24",
+  "stable_id": "231.08",
+  "tier": "source/fixture",
+  "micropod_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "kernel": "Linux 7.3.5",
+  "source_sha256": {
+    "sch_fq.c": "29b796533fff2d9b2a71b3e6f4150580ccf7b07d7d87bca3d768079958331038",
+    "sch_generic.c": "5396cd77c6e674722da773c652e0309e594c46df4afd467206a70d166c825160"
+  },
+  "generated_c_sha256": "d57a7d8a8bbb0be9a13ceb3db7dafb1c415ed874cc73bfda7df7a2d3b3bd9d57",
+  "stock_band_limit_skbs": 10000,
+  "stock_flow_limit_skbs": 100,
+  "probes": [
+    {
+      "bulk_flows": 32,
+      "queued_bulk_skbs": 3200,
+      "probe_flow_queued_skbs": 0,
+      "priority": 0,
+      "selected_band": 1,
+      "admission": "admit"
+    },
+    {
+      "bulk_flows": 32,
+      "queued_bulk_skbs": 3200,
+      "probe_flow_queued_skbs": 0,
+      "priority": 6,
+      "selected_band": 0,
+      "admission": "admit"
+    },
+    {
+      "bulk_flows": 100,
+      "queued_bulk_skbs": 10000,
+      "probe_flow_queued_skbs": 0,
+      "priority": 0,
+      "selected_band": 1,
+      "admission": "band_limit"
+    },
+    {
+      "bulk_flows": 100,
+      "queued_bulk_skbs": 10000,
+      "probe_flow_queued_skbs": 0,
+      "priority": 6,
+      "selected_band": 0,
+      "admission": "admit"
+    },
+    {
+      "bulk_flows": 32,
+      "queued_bulk_skbs": 3200,
+      "probe_flow_queued_skbs": 100,
+      "priority": 0,
+      "selected_band": 1,
+      "admission": "flow_limit"
+    },
+    {
+      "bulk_flows": 32,
+      "queued_bulk_skbs": 3200,
+      "probe_flow_queued_skbs": 100,
+      "priority": 6,
+      "selected_band": 0,
+      "admission": "flow_limit"
+    }
+  ]
+}

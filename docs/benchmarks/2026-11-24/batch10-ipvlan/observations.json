@@ -1,0 +1,78 @@
+{
+  "archive": "docs/benchmarks/2026-11-21/gamma-direct-macvlan.json.gz",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "attempts": 4,
+  "compiled_kernel_functions_sha256": "51a729d7cf5c6b84571d4897684e169f9251f542982eacf02d076a409cc3d171",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "cpu_per_gib": null,
+  "date": "2026-11-24",
+  "driver_source_sha256": {
+    "drivers/net/ipvlan/ipvlan_core.c": "172136934bfd87a8d29c2ba34b51eb2a5663551dc8a84360ac1fa6266c88d4c3",
+    "drivers/net/macvlan.c": "8acd99e9496a3d7cc9c7ad7557549c85f1ae991cb2e42edb6dfc3ddaf5f81f28"
+  },
+  "evidence_tier": "source/fixture",
+  "harness_sha256": "c542fe54271e2ea620019d2fc2a78f0d6e9a3890a12356e8430a903eaeb64341",
+  "historical_recording_base": "816121afd30fba52bda7828418cd963d4216166b",
+  "id": "233.02",
+  "linux": "7.3.5",
+  "measured_delivered_mib_s": null,
+  "network_drops": null,
+  "p95_ms": null,
+  "p99_ms": null,
+  "publisher_sha256": "65b5c179ab4a4ad4a9f50087275d13fa2447e2dd7efb8d208763bfd88bb61490",
+  "reproducer_sha256": "fc59a6c44aaef5e3c60a163f905b9032a37fea2fee7165c91d950a39e308b08f",
+  "rows": [
+    {
+      "arm": "macvlan-private",
+      "crossed_namespaces": 0,
+      "direct_lower_egress": 1,
+      "driver_return": 0,
+      "dropped_by_driver": 0,
+      "frame_hex": "feb214dc5568ce380958d371080045000035000140004006b96dc0a88002c0a880018bdfc0000000000a000000145018100019de000072657475726e206d61726b6572",
+      "frame_sha256": "a69a26eb1843b7dfa9bf91da9951fc626383a5493eef38074b56dbdeefd645e2",
+      "packet": "published_tcp_reply",
+      "parent_local_out": 0,
+      "parent_route_lookup": 0
+    },
+    {
+      "arm": "ipvlan-l3",
+      "crossed_namespaces": 1,
+      "direct_lower_egress": 0,
+      "driver_return": 0,
+      "dropped_by_driver": 0,
+      "frame_hex": "feb214dc5568ce380958d371080045000035000140004006b96dc0a88002c0a880018bdfc0000000000a000000145018100019de000072657475726e206d61726b6572",
+      "frame_sha256": "a69a26eb1843b7dfa9bf91da9951fc626383a5493eef38074b56dbdeefd645e2",
+      "packet": "published_tcp_reply",
+      "parent_local_out": 1,
+      "parent_route_lookup": 1
+    },
+    {
+      "arm": "macvlan-private",
+      "crossed_namespaces": 0,
+      "direct_lower_egress": 1,
+      "driver_return": 0,
+      "dropped_by_driver": 0,
+      "frame_hex": "ffffffffffffce380958d37108060001080006040001ce380958d3710a580002000000000000c0a88001",
+      "frame_sha256": "08d69ca87a2c6200e6f46a169cc7c0d7ea770b823e3c534f7a3eaad3d01041e6",
+      "packet": "pod_gateway_arp_request",
+      "parent_local_out": 0,
+      "parent_route_lookup": 0
+    },
+    {
+      "arm": "ipvlan-l3",
+      "crossed_namespaces": 1,
+      "direct_lower_egress": 0,
+      "driver_return": 1,
+      "dropped_by_driver": 1,
+      "frame_hex": "ffffffffffffce380958d37108060001080006040001ce380958d3710a580002000000000000c0a88001",
+      "frame_sha256": "08d69ca87a2c6200e6f46a169cc7c0d7ea770b823e3c534f7a3eaad3d01041e6",
+      "packet": "pod_gateway_arp_request",
+      "parent_local_out": 0,
+      "parent_route_lookup": 0
+    }
+  ],
+  "runnable_time": null,
+  "scope": "Same two synthetic Ethernet frames, identical bytes per pair from archived trial addressing; no child owns the gateway. Cross-namespace and successful parent unicast FIB plus lower-device/LOCAL_OUT calls are adapters, not wire observations. An injected ARP frame tests the TX entry point, not whether L3 creates ARP. No timers or live endpoints.",
+  "tar_sha256_recorded": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "tested_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd"
+}

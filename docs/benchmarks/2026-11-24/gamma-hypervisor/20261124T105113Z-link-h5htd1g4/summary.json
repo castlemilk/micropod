@@ -1,0 +1,7 @@
+{
+  "tx_kicks_per_delivered_gib": 794.8496830396213,
+  "mib_s": 8225.837851709159,
+  "fresh_p95_ms": 9.561499999999999,
+  "vmm_cpu_s_per_delivered_gib": 0.33045058944367595,
+  "total_cpu_s_per_delivered_gib": 0.543458155351562
+}

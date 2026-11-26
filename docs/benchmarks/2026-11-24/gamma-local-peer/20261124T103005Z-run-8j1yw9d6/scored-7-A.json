@@ -1,0 +1,217 @@
+{
+  "arm": "A",
+  "pair": 7,
+  "phase": "scored",
+  "clean": true,
+  "fresh_failed": 0,
+  "fixed_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+  "idle_observations": [
+    {
+      "elapsed_seconds": 1.0031871249993856,
+      "idle_pct": 92.16,
+      "paired_idle_gap_pp": 1.0100000000000051,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 3.0260440000001836,
+      "idle_pct": 89.47,
+      "paired_idle_gap_pp": 3.700000000000003,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 5.051341249998586,
+      "idle_pct": 87.31,
+      "paired_idle_gap_pp": 5.859999999999999,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 7.081893124999624,
+      "idle_pct": 94.18,
+      "paired_idle_gap_pp": 1.0100000000000051,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 9.115692207999018,
+      "idle_pct": 90.43,
+      "paired_idle_gap_pp": 2.739999999999995,
+      "eligible": true
+    }
+  ],
+  "idle_pct": 90.43,
+  "paired_idle_gap_pp": 2.739999999999995,
+  "idle_gate_passed": true,
+  "guard_before_ns": 1795516446635440000,
+  "before": {
+    "epoch_ns": 1795516446640276000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 78350,
+        "birth_ticks": 331285323789,
+        "user_ticks": 2558802808,
+        "system_ticks": 1190860604,
+        "runnable_ticks": 4247149253,
+        "background_ticks": 2626,
+        "utility_ticks": 2109,
+        "default_ticks": 31769,
+        "initiated_ticks": 3215,
+        "interactive_ticks": 1227396,
+        "instructions": 979021801959,
+        "cycles": 641683588864
+      },
+      {
+        "pid": 78346,
+        "birth_ticks": 331279528689,
+        "user_ticks": 36193453,
+        "system_ticks": 2209170447,
+        "runnable_ticks": 2639432091,
+        "background_ticks": 0,
+        "utility_ticks": 2245252068,
+        "default_ticks": 27026,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 416900032166,
+        "cycles": 394638767206
+      }
+    ]
+  },
+  "client_arguments": [
+    "http://127.0.0.1:64715",
+    "mp-t-2isnhr80-a"
+  ],
+  "client_spawn_start_ns": 1795516446641060000,
+  "client_reaped_ns": 1795516452722720000,
+  "exit_code": 0,
+  "stdout": "{\"arrivals\":240,\"bulk_body_bytes\":{\"warmup\":{\"bytes\":285185384,\"per_stream_bytes\":[8388608,9961328,8388608,8388608,9959824,8912752,8650608,8388608,8388608,9437040,8388608,9697680,9174896,8388608,8388608,9961328,9437040,8388608,9437040,8388608,8388608,8650608,8388608,9415208,8388608,10223472,8650608,8388608,10223472,8912752,8650608,8388608]},\"scored\":{\"bytes\":52033323608,\"per_stream_bytes\":[1627389952,1625817232,1627389952,1627389952,1629226464,1631584256,1622365720,1622146928,1627914096,1628438528,1621360496,1626080880,1627127808,1630011248,1622365576,1625817232,1626077728,1625816944,1627914240,1628176240,1626339728,1622409216,1629224816,1623673592,1623938440,1627389952,1621621280,1626009416,1629181464,1625815576,1622016000,1625292656]},\"drain\":{\"bytes\":169011264,\"per_stream_bytes\":[8388608,8388608,8388608,8388608,4980880,3670160,4762232,5243024,7864464,6291600,6029456,8388608,7864464,5767312,5024376,8388608,263792,1573008,6815888,7602320,1050224,4718736,6553744,2689760,3451512,6553744,5506672,1380536,4762232,1050232,5111952,2097296]},\"invocation\":{\"bytes\":52487520256,\"per_stream_bytes\":[1644167168,1644167168,1644167168,1644167168,1644167168,1644167168,1635778560,1635778560,1644167168,1644167168,1635778560,1644167168,1644167168,1644167168,1635778560,1644167168,1635778560,1635778560,1644167168,1644167168,1635778560,1635778560,1644167168,1635778560,1635778560,1644167168,1635778560,1635778560,1644167168,1635778560,1635778560,1635778560]}},\"bytes\":52033323608,\"dispatch_max_us\":485,\"dispatch_p95_us\":175,\"errors\":null,\"fresh_p50_us\":6144,\"fresh_p95_us\":9741,\"fresh_p99_us\":10461,\"mib_s\":8270.469517348236,\"per_stream_bytes\":[1627389952,1625817232,1627389952,1627389952,1629226464,1631584256,1622365720,1622146928,1627914096,1628438528,1621360496,1626080880,1627127808,1630011248,1622365576,1625817232,1626077728,1625816944,1627914240,1628176240,1626339728,1622409216,1629224816,1623673592,1623938440,1627389952,1621621280,1626009416,1629181464,1625815576,1622016000,1625292656],\"period_us\":25000,\"published_ports\":1,\"reopened\":0,\"streams\":32,\"window_s\":6.000003291}\n",
+  "stderr": "",
+  "after": {
+    "epoch_ns": 1795516452725379000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 78350,
+        "birth_ticks": 331285323789,
+        "user_ticks": 2817950617,
+        "system_ticks": 1316485042,
+        "runnable_ticks": 4682421775,
+        "background_ticks": 2626,
+        "utility_ticks": 2109,
+        "default_ticks": 31769,
+        "initiated_ticks": 3215,
+        "interactive_ticks": 1227396,
+        "instructions": 1089325573356,
+        "cycles": 709540192999
+      },
+      {
+        "pid": 78346,
+        "birth_ticks": 331279528689,
+        "user_ticks": 39566654,
+        "system_ticks": 2454420322,
+        "runnable_ticks": 2931496010,
+        "background_ticks": 0,
+        "utility_ticks": 2493875144,
+        "default_ticks": 27026,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 465027446625,
+        "cycles": 438363336449
+      }
+    ]
+  },
+  "host": {
+    "vmm": {
+      "cpu_s": 16.03217695833333,
+      "runnable_s": 18.13635508333333,
+      "wait_s": 2.104178125,
+      "sample_seconds": 6.085103,
+      "cpu_s_per_gib": 0.3308345063563252,
+      "runnable_s_per_s": 2.980451618211447,
+      "wait_s_per_s": 0.345791702293289,
+      "mean_host_cores": 2.634659915918158,
+      "instructions_per_byte": 2.119867879822327,
+      "cycles_per_byte": 1.304098977920511,
+      "instructions_per_cycle": 1.625542167974569,
+      "invocation_cpu_s_per_bulk_gib": 0.32797165585211224,
+      "invocation_instructions_per_bulk_byte": 2.1015237690599577,
+      "invocation_cycles_per_bulk_byte": 1.2928140594952782
+    },
+    "relay": {
+      "cpu_s": 10.359294833333331,
+      "runnable_s": 12.169329958333332,
+      "wait_s": 1.8100351249999997,
+      "sample_seconds": 6.085103,
+      "cpu_s_per_gib": 0.21377085602863433,
+      "runnable_s_per_s": 1.999856035030686,
+      "wait_s_per_s": 0.29745349010526195,
+      "mean_host_cores": 1.7024025449254239,
+      "instructions_per_byte": 0.9249344674111981,
+      "cycles_per_byte": 0.8403185922238005,
+      "instructions_per_cycle": 1.1006949935065367,
+      "invocation_cpu_s_per_bulk_gib": 0.21192100665920832,
+      "invocation_instructions_per_bulk_byte": 0.9169306193980161,
+      "invocation_cycles_per_bulk_byte": 0.8330469610631247
+    }
+  },
+  "fresh_p50_us": 6144,
+  "bulk_streams_with_bytes": 32,
+  "mib_s": 8270.469517348236,
+  "fresh_p95_us": 9741,
+  "fresh_p99_us": 10461,
+  "arrivals": 240,
+  "reopened": 0,
+  "guard_after_ns": 1795516452736120000,
+  "interfaces_before": {
+    "eth0": {
+      "addr": "[10.88.0.2/16 fe80::20af:ddff:fe77:8b86/64]",
+      "mac": "22:af:dd:77:8b:86",
+      "rx_bytes": 1026,
+      "rx_dropped": 0,
+      "tx_bytes": 822,
+      "tx_dropped": 0
+    },
+    "lo": {
+      "addr": "[127.0.0.1/8 ::1/128]",
+      "mac": "",
+      "rx_bytes": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_dropped": 0
+    },
+    "mppub0": {
+      "addr": "[]",
+      "mac": "ca:51:20:cf:73:27",
+      "rx_bytes": 492838546,
+      "rx_dropped": 0,
+      "tx_bytes": 452352614560,
+      "tx_dropped": 0
+    }
+  },
+  "interfaces_after": {
+    "eth0": {
+      "addr": "[10.88.0.2/16 fe80::20af:ddff:fe77:8b86/64]",
+      "mac": "22:af:dd:77:8b:86",
+      "rx_bytes": 1026,
+      "rx_dropped": 0,
+      "tx_bytes": 822,
+      "tx_dropped": 0
+    },
+    "lo": {
+      "addr": "[127.0.0.1/8 ::1/128]",
+      "mac": "",
+      "rx_bytes": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_dropped": 0
+    },
+    "mppub0": {
+      "addr": "[]",
+      "mac": "ca:51:20:cf:73:27",
+      "rx_bytes": 551833420,
+      "rx_dropped": 0,
+      "tx_bytes": 504906775590,
+      "tx_dropped": 0
+    }
+  }
+}

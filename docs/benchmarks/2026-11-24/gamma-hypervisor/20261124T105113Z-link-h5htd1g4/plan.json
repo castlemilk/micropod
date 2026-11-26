@@ -1,0 +1,17 @@
+{
+  "host": "Gamma-128GB.local",
+  "warmups": 1,
+  "measured_windows": 4,
+  "idle_floor_pct": 90,
+  "client_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+  "selected_cli": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+  "selection_sha256": "736768e6875a295b7277a91539a75f3b1e55e0a7b7658ad9099da39c0821e6e2",
+  "files": {
+    "measure_link.py": "f9e8f6092d0c1d2b75184765d9864d733d894d32a717e664419b9f4fd7509875",
+    "guest-sample.sh": "a581b8684873e4485d2f864feb42fe5278dfc70d5e7ed7a9e7af4ecb90f2b79f",
+    "service-link.go": "340e8aebd28583ceb75fa9b1f1841771a46218c65073325a93d4ee324e469061",
+    "service-link": "f7132b4d2fffec605b7d96e1396fd0aaa4ee28de6d028d6e5fc0220b6514c65f",
+    "netbench": "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605",
+    "ethtool": "047a85c7b6788c3553579dfc72cf89c9dd4a952e6d4d2cefaca8812237782377"
+  }
+}

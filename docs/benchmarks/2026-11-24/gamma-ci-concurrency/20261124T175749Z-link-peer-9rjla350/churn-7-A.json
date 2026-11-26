@@ -1,0 +1,2058 @@
+{
+  "arm": "A",
+  "block": 7,
+  "pre_idle": 89.7,
+  "resident_services": 32,
+  "running_ephemeral_at_barrier": 32,
+  "provision_and_inspect_s": 0.9861732919962378,
+  "job_release_monotonic_s": 40936.851684458,
+  "invocation": {
+    "arguments": [
+      "--targets",
+      "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T175749Z-link-peer-9rjla350/targets-A.tsv"
+    ],
+    "target_sha256": "9c659e371d1f97aa856ba3e81851d9c8e099bddb093673b011d8f0dfbeb3e327",
+    "started_s": 40936.869056458,
+    "ended_s": 40965.816828791
+  },
+  "jobs": [
+    {
+      "id": "373fbe3ea1f8b7b4bb3bf782fc56629f4bab0a5efae1bdd1c0d34d96544d38c3",
+      "name": "mci-76b92f146b-a-ep7-0",
+      "kind": "fail",
+      "revision": "e7j00",
+      "exit": 1,
+      "submitted_s": 0.0006279579974943772,
+      "finished_s": 23.729354374998366,
+      "receipts": [],
+      "failure_log": "waiting-for-dispatch\nmci-build-cpus=0-3\n=== RUN   TestFanoutRevision\n    fanout_test.go:4: built \"seed\", want \"e7j00-deliberate-mismatch\"\n--- FAIL: TestFanoutRevision (0.00s)\nFAIL\nFAIL\tgithub.com/castlemilk/micropod/guest\t0.001s\nFAIL\n\n",
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "bab592d4c66b59717cb4b94cffda008dcd7fb83c930ddfc3cd404a56fd21ae4a",
+      "name": "mci-76b92f146b-a-ep7-1",
+      "kind": "cancel",
+      "revision": "e7j01",
+      "exit": 137,
+      "submitted_s": 0.0008876669962774031,
+      "finished_s": 23.747712958000193,
+      "receipts": [],
+      "failure_log": "waiting-for-dispatch\nmci-build-cpus=0-3\ncancellation-step-started\n\n",
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "71773c63edc6d4b473fd99d9ff3be712f238ab3d2cdeaa3fefff3d9345fc2ea3",
+      "name": "mci-76b92f146b-a-ep7-2",
+      "kind": "pass",
+      "revision": "e7j02",
+      "exit": 0,
+      "submitted_s": 0.001296916998398956,
+      "finished_s": 23.60363183300069,
+      "receipts": [
+        {
+          "revision": "e7j02-a",
+          "container": "mp-f67f372f4e6c36975f8a342a2235d650",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.426742,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "5703bb52655a1fd074913aa9a0014259ef98a4fd74cfdba4a71a42717cc4f43a",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j02-b",
+          "container": "mp-f67f372f4e6c36975f8a342a2235d650",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.417019,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "d99ac5e05f945596812f6015c478adf6e14dac5635d79c000e2712fe25e914a5",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "37bc9f8361dcd1720ea70c24b1f2dcd8b58ee6ceb7fee0c4dd5e17e97e8a3565",
+      "name": "mci-76b92f146b-a-ep7-3",
+      "kind": "pass",
+      "revision": "e7j03",
+      "exit": 0,
+      "submitted_s": 0.009422999995877035,
+      "finished_s": 37.90871229200275,
+      "receipts": [
+        {
+          "revision": "e7j03-a",
+          "container": "mp-9aa1dda7f3db90f0daa784422e0d95ef",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 19.025884,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "676aafec3918412d977ea52ebc25fe7a803330975463f9e455ce95cbaf6db9ac",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j03-b",
+          "container": "mp-9aa1dda7f3db90f0daa784422e0d95ef",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.430713,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "23a98ced5aa98bc66069b984f1c339e9a59f66ccbb43c6537e1e92d45bc6acfc",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "1d4150a974e4e1e83645ae8d6f813a1c271d6b7352d0c57429881b88a67bffed",
+      "name": "mci-76b92f146b-a-ep7-4",
+      "kind": "pass",
+      "revision": "e7j04",
+      "exit": 0,
+      "submitted_s": 0.00980524999613408,
+      "finished_s": 29.338568166996993,
+      "receipts": [
+        {
+          "revision": "e7j04-a",
+          "container": "mp-099f8a385678ff5cec82bbac6475fbbc",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.943235,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "4242af05555f5c44869ff2af1f5a87c00ef44aa8fcdda3836d6315e1a7b8fc72",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j04-b",
+          "container": "mp-099f8a385678ff5cec82bbac6475fbbc",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.106412,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "a9814d89092fc7eaa84492ed326c476605822f0c513fb817dc2fa0770f7dada6",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "4414d5c6dbe3fd9708c20b0592119bb3564552a8efc5cd5d8ba36f71eb08ab57",
+      "name": "mci-76b92f146b-a-ep7-5",
+      "kind": "pass",
+      "revision": "e7j05",
+      "exit": 0,
+      "submitted_s": 0.010087082999234553,
+      "finished_s": 23.60080137499608,
+      "receipts": [
+        {
+          "revision": "e7j05-a",
+          "container": "mp-71e93800808c60ee2fba100feec10d19",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.41981,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c9f6740b6eecf215cb6ebb9ce733c045c927a93bb1189144698d1bcc2a3a936e",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j05-b",
+          "container": "mp-71e93800808c60ee2fba100feec10d19",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.420067,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "bc8c8528f4ebe4da7e024fa78dbb2266e1bce86639b5e4dd1a9b41ac7354da6f",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "6d2ab298d784cfa6a1449449e1ea2da2ddc8d8d3b93a1924a94c04d571bf8649",
+      "name": "mci-76b92f146b-a-ep7-6",
+      "kind": "pass",
+      "revision": "e7j06",
+      "exit": 0,
+      "submitted_s": 0.014211916997737717,
+      "finished_s": 23.600996916997246,
+      "receipts": [
+        {
+          "revision": "e7j06-a",
+          "container": "mp-8b6e22f1a3e8204ba79d47e339fd84bd",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.434173,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "27148b560a3d51920f5e117019668b1ea4bdeb13f3aebc2ee68982939286ad18",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j06-b",
+          "container": "mp-8b6e22f1a3e8204ba79d47e339fd84bd",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.424113,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "a9c79d5e14e1c3e6d673ac8330585a6c4728ab9005f28dcab5a60ef10ccfdede",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "01e1e10e67506102da655978bd7ade398580e185add126544b356226c618e52f",
+      "name": "mci-76b92f146b-a-ep7-7",
+      "kind": "pass",
+      "revision": "e7j07",
+      "exit": 0,
+      "submitted_s": 0.014576707995729521,
+      "finished_s": 23.600508582996554,
+      "receipts": [
+        {
+          "revision": "e7j07-a",
+          "container": "mp-b6c37528ca37977f3e1219eb9ef8e483",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.413547,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c324588249970873d7e614d7a5f0862ba27254de8ec73580d5519011ca570ec9",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j07-b",
+          "container": "mp-b6c37528ca37977f3e1219eb9ef8e483",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.424045,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "fdcf2829442467718dd92bd8d8fa04e685ad75519a05bef67f77f1a6dae0a5ed",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "00dafdd57601786b137ac82b8d498dfa3694602c9964d8416b221f6441ea2625",
+      "name": "mci-76b92f146b-a-ep7-8",
+      "kind": "pass",
+      "revision": "e7j08",
+      "exit": 0,
+      "submitted_s": 23.60055429199565,
+      "finished_s": 29.336522166995564,
+      "receipts": [
+        {
+          "revision": "e7j08-a",
+          "container": "mp-13732cb7517359a843ddea21ae34e4f9",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.979214,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "754314824ce4bb094a302709796b686d7147d3b2974616ed16c9972b3f6ac861",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j08-b",
+          "container": "mp-13732cb7517359a843ddea21ae34e4f9",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.998523,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "46bec47f0b1d5b2f7dd73982bf8dcd0f812da8e870177f73ceb3562e501f8d95",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "7e95f2cc71bd0c85e8a5ee80134f0bc0a03d4c0b4ef046e3d8d92f93b7f427d8",
+      "name": "mci-76b92f146b-a-ep7-9",
+      "kind": "pass",
+      "revision": "e7j09",
+      "exit": 0,
+      "submitted_s": 23.600811083000735,
+      "finished_s": 29.491266625002027,
+      "receipts": [
+        {
+          "revision": "e7j09-a",
+          "container": "mp-1c4b1ff6b91595e1182f91a26df0640b",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.997036,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "0539ab8a18dcb65b8f9881d5a9285324c9e59d63c1e098d0da521fa37639d049",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j09-b",
+          "container": "mp-1c4b1ff6b91595e1182f91a26df0640b",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.921138,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c6415c81df095d229ef3fbc1884adb1301c2b4f632b8016d2caf31cbfd0dae0e",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "684b73f0334b8633a7dda543b138f6341ee3541a7d27a539e0b4697ae138c151",
+      "name": "mci-76b92f146b-a-ep7-10",
+      "kind": "pass",
+      "revision": "e7j10",
+      "exit": 0,
+      "submitted_s": 23.601007332996232,
+      "finished_s": 29.493086832997506,
+      "receipts": [
+        {
+          "revision": "e7j10-a",
+          "container": "mp-638fa2500ac09241875e53922c428685",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.003301,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "a0c2381b32989bcde84d3fde217a202982671faed2fae5696efa7c2fddeaf13a",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j10-b",
+          "container": "mp-638fa2500ac09241875e53922c428685",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.966295,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "409bacd59ced38745307654526e592aff330c22ac1d2afd5e246fdcb50f8460d",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "9f87ea59230b9eae804ab81c34f7fbc7c4991922cdab06703dd6cdf9bf8a8d31",
+      "name": "mci-76b92f146b-a-ep7-11",
+      "kind": "pass",
+      "revision": "e7j11",
+      "exit": 0,
+      "submitted_s": 23.603702957996575,
+      "finished_s": 29.42610620799678,
+      "receipts": [
+        {
+          "revision": "e7j11-a",
+          "container": "mp-460880a2bd4383ec19301189781ebdbc",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.147721,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "eec8262698c9ef819b1bb247d9add2b2822e7d264523e3d8b12eaa8e1d19d71f",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j11-b",
+          "container": "mp-460880a2bd4383ec19301189781ebdbc",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.935141,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "ce418839e94c4c188ace99d71412cdf0a70f9f27521995f1406467aec5b2c320",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "41e3534a82cb19afabe87911176e1cb481032006d4cd33cce4daedd02d498e5f",
+      "name": "mci-76b92f146b-a-ep7-12",
+      "kind": "pass",
+      "revision": "e7j12",
+      "exit": 0,
+      "submitted_s": 23.729454916996474,
+      "finished_s": 29.5310925829981,
+      "receipts": [
+        {
+          "revision": "e7j12-a",
+          "container": "mp-0aa59ba2d3b25e59cb7fac083c2cb672",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.019143,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "423967de8d92c5da039e8ae809f477b6ddfd3eacf272c93c6a77660378b33a54",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j12-b",
+          "container": "mp-0aa59ba2d3b25e59cb7fac083c2cb672",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.908095,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "84f387b1e167a2d9832ae60de39c5ab7b238449b4760de9872564059eb87e8ff",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "ba3ec5f5c38147b5a38dac22d0470c0c0743feed84e36fc4e2d4cfb9c0c672f4",
+      "name": "mci-76b92f146b-a-ep7-13",
+      "kind": "pass",
+      "revision": "e7j13",
+      "exit": 0,
+      "submitted_s": 23.74780733299849,
+      "finished_s": 29.52895470799558,
+      "receipts": [
+        {
+          "revision": "e7j13-a",
+          "container": "mp-088723a808043582c6f45b88ec89f219",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.092054,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "b3b9ba64800d7ca0231c7f013d6fad92852a2c972de51352de7da60c07e065fa",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j13-b",
+          "container": "mp-088723a808043582c6f45b88ec89f219",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.01308,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "1cddb613f3a28b7c7827774be2a8c6c40976a18320f2ecc7190d227559f660cf",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "a5d57d6297cde293b6d5307cc41664710c620e94ae21b90d291c3a6cc52f9a72",
+      "name": "mci-76b92f146b-a-ep7-14",
+      "kind": "pass",
+      "revision": "e7j14",
+      "exit": 0,
+      "submitted_s": 29.336550833002548,
+      "finished_s": 31.51868170799571,
+      "receipts": [
+        {
+          "revision": "e7j14-a",
+          "container": "mp-0144c2d458e646e8a5a05d581aa0e728",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.464826,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "82f6dc599ebdab09cd3b696780fd915c73db0a4fa85f474df2fd0b72387c73b1",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j14-b",
+          "container": "mp-0144c2d458e646e8a5a05d581aa0e728",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.46083,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "1e84693de8e851e4941e7f013546892d82671f4bdf48dcbee60e432d1284e930",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "46a8b0e21403c28070a517021e7b4e2d012feb56d1e29ae958e939634d13450d",
+      "name": "mci-76b92f146b-a-ep7-15",
+      "kind": "pass",
+      "revision": "e7j15",
+      "exit": 0,
+      "submitted_s": 29.338621208000404,
+      "finished_s": 31.53843091699673,
+      "receipts": [
+        {
+          "revision": "e7j15-a",
+          "container": "mp-0145708251593ce24c7a0f7fc68277d9",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.447519,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "3a6f2514acafc8fb1377ac5011cf7118ed34127591cb659f88eff51fafb7bf22",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j15-b",
+          "container": "mp-0145708251593ce24c7a0f7fc68277d9",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.446901,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "dfeb4623707660474845e11e6c3cb6c7f08003ef5111fee19105403ba5d3f307",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "5d7b5b1c535330910b0e86ac59341bad934d94fa862655160415892662922930",
+      "name": "mci-76b92f146b-a-ep7-16",
+      "kind": "pass",
+      "revision": "e7j16",
+      "exit": 0,
+      "submitted_s": 29.426141292002285,
+      "finished_s": 31.39248299999599,
+      "receipts": [
+        {
+          "revision": "e7j16-a",
+          "container": "mp-7f8c9b18d9d3792d0fe7103b1d1f570d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.443763,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "60dc12c2edd3dc0a257e42219221c8ec20d86dcd7ab3fa692c6f882a6b69e45a",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j16-b",
+          "container": "mp-7f8c9b18d9d3792d0fe7103b1d1f570d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.449447,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "3fc48f0dc6e2b9ef2478eff98e9753084d668dfe696df0d03d5f21cbfccd452d",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "9b41b6661bcee1d1de5f676f30984d97df999761d50d60b8afa54fc43257b43c",
+      "name": "mci-76b92f146b-a-ep7-17",
+      "kind": "pass",
+      "revision": "e7j17",
+      "exit": 0,
+      "submitted_s": 29.49129691699636,
+      "finished_s": 31.746543832996394,
+      "receipts": [
+        {
+          "revision": "e7j17-a",
+          "container": "mp-91f1cc97c8c4d95d618695521a1a9bc8",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.451664,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "eeeb0bb6fc1ec8e028dfee29b6d3625be8328bae5eeabe0ae58b42a4cb015c68",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j17-b",
+          "container": "mp-91f1cc97c8c4d95d618695521a1a9bc8",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.453712,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "239d8fb94575beaee63a4b1855899b39d10b5f6c31dcf5bb3958de5b666be701",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "ceefd8d6813e596082f448f9ae59d6c0c91a96bedab4e3740f9763c4e0a19ca2",
+      "name": "mci-76b92f146b-a-ep7-18",
+      "kind": "pass",
+      "revision": "e7j18",
+      "exit": 0,
+      "submitted_s": 29.493142375002208,
+      "finished_s": 31.866794707995723,
+      "receipts": [
+        {
+          "revision": "e7j18-a",
+          "container": "mp-5fabad237e485269adf4e332535026c7",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.445909,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "cebc90ce7c6e056f04dbe760d0b64d6226902b562e21debc8a7203d15cf6a36a",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j18-b",
+          "container": "mp-5fabad237e485269adf4e332535026c7",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.450497,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "b1bb80311b6ceaba78005a6d921cc0c5f496e24d81a0fd0a2ef22bf25e68c9f6",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "21f6fea4aad8c01b1312adab85b4cd7ca192f76b4c1ce65ad58032c555985fd3",
+      "name": "mci-76b92f146b-a-ep7-19",
+      "kind": "pass",
+      "revision": "e7j19",
+      "exit": 0,
+      "submitted_s": 29.52898783300043,
+      "finished_s": 31.46790825000062,
+      "receipts": [
+        {
+          "revision": "e7j19-a",
+          "container": "mp-0a8107ee925f4ede8d04b650d529fab3",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.457115,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "9efddc21c2f7c11ba0c0674fef984ab4ee0bbd9e60c2cd21c296102a65ab0612",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j19-b",
+          "container": "mp-0a8107ee925f4ede8d04b650d529fab3",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.429647,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "97c1b268964a8bcb544713918305530e7930c15302b2c8d61334a007ac0ce6c3",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "de8785e69b1c319810f4fab1260d8374627dd15349ed1cea477ef172eb19ea48",
+      "name": "mci-76b92f146b-a-ep7-20",
+      "kind": "pass",
+      "revision": "e7j20",
+      "exit": 0,
+      "submitted_s": 29.53113870800007,
+      "finished_s": 31.528740916997776,
+      "receipts": [
+        {
+          "revision": "e7j20-a",
+          "container": "mp-4ddff5bbbdd50daca7029ad9c7567618",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.447803,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "fd2686c8ac7ae379acfce56f20a3987e772eef768b5a4b928006fb29fa368033",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j20-b",
+          "container": "mp-4ddff5bbbdd50daca7029ad9c7567618",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.456894,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "89da8e6c74850d9c688e9847decc1c048d8801e8e1f3f1912e7fa17b70dd55af",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "034e449284cd269f665aaff8686915af86cf05a944ef179ade9fda02aefc93df",
+      "name": "mci-76b92f146b-a-ep7-21",
+      "kind": "pass",
+      "revision": "e7j21",
+      "exit": 0,
+      "submitted_s": 31.392521542002214,
+      "finished_s": 33.39510766699823,
+      "receipts": [
+        {
+          "revision": "e7j21-a",
+          "container": "mp-66db531b72599a9eb3e08f3827d8d08a",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.447779,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "ed34aa5f7eb3c7079b1fc1df2f44ead688bfa27ad6ba622dbe01b47e140f8b61",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j21-b",
+          "container": "mp-66db531b72599a9eb3e08f3827d8d08a",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.442166,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "2894efb97e2ea83e0ed60aa9d7bff597dfd8818c6804a4a175d66470aa306615",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "bd1e77ea4ec1190b57adf127ea4eb4027783bfad5b04fd63305ca72ab57694af",
+      "name": "mci-76b92f146b-a-ep7-22",
+      "kind": "pass",
+      "revision": "e7j22",
+      "exit": 0,
+      "submitted_s": 31.46794158299599,
+      "finished_s": 33.56327212500037,
+      "receipts": [
+        {
+          "revision": "e7j22-a",
+          "container": "mp-64c190193e287e8812d1e7c20b17670c",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.449246,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "481df2049166d61dbf70e6477ac9cbeb899c3d1470c9bbc1577e90ae316275d8",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j22-b",
+          "container": "mp-64c190193e287e8812d1e7c20b17670c",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.440521,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "df5a1bbaacd50ce1c044edf1c30024b9eaa744697a82e3bf8ef4edba71b0b7e0",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "26f9337693fd80a46d52cca3e2b4957c171cf53da20f99233486a5e1da51b705",
+      "name": "mci-76b92f146b-a-ep7-23",
+      "kind": "pass",
+      "revision": "e7j23",
+      "exit": 0,
+      "submitted_s": 31.518763166997815,
+      "finished_s": 33.45986599999742,
+      "receipts": [
+        {
+          "revision": "e7j23-a",
+          "container": "mp-c6bd97ac216ef558f152cfb5851c67c4",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.44786,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "0b2fa6caa455b20ce4a6fcff77617266ea6ecc03f5d7ed93dce81de018cbfc24",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j23-b",
+          "container": "mp-c6bd97ac216ef558f152cfb5851c67c4",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.443004,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "efcb32cb833e16431cec56850d7327dc3bf4d5fd7a901c435f60c5c070d83852",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "2942f2d62295f85953d0191f3f2e3bde00240381031ddef0abdac41c34279cf3",
+      "name": "mci-76b92f146b-a-ep7-24",
+      "kind": "pass",
+      "revision": "e7j24",
+      "exit": 0,
+      "submitted_s": 31.52876904200093,
+      "finished_s": 33.56155616699834,
+      "receipts": [
+        {
+          "revision": "e7j24-a",
+          "container": "mp-71061cd5cfdb6771d4467ef747b6d762",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.457497,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "bafa014947e286cb2dbd5e01fa9eb60d9e8a2b5ff8d443ba414854368eb1ecec",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j24-b",
+          "container": "mp-71061cd5cfdb6771d4467ef747b6d762",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.454893,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "1417a18658a555a8a5bb4fdd7d1b65d3b089f271bf920448c97a76b2aef9b407",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "ac6e63077104ec3cfcb0d92684247e987962563b135cbf473c5ed8e9e8569176",
+      "name": "mci-76b92f146b-a-ep7-25",
+      "kind": "pass",
+      "revision": "e7j25",
+      "exit": 0,
+      "submitted_s": 31.538462999997137,
+      "finished_s": 33.55796179200115,
+      "receipts": [
+        {
+          "revision": "e7j25-a",
+          "container": "mp-cf23c6161bd1061713403ad9fc249522",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.458397,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "553ca5bfa0fd723bc26bd43aabe7568837b4eec80147827189da3cb9f84b5854",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j25-b",
+          "container": "mp-cf23c6161bd1061713403ad9fc249522",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.452934,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "65c51ebf3b9b8da6afcc76e531919ad4a5608aa7a3e6793b24a7423ad203c959",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "a77166727572c2e7e36db91a43a868e58ce08d6217c3bd1397720a9d5ff6903a",
+      "name": "mci-76b92f146b-a-ep7-26",
+      "kind": "pass",
+      "revision": "e7j26",
+      "exit": 0,
+      "submitted_s": 31.746576167002786,
+      "finished_s": 33.79874241699872,
+      "receipts": [
+        {
+          "revision": "e7j26-a",
+          "container": "mp-d0b3fdd361bbc2e94c458e38bfff87d1",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.455053,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "11a845e2939290bb13122bad30469debeeef46f55d26bf8ee811ae506d31ef2d",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j26-b",
+          "container": "mp-d0b3fdd361bbc2e94c458e38bfff87d1",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.453637,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "9d4d89990f1edaa1f65f46ffe21aea6314a47bf60b8c047b82547d5b13b62257",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "4d37a214bb1cd57d49b6d4cdbf1a06e1f982eb17a0ae19dff99e9fa95c1d1834",
+      "name": "mci-76b92f146b-a-ep7-27",
+      "kind": "pass",
+      "revision": "e7j27",
+      "exit": 0,
+      "submitted_s": 31.866835458000423,
+      "finished_s": 34.008311625002534,
+      "receipts": [
+        {
+          "revision": "e7j27-a",
+          "container": "mp-602d9fef56fe6d205f76e3572c3d4419",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.455502,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "5b1cde3a267576a9201b8c722c6bb3bfd04e8de836ff6a408db876d3b936c0f6",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j27-b",
+          "container": "mp-602d9fef56fe6d205f76e3572c3d4419",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.473248,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "e13177cd6ed844f34568fa1f925a03bb0a24dddcf010d265ec6ce62712ceabdc",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "cb55e44dac0398021ed4092976359f96afdc3b203c04564ba8389457075fc164",
+      "name": "mci-76b92f146b-a-ep7-28",
+      "kind": "pass",
+      "revision": "e7j28",
+      "exit": 0,
+      "submitted_s": 33.3951522080024,
+      "finished_s": 34.72774104199925,
+      "receipts": [
+        {
+          "revision": "e7j28-a",
+          "container": "mp-3bac1ccc6dd7d3334856c66647d484c7",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.457454,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "3fc42d89a8b34e5f755ceded1f27fca9c4476257d44152c2faba962e1c9db546",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j28-b",
+          "container": "mp-3bac1ccc6dd7d3334856c66647d484c7",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.442822,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "27959e1e1eceada66b1f51ed79442cd31aec01d75160a637b28bfab6c8800380",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "31ca225fb6f9b586b4f340cec539bfa58eff1c06300f67aa2bd241cff4dbbd76",
+      "name": "mci-76b92f146b-a-ep7-29",
+      "kind": "pass",
+      "revision": "e7j29",
+      "exit": 0,
+      "submitted_s": 33.459897875000024,
+      "finished_s": 34.86324870799581,
+      "receipts": [
+        {
+          "revision": "e7j29-a",
+          "container": "mp-40a08506e574b12ec3770833e32cc22d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.453854,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "7343e147f2652a402d60057173f73f18b87f2630df66f986dc368751064515cd",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j29-b",
+          "container": "mp-40a08506e574b12ec3770833e32cc22d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.438172,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "8123a54c5ec118bfab12ec073190ad362feb59838a6ca078e399f7f79ed64a5a",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "66f604de053b23f3429417277f86263db84da1d1b2f8a75399663705e106713c",
+      "name": "mci-76b92f146b-a-ep7-30",
+      "kind": "pass",
+      "revision": "e7j30",
+      "exit": 0,
+      "submitted_s": 33.55799300000217,
+      "finished_s": 34.86317587499798,
+      "receipts": [
+        {
+          "revision": "e7j30-a",
+          "container": "mp-49898c52463575d8f260280c2cb0047e",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.441242,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "ddea7e41ce5b6a820e56b3c42f035d5faa4608f85a7358e5b6e5662ec23970fb",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j30-b",
+          "container": "mp-49898c52463575d8f260280c2cb0047e",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.430688,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "db3750eca8391f9426fa0c67af7c9b77d45643a0ee0267cb4f3cb9c45ee42c32",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    },
+    {
+      "id": "3df7c095f7f92670dc0be916a6ae8e570227f116c85ab0a6b228be56806662e3",
+      "name": "mci-76b92f146b-a-ep7-31",
+      "kind": "pass",
+      "revision": "e7j31",
+      "exit": 0,
+      "submitted_s": 33.56158333300118,
+      "finished_s": 34.9243282919997,
+      "receipts": [
+        {
+          "revision": "e7j31-a",
+          "container": "mp-0e8da6f6005778b384c141043ab9a2d0",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.444732,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "6452d223f7aa27ede200dc08a965753a64e7833624a6c36bb946bce46689a645",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e7j31-b",
+          "container": "mp-0e8da6f6005778b384c141043ab9a2d0",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.42718,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "7c0934357d4f013b4230d264807ed120bdb08522e9e422e0e6cae62f3fa7abd8",
+          "module_inode": "65040:262201",
+          "dependency_inode": "65040:262226",
+          "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+          "toolchain_inode": "7637",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3"
+    }
+  ],
+  "last_job_s": 37.90871229200275,
+  "both_finished_s": 37.90881850000005,
+  "client": {
+    "arrivals": 240,
+    "bulk_body_bytes": {
+      "warmup": {
+        "bytes": 422792576,
+        "per_stream_bytes": [
+          8579416,
+          22790260,
+          8388608,
+          22996588,
+          15055380,
+          8388608,
+          10518744,
+          16777216,
+          10644016,
+          18218356,
+          16777216,
+          19533712,
+          8514392,
+          8577028,
+          13067972,
+          8514392,
+          8388608,
+          18209408,
+          8514392,
+          8827572,
+          21591752,
+          22011264,
+          8702300,
+          8827572,
+          10760340,
+          8890208,
+          8451756,
+          18716420,
+          8514392,
+          23703480,
+          8388608,
+          12952600
+        ]
+      },
+      "scored": {
+        "bytes": 49311296900,
+        "per_stream_bytes": [
+          1261483248,
+          1887374688,
+          1406347380,
+          1625054524,
+          1402499228,
+          1873228172,
+          1301862776,
+          1654310096,
+          1276571680,
+          1625264944,
+          1312757336,
+          1686172844,
+          1432577504,
+          1749590800,
+          1311460316,
+          1831415180,
+          1281583072,
+          1642734976,
+          1261548272,
+          1826716808,
+          1409483000,
+          1675306684,
+          1265932792,
+          1791095388,
+          1399465856,
+          1813317320,
+          1191307608,
+          1799549656,
+          1428005076,
+          1778975464,
+          1486663208,
+          1621641004
+        ]
+      },
+      "drain": {
+        "bytes": 127796476,
+        "per_stream_bytes": [
+          5005752,
+          2437676,
+          2938764,
+          4504664,
+          120144,
+          5820020,
+          4629936,
+          6634288,
+          4629936,
+          683868,
+          4254120,
+          5569476,
+          1748680,
+          3439852,
+          871776,
+          5564188,
+          1873952,
+          8388608,
+          5005752,
+          1560772,
+          3377216,
+          5569476,
+          433324,
+          3627760,
+          7448556,
+          6509016,
+          8200188,
+          2061860,
+          6321108,
+          871776,
+          6509016,
+          1184956
+        ]
+      },
+      "invocation": {
+        "bytes": 49861885952,
+        "per_stream_bytes": [
+          1275068416,
+          1912602624,
+          1417674752,
+          1652555776,
+          1417674752,
+          1887436800,
+          1317011456,
+          1677721600,
+          1291845632,
+          1644167168,
+          1333788672,
+          1711276032,
+          1442840576,
+          1761607680,
+          1325400064,
+          1845493760,
+          1291845632,
+          1669332992,
+          1275068416,
+          1837105152,
+          1434451968,
+          1702887424,
+          1275068416,
+          1803550720,
+          1417674752,
+          1828716544,
+          1207959552,
+          1820327936,
+          1442840576,
+          1803550720,
+          1501560832,
+          1635778560
+        ]
+      }
+    },
+    "bytes": 49311296900,
+    "dispatch_max_us": 3671,
+    "dispatch_p95_us": 97,
+    "errors": null,
+    "fresh_p50_us": 4571,
+    "fresh_p95_us": 13063,
+    "fresh_p99_us": 30778,
+    "mib_s": 7837.666290885704,
+    "per_stream_bytes": [
+      1261483248,
+      1887374688,
+      1406347380,
+      1625054524,
+      1402499228,
+      1873228172,
+      1301862776,
+      1654310096,
+      1276571680,
+      1625264944,
+      1312757336,
+      1686172844,
+      1432577504,
+      1749590800,
+      1311460316,
+      1831415180,
+      1281583072,
+      1642734976,
+      1261548272,
+      1826716808,
+      1409483000,
+      1675306684,
+      1265932792,
+      1791095388,
+      1399465856,
+      1813317320,
+      1191307608,
+      1799549656,
+      1428005076,
+      1778975464,
+      1486663208,
+      1621641004
+    ],
+    "period_us": 25000,
+    "published_ports": 32,
+    "reopened": 12,
+    "streams": 32,
+    "window_s": 6.000117333
+  },
+  "client_exit": 1,
+  "client_stderr": "offered workload recorded 0 errors and 12 reopens\n",
+  "counter_before": {
+    "epoch_ns": 1795543340014973000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 27205,
+        "birth_ticks": 976104885258,
+        "user_ticks": 8362036256,
+        "system_ticks": 1218555900,
+        "runnable_ticks": 10030913741,
+        "background_ticks": 2609,
+        "utility_ticks": 2027,
+        "default_ticks": 35216,
+        "initiated_ticks": 3520,
+        "interactive_ticks": 1342391,
+        "instructions": 3297539952472,
+        "cycles": 1628192636304
+      },
+      {
+        "pid": 27201,
+        "birth_ticks": 976097555758,
+        "user_ticks": 58534364,
+        "system_ticks": 2203058859,
+        "runnable_ticks": 2894044043,
+        "background_ticks": 0,
+        "utility_ticks": 2261492043,
+        "default_ticks": 44437,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 336324350297,
+        "cycles": 405336801432
+      }
+    ],
+    "guest_queue": {
+      "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+      "virtio": "virtio1",
+      "driver": "virtio_net",
+      "ifindex": "3",
+      "irq": "14",
+      "effective": "3",
+      "irq_counts": "1,0,0,81275",
+      "NET_TX": "115559,115578,101338,79927",
+      "NET_RX": "74390,74746,70678,83635",
+      "tx_bytes": "331677516048",
+      "rx_bytes": "146382321",
+      "tx_packets": "5388244",
+      "tx_dropped": "0",
+      "rx_dropped": "0",
+      "tx_errors": "0",
+      "rx_errors": "0",
+      "tx_kicks": "77768",
+      "tx_tx_timeouts": "0",
+      "tx0_kicks": "77768",
+      "rps_cpus": "7",
+      "received_rps_00000000": "0000afc9",
+      "received_rps_00000001": "0000af86",
+      "received_rps_00000002": "0000b24e",
+      "received_rps_00000003": "00000000",
+      "global_flow_entries": "0",
+      "queue_flow_entries": "0",
+      "egress_flow_entries": "0",
+      "softnet_00000000": "0016dda7,00000000,00000000",
+      "softnet_00000001": "0016e444,00000000,00000000",
+      "softnet_00000002": "0014484b,00000000,00000000",
+      "softnet_00000003": "00002cba,00000000,00000000"
+    },
+    "service_cgroups": {
+      "686": {
+        "usage_usec": 10445935,
+        "nr_throttled": 45,
+        "throttled_usec": 157494
+      },
+      "1350": {
+        "usage_usec": 1391007,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1101": {
+        "usage_usec": 1288754,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1184": {
+        "usage_usec": 1367022,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1267": {
+        "usage_usec": 1153396,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1848": {
+        "usage_usec": 1445302,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2014": {
+        "usage_usec": 1156841,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1931": {
+        "usage_usec": 1286185,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1765": {
+        "usage_usec": 1195476,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2429": {
+        "usage_usec": 1382556,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2512": {
+        "usage_usec": 1148368,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2595": {
+        "usage_usec": 1272283,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2678": {
+        "usage_usec": 1183313,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2844": {
+        "usage_usec": 1455592,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3176": {
+        "usage_usec": 1098698,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3259": {
+        "usage_usec": 1294325,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3342": {
+        "usage_usec": 1071570,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3508": {
+        "usage_usec": 1304690,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3840": {
+        "usage_usec": 1131685,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3923": {
+        "usage_usec": 1205352,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4006": {
+        "usage_usec": 1092486,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4172": {
+        "usage_usec": 1379765,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4504": {
+        "usage_usec": 1140886,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4670": {
+        "usage_usec": 1411896,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4587": {
+        "usage_usec": 1121294,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4836": {
+        "usage_usec": 1397940,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5168": {
+        "usage_usec": 1078561,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5334": {
+        "usage_usec": 1363877,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5251": {
+        "usage_usec": 1132474,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5500": {
+        "usage_usec": 1272248,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5749": {
+        "usage_usec": 1108597,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5832": {
+        "usage_usec": 1323753,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      }
+    }
+  },
+  "counter_after": {
+    "epoch_ns": 1795543368985453000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 27205,
+        "birth_ticks": 976104885258,
+        "user_ticks": 9470268553,
+        "system_ticks": 1363364405,
+        "runnable_ticks": 11344400953,
+        "background_ticks": 2609,
+        "utility_ticks": 2027,
+        "default_ticks": 35216,
+        "initiated_ticks": 3520,
+        "interactive_ticks": 1343712,
+        "instructions": 3545198223791,
+        "cycles": 1853130039657
+      },
+      {
+        "pid": 27201,
+        "birth_ticks": 976097555758,
+        "user_ticks": 66042144,
+        "system_ticks": 2526816569,
+        "runnable_ticks": 3337060697,
+        "background_ticks": 0,
+        "utility_ticks": 2592757533,
+        "default_ticks": 44437,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 386645954616,
+        "cycles": 464583140732
+      }
+    ],
+    "guest_queue": {
+      "boot": "04d37d0a-c149-410f-b02a-bb309912cd98",
+      "virtio": "virtio1",
+      "driver": "virtio_net",
+      "ifindex": "3",
+      "irq": "14",
+      "effective": "3",
+      "irq_counts": "1,0,0,92343",
+      "NET_TX": "132008,127436,115751,93613",
+      "NET_RX": "84461,82868,80089,96389",
+      "tx_bytes": "381594357426",
+      "rx_bytes": "169536343",
+      "tx_packets": "6193042",
+      "tx_dropped": "0",
+      "rx_dropped": "0",
+      "tx_errors": "0",
+      "rx_errors": "0",
+      "tx_kicks": "87292",
+      "tx_tx_timeouts": "0",
+      "tx0_kicks": "87292",
+      "rps_cpus": "7",
+      "received_rps_00000000": "0000c8cd",
+      "received_rps_00000001": "0000c9b3",
+      "received_rps_00000002": "0000cc86",
+      "received_rps_00000003": "00000000",
+      "global_flow_entries": "0",
+      "queue_flow_entries": "0",
+      "egress_flow_entries": "0",
+      "softnet_00000000": "001bc9c7,00000000,00000000",
+      "softnet_00000001": "0018fc1a,00000000,00000000",
+      "softnet_00000002": "0017ad15,00000000,00000000",
+      "softnet_00000003": "00002da7,00000000,00000000"
+    },
+    "service_cgroups": {
+      "686": {
+        "usage_usec": 10585314,
+        "nr_throttled": 45,
+        "throttled_usec": 157494
+      },
+      "1350": {
+        "usage_usec": 1526828,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1101": {
+        "usage_usec": 1396034,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1184": {
+        "usage_usec": 1485556,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1267": {
+        "usage_usec": 1240689,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1848": {
+        "usage_usec": 1581813,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2014": {
+        "usage_usec": 1242819,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1931": {
+        "usage_usec": 1395513,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1765": {
+        "usage_usec": 1288744,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2429": {
+        "usage_usec": 1507674,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2512": {
+        "usage_usec": 1243016,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2595": {
+        "usage_usec": 1388685,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2678": {
+        "usage_usec": 1265245,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2844": {
+        "usage_usec": 1562375,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3176": {
+        "usage_usec": 1187059,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3259": {
+        "usage_usec": 1408802,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3342": {
+        "usage_usec": 1158133,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3508": {
+        "usage_usec": 1411700,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3840": {
+        "usage_usec": 1216604,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3923": {
+        "usage_usec": 1314832,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4006": {
+        "usage_usec": 1182353,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4172": {
+        "usage_usec": 1490563,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4504": {
+        "usage_usec": 1228695,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4670": {
+        "usage_usec": 1517447,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4587": {
+        "usage_usec": 1217159,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4836": {
+        "usage_usec": 1531945,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5168": {
+        "usage_usec": 1154734,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5334": {
+        "usage_usec": 1469469,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5251": {
+        "usage_usec": 1222636,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5500": {
+        "usage_usec": 1388911,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5749": {
+        "usage_usec": 1204005,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5832": {
+        "usage_usec": 1450584,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      }
+    }
+  }
+}

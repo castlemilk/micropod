@@ -1,0 +1,6 @@
+{
+  "complete": false,
+  "profile": "kernel",
+  "error": "unattributed trace event:              cat-3914    [003] .....    25.611710: sys_sendfile64 -> 0x9",
+  "end": "2026-11-24T11:55:22.818318+00:00"
+}

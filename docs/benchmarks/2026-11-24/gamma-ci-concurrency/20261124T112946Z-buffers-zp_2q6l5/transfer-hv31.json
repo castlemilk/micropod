@@ -1,0 +1,382 @@
+{
+  "path": "mapped",
+  "fault": false,
+  "raw": {
+    "direct": 1,
+    "grants": 512,
+    "wall_ns": 83060250,
+    "sender_cpu_ns": 67134750,
+    "flows": [
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 156,
+        "waits": 2115
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 149,
+        "waits": 1065
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 157,
+        "waits": 2112
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 151,
+        "waits": 1093
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 152,
+        "waits": 2073
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 151,
+        "waits": 1444
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 150,
+        "waits": 421
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 153,
+        "waits": 2155
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 145,
+        "waits": 771
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 153,
+        "waits": 829
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 144,
+        "waits": 480
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 151,
+        "waits": 477
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 157,
+        "waits": 1958
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 152,
+        "waits": 496
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 151,
+        "waits": 1226
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 151,
+        "waits": 1691
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 144,
+        "waits": 1226
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 148,
+        "waits": 1202
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 154,
+        "waits": 1783
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 148,
+        "waits": 1096
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 147,
+        "waits": 1320
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 154,
+        "waits": 490
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 144,
+        "waits": 1565
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 143,
+        "waits": 656
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 151,
+        "waits": 2030
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 143,
+        "waits": 836
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 140,
+        "waits": 492
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 146,
+        "waits": 1342
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 147,
+        "waits": 1476
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 150,
+        "waits": 1280
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 150,
+        "waits": 1531
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 143,
+        "waits": 1857
+      }
+    ]
+  },
+  "send_kib": 64,
+  "delivery": [
+    {
+      "name": "mci-9e54015985-a-0",
+      "seconds": 0.09545404099844745,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-1",
+      "seconds": 0.06905833299970254,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-2",
+      "seconds": 0.09574133299975074,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-3",
+      "seconds": 0.08113795799727086,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-4",
+      "seconds": 0.09481749999758904,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-5",
+      "seconds": 0.08104483299757703,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-6",
+      "seconds": 0.04478620800000499,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-7",
+      "seconds": 0.09701129099994432,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-8",
+      "seconds": 0.06144983299964224,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-9",
+      "seconds": 0.07620929099721252,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-10",
+      "seconds": 0.04892616600045585,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-11",
+      "seconds": 0.04942395800026134,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-12",
+      "seconds": 0.09272291600063909,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-13",
+      "seconds": 0.05044612499841605,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-14",
+      "seconds": 0.0777847909994307,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-15",
+      "seconds": 0.09065266600009636,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-16",
+      "seconds": 0.07133249999969848,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-17",
+      "seconds": 0.08838333299718215,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-18",
+      "seconds": 0.08766341599766747,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-19",
+      "seconds": 0.07563304100040114,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-20",
+      "seconds": 0.0765286659989215,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-21",
+      "seconds": 0.04982074999861652,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-22",
+      "seconds": 0.08522558299955563,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-23",
+      "seconds": 0.05678808299853699,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-24",
+      "seconds": 0.09405812499971944,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-25",
+      "seconds": 0.07446920799702639,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-26",
+      "seconds": 0.048673207998945145,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-27",
+      "seconds": 0.09129754099922138,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-28",
+      "seconds": 0.08100129100057529,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-29",
+      "seconds": 0.08941166599834105,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-30",
+      "seconds": 0.08267829099713708,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-31",
+      "seconds": 0.09009654100009357,
+      "verified": true
+    }
+  ],
+  "host_monotonic_start": 17570.032620875,
+  "healthy_finished_before_release": null,
+  "reset_after_verified_frame": 0,
+  "e2e_s": 0.09701129099994432,
+  "ci_wave": "hv31",
+  "overlap_builds": [
+    "mci-9e54015985-a-0",
+    "mci-9e54015985-a-1",
+    "mci-9e54015985-a-2",
+    "mci-9e54015985-a-3"
+  ],
+  "transfer_relative_to_wave_s": [
+    0.007034375001239823,
+    0.10404566600118414
+  ]
+}

@@ -1,0 +1,4412 @@
+{
+  "control": {
+    "kernel": {
+      "kernel_ipvlan": true,
+      "kernel_page_kib": 16,
+      "kernel_image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+      "kernel_config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c"
+    },
+    "network_driver": "ipvlan",
+    "build_policy": null,
+    "build_nice": 0,
+    "worker": {
+      "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+      "guest": "aca8baeaf0d8692f14235a25ada3ebc064eac3003db3a774f269376cc178718c",
+      "guest_start": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+      "scheduler": {
+        "setting": "inherit",
+        "before": [
+          "ATTACH_AGE_LOAD",
+          "CACHE_HOT_BUDDY",
+          "DELAY_DEQUEUE",
+          "DELAY_ZERO",
+          "HRTICK",
+          "NEXT_BUDDY",
+          "NI_RANDOM",
+          "NI_RATE",
+          "NONTASK_CAPACITY",
+          "NO_HRTICK_DL",
+          "NO_LATENCY_WARN",
+          "NO_LB_MIN",
+          "NO_PARANOID_AVG",
+          "NO_RT_PUSH_IPI",
+          "NO_RT_RUNTIME_SHARE",
+          "NO_WARN_DOUBLE_CLOCK",
+          "PICK_BUDDY",
+          "PLACE_DEADLINE_INITIAL",
+          "PLACE_LAG",
+          "PLACE_REL_DEADLINE",
+          "PREEMPT_SHORT",
+          "RUN_TO_PARITY",
+          "SIS_UTIL",
+          "TTWU_QUEUE",
+          "UTIL_EST",
+          "WAKEUP_PREEMPTION",
+          "WA_BIAS",
+          "WA_IDLE",
+          "WA_WEIGHT"
+        ],
+        "after": [
+          "ATTACH_AGE_LOAD",
+          "CACHE_HOT_BUDDY",
+          "DELAY_DEQUEUE",
+          "DELAY_ZERO",
+          "HRTICK",
+          "NEXT_BUDDY",
+          "NI_RANDOM",
+          "NI_RATE",
+          "NONTASK_CAPACITY",
+          "NO_HRTICK_DL",
+          "NO_LATENCY_WARN",
+          "NO_LB_MIN",
+          "NO_PARANOID_AVG",
+          "NO_RT_PUSH_IPI",
+          "NO_RT_RUNTIME_SHARE",
+          "NO_WARN_DOUBLE_CLOCK",
+          "PICK_BUDDY",
+          "PLACE_DEADLINE_INITIAL",
+          "PLACE_LAG",
+          "PLACE_REL_DEADLINE",
+          "PREEMPT_SHORT",
+          "RUN_TO_PARITY",
+          "SIS_UTIL",
+          "TTWU_QUEUE",
+          "UTIL_EST",
+          "WAKEUP_PREEMPTION",
+          "WA_BIAS",
+          "WA_IDLE",
+          "WA_WEIGHT"
+        ],
+        "base_slice_ns": 125000,
+        "clocksource": "arch_sys_counter"
+      }
+    },
+    "duration_ns": 1500000000,
+    "pairs_per_wave": 32,
+    "concurrent_builds": 8,
+    "rates": {
+      "64000": {
+        "boot_count": 4,
+        "windows_per_layout_per_boot": 4,
+        "offered_requests_per_engine_per_window": 96000,
+        "totals": {
+          "offered_requests": 3072000,
+          "completed_requests": 3072000,
+          "warm_connections": 1024,
+          "jobs": 256,
+          "revisions": 512,
+          "test_passes": 4096
+        },
+        "by_boot": [
+          {
+            "run": "20261125T014021Z-sibling-qnzzq343",
+            "seed": 250131,
+            "boot": "a1d63c48-67cc-4d88-bac9-48695b0785b2",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "1",
+                  "job-02": "3",
+                  "job-03": "2",
+                  "job-04": "0",
+                  "job-05": "1",
+                  "job-06": "2",
+                  "job-07": "3",
+                  "job-08": "0",
+                  "job-09": "2",
+                  "job-10": "1",
+                  "job-11": "3",
+                  "job-12": "1",
+                  "job-13": "0",
+                  "job-14": "2",
+                  "job-15": "3",
+                  "job-16": "0",
+                  "job-17": "1",
+                  "job-18": "2",
+                  "job-19": "3",
+                  "job-20": "0",
+                  "job-21": "3",
+                  "job-22": "1",
+                  "job-23": "2",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "2",
+                  "job-27": "3",
+                  "job-28": "0",
+                  "job-29": "1",
+                  "job-30": "3",
+                  "job-31": "2"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "1": 8,
+                  "3": 8,
+                  "2": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 148.667,
+                  "orbstack": 114.99875,
+                  "paired_ratio": 1.3072914219716254,
+                  "paired_difference": 34.212,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 2069.708,
+                  "orbstack": 3406.2,
+                  "paired_ratio": 0.6204761623685078,
+                  "paired_difference": -1267.4119999999998,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 6232.4375,
+                  "orbstack": 7422.0605,
+                  "paired_ratio": 0.8423101393565644,
+                  "paired_difference": -1048.3415,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 45.4165,
+                  "orbstack": 33.04275,
+                  "paired_ratio": 1.3804067045416546,
+                  "paired_difference": 12.519999999999996,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 805.4165,
+                  "orbstack": 296.631,
+                  "paired_ratio": 2.7751398504426668,
+                  "paired_difference": 505.66049999999996,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 1554.0,
+                  "orbstack": 1156.253,
+                  "paired_ratio": 1.3569602328085952,
+                  "paired_difference": 414.2890000000001,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 57.1045,
+                  "orbstack": 59.832499999999996,
+                  "paired_ratio": 0.9536993859241865,
+                  "paired_difference": -2.7734999999999985,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 1575.354,
+                  "orbstack": 3048.92,
+                  "paired_ratio": 0.5241480406556418,
+                  "paired_difference": -1431.2385000000002,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 5732.625,
+                  "orbstack": 6964.664,
+                  "paired_ratio": 0.8230035396476996,
+                  "paired_difference": -1098.3795,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.11822395833333332,
+                  "orbstack": 0.19578125000000002,
+                  "paired_ratio": 0.6043020640810577,
+                  "paired_difference": -0.07772916666666667,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 5.729166666666667e-05,
+                  "orbstack": 0.0006614583333333333,
+                  "paired_ratio": 0.08570524984187222,
+                  "paired_difference": -0.0006145833333333333,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.9998125,
+                  "orbstack": 0.99928125,
+                  "paired_ratio": 1.0005525565398787,
+                  "paired_difference": 0.0005520833333332864,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.0001875,
+                  "orbstack": 0.00071875,
+                  "paired_ratio": 0.2564747296957505,
+                  "paired_difference": -0.0005520833333333334,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 959833.5,
+                  "orbstack": 10891190.0,
+                  "paired_ratio": 0.09140967036414355,
+                  "paired_difference": -9931356.5,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.1700165015,
+                  "orbstack": 2.951895134,
+                  "paired_ratio": 1.080585849449147,
+                  "paired_difference": 0.23632761599999985,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.1700165015,
+                  "orbstack": 2.9506285245,
+                  "paired_ratio": 1.0826867366633393,
+                  "paired_difference": 0.2419489604999998,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1483546605.0,
+                  "orbstack": 1358105064.5,
+                  "paired_ratio": null,
+                  "paired_difference": 121952969.5,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1484006251
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1393590063
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1463648085
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1342046381
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1483086959
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1360782724
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1499667542
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1355427405
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          },
+          {
+            "run": "20261125T014442Z-sibling-prcb9fdz",
+            "seed": 250133,
+            "boot": "d8f7e01d-44bf-48d8-8660-ef7f4750db26",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "1",
+                  "job-02": "2",
+                  "job-03": "3",
+                  "job-04": "0",
+                  "job-05": "1",
+                  "job-06": "2",
+                  "job-07": "3",
+                  "job-08": "2",
+                  "job-09": "0",
+                  "job-10": "1",
+                  "job-11": "3",
+                  "job-12": "2",
+                  "job-13": "0",
+                  "job-14": "1",
+                  "job-15": "3",
+                  "job-16": "0",
+                  "job-17": "1",
+                  "job-18": "2",
+                  "job-19": "3",
+                  "job-20": "0",
+                  "job-21": "1",
+                  "job-22": "2",
+                  "job-23": "3",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "2",
+                  "job-27": "3",
+                  "job-28": "0",
+                  "job-29": "1",
+                  "job-30": "2",
+                  "job-31": "3"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "1": 8,
+                  "2": 8,
+                  "3": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 160.2715,
+                  "orbstack": 117.21975,
+                  "paired_ratio": 1.4186774982696106,
+                  "paired_difference": 46.89725000000001,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 1975.313,
+                  "orbstack": 3534.8379999999997,
+                  "paired_ratio": 0.5328669326785802,
+                  "paired_difference": -1699.0455000000002,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 6534.917,
+                  "orbstack": 7228.356,
+                  "paired_ratio": 0.7655461240298937,
+                  "paired_difference": -1515.2514999999999,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 48.6665,
+                  "orbstack": 34.32299999999999,
+                  "paired_ratio": 1.4223812082588418,
+                  "paired_difference": 14.458750000000002,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 828.6669999999999,
+                  "orbstack": 315.363,
+                  "paired_ratio": 2.6341235977483795,
+                  "paired_difference": 513.304,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 1545.562,
+                  "orbstack": 1097.8229999999999,
+                  "paired_ratio": 1.3920796753978926,
+                  "paired_difference": 418.31500000000005,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 57.667,
+                  "orbstack": 60.53125,
+                  "paired_ratio": 0.9538642468466711,
+                  "paired_difference": -2.789999999999999,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 1482.75,
+                  "orbstack": 3172.3865,
+                  "paired_ratio": 0.43909129773926114,
+                  "paired_difference": -1853.952,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 6035.0005,
+                  "orbstack": 6817.3240000000005,
+                  "paired_ratio": 0.7369392677402451,
+                  "paired_difference": -1601.2195,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.11791666666666667,
+                  "orbstack": 0.20513020833333334,
+                  "paired_ratio": 0.5641379979168867,
+                  "paired_difference": -0.09286979166666667,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 7.291666666666666e-05,
+                  "orbstack": 0.00034895833333333334,
+                  "paired_ratio": 0.15949820788530467,
+                  "paired_difference": -0.00029166666666666664,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.9997812500000001,
+                  "orbstack": 0.9995520833333333,
+                  "paired_ratio": 1.0002917956304107,
+                  "paired_difference": 0.00029166666666674557,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.00021874999999999998,
+                  "orbstack": 0.00044791666666666667,
+                  "paired_ratio": 0.3344244408074195,
+                  "paired_difference": -0.00029166666666666664,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 689688.5,
+                  "orbstack": 6837278.0,
+                  "paired_ratio": 0.15192100839685405,
+                  "paired_difference": -6234589.5,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.2592146680000003,
+                  "orbstack": 3.0387888839999997,
+                  "paired_ratio": 1.0678480563366648,
+                  "paired_difference": 0.20672347149999992,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.2539948555000002,
+                  "orbstack": 3.028089626,
+                  "paired_ratio": 1.0701008487679238,
+                  "paired_difference": 0.21280110399999996,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1502560792.0,
+                  "orbstack": 1444606771.0,
+                  "paired_ratio": null,
+                  "paired_difference": 84509438.5,
+                  "micropod_higher": 3,
+                  "micropod_lower": 1,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1500366959
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1568044613
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1564287876
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1464352059
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1493944543
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1424861483
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1504754625
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1402306985
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 209,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          },
+          {
+            "run": "20261125T015657Z-sibling-gnxbt73i",
+            "seed": 250135,
+            "boot": "122d5217-63ec-4650-9f40-53d41d81271a",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "1",
+                  "job-02": "2",
+                  "job-03": "3",
+                  "job-04": "0",
+                  "job-05": "1",
+                  "job-06": "2",
+                  "job-07": "3",
+                  "job-08": "1",
+                  "job-09": "0",
+                  "job-10": "2",
+                  "job-11": "3",
+                  "job-12": "0",
+                  "job-13": "2",
+                  "job-14": "1",
+                  "job-15": "3",
+                  "job-16": "0",
+                  "job-17": "2",
+                  "job-18": "1",
+                  "job-19": "3",
+                  "job-20": "2",
+                  "job-21": "0",
+                  "job-22": "3",
+                  "job-23": "1",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "2",
+                  "job-27": "3",
+                  "job-28": "0",
+                  "job-29": "1",
+                  "job-30": "2",
+                  "job-31": "3"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "1": 8,
+                  "2": 8,
+                  "3": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 156.15699999999998,
+                  "orbstack": 115.71,
+                  "paired_ratio": 1.3299511857148119,
+                  "paired_difference": 38.7155,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 2040.4180000000001,
+                  "orbstack": 3382.7845,
+                  "paired_ratio": 0.6261589094251581,
+                  "paired_difference": -1270.4375000000002,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 5933.6465,
+                  "orbstack": 8153.5705,
+                  "paired_ratio": 0.8414854253093895,
+                  "paired_difference": -2166.3230000000003,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 48.875,
+                  "orbstack": 33.187,
+                  "paired_ratio": 1.4919932792310031,
+                  "paired_difference": 15.89675,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 829.9375,
+                  "orbstack": 281.602,
+                  "paired_ratio": 2.962178134484651,
+                  "paired_difference": 529.9815,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 1542.1255,
+                  "orbstack": 1102.6779999999999,
+                  "paired_ratio": 1.3850570513241127,
+                  "paired_difference": 412.11400000000003,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 57.1885,
+                  "orbstack": 60.092,
+                  "paired_ratio": 0.9464934553700621,
+                  "paired_difference": -3.216000000000001,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 1549.147,
+                  "orbstack": 3051.156,
+                  "paired_ratio": 0.5334202432145851,
+                  "paired_difference": -1428.26,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 5433.771500000001,
+                  "orbstack": 7689.7255,
+                  "paired_ratio": 0.826323759572912,
+                  "paired_difference": -2220.3854999999994,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.11494791666666666,
+                  "orbstack": 0.19350520833333335,
+                  "paired_ratio": 0.5965434631495721,
+                  "paired_difference": -0.07627083333333333,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 5.729166666666667e-05,
+                  "orbstack": 0.00018229166666666665,
+                  "paired_ratio": 0.8057692307692308,
+                  "paired_difference": -7.812499999999999e-05,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.9997968749999999,
+                  "orbstack": 0.9997291666666667,
+                  "paired_ratio": 0.9999791602628145,
+                  "paired_difference": -2.0833333333358794e-05,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.00020312500000000002,
+                  "orbstack": 0.0002708333333333333,
+                  "paired_ratio": 1.0666666666666669,
+                  "paired_difference": 2.0833333333333356e-05,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 1098667.5,
+                  "orbstack": 851648.0,
+                  "paired_ratio": 1.5773124717096365,
+                  "paired_difference": 281663.0,
+                  "micropod_higher": 3,
+                  "micropod_lower": 1,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.2451909395,
+                  "orbstack": 3.0118999239999997,
+                  "paired_ratio": 1.0882117663621833,
+                  "paired_difference": 0.26287068300000005,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.2421420225,
+                  "orbstack": 3.003747764,
+                  "paired_ratio": 1.0896723897378489,
+                  "paired_difference": 0.2666914375,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1545654813.5,
+                  "orbstack": 1381071076.0,
+                  "paired_ratio": null,
+                  "paired_difference": 172208801.5,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1505946501
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1368893345
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1501653835
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1349350551
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1665147376
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1429485294
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1585363126
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1393248807
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 292,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 208,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          },
+          {
+            "run": "20261125T020405Z-sibling-2839e_x7",
+            "seed": 250137,
+            "boot": "ec66c848-6696-4176-b505-ffbbdb680061",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "3",
+                  "job-02": "1",
+                  "job-03": "2",
+                  "job-04": "1",
+                  "job-05": "0",
+                  "job-06": "2",
+                  "job-07": "3",
+                  "job-08": "0",
+                  "job-09": "1",
+                  "job-10": "2",
+                  "job-11": "3",
+                  "job-12": "1",
+                  "job-13": "2",
+                  "job-14": "0",
+                  "job-15": "3",
+                  "job-16": "0",
+                  "job-17": "2",
+                  "job-18": "1",
+                  "job-19": "3",
+                  "job-20": "0",
+                  "job-21": "1",
+                  "job-22": "2",
+                  "job-23": "3",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "3",
+                  "job-27": "2",
+                  "job-28": "0",
+                  "job-29": "2",
+                  "job-30": "1",
+                  "job-31": "3"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "3": 8,
+                  "1": 8,
+                  "2": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 140.4385,
+                  "orbstack": 115.4175,
+                  "paired_ratio": 1.2154415539278758,
+                  "paired_difference": 24.875500000000002,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 1952.313,
+                  "orbstack": 3820.005,
+                  "paired_ratio": 0.4980981407572451,
+                  "paired_difference": -1928.4834999999998,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 6340.855,
+                  "orbstack": 13131.311000000002,
+                  "paired_ratio": 0.45171591830552743,
+                  "paired_difference": -7223.4355000000005,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 46.62475,
+                  "orbstack": 33.9165,
+                  "paired_ratio": 1.3746292790984262,
+                  "paired_difference": 12.70825,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 765.4375,
+                  "orbstack": 305.1015,
+                  "paired_ratio": 2.4881411650858496,
+                  "paired_difference": 453.7525,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 1470.0,
+                  "orbstack": 1216.6354999999999,
+                  "paired_ratio": 1.2078695902317693,
+                  "paired_difference": 252.98900000000003,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 56.604,
+                  "orbstack": 59.96175,
+                  "paired_ratio": 0.9447108568699415,
+                  "paired_difference": -3.3152500000000025,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 1458.6464999999998,
+                  "orbstack": 3445.003,
+                  "paired_ratio": 0.41549883105057084,
+                  "paired_difference": -2048.2525,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 5840.959000000001,
+                  "orbstack": 12633.645,
+                  "paired_ratio": 0.4332799551868364,
+                  "paired_difference": -7225.5615,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.10049479166666667,
+                  "orbstack": 0.21041145833333333,
+                  "paired_ratio": 0.47793020316378265,
+                  "paired_difference": -0.10991666666666666,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 7.8125e-05,
+                  "orbstack": 0.000484375,
+                  "paired_ratio": 0.16111111111111112,
+                  "paired_difference": -0.00040625000000000004,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.9998072916666667,
+                  "orbstack": 0.9994166666666666,
+                  "paired_ratio": 1.0003908530519412,
+                  "paired_difference": 0.0003906249999999778,
+                  "micropod_higher": 3,
+                  "micropod_lower": 1,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.00019270833333333333,
+                  "orbstack": 0.0005833333333333333,
+                  "paired_ratio": 0.3303030303030303,
+                  "paired_difference": -0.000390625,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 1127501.0,
+                  "orbstack": 7533985.0,
+                  "paired_ratio": 0.2332644090722743,
+                  "paired_difference": -4043109.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.2242876675,
+                  "orbstack": 3.0027331845,
+                  "paired_ratio": 1.0753882184710526,
+                  "paired_difference": 0.2256540745000002,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.2168721055000002,
+                  "orbstack": 2.9949658955,
+                  "paired_ratio": 1.0753731266675133,
+                  "paired_difference": 0.2250409244999998,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1485737160.5,
+                  "orbstack": 1405405577.5,
+                  "paired_ratio": null,
+                  "paired_difference": 85969931.0,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1503706709
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1383790593
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1450942251
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1443481382
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1487164820
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1372513897
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1484309501
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1427020562
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          }
+        ],
+        "layouts": {
+          "grouped": {
+            "p50_us": {
+              "micropod": 149.375,
+              "orbstack": 115.1935,
+              "paired_ratio": 1.318537075603522,
+              "paired_difference": 35.437,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "p95_us": {
+              "micropod": 1952.313,
+              "orbstack": 3558.1665000000003,
+              "paired_ratio": 0.5100365965128462,
+              "paired_difference": -1725.909,
+              "micropod_higher": 0,
+              "micropod_lower": 16,
+              "pairs": 16
+            },
+            "p99_us": {
+              "micropod": 6340.855,
+              "orbstack": 7696.355,
+              "paired_ratio": 0.7645826297922037,
+              "paired_difference": -1592.3514999999998,
+              "micropod_higher": 4,
+              "micropod_lower": 12,
+              "pairs": 16
+            },
+            "service_p50_us": {
+              "micropod": 47.729,
+              "orbstack": 33.391,
+              "paired_ratio": 1.39577534903748,
+              "paired_difference": 13.808000000000003,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "service_p95_us": {
+              "micropod": 808.979,
+              "orbstack": 297.9955,
+              "paired_ratio": 2.7058398081217048,
+              "paired_difference": 514.6315,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "service_p99_us": {
+              "micropod": 1516.9995,
+              "orbstack": 1196.0455,
+              "paired_ratio": 1.302073774102783,
+              "paired_difference": 347.34900000000005,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "dispatch_lateness_p50_us": {
+              "micropod": 56.979,
+              "orbstack": 60.075,
+              "paired_ratio": 0.9498791871623278,
+              "paired_difference": -3.008749999999999,
+              "micropod_higher": 0,
+              "micropod_lower": 16,
+              "pairs": 16
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1458.6464999999998,
+              "orbstack": 3191.7775,
+              "paired_ratio": 0.41549883105057084,
+              "paired_difference": -1861.4370000000001,
+              "micropod_higher": 0,
+              "micropod_lower": 16,
+              "pairs": 16
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 5840.959000000001,
+              "orbstack": 7248.5244999999995,
+              "paired_ratio": 0.7361397642210527,
+              "paired_difference": -1672.4904999999999,
+              "micropod_higher": 4,
+              "micropod_lower": 12,
+              "pairs": 16
+            },
+            "late_start_fraction": {
+              "micropod": 1.0,
+              "orbstack": 1.0,
+              "paired_ratio": 1.0,
+              "paired_difference": 0.0,
+              "micropod_higher": 0,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.11353645833333334,
+              "orbstack": 0.19816145833333332,
+              "paired_ratio": 0.5518979100800743,
+              "paired_difference": -0.08893229166666666,
+              "micropod_higher": 0,
+              "micropod_lower": 16,
+              "pairs": 16
+            },
+            "dispatched_after_window_fraction": {
+              "micropod": 6.25e-05,
+              "orbstack": 0.00036458333333333335,
+              "paired_ratio": 0.1527777777777778,
+              "paired_difference": -0.00030208333333333335,
+              "micropod_higher": 3,
+              "micropod_lower": 13,
+              "pairs": 16
+            },
+            "completed_by_window_fraction": {
+              "micropod": 0.9998020833333333,
+              "orbstack": 0.9995416666666667,
+              "paired_ratio": 1.00029701286821,
+              "paired_difference": 0.00029687499999991873,
+              "micropod_higher": 13,
+              "micropod_lower": 3,
+              "pairs": 16
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.00019791666666666666,
+              "orbstack": 0.0004583333333333333,
+              "paired_ratio": 0.3645833333333333,
+              "paired_difference": -0.00029687500000000005,
+              "micropod_higher": 3,
+              "micropod_lower": 13,
+              "pairs": 16
+            },
+            "drain_after_window_ns": {
+              "micropod": 959833.5,
+              "orbstack": 5850541.5,
+              "paired_ratio": 0.2332644090722743,
+              "paired_difference": -3763700.0,
+              "micropod_higher": 4,
+              "micropod_lower": 12,
+              "pairs": 16
+            },
+            "build_makespan_s": {
+              "micropod": 3.2343799185,
+              "orbstack": 2.988971986,
+              "paired_ratio": 1.0820535982722053,
+              "paired_difference": 0.24955602499999996,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "slowest_build_s": {
+              "micropod": 3.2310352305,
+              "orbstack": 2.9808084050000003,
+              "paired_ratio": 1.0849770640655598,
+              "paired_difference": 0.25749886200000005,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "completed_after_first_build": {
+              "micropod": 0.0,
+              "orbstack": 0.0,
+              "paired_ratio": null,
+              "paired_difference": 0.0,
+              "micropod_higher": 0,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "completed_after_first_build_fraction": {
+              "micropod": 0.0,
+              "orbstack": 0.0,
+              "paired_ratio": null,
+              "paired_difference": 0.0,
+              "micropod_higher": 0,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1500017250.5,
+              "orbstack": 1393419435.0,
+              "paired_ratio": null,
+              "paired_difference": 117283519.5,
+              "micropod_higher": 15,
+              "micropod_lower": 1,
+              "pairs": 16
+            }
+          }
+        }
+      }
+    },
+    "network_topology": "per-job",
+    "build_scratch": "overlay"
+  },
+  "candidate": {
+    "kernel": {
+      "kernel_ipvlan": true,
+      "kernel_page_kib": 16,
+      "kernel_image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+      "kernel_config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c"
+    },
+    "network_driver": "ipvlan",
+    "build_policy": null,
+    "build_nice": 0,
+    "worker": {
+      "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+      "guest": "aca8baeaf0d8692f14235a25ada3ebc064eac3003db3a774f269376cc178718c",
+      "guest_start": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+      "scheduler": {
+        "setting": "inherit",
+        "before": [
+          "ATTACH_AGE_LOAD",
+          "CACHE_HOT_BUDDY",
+          "DELAY_DEQUEUE",
+          "DELAY_ZERO",
+          "HRTICK",
+          "NEXT_BUDDY",
+          "NI_RANDOM",
+          "NI_RATE",
+          "NONTASK_CAPACITY",
+          "NO_HRTICK_DL",
+          "NO_LATENCY_WARN",
+          "NO_LB_MIN",
+          "NO_PARANOID_AVG",
+          "NO_RT_PUSH_IPI",
+          "NO_RT_RUNTIME_SHARE",
+          "NO_WARN_DOUBLE_CLOCK",
+          "PICK_BUDDY",
+          "PLACE_DEADLINE_INITIAL",
+          "PLACE_LAG",
+          "PLACE_REL_DEADLINE",
+          "PREEMPT_SHORT",
+          "RUN_TO_PARITY",
+          "SIS_UTIL",
+          "TTWU_QUEUE",
+          "UTIL_EST",
+          "WAKEUP_PREEMPTION",
+          "WA_BIAS",
+          "WA_IDLE",
+          "WA_WEIGHT"
+        ],
+        "after": [
+          "ATTACH_AGE_LOAD",
+          "CACHE_HOT_BUDDY",
+          "DELAY_DEQUEUE",
+          "DELAY_ZERO",
+          "HRTICK",
+          "NEXT_BUDDY",
+          "NI_RANDOM",
+          "NI_RATE",
+          "NONTASK_CAPACITY",
+          "NO_HRTICK_DL",
+          "NO_LATENCY_WARN",
+          "NO_LB_MIN",
+          "NO_PARANOID_AVG",
+          "NO_RT_PUSH_IPI",
+          "NO_RT_RUNTIME_SHARE",
+          "NO_WARN_DOUBLE_CLOCK",
+          "PICK_BUDDY",
+          "PLACE_DEADLINE_INITIAL",
+          "PLACE_LAG",
+          "PLACE_REL_DEADLINE",
+          "PREEMPT_SHORT",
+          "RUN_TO_PARITY",
+          "SIS_UTIL",
+          "TTWU_QUEUE",
+          "UTIL_EST",
+          "WAKEUP_PREEMPTION",
+          "WA_BIAS",
+          "WA_IDLE",
+          "WA_WEIGHT"
+        ],
+        "base_slice_ns": 250000,
+        "clocksource": "arch_sys_counter"
+      }
+    },
+    "duration_ns": 1500000000,
+    "pairs_per_wave": 32,
+    "concurrent_builds": 8,
+    "rates": {
+      "64000": {
+        "boot_count": 4,
+        "windows_per_layout_per_boot": 4,
+        "offered_requests_per_engine_per_window": 96000,
+        "totals": {
+          "offered_requests": 3072000,
+          "completed_requests": 3072000,
+          "warm_connections": 1024,
+          "jobs": 256,
+          "revisions": 512,
+          "test_passes": 4096
+        },
+        "by_boot": [
+          {
+            "run": "20261125T014310Z-sibling-9m3sesg6",
+            "seed": 250131,
+            "boot": "4ce94eef-76ef-4b00-b948-0aa657901254",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "1",
+                  "job-02": "0",
+                  "job-03": "2",
+                  "job-04": "3",
+                  "job-05": "1",
+                  "job-06": "2",
+                  "job-07": "3",
+                  "job-08": "0",
+                  "job-09": "0",
+                  "job-10": "1",
+                  "job-11": "2",
+                  "job-12": "3",
+                  "job-13": "3",
+                  "job-14": "1",
+                  "job-15": "2",
+                  "job-16": "0",
+                  "job-17": "1",
+                  "job-18": "2",
+                  "job-19": "3",
+                  "job-20": "0",
+                  "job-21": "1",
+                  "job-22": "2",
+                  "job-23": "3",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "2",
+                  "job-27": "3",
+                  "job-28": "1",
+                  "job-29": "0",
+                  "job-30": "3",
+                  "job-31": "2"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "1": 8,
+                  "2": 8,
+                  "3": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 146.969,
+                  "orbstack": 120.30099999999999,
+                  "paired_ratio": 1.1394549692894698,
+                  "paired_difference": 17.03775000000001,
+                  "micropod_higher": 3,
+                  "micropod_lower": 1,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 3174.3540000000003,
+                  "orbstack": 4021.8785,
+                  "paired_ratio": 0.7742119853645284,
+                  "paired_difference": -960.6614999999999,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 8080.1675,
+                  "orbstack": 14629.619,
+                  "paired_ratio": 0.6925397045121302,
+                  "paired_difference": -4326.9305,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 33.9995,
+                  "orbstack": 36.815,
+                  "paired_ratio": 0.8774444052970969,
+                  "paired_difference": -4.481999999999999,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 1029.083,
+                  "orbstack": 366.108,
+                  "paired_ratio": 2.547865319837781,
+                  "paired_difference": 625.1185,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 2192.333,
+                  "orbstack": 1329.23,
+                  "paired_ratio": 1.5293277793145252,
+                  "paired_difference": 749.1180000000002,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 58.6455,
+                  "orbstack": 60.679,
+                  "paired_ratio": 0.9523621001202354,
+                  "paired_difference": -2.8870000000000005,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 2677.8334999999997,
+                  "orbstack": 3607.0425,
+                  "paired_ratio": 0.7255653721908777,
+                  "paired_difference": -1058.173,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 7581.666499999999,
+                  "orbstack": 14144.767,
+                  "paired_ratio": 0.6802889149427622,
+                  "paired_difference": -4340.579500000001,
+                  "micropod_higher": 2,
+                  "micropod_lower": 2,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.18950520833333334,
+                  "orbstack": 0.22129166666666666,
+                  "paired_ratio": 0.8287536485237808,
+                  "paired_difference": -0.04058854166666666,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 7.8125e-05,
+                  "orbstack": 0.000546875,
+                  "paired_ratio": 0.13596491228070176,
+                  "paired_difference": -0.0004739583333333334,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.9998072916666667,
+                  "orbstack": 0.999328125,
+                  "paired_ratio": 1.0005107746706687,
+                  "paired_difference": 0.0005104166666666243,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.00019270833333333333,
+                  "orbstack": 0.000671875,
+                  "paired_ratio": 0.2753623188405797,
+                  "paired_difference": -0.0005104166666666666,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 3601125.5,
+                  "orbstack": 9772265.0,
+                  "paired_ratio": 0.4021331160149958,
+                  "paired_difference": -3959619.5,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.2983007310000003,
+                  "orbstack": 3.0536909784999997,
+                  "paired_ratio": 1.0680582070862894,
+                  "paired_difference": 0.20847203150000015,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.292701898,
+                  "orbstack": 3.0435394980000003,
+                  "paired_ratio": 1.0681552283748492,
+                  "paired_difference": 0.20807703099999997,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1541447126.0,
+                  "orbstack": 1463506531.0,
+                  "paired_ratio": null,
+                  "paired_difference": 39613677.5,
+                  "micropod_higher": 3,
+                  "micropod_lower": 1,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1512568376
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1440328572
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1642242445
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1425698145
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1570325876
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1563338325
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1415919460
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1486684490
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          },
+          {
+            "run": "20261125T014950Z-sibling-ctwv8j9_",
+            "seed": 250133,
+            "boot": "67634f2b-aa6a-4e4a-bd85-ba21790aa70c",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "2",
+                  "job-02": "1",
+                  "job-03": "3",
+                  "job-04": "0",
+                  "job-05": "2",
+                  "job-06": "1",
+                  "job-07": "3",
+                  "job-08": "1",
+                  "job-09": "1",
+                  "job-10": "0",
+                  "job-11": "2",
+                  "job-12": "3",
+                  "job-13": "0",
+                  "job-14": "2",
+                  "job-15": "3",
+                  "job-16": "0",
+                  "job-17": "1",
+                  "job-18": "2",
+                  "job-19": "3",
+                  "job-20": "1",
+                  "job-21": "3",
+                  "job-22": "0",
+                  "job-23": "2",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "2",
+                  "job-27": "0",
+                  "job-28": "3",
+                  "job-29": "1",
+                  "job-30": "2",
+                  "job-31": "3"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "2": 8,
+                  "1": 8,
+                  "3": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 100.77175,
+                  "orbstack": 116.50975,
+                  "paired_ratio": 0.8369561685594364,
+                  "paired_difference": -18.9985,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 1837.2714999999998,
+                  "orbstack": 3363.7975,
+                  "paired_ratio": 0.5173606522816863,
+                  "paired_difference": -1638.9010000000003,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 5155.958500000001,
+                  "orbstack": 6731.8215,
+                  "paired_ratio": 0.6908052187163893,
+                  "paired_difference": -2223.3689999999997,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 30.146,
+                  "orbstack": 33.8945,
+                  "paired_ratio": 0.8783724518416336,
+                  "paired_difference": -4.1235,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 642.917,
+                  "orbstack": 280.8005,
+                  "paired_ratio": 2.1902406555570018,
+                  "paired_difference": 331.262,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 1834.2085,
+                  "orbstack": 1032.9125,
+                  "paired_ratio": 1.7720265009190437,
+                  "paired_difference": 770.108,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 56.355000000000004,
+                  "orbstack": 60.283500000000004,
+                  "paired_ratio": 0.9344980933201055,
+                  "paired_difference": -3.948999999999998,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 1344.1875,
+                  "orbstack": 3028.486,
+                  "paired_ratio": 0.4098049722588022,
+                  "paired_difference": -1798.444,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 4656.084000000001,
+                  "orbstack": 6304.709,
+                  "paired_ratio": 0.6571699511373039,
+                  "paired_difference": -2303.2344999999996,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.106171875,
+                  "orbstack": 0.19300520833333334,
+                  "paired_ratio": 0.528275391548526,
+                  "paired_difference": -0.09155729166666665,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 6.770833333333333e-05,
+                  "orbstack": 0.00017708333333333335,
+                  "paired_ratio": 0.47500000000000003,
+                  "paired_difference": -9.895833333333333e-05,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.99984375,
+                  "orbstack": 0.9997499999999999,
+                  "paired_ratio": 1.0000937747461873,
+                  "paired_difference": 9.375000000005906e-05,
+                  "micropod_higher": 3,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.00015625,
+                  "orbstack": 0.00025,
+                  "paired_ratio": 0.6402116402116402,
+                  "paired_difference": -9.374999999999999e-05,
+                  "micropod_higher": 0,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 1352792.0,
+                  "orbstack": 5887712.0,
+                  "paired_ratio": 0.23186935567545908,
+                  "paired_difference": -4895169.0,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.0323939185,
+                  "orbstack": 2.9674196435,
+                  "paired_ratio": 1.0126434330244218,
+                  "paired_difference": 0.037597906499999834,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.02908146,
+                  "orbstack": 2.962171876,
+                  "paired_ratio": 1.0142788824310454,
+                  "paired_difference": 0.0425529979999999,
+                  "micropod_higher": 3,
+                  "micropod_lower": 1,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1330530667.0,
+                  "orbstack": 1394543330.0,
+                  "paired_ratio": null,
+                  "paired_difference": -82488557.0,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1341255001
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1334202383
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1319806333
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1406245686
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1303259959
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1382840974
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1368769585
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1454165684
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          },
+          {
+            "run": "20261125T015405Z-sibling-xnamh2ei",
+            "seed": 250135,
+            "boot": "7ae785f9-179b-4b1a-b441-61f4a6221786",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "1",
+                  "job-02": "2",
+                  "job-03": "3",
+                  "job-04": "0",
+                  "job-05": "1",
+                  "job-06": "2",
+                  "job-07": "3",
+                  "job-08": "1",
+                  "job-09": "0",
+                  "job-10": "2",
+                  "job-11": "3",
+                  "job-12": "0",
+                  "job-13": "1",
+                  "job-14": "3",
+                  "job-15": "2",
+                  "job-16": "1",
+                  "job-17": "0",
+                  "job-18": "2",
+                  "job-19": "3",
+                  "job-20": "0",
+                  "job-21": "1",
+                  "job-22": "3",
+                  "job-23": "2",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "2",
+                  "job-27": "3",
+                  "job-28": "0",
+                  "job-29": "1",
+                  "job-30": "2",
+                  "job-31": "3"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "1": 8,
+                  "2": 8,
+                  "3": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 98.959,
+                  "orbstack": 117.05375,
+                  "paired_ratio": 0.8332593254342348,
+                  "paired_difference": -19.7975,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 1838.396,
+                  "orbstack": 3448.708,
+                  "paired_ratio": 0.5327131338430996,
+                  "paired_difference": -1656.416,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 5162.083500000001,
+                  "orbstack": 6578.3915,
+                  "paired_ratio": 0.7774401859643446,
+                  "paired_difference": -1416.308,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 30.292,
+                  "orbstack": 34.1035,
+                  "paired_ratio": 0.8896606633064849,
+                  "paired_difference": -3.7915000000000028,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 677.6255,
+                  "orbstack": 294.728,
+                  "paired_ratio": 2.1569151950413215,
+                  "paired_difference": 362.96,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 1836.333,
+                  "orbstack": 1098.5585,
+                  "paired_ratio": 1.6320149243445208,
+                  "paired_difference": 719.8575000000001,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 56.646,
+                  "orbstack": 60.24575,
+                  "paired_ratio": 0.9385133457764262,
+                  "paired_difference": -3.704250000000002,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 1347.3955,
+                  "orbstack": 3095.573,
+                  "paired_ratio": 0.43487777008470674,
+                  "paired_difference": -1814.1309999999999,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 4668.771000000001,
+                  "orbstack": 6146.3215,
+                  "paired_ratio": 0.7501229071807924,
+                  "paired_difference": -1478.8784999999998,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.11102083333333333,
+                  "orbstack": 0.20135416666666667,
+                  "paired_ratio": 0.5290697335871547,
+                  "paired_difference": -0.09896354166666667,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 8.854166666666667e-05,
+                  "orbstack": 0.00029166666666666664,
+                  "paired_ratio": 0.2581833060556465,
+                  "paired_difference": -0.00021874999999999998,
+                  "micropod_higher": 0,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.9998333333333334,
+                  "orbstack": 0.9995625,
+                  "paired_ratio": 1.0002657413705194,
+                  "paired_difference": 0.00026562499999999156,
+                  "micropod_higher": 3,
+                  "micropod_lower": 1,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.0001666666666666667,
+                  "orbstack": 0.0004375,
+                  "paired_ratio": 0.3920454545454546,
+                  "paired_difference": -0.000265625,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 700501.0,
+                  "orbstack": 4841514.5,
+                  "paired_ratio": 0.18744817463224145,
+                  "paired_difference": -3928076.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.0622384394999997,
+                  "orbstack": 2.9987204519999997,
+                  "paired_ratio": 1.02418765741273,
+                  "paired_difference": 0.07227237399999997,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.0578221685,
+                  "orbstack": 2.9903947725,
+                  "paired_ratio": 1.02669788377841,
+                  "paired_difference": 0.07949414650000008,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1365423126.0,
+                  "orbstack": 1399527287.0,
+                  "paired_ratio": null,
+                  "paired_difference": -31350858.0,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1355004792
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1406247139
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1375841460
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1387300829
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1320027152
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1406389181
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1419924000
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1392807435
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 208,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          },
+          {
+            "run": "20261125T020241Z-sibling-rp8qwyat",
+            "seed": 250137,
+            "boot": "e1825def-abdb-4ce8-8976-de511680a78e",
+            "placements": {
+              "grouped": {
+                "groups": {
+                  "job-00": "0",
+                  "job-01": "1",
+                  "job-02": "2",
+                  "job-03": "3",
+                  "job-04": "2",
+                  "job-05": "1",
+                  "job-06": "3",
+                  "job-07": "0",
+                  "job-08": "0",
+                  "job-09": "1",
+                  "job-10": "0",
+                  "job-11": "3",
+                  "job-12": "2",
+                  "job-13": "1",
+                  "job-14": "2",
+                  "job-15": "3",
+                  "job-16": "0",
+                  "job-17": "1",
+                  "job-18": "2",
+                  "job-19": "3",
+                  "job-20": "0",
+                  "job-21": "1",
+                  "job-22": "3",
+                  "job-23": "2",
+                  "job-24": "0",
+                  "job-25": "1",
+                  "job-26": "2",
+                  "job-27": "1",
+                  "job-28": "3",
+                  "job-29": "0",
+                  "job-30": "2",
+                  "job-31": "3"
+                },
+                "groups_per_cpu": {
+                  "0": 8,
+                  "1": 8,
+                  "2": 8,
+                  "3": 8
+                },
+                "builders_per_cpu": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 2,
+                  "3": 2
+                }
+              }
+            },
+            "layouts": {
+              "grouped": {
+                "p50_us": {
+                  "micropod": 97.761,
+                  "orbstack": 116.60225,
+                  "paired_ratio": 0.8409721168588239,
+                  "paired_difference": -18.503249999999994,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p95_us": {
+                  "micropod": 1871.542,
+                  "orbstack": 3531.6675,
+                  "paired_ratio": 0.5213219432640444,
+                  "paired_difference": -1709.017,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "micropod": 5795.459,
+                  "orbstack": 7116.9375,
+                  "paired_ratio": 0.7627096736892784,
+                  "paired_difference": -1681.4335,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p50_us": {
+                  "micropod": 30.667,
+                  "orbstack": 34.2705,
+                  "paired_ratio": 0.9025194392474796,
+                  "paired_difference": -3.3119999999999976,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "micropod": 634.021,
+                  "orbstack": 297.31,
+                  "paired_ratio": 2.2724910335342887,
+                  "paired_difference": 356.50300000000004,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "micropod": 1801.2085,
+                  "orbstack": 1132.345,
+                  "paired_ratio": 1.5801949712913417,
+                  "paired_difference": 656.2175,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p50_us": {
+                  "micropod": 56.6465,
+                  "orbstack": 60.565749999999994,
+                  "paired_ratio": 0.9376983217906114,
+                  "paired_difference": -3.773749999999996,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "micropod": 1378.105,
+                  "orbstack": 3172.2715,
+                  "paired_ratio": 0.42726040964279255,
+                  "paired_difference": -1847.6625000000001,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "micropod": 5295.647,
+                  "orbstack": 6665.1215,
+                  "paired_ratio": 0.7375097733384337,
+                  "paired_difference": -1743.0755,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "late_start_fraction": {
+                  "micropod": 1.0,
+                  "orbstack": 1.0,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "micropod": 0.10586979166666667,
+                  "orbstack": 0.19734895833333332,
+                  "paired_ratio": 0.5466862713313546,
+                  "paired_difference": -0.08799479166666667,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "dispatched_after_window_fraction": {
+                  "micropod": 7.8125e-05,
+                  "orbstack": 0.00034895833333333334,
+                  "paired_ratio": 0.26931818181818185,
+                  "paired_difference": -0.000265625,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "completed_by_window_fraction": {
+                  "micropod": 0.9998229166666667,
+                  "orbstack": 0.9995572916666666,
+                  "paired_ratio": 1.0002449035368057,
+                  "paired_difference": 0.0002447916666666883,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "micropod": 0.00017708333333333335,
+                  "orbstack": 0.0004427083333333333,
+                  "paired_ratio": 0.4294117647058824,
+                  "paired_difference": -0.00024479166666666665,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "micropod": 1012459.5,
+                  "orbstack": 2087587.0,
+                  "paired_ratio": 0.6614832704579104,
+                  "paired_difference": -593065.0,
+                  "micropod_higher": 1,
+                  "micropod_lower": 3,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "micropod": 3.062999022,
+                  "orbstack": 3.000202485,
+                  "paired_ratio": 1.019490322728506,
+                  "paired_difference": 0.0586988519999998,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "slowest_build_s": {
+                  "micropod": 3.0534655434999998,
+                  "orbstack": 2.9915758075,
+                  "paired_ratio": 1.0232516587654183,
+                  "paired_difference": 0.06971565000000024,
+                  "micropod_higher": 4,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "micropod": 0.0,
+                  "orbstack": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "micropod": 1313643410.0,
+                  "orbstack": 1400576320.5,
+                  "paired_ratio": null,
+                  "paired_difference": -92672508.0,
+                  "micropod_higher": 0,
+                  "micropod_lower": 4,
+                  "pairs": 4
+                }
+              }
+            },
+            "build_overlap_by_wave": {
+              "grouped": [
+                {
+                  "block": 0,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1403644458
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1404073041
+                  }
+                },
+                {
+                  "block": 1,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1309051917
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1397079600
+                  }
+                },
+                {
+                  "block": 2,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1318234903
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1415552236
+                  }
+                },
+                {
+                  "block": 3,
+                  "A": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1276410667
+                  },
+                  "B": {
+                    "completed_after_first_build": 0,
+                    "completed_after_first_build_fraction": 0.0,
+                    "first_build_end_margin_ns": 1393358382
+                  }
+                }
+              ]
+            },
+            "timers": {
+              "grouped": {
+                "A": {
+                  "max_clock_calibration_ns": 250,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                },
+                "B": {
+                  "max_clock_calibration_ns": 167,
+                  "timer_slack_ns": [
+                    50000
+                  ]
+                }
+              }
+            },
+            "totals": {
+              "offered_requests": 768000,
+              "completed_requests": 768000,
+              "warm_connections": 256,
+              "jobs": 64,
+              "revisions": 128,
+              "test_passes": 1024
+            }
+          }
+        ],
+        "layouts": {
+          "grouped": {
+            "p50_us": {
+              "micropod": 99.77175,
+              "orbstack": 117.08250000000001,
+              "paired_ratio": 0.8443289109318992,
+              "paired_difference": -18.409750000000003,
+              "micropod_higher": 3,
+              "micropod_lower": 13,
+              "pairs": 16
+            },
+            "p95_us": {
+              "micropod": 1877.875,
+              "orbstack": 3597.9275,
+              "paired_ratio": 0.5413080158170842,
+              "paired_difference": -1673.198,
+              "micropod_higher": 1,
+              "micropod_lower": 15,
+              "pairs": 16
+            },
+            "p99_us": {
+              "micropod": 5319.6675,
+              "orbstack": 7587.1895,
+              "paired_ratio": 0.7774401859643446,
+              "paired_difference": -1445.962,
+              "micropod_higher": 2,
+              "micropod_lower": 14,
+              "pairs": 16
+            },
+            "service_p50_us": {
+              "micropod": 30.417,
+              "orbstack": 34.208,
+              "paired_ratio": 0.8896606633064849,
+              "paired_difference": -3.7695000000000025,
+              "micropod_higher": 1,
+              "micropod_lower": 15,
+              "pairs": 16
+            },
+            "service_p95_us": {
+              "micropod": 665.8545,
+              "orbstack": 298.90999999999997,
+              "paired_ratio": 2.2957764041714808,
+              "paired_difference": 363.798,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "service_p99_us": {
+              "micropod": 1830.625,
+              "orbstack": 1149.743,
+              "paired_ratio": 1.6091018441121356,
+              "paired_difference": 691.173,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "dispatch_lateness_p50_us": {
+              "micropod": 56.6465,
+              "orbstack": 60.44225,
+              "paired_ratio": 0.9372869175117955,
+              "paired_difference": -3.772000000000002,
+              "micropod_higher": 1,
+              "micropod_lower": 15,
+              "pairs": 16
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1385.6255,
+              "orbstack": 3226.3334999999997,
+              "paired_ratio": 0.4489555246042938,
+              "paired_difference": -1826.333,
+              "micropod_higher": 1,
+              "micropod_lower": 15,
+              "pairs": 16
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 4821.1669999999995,
+              "orbstack": 7143.1785,
+              "paired_ratio": 0.7501229071807924,
+              "paired_difference": -1515.8884999999996,
+              "micropod_higher": 2,
+              "micropod_lower": 14,
+              "pairs": 16
+            },
+            "late_start_fraction": {
+              "micropod": 1.0,
+              "orbstack": 1.0,
+              "paired_ratio": 1.0,
+              "paired_difference": 0.0,
+              "micropod_higher": 0,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.10706770833333334,
+              "orbstack": 0.20089583333333333,
+              "paired_ratio": 0.5515350693925878,
+              "paired_difference": -0.08715625,
+              "micropod_higher": 1,
+              "micropod_lower": 15,
+              "pairs": 16
+            },
+            "dispatched_after_window_fraction": {
+              "micropod": 7.8125e-05,
+              "orbstack": 0.00034895833333333334,
+              "paired_ratio": 0.21250000000000002,
+              "paired_difference": -0.00028645833333333333,
+              "micropod_higher": 0,
+              "micropod_lower": 15,
+              "pairs": 16
+            },
+            "completed_by_window_fraction": {
+              "micropod": 0.9998281250000001,
+              "orbstack": 0.9995260416666667,
+              "paired_ratio": 1.0002970229147639,
+              "paired_difference": 0.00029687499999997424,
+              "micropod_higher": 14,
+              "micropod_lower": 1,
+              "pairs": 16
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.000171875,
+              "orbstack": 0.0004739583333333333,
+              "paired_ratio": 0.383578431372549,
+              "paired_difference": -0.000296875,
+              "micropod_higher": 1,
+              "micropod_lower": 14,
+              "pairs": 16
+            },
+            "drain_after_window_ns": {
+              "micropod": 1073980.0,
+              "orbstack": 4529686.0,
+              "paired_ratio": 0.26483700446234715,
+              "paired_difference": -3266063.0,
+              "micropod_higher": 2,
+              "micropod_lower": 14,
+              "pairs": 16
+            },
+            "build_makespan_s": {
+              "micropod": 3.0679278145,
+              "orbstack": 3.00452385,
+              "paired_ratio": 1.02418765741273,
+              "paired_difference": 0.07227237399999997,
+              "micropod_higher": 16,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "slowest_build_s": {
+              "micropod": 3.064069981,
+              "orbstack": 2.99678765,
+              "paired_ratio": 1.02669788377841,
+              "paired_difference": 0.07949414650000008,
+              "micropod_higher": 15,
+              "micropod_lower": 1,
+              "pairs": 16
+            },
+            "completed_after_first_build": {
+              "micropod": 0.0,
+              "orbstack": 0.0,
+              "paired_ratio": null,
+              "paired_difference": 0.0,
+              "micropod_higher": 0,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "completed_after_first_build_fraction": {
+              "micropod": 0.0,
+              "orbstack": 0.0,
+              "paired_ratio": null,
+              "paired_difference": 0.0,
+              "micropod_higher": 0,
+              "micropod_lower": 0,
+              "pairs": 16
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1361887188.5,
+              "orbstack": 1406246412.5,
+              "paired_ratio": null,
+              "paired_difference": -61003688.5,
+              "micropod_higher": 5,
+              "micropod_lower": 11,
+              "pairs": 16
+            }
+          }
+        }
+      }
+    },
+    "network_topology": "per-job",
+    "build_scratch": "overlay"
+  },
+  "contrast": {
+    "change": {
+      "worker_scheduler": [
+        "hrtick-125us",
+        "hrtick-250us"
+      ]
+    },
+    "rates": {
+      "64000": {
+        "seeds": [
+          250131,
+          250133,
+          250135,
+          250137
+        ],
+        "boot_pairs": 4,
+        "windows_per_layout_per_boot": 4,
+        "layouts": {
+          "grouped": {
+            "micropod": {
+              "p95_us": {
+                "candidate": 1877.875,
+                "control": 1952.313,
+                "paired_ratio": 0.9655824174613308,
+                "paired_difference": -64.50049999999999,
+                "candidate_higher": 7,
+                "candidate_lower": 9,
+                "pairs": 16
+              },
+              "p99_us": {
+                "candidate": 5319.6675,
+                "control": 6340.855,
+                "paired_ratio": 0.9445385558180213,
+                "paired_difference": -366.4369999999999,
+                "candidate_higher": 6,
+                "candidate_lower": 10,
+                "pairs": 16
+              },
+              "service_p95_us": {
+                "candidate": 665.8545,
+                "control": 808.979,
+                "paired_ratio": 0.828318364264818,
+                "paired_difference": -132.8535,
+                "candidate_higher": 3,
+                "candidate_lower": 13,
+                "pairs": 16
+              },
+              "service_p99_us": {
+                "candidate": 1830.625,
+                "control": 1516.9995,
+                "paired_ratio": 1.2289057013669162,
+                "paired_difference": 344.10450000000003,
+                "candidate_higher": 16,
+                "candidate_lower": 0,
+                "pairs": 16
+              },
+              "dispatch_lateness_p95_us": {
+                "candidate": 1385.6255,
+                "control": 1458.6464999999998,
+                "paired_ratio": 0.9533576091482558,
+                "paired_difference": -64.33349999999996,
+                "candidate_higher": 7,
+                "candidate_lower": 9,
+                "pairs": 16
+              },
+              "dispatch_lateness_p99_us": {
+                "candidate": 4821.1669999999995,
+                "control": 5840.959000000001,
+                "paired_ratio": 0.939469165966672,
+                "paired_difference": -366.41600000000017,
+                "candidate_higher": 6,
+                "candidate_lower": 10,
+                "pairs": 16
+              },
+              "starts_after_next_due_fraction": {
+                "candidate": 0.10706770833333334,
+                "control": 0.11353645833333334,
+                "paired_ratio": 1.0333120307514605,
+                "paired_difference": 0.003734375000000005,
+                "candidate_higher": 10,
+                "candidate_lower": 6,
+                "pairs": 16
+              },
+              "completed_after_window_fraction": {
+                "candidate": 0.000171875,
+                "control": 0.00019791666666666666,
+                "paired_ratio": 0.8492822966507177,
+                "paired_difference": -3.124999999999999e-05,
+                "candidate_higher": 5,
+                "candidate_lower": 9,
+                "pairs": 16
+              },
+              "drain_after_window_ns": {
+                "candidate": 1073980.0,
+                "control": 959833.5,
+                "paired_ratio": 1.373952614554554,
+                "paired_difference": 151895.5,
+                "candidate_higher": 9,
+                "candidate_lower": 7,
+                "pairs": 16
+              },
+              "build_makespan_s": {
+                "candidate": 3.0679278145,
+                "control": 3.2343799185,
+                "paired_ratio": 0.9474541052612164,
+                "paired_difference": -0.1708264370000001,
+                "candidate_higher": 3,
+                "candidate_lower": 13,
+                "pairs": 16
+              },
+              "completed_after_first_build": {
+                "candidate": 0.0,
+                "control": 0.0,
+                "paired_ratio": null,
+                "paired_difference": 0.0,
+                "candidate_higher": 0,
+                "candidate_lower": 0,
+                "pairs": 16
+              },
+              "completed_after_first_build_fraction": {
+                "candidate": 0.0,
+                "control": 0.0,
+                "paired_ratio": null,
+                "paired_difference": 0.0,
+                "candidate_higher": 0,
+                "candidate_lower": 0,
+                "pairs": 16
+              },
+              "first_build_end_margin_ns": {
+                "candidate": 1361887188.5,
+                "control": 1500017250.5,
+                "paired_ratio": null,
+                "paired_difference": -146416021.5,
+                "candidate_higher": 3,
+                "candidate_lower": 13,
+                "pairs": 16
+              }
+            },
+            "orbstack": {
+              "p95_us": {
+                "candidate": 3597.9275,
+                "control": 3558.1665000000003,
+                "paired_ratio": 1.0024156083445812,
+                "paired_difference": 4.014499999999998,
+                "candidate_higher": 8,
+                "candidate_lower": 8,
+                "pairs": 16
+              },
+              "p99_us": {
+                "candidate": 7587.1895,
+                "control": 7696.355,
+                "paired_ratio": 1.1134133273340316,
+                "paired_difference": 707.4470000000001,
+                "candidate_higher": 9,
+                "candidate_lower": 7,
+                "pairs": 16
+              },
+              "service_p95_us": {
+                "candidate": 298.90999999999997,
+                "control": 297.9955,
+                "paired_ratio": 1.0397402434812455,
+                "paired_difference": 11.831000000000017,
+                "candidate_higher": 11,
+                "candidate_lower": 5,
+                "pairs": 16
+              },
+              "service_p99_us": {
+                "candidate": 1149.743,
+                "control": 1196.0455,
+                "paired_ratio": 0.9803079865931452,
+                "paired_difference": -23.917499999999905,
+                "candidate_higher": 8,
+                "candidate_lower": 8,
+                "pairs": 16
+              },
+              "dispatch_lateness_p95_us": {
+                "candidate": 3226.3334999999997,
+                "control": 3191.7775,
+                "paired_ratio": 0.9988696635922707,
+                "paired_difference": -6.9650000000001455,
+                "candidate_higher": 8,
+                "candidate_lower": 8,
+                "pairs": 16
+              },
+              "dispatch_lateness_p99_us": {
+                "candidate": 7143.1785,
+                "control": 7248.5244999999995,
+                "paired_ratio": 1.1170559144156282,
+                "paired_difference": 682.4070000000002,
+                "candidate_higher": 9,
+                "candidate_lower": 7,
+                "pairs": 16
+              },
+              "starts_after_next_due_fraction": {
+                "candidate": 0.20089583333333333,
+                "control": 0.19816145833333332,
+                "paired_ratio": 1.041679823840973,
+                "paired_difference": 0.007999999999999993,
+                "candidate_higher": 10,
+                "candidate_lower": 6,
+                "pairs": 16
+              },
+              "completed_after_window_fraction": {
+                "candidate": 0.0004739583333333333,
+                "control": 0.0004583333333333333,
+                "paired_ratio": 0.9841549295774648,
+                "paired_difference": -3.1250000000000014e-05,
+                "candidate_higher": 8,
+                "candidate_lower": 8,
+                "pairs": 16
+              },
+              "drain_after_window_ns": {
+                "candidate": 4529686.0,
+                "control": 5850541.5,
+                "paired_ratio": 0.8079549631794436,
+                "paired_difference": -1458525.5,
+                "candidate_higher": 7,
+                "candidate_lower": 9,
+                "pairs": 16
+              },
+              "build_makespan_s": {
+                "candidate": 3.00452385,
+                "control": 2.988971986,
+                "paired_ratio": 1.0029894901216718,
+                "paired_difference": 0.008886830000000234,
+                "candidate_higher": 8,
+                "candidate_lower": 8,
+                "pairs": 16
+              },
+              "completed_after_first_build": {
+                "candidate": 0.0,
+                "control": 0.0,
+                "paired_ratio": null,
+                "paired_difference": 0.0,
+                "candidate_higher": 0,
+                "candidate_lower": 0,
+                "pairs": 16
+              },
+              "completed_after_first_build_fraction": {
+                "candidate": 0.0,
+                "control": 0.0,
+                "paired_ratio": null,
+                "paired_difference": 0.0,
+                "candidate_higher": 0,
+                "candidate_lower": 0,
+                "pairs": 16
+              },
+              "first_build_end_margin_ns": {
+                "candidate": 1406246412.5,
+                "control": 1393419435.0,
+                "paired_ratio": null,
+                "paired_difference": 28818121.0,
+                "candidate_higher": 9,
+                "candidate_lower": 7,
+                "pairs": 16
+              }
+            }
+          }
+        },
+        "by_seed": [
+          {
+            "seed": 250131,
+            "control_boot": "a1d63c48-67cc-4d88-bac9-48695b0785b2",
+            "candidate_boot": "4ce94eef-76ef-4b00-b948-0aa657901254",
+            "profile_order": [
+              "hrtick-125us",
+              "hrtick-250us"
+            ],
+            "engine_order_counts": {
+              "AB": 2,
+              "BA": 2
+            },
+            "engines": {
+              "micropod": {
+                "p95_us": {
+                  "candidate": 3174.3540000000003,
+                  "control": 2069.708,
+                  "paired_ratio": 1.3767411560373217,
+                  "paired_difference": 1143.7085,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 8080.1675,
+                  "control": 6232.4375,
+                  "paired_ratio": 1.318025774536518,
+                  "paired_difference": 2780.3959999999993,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 1029.083,
+                  "control": 805.4165,
+                  "paired_ratio": 1.2461463874647334,
+                  "paired_difference": 201.54150000000004,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 2192.333,
+                  "control": 1554.0,
+                  "paired_ratio": 1.4161128202071223,
+                  "paired_difference": 641.666,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 2677.8334999999997,
+                  "control": 1575.354,
+                  "paired_ratio": 1.4473504515020181,
+                  "paired_difference": 1140.3539999999998,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 7581.666499999999,
+                  "control": 5732.625,
+                  "paired_ratio": 1.3345519565499773,
+                  "paired_difference": 2776.8335,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.18950520833333334,
+                  "control": 0.11822395833333332,
+                  "paired_ratio": 1.62420228749098,
+                  "paired_difference": 0.07038020833333333,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.00019270833333333333,
+                  "control": 0.0001875,
+                  "paired_ratio": 1.0,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 1,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 3601125.5,
+                  "control": 959833.5,
+                  "paired_ratio": 4.125479855047786,
+                  "paired_difference": 2807374.5,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 3.2983007310000003,
+                  "control": 3.1700165015,
+                  "paired_ratio": 1.0479957363451344,
+                  "paired_difference": 0.1509471250000003,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1541447126.0,
+                  "control": 1483546605.0,
+                  "paired_ratio": null,
+                  "paired_difference": 57900521.0,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                }
+              },
+              "orbstack": {
+                "p95_us": {
+                  "candidate": 4021.8785,
+                  "control": 3406.2,
+                  "paired_ratio": 1.1805286095495169,
+                  "paired_difference": 613.923,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 14629.619,
+                  "control": 7422.0605,
+                  "paired_ratio": 1.769654165041304,
+                  "paired_difference": 6333.049000000001,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 366.108,
+                  "control": 296.631,
+                  "paired_ratio": 1.2072366655582019,
+                  "paired_difference": 61.46549999999999,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 1329.23,
+                  "control": 1156.253,
+                  "paired_ratio": 1.1510869132998516,
+                  "paired_difference": 172.97699999999998,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 3607.0425,
+                  "control": 3048.92,
+                  "paired_ratio": 1.1831783611612123,
+                  "paired_difference": 558.1225,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 14144.767,
+                  "control": 6964.664,
+                  "paired_ratio": 1.8162552679292552,
+                  "paired_difference": 6323.907,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.22129166666666666,
+                  "control": 0.19578125000000002,
+                  "paired_ratio": 1.0995231760677209,
+                  "paired_difference": 0.020020833333333335,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.000671875,
+                  "control": 0.00071875,
+                  "paired_ratio": 1.1878300226301233,
+                  "paired_difference": -5.208333333333329e-05,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 9772265.0,
+                  "control": 10891190.0,
+                  "paired_ratio": 0.6117108402444786,
+                  "paired_difference": -4471309.0,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 3.0536909784999997,
+                  "control": 2.951895134,
+                  "paired_ratio": 1.0365233803890135,
+                  "paired_difference": 0.10761637299999993,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1463506531.0,
+                  "control": 1358105064.5,
+                  "paired_ratio": null,
+                  "paired_difference": 107454424.5,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                }
+              }
+            }
+          },
+          {
+            "seed": 250133,
+            "control_boot": "d8f7e01d-44bf-48d8-8660-ef7f4750db26",
+            "candidate_boot": "67634f2b-aa6a-4e4a-bd85-ba21790aa70c",
+            "profile_order": [
+              "hrtick-125us",
+              "hrtick-250us"
+            ],
+            "engine_order_counts": {
+              "BA": 2,
+              "AB": 2
+            },
+            "engines": {
+              "micropod": {
+                "p95_us": {
+                  "candidate": 1837.2714999999998,
+                  "control": 1975.313,
+                  "paired_ratio": 0.8865407462109416,
+                  "paired_difference": -227.063,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 5155.958500000001,
+                  "control": 6534.917,
+                  "paired_ratio": 0.8085770486421943,
+                  "paired_difference": -1534.5005000000006,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 642.917,
+                  "control": 828.6669999999999,
+                  "paired_ratio": 0.7720791130681521,
+                  "paired_difference": -191.39600000000002,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 1834.2085,
+                  "control": 1545.562,
+                  "paired_ratio": 1.1610168613863627,
+                  "paired_difference": 248.89649999999995,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 1344.1875,
+                  "control": 1482.75,
+                  "paired_ratio": 0.8490983642315189,
+                  "paired_difference": -227.77049999999997,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 4656.084000000001,
+                  "control": 6035.0005,
+                  "paired_ratio": 0.7955687789521841,
+                  "paired_difference": -1533.9165000000003,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.106171875,
+                  "control": 0.11791666666666667,
+                  "paired_ratio": 0.8600929038798861,
+                  "paired_difference": -0.01646874999999999,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.00015625,
+                  "control": 0.00021874999999999998,
+                  "paired_ratio": 0.688421052631579,
+                  "paired_difference": -7.291666666666665e-05,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 1352792.0,
+                  "control": 689688.5,
+                  "paired_ratio": 2.119897997086575,
+                  "paired_difference": 718542.0,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 3.0323939185,
+                  "control": 3.2592146680000003,
+                  "paired_ratio": 0.9411023693102378,
+                  "paired_difference": -0.19213327050000006,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1330530667.0,
+                  "control": 1502560792.0,
+                  "paired_ratio": null,
+                  "paired_difference": -174898271.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                }
+              },
+              "orbstack": {
+                "p95_us": {
+                  "candidate": 3363.7975,
+                  "control": 3534.8379999999997,
+                  "paired_ratio": 0.9920290539167296,
+                  "paired_difference": -41.81099999999992,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 6731.8215,
+                  "control": 7228.356,
+                  "paired_ratio": 1.042173698823811,
+                  "paired_difference": 234.8779999999997,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 280.8005,
+                  "control": 315.363,
+                  "paired_ratio": 0.8974306635809814,
+                  "paired_difference": -34.5625,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 1032.9125,
+                  "control": 1097.8229999999999,
+                  "paired_ratio": 0.9673630032525418,
+                  "paired_difference": -37.793499999999995,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 3028.486,
+                  "control": 3172.3865,
+                  "paired_ratio": 0.9889326841370746,
+                  "paired_difference": -43.320000000000164,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 6304.709,
+                  "control": 6817.3240000000005,
+                  "paired_ratio": 1.0438826570894226,
+                  "paired_difference": 226.80049999999983,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.19300520833333334,
+                  "control": 0.20513020833333334,
+                  "paired_ratio": 0.9400938985051133,
+                  "paired_difference": -0.01357291666666667,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.00025,
+                  "control": 0.00044791666666666667,
+                  "paired_ratio": 0.5780542986425339,
+                  "paired_difference": -0.00016145833333333333,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 5887712.0,
+                  "control": 6837278.0,
+                  "paired_ratio": 1.0791300535982618,
+                  "paired_difference": -588559.0,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 2.9674196435,
+                  "control": 3.0387888839999997,
+                  "paired_ratio": 0.9759669147972847,
+                  "paired_difference": -0.0732441574999998,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1394543330.0,
+                  "control": 1444606771.0,
+                  "paired_ratio": null,
+                  "paired_difference": -50063441.0,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                }
+              }
+            }
+          },
+          {
+            "seed": 250135,
+            "control_boot": "122d5217-63ec-4650-9f40-53d41d81271a",
+            "candidate_boot": "7ae785f9-179b-4b1a-b441-61f4a6221786",
+            "profile_order": [
+              "hrtick-250us",
+              "hrtick-125us"
+            ],
+            "engine_order_counts": {
+              "AB": 2,
+              "BA": 2
+            },
+            "engines": {
+              "micropod": {
+                "p95_us": {
+                  "candidate": 1838.396,
+                  "control": 2040.4180000000001,
+                  "paired_ratio": 0.9411816409936339,
+                  "paired_difference": -125.45950000000005,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 5162.083500000001,
+                  "control": 5933.6465,
+                  "paired_ratio": 1.0321160041752298,
+                  "paired_difference": 93.22950000000037,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 677.6255,
+                  "control": 829.9375,
+                  "paired_ratio": 0.816860294478355,
+                  "paired_difference": -152.312,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 1836.333,
+                  "control": 1542.1255,
+                  "paired_ratio": 1.1928725655019754,
+                  "paired_difference": 297.0615,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 1347.3955,
+                  "control": 1549.147,
+                  "paired_ratio": 0.9241950842832365,
+                  "paired_difference": -123.43849999999998,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 4668.771000000001,
+                  "control": 5433.771500000001,
+                  "paired_ratio": 1.0369784962908934,
+                  "paired_difference": 93.24999999999955,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.11102083333333333,
+                  "control": 0.11494791666666666,
+                  "paired_ratio": 0.9778690382060509,
+                  "paired_difference": -0.00267708333333333,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.0001666666666666667,
+                  "control": 0.00020312500000000002,
+                  "paired_ratio": 0.7697368421052632,
+                  "paired_difference": -4.6875e-05,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 700501.0,
+                  "control": 1098667.5,
+                  "paired_ratio": 0.7099542621439443,
+                  "paired_difference": -363500.0,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 3.0622384394999997,
+                  "control": 3.2451909395,
+                  "paired_ratio": 0.9374553094758522,
+                  "paired_difference": -0.20303204200000002,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1365423126.0,
+                  "control": 1545654813.5,
+                  "paired_ratio": null,
+                  "paired_difference": -158190417.5,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                }
+              },
+              "orbstack": {
+                "p95_us": {
+                  "candidate": 3448.708,
+                  "control": 3382.7845,
+                  "paired_ratio": 0.9995051129329362,
+                  "paired_difference": -5.541500000000042,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 6578.3915,
+                  "control": 8153.5705,
+                  "paired_ratio": 0.818502673245163,
+                  "paired_difference": -1904.5679999999998,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 294.728,
+                  "control": 281.602,
+                  "paired_ratio": 1.0835315479497831,
+                  "paired_difference": 21.688000000000002,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 1098.5585,
+                  "control": 1102.6779999999999,
+                  "paired_ratio": 1.0073452500687936,
+                  "paired_difference": 0.31799999999986994,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 3095.573,
+                  "control": 3051.156,
+                  "paired_ratio": 0.996143515408882,
+                  "paired_difference": -14.583000000000084,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 6146.3215,
+                  "control": 7689.7255,
+                  "paired_ratio": 0.8106358322832541,
+                  "paired_difference": -1889.0579999999995,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.20135416666666667,
+                  "control": 0.19350520833333335,
+                  "paired_ratio": 1.077389416848788,
+                  "paired_difference": 0.014223958333333328,
+                  "candidate_higher": 3,
+                  "candidate_lower": 1,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.0004375,
+                  "control": 0.0002708333333333333,
+                  "paired_ratio": 1.614814814814815,
+                  "paired_difference": 0.00014062500000000002,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 4841514.5,
+                  "control": 851648.0,
+                  "paired_ratio": 5.864023610378489,
+                  "paired_difference": 3706624.0,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 2.9987204519999997,
+                  "control": 3.0118999239999997,
+                  "paired_ratio": 0.996811188459861,
+                  "paired_difference": -0.009610650499999984,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1399527287.0,
+                  "control": 1381071076.0,
+                  "paired_ratio": null,
+                  "paired_difference": 18456211.0,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                }
+              }
+            }
+          },
+          {
+            "seed": 250137,
+            "control_boot": "ec66c848-6696-4176-b505-ffbbdb680061",
+            "candidate_boot": "e1825def-abdb-4ce8-8976-de511680a78e",
+            "profile_order": [
+              "hrtick-250us",
+              "hrtick-125us"
+            ],
+            "engine_order_counts": {
+              "BA": 2,
+              "AB": 2
+            },
+            "engines": {
+              "micropod": {
+                "p95_us": {
+                  "candidate": 1871.542,
+                  "control": 1952.313,
+                  "paired_ratio": 0.9434490725875713,
+                  "paired_difference": -112.83349999999996,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 5795.459,
+                  "control": 6340.855,
+                  "paired_ratio": 0.9445385558180213,
+                  "paired_difference": -332.22850000000017,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 634.021,
+                  "control": 765.4375,
+                  "paired_ratio": 0.828318364264818,
+                  "paired_difference": -131.41649999999998,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 1801.2085,
+                  "control": 1470.0,
+                  "paired_ratio": 1.2331416724218411,
+                  "paired_difference": 344.10450000000003,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 1378.105,
+                  "control": 1458.6464999999998,
+                  "paired_ratio": 0.9258753607391914,
+                  "paired_difference": -111.18700000000001,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 5295.647,
+                  "control": 5840.959000000001,
+                  "paired_ratio": 0.939469165966672,
+                  "paired_difference": -332.0830000000001,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.10586979166666667,
+                  "control": 0.10049479166666667,
+                  "paired_ratio": 1.0401084551558748,
+                  "paired_difference": 0.004187500000000004,
+                  "candidate_higher": 4,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.00017708333333333335,
+                  "control": 0.00019270833333333333,
+                  "paired_ratio": 1.0994152046783625,
+                  "paired_difference": 1.5625000000000014e-05,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 1012459.5,
+                  "control": 1127501.0,
+                  "paired_ratio": 1.1150601713842143,
+                  "paired_difference": -219625.0,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 3.062999022,
+                  "control": 3.2242876675,
+                  "paired_ratio": 0.9518966220229679,
+                  "paired_difference": -0.1552979160000001,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1313643410.0,
+                  "control": 1485737160.5,
+                  "paired_ratio": null,
+                  "paired_difference": -155410125.5,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                }
+              },
+              "orbstack": {
+                "p95_us": {
+                  "candidate": 3531.6675,
+                  "control": 3820.005,
+                  "paired_ratio": 0.926684541936718,
+                  "paired_difference": -286.9180000000001,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "p99_us": {
+                  "candidate": 7116.9375,
+                  "control": 13131.311000000002,
+                  "paired_ratio": 0.5057089392860532,
+                  "paired_difference": -6563.842000000001,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "service_p95_us": {
+                  "candidate": 297.31,
+                  "control": 305.1015,
+                  "paired_ratio": 0.98384575129621,
+                  "paired_difference": -4.833499999999987,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "service_p99_us": {
+                  "candidate": 1132.345,
+                  "control": 1216.6354999999999,
+                  "paired_ratio": 0.9182760628247699,
+                  "paired_difference": -103.95749999999998,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p95_us": {
+                  "candidate": 3172.2715,
+                  "control": 3445.003,
+                  "paired_ratio": 0.9207315581125365,
+                  "paired_difference": -278.8225,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "dispatch_lateness_p99_us": {
+                  "candidate": 6665.1215,
+                  "control": 12633.645,
+                  "paired_ratio": 0.49016581256496106,
+                  "paired_difference": -6515.7925000000005,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "starts_after_next_due_fraction": {
+                  "candidate": 0.19734895833333332,
+                  "control": 0.21041145833333333,
+                  "paired_ratio": 0.9679474683110436,
+                  "paired_difference": -0.006671874999999994,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "completed_after_window_fraction": {
+                  "candidate": 0.0004427083333333333,
+                  "control": 0.0005833333333333333,
+                  "paired_ratio": 0.6924882629107981,
+                  "paired_difference": -0.00020312499999999996,
+                  "candidate_higher": 1,
+                  "candidate_lower": 3,
+                  "pairs": 4
+                },
+                "drain_after_window_ns": {
+                  "candidate": 2087587.0,
+                  "control": 7533985.0,
+                  "paired_ratio": 0.3342898577869242,
+                  "paired_difference": -4263074.5,
+                  "candidate_higher": 0,
+                  "candidate_lower": 4,
+                  "pairs": 4
+                },
+                "build_makespan_s": {
+                  "candidate": 3.000202485,
+                  "control": 3.0027331845,
+                  "paired_ratio": 0.998635712943788,
+                  "paired_difference": -0.004328975999999596,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                },
+                "completed_after_first_build": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "completed_after_first_build_fraction": {
+                  "candidate": 0.0,
+                  "control": 0.0,
+                  "paired_ratio": null,
+                  "paired_difference": 0.0,
+                  "candidate_higher": 0,
+                  "candidate_lower": 0,
+                  "pairs": 4
+                },
+                "first_build_end_margin_ns": {
+                  "candidate": 1400576320.5,
+                  "control": 1405405577.5,
+                  "paired_ratio": null,
+                  "paired_difference": -6689866.0,
+                  "candidate_higher": 2,
+                  "candidate_lower": 2,
+                  "pairs": 4
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "base_slice_ns": [
+      125000,
+      250000
+    ]
+  }
+}

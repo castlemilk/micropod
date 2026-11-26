@@ -1,0 +1,60 @@
+{
+  "relay": {
+    "revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+    "git_blobs": {
+      "docs/benchmarks/2026-11-21/gamma-direct-macvlan.md": "00d19de84050fe431c4eca3d4d73f1bcfb8562f5",
+      "docs/benchmarks/2026-11-21/gamma-direct-macvlan.json.gz": "60d3c5646517cff8ce0389f45c8a0925142cdbf2",
+      "docs/benchmarks/2026-11-21/gamma-vcpu-priority.md": "ef6d9dbf53a162e29a247cec373d2f5ba95f4f4a",
+      "docs/benchmarks/2026-11-21/gamma-vcpu-priority.json.gz": "3c1ea94ef20dd8d8919224b67c70c59733bf3920",
+      "docs/benchmarks/2026-11-21/gamma-vnic.md": "8cef863e3513228ee4e6a0d9114763e31ac62644",
+      "docs/benchmarks/2026-11-21/gamma-vnic.json.gz": "41796f2935d062f39fb96751cededdb78b75722f",
+      "docs/benchmarks/2026-11-21/gamma-vm-scheduling.md": "d6cdbdf17d87833519a4a76f626d96ee6c1bdaf1",
+      "docs/benchmarks/2026-11-21/gamma-vm-scheduling.json.gz": "ae0f526f3220dd6522775b2a30e70e776fa1fb83",
+      "docs/benchmarks/2026-11-21/gamma-mixed-path.md": "4f007b8e206023801f6f320ab9a8249cebce3490",
+      "docs/benchmarks/2026-11-21/gamma-mixed-path.json.gz": "67c76f83ca0767d595e557e245557bd2c14a004b",
+      "docs/benchmarks/2026-11-21/gamma-worker-sizing.md": "f272d390aa87633c1289fec98d9053738cada165",
+      "docs/benchmarks/2026-11-21/gamma-worker-sizing.json": "4afca178760cf34dfb8f599cda5a69e3e5cec4d2",
+      "docs/benchmarks/2026-11-21/gamma-published-profile.md": "baf486bd57123e9c123d3b8211463fec5d1438cc",
+      "docs/benchmarks/2026-11-21/gamma-published-profile.json.gz": "4672fae9c2b585a6a03df8a0376533ebfc5f3496",
+      "docs/benchmarks/2026-11-22/gamma-tcp-contrasts.md": "a117091423da5236a8ab9a3535dd5fcf53902cc9",
+      "docs/benchmarks/2026-11-22/gamma-tcp-contrasts.json": "69bbd5ca45972c327785a4678b9105134e9c58bb",
+      "docs/benchmarks/2026-11-22/gamma-relay-workers.md": "9905d7505ce912593a998f72e8e0638f5ac953c9",
+      "docs/benchmarks/2026-11-22/gamma-relay-workers.json.gz": "bc67407ce7d074067e057cfe377bb6ca48e126ae",
+      "ci/build-worker-kernel.sh": "434cbd1ef817312869bd8736af23c201f3a7d87c",
+      "ci/runner-macvlan.test.sh": "90bd4e99350f798a95992c0ee018b00baf43d145",
+      "scripts/check_worker_cpu_quota.py": "1469a58693102e68dd402fda5b91b306475fa2c9",
+      "scripts/relaybench/gamma_pilot.py": "10aeaf1dbe9801de0de932e2e1b830c33b161edc",
+      "scripts/relaybench/gamma_relay_pilot.py": "0e4a3f14fa8f4c39884162c3e8cfe7058d21aa2c",
+      "scripts/relaybench/gamma_contrasts.py": "4d64b42477393a4f032e0773689a51130a64feb4",
+      "scripts/netbench/offered/main.go": "73fa2e33cb4dedecf3ea9baaf92a1a8bd0baceee",
+      "Sources/CPublishedTCP/PublishedTCP.c": "22259ea366e82730adbb8e031253da41560de89d",
+      "guest/oci-service/src/service.rs": "1d5b162991e5252b1b8301a2e85a1c27d5dca33b"
+    }
+  },
+  "warm_ci": {
+    "revision": "a182ecb9744c7914a7d64d375bc458267c53536f",
+    "git_blobs": {
+      "docs/benchmarks/2026-11-22/warm-edit/host-cache-replay.json": "4fa670e6ed50afe5b94205dd94ea21eaa5ba95bb",
+      "docs/benchmarks/2026-11-22/warm-edit/historical-attribution.json": "d7900e05dd2d48f69b72946b166a84efb5592a45",
+      "docs/benchmarks/2026-11-22/warm-edit/worker-preflight.json": "95eceb989f36c90ee9ce7da543b3233e1851bf99",
+      "docs/benchmarks/2026-11-22/warm-edit/research.md": "a5f2222d875bd20cf4c98b559c223bb5911d163d",
+      "scripts/bench_docker_launch.py": "83ae9645a45a26f37e45dd0da2d60241d1464a5b",
+      "scripts/profile_warm_edit.py": "fbe3af36033b0798f761c0118ca4973147be54c0"
+    }
+  },
+  "locators": {
+    "bridge_vs_direct": "gamma-direct-macvlan.records.confirmation[i].engines.{full-bridge,full-reno}",
+    "earlier_paths_and_bridge_kernel": "gamma-direct-macvlan.records.matched[i].engines.{old,new,direct}",
+    "lazy_kernel_replication": "gamma-direct-macvlan.records.kernel-holdout[i].engines.{lazy-bridge,lazy-reno}",
+    "older_four_vcpu_peer": "gamma-vcpu-priority.phases.grace-holdout.runs.{confirm-micropod,confirm-orb}[i]",
+    "rps_rfs": "gamma-vnic.raw[qdisc/{i}-{base,rfs}.mixed]"
+  },
+  "optional_policy": {
+    "program": "scx_bpfland",
+    "tag": "v1.1.4",
+    "annotated_tag": "ab70cd518262192be2ffaf87bf9e9448a620c76a",
+    "commit": "e7b3a219617472cf78880ac424714e52c932db61",
+    "path": "scheds/rust/scx_bpfland",
+    "live_executable_sha256": null
+  }
+}

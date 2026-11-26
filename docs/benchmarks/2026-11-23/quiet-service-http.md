@@ -39,7 +39,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -p 2 -trimpath -buildvcs=false \
   -o "$SHARED_PROBE_DIR/quiet-http" scripts/netbench/quiet/main.go
 ```
 
-During an approved fixture window, set `MICROPOD_BENCH_QUIET_HTTP_DIR` to that absolute, guest-visible directory when invoking the existing native-network qualification. The script read-only mounts the binary, runs it on each network before the traffic probes, and uses the same preloaded image, network name and marker. This diagnostic has had zero engine or VM runs. [Qualification entry point](../../../scripts/qualify_native_network.sh) · [Probe source](../../../scripts/netbench/quiet/main.go)
+Set `MICROPOD_BENCH_QUIET_HTTP_DIR` to that absolute, guest-visible directory to include the probe in the native-network qualification. The script mounts the binary read-only and runs it on each network before the traffic probes. On 24 November the separate 64-container CI fixture ran the socket-verified probe on both guests. It measured quiet and busy traffic with one, two and four guest CPUs available across each client–service pair. [Qualification entry point](../../../scripts/qualify_native_network.sh) · [Probe source](../../../scripts/netbench/quiet/main.go) · [Measured placement and scheduler results](../2026-11-24/gamma-ci-concurrency/sibling-results.md)
 
 ## Offline verification
 

@@ -1,0 +1,240 @@
+{
+  "seed": 34226,
+  "order": [
+    [
+      {
+        "block": 0,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 0,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 1,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 1,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 2,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 2,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 3,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 3,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 4,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 4,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 5,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 5,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 6,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 6,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 7,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 7,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 8,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 8,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 9,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 9,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 10,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 10,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 11,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 11,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 12,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 12,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 13,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 13,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 14,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 14,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 15,
+        "transport": "mapped",
+        "batch": 8
+      },
+      {
+        "block": 15,
+        "transport": "staged",
+        "batch": 8
+      }
+    ],
+    [
+      {
+        "block": 16,
+        "transport": "staged",
+        "batch": 8
+      },
+      {
+        "block": 16,
+        "transport": "mapped",
+        "batch": 8
+      }
+    ]
+  ],
+  "total": 4097,
+  "experiment": "payload",
+  "page_bytes": 16384,
+  "vcpus": 1,
+  "load": "ambient",
+  "host": "Gamma-128GB.local",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+  "cpu": "Apple M5 Max",
+  "hv_support": "1",
+  "sources": {
+    "docs/benchmarks/2026-11-24/gamma-hypervisor/hardware.py": "9ff6269b89a2752de0c9c04f8b9bee5c6c25fc5a6b9f9468e87d70d089228e25",
+    "scripts/relaybench/hvf_notify/payload.S": "6aa1a5afe2e0d03d0ddfbb085c336f9663ae4e143062de757285fc1eeafe257b",
+    "scripts/relaybench/hvf_notify/payload.c": "01b1ada6cd8a5211ea0ee0de629e66a6fe37e895f515bf770f185b06c67b5320",
+    "scripts/relaybench/hvf_notify/vm.c": "5dc36d4e614c3b98857067b95feccedb60be52b7ff203e053082cfe6dffd0621",
+    "scripts/relaybench/hvf_notify/vm.h": "323758b8d1fbb0e49f229262658443439f67402700221d66f5ed599b0e6c7483",
+    "scripts/relaybench/hvf_tx_probe/apple.c": "226f793ab483e734f9c306a5279932f96872056396879bec09e3c03908c5d37d"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "flags": [
+    "xcrun",
+    "clang",
+    "-arch",
+    "arm64",
+    "-O2",
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sdk": "26.5",
+  "binary_sha256": "96569606392b7965e651cf384eea7373481803fd2f0b05dbf2b68a2b19a399a9"
+}

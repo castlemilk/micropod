@@ -1,0 +1,458 @@
+{
+  "boot": "162a4365-b05b-4062-8d4e-48d06be02e95",
+  "pairs": [
+    {
+      "group": "job-00",
+      "home_cpu": "0",
+      "builder": true,
+      "dependency": "f862c90876f447d4da10d8cbcbca39971e9646288a9b59c2d7d4dd9bb0e7b6fa",
+      "client": "692679a625c880285d747acb2b20085b002a47f3da4d573449a0538d418e3432",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-01",
+      "home_cpu": "1",
+      "builder": true,
+      "dependency": "4cf9f80f6e590d36e960ecaaff3a9f09dd40c4e8a11f5f3a9c51b76742676d6c",
+      "client": "4c47bb1cdcdb56cb31f439301d9ad06c8d6e252dd8e44c6477f2868c82e41456",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-02",
+      "home_cpu": "2",
+      "builder": true,
+      "dependency": "1c9c59fbff26342a55b46e2178a2f10ba447858d24a472cabec3bcf1c4eacafb",
+      "client": "d900e8219b1b144d192985d481ac0d8f88d553399a3d83e586eb1b9072111ee0",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-03",
+      "home_cpu": "3",
+      "builder": true,
+      "dependency": "779dabc42c85bbf14d8f5001454f8b4de7b6c5636b41fb15b070a4b9f28d90a8",
+      "client": "bc1e2cc08b4994eb35267704948a6aaaa62c0e0d3fed6faa5015060acff298e5",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-04",
+      "home_cpu": "0",
+      "builder": true,
+      "dependency": "48de807e093fcc4559a92428fb774bfeeec5c5304cc9758832d0adcfd9c0fc47",
+      "client": "798c7edd32efdf4c1c21b2f851a84a5fc5685a119aefae94b456a56dbb7c2380",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-05",
+      "home_cpu": "1",
+      "builder": true,
+      "dependency": "94133043abf54c5ebe5d618334dc4ac65a724dec14621c8342a48578dea31e90",
+      "client": "e2eace946b87dd44270b8efd839a2998995014b24db029313ed39c75076b8b25",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-06",
+      "home_cpu": "2",
+      "builder": true,
+      "dependency": "695f8fa23838c6003f53c6c6aeacaa99161eaddf05fa7515339bcd2ba9412746",
+      "client": "41d487ee761139a26ab3d8a157f747ed45a976291fd9f6c8c78970cb594f37c0",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-07",
+      "home_cpu": "3",
+      "builder": true,
+      "dependency": "82f7b9521468426b19eafba01555e5fafaa4ad6493e93de113d5509ac954d679",
+      "client": "f9abed4e7cc583fb6f7486822623257530724ac2fb727a841aa63fd3da11a6af",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-08",
+      "home_cpu": "0",
+      "builder": false,
+      "dependency": "2585c35f93dfb0cdbb2cc014db3df649e0538d6a9e84f1853d7077e72fc3bfef",
+      "client": "f911fa9e27b57c30569ac59ed4a8bae2af507e06a1f909fadedd58b045ff3daa",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-09",
+      "home_cpu": "1",
+      "builder": false,
+      "dependency": "c3ebdcf98bcd23e19ec6882e00f5d368e1b8d31946a1a6d081dcfed7c87a0155",
+      "client": "2689a3813ad991b3c04c3ac3235b35d4ea95ae5fb34a1a75e87a238854c60487",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-10",
+      "home_cpu": "2",
+      "builder": false,
+      "dependency": "974809a0d5bc08afd0741fa5bf216c5a57ad274a22b207cadec0a8583e54fc34",
+      "client": "9113bef85d3ee466593ffd4c2523d2c360774781aad8a34998fee39a38ee5a02",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-11",
+      "home_cpu": "3",
+      "builder": false,
+      "dependency": "b4157c276f83df9629034ba4c5dbd37279404b1b340c4913e9e9ecb05f62c393",
+      "client": "1c366d22a405d14dad2ab0e656aa1369f96a1c841eb95591322991fb8e48123b",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-12",
+      "home_cpu": "0",
+      "builder": false,
+      "dependency": "a23f97f1ef55d6d851b034d63397c136f256ba52198da9c9c610a480d7c7578e",
+      "client": "bc62b8dc2a4f577fe39b37dbd88437966002341278b09c3d008c65098a6731ac",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-13",
+      "home_cpu": "1",
+      "builder": false,
+      "dependency": "d4a530c31a0ea26024fb8222b314a43503b7e13713ff43fd4c1b1f1f072df1b2",
+      "client": "3fb45729a7f799e85233f5b2bf28929616f4eb8a91743126464c37d24ace46ed",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-14",
+      "home_cpu": "2",
+      "builder": false,
+      "dependency": "a244b0dc4262ed4f5aea1e91e782644c18f3dd5a34b5fb2ce33e374ee83434dc",
+      "client": "44bfed363afcabd654cb21e352b5d1d208e790fae44287f3366ff9f18d1ec4bf",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-15",
+      "home_cpu": "3",
+      "builder": false,
+      "dependency": "ebf64a0eb8ebf7bad6f75352f753550a0e7af1d2a80f61b2efeea8b00b87137f",
+      "client": "40207f2c12ed7efb6944391a1ea728ec1540ef2c8613d37a963cdacf76e24930",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-16",
+      "home_cpu": "0",
+      "builder": false,
+      "dependency": "b5e1a0569ad87c9b9b23602d797f12b7f79bb64ae65fae34f12a10c14147a1df",
+      "client": "99c23b13643ea97cf56010df0bfb26a0ace0d92e803d043c48122b5253711b4f",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-17",
+      "home_cpu": "1",
+      "builder": false,
+      "dependency": "723fb9b6974eb194b718b9849e1edb5bdf498e743c7c5ddd37dd47ab90bbcec1",
+      "client": "afd470d79247807b07bf68c91aa192964e8ab32dd2cba5719ffe19e8ea812fd0",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-18",
+      "home_cpu": "2",
+      "builder": false,
+      "dependency": "6b23438bbe9c35fb32b512c93e3905e39bd4892cf747e1ee245fa18c73ba742e",
+      "client": "29761d72c5f4f656e9e081a233612c3d8ff988f1e52c1459d7117260cbbcbf36",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-19",
+      "home_cpu": "3",
+      "builder": false,
+      "dependency": "1b5d127acfcdf75f3a43a920700137f5bfff1930bf5554ff47a4cc26004d926b",
+      "client": "e4caf1b180dff01ff79ee247cfd492024452c3f18dd8a0e0c0086577e1f9faca",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-20",
+      "home_cpu": "0",
+      "builder": false,
+      "dependency": "610da1155b173f7b8f3030717541a6f45b4d45ac02a8013b5221b67a85d76dac",
+      "client": "05b67a863368c95f42bb9d99214915167a329a3d5c81dae58d13136ce3cfc3f3",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-21",
+      "home_cpu": "1",
+      "builder": false,
+      "dependency": "dc11fd910c1c3e88ab266def9e7075ae76a6472b3029d95832b126fea3020deb",
+      "client": "e4e41bd6b4bae71de3e97588dd661218382b3ec93241b8a86a8e4f69a7923883",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-22",
+      "home_cpu": "2",
+      "builder": false,
+      "dependency": "511e65a6e06404345fc85a697d14d3094a2771e29decdd8ed5e2982c46b5c457",
+      "client": "ad2af8ac8622c0409c035174518c50b1bcc6c8d499bdd3925f48689766d3ff47",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-23",
+      "home_cpu": "3",
+      "builder": false,
+      "dependency": "9499155ef0d99e21c0a4986c7d473464986ef5461e2dd18a7f78474a4296004b",
+      "client": "bc90ef7ddc3d8cecfec5a1153633ff5c6ec8b1605f7e70107d0e8f08a2abead8",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-24",
+      "home_cpu": "0",
+      "builder": false,
+      "dependency": "bf6213dab2b649ff846f726eb8f4764d3037aabba3f0de7ae90a6362ab194c69",
+      "client": "55d74b2a3f7333015b6c71fef35635209a67c9b8c7530951a9c483606de4ff89",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-25",
+      "home_cpu": "1",
+      "builder": false,
+      "dependency": "b3d15007b5471ea19a2c697c32d3ce03bac333a0dacb19908669f49a4a30859f",
+      "client": "443a7d1ea58965495cca3e8ac7186c013f56992c84660b777eadbfa6fa78a548",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-26",
+      "home_cpu": "2",
+      "builder": false,
+      "dependency": "02b5b66f5d4bb07b5cbc642864e3f8df22c6701a4a9ccdcdff56aeeb63dcd2f5",
+      "client": "87aeeb8bae63fc1a07e8f084d691401c3bcb41144683a8f2f48b64b8baa4b3cb",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-27",
+      "home_cpu": "3",
+      "builder": false,
+      "dependency": "386a1212132d0fb7683452d3084e47bb220fbb3f9ac447e7a96f6f6d4c806acf",
+      "client": "e3581496d6659a10556a5cc5249e4ffe41f7ed79697873875e342208b0f244a2",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-28",
+      "home_cpu": "0",
+      "builder": false,
+      "dependency": "78b51bffc5274eee8b270f522307a65aa367024c86676048af78211aaa60dae2",
+      "client": "ebd7dea186d1ebe2b5c35a1c74dcf5b2f766d561d9fe6491b1dbe6247f117bd9",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-29",
+      "home_cpu": "1",
+      "builder": false,
+      "dependency": "f22997457249bbe50e6017ea200edf1af9d9327903fa48f9f1264f76ec40ea03",
+      "client": "51e84f0663f2d45eda0ba3b58e5d6bfb8661cb887cbf66e4c402fd05185fecba",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-30",
+      "home_cpu": "2",
+      "builder": false,
+      "dependency": "a21c8acdb141a862c9683da0b42416e90a48e79ef2823165a5f5e62c616baa12",
+      "client": "1e4327a67fa6bb81439679c7e0c39277d933569bc574a65538045efaa92793e6",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    },
+    {
+      "group": "job-31",
+      "home_cpu": "3",
+      "builder": false,
+      "dependency": "4046af71613d87db02a45bf42f7c2e4384378c7e315977b868c80239ef2444c1",
+      "client": "a79511f02af7d6c4f9e4c6353da5c0404074f923165dcdf7faaefb114ccaca42",
+      "common_cpu_parent": "/k8s.io",
+      "direct_parents": [
+        "/k8s.io",
+        "/k8s.io"
+      ],
+      "parent_measured_leaves": 64,
+      "separate_pair_parent_in_cohort": false
+    }
+  ],
+  "measured_leaves": 64,
+  "common_cpu_parents": [
+    "/k8s.io"
+  ],
+  "separate_pair_parents": 0
+}

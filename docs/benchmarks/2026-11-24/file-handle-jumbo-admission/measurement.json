@@ -1,0 +1,1754 @@
+{
+  "issue": "229.03",
+  "tier": "Darwin socket pair and VZ attachment configuration",
+  "macOS": "26.5.1",
+  "arch": "arm64",
+  "sdk": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+  "sdk_version": "26.5",
+  "checkout": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "sources_sha256": {
+    "probe.py": "2a49d1c9b26cb6bab4c6dab2f2303bf2dec3ecd79e120b5e1f41969af38fba5b",
+    "attachment.m": "5d14bd825c1054ad95a40b43f07644f94d04b5c439e9cef96433b6b9af382bd4",
+    "VZFileHandleNetworkDeviceAttachment.h": "2d01225921260912f35e8b9aa8b7ee261ad7b7dff8089b54b5deb5e5587e9960"
+  },
+  "offered_frames_per_direction": 48,
+  "seed": 2290302,
+  "blocks": [
+    [
+      {
+        "mtu": 9000,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f",
+          "received_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1514,
+            65536
+          ],
+          [
+            1514,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9013,
+            65536
+          ],
+          [
+            9013,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9014,
+            65536
+          ],
+          [
+            9014,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1513,
+            65536
+          ],
+          [
+            1513,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    [
+      {
+        "mtu": 1500,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1513,
+            65536
+          ],
+          [
+            1513,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f",
+          "received_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1514,
+            65536
+          ],
+          [
+            1514,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9014,
+            65536
+          ],
+          [
+            9014,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9013,
+            65536
+          ],
+          [
+            9013,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    [
+      {
+        "mtu": 1500,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1514,
+            65536
+          ],
+          [
+            1514,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f",
+          "received_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9013,
+            65536
+          ],
+          [
+            9013,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9014,
+            65536
+          ],
+          [
+            9014,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1513,
+            65536
+          ],
+          [
+            1513,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 0,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      }
+    ],
+    [
+      {
+        "mtu": 9000,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "client_only_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7",
+          "received_sha256": "38ddf0ce682048a55702706d34b0d1fc8cf9b9742a814f4aaae411edd7b9c8c7"
+        },
+        "fd_to_client": {
+          "received": 3,
+          "received_bytes": 27042,
+          "refused": {
+            "ENOBUFS": 45
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f",
+          "received_sha256": "7d0ba22a4007ea796ba107ccc64f6dd158d65e49eed75e1942ea50a9205ca08f"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "qualified_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            65536
+          ],
+          [
+            16384,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "qualified_2x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            16384,
+            32768
+          ],
+          [
+            16384,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9013,
+            65536
+          ],
+          [
+            9013,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "one_byte_short",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1513,
+            65536
+          ],
+          [
+            1513,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "fd_to_client": {
+          "received": 0,
+          "received_bytes": 0,
+          "refused": {
+            "EMSGSIZE": 48
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "received_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            1514,
+            65536
+          ],
+          [
+            1514,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c",
+          "received_sha256": "a8c11e64991148ce47062694633d391fa1ef5a8ecb4f69a05596dc021c8ccd1c"
+        },
+        "fd_to_client": {
+          "received": 42,
+          "received_bytes": 63588,
+          "refused": {
+            "ENOBUFS": 6
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed",
+          "received_sha256": "2c30ef45037cf45f18f6a1e2c0ccca6d962b4cc36a822e087fa30f59d51763ed"
+        }
+      },
+      {
+        "mtu": 9000,
+        "name": "exact_frame",
+        "attachment_mtu_readback": 9000,
+        "effective_buffers": [
+          [
+            9014,
+            65536
+          ],
+          [
+            9014,
+            65536
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377",
+          "received_sha256": "25d272dc1f4ec7e8a3120e5c4c3194920df738984a24e0d65bc17bdf6a818377"
+        },
+        "fd_to_client": {
+          "received": 7,
+          "received_bytes": 63098,
+          "refused": {
+            "ENOBUFS": 41
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820",
+          "received_sha256": "ef3d12523b687473c678ac261eea8157b2048de7dc8a939917c76dc8633f8820"
+        }
+      },
+      {
+        "mtu": 1500,
+        "name": "small_sender_4x",
+        "attachment_mtu_readback": 1500,
+        "effective_buffers": [
+          [
+            8192,
+            32768
+          ],
+          [
+            8192,
+            32768
+          ]
+        ],
+        "leading_sender": 1,
+        "client_to_fd": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d",
+          "received_sha256": "b9d4a874a042f5dc262b8ffa1fa9b4b335f63893e6fb7f6831493b4af3db8e4d"
+        },
+        "fd_to_client": {
+          "received": 21,
+          "received_bytes": 31794,
+          "refused": {
+            "ENOBUFS": 27
+          },
+          "post_drain_marker": true,
+          "expected_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0",
+          "received_sha256": "0db4d368cb1f59f76036da1812590599bcc3b6a99bff5bf1e74fd58c91d5faf0"
+        }
+      }
+    ]
+  ]
+}

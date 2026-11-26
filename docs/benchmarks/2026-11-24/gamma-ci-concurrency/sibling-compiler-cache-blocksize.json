@@ -1,0 +1,1484 @@
+{
+  "median_candidate_over_control": {
+    "A": {
+      "makespan_s": 0.9708427728975391,
+      "p95_us": 0.6839132020979463,
+      "p99_us": 0.4780920674939306,
+      "service_p95_us": 0.9274122684177076,
+      "service_p99_us": 0.941506159623646,
+      "builder_container_cpu_us": {
+        "usage_usec": 0.9801098435015209,
+        "user_usec": 0.9838069992494659,
+        "system_usec": 0.9477787992041078
+      }
+    },
+    "B": {
+      "makespan_s": 0.9854776109471544,
+      "p95_us": 0.9655712761349451,
+      "p99_us": 1.1391267520460633,
+      "service_p95_us": 0.8853632624632662,
+      "service_p99_us": 0.9346855170135058,
+      "builder_container_cpu_us": {
+        "usage_usec": 0.9853462987617921,
+        "user_usec": 0.9727485272143349,
+        "system_usec": 1.0128763472331914
+      }
+    }
+  },
+  "median_peer_relative_build_makespan_ratio": 0.9888078676421235,
+  "comparisons": [
+    {
+      "seed": 250171,
+      "control_boot": "d7d5f66a-48b7-4de0-824a-0b98004cf04a",
+      "candidate_boot": "a60ae77c-367e-451a-8057-bcd08131e8d7",
+      "committed_4k": {
+        "initial": {
+          "uuid": "b6f49b3a-030e-4ec6-affa-84823462927a",
+          "used_bytes": 21827584,
+          "used_inodes": 11
+        },
+        "final": {
+          "uuid": "b6f49b3a-030e-4ec6-affa-84823462927a",
+          "used_bytes": 148353024,
+          "used_inodes": 2929
+        }
+      },
+      "committed_16k": {
+        "initial": {
+          "uuid": "634797de-c866-460e-9367-ad986aaf4aff",
+          "used_bytes": 22003712,
+          "used_inodes": 11
+        },
+        "final": {
+          "uuid": "634797de-c866-460e-9367-ad986aaf4aff",
+          "used_bytes": 182730752,
+          "used_inodes": 2929
+        }
+      },
+      "pairs": [
+        {
+          "control": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 2035.209,
+              "p99_us": 9630.584,
+              "service_p95_us": 891.292,
+              "service_p99_us": 1637.917,
+              "makespan_s": 3.345520585,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9167015,
+                "user_usec": 7216661,
+                "system_usec": 1950353
+              },
+              "loop": {
+                "reads": 1253,
+                "read_bytes": 30183424,
+                "writes": 38,
+                "write_bytes": 5558272,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3844.106,
+              "p99_us": 8731.125,
+              "service_p95_us": 375.66,
+              "service_p99_us": 1355.685,
+              "makespan_s": 3.164121563,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9271590,
+                "user_usec": 7521680,
+                "system_usec": 1749911
+              }
+            }
+          },
+          "candidate": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 1561.376,
+              "p99_us": 4932.0,
+              "service_p95_us": 759.333,
+              "service_p99_us": 1452.667,
+              "makespan_s": 3.227517626,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 8987586,
+                "user_usec": 6974853,
+                "system_usec": 2012733
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 0,
+                "write_bytes": 0,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 4087.401,
+              "p99_us": 16407.312,
+              "service_p95_us": 384.823,
+              "service_p99_us": 1480.587,
+              "makespan_s": 3.191144578,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9127454,
+                "user_usec": 7203724,
+                "system_usec": 1923727
+              }
+            }
+          }
+        },
+        {
+          "control": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 5860.501,
+              "p99_us": 13506.917,
+              "service_p95_us": 926.208,
+              "service_p99_us": 1735.958,
+              "makespan_s": 3.507585626,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9542536,
+                "user_usec": 7616821,
+                "system_usec": 1925713
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 0,
+                "write_bytes": 0,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 4034.308,
+              "p99_us": 7431.316,
+              "service_p95_us": 444.534,
+              "service_p99_us": 1519.973,
+              "makespan_s": 3.314559195,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9576478,
+                "user_usec": 7759499,
+                "system_usec": 1816979
+              }
+            }
+          },
+          "candidate": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 2258.874,
+              "p99_us": 5997.958,
+              "service_p95_us": 867.292,
+              "service_p99_us": 1590.542,
+              "makespan_s": 3.32748871,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9082536,
+                "user_usec": 7280160,
+                "system_usec": 1802378
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 6,
+                "write_bytes": 163840,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 4785.683,
+              "p99_us": 23777.443,
+              "service_p95_us": 338.992,
+              "service_p99_us": 1200.511,
+              "makespan_s": 3.011892135,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 8865465,
+                "user_usec": 7217671,
+                "system_usec": 1647795
+              }
+            }
+          }
+        },
+        {
+          "control": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 2835.166,
+              "p99_us": 12948.791,
+              "service_p95_us": 858.708,
+              "service_p99_us": 1585.583,
+              "makespan_s": 3.330916112,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9165247,
+                "user_usec": 7371593,
+                "system_usec": 1793655
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 0,
+                "write_bytes": 0,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3743.71,
+              "p99_us": 11758.982,
+              "service_p95_us": 306.659,
+              "service_p99_us": 1204.511,
+              "makespan_s": 3.131146297,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9056652,
+                "user_usec": 7360955,
+                "system_usec": 1695698
+              }
+            }
+          },
+          "candidate": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 1681.168,
+              "p99_us": 4607.918,
+              "service_p95_us": 788.667,
+              "service_p99_us": 1471.042,
+              "makespan_s": 3.251719612,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 8980045,
+                "user_usec": 7278214,
+                "system_usec": 1701832
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 49,
+                "write_bytes": 21446656,
+                "flushes": 2
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3646.421,
+              "p99_us": 18376.682,
+              "service_p95_us": 269.285,
+              "service_p99_us": 1149.846,
+              "makespan_s": 2.972658373,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 8865343,
+                "user_usec": 7128505,
+                "system_usec": 1736841
+              }
+            }
+          }
+        },
+        {
+          "control": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 2757.084,
+              "p99_us": 12752.584,
+              "service_p95_us": 869.0,
+              "service_p99_us": 1627.625,
+              "makespan_s": 3.276719585,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9013502,
+                "user_usec": 7184683,
+                "system_usec": 1828822
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 47,
+                "write_bytes": 3723264,
+                "flushes": 2
+              }
+            },
+            "after_last_window_to_sync_loop": {
+              "reads": 1,
+              "read_bytes": 131072,
+              "writes": 219,
+              "write_bytes": 20611072,
+              "flushes": 7
+            },
+            "unmount_loop": {
+              "reads": 0,
+              "read_bytes": 0,
+              "writes": 13,
+              "write_bytes": 28672,
+              "flushes": 14
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3645.67,
+              "p99_us": 8610.937,
+              "service_p95_us": 275.535,
+              "service_p99_us": 1198.928,
+              "makespan_s": 2.997652118,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 8974858,
+                "user_usec": 7197787,
+                "system_usec": 1777071
+              }
+            }
+          },
+          "candidate": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 1968.542,
+              "p99_us": 4504.375,
+              "service_p95_us": 797.75,
+              "service_p99_us": 1554.791,
+              "makespan_s": 3.37798771,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9210765,
+                "user_usec": 7470199,
+                "system_usec": 1740562
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 0,
+                "write_bytes": 0,
+                "flushes": 0
+              }
+            },
+            "after_last_window_to_sync_loop": {
+              "reads": 0,
+              "read_bytes": 0,
+              "writes": 187,
+              "write_bytes": 37158912,
+              "flushes": 7
+            },
+            "unmount_loop": {
+              "reads": 0,
+              "read_bytes": 0,
+              "writes": 9,
+              "write_bytes": 81920,
+              "flushes": 10
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3945.253,
+              "p99_us": 9870.454,
+              "service_p95_us": 355.283,
+              "service_p99_us": 1336.55,
+              "makespan_s": 3.152949082,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9058496,
+                "user_usec": 7278782,
+                "system_usec": 1779718
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "seed": 250173,
+      "control_boot": "4fc74172-3bce-4c4d-8dd5-b0318a0784e4",
+      "candidate_boot": "a2a00971-66eb-49f4-be80-2ec1d6b4e2f0",
+      "committed_4k": {
+        "initial": {
+          "uuid": "608f9b06-9b31-4a66-8574-3fae55b9f155",
+          "used_bytes": 21827584,
+          "used_inodes": 11
+        },
+        "final": {
+          "uuid": "608f9b06-9b31-4a66-8574-3fae55b9f155",
+          "used_bytes": 148361216,
+          "used_inodes": 2931
+        }
+      },
+      "committed_16k": {
+        "initial": {
+          "uuid": "e79bd4bd-789c-40c4-b289-b08b4d26bad9",
+          "used_bytes": 22003712,
+          "used_inodes": 11
+        },
+        "final": {
+          "uuid": "e79bd4bd-789c-40c4-b289-b08b4d26bad9",
+          "used_bytes": 182747136,
+          "used_inodes": 2930
+        }
+      },
+      "pairs": [
+        {
+          "control": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 12987.042,
+              "p99_us": 41040.0,
+              "service_p95_us": 1021.042,
+              "service_p99_us": 2021.792,
+              "makespan_s": 3.698061002,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9917829,
+                "user_usec": 7899108,
+                "system_usec": 2018717
+              },
+              "loop": {
+                "reads": 260,
+                "read_bytes": 13987840,
+                "writes": 0,
+                "write_bytes": 0,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3921.833,
+              "p99_us": 7598.736,
+              "service_p95_us": 403.198,
+              "service_p99_us": 1402.213,
+              "makespan_s": 3.170970692,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9271493,
+                "user_usec": 7502346,
+                "system_usec": 1769146
+              }
+            }
+          },
+          "candidate": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 3141.042,
+              "p99_us": 11780.042,
+              "service_p95_us": 921.666,
+              "service_p99_us": 1615.667,
+              "makespan_s": 3.429991168,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9347663,
+                "user_usec": 7436442,
+                "system_usec": 1911222
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 0,
+                "write_bytes": 0,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3693.626,
+              "p99_us": 8601.648,
+              "service_p95_us": 364.282,
+              "service_p99_us": 1262.134,
+              "makespan_s": 3.152883985,
+              "products": [
+                "b51fd62584eedbed047cf8c88a70ff3cba151ecde84363208f4cdc05fb8d76c9",
+                "d36a2e86e368465bbff8526e09ebfb8e61d5ea34cdbf2e13a4391a1af5e3f5e7",
+                "56701195e4c14937019a9649da1b537cd074e1a9cc4907e0835ef157b44ef21f",
+                "fbbcc9a2b23c63646a5bf43c1553ee52a083569786318ca09047901a8150dc47",
+                "cef3091ca4ec47439a26f02faf84d39b6c60d02da15f8a49d61e897b26cc995e",
+                "b1e92278bd8dc4553d2899cd7e843f761c2702853d1d26abeb9b922df9384468",
+                "1ad3b38240c4caf033f9bd202239fea3c523807689ae988ba25ebea16061f29d",
+                "72b450c76369c142db34297e8eb44b77e073b828d3f591da1a9ca2b49e9793a0",
+                "42fcaa893b7affcc12f96d9fbdc7d2528be0ec9190ff3da3a4ce7967d2648686",
+                "fd1876432d7a3e3fd92369da2db88d1f4fd915b5508423c573b7ae8d2b7eb348",
+                "36c35874c9fc60675e71e06d9851f45313af81504e340e6cf7a842f4d1b1d805",
+                "2eb187f62cfcccd72d10f59a75fa01a5ce6e9d10f039cef23dd1ae9dadd1bcb8",
+                "90e4111df13911a1650cf544e88d2478f1254ce6c72e675a3c9cbfe3833f3751",
+                "b38c2ba19d45fef099c4804eb16b760e8e2a6ba5488b7a122c267464f216d1f0",
+                "b22fd05b970c4f08b58cf979ee975da53c09ddd53b6c6494a9eba0762ee25e1a",
+                "81c0314cdbd4bd38ddd57bfed8d554ce1c4ab74c3576514f802f27b9792ee85b"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9164005,
+                "user_usec": 7330361,
+                "system_usec": 1833645
+              }
+            }
+          }
+        },
+        {
+          "control": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 3413.167,
+              "p99_us": 9919.75,
+              "service_p95_us": 991.792,
+              "service_p99_us": 1782.667,
+              "makespan_s": 3.54011146,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9595305,
+                "user_usec": 7393824,
+                "system_usec": 2201480
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 7,
+                "write_bytes": 1712128,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 4975.931,
+              "p99_us": 16529.814,
+              "service_p95_us": 433.739,
+              "service_p99_us": 1553.501,
+              "makespan_s": 3.201589016,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9275328,
+                "user_usec": 7157924,
+                "system_usec": 2117406
+              }
+            }
+          },
+          "candidate": {
+            "order": "BA",
+            "A": {
+              "requests": 96000,
+              "p95_us": 3816.501,
+              "p99_us": 13252.543,
+              "service_p95_us": 957.709,
+              "service_p99_us": 1703.292,
+              "makespan_s": 3.424989501,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9616226,
+                "user_usec": 7563094,
+                "system_usec": 2053127
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 76,
+                "write_bytes": 5341184,
+                "flushes": 2
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3926.267,
+              "p99_us": 8787.068,
+              "service_p95_us": 387.156,
+              "service_p99_us": 1462.128,
+              "makespan_s": 3.189477189,
+              "products": [
+                "8444e5c8dc0e42a1a03fe7bf6969649d2088ea7cf634d7d447cb4a35be0788c4",
+                "836ab5329fe959402175b744aeb4a8cec8a9e597fde1d45427c66ae948d8a413",
+                "50b7cf764c22d88f852ef8099c94499dcb6326c6238ce6837dc24e96cf2a8080",
+                "5b36072533943b91013e728575ab9adc8337e33189eac6896f00d1dbbde518ea",
+                "90459cb911e5dbfaff815c6acfe63d97359008ff9f79ab38d2bf51f6ac331bb8",
+                "f2fd0c2790b7f54f90d24a2855bfe8ca991903c82a19ab213251f27ea3d1b71a",
+                "146a8962479f7d8cd87325c72a6e5d408545e0562ec04cf693bcf01e04086aba",
+                "46c43ef906e6191ed4db3a59112641d32ac92df71c29a13ee45ae4bc635609ed",
+                "baaa6fb97a678b011778816c76ed43445398447fd225e32b556effd36aa85860",
+                "a4e0596c52e140f42f9f647876301247438b387def5b0aa6ed9ac05533a150ff",
+                "685c80fccb159356ad67e648dc0814094ab6f6e0e58f77bc2505520f9e857ab0",
+                "bacc53dc893cef822a4df69c1481c42874f7b9dc5e4b6b97e5d93e60846206b9",
+                "e4f62a785e615d83fd38946ab3ceb69483ff18d4e6af86f5a28dac80e1695756",
+                "f4f79c5e6e832ff0343850eef25161555c3f8fc67f96d3aa9df4f82c2ba4a991",
+                "c2017ec6761d63843645aa9b2faf08ee7349fd375107e7805e0cef3fc94323c7",
+                "0b80f52d16e2a3aab3dbebc91ecf8004179f73988197795e7e810a1f8b2673f4"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9221524,
+                "user_usec": 7425839,
+                "system_usec": 1795686
+              }
+            }
+          }
+        },
+        {
+          "control": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 3275.751,
+              "p99_us": 12287.667,
+              "service_p95_us": 984.5,
+              "service_p99_us": 1765.917,
+              "makespan_s": 3.579462127,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9552512,
+                "user_usec": 7462839,
+                "system_usec": 2089669
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 30,
+                "write_bytes": 1495040,
+                "flushes": 0
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 5126.008,
+              "p99_us": 20411.473,
+              "service_p95_us": 440.655,
+              "service_p99_us": 1586.292,
+              "makespan_s": 3.28118639,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9444158,
+                "user_usec": 7593551,
+                "system_usec": 1850607
+              }
+            }
+          },
+          "candidate": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 8971.041,
+              "p99_us": 23371.083,
+              "service_p95_us": 1038.375,
+              "service_p99_us": 1812.125,
+              "makespan_s": 3.487129362,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9441950,
+                "user_usec": 7487636,
+                "system_usec": 1954317
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 2,
+                "write_bytes": 16384,
+                "flushes": 2
+              }
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 3846.003,
+              "p99_us": 7280.691,
+              "service_p95_us": 375.615,
+              "service_p99_us": 1472.378,
+              "makespan_s": 3.204600419,
+              "products": [
+                "16717507c7bb532281c0f5ffc70100f0d2fdab5424044d97016f269d7ce165bb",
+                "1830b2c52410e640de306e70caede6322bd38eecdac85a7134e76466fbc29483",
+                "17ca1cd2cdcb2946585946b41029da980d5b908c3b7822d8606e7cd3f4970505",
+                "e02433432eaf45a1b647f1ff05ed24812b1985cf2c45bc7a7736970e90d3ae55",
+                "abfbb21e1da1e80a3b4422f666bea6e984dd0934f021607ffb94042c32d4138c",
+                "1e43a9e33eb3e47d44eceade8b1813c3a4fe0eb06828aa12314bddc50bba5aab",
+                "d68bc3a7dfae6b92a58da5012cbb9374947b45dcce3648ecf3669033560ce0b2",
+                "56eb0c05b23ebfe827a185a0ae5fdec7b94f1e9082243678752d66da61e0e760",
+                "edd2efb308b2dbc8c509ecad5fb26d4d704c256a5fc64dea9aada3cda5a8e8b1",
+                "877399dfb94b79ab8bb416c2b644fb29f6184931fb71b22b6d5c5e2f1b7f4429",
+                "ada210a4674ae54e33ac0cc3e7c651c70e2869be44bc5392f5f41240b8a650ff",
+                "fb55f0cbf793d8f0d598340d439565648eb3d431114df71269b9caf229628f78",
+                "fc6d1a8b65df57e52765c42494cecb2496fedd0326e716965fca9466aea6ad37",
+                "0d750bd5600607f0aa2419a77714e00594d44e561e6f8c49407a81b706c9e7f3",
+                "17ef4114348678df13d851e81dbcd2d6e7cf9bf3ae639571be64668470363993",
+                "bcc90062a4104b51350231a72350e1bfad4dbd76a8398825134549c95c883ca9"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9314193,
+                "user_usec": 7133312,
+                "system_usec": 2180881
+              }
+            }
+          }
+        },
+        {
+          "control": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 3527.792,
+              "p99_us": 14006.333,
+              "service_p95_us": 992.167,
+              "service_p99_us": 1738.917,
+              "makespan_s": 3.476703335,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9432759,
+                "user_usec": 7413816,
+                "system_usec": 2018944
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 96,
+                "write_bytes": 13590528,
+                "flushes": 0
+              }
+            },
+            "after_last_window_to_sync_loop": {
+              "reads": 1,
+              "read_bytes": 114688,
+              "writes": 176,
+              "write_bytes": 9437184,
+              "flushes": 5
+            },
+            "unmount_loop": {
+              "reads": 0,
+              "read_bytes": 0,
+              "writes": 7,
+              "write_bytes": 16384,
+              "flushes": 8
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 4751.584,
+              "p99_us": 11047.794,
+              "service_p95_us": 471.862,
+              "service_p99_us": 1810.952,
+              "makespan_s": 3.233300977,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9461778,
+                "user_usec": 7574573,
+                "system_usec": 1887203
+              }
+            }
+          },
+          "candidate": {
+            "order": "AB",
+            "A": {
+              "requests": 96000,
+              "p95_us": 2306.584,
+              "p99_us": 11551.958,
+              "service_p95_us": 954.459,
+              "service_p99_us": 1746.458,
+              "makespan_s": 3.531395169,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9216261,
+                "user_usec": 7267626,
+                "system_usec": 1948635
+              },
+              "loop": {
+                "reads": 0,
+                "read_bytes": 0,
+                "writes": 2,
+                "write_bytes": 573440,
+                "flushes": 2
+              }
+            },
+            "after_last_window_to_sync_loop": {
+              "reads": 0,
+              "read_bytes": 0,
+              "writes": 120,
+              "write_bytes": 25165824,
+              "flushes": 7
+            },
+            "unmount_loop": {
+              "reads": 0,
+              "read_bytes": 0,
+              "writes": 9,
+              "write_bytes": 81920,
+              "flushes": 10
+            },
+            "B": {
+              "requests": 96000,
+              "p95_us": 4547.883,
+              "p99_us": 11760.438,
+              "service_p95_us": 395.282,
+              "service_p99_us": 1508.044,
+              "makespan_s": 3.130890889,
+              "products": [
+                "dfeea74037e48976fc982db8b9017bf47dcf7df17af75d9b819292e159dac15f",
+                "bee9794139292f73b47fc1dba0b8686001f792498f10b7514f254f7df3a5e2df",
+                "b60347c84e003b7d5c6c463299ba536dc3eac9286a1ee1eb6bc5e8d7a7fcf365",
+                "b71acec890314ce778c384afb529d76f5f8e964d72839354a0425e2e63cb095e",
+                "683dbcd52683500c98997f5f82f8ca0a1f701382a0073264a534959d7b80282f",
+                "64a94110d6801eac5ad9d11706d88f69e9220b223ad5aa00064258ce34fda5e9",
+                "0b370c463acac915d994bed185415d72b3aafa3bb23bcf7a965084d9911ef91b",
+                "6f69c3146a4f304ac32c07f805c68c606e96ebe36aec20861516efd7a779d773",
+                "14aaf48829a16abb9afa36d562d25c6deabcffa076ecef36e3948eaa96e29b29",
+                "92dcd459e86ed70effab9e584860f94f8b8a07426ff35938bdad311836ba61bb",
+                "84003870de196e51e7feb089bee934fa9c5cec8f228352afd6edad418f45ffc0",
+                "21d850b8f87d06e01262f920756fac8bcf66450e869439a63e49932e26a8543a",
+                "d68918402aabc7c712c44d2de0211d6e6c6295f6e9e416aee6bc33907b98c1fa",
+                "ffdf618d465931c9cb4d6688fb4a0760c8b47e608276437c025784ea1d9982b0",
+                "5bb60bab105483be565417242eb2ed33cdd090ffb4a82e3e8de2213b20fd4d17",
+                "bcdf4542e848e03524935eedf43e06ffc4c58d45b05fb05f9760d9c0788ae1ca"
+              ],
+              "go_actions": {
+                "compile": 48,
+                "vet": 32,
+                "link": 48
+              },
+              "builder_container_cpu_us": {
+                "usage_usec": 9146760,
+                "user_usec": 7432407,
+                "system_usec": 1714354
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "plans": [
+    "20261125T022458Z-sibling-ext4-zu1_22iu",
+    "20261125T022629Z-sibling-ext4-lqkrpudi",
+    "20261125T022759Z-sibling-ext4-epcxev4i",
+    "20261125T022931Z-sibling-ext4-bthwgm4x"
+  ],
+  "baseline_files": 24
+}

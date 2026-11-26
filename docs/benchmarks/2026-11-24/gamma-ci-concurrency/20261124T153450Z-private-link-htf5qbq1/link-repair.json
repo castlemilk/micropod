@@ -1,0 +1,23 @@
+{
+  "original": 9000,
+  "disturbed": 1500,
+  "end": 9000,
+  "worker_receipt": {
+    "instance": "53F3E714-5F06-48E7-BA6C-C9A15F51FFCE",
+    "seconds": 0.063743083,
+    "cause": "guest-link-restored",
+    "timestamp": 817227312.671593,
+    "gateway": "192.168.128.1"
+  },
+  "existing_mtu_before": 9000,
+  "existing_mtu_after": 9000,
+  "publication_queue_before": [
+    "3",
+    "7"
+  ],
+  "publication_queue_after": [
+    "3",
+    "7"
+  ],
+  "seconds": 16.754365542001324
+}

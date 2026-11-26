@@ -1,0 +1,96 @@
+// Run the driver's original cleanup/receive loops on fixed used-ring entries.
+#include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+enum { VIRTNET_XMIT_TYPE_SKB, VIRTNET_XMIT_TYPE_SKB_ORPHAN, VIRTNET_XMIT_TYPE_XDP,
+       VIRTNET_XMIT_TYPE_XSK, MAX_SKB_FRAGS = 17, READY = 96 };
+struct sk_buff { unsigned int len; };
+struct xdp_frame { unsigned int len; };
+struct vdev { void *priv; };
+struct virtqueue { unsigned int remaining, num_free, skb_len; struct vdev *vdev; };
+struct napi_struct { int weight; };
+struct virtnet_sq_free_stats { unsigned int napi_packets, napi_bytes, packets, bytes, xsk; };
+struct send_queue { struct virtqueue *vq; struct napi_struct napi; bool reset;
+                    struct {unsigned bytes, packets;} stats; };
+struct virtnet_info { struct send_queue *sq; };
+struct receive_queue { struct virtqueue *vq; void *page_pool; };
+struct netdev_queue { unsigned completed, bytes; };
+struct virtnet_rq_stats { unsigned count; };
+
+static struct netdev_queue txq_fixture;
+static unsigned first_rx_tx_completed;
+static unsigned consumed, rx_seen;
+static struct sk_buff *virtqueue_get_buf(struct virtqueue *q, unsigned int *len)
+{
+    static struct sk_buff skb;
+    if (!q->remaining) return NULL;
+    q->remaining--;
+    q->num_free++;
+    *len = skb.len = q->skb_len;
+    return &skb;
+}
+static void consume_rx(unsigned int len, struct virtnet_rq_stats *stats)
+{
+    assert(len == 128);
+    if (rx_seen == 0) first_rx_tx_completed = txq_fixture.completed;
+    rx_seen++;
+    stats->count++;
+}
+#define unlikely(x) (x)
+#define pr_debug(...) ((void)0)
+#define virtnet_xmit_ptr_unpack(ptr) VIRTNET_XMIT_TYPE_SKB
+#define napi_consume_skb(skb,context) (assert(context), consumed++)
+#define xdp_get_frame_len(f) ((f)->len)
+#define xdp_return_frame(f) abort()
+#define virtnet_ptr_to_xsk_buff_len(ptr) (abort(),0)
+#define virtnet_xsk_completed(...) abort()
+#define netdev_tx_completed_queue(q,n,b) ((q)->completed += (n), (q)->bytes += (b))
+#define u64_stats_update_begin(x) ((void)0)
+#define u64_stats_add(i,n) (*(i) += (n))
+#define u64_stats_update_end(x) ((void)0)
+#define vq2rxq(vq) 0U
+#define is_xdp_raw_buffer_queue(vi,q) false
+#define netdev_get_tx_queue(dev,q) ((void)(q), &txq_fixture)
+#define __netif_tx_trylock(q) true
+#define __netif_tx_unlock(q) ((void)0)
+#define virtqueue_disable_cb(q) ((void)0)
+#define virtqueue_enable_cb_delayed(q) true
+#define virtnet_tx_wake_queue(vi,sq) ((void)0)
+#define virtnet_rq_get_buf(rq,len,ctx) virtqueue_get_buf((rq)->vq,len)
+#define receive_buf(vi,rq,buf,len,ctx,xdp,stats) ((void)(ctx), consume_rx(len,stats))
+@FUNCTIONS@
+
+static int virtnet_receive(struct receive_queue *rq, int budget, unsigned int *xdp)
+{
+    struct virtnet_rq_stats stats = {0};
+    return virtnet_receive_packets(rq->vq->vdev->priv, rq, budget, xdp, &stats);
+}
+static int driver_poll(struct receive_queue *rq, int budget)
+{
+    int received;
+    unsigned int xdp_xmit = 0;
+    @POLL@
+    return received;
+}
+
+int main(int argc,char **argv)
+{
+    assert(argc == 2);
+    int budget = atoi(argv[1]);
+    struct virtqueue tx = {.remaining=READY, .num_free=256-READY, .skb_len=16384};
+    struct send_queue sq = {.vq=&tx, .napi.weight=budget};
+    struct virtnet_info vi = {.sq=&sq};
+    struct vdev device = {.priv=&vi};
+    struct virtqueue rx = {.remaining=READY, .num_free=256-READY, .skb_len=128, .vdev=&device};
+    struct receive_queue rq = {.vq=&rx, .page_pool=NULL};
+    for (int index = 1; rx.remaining > 0; ++index) {
+        unsigned int before_tx = consumed, before_bytes = txq_fixture.bytes;
+        int processed = driver_poll(&rq, budget);
+        assert(processed > 0 && txq_fixture.completed == consumed);
+        printf("{\"poll\":%d,\"tx_completed\":%u,\"tx_bytes_completed\":%u,"
+               "\"rx_processed\":%d,\"rx_remaining\":%u,\"tx_done_before_first_rx\":%u}\n",
+               index, consumed-before_tx, txq_fixture.bytes-before_bytes, processed,
+               rx.remaining, first_rx_tx_completed);
+    }
+}

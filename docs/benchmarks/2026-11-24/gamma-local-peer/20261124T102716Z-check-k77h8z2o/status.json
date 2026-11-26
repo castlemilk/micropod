@@ -1,0 +1,7 @@
+{
+  "complete": false,
+  "action": "check",
+  "start": "2026-11-24T10:27:16.281955+00:00",
+  "error": "'types.SimpleNamespace' object has no attribute 'tools'",
+  "end": "2026-11-24T10:27:21.931498+00:00"
+}

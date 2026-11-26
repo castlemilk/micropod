@@ -1,0 +1,128 @@
+{
+  "control": {
+    "image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "candidate": {
+    "image_sha256": "2c711a6f4353b87b6c29a29587364ca380fa4d66ad82567fea45ec794cc9fdcf",
+    "config_sha256": "35cbda706f5508db753af4e554ff2dbf4a2308eed7d7e97338c5d45a427b03b5",
+    "image_bytes": 30097920,
+    "image_memory_bytes": 30932992,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "config_changes": {
+    "CONFIG_ARCH_HAS_PMD_SOFTLEAVES": [
+      null,
+      "y"
+    ],
+    "CONFIG_ARCH_SUPPORTS_HUGE_PFNMAP": [
+      null,
+      "y"
+    ],
+    "CONFIG_ARCH_SUPPORTS_PMD_PFNMAP": [
+      null,
+      "y"
+    ],
+    "CONFIG_ARCH_WANT_PMD_MKWRITE": [
+      null,
+      "y"
+    ],
+    "CONFIG_ARM64_CONTPTE": [
+      null,
+      "y"
+    ],
+    "CONFIG_DEV_DAX": [
+      null,
+      "n"
+    ],
+    "CONFIG_FS_DAX_PMD": [
+      null,
+      "y"
+    ],
+    "CONFIG_MM_ID": [
+      null,
+      "y"
+    ],
+    "CONFIG_NO_PAGE_MAPCOUNT": [
+      null,
+      "n"
+    ],
+    "CONFIG_PERSISTENT_HUGE_ZERO_FOLIO": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE": [
+      "n",
+      "y"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_MADVISE": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_NEVER": [
+      null,
+      "y"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_SHMEM_HUGE_ADVISE": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_SHMEM_HUGE_ALWAYS": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_SHMEM_HUGE_NEVER": [
+      null,
+      "y"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_SHMEM_HUGE_WITHIN_SIZE": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_TMPFS_HUGE_ADVISE": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_TMPFS_HUGE_ALWAYS": [
+      null,
+      "n"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_TMPFS_HUGE_NEVER": [
+      null,
+      "y"
+    ],
+    "CONFIG_TRANSPARENT_HUGEPAGE_TMPFS_HUGE_WITHIN_SIZE": [
+      null,
+      "n"
+    ]
+  },
+  "inputs": {
+    "profile": "full-16k",
+    "release": "7.3.5-micropod",
+    "source_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+    "seed_sha256": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21",
+    "ipvlan_builder_sha256": "3b9d07cc789d4f12ed552c504122c4b93652bf8f9015268aa0deb96f23eded47",
+    "builder_sha256": "eac05d12df22631836b087cc65f74b24dec8368b7e454b77f67dec755ca72d34",
+    "compiler_image": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+    "environment": {
+      "KBUILD_BUILD_HOST": "gamma",
+      "KBUILD_BUILD_TIMESTAMP": "Tue Nov 17 10:35:00 UTC 2026",
+      "KBUILD_BUILD_VERSION": "1",
+      "JOBS": "4",
+      "KBUILD_BUILD_USER": "micropod"
+    },
+    "toolchain_sha256": "979b313c45b93a91d411550c4a2739a54fe0ef316deaa34612c8e5ccd651ac1d",
+    "package_count": 97,
+    "packages_sha256": "3a979f34df86c37a9c1aa49101e9b1e76176d79cad2b985580bf4b6ce28aa7ce"
+  },
+  "builder_retired": true
+}

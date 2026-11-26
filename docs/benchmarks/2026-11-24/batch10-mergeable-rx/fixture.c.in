@@ -1,0 +1,137 @@
+// Kernel RX functions are injected from the hash-verified driver by reproduce.py.
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
+enum { PAGE_SIZE = 4096, L1_CACHE_BYTES = 64, MAX_SKB_FRAGS = 17, POSTS = 32,
+       ETH_HLEN = 14, VLAN_HLEN = 4, ETH_DATA_LEN = 1500, IP_MAX_MTU = 65535,
+       GOOD_PACKET_LEN = ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN, NETDEV_XDP_ACT_RX_SG = 1 };
+enum feature { VIRTIO_NET_F_GUEST_TSO4, VIRTIO_NET_F_GUEST_TSO6, VIRTIO_NET_F_GUEST_ECN,
+               VIRTIO_NET_F_GUEST_UFO, VIRTIO_NET_F_GUEST_USO4, VIRTIO_NET_F_GUEST_USO6,
+               VIRTIO_NET_F_MRG_RXBUF };
+
+typedef int gfp_t;
+typedef uintptr_t dma_addr_t;
+struct page { char data[PAGE_SIZE]; unsigned long private; };
+struct skb_shared_info { char unused[1]; }; // No XDP headroom in either arm.
+struct padded_vnet_hdr { char bytes[32]; };
+struct scatterlist { int len; };
+struct device { void *priv; bool mergeable; };
+struct netdev { unsigned int max_mtu, xdp_features; };
+struct virtqueue { struct device *vdev; unsigned int num_free; };
+struct ewma_pkt_len { unsigned int value; };
+struct receive_queue {
+    struct virtqueue *vq;
+    struct scatterlist sg[MAX_SKB_FRAGS + 2];
+    struct ewma_pkt_len mrg_avg_pkt_len;
+    unsigned int min_buf_len;
+    void *xsk_pool, *page_pool;
+    bool use_page_pool_dma;
+};
+struct virtnet_info {
+    struct device *vdev;
+    struct netdev *dev;
+    unsigned int hdr_len, big_packets_num_skbfrags;
+    bool big_packets, mergeable_rx_bufs;
+};
+static struct page pages[POSTS * (MAX_SKB_FRAGS + 1)];
+static unsigned int page_count, post_count;
+static int lengths[POSTS], sg_counts[POSTS];
+
+static struct page *next_page(void)
+{
+    assert(page_count < sizeof(pages) / sizeof(pages[0]));
+    return &pages[page_count++];
+}
+
+static int record_post(struct virtqueue *vq, struct scatterlist *sg, int count)
+{
+    assert(post_count < POSTS && vq->num_free > 0);
+    sg_counts[post_count] = count;
+    for (int i = 0; i < count; i++) {
+        assert(sg[i].len > 0);
+        lengths[post_count] += sg[i].len;
+    }
+    ++post_count;
+    --vq->num_free; // Capacity is 32 logical chains; no physical ring accounting.
+    return 0;
+}
+
+static void *page_pool_alloc_va(void *unused, unsigned int *len, gfp_t gfp)
+{
+    assert(*len == PAGE_SIZE); // Full-size requests avoid allocator fragment assumptions.
+    return next_page()->data;
+}
+static bool virtio_has_feature(const struct device *v, enum feature f)
+{
+    return f == VIRTIO_NET_F_GUEST_TSO4 || (f == VIRTIO_NET_F_MRG_RXBUF && v->mergeable);
+}
+#define max(a,b) ((a) > (b) ? (a) : (b))
+#define clamp_t(t,x,lo,hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
+#define ALIGN(x,n) (((x) + (n) - 1) / (n) * (n))
+#define DIV_ROUND_UP(x,n) (((x) + (n) - 1) / (n))
+#define SKB_DATA_ALIGN(n) ALIGN(n,L1_CACHE_BYTES)
+#define unlikely(x) (x)
+#define get_a_page(rq,gfp) next_page()
+#define give_pages(rq,first) abort()
+#define page_address(p) ((p)->data)
+#define sg_init_table(sg,n) ((void)0)
+#define sg_set_buf(sg,p,n) ((void)(p), (sg)->len = (n))
+#define sg_init_one(sg,p,n) sg_set_buf(sg,p,n)
+#define sg_fill_dma(sg,addr,n) ((void)(addr), (sg)->len = (n))
+#define virtnet_get_headroom(vi) 0U
+#define ewma_pkt_len_read(avg) ((avg)->value)
+#define virtqueue_get_vring_size(vq) 256U
+#define virtqueue_add_inbuf(vq,sg,n,data,gfp) record_post(vq,sg,n)
+#define virtqueue_add_inbuf_ctx(vq,sg,n,data,ctx,gfp) ((void)(ctx), record_post(vq,sg,n))
+#define virtqueue_add_inbuf_premapped(...) (abort(),0)
+#define virt_to_head_page(buf) ((struct page *)(buf))
+#define page_pool_get_dma_addr(page) ((dma_addr_t)0)
+#define mergeable_len_to_ctx(len,headroom) ((void *)(uintptr_t)(len))
+#define page_pool_put_page(...) abort()
+#define virtnet_add_recvbuf_xsk(...) (abort(),0)
+#define add_recvbuf_small(...) (abort(),0)
+#define virtqueue_kick_prepare(vq) false
+#define virtqueue_notify(vq) false
+#define u64_stats_update_begin_irqsave(...) 0
+#define u64_stats_inc(...) ((void)0)
+#define u64_stats_update_end_irqrestore(x,flag) ((void)(flag))
+
+@FUNCTIONS@
+
+static void print_samples(const int *values)
+{
+    putchar('[');
+    for (unsigned int i = 0; i < post_count; i++)
+        printf("%s%d", i ? "," : "", values[i]);
+    putchar(']');
+}
+
+int main(int argc, char **argv)
+{
+    assert(argc == 2);
+    struct device device = { .mergeable = atoi(argv[1]) != 0 };
+    struct device *vdev = &device;
+    struct netdev netdev = { .max_mtu = 1500 };
+    struct netdev *dev = &netdev;
+    struct virtnet_info info = { .vdev = vdev, .dev = dev, .hdr_len = 12 };
+    struct virtnet_info *vi = &info;
+    struct virtqueue vq = { .vdev = vdev, .num_free = POSTS };
+    struct receive_queue rq = { .vq = &vq, .mrg_avg_pkt_len.value = PAGE_SIZE };
+    device.priv = vi;
+    virtnet_set_big_packets(vi, 1500);
+    @FEATURE@
+    rq.min_buf_len = mergeable_min_buf_len(vi, &vq);
+    assert(vi->big_packets && vi->big_packets_num_skbfrags == MAX_SKB_FRAGS);
+    assert(try_fill_recv(vi, &rq, 0) && vq.num_free == 0);
+    printf("{\"feature_on\":%d,\"posted_chains\":%u,\"page_requests\":%u,",
+           vi->mergeable_rx_bufs, post_count, page_count);
+    printf("\"chain_lengths_bytes\":");
+    print_samples(lengths);
+    printf(",\"chain_sg_elements\":");
+    print_samples(sg_counts);
+    puts("}");
+}

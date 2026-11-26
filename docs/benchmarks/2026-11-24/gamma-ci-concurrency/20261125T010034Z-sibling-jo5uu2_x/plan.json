@@ -1,0 +1,40 @@
+{
+  "scope": "/private/tmp/mp-t-989__1zp",
+  "host": "Gamma-128GB.local",
+  "pages": {
+    "kernel_ipvlan": true,
+    "kernel_page_kib": 16,
+    "kernel_image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "kernel_config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c"
+  },
+  "baseline_files": 24,
+  "healthy_pairs": 32,
+  "requests_per_client": 200,
+  "seed": 250081,
+  "quiet_sha256": "dc212c1fe2ed9878302f88e1f35e588057a44837e015647af8e5b75a570a1f57",
+  "quiet_source_sha256": "5635d4bcae1b780d2a3cdf9523231300f843657d099d74044d98d217cf21bda2",
+  "harness_sha256": "1fcfb59c33a7f10d4a5facb3c7c21fc63ad04305a3742e614ead5260d651a6c4",
+  "rounds": 4,
+  "layouts": [
+    "grouped"
+  ],
+  "mac_process_type": "Standard",
+  "dense_ms": 1500,
+  "offered_rps": 64000,
+  "paced_driver_sha256": "6d0fcd7add8eb225616133590978dc359b4e267b9758cdb2d71be9a88900f91f",
+  "cpu_groups": true,
+  "cpu_group_label": "io.micropod.ci.cpu-group",
+  "group_driver_sha256": "ef6db3c54901698df6bef8d632dfd88213ede376b14da199ab2140955782e8da",
+  "group_affinity_source_sha256": "42edba5b48450afc6fa8c2c9b84d9001df0ddea9b148834de6af33b738ac75fc",
+  "group_affinity_probe_sha256": "6ea54f612f9212b81b584af92e6750f2ee9b90e8162da5fd9d542de4cf5028f4",
+  "group_runner_test_sha256": "97afcb162901fb125d0af0fe3628a938a1521a6f936c39081351732df9962c08",
+  "network_driver": "ipvlan",
+  "link_source_sha256": "b1be6c8df7aa72ba4f4cd439402710864b433b163dba9f53fbdc287dbf10f114",
+  "link_probe_sha256": "c19592985ad48245a991133b7d84cfa04b09782a91c0c163bad04a63186510f5",
+  "fair_hook_sha256": "46f3d614d832318b55d3e877afdcc3aaff6fa53a1dbf36c51c181e5929649c15",
+  "worker_scheduler": "hrtick-125us",
+  "worker_next_buddy": true,
+  "builders": 8,
+  "build_nice": 0,
+  "build_driver_sha256": "d9f0ebb0fcf79c8d0f19f1f79b63ad35e54dda55513bdf80a80eb2113f78db96"
+}

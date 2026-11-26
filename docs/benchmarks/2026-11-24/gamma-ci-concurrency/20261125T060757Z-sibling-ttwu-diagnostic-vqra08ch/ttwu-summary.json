@@ -1,0 +1,329 @@
+{
+  "diagnostic_only": true,
+  "boot": "8a883d4f-0545-4914-91d0-eea7e7d89049",
+  "kernel_image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+  "guest_exported_data_cache": {
+    "visibility": "complete",
+    "per_cpu_highest_exported": {
+      "0": {
+        "level": 2,
+        "shared_cpus": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "1": {
+        "level": 2,
+        "shared_cpus": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "2": {
+        "level": 2,
+        "shared_cpus": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "3": {
+        "level": 2,
+        "shared_cpus": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    "missing_vcpus": []
+  },
+  "kallsyms_addresses_redacted": false,
+  "positive_control": {
+    "verified_remote_callbacks": 8,
+    "waker_trace_tid": 331,
+    "probe": {
+      "membarriers": 8,
+      "source_comm": "mp-ttwu-waker",
+      "source_cpu": 0,
+      "source_proc_tid": 214,
+      "target_cpu": 3,
+      "target_proc_tid": 225
+    },
+    "whole_trace": {
+      "ttwu": 22,
+      "other": 12,
+      "callbacks": {
+        "ipi_mb": 9,
+        "ipi_sync_rq_state": 1,
+        "nohz_csd_func": 1,
+        "rcu_exp_handler": 1,
+        "sched_ttwu_pending": 22
+      },
+      "boundary_uncertain": {}
+    }
+  },
+  "windows": [
+    {
+      "block": 0,
+      "total_trace": {
+        "ttwu": 7144,
+        "other": 666,
+        "callbacks": {
+          "__cfsb_csd_unthrottle": 1,
+          "__hrtick_start": 278,
+          "do_nothing": 240,
+          "nohz_csd_func": 23,
+          "rcu_exp_handler": 124,
+          "sched_ttwu_pending": 7144
+        },
+        "boundary_uncertain": {}
+      },
+      "eight_builds": {
+        "ttwu": 1444,
+        "other": 103,
+        "callbacks": {
+          "__cfsb_csd_unthrottle": 1,
+          "__hrtick_start": 76,
+          "do_nothing": 21,
+          "rcu_exp_handler": 5,
+          "sched_ttwu_pending": 1444
+        },
+        "boundary_uncertain": {}
+      },
+      "offer_interval": {
+        "ttwu": 0,
+        "other": 0,
+        "callbacks": {},
+        "boundary_uncertain": {}
+      },
+      "until_last_response": {
+        "ttwu": 0,
+        "other": 1,
+        "callbacks": {
+          "__hrtick_start": 1
+        },
+        "boundary_uncertain": {}
+      },
+      "build_tail_after_http": {
+        "ttwu": 1381,
+        "other": 102,
+        "callbacks": {
+          "__cfsb_csd_unthrottle": 1,
+          "__hrtick_start": 75,
+          "do_nothing": 21,
+          "rcu_exp_handler": 5,
+          "sched_ttwu_pending": 1381
+        },
+        "boundary_uncertain": {}
+      },
+      "guest_bounds": {
+        "first_build_start_unix_ns": 1795586928901332632,
+        "gate_unix_ns": 1795586928940050716,
+        "http_end_unix_ns": 1795586930440669675,
+        "last_build_end_unix_ns": 1795586931767517759
+      }
+    },
+    {
+      "block": 1,
+      "total_trace": {
+        "ttwu": 6037,
+        "other": 648,
+        "callbacks": {
+          "__hrtick_start": 266,
+          "do_nothing": 240,
+          "invalidate_bh_lru": 10,
+          "nohz_csd_func": 20,
+          "rcu_exp_handler": 112,
+          "sched_ttwu_pending": 6037
+        },
+        "boundary_uncertain": {}
+      },
+      "eight_builds": {
+        "ttwu": 741,
+        "other": 120,
+        "callbacks": {
+          "__hrtick_start": 82,
+          "do_nothing": 21,
+          "invalidate_bh_lru": 10,
+          "rcu_exp_handler": 7,
+          "sched_ttwu_pending": 741
+        },
+        "boundary_uncertain": {}
+      },
+      "offer_interval": {
+        "ttwu": 0,
+        "other": 4,
+        "callbacks": {
+          "__hrtick_start": 4
+        },
+        "boundary_uncertain": {}
+      },
+      "until_last_response": {
+        "ttwu": 0,
+        "other": 4,
+        "callbacks": {
+          "__hrtick_start": 4
+        },
+        "boundary_uncertain": {}
+      },
+      "build_tail_after_http": {
+        "ttwu": 671,
+        "other": 114,
+        "callbacks": {
+          "__hrtick_start": 76,
+          "do_nothing": 21,
+          "invalidate_bh_lru": 10,
+          "rcu_exp_handler": 7,
+          "sched_ttwu_pending": 671
+        },
+        "boundary_uncertain": {}
+      },
+      "guest_bounds": {
+        "first_build_start_unix_ns": 1795586934226445885,
+        "gate_unix_ns": 1795586934268768843,
+        "http_end_unix_ns": 1795586935768997302,
+        "last_build_end_unix_ns": 1795586937085977678
+      }
+    },
+    {
+      "block": 2,
+      "total_trace": {
+        "ttwu": 6718,
+        "other": 748,
+        "callbacks": {
+          "__hrtick_start": 324,
+          "do_nothing": 240,
+          "invalidate_bh_lru": 28,
+          "nohz_csd_func": 11,
+          "rcu_exp_handler": 143,
+          "remote_function": 1,
+          "rps_trigger_softirq": 1,
+          "sched_ttwu_pending": 6718
+        },
+        "boundary_uncertain": {}
+      },
+      "eight_builds": {
+        "ttwu": 463,
+        "other": 148,
+        "callbacks": {
+          "__hrtick_start": 80,
+          "do_nothing": 21,
+          "invalidate_bh_lru": 25,
+          "rcu_exp_handler": 20,
+          "remote_function": 1,
+          "rps_trigger_softirq": 1,
+          "sched_ttwu_pending": 463
+        },
+        "boundary_uncertain": {}
+      },
+      "offer_interval": {
+        "ttwu": 1,
+        "other": 4,
+        "callbacks": {
+          "__hrtick_start": 1,
+          "invalidate_bh_lru": 3,
+          "sched_ttwu_pending": 1
+        },
+        "boundary_uncertain": {}
+      },
+      "until_last_response": {
+        "ttwu": 1,
+        "other": 4,
+        "callbacks": {
+          "__hrtick_start": 1,
+          "invalidate_bh_lru": 3,
+          "sched_ttwu_pending": 1
+        },
+        "boundary_uncertain": {}
+      },
+      "build_tail_after_http": {
+        "ttwu": 407,
+        "other": 143,
+        "callbacks": {
+          "__hrtick_start": 78,
+          "do_nothing": 21,
+          "invalidate_bh_lru": 22,
+          "rcu_exp_handler": 20,
+          "remote_function": 1,
+          "rps_trigger_softirq": 1,
+          "sched_ttwu_pending": 407
+        },
+        "boundary_uncertain": {}
+      },
+      "guest_bounds": {
+        "first_build_start_unix_ns": 1795586943195652416,
+        "gate_unix_ns": 1795586943238111333,
+        "http_end_unix_ns": 1795586944738707417,
+        "last_build_end_unix_ns": 1795586946157128543
+      }
+    },
+    {
+      "block": 3,
+      "total_trace": {
+        "ttwu": 6598,
+        "other": 707,
+        "callbacks": {
+          "__cfsb_csd_unthrottle": 1,
+          "__hrtick_start": 319,
+          "do_nothing": 240,
+          "invalidate_bh_lru": 3,
+          "nohz_csd_func": 19,
+          "rcu_exp_handler": 125,
+          "sched_ttwu_pending": 6598
+        },
+        "boundary_uncertain": {}
+      },
+      "eight_builds": {
+        "ttwu": 647,
+        "other": 112,
+        "callbacks": {
+          "__cfsb_csd_unthrottle": 1,
+          "__hrtick_start": 81,
+          "do_nothing": 21,
+          "rcu_exp_handler": 9,
+          "sched_ttwu_pending": 647
+        },
+        "boundary_uncertain": {}
+      },
+      "offer_interval": {
+        "ttwu": 0,
+        "other": 0,
+        "callbacks": {},
+        "boundary_uncertain": {}
+      },
+      "until_last_response": {
+        "ttwu": 0,
+        "other": 8,
+        "callbacks": {
+          "__hrtick_start": 8
+        },
+        "boundary_uncertain": {}
+      },
+      "build_tail_after_http": {
+        "ttwu": 580,
+        "other": 103,
+        "callbacks": {
+          "__cfsb_csd_unthrottle": 1,
+          "__hrtick_start": 72,
+          "do_nothing": 21,
+          "rcu_exp_handler": 9,
+          "sched_ttwu_pending": 580
+        },
+        "boundary_uncertain": {}
+      },
+      "guest_bounds": {
+        "first_build_start_unix_ns": 1795586956193697548,
+        "gate_unix_ns": 1795586956238540464,
+        "http_end_unix_ns": 1795586957760663548,
+        "last_build_end_unix_ns": 1795586959066904091
+      }
+    }
+  ]
+}

@@ -1,0 +1,680 @@
+{
+  "origin": "historical Gamma archive",
+  "series": "path-confirmation",
+  "rounds_sha256": "82f9803d9d423015d1f2a26086e8bee172b219acf8a3cb5fb72a89b3d6ae686a",
+  "operation": "direct minus bridge",
+  "blocks": [
+    {
+      "block": 1,
+      "order": [
+        "full-reno",
+        "full-bridge",
+        "orb"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 119.396,
+          "p99_ms": 180.055,
+          "bulk_payload_bytes": 19073363736,
+          "client_window_s": 6.000290167,
+          "counter_window_s": 6.306962,
+          "cpu_seconds": {
+            "vmm": 10.091844083333333,
+            "relay": 5.4504568749999995
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 50.384,
+          "p99_ms": 108.108,
+          "bulk_payload_bytes": 24148773624,
+          "client_window_s": 6.002091125,
+          "counter_window_s": 6.295634,
+          "cpu_seconds": {
+            "vmm": 10.859852875,
+            "relay": 6.841176999999999
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.07940049016666872,
+        "relay": -0.002469813310038982,
+        "vmm_plus_relay": -0.08187030347670765
+      },
+      "mean_host_cores": {
+        "vmm": 0.12486984753480712,
+        "relay": 0.22245730092360017,
+        "vmm_plus_relay": 0.3473271484584073
+      }
+    },
+    {
+      "block": 2,
+      "order": [
+        "orb",
+        "full-bridge",
+        "full-reno"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 31.484,
+          "p99_ms": 45.216,
+          "bulk_payload_bytes": 31148155552,
+          "client_window_s": 6.000843125,
+          "counter_window_s": 6.543437,
+          "cpu_seconds": {
+            "vmm": 17.016191541666664,
+            "relay": 9.405989458333332
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 34.137,
+          "p99_ms": 67.828,
+          "bulk_payload_bytes": 29934658184,
+          "client_window_s": 6.000043875,
+          "counter_window_s": 6.261187,
+          "cpu_seconds": {
+            "vmm": 13.122241666666666,
+            "relay": 8.285216583333332
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.10793569209095533,
+        "relay": -0.025199086004653815,
+        "vmm_plus_relay": -0.13313477809560914
+      },
+      "mean_host_cores": {
+        "vmm": -0.5046901580182497,
+        "relay": -0.11420313432334561,
+        "vmm_plus_relay": -0.6188932923415957
+      }
+    },
+    {
+      "block": 3,
+      "order": [
+        "full-bridge",
+        "orb",
+        "full-reno"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 37.602,
+          "p99_ms": 69.248,
+          "bulk_payload_bytes": 30076143392,
+          "client_window_s": 6.000158291,
+          "counter_window_s": 6.277002,
+          "cpu_seconds": {
+            "vmm": 15.455967916666665,
+            "relay": 8.530073083333333
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 256.762,
+          "p99_ms": 318.437,
+          "bulk_payload_bytes": 12401937744,
+          "client_window_s": 6.010830958,
+          "counter_window_s": 6.581237,
+          "cpu_seconds": {
+            "vmm": 5.548127875,
+            "relay": 3.449984333333333
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.06653484936271598,
+        "relay": -0.005434848427135375,
+        "vmm_plus_relay": -0.0719696977898513
+      },
+      "mean_host_cores": {
+        "vmm": -1.6192948247517491,
+        "relay": -0.8347254557262952,
+        "vmm_plus_relay": -2.454020280478044
+      }
+    },
+    {
+      "block": 4,
+      "order": [
+        "full-reno",
+        "orb",
+        "full-bridge"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 165.101,
+          "p99_ms": 217.186,
+          "bulk_payload_bytes": 14781204200,
+          "client_window_s": 6.000013875,
+          "counter_window_s": 6.601213,
+          "cpu_seconds": {
+            "vmm": 7.713360166666666,
+            "relay": 4.157776374999999
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 280.239,
+          "p99_ms": 345.667,
+          "bulk_payload_bytes": 7263710452,
+          "client_window_s": 6.000952959,
+          "counter_window_s": 7.382087,
+          "cpu_seconds": {
+            "vmm": 3.822103875,
+            "relay": 2.169485958333333
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": 0.00435595346437001,
+        "relay": 0.017386551708492404,
+        "vmm_plus_relay": 0.02174250517286247
+      },
+      "mean_host_cores": {
+        "vmm": -0.6507223448146973,
+        "relay": -0.3359651797058342,
+        "vmm_plus_relay": -0.9866875245205313
+      }
+    },
+    {
+      "block": 5,
+      "order": [
+        "orb",
+        "full-reno",
+        "full-bridge"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 199.109,
+          "p99_ms": 265.825,
+          "bulk_payload_bytes": 9922763248,
+          "client_window_s": 6.000416541,
+          "counter_window_s": 6.636987,
+          "cpu_seconds": {
+            "vmm": 5.569635541666666,
+            "relay": 2.8219188749999997
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 96.018,
+          "p99_ms": 152.669,
+          "bulk_payload_bytes": 17178067056,
+          "client_window_s": 6.005181042,
+          "counter_window_s": 6.215337,
+          "cpu_seconds": {
+            "vmm": 7.475295958333333,
+            "relay": 4.713401291666666
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.12613370395539347,
+        "relay": -0.01000356475735481,
+        "vmm_plus_relay": -0.13613726871274834
+      },
+      "mean_host_cores": {
+        "vmm": 0.36353639748934863,
+        "relay": 0.3331693623288826,
+        "vmm_plus_relay": 0.6967057598182314
+      }
+    },
+    {
+      "block": 6,
+      "order": [
+        "full-bridge",
+        "full-reno",
+        "orb"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 74.008,
+          "p99_ms": 131.45,
+          "bulk_payload_bytes": 20368363560,
+          "client_window_s": 6.00004925,
+          "counter_window_s": 6.386487,
+          "cpu_seconds": {
+            "vmm": 10.427638041666667,
+            "relay": 5.715132916666666
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 36.309,
+          "p99_ms": 54.141,
+          "bulk_payload_bytes": 28314889896,
+          "client_window_s": 6.000106292,
+          "counter_window_s": 6.302016,
+          "cpu_seconds": {
+            "vmm": 12.143965999999999,
+            "relay": 7.734412541666666
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.08306291846226604,
+        "relay": -0.00743163660523577,
+        "vmm_plus_relay": -0.09049455506750181
+      },
+      "mean_host_cores": {
+        "vmm": 0.29423113566391934,
+        "relay": 0.33241282576609965,
+        "vmm_plus_relay": 0.6266439614300192
+      }
+    },
+    {
+      "block": 7,
+      "order": [
+        "full-reno",
+        "full-bridge",
+        "orb"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 95.142,
+          "p99_ms": 117.93,
+          "bulk_payload_bytes": 19494171984,
+          "client_window_s": 6.0000105,
+          "counter_window_s": 6.227476,
+          "cpu_seconds": {
+            "vmm": 10.035124708333333,
+            "relay": 5.588530791666666
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 39.594,
+          "p99_ms": 54.643,
+          "bulk_payload_bytes": 26889029116,
+          "client_window_s": 6.000773417,
+          "counter_window_s": 6.264229,
+          "cpu_seconds": {
+            "vmm": 11.634735625,
+            "relay": 7.458414333333333
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.08208110933889812,
+        "relay": -0.009299403640776416,
+        "vmm_plus_relay": -0.09138051297967453
+      },
+      "mean_host_cores": {
+        "vmm": 0.24590195056185582,
+        "relay": 0.2932366354877489,
+        "vmm_plus_relay": 0.5391385860496047
+      }
+    },
+    {
+      "block": 8,
+      "order": [
+        "orb",
+        "full-bridge",
+        "full-reno"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 136.016,
+          "p99_ms": 179.668,
+          "bulk_payload_bytes": 10035197320,
+          "client_window_s": 6.000656667,
+          "counter_window_s": 6.629898,
+          "cpu_seconds": {
+            "vmm": 5.356082083333333,
+            "relay": 2.726703833333333
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 156.997,
+          "p99_ms": 234.859,
+          "bulk_payload_bytes": 12316888344,
+          "client_window_s": 6.000799959,
+          "counter_window_s": 6.663128,
+          "cpu_seconds": {
+            "vmm": 5.930764249999999,
+            "relay": 3.373546458333333
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.052214805041713,
+        "relay": 0.0021819778948146684,
+        "vmm_plus_relay": -0.050032827146898384
+      },
+      "mean_host_cores": {
+        "vmm": 0.08221914914460893,
+        "relay": 0.09502683937240197,
+        "vmm_plus_relay": 0.1772459885170108
+      }
+    },
+    {
+      "block": 9,
+      "order": [
+        "full-bridge",
+        "orb",
+        "full-reno"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 92.932,
+          "p99_ms": 161.157,
+          "bulk_payload_bytes": 16625304816,
+          "client_window_s": 6.000187792,
+          "counter_window_s": 6.227217,
+          "cpu_seconds": {
+            "vmm": 8.699619499999999,
+            "relay": 4.720765958333333
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 37.192,
+          "p99_ms": 52.803,
+          "bulk_payload_bytes": 27137519672,
+          "client_window_s": 6.000171792,
+          "counter_window_s": 6.220784,
+          "cpu_seconds": {
+            "vmm": 11.741417208333333,
+            "relay": 7.471766
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.0906121800181634,
+        "relay": -0.008620909619809547,
+        "vmm_plus_relay": -0.09923308963797295
+      },
+      "mean_host_cores": {
+        "vmm": 0.4904180587536786,
+        "relay": 0.443011171716311,
+        "vmm_plus_relay": 0.9334292304699896
+      }
+    },
+    {
+      "block": 10,
+      "order": [
+        "full-reno",
+        "orb",
+        "full-bridge"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 205.097,
+          "p99_ms": 257.052,
+          "bulk_payload_bytes": 7222341080,
+          "client_window_s": 6.003882666,
+          "counter_window_s": 6.985686,
+          "cpu_seconds": {
+            "vmm": 4.631168375,
+            "relay": 2.1044412083333333
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 47.584,
+          "p99_ms": 69.108,
+          "bulk_payload_bytes": 22947245864,
+          "client_window_s": 6.000046959,
+          "counter_window_s": 6.212615,
+          "cpu_seconds": {
+            "vmm": 9.901577249999999,
+            "relay": 6.20272025
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.20973508900381338,
+        "relay": -0.021075899133194353,
+        "vmm_plus_relay": -0.23081098813700773
+      },
+      "mean_host_cores": {
+        "vmm": 0.9308346263542049,
+        "relay": 0.6971568406707023,
+        "vmm_plus_relay": 1.627991467024907
+      }
+    },
+    {
+      "block": 11,
+      "order": [
+        "orb",
+        "full-reno",
+        "full-bridge"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 108.98,
+          "p99_ms": 143.799,
+          "bulk_payload_bytes": 14379248320,
+          "client_window_s": 6.00006775,
+          "counter_window_s": 6.283064,
+          "cpu_seconds": {
+            "vmm": 7.688589958333332,
+            "relay": 3.9927610416666663
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 112.791,
+          "p99_ms": 172.604,
+          "bulk_payload_bytes": 17796315544,
+          "client_window_s": 6.000064584,
+          "counter_window_s": 6.487439,
+          "cpu_seconds": {
+            "vmm": 8.103642458333333,
+            "relay": 4.9537626249999995
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.0793453419549065,
+        "relay": 0.0006836620832239015,
+        "vmm_plus_relay": -0.0786616798716826
+      },
+      "mean_host_cores": {
+        "vmm": 0.02542739357909496,
+        "relay": 0.12811301556602872,
+        "vmm_plus_relay": 0.1535404091451238
+      }
+    },
+    {
+      "block": 12,
+      "order": [
+        "full-bridge",
+        "full-reno",
+        "orb"
+      ],
+      "arms": {
+        "full-bridge": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 264.465,
+          "p99_ms": 298.888,
+          "bulk_payload_bytes": 8696077784,
+          "client_window_s": 6.000238791,
+          "counter_window_s": 6.691423,
+          "cpu_seconds": {
+            "vmm": 4.812684166666666,
+            "relay": 2.4941877916666666
+          }
+        },
+        "full-reno": {
+          "state": "clean",
+          "offered": 240,
+          "fresh_failed": 0,
+          "reopened": 0,
+          "link_drops": null,
+          "p95_ms": 148.199,
+          "p99_ms": 196.566,
+          "bulk_payload_bytes": 10553891004,
+          "client_window_s": 6.002380625,
+          "counter_window_s": 6.439571,
+          "cpu_seconds": {
+            "vmm": 5.360180416666666,
+            "relay": 2.9953832499999997
+          }
+        }
+      },
+      "cpu_ns_per_payload_byte": {
+        "vmm": -0.045544934719200736,
+        "relay": -0.002999651227891975,
+        "vmm_plus_relay": -0.048544585947092656
+      },
+      "mean_host_cores": {
+        "vmm": 0.11314980698339228,
+        "relay": 0.09240860623471248,
+        "vmm_plus_relay": 0.20555841321810475
+      }
+    }
+  ],
+  "summary": {
+    "cpu_ns_per_payload_byte": {
+      "vmm": {
+        "observed_blocks": 12,
+        "median": -0.08074079975278342,
+        "min": -0.20973508900381338,
+        "max": 0.00435595346437001,
+        "direct_lower_blocks": 11
+      },
+      "relay": {
+        "observed_blocks": 12,
+        "median": -0.006433242516185572,
+        "min": -0.025199086004653815,
+        "max": 0.017386551708492404,
+        "direct_lower_blocks": 9
+      },
+      "vmm_plus_relay": {
+        "observed_blocks": 12,
+        "median": -0.08618242927210473,
+        "min": -0.23081098813700773,
+        "max": 0.02174250517286247,
+        "direct_lower_blocks": 11
+      }
+    },
+    "mean_host_cores": {
+      "vmm": {
+        "observed_blocks": 12,
+        "median": 0.1190098272590997,
+        "min": -1.6192948247517491,
+        "max": 0.9308346263542049,
+        "direct_lower_blocks": 3
+      },
+      "relay": {
+        "observed_blocks": 12,
+        "median": 0.17528515824481444,
+        "min": -0.8347254557262952,
+        "max": 0.6971568406707023,
+        "direct_lower_blocks": 3
+      },
+      "vmm_plus_relay": {
+        "observed_blocks": 12,
+        "median": 0.276442780838256,
+        "min": -2.454020280478044,
+        "max": 1.627991467024907,
+        "direct_lower_blocks": 3
+      }
+    }
+  }
+}

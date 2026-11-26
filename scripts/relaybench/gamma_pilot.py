@@ -23,6 +23,12 @@ TOOLS = Path("/tmp/mp-priority.b3sbI7ym")
 HASHES = {"fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
           "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"}
 STOCK_KERNEL = "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+# Signed stock build receipt: 2026-11-24/disposable-local-fixture/20261124T062433Z/revised-runtime-build.json.
+# This executable predates native callback/read-size telemetry. Its two-worker data owner uses
+# EVENTS_PER_TURN=128 and CHUNK=256*1024; other and selectable builds must provide their own readbacks.
+STOCK_RELAY_SHA = "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8"
+STOCK_RELAY_REV = "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb"
+STOCK_RELAY_CONTROLS = {"callback_events": 128, "read_bytes": 256 * 1024}
 DIRECT_ROUTE = dict(RtoMin=20, RtoMinLock=True, QuickACK=0, Congctl="reno", MTU=0)
 
 
@@ -44,10 +50,12 @@ def plan(seed, scored_pairs=2):
     return {"warmup": warmup, "scored": scored}
 
 
-def arm_settings(mode, workers=2, peer_vcpus=4, fixed_read_kib=None):
+def arm_settings(mode, workers=2, peer_vcpus=4, fixed_read_kib=None, *, peer_process_type=None):
     require(mode in ("size", "peer", "workers", "host-role", "read-size") and workers in (2, 4) and peer_vcpus in (4, 6),
             "invalid arms")
     require(mode == "peer" or peer_vcpus == 4, "--peer-vcpus applies only to the OrbStack comparison")
+    require(peer_process_type is None or (mode == "peer" and peer_process_type in host_role.SPAWN_TYPES),
+            "--peer-process-type requires a supported launchd role and a peer comparison")
     require(mode != "workers" or workers == 2, "the workers comparison always uses two and four workers")
     require(fixed_read_kib is None or (fixed_read_kib in (256, 512) and mode in ("peer", "size")),
             "--relay-read-kib applies only to a size or peer comparison")
@@ -63,6 +71,8 @@ def arm_settings(mode, workers=2, peer_vcpus=4, fixed_read_kib=None):
     arms = {"A": dict(engine="Micropod", vcpus=a_cpus, relay_workers=workers, callback_events=128),
             "B": dict(engine="OrbStack" if mode == "peer" else "Micropod", vcpus=6 if mode == "size" else a_cpus,
                       relay_workers=b_workers, callback_events=None if mode == "peer" else 128)}
+    if peer_process_type is not None:
+        arms["A"]["process_type"] = peer_process_type
     for setting in arms.values():
         if setting["engine"] == "Micropod":
             setting["read_bytes"] = (fixed_read_kib or 256) * 1024
@@ -77,7 +87,7 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def mapped_digest(path, pid):
+def mapped_executable(path, pid):
     # Hash the same vnode lsof observes as executable text in the live supervisor.
     with path.open("rb") as binary:
         st = os.fstat(binary.fileno())
@@ -86,7 +96,43 @@ def mapped_digest(path, pid):
                     for block in re.split(r"(?m)^f[^\n]*\n", text)[1:]]
         require(any("D" in m and "i" in m and (int(m["D"], 0), int(m["i"])) == (st.st_dev, st.st_ino)
                     for m in mappings), "running supervisor does not map the recorded binary")
-        return hashlib.sha256(binary.read()).hexdigest()
+        return {"pid": pid, "device": st.st_dev, "inode": st.st_ino, "sha256": hashlib.sha256(binary.read()).hexdigest()}
+
+
+def mapped_digest(path, pid):
+    return mapped_executable(path, pid)["sha256"]
+
+
+def check_peer_role(fixture, expected):
+    controls = fixture.get("job_controls_sha256")
+    require(expected in host_role.SPAWN_TYPES and fixture.get("process_type") == expected
+            and fixture.get("spawn_type") == host_role.SPAWN_TYPES[expected]
+            and isinstance(controls, str) and re.fullmatch(r"[0-9a-f]{64}", controls),
+            "live relay launch role differs from the selected process type or lacks launchd evidence")
+
+
+def check_peer_stock_controls(fixture, expected_role="Interactive"):
+    """The signed stock executable is the only peer candidate with derived controls."""
+    proof = fixture.get("stock_build_controls")
+    if fixture.get("cli_sha256") != STOCK_RELAY_SHA:
+        require("stock_build_controls" not in fixture, "unrecognized mapped stock relay")
+        return
+    require(isinstance(proof, dict) and proof.get("revision") == STOCK_RELAY_REV
+            and proof.get("profiling") is False, "missing signed stock relay proof")
+    mapping = proof.get("mapped_executable")
+    require(isinstance(mapping, dict) and mapping.get("sha256") == STOCK_RELAY_SHA
+            and type(mapping.get("pid")) is int and mapping["pid"] == fixture["pids"]["relay"]
+            and all(type(mapping.get(k)) is int and mapping[k] > 0 for k in ("device", "inode")),
+            "unbound stock relay executable mapping")
+    check_peer_role(fixture, expected_role)
+    require(type(fixture.get("relay_workers")) is int and fixture["relay_workers"] == 2
+            and fixture.get("kernel_image_sha256") == STOCK_KERNEL, "unmatched signed stock launch controls or kernel")
+    raw = proof.get("session_controls")
+    require(isinstance(raw, dict) and raw.keys() == STOCK_RELAY_CONTROLS.keys(), "missing stock relay session evidence")
+    for key, expected in STOCK_RELAY_CONTROLS.items():
+        require(type(fixture.get(key)) is int and fixture[key] == expected and
+                (raw[key] is None or type(raw[key]) is int and raw[key] == expected),
+                f"stock relay {key} differs from its signed build")
 
 
 def value(directory, name):
@@ -112,7 +158,39 @@ def image_config(docker, container):
     return "sha256:" + hashlib.sha256(config).hexdigest()
 
 
-def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=None, vary_vcpus=False):
+def probe_mount_evidence(container, worker):
+    target = "/mpcheck"
+    mounts = container.get("Mounts")
+    if mounts is not None:
+        matches = [mount for mount in mounts if mount["Destination"] == target]
+        require(len(matches) == 1 and matches[0]["RW"] is False, "need the read-only guest probe mount")
+        return {"source": "Mounts", "target": target, "readonly": True}
+
+    # The native gateway's inspect response exports the exact HostConfig
+    # passed to openMounts when it created the running CRI container.
+    host = container.get("HostConfig") or {}
+    mounts = host.get("Mounts") or []
+    binds = host.get("Binds") or []
+    require(isinstance(mounts, list) and isinstance(binds, list), "invalid native guest probe mounts")
+    targets = [mount["Target"] for mount in mounts]
+    for bind in binds:
+        parts = bind.split(":")
+        require(len(parts) in (2, 3), "invalid native guest probe bind")
+        targets.append(parts[1])
+    require(targets.count(target) == 1 and not any(t.startswith(target + "/") for t in targets),
+            "need one unshadowed read-only guest probe mount")
+    matches = [mount for mount in mounts if mount["Target"] == target]
+    workspace = worker.get("workspace")
+    require(isinstance(workspace, str) and Path(workspace).is_absolute(), "missing native probe workspace")
+    expected = str(Path(workspace) / "probe")
+    require(len(matches) == 1 and matches[0].get("Type") == "bind" and
+            matches[0].get("Source") == expected and matches[0].get("ReadOnly") is True,
+            "need the read-only guest probe bind from the worker workspace")
+    return {"source": "HostConfig.Mounts", "target": target, "bind_source": expected, "readonly": True}
+
+
+def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=None, vary_vcpus=False, peer_arm=False,
+            relay_mode="kqueue-interactive", allowed_relay_workers=(2, 4), kernel_sha=STOCK_KERNEL):
     scope = scope.resolve()
     require(scope.is_dir() and not (scope / "removed").exists(), f"missing or retired fixture: {scope}")
     base = value(scope, "base")
@@ -160,8 +238,8 @@ def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=
             and attested.st_dev == sock_id["device"], "stale worker socket")
     pids["relay"] = int(value(scope, "relay"))
     workers = session["publishedRelayWorkers"]
-    require(session["started"] and session["owner"]["pid"] == pids["relay"] and workers in (2, 4),
-            "need a live two- or four-worker relay")
+    require(session["started"] and session["owner"]["pid"] == pids["relay"] and workers in allowed_relay_workers,
+            "live relay worker count differs from the admitted configuration")
     require(command("lsof", "-t", str(home / "worker.ext4")) == str(pids["vmm"]), "wrong Micropod VMM process")
     if worker_count is not None or vary_vcpus or process_type is not None:
         executable = command("ps", "-p", str(pids["vmm"]), "-o", "comm=")
@@ -175,7 +253,10 @@ def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=
     job = plistlib.loads((owner / "job.plist").read_bytes())
     env = job["EnvironmentVariables"]
     role = command("launchctl", "print", f"gui/{os.getuid()}/{job['Label']}")
-    if read_kib is not None or worker_count is not None or vary_vcpus:
+    if peer_arm and process_type is not None:
+        fixture.update(host_role.verify_job(job, role, pids["relay"], home, process_type,
+                                            worker_count=workers, vcpus=cpus))
+    elif read_kib is not None or worker_count is not None or vary_vcpus:
         fixture.update(host_role.verify_job(job, role, pids["relay"], home, "Interactive",
                                             read_kib=read_kib, worker_count=worker_count,
                                             vcpus=cpus if vary_vcpus else None))
@@ -185,10 +266,9 @@ def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=
         require(re.search(rf"(?m)^\s*pid = {pids['relay']}$", role) and "spawn type = interactive" in role
                 and env["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive", "different live relay role")
     else:
-        fixture.update(host_role.verify_job(job, role, pids["relay"], home, process_type))
+        fixture.update(host_role.verify_job(job, role, pids["relay"], home, process_type, relay_mode=relay_mode))
         fixture["docker_socket"] = str(sock)
-        mounts = [mount for mount in c["Mounts"] if mount["Destination"] == "/mpcheck"]
-        require(len(mounts) == 1 and mounts[0]["RW"] is False, "need the read-only guest probe mount")
+        fixture["guest_probe_mount"] = probe_mount_evidence(c, config)
         probe = command(*docker, "exec", cid, "/mpcheck/netbench", "-self-sha256")
         require(probe == host_role.GUEST_PROBE_SHA256, "unrecognized running guest probe")
         fixture["guest_probe_sha256"] = probe
@@ -202,17 +282,34 @@ def inspect(scope, cpus, orb, process_type=None, *, read_kib=None, worker_count=
     service_env = json.dumps(sorted(c["Config"].get("Env") or [])).encode()
     executable = Path(job["ProgramArguments"][0])
     callback = session.get("publishedRelayCallbackEvents")
-    if callback is not None:
+    read_bytes = session.get("publishedRelayReadBytes")
+    if peer_arm:
+        mapped = mapped_executable(executable, pids["relay"])
+        cli_sha = mapped["sha256"]
+    else:
+        cli_sha = mapped_digest(executable, pids["relay"]) if callback is not None else digest(executable)
+    stock = peer_arm and cli_sha == STOCK_RELAY_SHA
+    if callback is not None or stock:
         require(env.get("MICROPOD_CI_PORT_PROFILE") != "1" and not re.search(
             r"(?m)^\s*MICROPOD_CI_PORT_PROFILE\s*=>\s*1\s*$", role), "relay profiling must be off")
         require(isinstance(config.get("kernel"), str) and config["kernel"], "missing kernel image path")
         fixture["kernel_image_sha256"] = digest(Path(config["kernel"]))
-        require(fixture["kernel_image_sha256"] == STOCK_KERNEL, "different kernel image")
+        require(fixture["kernel_image_sha256"] == kernel_sha, "different kernel image")
+    if stock:
+        if process_type is None:
+            fixture.update(host_role.verify_job(job, role, pids["relay"], home, "Interactive", worker_count=2, vcpus=cpus))
+        require("MICROPOD_BENCH_RELAY_READ_KIB" not in env and
+                not re.search(r"(?m)^[ \t]*MICROPOD_BENCH_RELAY_READ_KIB =>", role),
+                "unexpected read selector on the fixed stock relay")
+        fixture["stock_build_controls"] = dict(revision=STOCK_RELAY_REV, mapped_executable=mapped, profiling=False,
+                                              session_controls=dict(callback_events=callback, read_bytes=read_bytes))
+        callback, read_bytes = STOCK_RELAY_CONTROLS["callback_events"], STOCK_RELAY_CONTROLS["read_bytes"]
     fixture.update(instance=session["instance"], worker=config["worker"], kernel=config["kernel"],
-                   cli_sha256=mapped_digest(executable, pids["relay"]) if callback is not None else digest(executable),
-                   relay_workers=workers, callback_events=callback, read_bytes=session.get("publishedRelayReadBytes"),
+                   cli_sha256=cli_sha, relay_workers=workers, callback_events=callback, read_bytes=read_bytes,
                    route={k: reno_routes[0][k] for k in DIRECT_ROUTE},
                    service_env_sha256=hashlib.sha256(service_env).hexdigest())
+    if peer_arm:
+        check_peer_stock_controls(fixture, process_type or "Interactive")
     return fixture
 
 
@@ -246,7 +343,11 @@ def attempt(tools, fixture, birth, receipt, check_window=None):
         receipt["client_arguments"] = ["http://" + fixture["address"], fixture["name"]]
         args = [tools / "fixed", *receipt["client_arguments"]]
         if check_window is None:
-            result = subprocess.run(args, capture_output=True, text=True, timeout=75)
+            receipt["client_spawn_start_ns"] = time.time_ns()
+            try:
+                result = subprocess.run(args, capture_output=True, text=True, timeout=75)
+            finally:
+                receipt["client_reaped_ns"] = time.time_ns()
         else:
             result = run_in_window(args, check_window, receipt)
     except subprocess.TimeoutExpired as exc:
@@ -279,6 +380,7 @@ def attempt(tools, fixture, birth, receipt, check_window=None):
 def run_in_window(args, check_window, receipt):
     window = check_window()
     deadline = time.monotonic() + 75
+    receipt["client_spawn_start_ns"] = time.time_ns()
     with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as client:
         try:
             while True:
@@ -299,6 +401,8 @@ def run_in_window(args, check_window, receipt):
             receipt["stdout"], receipt["stderr"] = client.communicate()
             receipt["exit_code"] = client.returncode
             raise
+        finally:
+            receipt["client_reaped_ns"] = time.time_ns()
 
 
 def save(path, obj):
@@ -394,7 +498,8 @@ def screening_result(rows, orders):
 
 
 def run(args, orders, *, workers=2, peer_vcpus=4):
-    settings = arm_settings(args.mode, workers, peer_vcpus, getattr(args, "relay_read_kib", None))
+    settings = arm_settings(args.mode, workers, peer_vcpus, getattr(args, "relay_read_kib", None),
+                            peer_process_type=getattr(args, "peer_process_type", None))
     read_size = args.mode == "read-size"
     role_test = args.mode == "host-role"
     screen = args.mode == "workers" or read_size or getattr(args, "scored_pairs", None) is not None
@@ -408,8 +513,11 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
     require(fixed in (host_role.CLIENT_SHA256, legacy) or (read_size and fixed == fresh_samples.CLIENT_SHA256),
             "unrecognized fixed binary for this comparison")
     tools = dict(HASHES, fixed=fixed)
-    save(args.out / "plan.json", dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=tools,
-                                     host=platform.node(), macos=platform.mac_ver()[0]))
+    protocol = dict(seed=args.seed, mode=args.mode, arms=settings, order=orders, tools=tools,
+                    host=platform.node(), macos=platform.mac_ver()[0])
+    if peer:
+        protocol["client_timing"] = "spawn-to-reap"
+    save(args.out / "plan.json", protocol)
     require(platform.node().split(".")[0] == "Gamma-128GB", "run only on the original Gamma Mac")
     for tool, expected in tools.items():
         require(digest(args.tools / tool) == expected, f"unrecognized {tool} binary")
@@ -446,6 +554,10 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
             return inspect(*scopes[arm], read_kib=settings[arm]["read_bytes"] // 1024)
         if role_test:
             return inspect(*scopes[arm], process_type=settings[arm]["process_type"])
+        if peer and arm == "A":
+            if "process_type" in settings[arm]:
+                return inspect(*scopes[arm], peer_arm=True, process_type=settings[arm]["process_type"])
+            return inspect(*scopes[arm], peer_arm=True)
         return inspect(*scopes[arm])
 
     fixtures = {arm: inspect_arm(arm) for arm in ("BA" if peer else "AB")}
@@ -459,6 +571,8 @@ def run(args, orders, *, workers=2, peer_vcpus=4):
         if expected is None:
             continue
         fixture = fixtures[arm]
+        if peer and "process_type" in settings_arm:
+            check_peer_role(fixture, settings_arm["process_type"])
         # Older fixed-512 and fixed-256 binaries both omitted this field.
         cap = settings_arm["read_bytes"]
         require(type(fixture.get("read_bytes")) is int and fixture["read_bytes"] == cap,
@@ -587,6 +701,8 @@ if __name__ == "__main__":
     parser.add_argument("--relay-read-kib", type=int, choices=(256, 512),
                         help="pin the selected native read cap on a subsequent size or peer comparison")
     parser.add_argument("--peer-vcpus", type=int, choices=(4, 6), default=4, help="equal VM size for a peer test")
+    parser.add_argument("--peer-process-type", choices=tuple(host_role.SPAWN_TYPES),
+                        help="pin the Micropod launchd role in the OrbStack comparison")
     length = parser.add_mutually_exclusive_group()
     length.add_argument("--holdout", action="store_true", help="16 scored pairs, balanced in blocks of two")
     length.add_argument("--scored-pairs", type=int, metavar="N",
@@ -603,7 +719,8 @@ if __name__ == "__main__":
     parser.add_argument("--out", type=Path, help="new output directory")
     args = parser.parse_args()
     try:
-        settings = arm_settings(args.mode, args.relay_workers, args.peer_vcpus, args.relay_read_kib)
+        settings = arm_settings(args.mode, args.relay_workers, args.peer_vcpus, args.relay_read_kib,
+                                peer_process_type=args.peer_process_type)
     except ValueError as exc:
         parser.error(str(exc))
     pilot_pairs = 4 if args.mode in ("host-role", "read-size") else 2

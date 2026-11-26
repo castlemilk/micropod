@@ -8,7 +8,7 @@
 
 ## Native engine production work
 
-Source commit `041776a41d59` consolidates the qualified native engine in `integration/native-engine-convergence-20261126`. The separate branch checkpoints and reproducibility checks are recorded in the [integration handoff](../benchmarks/2026-11-26/workspace-reply-wait-and-native-network.md#branch-consolidation).
+The default-branch integration combines the qualified native engine, the CI runner follow-ons and the managed BuildKit and job caches. The November 26 performance figures apply to the exact signed binaries in the scorecard. The merged engine has its own verification results. [Integration and verification](../benchmarks/2026-11-26/workspace-reply-wait-and-native-network.md#branch-consolidation)
 
 The managed runner `4d0fb3989ee4` passed stock Docker and Testcontainers with primary and secondary named IPv4 bridges. All three public attachment paths, disconnect, eight concurrent clients, published HTTP, bidirectional DNS, Ryuk cleanup and same-disk restart passed. An address ownership record now survives failed pod teardown. The pinned API 1.47 comparator matched 16 of 27 groups. The fixed suite exercised 39 operations, and the cumulative probes exercised 49 of 107. [Docker and recovery qualification](../benchmarks/2026-11-26/workspace-reply-wait-and-native-network.md) · [Exact API audit](../benchmarks/2026-11-26/native-docker-api-v1.47-secondary-networks.json.gz)
 

@@ -1,0 +1,24 @@
+{
+  "completed_utc": "2026-11-24T10:20:58.539968+00:00",
+  "command": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "docs/benchmarks/2026-11-24/disposable-local-fixture",
+    "-p",
+    "test_*.py",
+    "-q"
+  ],
+  "status": 0,
+  "tests": 65,
+  "seconds": 0.769,
+  "result": "OK",
+  "source_sha256": {
+    "docs/benchmarks/2026-11-24/disposable-local-fixture/local_qos.py": "823f7453cb07374fef1307c71b0720745d624bfd0705b6c8f64c2bb1ae53b60f",
+    "docs/benchmarks/2026-11-24/disposable-local-fixture/local_terminal.py": "254d159d9a92f106f6cfebf34659fad2fbfa3eacfa232777fb242052ed5b9581",
+    "docs/benchmarks/2026-11-24/disposable-local-fixture/test_host_role_launch_order.py": "3212439807d155dd89d1803a50e50a8ec960972e1b8cc67de4d90a531044715f"
+  }
+}

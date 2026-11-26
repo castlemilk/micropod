@@ -1,0 +1,15 @@
+{
+  "original": 9000,
+  "disturbed": 1500,
+  "end": 9000,
+  "worker_receipt": {
+    "instance": "651CAEAA-EC6F-4E12-88C7-1DDCBFF95CF7",
+    "gateway": "192.168.128.1",
+    "seconds": 0.049559125,
+    "cause": "guest-link-restored",
+    "timestamp": 817222346.075859
+  },
+  "existing_mtu_before": 9000,
+  "existing_mtu_after": 9000,
+  "seconds": 17.529769291002594
+}

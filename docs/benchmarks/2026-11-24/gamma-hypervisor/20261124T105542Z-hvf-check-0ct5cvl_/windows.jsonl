@@ -1,0 +1,4 @@
+{"block":0,"transport":"mmio","batch":1,"descriptors":65537,"data_exits":65537,"completion_exits":1,"wall_ns":66102583,"vcpu_ns":29814208,"thread_cpu_ns":66103250}
+{"block":0,"transport":"hvc","batch":1,"descriptors":65537,"data_exits":65537,"completion_exits":1,"wall_ns":45362166,"vcpu_ns":20528208,"thread_cpu_ns":45362375}
+{"block":0,"transport":"mmio","batch":8,"descriptors":65537,"data_exits":8193,"completion_exits":1,"wall_ns":5986291,"vcpu_ns":2705291,"thread_cpu_ns":5986375}
+{"block":0,"transport":"hvc","batch":8,"descriptors":65537,"data_exits":8193,"completion_exits":1,"wall_ns":5276541,"vcpu_ns":2388625,"thread_cpu_ns":5276625}

@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-24",
+  "tier": "source/fixture",
+  "direction": "233.04",
+  "base": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "kernel": "7.3.5",
+  "kernel_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "kernel_file_sha256": {
+    "net/core/netdev_queues.c": "ef8c2a0f71198d86eb7154719f8d89efd697cbd4e8420fd43bba36466e59ee24",
+    "net/core/netdev_rx_queue.c": "14e40b582998ef342ea48eba663daa41ba71cf627127d84d16b268920650023c",
+    "net/core/dev.c": "8b3c43e8becfd552ead597c2e009edf16b126924a7cbe4c5c961e74563b76274",
+    "net/core/netdev-genl.c": "51287e03a715b551e8ddac964c02e3548119d128b3299cd2383534b4329c54f0",
+    "net/ethernet/eth.c": "3d5685a4a72156c9cc4a072ea11497227a8881471a8a5e2676e17b0b3e1faa19",
+    "drivers/net/netkit.c": "cd7425f0d282bb02838491c474b6fe241a1966f4f9317bc4a043fa7772dd3f0e",
+    "drivers/net/virtio_net.c": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+    "io_uring/zcrx.c": "81710ffc59b47cacbcabc7f673d298ab7eff6de7e962b9663c88b8dda4f789c2"
+  },
+  "config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+  "config_archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "compiled_sha256": "5a2f6ad893b54833b9c7606e36b7bed8bdf15ea66f4e9a7320144c6f1a582f9c",
+  "fixture_sha256": "0c6678d7e9ba7b2f812c6941f621602010b162fc1c37d9ebc622979151736a4f",
+  "reproducer_sha256": "fb2feee9d1d67df7cacb8483c57f46b34ad02269665c4a61950ad082db3060ae",
+  "cc": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "fixed": "present physical lower and valid queue 0; single unbound queue, header split enabled, threshold zero, no XDP, default RX page size; netkit peer modeled with its real create callback field present",
+  "callback": "instrumented driver memory allocation always returns Linux -EAGAIN; passing this point demonstrates actual driver callback dispatch only",
+  "rows": [
+    {
+      "lower_parent_has_dma_mask": true,
+      "lower_queue_ops_present": false,
+      "outputs": {
+        "netkit_can_create": 1,
+        "lower_can_lease": 0,
+        "dma_available": 1,
+        "direct_inner_open_rc": -95,
+        "driver_allocation_callbacks": 0,
+        "callback_saw_provider": 0,
+        "provider_left_bound": 0
+      }
+    },
+    {
+      "lower_parent_has_dma_mask": true,
+      "lower_queue_ops_present": true,
+      "outputs": {
+        "netkit_can_create": 1,
+        "lower_can_lease": 1,
+        "dma_available": 1,
+        "direct_inner_open_rc": -11,
+        "driver_allocation_callbacks": 1,
+        "callback_saw_provider": 1,
+        "provider_left_bound": 0
+      }
+    },
+    {
+      "lower_parent_has_dma_mask": false,
+      "lower_queue_ops_present": true,
+      "outputs": {
+        "netkit_can_create": 1,
+        "lower_can_lease": 1,
+        "dma_available": 0,
+        "direct_inner_open_rc": -95,
+        "driver_allocation_callbacks": 0,
+        "callback_saw_provider": 0,
+        "provider_left_bound": 0
+      }
+    },
+    {
+      "lower_parent_has_dma_mask": false,
+      "lower_queue_ops_present": false,
+      "outputs": {
+        "netkit_can_create": 1,
+        "lower_can_lease": 0,
+        "dma_available": 0,
+        "direct_inner_open_rc": -95,
+        "driver_allocation_callbacks": 0,
+        "callback_saw_provider": 0,
+        "provider_left_bound": 0
+      }
+    }
+  ]
+}

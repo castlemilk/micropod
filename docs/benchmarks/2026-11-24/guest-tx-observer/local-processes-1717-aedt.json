@@ -1,0 +1,75 @@
+{
+  "kind": "local process observation",
+  "observed_at": "2026-11-24T06:17:56.078395+00:00",
+  "host": "Gamma-128GB.local",
+  "machine": "cuttlefish-linux-ci-gamma128",
+  "launchd_jobs": [
+    {
+      "label": "dev.cuttlefish.worker.linux",
+      "state": "not running",
+      "pid": null,
+      "last_exit": "1"
+    },
+    {
+      "label": "dev.cuttlefish.linux-runner-watchdog",
+      "state": "not running",
+      "pid": null,
+      "last_exit": "0"
+    },
+    {
+      "label": "dev.cuttlefish.machine-runner",
+      "state": "running",
+      "pid": 4123,
+      "last_exit": "(never exited)"
+    },
+    {
+      "label": "dev.micropod.api",
+      "state": "running",
+      "pid": 94657,
+      "last_exit": null
+    },
+    {
+      "label": "com.skunkworq.micropod.service.docker-shim",
+      "state": "running",
+      "pid": 94658,
+      "last_exit": null
+    },
+    {
+      "label": "com.skunkworq.micropod.service.shared-fs",
+      "state": "running",
+      "pid": 94659,
+      "last_exit": null
+    },
+    {
+      "label": "com.skunkworq.micropod.runtime.host",
+      "state": "running",
+      "pid": 94661,
+      "last_exit": null
+    }
+  ],
+  "guest_logs": {
+    "stdio.log": {
+      "last_write": "2026-11-24T05:49:59.271529+00:00",
+      "last_32_lines_exit_or_unmount_markers": []
+    },
+    "vminitd.log": {
+      "last_write": "2026-11-24T05:50:00.314483+00:00",
+      "last_32_lines_exit_or_unmount_markers": [
+        "exit",
+        "exit",
+        "exit",
+        "unmounting",
+        "exit",
+        "unmounting"
+      ]
+    }
+  },
+  "other_local_view": "Full process table not accessible to this session. No identified local Linux CI VM process. launchd job state and guest log history do not prove exhaustive absence or disk/fixture readiness.",
+  "control_plane_at": "2026-11-24T06:09:18.850844537Z",
+  "control_plane": {
+    "mac": "offline, stale, 0/6",
+    "isolated_linux": "offline, stale, 1/1",
+    "arm64_pool_held": 1
+  },
+  "scored_vm_attempts": 0
+}

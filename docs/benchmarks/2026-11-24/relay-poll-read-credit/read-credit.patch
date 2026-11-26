@@ -1,0 +1,86 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -39,7 +39,7 @@
+     atomic_bool path_failure, guest_data;
+     uint64_t interface_checked;
+     struct pair *retired;
+-    char scratch[CHUNK];
++    char scratch[CHUNK * 2];
+ };
+ 
+ struct mp_tcp_listener {
+@@ -524,7 +524,7 @@
+ 
+ // Read directly into the worker scratch and immediately write to the peer.
+ // On backpressure, keep just the unwritten suffix and pause that reader.
+-static void pump(struct endpoint *src, struct endpoint *dst) {
++static void pump_with_credit(struct endpoint *src, struct endpoint *dst, size_t *credit, intptr_t hint) {
+     struct pair *p = src->pair;
+     mp_tcp_listener *l = p->listener;
+     mp_tcp_relay *r = l->relay;
+@@ -536,7 +536,15 @@
+         data = dst->pending + dst->offset;
+     } else {
+         if (src->eof) return;
+-        ssize_t got = read(src->watch.fd, data, CHUNK);
++        size_t cap = CHUNK;
++        if (credit && hint > CHUNK) {
++            size_t extra = (size_t)hint - CHUNK;
++            if (extra > CHUNK) extra = CHUNK;
++            if (extra > *credit) extra = *credit;
++            cap += extra;
++        }
++        ssize_t got = read(src->watch.fd, data, cap);
++        if (credit && got > 0) *credit = *credit + CHUNK - (size_t)got;
+         if (l->profile) ++l->stats.reads;
+         if (got < 0) {
+             if (errno != EAGAIN && errno != EINTR) {
+@@ -627,6 +635,10 @@
+     }
+ }
+ 
++static void pump(struct endpoint *src, struct endpoint *dst) {
++    pump_with_credit(src, dst, NULL, 0);
++}
++
+ static void finish_connect(struct pair *p) {
+     int error = 0;
+     socklen_t length = sizeof(error);
+@@ -675,7 +687,7 @@
+     }
+ }
+ 
+-static void service_event(const struct kevent *event) {
++static void service_with_credit(const struct kevent *event, size_t *credit) {
+     struct watch *w = event->udata;
+     if (w->kind == ACCEPT) {
+         accept_ready((mp_tcp_listener *)w, event->filter);
+@@ -705,8 +717,14 @@
+     } else if (event->filter == EVFILT_WRITE) {
+         if (e->length) pump(peer, e);
+     } else if (!e->eof && !peer->length) {
+-        pump(e, peer);
+-    }
++        bool eligible = e == &p->guest && e->bulk_read && event->filter == EVFILT_READ &&
++                        !(event->flags & (EV_ERROR | EV_EOF));
++        pump_with_credit(e, peer, eligible ? credit : NULL, event->data);
++    }
++}
++
++static void service_event(const struct kevent *event) {
++    service_with_credit(event, NULL);
+ }
+ 
+ // A dedicated data owner already has a separate accept queue. Read each
+@@ -729,7 +747,10 @@
+             }
+             if (!bulk[i]) service_event(&events[i]);
+         }
+-        for (int i = 0; i < n; ++i) if (bulk[i]) service_event(&events[i]);
++        size_t credit = 0;
++        for (int i = 0; i < n; ++i) {
++            if (bulk[i]) service_with_credit(&events[i], BENCH_POLL_READ_CREDIT ? &credit : NULL);
++        }
+         serviced += n;
+     }
+ }

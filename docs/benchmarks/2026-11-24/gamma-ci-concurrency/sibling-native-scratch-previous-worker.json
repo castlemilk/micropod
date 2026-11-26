@@ -1,0 +1,39 @@
+{
+  "run": "20261125T013839Z-sibling-_00djlpk",
+  "worker": "670dee15fcd70a6aa43f2a02b643e9ed62d67d9fb86dcce5b02a1bfdceee6bee",
+  "public_cli": {
+    "argv": [
+      "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-2af989f2153e6676/micropod",
+      "ci",
+      "run",
+      "--scratch-mib",
+      "128",
+      "--pull=never",
+      "--name",
+      "mp-t-g0z8ta9z-scratch-cli",
+      "--label",
+      "io.micropod.bench.ci-concurrency=mp-t-g0z8ta9z",
+      "--network",
+      "none",
+      "--memory",
+      "128m",
+      "--pids-limit",
+      "64",
+      "--entrypoint",
+      "/bin/sh",
+      "micropod-internal/go-cache-fanout:r7zsq0",
+      "-ec",
+      "test \"$(stat -f -c %T /tmp)\" = tmpfs\ntest \"$(stat -c %a /tmp)\" = 1777\nprintf '#!/bin/sh\\nexit 0\\n' >/tmp/cli-check\nchmod 0700 /tmp/cli-check\n/tmp/cli-check\nprintf 'native-cli %s %s\\n' \"$(cat /proc/sys/kernel/random/boot_id)\" \"$(df -Pk /tmp | awk 'NR==2 {print $2}')\" "
+    ],
+    "code": 125,
+    "stdout": "",
+    "stderr": "docker: Error response from daemon: unsupported Docker option Tmpfs\n\nRun 'docker run --help' for more information\n",
+    "auto_removed": true
+  },
+  "baseline_files": 24,
+  "cleanup": {
+    "scope": "/private/tmp/mp-t-g0z8ta9z",
+    "retained": false,
+    "errors": []
+  }
+}

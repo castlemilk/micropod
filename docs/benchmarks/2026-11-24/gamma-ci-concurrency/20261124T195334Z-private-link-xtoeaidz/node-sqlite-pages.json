@@ -1,0 +1,66 @@
+{
+  "image": "node:24-alpine",
+  "image_id": "sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5",
+  "config_id": "sha256:9ca3f7b76099c042f1e655ca8936e0a1ccda68b3c74a8a36375428ef76476d4e",
+  "layers": [
+    "sha256:3d971ddbca237031066ab6609a11ae2e9e5b109da24d5c5d94d2e584dd94bd54",
+    "sha256:fa6ae9453caa1002c3a69acdad51409fa9cc2cfb8627096395a2ce5fa757e2d8",
+    "sha256:9f1fa01d8af70ff240b122fb643366ddf69e1be0f43e33a8607d31ddc8a6e6f2",
+    "sha256:38ddfdcc415d2f77bf65147b6ae1f9a1714c8070086c26b2760c908329b2884e"
+  ],
+  "archive_sha256": "5bb0fe16b2ecb998cc26d3514b93bd8d218ec7a86e81ff62a6c0acb694892b2b",
+  "source_sha256": "8b5abc2882eb9a41ef6516c84f2e65dce2a4a2e56d37cc5a4b1c8ed767010797",
+  "stages": {
+    "create": {
+      "stage": "create",
+      "node": "v24.22.3",
+      "arch": "arm64",
+      "sqlite": "3.54.1",
+      "pageBytes": 4096,
+      "sqlPageBytes": 4096,
+      "mmap": 16777216,
+      "journal": "wal",
+      "walFrames": 83,
+      "rows": 8192,
+      "before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "after": "31eb223de522ca3617584ca7c373f13c3ee2b5e8cbf4b17832048d0733ed3cb9",
+      "boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+      "id": "81a22f0ee63a9feb70b2f4182a81b126a627236e39b08f8f0c374a576987523d",
+      "db_sha256": "685973e5b1217aecd7840574378ba21099a779ca57cfdbd2167c412cb5586298"
+    },
+    "append": {
+      "stage": "append",
+      "node": "v24.22.3",
+      "arch": "arm64",
+      "sqlite": "3.54.1",
+      "pageBytes": 16384,
+      "sqlPageBytes": 4096,
+      "mmap": 16777216,
+      "journal": "wal",
+      "walFrames": 23,
+      "rows": 10240,
+      "before": "31eb223de522ca3617584ca7c373f13c3ee2b5e8cbf4b17832048d0733ed3cb9",
+      "after": "93c736c2232db8b5a1a2a87f808d11fdefa5e93bbc323d8c68dd2b259beb1bde",
+      "boot": "9bd1fcfd-82ba-4a05-a625-c216365a5a8b",
+      "id": "88468b606064edf00a85e71716ca6fd0a9c909637ac6bba1a84b7349dd43055c",
+      "db_sha256": "d29d206c1958d3e307c866c40227021d43e05fb1626d995eaa40c5e9913eb4ca"
+    },
+    "verify": {
+      "stage": "verify",
+      "node": "v24.22.3",
+      "arch": "arm64",
+      "sqlite": "3.54.1",
+      "pageBytes": 4096,
+      "sqlPageBytes": 4096,
+      "mmap": 16777216,
+      "journal": "wal",
+      "walFrames": null,
+      "rows": 10240,
+      "before": "93c736c2232db8b5a1a2a87f808d11fdefa5e93bbc323d8c68dd2b259beb1bde",
+      "after": "93c736c2232db8b5a1a2a87f808d11fdefa5e93bbc323d8c68dd2b259beb1bde",
+      "boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+      "id": "0d74370893672a08319dfa65fe9e3c8e24b6db75e91ba7cbb94006be0f3cf668",
+      "db_sha256": "d29d206c1958d3e307c866c40227021d43e05fb1626d995eaa40c5e9913eb4ca"
+    }
+  }
+}

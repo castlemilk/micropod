@@ -1,0 +1,4 @@
+{
+  "complete": false,
+  "error": "docker exited 1: Error response from daemon: unsupported Docker option Env"
+}

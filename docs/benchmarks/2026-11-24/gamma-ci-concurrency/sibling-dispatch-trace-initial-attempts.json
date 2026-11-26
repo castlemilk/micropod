@@ -1,0 +1,82 @@
+{
+  "workload_boots": [
+    {
+      "run": "20261125T021230Z-dispatch-trace-hs3426w_",
+      "status": {
+        "complete": true
+      },
+      "raw_sha256": "1b5132da2a9830199cacbf3ddf5d135c45abd1eaa6d2721b82fbf241f7a91ec6",
+      "stats": {
+        "cpu0": {
+          "entries": 0,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        },
+        "cpu1": {
+          "entries": 1,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        },
+        "cpu2": {
+          "entries": 0,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        },
+        "cpu3": {
+          "entries": 1,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        }
+      },
+      "cleanup": {
+        "scope": "/private/tmp/mp-t-iz45a1yy",
+        "retained": false,
+        "errors": []
+      }
+    },
+    {
+      "run": "20261125T021325Z-dispatch-trace-45d9d_wt",
+      "status": {
+        "complete": true
+      },
+      "raw_sha256": "13e2dc22c87071d95d56ce9a04349396f41916f96582f2993ef34fe6b58e0e5a",
+      "stats": {
+        "cpu0": {
+          "entries": 0,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        },
+        "cpu1": {
+          "entries": 0,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        },
+        "cpu2": {
+          "entries": 2,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        },
+        "cpu3": {
+          "entries": 0,
+          "overrun": 0,
+          "commit overrun": 0,
+          "dropped events": 0
+        }
+      },
+      "cleanup": {
+        "scope": "/private/tmp/mp-t-9lib4iy2",
+        "retained": false,
+        "errors": []
+      }
+    }
+  ],
+  "verified_scheduler_trace": false,
+  "reason": "The filtered traces contained the two clock markers and no issuing-thread scheduling events."
+}

@@ -1,0 +1,27 @@
+{
+  "mode": "suite",
+  "action": "check-inputs",
+  "time": "2026-11-24T08:57:24.468914+00:00",
+  "plan": [
+    "baseline",
+    "host-role",
+    "workers"
+  ],
+  "stages": {
+    "baseline": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085724Z-local-ygkr14s7/inputs/baseline",
+      "state": "inputs verified"
+    },
+    "host-role": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085724Z-local-ygkr14s7/inputs/host-role",
+      "state": "inputs verified"
+    },
+    "workers": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T085724Z-local-ygkr14s7/inputs/workers",
+      "state": "inputs verified"
+    }
+  },
+  "complete": true,
+  "socket_evidence": "route",
+  "end": "2026-11-24T08:57:24.947396+00:00"
+}

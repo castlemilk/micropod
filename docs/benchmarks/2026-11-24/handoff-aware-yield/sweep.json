@@ -1,0 +1,2596 @@
+{
+  "evidence": "Darwin AF_UNIX fixed delivery ordering",
+  "source_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "input_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/callback_handoff_work.c": "53338b7b3602173b80dcc9cd733fa09183ee0b50be9958d2995891921248c623",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109"
+  },
+  "experiment_sha256": {
+    "experiment.patch": "84385b9532bcdc1c4f6404e1fb9b18e05528754d34ade608217318097621d917",
+    "sweep.patch": "b4d004053f6ceefe3580d147003a3fcba9b0de14a84db02c0b22398be549e038",
+    "sweep.py": "9cd171470009fb004861947182c3750e4d938bb1226e3400ba06ddf776c3480d",
+    "run.py": "5a3234f55ff70677a76a31d1da59ed44e36ae563112f54f918132433fc364520",
+    "result.json": "f9a2dd333ce0e4db56c3e044abf128dddf0246404b3185d7f2c962f0e5248d98"
+  },
+  "toolchain": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "platform": [
+    "arm64",
+    "26.5.1"
+  ],
+  "compiler_flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fblocks",
+    "-DMICROPOD_BENCH_FIXED_RELAY_BUDGET=1"
+  ],
+  "seed": 23003,
+  "pause_between_invocations_s": 0.125,
+  "summary": {
+    "no_handoff": {
+      "control": {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 0,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 1,
+        "handoff_yields": 0,
+        "verified_half_closes": 16
+      },
+      "candidate": {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 0,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 1,
+        "handoff_yields": 0,
+        "verified_half_closes": 16
+      }
+    },
+    "positions_with_handoff": 32,
+    "bytes_ahead_of_entry": {
+      "improved_positions": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "tied_positions": [
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "worse_positions": [],
+      "maximum_by_arm": {
+        "control": 8126464,
+        "candidate": 1835008
+      },
+      "median_saving_bytes_across_positions": 3145728.0,
+      "maximum_saving_bytes": 6291456
+    },
+    "bytes_ahead_of_readable_reply": {
+      "improved_positions": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "tied_positions": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "worse_positions": [],
+      "maximum_by_arm": {
+        "control": 8126464,
+        "candidate": 3932160
+      },
+      "median_saving_bytes_across_positions": 1048576.0,
+      "maximum_saving_bytes": 4194304
+    },
+    "productive_callbacks_by_arm": {
+      "control": {
+        "2": 32
+      },
+      "candidate": {
+        "2": 32
+      }
+    }
+  },
+  "pairs": [
+    {
+      "position": 23,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 23,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2359296,
+          "bytes_ahead_of_readable_reply": 2359296
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 23,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 2359296
+        }
+      }
+    },
+    {
+      "position": 24,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 24,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 2097152
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 24,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2097152,
+          "bytes_ahead_of_readable_reply": 2097152
+        }
+      }
+    },
+    {
+      "position": 6,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 6,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6815744,
+          "bytes_ahead_of_readable_reply": 6815744
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 6,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 2621440
+        }
+      }
+    },
+    {
+      "position": 4,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 4,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 3145728
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 4,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7340032,
+          "bytes_ahead_of_readable_reply": 7340032
+        }
+      }
+    },
+    {
+      "position": 29,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 29,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 786432
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 29,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 786432
+        }
+      }
+    },
+    {
+      "position": 3,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 3,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 3407872
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 3,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7602176,
+          "bytes_ahead_of_readable_reply": 7602176
+        }
+      }
+    },
+    {
+      "position": 26,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 26,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 1572864
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 26,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 1572864
+        }
+      }
+    },
+    {
+      "position": 10,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 10,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 3670016
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 10,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 5767168,
+          "bytes_ahead_of_readable_reply": 5767168
+        }
+      }
+    },
+    {
+      "position": 21,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 21,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2883584,
+          "bytes_ahead_of_readable_reply": 2883584
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 21,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 2883584
+        }
+      }
+    },
+    {
+      "position": 0,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 0,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 1,
+          "handoff_yields": 0,
+          "verified_half_closes": 16
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 0,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 1,
+          "handoff_yields": 0,
+          "verified_half_closes": 16
+        }
+      }
+    },
+    {
+      "position": 31,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 31,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 262144
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 31,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 262144
+        }
+      }
+    },
+    {
+      "position": 11,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 11,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 3407872
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 11,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 5505024,
+          "bytes_ahead_of_readable_reply": 5505024
+        }
+      }
+    },
+    {
+      "position": 12,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 12,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 5242880,
+          "bytes_ahead_of_readable_reply": 5242880
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 12,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 3145728
+        }
+      }
+    },
+    {
+      "position": 16,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 16,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 2097152
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 16,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4194304,
+          "bytes_ahead_of_readable_reply": 4194304
+        }
+      }
+    },
+    {
+      "position": 18,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 18,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3670016,
+          "bytes_ahead_of_readable_reply": 3670016
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 18,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 3670016
+        }
+      }
+    },
+    {
+      "position": 7,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 7,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 2359296
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 7,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6553600,
+          "bytes_ahead_of_readable_reply": 6553600
+        }
+      }
+    },
+    {
+      "position": 27,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 27,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 1310720
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 27,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 1310720
+        }
+      }
+    },
+    {
+      "position": 13,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 13,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 2883584
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 13,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4980736,
+          "bytes_ahead_of_readable_reply": 4980736
+        }
+      }
+    },
+    {
+      "position": 17,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 17,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3932160,
+          "bytes_ahead_of_readable_reply": 3932160
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 17,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 3932160
+        }
+      }
+    },
+    {
+      "position": 30,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 30,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 524288
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 30,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 524288
+        }
+      }
+    },
+    {
+      "position": 1,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 1,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 8126464,
+          "bytes_ahead_of_readable_reply": 8126464
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 1,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 3932160
+        }
+      }
+    },
+    {
+      "position": 32,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 32,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 0
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 32,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 0
+        }
+      }
+    },
+    {
+      "position": 19,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 19,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3407872,
+          "bytes_ahead_of_readable_reply": 3407872
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 19,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 3407872
+        }
+      }
+    },
+    {
+      "position": 20,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 20,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 3145728
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 20,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3145728,
+          "bytes_ahead_of_readable_reply": 3145728
+        }
+      }
+    },
+    {
+      "position": 15,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 15,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4456448,
+          "bytes_ahead_of_readable_reply": 4456448
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 15,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 2359296
+        }
+      }
+    },
+    {
+      "position": 22,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 22,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 2621440
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 22,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2621440,
+          "bytes_ahead_of_readable_reply": 2621440
+        }
+      }
+    },
+    {
+      "position": 25,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 25,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 1835008
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 25,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 1835008
+        }
+      }
+    },
+    {
+      "position": 2,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 2,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 3670016
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 2,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7864320,
+          "bytes_ahead_of_readable_reply": 7864320
+        }
+      }
+    },
+    {
+      "position": 14,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 14,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4718592,
+          "bytes_ahead_of_readable_reply": 4718592
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 14,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 2621440
+        }
+      }
+    },
+    {
+      "position": 5,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 5,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 2883584
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 5,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7077888,
+          "bytes_ahead_of_readable_reply": 7077888
+        }
+      }
+    },
+    {
+      "position": 28,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 28,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 1048576
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 28,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 1048576
+        }
+      }
+    },
+    {
+      "position": 8,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 8,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 2097152
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 8,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6291456,
+          "bytes_ahead_of_readable_reply": 6291456
+        }
+      }
+    },
+    {
+      "position": 9,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 9,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6029312,
+          "bytes_ahead_of_readable_reply": 6029312
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 9,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 3932160
+        }
+      }
+    },
+    {
+      "position": 9,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 9,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 3932160
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 9,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6029312,
+          "bytes_ahead_of_readable_reply": 6029312
+        }
+      }
+    },
+    {
+      "position": 8,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 8,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6291456,
+          "bytes_ahead_of_readable_reply": 6291456
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 8,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 2097152
+        }
+      }
+    },
+    {
+      "position": 28,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 28,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 1048576
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 28,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 1048576
+        }
+      }
+    },
+    {
+      "position": 5,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 5,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7077888,
+          "bytes_ahead_of_readable_reply": 7077888
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 5,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 2883584
+        }
+      }
+    },
+    {
+      "position": 14,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 14,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 2621440
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 14,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4718592,
+          "bytes_ahead_of_readable_reply": 4718592
+        }
+      }
+    },
+    {
+      "position": 2,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 2,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7864320,
+          "bytes_ahead_of_readable_reply": 7864320
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 2,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 3670016
+        }
+      }
+    },
+    {
+      "position": 25,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 25,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 1835008
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 25,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 1835008
+        }
+      }
+    },
+    {
+      "position": 22,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 22,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2621440,
+          "bytes_ahead_of_readable_reply": 2621440
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 22,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 2621440
+        }
+      }
+    },
+    {
+      "position": 15,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 15,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 2359296
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 15,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4456448,
+          "bytes_ahead_of_readable_reply": 4456448
+        }
+      }
+    },
+    {
+      "position": 20,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 20,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3145728,
+          "bytes_ahead_of_readable_reply": 3145728
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 20,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 3145728
+        }
+      }
+    },
+    {
+      "position": 19,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 19,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 3407872
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 19,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3407872,
+          "bytes_ahead_of_readable_reply": 3407872
+        }
+      }
+    },
+    {
+      "position": 32,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 32,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 0
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 32,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 0
+        }
+      }
+    },
+    {
+      "position": 1,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 1,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 3932160
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 1,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 8126464,
+          "bytes_ahead_of_readable_reply": 8126464
+        }
+      }
+    },
+    {
+      "position": 30,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 30,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 524288
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 30,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 524288
+        }
+      }
+    },
+    {
+      "position": 17,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 17,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1835008,
+          "bytes_ahead_of_readable_reply": 3932160
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 17,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3932160,
+          "bytes_ahead_of_readable_reply": 3932160
+        }
+      }
+    },
+    {
+      "position": 13,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 13,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4980736,
+          "bytes_ahead_of_readable_reply": 4980736
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 13,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 2883584
+        }
+      }
+    },
+    {
+      "position": 27,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 27,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 1310720
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 27,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 1310720
+        }
+      }
+    },
+    {
+      "position": 7,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 7,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6553600,
+          "bytes_ahead_of_readable_reply": 6553600
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 7,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 2359296
+        }
+      }
+    },
+    {
+      "position": 18,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 18,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 3670016
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 18,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 3670016,
+          "bytes_ahead_of_readable_reply": 3670016
+        }
+      }
+    },
+    {
+      "position": 16,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 16,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 4194304,
+          "bytes_ahead_of_readable_reply": 4194304
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 16,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 2097152
+        }
+      }
+    },
+    {
+      "position": 12,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 12,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 3145728
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 12,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 5242880,
+          "bytes_ahead_of_readable_reply": 5242880
+        }
+      }
+    },
+    {
+      "position": 11,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 11,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 5505024,
+          "bytes_ahead_of_readable_reply": 5505024
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 11,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 3407872
+        }
+      }
+    },
+    {
+      "position": 31,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 31,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 262144
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 31,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 262144
+        }
+      }
+    },
+    {
+      "position": 0,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 0,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 1,
+          "handoff_yields": 0,
+          "verified_half_closes": 16
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 0,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 1,
+          "handoff_yields": 0,
+          "verified_half_closes": 16
+        }
+      }
+    },
+    {
+      "position": 21,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 21,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 2883584
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 21,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2883584,
+          "bytes_ahead_of_readable_reply": 2883584
+        }
+      }
+    },
+    {
+      "position": 10,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 10,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 5767168,
+          "bytes_ahead_of_readable_reply": 5767168
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 10,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 3670016
+        }
+      }
+    },
+    {
+      "position": 26,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 26,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 1572864
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 26,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1572864,
+          "bytes_ahead_of_readable_reply": 1572864
+        }
+      }
+    },
+    {
+      "position": 3,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 3,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7602176,
+          "bytes_ahead_of_readable_reply": 7602176
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 3,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1310720,
+          "bytes_ahead_of_readable_reply": 3407872
+        }
+      }
+    },
+    {
+      "position": 29,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 29,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 786432
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 29,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 786432,
+          "bytes_ahead_of_readable_reply": 786432
+        }
+      }
+    },
+    {
+      "position": 4,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 4,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 7340032,
+          "bytes_ahead_of_readable_reply": 7340032
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 4,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 1048576,
+          "bytes_ahead_of_readable_reply": 3145728
+        }
+      }
+    },
+    {
+      "position": 6,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 6,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 4,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 524288,
+          "bytes_ahead_of_readable_reply": 2621440
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 6,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 6815744,
+          "bytes_ahead_of_readable_reply": 6815744
+        }
+      }
+    },
+    {
+      "position": 24,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "rows": {
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 24,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2097152,
+          "bytes_ahead_of_readable_reply": 2097152
+        },
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 24,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 0,
+          "bytes_ahead_of_readable_reply": 2097152
+        }
+      }
+    },
+    {
+      "position": 23,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "rows": {
+        "candidate": {
+          "yield_on_handoff": 1,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 23,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 5,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 1,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 262144,
+          "bytes_ahead_of_readable_reply": 2359296
+        },
+        "control": {
+          "yield_on_handoff": 0,
+          "budget": 128,
+          "read_cap": 262144,
+          "enqueue_after_write": 23,
+          "bulk_writes": 32,
+          "bulk_bytes": 8388608,
+          "nonempty_polls": 6,
+          "nonempty_callbacks": 2,
+          "handoff_yields": 0,
+          "verified_half_closes": 18,
+          "bytes_ahead_of_entry": 2359296,
+          "bytes_ahead_of_readable_reply": 2359296
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "previous_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-2af989f2153e6676/product.json",
+  "current_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-5c8cb3ef88d3bedc/product.json",
+  "base_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "old_guest_sha256": "670dee15fcd70a6aa43f2a02b643e9ed62d67d9fb86dcce5b02a1bfdceee6bee",
+  "new_guest_sha256": "aca8baeaf0d8692f14235a25ada3ebc064eac3003db3a774f269376cc178718c",
+  "new_bootstrap_sha256": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+  "changed_packaged_inputs": [
+    "ci/runner/start.sh",
+    "guest/runner/docker_config_linux.go",
+    "guest/runner/docker_engine_linux.go",
+    "guest/runner/docker_engine_linux_test.go",
+    "guest/runner/go.mod",
+    "guest/runner/go.sum",
+    "guest/runner/main_linux.go"
+  ],
+  "entitlements": {
+    "com.apple.security.virtualization": true
+  },
+  "baseline_files": 24
+}

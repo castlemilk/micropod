@@ -73,7 +73,8 @@ def check_window(fleet_path, release_path, scopes, now, mode="host-role"):
             "valid_until_epoch": expiry, "fleet_time": fleet["generatedAt"], "effective_disk_gate": clearance}
 
 
-def verify_job(job, live, pid, home, expected, *, read_kib=None, worker_count=None, vcpus=None):
+def verify_job(job, live, pid, home, expected, *, read_kib=None, worker_count=None, vcpus=None,
+               relay_mode="kqueue-interactive"):
     pids = re.findall(r"(?m)^[ \t]*pid = (\d+)[ \t]*$", live)
     types = re.findall(r"(?m)^[ \t]*spawn type = ([^\n]+)$", live)
     if (job.get("ProcessType", "Standard") != expected or pids != [str(pid)]
@@ -82,7 +83,8 @@ def verify_job(job, live, pid, home, expected, *, read_kib=None, worker_count=No
     env = job["EnvironmentVariables"]
     if (job["ProgramArguments"][1:] != ["ci", "serve"]
             or Path(env["MICROPOD_CI_HOME"]).resolve() != home.resolve()
-            or env.get("MICROPOD_CI_PORT_RELAY") != "kqueue-interactive"):
+            or relay_mode not in ("kqueue-interactive","kqueue-throughput")
+            or env.get("MICROPOD_CI_PORT_RELAY") != relay_mode):
         raise ValueError("job does not describe the scoped native relay")
     for key, value in env.items():
         values = re.findall(rf"(?m)^[ \t]*{re.escape(key)} => ([^\n]*)$", live)

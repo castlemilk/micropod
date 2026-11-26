@@ -1,0 +1,172 @@
+{
+  "rea_bundle_sha256": "ddbf1768bc80fca0b1fb7824b136c4489ed79bdfb6fb6b52b69051d62d97b983",
+  "orbstack_version": "2.2.5",
+  "build": "21124",
+  "binaries": {
+    "MacOS/OrbStack": {
+      "sha256": "48e096f309541c42ff9aa029dd1afae06bcae2875aa4a6c1ca273f79d44d9738",
+      "rea_evidence_id": "ev_20c39a9cf6ca6a98563044269ae47a6a48bf6f3da3189ec1899f404b107e09fb",
+      "uuid": "E1BD01D3-DDA0-32C6-9D57-07E1379CF532",
+      "architecture": "arm64",
+      "framework_dependencies": [
+        "/System/Library/Frameworks/Virtualization.framework/Versions/A/Virtualization"
+      ],
+      "observed_framework_imports": {
+        "Hypervisor": [],
+        "Virtualization": [
+          "_OBJC_CLASS_$_VZVirtualMachine"
+        ],
+        "vmnet": []
+      },
+      "imports_exhaustive": false,
+      "rust_path_strings": []
+    },
+    "Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper": {
+      "sha256": "9898a51367c3097131ff2aec51242c7386827b0a1074014605340b354cc39b1e",
+      "rea_evidence_id": "ev_6e5478a44cdd169ba387891682fb27858f7c27b1ad2c438ec2a444a29f442dee",
+      "uuid": "F05617E0-57D8-3E1C-951C-EB158B6406F3",
+      "architecture": "arm64",
+      "framework_dependencies": [
+        "/System/Library/Frameworks/Hypervisor.framework/Versions/A/Hypervisor",
+        "/System/Library/Frameworks/Virtualization.framework/Versions/A/Virtualization",
+        "/System/Library/Frameworks/vmnet.framework/Versions/A/vmnet"
+      ],
+      "observed_framework_imports": {
+        "Hypervisor": [
+          "__hv_vcpu_get_context",
+          "_hv_vcpu_create",
+          "_hv_vcpu_destroy",
+          "_hv_vcpu_get_reg",
+          "_hv_vcpu_get_sys_reg",
+          "_hv_vcpu_get_vtimer_mask",
+          "_hv_vcpu_run",
+          "_hv_vcpu_set_pending_interrupt",
+          "_hv_vcpu_set_reg",
+          "_hv_vcpu_set_sys_reg",
+          "_hv_vcpu_set_vtimer_mask",
+          "_hv_vcpus_exit",
+          "_hv_vm_config_create",
+          "_hv_vm_config_get_default_ipa_size",
+          "_hv_vm_config_get_max_ipa_size",
+          "_hv_vm_config_set_ipa_size",
+          "_hv_vm_create",
+          "_hv_vm_destroy",
+          "_hv_vm_map",
+          "_hv_vm_protect",
+          "_hv_vm_unmap"
+        ],
+        "Virtualization": [
+          "_$sSo16VZVirtualMachineC14VirtualizationE5pause17completionHandleryys6ResultOyyts5Error_pGc_tF",
+          "_$sSo16VZVirtualMachineC14VirtualizationE5start17completionHandleryys6ResultOyyts5Error_pGc_tF",
+          "_$sSo16VZVirtualMachineC14VirtualizationE6resume17completionHandleryys6ResultOyyts5Error_pGc_tF",
+          "_$sSo20VZVirtioSocketDeviceC14VirtualizationE7connect6toPort17completionHandlerys6UInt32V_ys6ResultOySo0aB10ConnectionCs5Error_pGctF",
+          "_OBJC_CLASS_$_VZVirtioSocketConnection",
+          "_OBJC_CLASS_$_VZVirtualMachineConfiguration",
+          "_OBJC_CLASS_$_VZLinuxBootLoader",
+          "_OBJC_CLASS_$_VZFileHandleNetworkDeviceAttachment",
+          "_OBJC_CLASS_$_VZVirtioNetworkDeviceConfiguration",
+          "_OBJC_CLASS_$_VZMACAddress",
+          "_OBJC_CLASS_$_VZNetworkDeviceConfiguration",
+          "_OBJC_CLASS_$_VZStorageDeviceConfiguration",
+          "_OBJC_CLASS_$_VZDirectorySharingDeviceConfiguration",
+          "_OBJC_CLASS_$_VZVirtualMachine",
+          "_OBJC_CLASS_$_VZVirtioSoundDeviceConfiguration",
+          "_OBJC_CLASS_$_VZVirtioSoundDeviceOutputStreamConfiguration",
+          "_OBJC_CLASS_$_VZHostAudioOutputStreamSink",
+          "_OBJC_CLASS_$_VZVirtioSoundDeviceStreamConfiguration",
+          "_OBJC_CLASS_$_VZAudioDeviceConfiguration",
+          "_OBJC_CLASS_$_VZLinuxRosettaDirectoryShare",
+          "_OBJC_CLASS_$_VZVirtioFileSystemDeviceConfiguration",
+          "_OBJC_CLASS_$_VZSharedDirectory",
+          "_OBJC_CLASS_$_VZSingleDirectoryShare",
+          "_OBJC_CLASS_$_VZVirtioSocketDeviceConfiguration",
+          "_OBJC_CLASS_$_VZSocketDeviceConfiguration",
+          "_OBJC_CLASS_$_VZVirtioTraditionalMemoryBalloonDeviceConfiguration",
+          "_OBJC_CLASS_$_VZMemoryBalloonDeviceConfiguration",
+          "_OBJC_CLASS_$_VZDiskImageStorageDeviceAttachment",
+          "_OBJC_CLASS_$_VZVirtioBlockDeviceConfiguration",
+          "_OBJC_CLASS_$_VZVirtioEntropyDeviceConfiguration",
+          "_OBJC_CLASS_$_VZEntropyDeviceConfiguration",
+          "_OBJC_CLASS_$_VZNATNetworkDeviceAttachment",
+          "_OBJC_CLASS_$_VZFileHandleSerialPortAttachment",
+          "_OBJC_CLASS_$_VZVirtioConsoleDeviceSerialPortConfiguration",
+          "_OBJC_CLASS_$_VZSerialPortConfiguration",
+          "_OBJC_CLASS_$_VZSocketDevice",
+          "_OBJC_CLASS_$_VZVirtioSocketDevice"
+        ],
+        "vmnet": [
+          "_vmnet_allocate_mac_address_key",
+          "_vmnet_enable_checksum_offload_key",
+          "_vmnet_enable_isolation_key",
+          "_vmnet_enable_tso_key",
+          "_vmnet_host_ip_address_key",
+          "_vmnet_host_ipv6_address_key",
+          "_vmnet_host_subnet_mask_key",
+          "_vmnet_interface_id_key",
+          "_vmnet_interface_set_event_callback",
+          "_vmnet_max_packet_size_key",
+          "_vmnet_mtu_key",
+          "_vmnet_network_identifier_key",
+          "_vmnet_operation_mode_key",
+          "_vmnet_read",
+          "_vmnet_start_interface",
+          "_vmnet_stop_interface",
+          "_vmnet_write"
+        ]
+      },
+      "imports_exhaustive": false,
+      "rust_path_strings": [
+        "src/vmm/src/device_manager/hvf/mmio.rs",
+        "src/vmm/src/macos/vstate.rs",
+        "src/devices/src/virtio/net/device.rs",
+        "src/devices/src/virtio/net/worker.rs",
+        "src/devices/src/virtio/net/dgram.rs",
+        "src/devices/src/virtio/queue.rs",
+        "src/devices/src/virtio/vsock/tcp.rs",
+        "src/devices/src/virtio/fs/hvc.rs"
+      ]
+    }
+  },
+  "packaged_orbstack_kernel": {
+    "image_sha256": "e81637c1d33b70a6fb058daff73dbe1d3220e28cc17551ead0bca2da7febfa89",
+    "config_sha256": "e55e32b0f532b370a26d6e1847e8e4f3d6067721327bb4dc2690324584efef7c",
+    "recorded_config_options": 455,
+    "options": {
+      "CONFIG_CPU_MITIGATIONS": null,
+      "CONFIG_RANDOMIZE_BASE": null,
+      "CONFIG_UNMAP_KERNEL_AT_EL0": null,
+      "CONFIG_ARM64_E0PD": null,
+      "CONFIG_VIRTIO_NET": "y",
+      "CONFIG_VIRTIO_FS": "y"
+    },
+    "release": "7.2.12-orbstack-00394-gbecdd6130068",
+    "driver_path_strings": [
+      "drivers/net/virtio_net.c",
+      "drivers/virtio/virtio_mmio.c"
+    ]
+  },
+  "micropod_fixture_kernel": {
+    "image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "recorded_config_options": 2878,
+    "options": {
+      "CONFIG_CPU_MITIGATIONS": "y",
+      "CONFIG_RANDOMIZE_BASE": "y",
+      "CONFIG_UNMAP_KERNEL_AT_EL0": "n",
+      "CONFIG_ARM64_E0PD": "n",
+      "CONFIG_VIRTIO_NET": "y",
+      "CONFIG_VIRTIO_FS": "y"
+    },
+    "boot_id": "1d7bc69f-d9b6-4a71-8d59-9f5c78cb8035",
+    "release": "7.3.5-micropod",
+    "fixture_sha256": "a1179b22de0ce593838884d2d4e35d849572b49be88f580760714ed489b13c6b"
+  },
+  "historical_peer": {
+    "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+    "release": "7.2.12-orbstack-00394-gbecdd6130068",
+    "matches_packaged_release_string": true
+  },
+  "guest_interfaces_seen_in_local_boot_log": [
+    "virtio_net virtio10 eth1"
+  ]
+}

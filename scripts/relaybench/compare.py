@@ -30,13 +30,18 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def build(directory, revision, legacy, sanitize, *, batch_filters=False, stage_connect=False, fixture=FIXTURE):
+def build(directory, revision, legacy, sanitize, *, batch_filters=False, stage_connect=False, fixture=FIXTURE,
+          fixed_worker_budget=None, selectable_reads=False):
     directory.mkdir()
     for name in (C_SOURCE, HEADER):
         content = git("show", f"{revision}:{name}") if revision else (ROOT / name).read_bytes()
         (directory / Path(name).name).write_bytes(content)
     exe = directory / "relay"
     flags = ["-O3", "-Wall", "-Wextra", "-Werror", "-fblocks"]
+    if selectable_reads:
+        flags.append("-DMICROPOD_BENCH_512K_READS=1")
+    if fixed_worker_budget is not None:
+        flags.extend(["-DRELAYBENCH_NATIVE_WORKERS", f"-DMICROPOD_BENCH_FIXED_RELAY_BUDGET={int(fixed_worker_budget)}"])
     if stage_connect:
         flags.append("-DRELAYBENCH_STAGE_CONNECT")
     if batch_filters:
@@ -58,12 +63,12 @@ def quantile95(values):
     return sorted(values)[math.ceil(len(values) * .95) - 1]
 
 
-def measure(exe, seconds, ports, workers, buffer_kib, profile, legacy, fixed_128_progress=None):
+def measure(exe, seconds, ports, workers, buffer_kib, profile, legacy, fixed_128_progress=None, *, env=None):
     cmd = [exe, str(seconds), str(buffer_kib), str(int(profile)), str(workers), str(ports)]
     if fixed_128_progress is not None:
         cmd.append(fixed_128_progress)
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=seconds + 40)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=seconds + 40, env=env)
     except subprocess.TimeoutExpired as exc:
         if fixed_128_progress is not None:
             fixed_128_progress.with_suffix(".stdout").write_bytes(exc.stdout or b"")

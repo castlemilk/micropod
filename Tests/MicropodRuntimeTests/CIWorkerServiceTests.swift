@@ -93,10 +93,12 @@ struct CIWorkerServiceTests {
         let otherHome = "/private/tmp/another-worker"
         let other = CIWorker.LoadedService(target: target, environment: ["MICROPOD_CI_HOME": otherHome])
         for registration in [nil, otherHome] {
-            let result = try worker().serviceTarget(registeredHome: registration, loadService: {
-                Issue.record("An unrelated worker triggered a launchd lookup")
-                return other
-            })
+            let result = try worker().serviceTarget(
+                registeredHome: registration,
+                loadService: {
+                    Issue.record("An unrelated worker triggered a launchd lookup")
+                    return other
+                })
             #expect(result == nil)
         }
         #expect(throws: Error.self) { try worker().serviceTarget(registeredHome: home, loadService: { other }) }

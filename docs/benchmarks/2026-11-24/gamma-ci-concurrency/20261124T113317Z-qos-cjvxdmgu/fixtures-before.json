@@ -1,0 +1,148 @@
+{
+  "A": {
+    "scope": "/private/tmp/mp-t-y_katj_i/data/a",
+    "engine": "7EB1E612-D5CF-4E66-AD5B-E3DE76A87F2F",
+    "engine_version": "micropod",
+    "id": "d82524885ab9344afeacae69cfa568e3538b52139b4366cc7495c12350f194d8",
+    "name": "mp-t-y_katj_i-a",
+    "address": "127.0.0.1:54088",
+    "cpus": 4,
+    "memory_bytes": 4116488192,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.3.5-micropod",
+    "pids": {
+      "vmm": 92619,
+      "relay": 92614
+    },
+    "vmm_executable": "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+    "process_type": "Standard",
+    "spawn_type": "daemon (3)",
+    "job_controls_sha256": "4f7b6d4eb0d28dd0f528e9b39ebab481f55f3ed5f675ed0d4bc981a06e50ff41",
+    "docker_socket": "/private/tmp/mp-t-y_katj_i/a/docker.sock",
+    "guest_probe_mount": {
+      "source": "HostConfig.Mounts",
+      "target": "/mpcheck",
+      "bind_source": "/private/tmp/mp-t-y_katj_i/workspace/probe",
+      "readonly": true
+    },
+    "guest_probe_sha256": "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605",
+    "guest_boot": "43583404-c7fe-428d-82fd-78e664a24a41",
+    "instance": "1FF9D45B-DBEA-4036-939E-20CC7D57B63F",
+    "worker": "7EB1E612-D5CF-4E66-AD5B-E3DE76A87F2F",
+    "kernel": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+    "cli_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+    "relay_workers": 2,
+    "callback_events": 128,
+    "read_bytes": 262144,
+    "route": {
+      "RtoMin": 20,
+      "RtoMinLock": true,
+      "QuickACK": 0,
+      "Congctl": "reno",
+      "MTU": 0
+    },
+    "service_env_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "relay_nice": 0,
+    "worker_disk_holder_check": "exact named VMM PID holds the worker disk",
+    "nic_offload_readback": "TSO and GRO in guest inventory",
+    "boot": "43583404-c7fe-428d-82fd-78e664a24a41",
+    "guest_config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "guest_inventory_sha256": "2e3d5398481fa088902df365a005ce861ca2cb139121408ae3d636ac7c560ea6",
+    "guest_reported_sched_ext": false,
+    "callback_events_origin": "mapped build",
+    "read_bytes_origin": "mapped build",
+    "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "mapped_relay_build": {
+      "source_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+      "worker_executable_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+      "mapped_device": 16777232,
+      "mapped_inode": 1220456239,
+      "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+    },
+    "socket_evidence": "route",
+    "accepted_socket_reno_verified": false,
+    "births": {
+      "92619": 422280146750,
+      "92614": 422274731704
+    }
+  },
+  "B": {
+    "scope": "/private/tmp/mp-t-y_katj_i/data/b",
+    "engine": "263C428F-61ED-4A32-83F3-3974635B7868",
+    "engine_version": "micropod",
+    "id": "579eb0751e1190db190b23784d37c5d9c33bb0924d6a40f7ff8ec00c9d844140",
+    "name": "mp-t-y_katj_i-b",
+    "address": "127.0.0.1:54090",
+    "cpus": 4,
+    "memory_bytes": 4116488192,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.3.5-micropod",
+    "pids": {
+      "vmm": 92926,
+      "relay": 92802
+    },
+    "vmm_executable": "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+    "process_type": "Interactive",
+    "spawn_type": "interactive (4)",
+    "job_controls_sha256": "4f7b6d4eb0d28dd0f528e9b39ebab481f55f3ed5f675ed0d4bc981a06e50ff41",
+    "docker_socket": "/private/tmp/mp-t-y_katj_i/b/docker.sock",
+    "guest_probe_mount": {
+      "source": "HostConfig.Mounts",
+      "target": "/mpcheck",
+      "bind_source": "/private/tmp/mp-t-y_katj_i/workspace/probe",
+      "readonly": true
+    },
+    "guest_probe_sha256": "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605",
+    "guest_boot": "8b0a3506-913c-4535-a919-c78ec0800ef6",
+    "instance": "E6FA9676-218C-45F7-ACF7-ED4DF1722674",
+    "worker": "263C428F-61ED-4A32-83F3-3974635B7868",
+    "kernel": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+    "cli_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+    "relay_workers": 2,
+    "callback_events": 128,
+    "read_bytes": 262144,
+    "route": {
+      "RtoMin": 20,
+      "RtoMinLock": true,
+      "QuickACK": 0,
+      "Congctl": "reno",
+      "MTU": 0
+    },
+    "service_env_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "relay_nice": 0,
+    "worker_disk_holder_check": "exact named VMM PID holds the worker disk",
+    "nic_offload_readback": "TSO and GRO in guest inventory",
+    "boot": "8b0a3506-913c-4535-a919-c78ec0800ef6",
+    "guest_config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "guest_inventory_sha256": "1cd5467bd67ca7ee4f1e8746e137052fae8686a93a1844d5e405ba0311dd2ec7",
+    "guest_reported_sched_ext": false,
+    "callback_events_origin": "mapped build",
+    "read_bytes_origin": "mapped build",
+    "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "mapped_relay_build": {
+      "source_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+      "worker_executable_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+      "mapped_device": 16777232,
+      "mapped_inode": 1220456239,
+      "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+    },
+    "socket_evidence": "route",
+    "accepted_socket_reno_verified": false,
+    "births": {
+      "92926": 422354951990,
+      "92802": 422349028134
+    }
+  }
+}

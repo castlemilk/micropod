@@ -1,0 +1,49 @@
+{
+  "mode": "suite",
+  "action": "run",
+  "time": "2026-11-24T09:10:43.313983+00:00",
+  "plan": [
+    "baseline",
+    "host-role",
+    "workers"
+  ],
+  "stages": {
+    "baseline": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T091043Z-local-aizbfylz/inputs/baseline",
+      "state": "preserved",
+      "idle_wait_seconds": 60,
+      "evidence": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T091043Z-local-aizbfylz/preserved/baseline",
+      "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57/baseline",
+      "manifest_sha256": "8e7826379b6ae9afd581d179a64b5a0aa11c1efa18f6ba30cd0ea13669f0163e",
+      "result": {
+        "socket_evidence": "route",
+        "accepted_socket_reno_verified": false,
+        "idle_wait_seconds": 60,
+        "mib_s": 6573.335798495191,
+        "fresh_p95_us": 5871,
+        "fresh_p99_us": 9550
+      }
+    },
+    "host-role": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T091043Z-local-aizbfylz/inputs/host-role",
+      "state": "failed",
+      "idle_wait_seconds": 60,
+      "evidence": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T091043Z-local-aizbfylz/host-role",
+      "start": "2026-11-24T09:10:43.802473+00:00",
+      "end": "2026-11-24T09:10:44.074578+00:00",
+      "error": "launchctl exited 5: Bootstrap failed: 5: Input/output error\nTry re-running the command as root for richer errors."
+    },
+    "workers": {
+      "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T091043Z-local-aizbfylz/inputs/workers",
+      "state": "inputs verified",
+      "idle_wait_seconds": 60
+    }
+  },
+  "complete": false,
+  "socket_evidence": "route",
+  "idle_wait_seconds": 60,
+  "busy_diagnostic": false,
+  "resume_from": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57",
+  "error": "host-role: launchctl exited 5: Bootstrap failed: 5: Input/output error\nTry re-running the command as root for richer errors.",
+  "end": "2026-11-24T09:10:44.074594+00:00"
+}

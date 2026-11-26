@@ -1,0 +1,86 @@
+{
+  "archive": "20261125T072547Z-sibling-log-notify-2ozemvd7",
+  "baseline": 24,
+  "runner_sha256": "58846d9c91426bf22efdb37752d1d0f6bb9014ab33e8fdd00f16e829fe96726a",
+  "engine_pid": 242,
+  "boot": "1e9f7ef2-7f22-4063-bb1c-1be1c267c006",
+  "watches_before": {
+    "7": 64
+  },
+  "watches_after": {
+    "7": 64
+  },
+  "intervals": {
+    "idle": {
+      "seconds": 5.092561503000001,
+      "candidate_per_s": {
+        "drain": 0.0,
+        "status": 0.0,
+        "engine_read_syscalls": 0.0
+      },
+      "tasks_wait": {
+        "seconds": 5.0881505449999995,
+        "status_calls": 0,
+        "status_per_s": 0.0,
+        "cri_log_drains_per_s": 314.4561046001834,
+        "engine_read_syscalls_per_s": 321.72790201906264
+      }
+    },
+    "dense": {
+      "seconds": 18.928738799,
+      "candidate_per_s": {
+        "drain": 0.0,
+        "status": 0.0,
+        "engine_read_syscalls": 340.17057704553304
+      },
+      "tasks_wait": {
+        "seconds": 14.831735757,
+        "status_calls": 0,
+        "status_per_s": 0.0,
+        "cri_log_drains_per_s": 316.5509470315464,
+        "engine_read_syscalls_per_s": 742.1248719864177
+      }
+    }
+  },
+  "positive_stats": {
+    "drain": 0,
+    "stats": 8,
+    "status": 8,
+    "duration_s": 0.102738001,
+    "status_per_s": 77.86797409071644,
+    "engine_read_syscalls": 224
+  },
+  "positive_log": {
+    "drain": 3,
+    "stats": 0,
+    "status": 5,
+    "duration_s": 0.254667125,
+    "status_per_s": 19.633472518292262,
+    "engine_read_syscalls": 141
+  },
+  "positive_log_output": {
+    "code": 0,
+    "stdout": "notify-out\n",
+    "stderr": "notify-err\n",
+    "retired": true
+  },
+  "linux_test_root_count": 12,
+  "linux_tests_sha256": "2f4de1449ee909a3ef0c9f10e51a66da6c437c3454739991f52121d022d48066",
+  "container_ids_live": 112,
+  "oom_count_observed": "oom_kill 0",
+  "cleanup": {
+    "scope": "/private/tmp/mp-t-0iekoa7f",
+    "retained": false,
+    "errors": []
+  },
+  "storage": {
+    "read_only": true,
+    "device": "disk14s1",
+    "volume_st_dev": 16777259,
+    "raw_inode": 27,
+    "raw_bytes": 6576668672,
+    "spotlight": "Indexing and searching disabled.",
+    "journal_files": 0,
+    "journal_bytes": 0
+  }
+}

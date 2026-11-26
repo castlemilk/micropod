@@ -1,0 +1,721 @@
+{
+  "studies": {
+    "base_slices": [
+      "20261125T010926Z-sibling-rjgfufjk",
+      "20261125T011327Z-sibling-gnick7xe",
+      "20261125T011047Z-sibling-ju8sn8y6",
+      "20261125T011207Z-sibling-za85omrl"
+    ],
+    "middle_slices": [
+      "20261125T011448Z-sibling-gqlmuygz",
+      "20261125T011852Z-sibling-uui94j7s",
+      "20261125T011610Z-sibling-fp6huhe2",
+      "20261125T011731Z-sibling-73hyueeb"
+    ],
+    "network_layout": [
+      "20261125T012139Z-sibling-svg3g_0s",
+      "20261125T012301Z-sibling-415pd7i1",
+      "20261125T012013Z-sibling-5ygbt6pp",
+      "20261125T012423Z-sibling-xu7zhgug"
+    ],
+    "client_slice": [
+      "20261125T012549Z-sibling-8x1ipg9c",
+      "20261125T012958Z-sibling-263f999q",
+      "20261125T012711Z-sibling-s4uhd652",
+      "20261125T012834Z-sibling-9mfmv6jh"
+    ],
+    "longer_client_slice": [
+      "20261125T013308Z-sibling-ympv46lk",
+      "20261125T013713Z-sibling-albfmrs7",
+      "20261125T013430Z-sibling-6bhp9pq9",
+      "20261125T013552Z-sibling-wr48usth"
+    ],
+    "factorial": [
+      "20261125T014021Z-sibling-qnzzq343",
+      "20261125T014442Z-sibling-prcb9fdz",
+      "20261125T015657Z-sibling-gnxbt73i",
+      "20261125T020405Z-sibling-2839e_x7",
+      "20261125T014310Z-sibling-9m3sesg6",
+      "20261125T014950Z-sibling-ctwv8j9_",
+      "20261125T015405Z-sibling-xnamh2ei",
+      "20261125T020241Z-sibling-rp8qwyat",
+      "20261125T014145Z-sibling-b7kludqp",
+      "20261125T015239Z-sibling-g4kvtbf5",
+      "20261125T015532Z-sibling-61h2_skn",
+      "20261125T015945Z-sibling-z5p43ny_",
+      "20261125T013856Z-sibling-65h3k62p",
+      "20261125T015115Z-sibling-z9erlpic",
+      "20261125T015822Z-sibling-_ysvs924",
+      "20261125T020108Z-sibling-ahrgljik"
+    ],
+    "released_holdout": [
+      "20261125T020730Z-sibling-x58wry_k",
+      "20261125T020854Z-sibling-iuewn64t",
+      "20261125T020606Z-sibling-apbjlovh",
+      "20261125T021018Z-sibling-obzjjzpy"
+    ]
+  },
+  "complete_boots": 40,
+  "fresh_micropod_boots": 40,
+  "total": {
+    "offered_requests": 30720000,
+    "completed_requests": 30720000,
+    "warm_connections": 10240,
+    "jobs": 2560,
+    "revisions": 5120,
+    "test_passes": 40960
+  },
+  "all_requests_in_eight_build_overlap": true,
+  "minimum_last_response_before_first_build_ms": 161.836028,
+  "host_idle_before_boot_range": [
+    78,
+    94
+  ],
+  "original_baseline_files": 24,
+  "unqualified_attempts_to_date": {
+    "20261125T013839Z-sibling-_00djlpk": "public CLI scratch smoke differs",
+    "20261125T014608Z-sibling-cy8pkcep": "incomplete paced A slot 0: expected 3000, recorded 0. context deadline exceeded"
+  },
+  "runs": {
+    "20261125T010926Z-sibling-rjgfufjk": {
+      "micropod_boot": "bae34ccd-7e2c-4c54-844a-d437f5adfe41",
+      "seed": 250091,
+      "study": "base_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1209.723713,
+      "idle_before_boot": 78,
+      "idle_after_cleanup": 92
+    },
+    "20261125T011327Z-sibling-gnick7xe": {
+      "micropod_boot": "76331eb4-95af-48f0-a002-663e22278513",
+      "seed": 250093,
+      "study": "base_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1265.417981,
+      "idle_before_boot": 91,
+      "idle_after_cleanup": 85
+    },
+    "20261125T011047Z-sibling-ju8sn8y6": {
+      "micropod_boot": "c15fdfea-0578-4e8c-876e-3e0d17c8db84",
+      "seed": 250091,
+      "study": "base_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 431.885709,
+      "idle_before_boot": 92,
+      "idle_after_cleanup": 92
+    },
+    "20261125T011207Z-sibling-za85omrl": {
+      "micropod_boot": "7074de24-8013-4008-9c88-1b60a2b23a68",
+      "seed": 250093,
+      "study": "base_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 473.162792,
+      "idle_before_boot": 90,
+      "idle_after_cleanup": 92
+    },
+    "20261125T011448Z-sibling-gqlmuygz": {
+      "micropod_boot": "e27f307b-3d6e-4ec8-be1d-69044a61e467",
+      "seed": 250091,
+      "study": "middle_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1174.21275,
+      "idle_before_boot": 86,
+      "idle_after_cleanup": 90
+    },
+    "20261125T011852Z-sibling-uui94j7s": {
+      "micropod_boot": "920810ae-8c5f-46d4-9a8e-c885896afdb8",
+      "seed": 250093,
+      "study": "middle_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1167.244626,
+      "idle_before_boot": 88,
+      "idle_after_cleanup": 93
+    },
+    "20261125T011610Z-sibling-fp6huhe2": {
+      "micropod_boot": "6fa188e3-040b-42f5-a290-319bd81813c9",
+      "seed": 250091,
+      "study": "middle_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 943.070625,
+      "idle_before_boot": 91,
+      "idle_after_cleanup": 92
+    },
+    "20261125T011731Z-sibling-73hyueeb": {
+      "micropod_boot": "e9babf40-8be4-4253-8368-1450bcf9c06a",
+      "seed": 250093,
+      "study": "middle_slices",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1004.169208,
+      "idle_before_boot": 92,
+      "idle_after_cleanup": 94
+    },
+    "20261125T012139Z-sibling-svg3g_0s": {
+      "micropod_boot": "e4400ffa-8fa0-43e7-9e5d-cd01b84713a9",
+      "seed": 250101,
+      "study": "network_layout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1272.623319,
+      "idle_before_boot": 92,
+      "idle_after_cleanup": 94
+    },
+    "20261125T012301Z-sibling-415pd7i1": {
+      "micropod_boot": "a276ce6c-719b-4369-9814-5c255f169ca5",
+      "seed": 250103,
+      "study": "network_layout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1255.450801,
+      "idle_before_boot": 89,
+      "idle_after_cleanup": 86
+    },
+    "20261125T012013Z-sibling-5ygbt6pp": {
+      "micropod_boot": "f6953342-0f8e-4858-9efe-a8f9833960fc",
+      "seed": 250101,
+      "study": "network_layout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1304.343102,
+      "idle_before_boot": 91,
+      "idle_after_cleanup": 86
+    },
+    "20261125T012423Z-sibling-xu7zhgug": {
+      "micropod_boot": "9f3cd939-8302-4d02-ba84-e4f9b0a5991a",
+      "seed": 250103,
+      "study": "network_layout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1243.027928,
+      "idle_before_boot": 82,
+      "idle_after_cleanup": 92
+    },
+    "20261125T012549Z-sibling-8x1ipg9c": {
+      "micropod_boot": "09421b87-bbfa-4ea9-901d-86fe7e9f5f53",
+      "seed": 250111,
+      "study": "client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 161.836028,
+      "idle_before_boot": 90,
+      "idle_after_cleanup": 94
+    },
+    "20261125T012958Z-sibling-263f999q": {
+      "micropod_boot": "60c87c4e-b574-4a92-9bb6-4d4846c143d6",
+      "seed": 250113,
+      "study": "client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 281.229833,
+      "idle_before_boot": 85,
+      "idle_after_cleanup": 86
+    },
+    "20261125T012711Z-sibling-s4uhd652": {
+      "micropod_boot": "5a9b96c1-2c1f-457b-97cd-efc6266edfd1",
+      "seed": 250111,
+      "study": "client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1297.636834,
+      "idle_before_boot": 94,
+      "idle_after_cleanup": 89
+    },
+    "20261125T012834Z-sibling-9mfmv6jh": {
+      "micropod_boot": "22a36603-a1ee-40b8-8d31-e4e51b6179b8",
+      "seed": 250113,
+      "study": "client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1318.638001,
+      "idle_before_boot": 89,
+      "idle_after_cleanup": 88
+    },
+    "20261125T013308Z-sibling-ympv46lk": {
+      "micropod_boot": "20bee448-03a2-4734-a2a9-360e959ed32c",
+      "seed": 250121,
+      "study": "longer_client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1172.523667,
+      "idle_before_boot": 89,
+      "idle_after_cleanup": 92
+    },
+    "20261125T013713Z-sibling-albfmrs7": {
+      "micropod_boot": "c176a672-97c0-4900-9827-52eacd9dfddd",
+      "seed": 250123,
+      "study": "longer_client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1220.452126,
+      "idle_before_boot": 85,
+      "idle_after_cleanup": 80
+    },
+    "20261125T013430Z-sibling-6bhp9pq9": {
+      "micropod_boot": "e3cec6e1-770b-4f1d-9274-790b7bfc0c36",
+      "seed": 250121,
+      "study": "longer_client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1094.557542,
+      "idle_before_boot": 82,
+      "idle_after_cleanup": 91
+    },
+    "20261125T013552Z-sibling-wr48usth": {
+      "micropod_boot": "a9c1ecfb-8a21-4ac4-95dd-f9805c6a9e85",
+      "seed": 250123,
+      "study": "longer_client_slice",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1105.5115,
+      "idle_before_boot": 91,
+      "idle_after_cleanup": 85
+    },
+    "20261125T014021Z-sibling-qnzzq343": {
+      "micropod_boot": "a1d63c48-67cc-4d88-bac9-48695b0785b2",
+      "seed": 250131,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1342.046381,
+      "idle_before_boot": 88,
+      "idle_after_cleanup": 84
+    },
+    "20261125T014442Z-sibling-prcb9fdz": {
+      "micropod_boot": "d8f7e01d-44bf-48d8-8660-ef7f4750db26",
+      "seed": 250133,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1402.306985,
+      "idle_before_boot": 90,
+      "idle_after_cleanup": 86
+    },
+    "20261125T015657Z-sibling-gnxbt73i": {
+      "micropod_boot": "122d5217-63ec-4650-9f40-53d41d81271a",
+      "seed": 250135,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1349.350551,
+      "idle_before_boot": 87,
+      "idle_after_cleanup": 84
+    },
+    "20261125T020405Z-sibling-2839e_x7": {
+      "micropod_boot": "ec66c848-6696-4176-b505-ffbbdb680061",
+      "seed": 250137,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1372.513897,
+      "idle_before_boot": 82,
+      "idle_after_cleanup": 84
+    },
+    "20261125T014310Z-sibling-9m3sesg6": {
+      "micropod_boot": "4ce94eef-76ef-4b00-b948-0aa657901254",
+      "seed": 250131,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1415.91946,
+      "idle_before_boot": 88,
+      "idle_after_cleanup": 85
+    },
+    "20261125T014950Z-sibling-ctwv8j9_": {
+      "micropod_boot": "67634f2b-aa6a-4e4a-bd85-ba21790aa70c",
+      "seed": 250133,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1303.259959,
+      "idle_before_boot": 89,
+      "idle_after_cleanup": 88
+    },
+    "20261125T015405Z-sibling-xnamh2ei": {
+      "micropod_boot": "7ae785f9-179b-4b1a-b441-61f4a6221786",
+      "seed": 250135,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1320.027152,
+      "idle_before_boot": 79,
+      "idle_after_cleanup": 82
+    },
+    "20261125T020241Z-sibling-rp8qwyat": {
+      "micropod_boot": "e1825def-abdb-4ce8-8976-de511680a78e",
+      "seed": 250137,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1276.410667,
+      "idle_before_boot": 85,
+      "idle_after_cleanup": 83
+    },
+    "20261125T014145Z-sibling-b7kludqp": {
+      "micropod_boot": "ad5b6870-f6a7-43b3-8155-ceda4a5ca4c2",
+      "seed": 250131,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1347.175819,
+      "idle_before_boot": 91,
+      "idle_after_cleanup": 89
+    },
+    "20261125T015239Z-sibling-g4kvtbf5": {
+      "micropod_boot": "eb841131-8769-4408-a4c9-4cafcb225a99",
+      "seed": 250133,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1387.919853,
+      "idle_before_boot": 87,
+      "idle_after_cleanup": 88
+    },
+    "20261125T015532Z-sibling-61h2_skn": {
+      "micropod_boot": "2e1f8323-2d1a-495e-ab41-19c9ddded7a2",
+      "seed": 250135,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1362.510732,
+      "idle_before_boot": 85,
+      "idle_after_cleanup": 89
+    },
+    "20261125T015945Z-sibling-z5p43ny_": {
+      "micropod_boot": "534ebe87-3b1f-4311-b04f-6850333b9d58",
+      "seed": 250137,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1379.471467,
+      "idle_before_boot": 88,
+      "idle_after_cleanup": 88
+    },
+    "20261125T013856Z-sibling-65h3k62p": {
+      "micropod_boot": "639003cb-daf8-4022-8738-e34d1f42810b",
+      "seed": 250131,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1291.524958,
+      "idle_before_boot": 86,
+      "idle_after_cleanup": 90
+    },
+    "20261125T015115Z-sibling-z9erlpic": {
+      "micropod_boot": "e1dc0b83-6f37-4b1c-91ea-9e1f7a57c2a2",
+      "seed": 250133,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1339.812917,
+      "idle_before_boot": 85,
+      "idle_after_cleanup": 59
+    },
+    "20261125T015822Z-sibling-_ysvs924": {
+      "micropod_boot": "8573053d-b811-462d-830c-5caa943c6317",
+      "seed": 250135,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1301.446529,
+      "idle_before_boot": 89,
+      "idle_after_cleanup": 83
+    },
+    "20261125T020108Z-sibling-ahrgljik": {
+      "micropod_boot": "edc3ce67-88a6-4a5f-a854-9d46a0835d18",
+      "seed": 250137,
+      "study": "factorial",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1242.865168,
+      "idle_before_boot": 88,
+      "idle_after_cleanup": 84
+    },
+    "20261125T020730Z-sibling-x58wry_k": {
+      "micropod_boot": "fbd2de2b-d292-4250-942d-b1e8d810a8bf",
+      "seed": 250151,
+      "study": "released_holdout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1336.292201,
+      "idle_before_boot": 86,
+      "idle_after_cleanup": 83
+    },
+    "20261125T020854Z-sibling-iuewn64t": {
+      "micropod_boot": "d753c470-6132-4e27-b180-ee1895da6cc2",
+      "seed": 250153,
+      "study": "released_holdout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1371.091533,
+      "idle_before_boot": 83,
+      "idle_after_cleanup": 86
+    },
+    "20261125T020606Z-sibling-apbjlovh": {
+      "micropod_boot": "7af696fb-7c71-495c-bdb8-db4bf73048cd",
+      "seed": 250151,
+      "study": "released_holdout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1260.759126,
+      "idle_before_boot": 83,
+      "idle_after_cleanup": 86
+    },
+    "20261125T021018Z-sibling-obzjjzpy": {
+      "micropod_boot": "4f403237-699c-45e7-a003-c60503212a7f",
+      "seed": 250153,
+      "study": "released_holdout",
+      "totals": {
+        "offered_requests": 768000,
+        "completed_requests": 768000,
+        "warm_connections": 256,
+        "jobs": 64,
+        "revisions": 128,
+        "test_passes": 1024
+      },
+      "minimum_last_response_before_first_build_ms": 1295.958667,
+      "idle_before_boot": 86,
+      "idle_after_cleanup": 78
+    }
+  }
+}

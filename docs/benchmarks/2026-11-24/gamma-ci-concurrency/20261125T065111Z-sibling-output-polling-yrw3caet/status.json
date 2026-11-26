@@ -1,0 +1,4 @@
+{
+  "complete": false,
+  "error": "missing targeted CRI output or exit-wait tests"
+}

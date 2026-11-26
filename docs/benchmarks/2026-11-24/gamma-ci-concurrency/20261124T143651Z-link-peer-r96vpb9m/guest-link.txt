@@ -1,0 +1,10 @@
+3: eth1: <BROADCAST,UP,LOWER_UP> mtu 9000 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether 02:7d:df:e5:25:69 brd ff:ff:ff:ff:ff:ff
+set_exit=0
+gateway=192.168.128.1
+3: eth1    inet 192.168.128.2/24 scope global eth1\       valid_lft forever preferred_lft forever
+3: eth1: <BROADCAST,UP,LOWER_UP> mtu 9000 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether 02:7d:df:e5:25:69 brd ff:ff:ff:ff:ff:ff promiscuity 0 allmulti 0 minmtu 68 maxmtu 9000 addrgenmode eui64 numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 tso_max_size 65536 tso_max_segs 65535 gro_max_size 65536 gso_ipv4_max_size 65536 gro_ipv4_max_size 65536 parentbus virtio parentdev virtio1 
+192.168.128.0/24 proto kernel scope link src 192.168.128.2 
+requested_rps=off-irq
+rx0_rps=7

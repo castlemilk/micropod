@@ -1,0 +1,41 @@
+{
+  "raw_sha256": "7bdff811d3c75cd8040d3928d5284469a18e39d3b546a493ce0664361f7516a7",
+  "arms": [
+    {
+      "arm": 0,
+      "attempted_pairs": 1,
+      "verified_bytes_each_direction": 65536,
+      "verified_turns": 16,
+      "both_fins": 2,
+      "callbacks": 36,
+      "fixed_callback_observations": 0,
+      "owner_threads": {
+        "io.0": [
+          1923052
+        ],
+        "io.1": [
+          1923051
+        ]
+      },
+      "callback_sha256": "d243ec76b67bc58a64134de5eb380043bc10562015cbb0ab44936a8b7ea06b10"
+    },
+    {
+      "arm": 1,
+      "attempted_pairs": 1,
+      "verified_bytes_each_direction": 65536,
+      "verified_turns": 16,
+      "both_fins": 2,
+      "callbacks": 36,
+      "fixed_callback_observations": 0,
+      "owner_threads": {
+        "io.0": [
+          1923067
+        ],
+        "io.1": [
+          1923067
+        ]
+      },
+      "callback_sha256": "87441dcd11dda573f2d7d4eac8b88fb86f6c3a15d73983f62a0f83369c1f3604"
+    }
+  ]
+}

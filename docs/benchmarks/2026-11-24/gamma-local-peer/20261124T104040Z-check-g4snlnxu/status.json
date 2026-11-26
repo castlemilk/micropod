@@ -1,0 +1,7 @@
+{
+  "complete": false,
+  "action": "check",
+  "start": "2026-11-24T10:40:40.136125+00:00",
+  "error": "a local fixture is already active",
+  "end": "2026-11-24T10:40:40.136201+00:00"
+}

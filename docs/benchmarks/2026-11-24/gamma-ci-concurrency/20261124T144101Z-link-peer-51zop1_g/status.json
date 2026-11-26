@@ -1,0 +1,6 @@
+{
+  "complete": false,
+  "profile": "link-peer",
+  "error": "mci-94ac39c781-a-ep3-7 exited 1: waiting-for-dispatch\nmci-build-cpus=0-3",
+  "end": "2026-11-24T14:43:35.011784+00:00"
+}

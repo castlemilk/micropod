@@ -1,0 +1,126 @@
+=== RUN   TestCRIOutputRecordBoundaries
+--- PASS: TestCRIOutputRecordBoundaries (0.00s)
+=== RUN   TestCRIOutputErrorsAndLimit
+--- PASS: TestCRIOutputErrorsAndLimit (0.00s)
+=== RUN   TestQuestionOnlyReplyMatchesMessageEncoding
+--- PASS: TestQuestionOnlyReplyMatchesMessageEncoding (0.00s)
+=== RUN   TestSingleServiceAWireMatchesGeneralPacker
+--- PASS: TestSingleServiceAWireMatchesGeneralPacker (0.00s)
+=== RUN   TestSingleServiceAQuestionClassAndInvalidName
+--- PASS: TestSingleServiceAQuestionClassAndInvalidName (0.00s)
+=== RUN   TestServiceLookupCopiesWhileLocked
+--- PASS: TestServiceLookupCopiesWhileLocked (0.00s)
+=== RUN   TestServiceLookupConcurrentReadersAndWriter
+--- PASS: TestServiceLookupConcurrentReadersAndWriter (0.00s)
+=== RUN   TestServiceTCPFrameBudget
+=== RUN   TestServiceTCPFrameBudget/root/4367
+    docker_dns_frame_linux_test.go:81: frame_observation {"answers_offered":4367,"answers_sent":4367,"full_message_bytes":65522,"max_fitting_answers":4367,"name":"root","prefix_bytes_declared":65522,"truncated":false,"wire_bytes":65522,"wire_sha256":"177f08061a2b0608069eb7c8987b8e60047a9999e35bdaf87f864c4719a3f693"}
+=== RUN   TestServiceTCPFrameBudget/root/4368
+    docker_dns_frame_linux_test.go:81: frame_observation {"answers_offered":4368,"answers_sent":0,"full_message_bytes":65537,"max_fitting_answers":4367,"name":"root","prefix_bytes_declared":17,"truncated":true,"wire_bytes":17,"wire_sha256":"a57351467c32058c11c1e2b197da23fe0078c58a00070acd3e83ff624c2d3e13"}
+=== RUN   TestServiceTCPFrameBudget/ordinary/4094
+    docker_dns_frame_linux_test.go:81: frame_observation {"answers_offered":4094,"answers_sent":4094,"full_message_bytes":65535,"max_fitting_answers":4094,"name":"ordinary","prefix_bytes_declared":65535,"truncated":false,"wire_bytes":65535,"wire_sha256":"bbbdbd6390f071cd29a95afa21d541710930583a7d230ca815fba2a5c7924446"}
+=== RUN   TestServiceTCPFrameBudget/ordinary/4095
+    docker_dns_frame_linux_test.go:81: frame_observation {"answers_offered":4095,"answers_sent":0,"full_message_bytes":65551,"max_fitting_answers":4094,"name":"ordinary","prefix_bytes_declared":31,"truncated":true,"wire_bytes":31,"wire_sha256":"0511b3df718938deeea8a2e14b31c1820262383f34a8e663fce1e1241814cae9"}
+=== RUN   TestServiceTCPFrameBudget/longest/4079
+    docker_dns_frame_linux_test.go:81: frame_observation {"answers_offered":4079,"answers_sent":4079,"full_message_bytes":65535,"max_fitting_answers":4079,"name":"longest","prefix_bytes_declared":65535,"truncated":false,"wire_bytes":65535,"wire_sha256":"6a1b96163c2302b2138bd9443af948e40eb40f33cb5d6cc3befb1cbdab9eeb5d"}
+=== RUN   TestServiceTCPFrameBudget/longest/4080
+    docker_dns_frame_linux_test.go:81: frame_observation {"answers_offered":4080,"answers_sent":0,"full_message_bytes":65551,"max_fitting_answers":4079,"name":"longest","prefix_bytes_declared":271,"truncated":true,"wire_bytes":271,"wire_sha256":"90ccd3895c00602f1395b948cc08a6677290f293ea21ebf6edcf16675e158a76"}
+--- PASS: TestServiceTCPFrameBudget (0.01s)
+    --- PASS: TestServiceTCPFrameBudget/root/4367 (0.00s)
+    --- PASS: TestServiceTCPFrameBudget/root/4368 (0.00s)
+    --- PASS: TestServiceTCPFrameBudget/ordinary/4094 (0.00s)
+    --- PASS: TestServiceTCPFrameBudget/ordinary/4095 (0.00s)
+    --- PASS: TestServiceTCPFrameBudget/longest/4079 (0.00s)
+    --- PASS: TestServiceTCPFrameBudget/longest/4080 (0.00s)
+=== RUN   TestSendDNSFrameLimitBeforeWriting
+=== RUN   TestSendDNSFrameLimitBeforeWriting/65535
+    docker_dns_frame_linux_test.go:104: frame_observation {"direct_send_bytes":65535,"rejected":false,"writer_bytes":65537}
+=== RUN   TestSendDNSFrameLimitBeforeWriting/65536
+    docker_dns_frame_linux_test.go:104: frame_observation {"direct_send_bytes":65536,"rejected":true,"writer_bytes":0}
+--- PASS: TestSendDNSFrameLimitBeforeWriting (0.01s)
+    --- PASS: TestSendDNSFrameLimitBeforeWriting/65535 (0.01s)
+    --- PASS: TestSendDNSFrameLimitBeforeWriting/65536 (0.00s)
+=== RUN   TestServiceTCPUnrepresentableAnswerCount
+    docker_dns_frame_linux_test.go:130: frame_observation {"reply_absent":true,"unrepresentable_answer_count":65536}
+--- PASS: TestServiceTCPUnrepresentableAnswerCount (0.00s)
+=== RUN   TestMultiServiceAWireAndTruncation
+--- PASS: TestMultiServiceAWireAndTruncation (0.03s)
+=== RUN   TestMultiServiceARejectsUnrepresentableCountBeforeTruncation
+--- PASS: TestMultiServiceARejectsUnrepresentableCountBeforeTruncation (0.00s)
+=== RUN   TestMultiServiceAInvalidQuestions
+--- PASS: TestMultiServiceAInvalidQuestions (0.00s)
+=== RUN   TestDockerCPUSetWithinAllocation
+--- PASS: TestDockerCPUSetWithinAllocation (0.00s)
+=== RUN   TestDockerCPUShares
+=== RUN   TestDockerCPUShares/0
+=== RUN   TestDockerCPUShares/1
+=== RUN   TestDockerCPUShares/512
+=== RUN   TestDockerCPUShares/1024
+=== RUN   TestDockerCPUShares/262144
+=== RUN   TestDockerCPUShares/262145
+--- PASS: TestDockerCPUShares (0.00s)
+    --- PASS: TestDockerCPUShares/0 (0.00s)
+    --- PASS: TestDockerCPUShares/1 (0.00s)
+    --- PASS: TestDockerCPUShares/512 (0.00s)
+    --- PASS: TestDockerCPUShares/1024 (0.00s)
+    --- PASS: TestDockerCPUShares/262144 (0.00s)
+    --- PASS: TestDockerCPUShares/262145 (0.00s)
+=== RUN   TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits
+=== RUN   TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{}
+=== RUN   TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"CpuQuota":-1}
+=== RUN   TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"CpuQuota":50000}
+=== RUN   TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"NanoCpus":4000000000}
+=== RUN   TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"CpuQuota":-2}
+=== RUN   TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"NanoCpus":4000000000,"CpuQuota":-1}
+--- PASS: TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits (0.00s)
+    --- PASS: TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{} (0.00s)
+    --- PASS: TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"CpuQuota":-1} (0.00s)
+    --- PASS: TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"CpuQuota":50000} (0.00s)
+    --- PASS: TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"NanoCpus":4000000000} (0.00s)
+    --- PASS: TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"CpuQuota":-2} (0.00s)
+    --- PASS: TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits/{"NanoCpus":4000000000,"CpuQuota":-1} (0.00s)
+=== RUN   TestDockerTCPQueueSysctl
+--- PASS: TestDockerTCPQueueSysctl (0.00s)
+=== RUN   TestDockerOptionsAndMounts
+--- PASS: TestDockerOptionsAndMounts (0.00s)
+=== RUN   TestBoundWorkspaceUsesOpenedInode
+--- PASS: TestBoundWorkspaceUsesOpenedInode (0.00s)
+=== RUN   TestCRILogSplitAcrossReads
+--- PASS: TestCRILogSplitAcrossReads (0.00s)
+=== RUN   TestFramesAndMetrics
+--- PASS: TestFramesAndMetrics (0.00s)
+=== RUN   TestSessionCleanupOwnership
+--- PASS: TestSessionCleanupOwnership (0.00s)
+=== RUN   TestServiceDirectoryIsScopedAndDropsOnlyExitedAddress
+--- PASS: TestServiceDirectoryIsScopedAndDropsOnlyExitedAddress (0.00s)
+=== RUN   TestServiceAliasesRespectDNSPayloadSize
+--- PASS: TestServiceAliasesRespectDNSPayloadSize (0.00s)
+=== RUN   TestServiceDNSNonAddressQuestionsKeepLocalAuthority
+--- PASS: TestServiceDNSNonAddressQuestionsKeepLocalAuthority (0.00s)
+=== RUN   TestServiceDNSMembershipChangesDuringReply
+--- PASS: TestServiceDNSMembershipChangesDuringReply (0.04s)
+=== RUN   TestServiceDNSRejectsExtraQuestions
+--- PASS: TestServiceDNSRejectsExtraQuestions (0.00s)
+=== RUN   TestDirectPortRevocationRecovery
+--- PASS: TestDirectPortRevocationRecovery (0.32s)
+=== RUN   TestPublishedGuestReservation
+--- PASS: TestPublishedGuestReservation (0.00s)
+=== RUN   TestPublishedFlowOwnership
+--- PASS: TestPublishedFlowOwnership (0.00s)
+=== RUN   TestStreamFramesFragmentationAndSelection
+--- PASS: TestStreamFramesFragmentationAndSelection (0.00s)
+=== RUN   TestStreamFramesIncompleteSpool
+--- PASS: TestStreamFramesIncompleteSpool (0.00s)
+=== RUN   TestStreamFrameWriteFailure
+--- PASS: TestStreamFrameWriteFailure (0.00s)
+=== RUN   TestShortFrameWriter
+--- PASS: TestShortFrameWriter (0.00s)
+=== RUN   TestTrustedJobCPUQuotaIsIndependentOfVMSize
+--- PASS: TestTrustedJobCPUQuotaIsIndependentOfVMSize (0.00s)
+=== RUN   TestJobTrustBoundary
+--- PASS: TestJobTrustBoundary (0.00s)
+=== RUN   TestNetavarkBridgeFanout
+    netavark_bench_linux_test.go:31: requires standalone Netavark and netbench in a disposable VM
+--- SKIP: TestNetavarkBridgeFanout (0.00s)
+PASS
+2026/11/24 21:28:13 waiting for Mac confirmation before reusing guest port 57891

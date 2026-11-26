@@ -1,0 +1,303 @@
+{
+  "id": "230.02",
+  "evidence": "archived Gamma VM burst replay",
+  "archive_sha256": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f",
+  "archive_commit": "4f887ba5d28f47fa37d4bd0a2d89cd0914d74754",
+  "source_sha256": {
+    "scripts/netbench/main.go": "1fa191fef0f26c142688b7b218d3ce0cdb46393879918f403f5be70b50ae98cd",
+    "Sources/CPublishedTCP/PublishedTCP.c": "28ba50598439e7c9467363768d30d13d30755b40a9d4cc9daf0400f03ea2862e",
+    "lanes.c": "3cdc77bc7338ac4068387b14e59809f538aee4137508391ef4a5c9df42ece5ed",
+    "pilot.sh": "269e1dae3294a58d613d22e20269e9d8158b075f5c8b9e979e59679c14106039"
+  },
+  "client_sha256": "6e2531ef4bed59edd55144630a7bff68a3e1f63fae606d276a4cf3913a48abbd",
+  "boot": "78138F28-4F2C-454E-83D4-3AF2041E4E14",
+  "vcpus": 4,
+  "instance": "F4516D3A-AAC4-43D9-ADF7-F82EEEDEBDBF",
+  "container_id": "331a3438aaefbf5a6a1cf5dd770f86b00c198e723e63eabb4548e0fff91f10da",
+  "marker": "mp-links-200996ca-ab2",
+  "target": "192.168.73.2 47521 10.88.0.5",
+  "cohorts": {
+    "fresh": {
+      "pairs": [
+        {
+          "block": 0,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/0-split2-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 63021,
+            "mib_s": 4062.138017486235,
+            "last_header_us": 5517,
+            "after_last_header_us": 57504
+          },
+          "four": {
+            "key": "lane-screen/0-split4-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 70456,
+            "mib_s": 3633.473373452935,
+            "last_header_us": 4952,
+            "after_last_header_us": 65504
+          }
+        },
+        {
+          "block": 1,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/1-split2-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 71429,
+            "mib_s": 3583.978496129023,
+            "last_header_us": 5456,
+            "after_last_header_us": 65973
+          },
+          "four": {
+            "key": "lane-screen/1-split4-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 72818,
+            "mib_s": 3515.6142711966822,
+            "last_header_us": 5531,
+            "after_last_header_us": 67287
+          }
+        },
+        {
+          "block": 2,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/2-split2-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 64242,
+            "mib_s": 3984.9319759658792,
+            "last_header_us": 5892,
+            "after_last_header_us": 58350
+          },
+          "four": {
+            "key": "lane-screen/2-split4-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 68288,
+            "mib_s": 3748.828491096532,
+            "last_header_us": 6248,
+            "after_last_header_us": 62040
+          }
+        },
+        {
+          "block": 3,
+          "first": "four",
+          "two": {
+            "key": "lane-screen/3-split2-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 54080,
+            "mib_s": 4733.7278106508875,
+            "last_header_us": 4456,
+            "after_last_header_us": 49624
+          },
+          "four": {
+            "key": "lane-screen/3-split4-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 60492,
+            "mib_s": 4231.964557296833,
+            "last_header_us": 5287,
+            "after_last_header_us": 55205
+          }
+        },
+        {
+          "block": 4,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/4-split2-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 56578,
+            "mib_s": 4524.72692566015,
+            "last_header_us": 4368,
+            "after_last_header_us": 52210
+          },
+          "four": {
+            "key": "lane-screen/4-split4-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 63719,
+            "mib_s": 4017.639950407257,
+            "last_header_us": 4849,
+            "after_last_header_us": 58870
+          }
+        },
+        {
+          "block": 5,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/5-split2-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 58417,
+            "mib_s": 4382.2859783967,
+            "last_header_us": 5195,
+            "after_last_header_us": 53222
+          },
+          "four": {
+            "key": "lane-screen/5-split4-fresh",
+            "body_bytes": 268435456,
+            "elapsed_us": 62661,
+            "mib_s": 4085.4758143023573,
+            "last_header_us": 7422,
+            "after_last_header_us": 55239
+          }
+        }
+      ],
+      "summary": {
+        "median_arm_mib_s": {
+          "two": 4222.211997941467,
+          "four": 3883.2342207518946
+        },
+        "paired_change_percent": -8.6628191186566,
+        "paired_interval_percent": [
+          -10.903383520946386,
+          -3.916200839388429
+        ],
+        "four_worker_wins": 0,
+        "paired_phase_delta_us": {
+          "last_header_us": 418.5,
+          "after_last_header_us": 4635.5
+        },
+        "common_blocks": 6
+      }
+    },
+    "warm": {
+      "pairs": [
+        {
+          "block": 0,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/0-split2-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 63150,
+            "mib_s": 4053.840063341251,
+            "last_header_us": 2872,
+            "after_last_header_us": 60278
+          },
+          "four": {
+            "key": "lane-screen/0-split4-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 60337,
+            "mib_s": 4242.8360707360325,
+            "last_header_us": 2748,
+            "after_last_header_us": 57589
+          }
+        },
+        {
+          "block": 1,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/1-split2-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 60472,
+            "mib_s": 4233.36420161397,
+            "last_header_us": 3373,
+            "after_last_header_us": 57099
+          },
+          "four": {
+            "key": "lane-screen/1-split4-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 75112,
+            "mib_s": 3408.243689423794,
+            "last_header_us": 3468,
+            "after_last_header_us": 71644
+          }
+        },
+        {
+          "block": 2,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/2-split2-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 65261,
+            "mib_s": 3922.7103476808506,
+            "last_header_us": 3461,
+            "after_last_header_us": 61800
+          },
+          "four": {
+            "key": "lane-screen/2-split4-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 72782,
+            "mib_s": 3517.3531917232285,
+            "last_header_us": 3364,
+            "after_last_header_us": 69418
+          }
+        },
+        {
+          "block": 3,
+          "first": "four",
+          "two": {
+            "key": "lane-screen/3-split2-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 54848,
+            "mib_s": 4667.444574095683,
+            "last_header_us": 3228,
+            "after_last_header_us": 51620
+          },
+          "four": {
+            "key": "lane-screen/3-split4-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 66559,
+            "mib_s": 3846.211631785334,
+            "last_header_us": 3249,
+            "after_last_header_us": 63310
+          }
+        },
+        {
+          "block": 4,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/4-split2-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 56590,
+            "mib_s": 4523.767450079519,
+            "last_header_us": 2874,
+            "after_last_header_us": 53716
+          },
+          "four": {
+            "key": "lane-screen/4-split4-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 62400,
+            "mib_s": 4102.5641025641025,
+            "last_header_us": 2942,
+            "after_last_header_us": 59458
+          }
+        },
+        {
+          "block": 5,
+          "first": "two",
+          "two": {
+            "key": "lane-screen/5-split2-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 57631,
+            "mib_s": 4442.053755791154,
+            "last_header_us": 3723,
+            "after_last_header_us": 53908
+          },
+          "four": {
+            "key": "lane-screen/5-split4-warm",
+            "body_bytes": 268435456,
+            "elapsed_us": 57991,
+            "mib_s": 4414.478108672035,
+            "last_header_us": 4280,
+            "after_last_header_us": 53711
+          }
+        }
+      ],
+      "summary": {
+        "median_arm_mib_s": {
+          "two": 4337.708978702562,
+          "four": 3974.387867174718
+        },
+        "paired_change_percent": -9.822248201337462,
+        "paired_interval_percent": [
+          -18.542904693945772,
+          2.0206808101286167
+        ],
+        "four_worker_wins": 1,
+        "paired_phase_delta_us": {
+          "last_header_us": 44.5,
+          "after_last_header_us": 6680.0
+        },
+        "common_blocks": 6
+      }
+    }
+  }
+}

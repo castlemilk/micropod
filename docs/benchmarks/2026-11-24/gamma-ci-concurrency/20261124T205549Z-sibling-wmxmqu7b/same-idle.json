@@ -1,0 +1,105 @@
+{
+  "pids": {
+    "micropod_vmm": 90742,
+    "micropod_supervisor": 90734,
+    "orbstack_helper": 3279
+  },
+  "before": {
+    "epoch_ns": 1795553759546701000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 90742,
+        "birth_ticks": 1232330479419,
+        "user_ticks": 126470525,
+        "system_ticks": 39385227,
+        "runnable_ticks": 185176953,
+        "background_ticks": 2529,
+        "utility_ticks": 1751,
+        "default_ticks": 49289,
+        "initiated_ticks": 3341,
+        "interactive_ticks": 1303188,
+        "instructions": 41263246180,
+        "cycles": 24629914781
+      },
+      {
+        "pid": 90734,
+        "birth_ticks": 1232324110613,
+        "user_ticks": 2436305,
+        "system_ticks": 3047322,
+        "runnable_ticks": 7637100,
+        "background_ticks": 0,
+        "utility_ticks": 5326198,
+        "default_ticks": 75286,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 1015159688,
+        "cycles": 777347865
+      },
+      {
+        "pid": 3279,
+        "birth_ticks": 1711333009,
+        "user_ticks": 1026359240477,
+        "system_ticks": 229637375184,
+        "runnable_ticks": 1402082549463,
+        "background_ticks": 754840,
+        "utility_ticks": 12038810000,
+        "default_ticks": 7900873,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 420920939211148,
+        "cycles": 218386619108831
+      }
+    ]
+  },
+  "after": {
+    "epoch_ns": 1795553761559625000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 90742,
+        "birth_ticks": 1232330479419,
+        "user_ticks": 139614957,
+        "system_ticks": 40953900,
+        "runnable_ticks": 200733008,
+        "background_ticks": 2529,
+        "utility_ticks": 1751,
+        "default_ticks": 49289,
+        "initiated_ticks": 3341,
+        "interactive_ticks": 1303188,
+        "instructions": 43417092355,
+        "cycles": 25777327759
+      },
+      {
+        "pid": 90734,
+        "birth_ticks": 1232324110613,
+        "user_ticks": 2454251,
+        "system_ticks": 3067969,
+        "runnable_ticks": 7679440,
+        "background_ticks": 0,
+        "utility_ticks": 5364791,
+        "default_ticks": 75286,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 1017603205,
+        "cycles": 780349945
+      },
+      {
+        "pid": 3279,
+        "birth_ticks": 1711333009,
+        "user_ticks": 1026361654615,
+        "system_ticks": 229637621992,
+        "runnable_ticks": 1402085422610,
+        "background_ticks": 754840,
+        "utility_ticks": 12038822566,
+        "default_ticks": 7900873,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 420921279158409,
+        "cycles": 218386840993724
+      }
+    ]
+  }
+}

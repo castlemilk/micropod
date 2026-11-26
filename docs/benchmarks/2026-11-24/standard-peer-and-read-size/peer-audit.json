@@ -1,0 +1,35 @@
+{
+  "timed_windows": 38,
+  "largest_monitor_interval_seconds": {
+    "disk": 1.0027070045471191,
+    "host": 2.029841184616089,
+    "orb": 2.034945011138916
+  },
+  "idle_percent_range": [
+    90.06,
+    95.17
+  ],
+  "largest_paired_idle_gap_pp": 4.590000000000003,
+  "median_throughput_ratio_by_order": {
+    "AB": 1.1157323941433968,
+    "BA": 1.1175187083816707
+  },
+  "scored": {
+    "A": {
+      "bytes": 808605092844,
+      "interface_drops": 0,
+      "max_fresh_p95_ms": 10.618,
+      "median_dispatch_p95_us": 154.5,
+      "max_dispatch_us": 485
+    },
+    "B": {
+      "bytes": 724497957293,
+      "interface_drops": 0,
+      "max_fresh_p95_ms": 5.879,
+      "median_dispatch_p95_us": 66.5,
+      "max_dispatch_us": 927
+    }
+  },
+  "latency_pairs_with_positive_lower_bound": 16,
+  "min_micropod_post_dispatch_p95_minus_orbstack_scheduled_p95_us": 3580
+}

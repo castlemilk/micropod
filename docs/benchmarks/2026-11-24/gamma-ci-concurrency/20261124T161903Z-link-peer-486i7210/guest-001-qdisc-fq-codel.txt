@@ -1,0 +1,1 @@
+[{"bytes":0,"drops":0,"ecn":1,"flows":1024,"gso_ipv4_bytes":65536,"handle":"8023:0","ifindex":3,"interval_us":99999,"kind":"fq_codel","limit":10240,"overlimits":0,"packets":0,"quantum":9014,"requeues":0,"root":true,"target_us":4999}]

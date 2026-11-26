@@ -1,0 +1,60 @@
+{
+  "control": {
+    "image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+    "config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "candidate": {
+    "image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "config_changes": {
+    "CONFIG_IPVLAN": [
+      "n",
+      "y"
+    ],
+    "CONFIG_IPVLAN_L3S": [
+      null,
+      "y"
+    ],
+    "CONFIG_IPVTAP": [
+      null,
+      "n"
+    ],
+    "CONFIG_NET_L3_MASTER_DEV": [
+      "n",
+      "y"
+    ],
+    "CONFIG_NET_VRF": [
+      null,
+      "n"
+    ]
+  },
+  "inputs": {
+    "profile": "full-16k",
+    "source_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+    "seed_sha256": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21",
+    "stock_builder_sha256": "8428aa21d3c3f496482a47453542450025d625b763a4aef759f0b4f37d1697ad",
+    "stock_toolchain_sha256": "c876eff72b454f12036c88e9bf1b326f2883f0416036bd260e8e3b452c6f68a5",
+    "compiler_image": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+    "environment": {
+      "KBUILD_BUILD_HOST": "gamma",
+      "KBUILD_BUILD_TIMESTAMP": "Tue Nov 17 10:35:00 UTC 2026",
+      "KBUILD_BUILD_VERSION": "1",
+      "JOBS": "4",
+      "KBUILD_BUILD_USER": "micropod"
+    },
+    "builder_sha256": "3b9d07cc789d4f12ed552c504122c4b93652bf8f9015268aa0deb96f23eded47",
+    "toolchain_sha256": "215cd41529215a1ff47cdce53797cbab3b9d5348ee4e730b13ebc446623cc8d4",
+    "package_count": 97,
+    "packages_sha256": "3a979f34df86c37a9c1aa49101e9b1e76176d79cad2b985580bf4b6ce28aa7ce"
+  },
+  "builder_retired": true
+}

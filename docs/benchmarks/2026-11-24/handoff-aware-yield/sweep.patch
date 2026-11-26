@@ -1,0 +1,20 @@
+--- a/scripts/relaybench/callback_handoff_work.c
++++ b/scripts/relaybench/callback_handoff_work.c
+@@ -153,12 +153,14 @@
+ }
+ 
+ int main(int argc, char **argv) {
+-    check(argc == 2 && (strcmp(argv[1], "control") == 0 || strcmp(argv[1], "candidate") == 0), "choose arm");
++    check(argc == 3 && (strcmp(argv[1], "control") == 0 || strcmp(argv[1], "candidate") == 0), "choose arm");
+     yield_on_handoff = strcmp(argv[1], "candidate") == 0;
+     alarm(20);
+     for (int i = 0; i < FLOWS; ++i)
+         for (int j = 0; j < OFFER; ++j) offered[i][j] = (unsigned char)(i * 61 + j * 17 + j / 251);
+-    const int positions[] = {0, 1, 16, 25};
+-    for (size_t i = 0; i < sizeof(positions) / sizeof(positions[0]); ++i) trial(positions[i]);
++    char *end;
++    long selected = strtol(argv[2], &end, 10);
++    check(end != argv[2] && *end == 0 && selected >= 0 && selected <= FLOWS * OFFER / CHUNK, "choose position");
++    trial((int)selected);
+     return 0;
+ }

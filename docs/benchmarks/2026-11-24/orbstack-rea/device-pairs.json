@@ -1,0 +1,244 @@
+{
+  "date": "2026-11-24",
+  "performance_checkout_base": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "platform": {
+    "architecture": "arm64",
+    "macos": "26.5.1",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "clang": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+    "go": "go version go1.27.2 darwin/arm64"
+  },
+  "source_sha256": {
+    "scripts/relaybench/hvf_tx_probe/apple.c": "226f793ab483e734f9c306a5279932f96872056396879bec09e3c03908c5d37d",
+    "scripts/relaybench/hvf_tx_probe/guest.S": "d0d733e078403c29abaf6b546d6dbb33eb84f4df9f862f4dcccadde5175745b8",
+    "scripts/relaybench/hvf_tx_probe/main.rs": "a84ecb5b087eb2ec2ec11db612ad3da688e7eb62c68ebc7002445cfafd12a5c8",
+    "scripts/relaybench/hvf_tx_probe/run.sh": "09422bfff3496dfc8c72e7a3189f0357ddef59f2a1a4282a37ef72bd31d0a463",
+    "scripts/netbench/syscallcost/main_linux.go": "5e0666db847947fe5a73d83a768eb381cc53915a73eacc1e369ac870f422635f"
+  },
+  "hardware": {
+    "backend": "Apple Hypervisor.framework",
+    "vcpus": 1,
+    "mapped_guest_memory_bytes": 32768,
+    "descriptors_per_arm": 257,
+    "descriptor_bytes": 8,
+    "window": "Wall time from immediately before the first vCPU entry through verified completion of the final MMIO store. Includes host exit decoding, validation and re-entry. VM creation, register initialization and teardown are outside.",
+    "warmup": "One unscored arm per batch size, followed by 12 order-balanced pairs. Each arm used a fresh VM in the same host process.",
+    "raw_stdout_sha256": "31ac198313ef4bbbe0a65038c486970e8b642c29d9524f94b11fd63aca6a9fbb",
+    "rounds": [
+      {
+        "pair": 1,
+        "first_batch": 1,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 211666
+      },
+      {
+        "pair": 1,
+        "first_batch": 1,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 31209
+      },
+      {
+        "pair": 2,
+        "first_batch": 8,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 32875
+      },
+      {
+        "pair": 2,
+        "first_batch": 8,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 224834
+      },
+      {
+        "pair": 3,
+        "first_batch": 8,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 41166
+      },
+      {
+        "pair": 3,
+        "first_batch": 8,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 207916
+      },
+      {
+        "pair": 4,
+        "first_batch": 1,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 213125
+      },
+      {
+        "pair": 4,
+        "first_batch": 1,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 32750
+      },
+      {
+        "pair": 5,
+        "first_batch": 8,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 33708
+      },
+      {
+        "pair": 5,
+        "first_batch": 8,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 212583
+      },
+      {
+        "pair": 6,
+        "first_batch": 1,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 212333
+      },
+      {
+        "pair": 6,
+        "first_batch": 1,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 31666
+      },
+      {
+        "pair": 7,
+        "first_batch": 1,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 209791
+      },
+      {
+        "pair": 7,
+        "first_batch": 1,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 31750
+      },
+      {
+        "pair": 8,
+        "first_batch": 8,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 30500
+      },
+      {
+        "pair": 8,
+        "first_batch": 8,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 214209
+      },
+      {
+        "pair": 9,
+        "first_batch": 1,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 205250
+      },
+      {
+        "pair": 9,
+        "first_batch": 1,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 31500
+      },
+      {
+        "pair": 10,
+        "first_batch": 8,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 31291
+      },
+      {
+        "pair": 10,
+        "first_batch": 8,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 207792
+      },
+      {
+        "pair": 11,
+        "first_batch": 8,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 31667
+      },
+      {
+        "pair": 11,
+        "first_batch": 8,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 214833
+      },
+      {
+        "pair": 12,
+        "first_batch": 1,
+        "batch": 1,
+        "descriptors": 257,
+        "data_notifications": 257,
+        "window_ns": 207292
+      },
+      {
+        "pair": 12,
+        "first_batch": 1,
+        "batch": 8,
+        "descriptors": 257,
+        "data_notifications": 33,
+        "window_ns": 31416
+      }
+    ],
+    "summary": {
+      "median_ns_batch_1": 211999.5,
+      "median_ns_batch_8": 31666.5,
+      "median_within_pair_ratio_8_over_1": 0.15096459235164544,
+      "pairs_batch_8_faster": 12,
+      "pairs": 12,
+      "completion_notifications_per_arm": 1
+    }
+  },
+  "native_control": {
+    "tests_passed": 2,
+    "descriptors_each": 257,
+    "data_notifications_batch_1": 257,
+    "data_notifications_batch_8": 33
+  },
+  "syscall_probe": {
+    "build": "Static Linux arm64, CGO_ENABLED=0, go build -trimpath with -s -w -buildid=",
+    "sha256": "5528a89ff82d849d3c2c4f4f6c27ad5fb3c5604e6e44aff9785656461b49dbab",
+    "go_vet_linux_arm64": "passed",
+    "measured_guest_samples": 0,
+    "orbstack_socket": "connect returned EPERM",
+    "stock_guest": "Virtualization.framework rejected validation of a temporary one-vCPU diskless configuration in this session"
+  }
+}

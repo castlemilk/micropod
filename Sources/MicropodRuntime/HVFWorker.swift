@@ -38,7 +38,8 @@ struct HVFKernelArguments {
         var supported: [String] {
             switch self {
             case .scheduler: ["hrtick", "hrtick-1ms", "hrtick-500us", "hrtick-250us", "hrtick-125us"]
-            case .wakeup: ["next-buddy", "next-buddy,sync-colocate", "sync-colocate", "next-buddy,sync-colocate,no-ttwu-queue"]
+            case .wakeup:
+                ["next-buddy", "next-buddy,sync-colocate", "sync-colocate", "next-buddy,sync-colocate,no-ttwu-queue"]
             case .congestion: ["cubic", "bbr"]
             case .idlePoll: []
             }

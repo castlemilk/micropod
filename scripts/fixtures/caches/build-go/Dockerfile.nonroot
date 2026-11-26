@@ -1,0 +1,14 @@
+# The same build as a non-root step: the cache mounts carry uid=/gid=.
+FROM golang:alpine
+ENV GOFLAGS=-trimpath GOTOOLCHAIN=local
+RUN adduser -D -u 1000 app && mkdir -p /out && chown app:app /out
+USER 1000:1000
+WORKDIR /home/app/src
+COPY --chown=1000:1000 . .
+RUN --mount=type=cache,id=qual-build-gomod-u1000,target=/go/pkg/mod,uid=1000,gid=1000 \
+    --mount=type=cache,id=qual-build-gobuild-u1000,target=/home/app/.cache/go-build,uid=1000,gid=1000 \
+    go build -x -o /out/app . >/tmp/build.log 2>&1; rc=$?; \
+    c=$(grep -c '/compile ' /tmp/build.log); d=$(grep -c '^go: downloading' /tmp/build.log); \
+    echo "QUALCOUNTS compiles=$c downloads=$d rc=$rc uid=$(id -u)"; printf 'compiles=%s\ndownloads=%s\n' "$c" "$d" >/out/counts; \
+    [ "$rc" = 0 ] || cat /tmp/build.log; exit $rc
+CMD ["/out/app"]

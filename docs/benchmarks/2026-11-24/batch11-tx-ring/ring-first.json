@@ -1,0 +1,109 @@
+{
+  "micropod_analysis_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "linux_version": "7.3.5",
+  "virtio_net_sha256": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+  "raw_readback_archive_sha256": "1ade90ef711545a7ad913c8bd8725cd7fe999dd3da985944f978cd72d0265fc0",
+  "observations": [
+    {
+      "readback": "original1",
+      "header_sha256": "d662618fc5321ac822c34cadc4ed0ceb465569a1905c9a20e3c3bf6567147be0",
+      "ethtool_ring_header": "Pre-set maximums:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256\nCurrent hardware settings:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256",
+      "arms": [
+        {
+          "requested_tx_entries": 256,
+          "linux_status": 0,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        },
+        {
+          "requested_tx_entries": 512,
+          "linux_status": -22,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        }
+      ]
+    },
+    {
+      "readback": "original2",
+      "header_sha256": "d662618fc5321ac822c34cadc4ed0ceb465569a1905c9a20e3c3bf6567147be0",
+      "ethtool_ring_header": "Pre-set maximums:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256\nCurrent hardware settings:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256",
+      "arms": [
+        {
+          "requested_tx_entries": 256,
+          "linux_status": 0,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        },
+        {
+          "requested_tx_entries": 512,
+          "linux_status": -22,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        }
+      ]
+    },
+    {
+      "readback": "original-repeat1",
+      "header_sha256": "d662618fc5321ac822c34cadc4ed0ceb465569a1905c9a20e3c3bf6567147be0",
+      "ethtool_ring_header": "Pre-set maximums:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256\nCurrent hardware settings:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256",
+      "arms": [
+        {
+          "requested_tx_entries": 256,
+          "linux_status": 0,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        },
+        {
+          "requested_tx_entries": 512,
+          "linux_status": -22,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        }
+      ]
+    },
+    {
+      "readback": "original-repeat2",
+      "header_sha256": "d662618fc5321ac822c34cadc4ed0ceb465569a1905c9a20e3c3bf6567147be0",
+      "ethtool_ring_header": "Pre-set maximums:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256\nCurrent hardware settings:\nRX:\t\t256\nRX Mini:\t0\nRX Jumbo:\t0\nTX:\t\t256",
+      "arms": [
+        {
+          "requested_tx_entries": 256,
+          "linux_status": 0,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        },
+        {
+          "requested_tx_entries": 512,
+          "linux_status": -22,
+          "tx_resize_calls": 0,
+          "rx_resize_calls": 0,
+          "final_rx_entries": 256,
+          "final_tx_entries": 256
+        }
+      ]
+    }
+  ],
+  "synthetic_positive_control": {
+    "requested_tx_entries": 512,
+    "linux_status": -12345,
+    "tx_resize_calls": 1,
+    "rx_resize_calls": 0,
+    "final_rx_entries": 256,
+    "final_tx_entries": 256
+  },
+  "positive_control_note": "With advertised max TX 512, return sentinel -12345 at the first TX resize call. No hardware completion simulated."
+}

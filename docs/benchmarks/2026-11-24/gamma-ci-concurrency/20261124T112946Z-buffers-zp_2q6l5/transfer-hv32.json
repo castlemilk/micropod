@@ -1,0 +1,384 @@
+{
+  "path": "mapped",
+  "fault": true,
+  "raw": {
+    "direct": 1,
+    "grants": 498,
+    "wall_ns": 90223291,
+    "sender_cpu_ns": 40002625,
+    "flows": [
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 245
+      },
+      {
+        "bytes": 1014248,
+        "error": 32,
+        "sends": 3,
+        "waits": 2
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 48
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 20,
+        "waits": 50
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 26,
+        "waits": 200
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 26,
+        "waits": 57
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 43
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 30,
+        "waits": 41
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 29,
+        "waits": 43
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 21,
+        "waits": 52
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 25,
+        "waits": 45
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 24,
+        "waits": 47
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 137
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 24,
+        "waits": 46
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 29,
+        "waits": 165
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 30,
+        "waits": 111
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 30,
+        "waits": 166
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 24,
+        "waits": 48
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 32,
+        "waits": 160
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 30,
+        "waits": 230
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 213
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 26,
+        "waits": 47
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 29,
+        "waits": 225
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 209
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 29,
+        "waits": 189
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 23,
+        "waits": 50
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 26,
+        "waits": 49
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 29,
+        "waits": 100
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 25,
+        "waits": 53
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 21,
+        "waits": 55
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 29,
+        "waits": 154
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 230
+      }
+    ]
+  },
+  "send_kib": 512,
+  "delivery": [
+    {
+      "name": "mci-9e54015985-a-0",
+      "seconds": 0.104697082999337,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-1",
+      "seconds": 0.01975204100017436,
+      "verified": false,
+      "error": "[Errno 54] Connection reset by peer",
+      "disconnected": true
+    },
+    {
+      "name": "mci-9e54015985-a-2",
+      "seconds": 0.09354758300105459,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-3",
+      "seconds": 0.07455950000075973,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-4",
+      "seconds": 0.08432329100105562,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-5",
+      "seconds": 0.04981445800149231,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-6",
+      "seconds": 0.04492079099873081,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-7",
+      "seconds": 0.07792862499991315,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-8",
+      "seconds": 0.09150895800121361,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-9",
+      "seconds": 0.0895635829983803,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-10",
+      "seconds": 0.0727870000009716,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-11",
+      "seconds": 0.045085999998264015,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-12",
+      "seconds": 0.09238379100133898,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-13",
+      "seconds": 0.04408912500002771,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-14",
+      "seconds": 0.07466587499948218,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-15",
+      "seconds": 0.06649633299821289,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-16",
+      "seconds": 0.07946883299882757,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-17",
+      "seconds": 0.08287304099940229,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-18",
+      "seconds": 0.07074899999861373,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-19",
+      "seconds": 0.09749174999888055,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-20",
+      "seconds": 0.08791325000129291,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-21",
+      "seconds": 0.06761075000031269,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-22",
+      "seconds": 0.09445737499845563,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-23",
+      "seconds": 0.08647220800048672,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-24",
+      "seconds": 0.08151899999938905,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-25",
+      "seconds": 0.04634529100076179,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-26",
+      "seconds": 0.08146854100050405,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-27",
+      "seconds": 0.07876245800071047,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-28",
+      "seconds": 0.07177674999911687,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-29",
+      "seconds": 0.0902685000000929,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-30",
+      "seconds": 0.0738560409990896,
+      "verified": true
+    },
+    {
+      "name": "mci-9e54015985-a-31",
+      "seconds": 0.09599587499906193,
+      "verified": true
+    }
+  ],
+  "host_monotonic_start": 17575.225292125,
+  "healthy_finished_before_release": 0.09818233300029533,
+  "reset_after_verified_frame": 1,
+  "e2e_s": 0.104697082999337,
+  "ci_wave": "hv32",
+  "overlap_builds": [
+    "mci-9e54015985-a-0",
+    "mci-9e54015985-a-1",
+    "mci-9e54015985-a-2",
+    "mci-9e54015985-a-3"
+  ],
+  "transfer_relative_to_wave_s": [
+    0.023175624999566935,
+    0.12787270799890393
+  ]
+}

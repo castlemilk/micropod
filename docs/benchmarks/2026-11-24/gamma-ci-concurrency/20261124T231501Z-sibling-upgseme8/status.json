@@ -1,0 +1,4 @@
+{
+  "complete": false,
+  "error": "incomplete A client 21:  {'ready_unix_ns': 1795562229718122919, 'scheduled_unix_ns': 1795562229823617877, 'started_unix_ns': 1795562229827285044, 'finished_unix_ns': 1795562231324138795, 'duration_ns': 1500000000, 'local': '10.90.0.55:40852', 'remote': '10.90.0.22:8080', 'page_bytes': 16384, 'pid': 28, 'threads': [{'tid': 28, 'cpus_allowed_list': '0-3'}, {'tid': 29, 'cpus_allowed_list': '0-3'}, {'tid': 30, 'cpus_allowed_list': '0-3'}]} [{'total_ns': 171000, 'got_conn_ns': 128375, 'wrote_request_ns': 143541, 'first_response_byte_ns': 167250, 'got_conn_count': 1, 'dial_starts': 1, 'reused': False, 'same_as_warmup': False, 'error': 'request did not stay on the warmed connection'}]"
+}

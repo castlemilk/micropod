@@ -1,0 +1,35 @@
+boot=5cb3e71b-67c2-446b-b5b6-31aa4fe52223
+netns=net:[4026531833]
+driver=virtio_net
+queues=1
+ifindex=3
+address=6a:c5:2b:01:d5:cf
+tx_bytes=157494172624
+tx_packets=2978112
+rx_bytes=175900314
+tx_dropped=0
+rx_dropped=0
+tx_errors=0
+rx_errors=0
+tx_timeout=0
+NIC statistics:
+     rx_drops: 0
+     rx_xdp_packets: 0
+     rx_xdp_tx: 0
+     rx_xdp_redirects: 0
+     rx_xdp_drops: 0
+     rx_kicks: 21
+     tx_xdp_tx: 0
+     tx_xdp_tx_drops: 0
+     tx_kicks: 115566
+     tx_tx_timeouts: 0
+     rx0_drops: 0
+     rx0_xdp_packets: 0
+     rx0_xdp_tx: 0
+     rx0_xdp_redirects: 0
+     rx0_xdp_drops: 0
+     rx0_kicks: 21
+     tx0_xdp_tx: 0
+     tx0_xdp_tx_drops: 0
+     tx0_kicks: 115566
+     tx0_tx_timeouts: 0

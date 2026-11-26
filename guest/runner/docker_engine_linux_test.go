@@ -125,7 +125,7 @@ func TestDockerCPUSetWithinAllocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := dockerConfig{HostConfig: dockerHost{CpusetCpus: "2-3,5", NanoCpus: 1000000000}}
-	if err := s.configure(c, nil); err != nil {
+	if err := s.configure(c, nil, containerExtras{}); err != nil {
 		t.Fatal(err)
 	}
 	if r := c.Linux.Resources; r.CpusetCpus != "2-3,5" || r.CpuQuota != 100000 || r.CpuPeriod != 100000 {
@@ -138,7 +138,7 @@ func TestDockerEntrypointOwnsPIDNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := (dockerConfig{}).configure(c, nil); err != nil {
+	if err := (dockerConfig{}).configure(c, nil, containerExtras{}); err != nil {
 		t.Fatal(err)
 	}
 	ns := c.Linux.SecurityContext.GetNamespaceOptions()
@@ -290,7 +290,7 @@ func TestDockerCPUGroupEligibilityAndResourcePrecedence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := cfg.configure(c, nil); err != nil {
+			if err := cfg.configure(c, nil, containerExtras{}); err != nil {
 				t.Fatal(err)
 			}
 			r := c.Linux.Resources
@@ -440,7 +440,7 @@ func TestDockerCPUShares(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := spec.configure(c, nil); err != nil {
+			if err := spec.configure(c, nil, containerExtras{}); err != nil {
 				t.Fatal(err)
 			}
 			if r := c.Linux.Resources; r.CpuShares != tc.effective || r.CpuQuota != 50000 || r.CpuPeriod != 100000 {
@@ -481,7 +481,7 @@ func TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := spec.configure(c, nil); err != nil {
+			if err := spec.configure(c, nil, containerExtras{}); err != nil {
 				t.Fatal(err)
 			}
 			if got := c.Linux.Resources; got.CpuQuota != tc.want || got.CpuPeriod != 100000 || got.MemoryLimitInBytes != 1<<30 || got.Unified["pids.max"] != "512" {
@@ -530,14 +530,22 @@ func TestDockerOptionsAndMounts(t *testing.T) {
 			t.Fatalf("accepted unsupported configuration %s", v)
 		}
 	}
-	for _, kind := range []string{"gomod", "gobuild", "npm"} {
+	// Every table kind keeps its legacy alias, now resolving to the ACL store.
+	for _, kind := range allCacheKinds() {
 		p, ok := sharedCachePath("micropod-ci-scoped-go-1-26-" + kind)
-		if !ok || p != filepath.Join(dataRoot, "scopes", "go-1-26", kind) {
-			t.Fatal(p, ok)
+		if !ok || p != filepath.Join(cacheRoot, "scopes", "go-1-26", kind) {
+			t.Fatal(kind, p, ok)
 		}
+	}
+	// The longest kind suffix wins: "-yarnberry" is not scope "x-yarn" + "berry".
+	if scope, kind, ok := legacyCacheVolume("micropod-ci-scoped-x-yarnberry"); !ok || scope != "x" || kind != "yarnberry" {
+		t.Fatal(scope, kind, ok)
 	}
 	if _, ok := sharedCachePath("ordinary-gobuild"); ok {
 		t.Fatal("adopted a non-scoped volume")
+	}
+	if _, ok := sharedCachePath("micropod-ci-scoped-Bad-gomod"); ok {
+		t.Fatal("adopted an invalid scope")
 	}
 }
 

@@ -1,0 +1,354 @@
+{
+  "build_tail_trace_execution_contexts": {
+    "containerd-shim": 864,
+    "containerd": 539,
+    "kworker/0:0": 435,
+    "kworker/0:2": 408,
+    "job": 280,
+    "<idle>": 207,
+    "quiet-http": 137,
+    "sh": 43,
+    "oot.default-qos": 42,
+    "link": 16,
+    "go": 10,
+    "rcu_exp_gp_kthr": 9,
+    "ttwu-observer": 7,
+    "kcompactd0": 7,
+    "kworker/2:1": 6,
+    "sha256sum": 4,
+    "kworker/u16:1": 3,
+    "compile": 3,
+    "stat": 2,
+    "ksoftirqd/0": 2,
+    "kworker/u16:6": 2,
+    "kworker/u16:7": 2,
+    "kworker/1:1": 2,
+    "ksoftirqd/3": 2,
+    "kworker/3:0": 2,
+    "kworker/u16:2": 1,
+    "grep": 1,
+    "awk": 1,
+    "kworker/3:2": 1,
+    "kworker/u16:3": 1
+  },
+  "verified_named_remote_control": 8,
+  "stock_build_scripts": {
+    "job.sh": "a9d3447427636fb10c6a0005c44a3936c2b3a9b61cb4983f39c0308d917a3704",
+    "go-dispatch.sh": "b2b23088007a7ffd68372e1ae385e445554f7bd2b10d07741bdbdd3a07701762"
+  },
+  "mapping": {
+    "tool": {
+      "path": "/usr/local/go/bin/go",
+      "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb",
+      "inode": 7636,
+      "device": 2097163,
+      "device_major": 0,
+      "device_minor": 523,
+      "size_bytes": 14378387,
+      "segment_offset": 0,
+      "segment_size_bytes": 5945428,
+      "window_offset": 0
+    },
+    "touched_run_bytes": 1048576,
+    "page_bytes": 16384,
+    "sample_orders": [
+      "forward",
+      "reverse",
+      "reverse",
+      "forward"
+    ],
+    "ptes_after_first_read": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "sample_minor_faults": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "sample_major_faults": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "archive": "20261125T060757Z-sibling-ttwu-diagnostic-vqra08ch",
+  "diagnostic_only": true,
+  "volume": {
+    "host_worker_volume": "apfs-no-index",
+    "scope": "/private/tmp/mp-t-01ind900",
+    "mount": "/private/tmp/mp-t-01ind900/a",
+    "image": "/private/tmp/mp-t-01ind900/a-worker.sparseimage",
+    "volume_uuid": "d4451126-b0df-451b-b9d3-145d51ce07a5",
+    "container_uuid": "6d42c348-dd25-46f0-8325-db395a30950a",
+    "partition_uuid": "96fc4123-a83b-4dea-9acd-8f330fa7fc3c",
+    "device": "disk14s1",
+    "container_device": "disk14",
+    "image_device": "disk13",
+    "partition_device": "disk13s2",
+    "volume_st_dev": 16777259,
+    "image_st_dev": 16777232,
+    "image_inode": 1226493843,
+    "volume_name": "MicropodCI-3b9d64fdd5b4",
+    "mountpoint_inode": 1226493838,
+    "raw_disk": {
+      "path": "/private/tmp/mp-t-01ind900/a/worker.ext4",
+      "raw_st_dev": 16777259,
+      "parent_st_dev": 16777232,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "configured_disk_gib": 6
+    },
+    "spotlight": {
+      "live": "Indexing and searching disabled.",
+      "post": "Indexing and searching disabled."
+    },
+    "journal_files": 0,
+    "journal_bytes": 0,
+    "journal_observed_through": "read_only_remount",
+    "live_observed_unix_ns": 1795586884595834000,
+    "post_observed_unix_ns": 1795586970067257000,
+    "detached": true,
+    "persisted_policy": {
+      "read_only": true,
+      "device": "disk14s1",
+      "volume_st_dev": 16777259,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "spotlight": "Indexing and searching disabled.",
+      "journal_files": 0,
+      "journal_bytes": 0
+    }
+  },
+  "work": {
+    "offered_requests": 768000,
+    "completed_requests": 768000,
+    "warm_connections": 256,
+    "jobs": 64,
+    "revisions": 128,
+    "test_passes": 1024
+  },
+  "positive_control": {
+    "whole_bracket": {
+      "sched_ttwu_pending": 22,
+      "nohz_csd_func": 1,
+      "rcu_exp_handler": 1,
+      "ipi_sync_rq_state": 1,
+      "ipi_mb": 9
+    },
+    "per_cpu_ring_entries": {
+      "per_cpu/cpu0/stats": 24,
+      "per_cpu/cpu1/stats": 6,
+      "per_cpu/cpu2/stats": 4,
+      "per_cpu/cpu3/stats": 2
+    }
+  },
+  "dense": [
+    {
+      "whole_bracket": {
+        "sched_ttwu_pending": 7144,
+        "__hrtick_start": 278,
+        "do_nothing": 240,
+        "rcu_exp_handler": 124,
+        "__cfsb_csd_unthrottle": 1,
+        "nohz_csd_func": 23
+      },
+      "per_cpu_ring_entries": {
+        "per_cpu/cpu0/stats": 2971,
+        "per_cpu/cpu1/stats": 1335,
+        "per_cpu/cpu2/stats": 1889,
+        "per_cpu/cpu3/stats": 1617
+      },
+      "whole_build": {
+        "all_csd": 1547,
+        "ttwu": 1444,
+        "ttwu_possible": 1444,
+        "ttwu_cross_vcpu": 1444
+      },
+      "http": {
+        "all_csd": 1,
+        "ttwu": 0,
+        "ttwu_possible": 0,
+        "ttwu_cross_vcpu": 0
+      },
+      "after_http_until_last_build": {
+        "all_csd": 1483,
+        "ttwu": 1381,
+        "ttwu_possible": 1381,
+        "ttwu_cross_vcpu": 1381
+      },
+      "clock_offset_range_ns": 1166
+    },
+    {
+      "whole_bracket": {
+        "sched_ttwu_pending": 6037,
+        "nohz_csd_func": 20,
+        "__hrtick_start": 266,
+        "do_nothing": 240,
+        "rcu_exp_handler": 112,
+        "invalidate_bh_lru": 10
+      },
+      "per_cpu_ring_entries": {
+        "per_cpu/cpu0/stats": 2722,
+        "per_cpu/cpu1/stats": 1219,
+        "per_cpu/cpu2/stats": 1234,
+        "per_cpu/cpu3/stats": 1512
+      },
+      "whole_build": {
+        "all_csd": 861,
+        "ttwu": 741,
+        "ttwu_possible": 741,
+        "ttwu_cross_vcpu": 741
+      },
+      "http": {
+        "all_csd": 4,
+        "ttwu": 0,
+        "ttwu_possible": 0,
+        "ttwu_cross_vcpu": 0
+      },
+      "after_http_until_last_build": {
+        "all_csd": 785,
+        "ttwu": 671,
+        "ttwu_possible": 671,
+        "ttwu_cross_vcpu": 671
+      },
+      "clock_offset_range_ns": 1625
+    },
+    {
+      "whole_bracket": {
+        "sched_ttwu_pending": 6718,
+        "__hrtick_start": 324,
+        "nohz_csd_func": 11,
+        "do_nothing": 240,
+        "rcu_exp_handler": 143,
+        "invalidate_bh_lru": 28,
+        "remote_function": 1,
+        "rps_trigger_softirq": 1
+      },
+      "per_cpu_ring_entries": {
+        "per_cpu/cpu0/stats": 3026,
+        "per_cpu/cpu1/stats": 1367,
+        "per_cpu/cpu2/stats": 1538,
+        "per_cpu/cpu3/stats": 1537
+      },
+      "whole_build": {
+        "all_csd": 611,
+        "ttwu": 463,
+        "ttwu_possible": 463,
+        "ttwu_cross_vcpu": 463
+      },
+      "http": {
+        "all_csd": 5,
+        "ttwu": 1,
+        "ttwu_possible": 1,
+        "ttwu_cross_vcpu": 1
+      },
+      "after_http_until_last_build": {
+        "all_csd": 550,
+        "ttwu": 407,
+        "ttwu_possible": 407,
+        "ttwu_cross_vcpu": 407
+      },
+      "clock_offset_range_ns": 1500
+    },
+    {
+      "whole_bracket": {
+        "sched_ttwu_pending": 6598,
+        "nohz_csd_func": 19,
+        "__hrtick_start": 319,
+        "do_nothing": 240,
+        "rcu_exp_handler": 125,
+        "__cfsb_csd_unthrottle": 1,
+        "invalidate_bh_lru": 3
+      },
+      "per_cpu_ring_entries": {
+        "per_cpu/cpu0/stats": 3157,
+        "per_cpu/cpu1/stats": 1405,
+        "per_cpu/cpu2/stats": 1459,
+        "per_cpu/cpu3/stats": 1286
+      },
+      "whole_build": {
+        "all_csd": 759,
+        "ttwu": 647,
+        "ttwu_possible": 647,
+        "ttwu_cross_vcpu": 647
+      },
+      "http": {
+        "all_csd": 8,
+        "ttwu": 0,
+        "ttwu_possible": 0,
+        "ttwu_cross_vcpu": 0
+      },
+      "after_http_until_last_build": {
+        "all_csd": 683,
+        "ttwu": 580,
+        "ttwu_possible": 580,
+        "ttwu_cross_vcpu": 580
+      },
+      "clock_offset_range_ns": 1292
+    }
+  ],
+  "symbol_address_visible": true,
+  "ttwu_queue_enabled": true,
+  "guest_topology": {
+    "cpu0/cache/index0/level": "1",
+    "cpu0/cache/index0/shared_cpu_list": "0-3",
+    "cpu0/cache/index0/type": "Data",
+    "cpu0/cache/index1/level": "1",
+    "cpu0/cache/index1/shared_cpu_list": "0-3",
+    "cpu0/cache/index1/type": "Instruction",
+    "cpu0/cache/index2/level": "2",
+    "cpu0/cache/index2/shared_cpu_list": "0-3",
+    "cpu0/cache/index2/type": "Unified",
+    "cpu0/topology/cluster_cpus_list": "0",
+    "cpu0/topology/core_cpus_list": "0",
+    "cpu0/topology/package_cpus_list": "0-3",
+    "cpu0/topology/physical_package_id": "0",
+    "cpu1/cache/index0/level": "1",
+    "cpu1/cache/index0/shared_cpu_list": "0-3",
+    "cpu1/cache/index0/type": "Data",
+    "cpu1/cache/index1/level": "1",
+    "cpu1/cache/index1/shared_cpu_list": "0-3",
+    "cpu1/cache/index1/type": "Instruction",
+    "cpu1/cache/index2/level": "2",
+    "cpu1/cache/index2/shared_cpu_list": "0-3",
+    "cpu1/cache/index2/type": "Unified",
+    "cpu1/topology/cluster_cpus_list": "1",
+    "cpu1/topology/core_cpus_list": "1",
+    "cpu1/topology/package_cpus_list": "0-3",
+    "cpu1/topology/physical_package_id": "0",
+    "cpu2/cache/index0/level": "1",
+    "cpu2/cache/index0/shared_cpu_list": "0-3",
+    "cpu2/cache/index0/type": "Data",
+    "cpu2/cache/index1/level": "1",
+    "cpu2/cache/index1/shared_cpu_list": "0-3",
+    "cpu2/cache/index1/type": "Instruction",
+    "cpu2/cache/index2/level": "2",
+    "cpu2/cache/index2/shared_cpu_list": "0-3",
+    "cpu2/cache/index2/type": "Unified",
+    "cpu2/topology/cluster_cpus_list": "2",
+    "cpu2/topology/core_cpus_list": "2",
+    "cpu2/topology/package_cpus_list": "0-3",
+    "cpu2/topology/physical_package_id": "0",
+    "cpu3/cache/index0/level": "1",
+    "cpu3/cache/index0/shared_cpu_list": "0-3",
+    "cpu3/cache/index0/type": "Data",
+    "cpu3/cache/index1/level": "1",
+    "cpu3/cache/index1/shared_cpu_list": "0-3",
+    "cpu3/cache/index1/type": "Instruction",
+    "cpu3/cache/index2/level": "2",
+    "cpu3/cache/index2/shared_cpu_list": "0-3",
+    "cpu3/cache/index2/type": "Unified",
+    "cpu3/topology/cluster_cpus_list": "3",
+    "cpu3/topology/core_cpus_list": "3",
+    "cpu3/topology/package_cpus_list": "0-3",
+    "cpu3/topology/physical_package_id": "0",
+    "online": "0-3",
+    "possible": "0-3"
+  },
+  "baseline_originals_and_copies_verified": 24
+}

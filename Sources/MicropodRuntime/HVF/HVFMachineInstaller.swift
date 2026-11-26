@@ -24,7 +24,7 @@ public struct HVFInstallRequest: Sendable, Equatable {
 
     public init(
         vmm: URL? = nil, kernel: URL? = nil, initrd: URL? = nil, tools: URL? = nil, diskFrom: URL? = nil,
-        diskImage: String? = nil, diskBytes: UInt64 = 32 << 30, replaceDisk: Bool = false, cpus: Int? = nil,
+        diskImage: String? = nil, diskBytes: UInt64 = 64 << 30, replaceDisk: Bool = false, cpus: Int? = nil,
         memoryMiB: Int? = nil, workspace: String? = nil
     ) {
         self.vmm = vmm
@@ -118,11 +118,14 @@ public enum HVFMachineInstaller {
         }
         let vmm = source(request.vmm, target: layout.vmm, directory: package?.bin, name: "micropod-vmm")
         let kernel = source(request.kernel, target: layout.kernel, directory: package?.resources, name: "vmlinux-hvf")
-        let initrd = source(request.initrd, target: layout.initrd, directory: package?.resources, name: "mp-hvf-init.cpio")
+        let initrd = source(
+            request.initrd, target: layout.initrd, directory: package?.resources, name: "mp-hvf-init.cpio")
         let files: [(name: String, source: URL?, target: URL)] = [
-            ("micropod-vmm", vmm, layout.vmm), ("Image", kernel, layout.kernel), ("mp-hvf-init.cpio", initrd, layout.initrd),
+            ("micropod-vmm", vmm, layout.vmm), ("Image", kernel, layout.kernel),
+            ("mp-hvf-init.cpio", initrd, layout.initrd),
         ]
-        let tools = source(request.tools, target: layout.tools, directory: package?.resources, name: "micropod-oci-tools")
+        let tools = source(
+            request.tools, target: layout.tools, directory: package?.resources, name: "micropod-oci-tools")
         let diskFrom = resolved(request.diskFrom)
         var unresolved: [String] = []
         for file in files {
@@ -253,8 +256,9 @@ public enum HVFMachineInstaller {
     private static func distributionDirectories(for executable: URL) -> (bin: URL, resources: URL)? {
         let exe = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(executable.path))
         switch CLIInstall.kind(of: exe) {
-        case let .appManaged(app):
-            let contents = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(app.path)).appendingPathComponent("Contents")
+        case .appManaged(let app):
+            let contents = URL(fileURLWithPath: HVFMachineLayout.canonicalPath(app.path)).appendingPathComponent(
+                "Contents")
             return (contents.appendingPathComponent("MacOS"), contents.appendingPathComponent("Resources"))
         case .standalone:
             let directory = exe.deletingLastPathComponent()

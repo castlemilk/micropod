@@ -1,0 +1,3481 @@
+{
+  "sync_mode": "fsync",
+  "signed_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-79cf766b2fde0258/product.json",
+  "worker": {
+    "worker": "5812efdede43c173c91fd1f43985a3620de99bede5d51ef9c6d7d495e9bba55d",
+    "guest": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895",
+    "guest_start": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+    "scheduler": {
+      "setting": "inherit",
+      "before": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NEXT_BUDDY",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "after": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NEXT_BUDDY",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "base_slice_ns": 250000,
+      "clocksource": "arch_sys_counter"
+    }
+  },
+  "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+  "kernel": {
+    "kernel_ipvlan": true,
+    "kernel_page_kib": 16,
+    "kernel_image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "kernel_config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c"
+  },
+  "guest_devices": {
+    "cached": {
+      "driver": "virtio_blk",
+      "features": "00100010010001100000000000001100101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "block_bytes": 4096,
+      "ext4_options": [
+        "acl",
+        "auto_da_alloc",
+        "barrier",
+        "block_validity",
+        "bsddf",
+        "commit=5",
+        "data=ordered",
+        "delalloc",
+        "dioread_nolock",
+        "errors=continue",
+        "i_version",
+        "init_itable=10",
+        "inode_readahead_blks=32",
+        "max_batch_time=15000",
+        "max_dir_size_kb=0",
+        "min_batch_time=0",
+        "nodiscard",
+        "nogrpid",
+        "nojournal_checksum",
+        "noquota",
+        "nowarn_on_error",
+        "prefetch_block_bitmaps",
+        "resgid=0",
+        "resuid=0",
+        "rw",
+        "stripe=0",
+        "user_xattr"
+      ],
+      "queue": {
+        "logical_block_size": "512",
+        "physical_block_size": "512",
+        "minimum_io_size": "512",
+        "optimal_io_size": "0",
+        "max_sectors_kb": "4096",
+        "max_hw_sectors_kb": "2147483647",
+        "nr_requests": "256",
+        "read_ahead_kb": "8192",
+        "rotational": "1",
+        "write_cache": "write back",
+        "fua": "0",
+        "scheduler": "[none] ",
+        "iostats": "1",
+        "nomerges": "0",
+        "rq_affinity": "1",
+        "discard_granularity": "512",
+        "discard_max_bytes": "6576668672"
+      },
+      "mq": {
+        "0.cpu_list": "0, 1, 2, 3",
+        "0.nr_tags": "256",
+        "0.nr_reserved_tags": "0"
+      },
+      "mount": {
+        "target": "/cache",
+        "filesystem": "ext4",
+        "source": "/dev/vdb",
+        "options": "rw"
+      }
+    },
+    "uncached": {
+      "driver": "virtio_blk",
+      "features": "00100010010001100000000000001100101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "block_bytes": 4096,
+      "ext4_options": [
+        "acl",
+        "auto_da_alloc",
+        "barrier",
+        "block_validity",
+        "bsddf",
+        "commit=5",
+        "data=ordered",
+        "delalloc",
+        "dioread_nolock",
+        "errors=continue",
+        "i_version",
+        "init_itable=10",
+        "inode_readahead_blks=32",
+        "max_batch_time=15000",
+        "max_dir_size_kb=0",
+        "min_batch_time=0",
+        "nodiscard",
+        "nogrpid",
+        "nojournal_checksum",
+        "noquota",
+        "nowarn_on_error",
+        "prefetch_block_bitmaps",
+        "resgid=0",
+        "resuid=0",
+        "rw",
+        "stripe=0",
+        "user_xattr"
+      ],
+      "queue": {
+        "logical_block_size": "512",
+        "physical_block_size": "512",
+        "minimum_io_size": "512",
+        "optimal_io_size": "0",
+        "max_sectors_kb": "4096",
+        "max_hw_sectors_kb": "2147483647",
+        "nr_requests": "256",
+        "read_ahead_kb": "8192",
+        "rotational": "1",
+        "write_cache": "write back",
+        "fua": "0",
+        "scheduler": "[none] ",
+        "iostats": "1",
+        "nomerges": "0",
+        "rq_affinity": "1",
+        "discard_granularity": "512",
+        "discard_max_bytes": "6576668672"
+      },
+      "mq": {
+        "0.cpu_list": "0, 1, 2, 3",
+        "0.nr_tags": "256",
+        "0.nr_reserved_tags": "0"
+      },
+      "mount": {
+        "target": "/cache",
+        "filesystem": "ext4",
+        "source": "/dev/vdb",
+        "options": "rw"
+      }
+    }
+  },
+  "timer_slack_ns": {
+    "micropod": 50000,
+    "orbstack": 50000
+  },
+  "protocol_sha256": "2dfe08e08c5fc63f76e544418d661b3451d9cf69315566cc5f0cdbcd9c2629f3",
+  "native_boots": 4,
+  "matched_boot_pairs": 2,
+  "engine_windows": 32,
+  "rate_per_second": 64000,
+  "offer_duration_ns": 1500000000,
+  "rounds_per_boot": 4,
+  "offered_requests": 3072000,
+  "completed_requests": 3072000,
+  "build_jobs": 256,
+  "build_revisions": 512,
+  "test_passes": 4096,
+  "minimum_first_build_end_margin_ns": 1156705585,
+  "by_seed": [
+    {
+      "seed": 250231,
+      "cache_mode_order": [
+        "cached",
+        "uncached"
+      ],
+      "boots": {
+        "cached": {
+          "archive": "20261125T045230Z-sibling-worker-disk-k8rqq5jp",
+          "native_boot": "0d5825b4-0e0b-4f2b-a6b4-11d2041bd513",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "attachment": {
+            "cache_mode": "cached",
+            "device_type": "VZVirtioBlockDeviceConfiguration",
+            "disk_path": "/tmp/mp-t-dm0ht515/a/worker.ext4",
+            "image_format": "raw",
+            "pid": 18666,
+            "read_only": false,
+            "storage_device_index": 1,
+            "sync_mode": "fsync",
+            "vm_id": "ci-c549e6cc-685f-4a27-8a55-ad8bcfc289c1"
+          },
+          "calibration": {
+            "started_unix_ns": 1795582426698829339,
+            "finished_unix_ns": 1795582426746054089,
+            "bytes": 1048576,
+            "sha256": "ae8ed9a4a5a8c5dc66e13243e5b3d8268e816a3f43ac973e20d05bcf3b17758c",
+            "stages": {
+              "write": {
+                "elapsed_ns": 3775875,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 4,
+                  "write_merges": 247,
+                  "write_sectors": 4048,
+                  "write_ms": 3,
+                  "busy_ms": 0,
+                  "queue_ms": 4,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 2,
+                  "flush_ms": 2
+                }
+              },
+              "cold": {
+                "elapsed_ns": 1010750,
+                "stat_delta": {
+                  "reads": 2,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "warm": {
+                "elapsed_ns": 477625,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "direct": {
+                "elapsed_ns": 1089291,
+                "stat_delta": {
+                  "reads": 16,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 4,
+                  "queue_ms": 1,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              }
+            },
+            "guest_fsync_succeeded": true,
+            "separate_flush_observed": true,
+            "flush_evidence": "completed_separate_flush",
+            "write_bytes": 2072576,
+            "write_flushes": 2,
+            "device_read_bytes": {
+              "cold": 1048576,
+              "warm": 0,
+              "direct": 1048576
+            }
+          },
+          "device_windows": [
+            {
+              "block": 0,
+              "guest_before_unix_ns": 1795582395353267672,
+              "guest_after_unix_ns": 1795582399253897133,
+              "disk_stat_delta": {
+                "reads": 884,
+                "read_merges": 0,
+                "read_sectors": 100560,
+                "read_ms": 35,
+                "writes": 9,
+                "write_merges": 0,
+                "write_sectors": 72,
+                "write_ms": 0,
+                "busy_ms": 16,
+                "queue_ms": 36,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 61433,
+                "/proc/pressure/io.full": 20583,
+                "/sys/fs/cgroup/io.pressure.some": 12078,
+                "/sys/fs/cgroup/io.pressure.full": 6767
+              }
+            },
+            {
+              "block": 1,
+              "guest_before_unix_ns": 1795582400667993175,
+              "guest_after_unix_ns": 1795582404467677010,
+              "disk_stat_delta": {
+                "reads": 2,
+                "read_merges": 0,
+                "read_sectors": 96,
+                "read_ms": 0,
+                "writes": 20,
+                "write_merges": 371,
+                "write_sectors": 3128,
+                "write_ms": 5,
+                "busy_ms": 0,
+                "queue_ms": 8,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 2,
+                "flush_ms": 4
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 67628,
+                "/proc/pressure/io.full": 22446,
+                "/sys/fs/cgroup/io.pressure.some": 11326,
+                "/sys/fs/cgroup/io.pressure.full": 8645
+              }
+            },
+            {
+              "block": 2,
+              "guest_before_unix_ns": 1795582409614150179,
+              "guest_after_unix_ns": 1795582413428678666,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 16,
+                "write_merges": 0,
+                "write_sectors": 128,
+                "write_ms": 1,
+                "busy_ms": 1900,
+                "queue_ms": 1,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 58955,
+                "/proc/pressure/io.full": 18941,
+                "/sys/fs/cgroup/io.pressure.some": 10713,
+                "/sys/fs/cgroup/io.pressure.full": 7514
+              }
+            },
+            {
+              "block": 3,
+              "guest_before_unix_ns": 1795582422454602004,
+              "guest_after_unix_ns": 1795582426245206922,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 19,
+                "write_merges": 3,
+                "write_sectors": 248,
+                "write_ms": 2,
+                "busy_ms": 0,
+                "queue_ms": 2,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 66665,
+                "/proc/pressure/io.full": 18017,
+                "/sys/fs/cgroup/io.pressure.some": 9424,
+                "/sys/fs/cgroup/io.pressure.full": 5360
+              }
+            }
+          ],
+          "admission": {
+            "first_utc": "2026-11-25T04:52:30.789774+00:00",
+            "last_utc": "2026-11-25T04:53:53.961618+00:00",
+            "samples": 41,
+            "full_peer_cohort_samples": 29
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1249.625,
+                "build_makespan_s": 3.014778918,
+                "p99_us": 4100.333,
+                "service_p95_us": 428.916,
+                "service_p99_us": 1437.209,
+                "slowest_build_s": 3.014778918,
+                "dispatch_lateness_p95_us": 765.958,
+                "dispatch_lateness_p99_us": 3606.333,
+                "starts_after_next_due_fraction": 0.06570833333333333,
+                "completed_after_window_fraction": 0.00034375,
+                "drain_after_window_ns": 2107125,
+                "first_build_end_margin_ns": 1306843584,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3214.97,
+                "build_makespan_s": 3.013284281,
+                "p99_us": 6880.471,
+                "service_p95_us": 306.001,
+                "service_p99_us": 1095.463,
+                "slowest_build_s": 3.010568726,
+                "dispatch_lateness_p95_us": 2897.381,
+                "dispatch_lateness_p99_us": 6440.412,
+                "starts_after_next_due_fraction": 0.198125,
+                "completed_after_window_fraction": 0.0006458333333333333,
+                "drain_after_window_ns": 7776266,
+                "first_build_end_margin_ns": 1413941003,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1485.084,
+                "build_makespan_s": 2.916198334,
+                "p99_us": 4792.042,
+                "service_p95_us": 425.5,
+                "service_p99_us": 1536.875,
+                "slowest_build_s": 2.912975626,
+                "dispatch_lateness_p95_us": 998.459,
+                "dispatch_lateness_p99_us": 4292.167,
+                "starts_after_next_due_fraction": 0.07425,
+                "completed_after_window_fraction": 0.00014583333333333335,
+                "drain_after_window_ns": 639459,
+                "first_build_end_margin_ns": 1202825042,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 208,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3143.099,
+                "build_makespan_s": 2.83888785,
+                "p99_us": 6039.926,
+                "service_p95_us": 278.168,
+                "service_p99_us": 927.588,
+                "slowest_build_s": 2.835437959,
+                "dispatch_lateness_p95_us": 2836.661,
+                "dispatch_lateness_p99_us": 5595.347,
+                "starts_after_next_due_fraction": 0.17775,
+                "completed_after_window_fraction": 0.00044791666666666667,
+                "drain_after_window_ns": 5242922,
+                "first_build_end_margin_ns": 1250179662,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1288.375,
+                "build_makespan_s": 2.946739126,
+                "p99_us": 3956.584,
+                "service_p95_us": 466.042,
+                "service_p99_us": 1517.333,
+                "slowest_build_s": 2.941576501,
+                "dispatch_lateness_p95_us": 796.209,
+                "dispatch_lateness_p99_us": 3447.75,
+                "starts_after_next_due_fraction": 0.06939583333333334,
+                "completed_after_window_fraction": 0.00103125,
+                "drain_after_window_ns": 10491834,
+                "first_build_end_margin_ns": 1309514626,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3143.484,
+                "build_makespan_s": 2.869255949,
+                "p99_us": 7475.206,
+                "service_p95_us": 225.543,
+                "service_p99_us": 974.755,
+                "slowest_build_s": 2.856031555,
+                "dispatch_lateness_p95_us": 2839.802,
+                "dispatch_lateness_p99_us": 7010.495,
+                "starts_after_next_due_fraction": 0.16044791666666666,
+                "completed_after_window_fraction": 0.0038541666666666668,
+                "drain_after_window_ns": 26067268,
+                "first_build_end_margin_ns": 1268571331,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1422.916,
+                "build_makespan_s": 2.861216043,
+                "p99_us": 4210.083,
+                "service_p95_us": 479.208,
+                "service_p99_us": 1596.709,
+                "slowest_build_s": 2.855855209,
+                "dispatch_lateness_p95_us": 939.458,
+                "dispatch_lateness_p99_us": 3710.167,
+                "starts_after_next_due_fraction": 0.077,
+                "completed_after_window_fraction": 0.00016666666666666666,
+                "drain_after_window_ns": 418583,
+                "first_build_end_margin_ns": 1167008876,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3635.51,
+                "build_makespan_s": 2.888849666,
+                "p99_us": 13358.354,
+                "service_p95_us": 255.085,
+                "service_p99_us": 1078.755,
+                "slowest_build_s": 2.887821119,
+                "dispatch_lateness_p95_us": 3298.662,
+                "dispatch_lateness_p99_us": 12912.445,
+                "starts_after_next_due_fraction": 0.1821875,
+                "completed_after_window_fraction": 0.0007604166666666666,
+                "drain_after_window_ns": 9655984,
+                "first_build_end_margin_ns": 1303478452,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ]
+        },
+        "uncached": {
+          "archive": "20261125T045359Z-sibling-worker-disk-yla9l6l5",
+          "native_boot": "0333dd76-62a9-4d4c-be97-8385d0bd81ff",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "attachment": {
+            "cache_mode": "uncached",
+            "device_type": "VZVirtioBlockDeviceConfiguration",
+            "disk_path": "/tmp/mp-t-tytb4r6m/a/worker.ext4",
+            "image_format": "raw",
+            "pid": 23330,
+            "read_only": false,
+            "storage_device_index": 1,
+            "sync_mode": "fsync",
+            "vm_id": "ci-7258a1c7-1714-4075-afa7-d6fd165cb08e"
+          },
+          "calibration": {
+            "started_unix_ns": 1795582516533632715,
+            "finished_unix_ns": 1795582516582377882,
+            "bytes": 1048576,
+            "sha256": "74779bae3952dfbaef121a146308d25063dcf55d29b3e403379be190736ee586",
+            "stages": {
+              "write": {
+                "elapsed_ns": 6345333,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 5,
+                  "write_merges": 293,
+                  "write_sectors": 4424,
+                  "write_ms": 10,
+                  "busy_ms": 4,
+                  "queue_ms": 10,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 2,
+                  "flush_ms": 0
+                }
+              },
+              "cold": {
+                "elapsed_ns": 991084,
+                "stat_delta": {
+                  "reads": 2,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "warm": {
+                "elapsed_ns": 783542,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "direct": {
+                "elapsed_ns": 1611833,
+                "stat_delta": {
+                  "reads": 16,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 1,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 1,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              }
+            },
+            "guest_fsync_succeeded": true,
+            "separate_flush_observed": true,
+            "flush_evidence": "completed_separate_flush",
+            "write_bytes": 2265088,
+            "write_flushes": 2,
+            "device_read_bytes": {
+              "cold": 1048576,
+              "warm": 0,
+              "direct": 1048576
+            }
+          },
+          "device_windows": [
+            {
+              "block": 0,
+              "guest_before_unix_ns": 1795582484684779964,
+              "guest_after_unix_ns": 1795582488551961799,
+              "disk_stat_delta": {
+                "reads": 6,
+                "read_merges": 27,
+                "read_sectors": 552,
+                "read_ms": 1,
+                "writes": 64,
+                "write_merges": 546,
+                "write_sectors": 4880,
+                "write_ms": 39,
+                "busy_ms": 12,
+                "queue_ms": 41,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 2,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 54290,
+                "/proc/pressure/io.full": 17584,
+                "/sys/fs/cgroup/io.pressure.some": 9683,
+                "/sys/fs/cgroup/io.pressure.full": 7092
+              }
+            },
+            {
+              "block": 1,
+              "guest_before_unix_ns": 1795582489932080300,
+              "guest_after_unix_ns": 1795582493810005219,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 20,
+                "write_merges": 393,
+                "write_sectors": 3304,
+                "write_ms": 15,
+                "busy_ms": 8,
+                "queue_ms": 15,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 2,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 69871,
+                "/proc/pressure/io.full": 26266,
+                "/sys/fs/cgroup/io.pressure.some": 13602,
+                "/sys/fs/cgroup/io.pressure.full": 8788
+              }
+            },
+            {
+              "block": 2,
+              "guest_before_unix_ns": 1795582499120741680,
+              "guest_after_unix_ns": 1795582502954609625,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 16,
+                "write_merges": 0,
+                "write_sectors": 128,
+                "write_ms": 3,
+                "busy_ms": 0,
+                "queue_ms": 3,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 61905,
+                "/proc/pressure/io.full": 18429,
+                "/sys/fs/cgroup/io.pressure.some": 11802,
+                "/sys/fs/cgroup/io.pressure.full": 7343
+              }
+            },
+            {
+              "block": 3,
+              "guest_before_unix_ns": 1795582512187680713,
+              "guest_after_unix_ns": 1795582516063469298,
+              "disk_stat_delta": {
+                "reads": 4,
+                "read_merges": 0,
+                "read_sectors": 192,
+                "read_ms": 1,
+                "writes": 172,
+                "write_merges": 215,
+                "write_sectors": 3168,
+                "write_ms": 358,
+                "busy_ms": 4,
+                "queue_ms": 360,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 61229,
+                "/proc/pressure/io.full": 20402,
+                "/sys/fs/cgroup/io.pressure.some": 10569,
+                "/sys/fs/cgroup/io.pressure.full": 8987
+              }
+            }
+          ],
+          "admission": {
+            "first_utc": "2026-11-25T04:53:59.729797+00:00",
+            "last_utc": "2026-11-25T04:55:22.821186+00:00",
+            "samples": 41,
+            "full_peer_cohort_samples": 29
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1581.125,
+                "build_makespan_s": 2.970430126,
+                "p99_us": 4587.625,
+                "service_p95_us": 490.083,
+                "service_p99_us": 1656.875,
+                "slowest_build_s": 2.963196251,
+                "dispatch_lateness_p95_us": 1098.125,
+                "dispatch_lateness_p99_us": 4089.375,
+                "starts_after_next_due_fraction": 0.08472916666666666,
+                "completed_after_window_fraction": 0.00036458333333333335,
+                "drain_after_window_ns": 1274042,
+                "first_build_end_margin_ns": 1276021251,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2856.171,
+                "build_makespan_s": 2.852753415,
+                "p99_us": 5216.042,
+                "service_p95_us": 245.334,
+                "service_p99_us": 797.212,
+                "slowest_build_s": 2.852224787,
+                "dispatch_lateness_p95_us": 2571.771,
+                "dispatch_lateness_p99_us": 4792.066,
+                "starts_after_next_due_fraction": 0.17077083333333334,
+                "completed_after_window_fraction": 0.0002708333333333333,
+                "drain_after_window_ns": 16009180,
+                "first_build_end_margin_ns": 1290040889,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 2540.042,
+                "build_makespan_s": 2.991878168,
+                "p99_us": 7310.209,
+                "service_p95_us": 820.5,
+                "service_p99_us": 2016.0,
+                "slowest_build_s": 2.985221876,
+                "dispatch_lateness_p95_us": 2043.75,
+                "dispatch_lateness_p99_us": 6810.376,
+                "starts_after_next_due_fraction": 0.1416875,
+                "completed_after_window_fraction": 0.00021875,
+                "drain_after_window_ns": 1620709,
+                "first_build_end_margin_ns": 1318037209,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3493.664,
+                "build_makespan_s": 2.99302048,
+                "p99_us": 6734.526,
+                "service_p95_us": 315.293,
+                "service_p99_us": 1115.796,
+                "slowest_build_s": 2.986211157,
+                "dispatch_lateness_p95_us": 3120.15,
+                "dispatch_lateness_p99_us": 6342.112,
+                "starts_after_next_due_fraction": 0.201375,
+                "completed_after_window_fraction": 0.0006458333333333333,
+                "drain_after_window_ns": 1993532,
+                "first_build_end_margin_ns": 1416588266,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1945.291,
+                "build_makespan_s": 2.983251987,
+                "p99_us": 5298.084,
+                "service_p95_us": 699.917,
+                "service_p99_us": 1852.75,
+                "slowest_build_s": 2.981324195,
+                "dispatch_lateness_p95_us": 1453.708,
+                "dispatch_lateness_p99_us": 4799.333,
+                "starts_after_next_due_fraction": 0.11402083333333334,
+                "completed_after_window_fraction": 0.00025,
+                "drain_after_window_ns": 1277917,
+                "first_build_end_margin_ns": 1274461361,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 208,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3552.396,
+                "build_makespan_s": 3.047494608,
+                "p99_us": 12425.494,
+                "service_p95_us": 303.168,
+                "service_p99_us": 1125.005,
+                "slowest_build_s": 3.041523247,
+                "dispatch_lateness_p95_us": 3211.318,
+                "dispatch_lateness_p99_us": 11925.702,
+                "starts_after_next_due_fraction": 0.20205208333333333,
+                "completed_after_window_fraction": 0.00044791666666666667,
+                "drain_after_window_ns": 1887824,
+                "first_build_end_margin_ns": 1448755665,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 166,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1532.125,
+                "build_makespan_s": 2.979847543,
+                "p99_us": 4087.75,
+                "service_p95_us": 547.834,
+                "service_p99_us": 1683.625,
+                "slowest_build_s": 2.97347321,
+                "dispatch_lateness_p95_us": 1039.876,
+                "dispatch_lateness_p99_us": 3588.125,
+                "starts_after_next_due_fraction": 0.08720833333333333,
+                "completed_after_window_fraction": 0.00014583333333333335,
+                "drain_after_window_ns": 591335,
+                "first_build_end_margin_ns": 1281746250,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3534.435,
+                "build_makespan_s": 2.956509103,
+                "p99_us": 7478.183,
+                "service_p95_us": 321.585,
+                "service_p99_us": 1153.839,
+                "slowest_build_s": 2.949594405,
+                "dispatch_lateness_p95_us": 3168.935,
+                "dispatch_lateness_p99_us": 7050.108,
+                "starts_after_next_due_fraction": 0.20259375,
+                "completed_after_window_fraction": 0.0002708333333333333,
+                "drain_after_window_ns": 356941,
+                "first_build_end_margin_ns": 1353496807,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ]
+        }
+      },
+      "within_engine": {
+        "micropod": {
+          "metrics": {
+            "p95_us": {
+              "uncached": 1763.208,
+              "cached": 1355.6455,
+              "paired_ratio": 1.3875795416222614,
+              "paired_difference": 494.20799999999997,
+              "uncached_higher": 4,
+              "uncached_lower": 0,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "uncached": 2.981549765,
+              "cached": 2.93146873,
+              "paired_ratio": 1.0191712382255749,
+              "paired_difference": 0.05609634749999981,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "uncached": 4942.8544999999995,
+              "cached": 4155.208,
+              "paired_ratio": 1.2289485795616182,
+              "paired_difference": 914.3960000000002,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "uncached": 623.8755,
+              "cached": 447.479,
+              "paired_ratio": 1.3225197889793932,
+              "paired_difference": 151.2505,
+              "uncached_higher": 4,
+              "uncached_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "uncached": 1768.1875,
+              "cached": 1527.104,
+              "paired_ratio": 1.186949508807789,
+              "paired_difference": 277.5414999999999,
+              "uncached_higher": 4,
+              "uncached_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "uncached": 2.9773987025,
+              "cached": 2.9272760635,
+              "paired_ratio": 1.0191569536603384,
+              "paired_difference": 0.05599697199999998,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "uncached": 1275.9165,
+              "cached": 867.8335,
+              "paired_ratio": 1.6297245534605662,
+              "paired_difference": 494.8330000000001,
+              "uncached_higher": 4,
+              "uncached_lower": 0,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "uncached": 4444.353999999999,
+              "cached": 3658.25,
+              "paired_ratio": 1.2629807793325638,
+              "paired_difference": 917.3124999999998,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "uncached": 0.10061458333333334,
+              "cached": 0.07182291666666667,
+              "paired_ratio": 1.4662619096525462,
+              "paired_difference": 0.031822916666666666,
+              "uncached_higher": 4,
+              "uncached_lower": 0,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "uncached": 0.000234375,
+              "cached": 0.0002552083333333333,
+              "paired_ratio": 0.9678030303030305,
+              "paired_difference": 2.710505431213761e-20,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "uncached": 1275979.5,
+              "cached": 1373292.0,
+              "paired_ratio": 1.008670952581086,
+              "paired_difference": -330165.5,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "uncached": 1278883750.5,
+              "cached": 1254834313.0,
+              "paired_ratio": null,
+              "paired_difference": 41957520.5,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "cached": 3,
+            "uncached": 0,
+            "split_or_tied": 1
+          },
+          "joint_win_positions": {
+            "cached": [
+              1,
+              2,
+              3
+            ],
+            "uncached": []
+          }
+        },
+        "orbstack": {
+          "metrics": {
+            "p95_us": {
+              "uncached": 3514.0495,
+              "cached": 3179.227,
+              "paired_ratio": 1.041866337211998,
+              "paired_difference": 124.74499999999989,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "uncached": 2.9747647915,
+              "cached": 2.8790528075,
+              "paired_ratio": 1.0388571032643281,
+              "paired_difference": 0.11089603350000021,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "uncached": 7106.3544999999995,
+              "cached": 7177.8385,
+              "paired_ratio": 0.9365475749619696,
+              "paired_difference": -484.91449999999986,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "uncached": 309.2305,
+              "cached": 266.6265,
+              "paired_ratio": 1.1970799632253142,
+              "paired_difference": 51.812499999999986,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "uncached": 1120.4005000000002,
+              "cached": 1026.755,
+              "paired_ratio": 1.1118718777167025,
+              "paired_difference": 112.66699999999997,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "uncached": 2.9679027810000003,
+              "cached": 2.8719263369999997,
+              "paired_ratio": 1.0372827691197901,
+              "paired_difference": 0.1062732420000001,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "uncached": 3144.5425,
+              "cached": 2868.5915,
+              "paired_ratio": 1.0303052049734354,
+              "paired_difference": 76.88100000000009,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "uncached": 6696.110000000001,
+              "cached": 6725.4535,
+              "paired_ratio": 0.9387619055734013,
+              "paired_difference": -450.79050000000007,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "uncached": 0.20171354166666666,
+              "cached": 0.17996875,
+              "paired_ratio": 1.122459126734264,
+              "paired_difference": 0.022015624999999997,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "uncached": 0.000359375,
+              "cached": 0.000703125,
+              "paired_ratio": 0.3877596111356606,
+              "paired_difference": -0.00043229166666666665,
+              "uncached_higher": 1,
+              "uncached_lower": 3,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "uncached": 1940678.0,
+              "cached": 8716125.0,
+              "paired_ratio": 0.2263271261916111,
+              "paired_difference": -6274216.5,
+              "uncached_higher": 1,
+              "uncached_lower": 3,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "uncached": 1385042536.5,
+              "cached": 1286024891.5,
+              "paired_ratio": null,
+              "paired_difference": 108213479.5,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "cached": 2,
+            "uncached": 1,
+            "split_or_tied": 1
+          },
+          "joint_win_positions": {
+            "cached": [
+              1,
+              2
+            ],
+            "uncached": [
+              0
+            ]
+          }
+        }
+      },
+      "within_mode": {
+        "cached": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1355.6455,
+              "orbstack": 3179.227,
+              "paired_ratio": 0.4006247660484919,
+              "paired_difference": -1910.2269999999999,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.93146873,
+              "orbstack": 2.8790528075,
+              "paired_ratio": 1.0137503197790174,
+              "paired_difference": 0.03940256050000035,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 4155.208,
+              "orbstack": 7177.8385,
+              "paired_ratio": 0.5626160729906102,
+              "paired_difference": -3149.38,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 447.479,
+              "orbstack": 266.6265,
+              "paired_ratio": 1.704135998971453,
+              "paired_difference": 185.72750000000002,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1527.104,
+              "orbstack": 1026.755,
+              "paired_ratio": 1.5183853299717422,
+              "paired_difference": 530.2660000000001,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.9272760635,
+              "orbstack": 2.8719263369999997,
+              "paired_ratio": 1.0143721966308452,
+              "paired_difference": 0.04087392950000024,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 867.8335,
+              "orbstack": 2868.5915,
+              "paired_ratio": 0.28258727235644254,
+              "paired_difference": -2087.508,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 3658.25,
+              "orbstack": 6725.4535,
+              "paired_ratio": 0.5258760705809706,
+              "paired_difference": -3198.4120000000003,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.07182291666666667,
+              "orbstack": 0.17996875,
+              "paired_ratio": 0.420181514210652,
+              "paired_difference": -0.10434375,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.0002552083333333333,
+              "orbstack": 0.000703125,
+              "paired_ratio": 0.2965744814582024,
+              "paired_difference": -0.00044791666666666667,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1373292.0,
+              "orbstack": 8716125.0,
+              "paired_ratio": 0.1964674439471877,
+              "paired_difference": -7453271.0,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1254834313.0,
+              "orbstack": 1286024891.5,
+              "paired_ratio": null,
+              "paired_difference": -77226019.5,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 1,
+            "split_or_tied": 3
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              3
+            ]
+          }
+        },
+        "uncached": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1763.208,
+              "orbstack": 3514.0495,
+              "paired_ratio": 0.550590877736035,
+              "paired_difference": -1441.0755,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.981549765,
+              "orbstack": 2.9747647915,
+              "paired_ratio": 1.0037561296290982,
+              "paired_difference": 0.011098063999999797,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 4942.8544999999995,
+              "orbstack": 7106.3544999999995,
+              "paired_ratio": 0.7130728376064355,
+              "paired_difference": -2009.4250000000002,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 623.8755,
+              "orbstack": 309.2305,
+              "paired_ratio": 2.153146266382192,
+              "paired_difference": 320.749,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1768.1875,
+              "orbstack": 1120.4005000000002,
+              "paired_ratio": 1.7268317271379603,
+              "paired_difference": 793.704,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.9773987025,
+              "orbstack": 2.9679027810000003,
+              "paired_ratio": 1.003882170116126,
+              "paired_difference": 0.011444761999999997,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1275.9165,
+              "orbstack": 3144.5425,
+              "paired_ratio": 0.43983720901586065,
+              "paired_difference": -1615.6280000000002,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 4444.353999999999,
+              "orbstack": 6696.110000000001,
+              "paired_ratio": 0.681154884055521,
+              "paired_difference": -2082.337,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.10061458333333334,
+              "orbstack": 0.20171354166666666,
+              "paired_ratio": 0.5302355999217571,
+              "paired_difference": -0.08703645833333334,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.000234375,
+              "orbstack": 0.000359375,
+              "paired_ratio": 0.5483005366726297,
+              "paired_difference": -0.00016145833333333333,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1275979.5,
+              "orbstack": 1940678.0,
+              "paired_ratio": 0.7449548051557378,
+              "paired_difference": -491365.0,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1278883750.5,
+              "orbstack": 1385042536.5,
+              "paired_ratio": null,
+              "paired_difference": -85150807.0,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 2,
+            "split_or_tied": 2
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              1,
+              2
+            ]
+          }
+        }
+      }
+    },
+    {
+      "seed": 250233,
+      "cache_mode_order": [
+        "uncached",
+        "cached"
+      ],
+      "boots": {
+        "cached": {
+          "archive": "20261125T045705Z-sibling-worker-disk-ls54a5r5",
+          "native_boot": "4633c947-af2a-4576-902d-fb6a519f8dbe",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "attachment": {
+            "cache_mode": "cached",
+            "device_type": "VZVirtioBlockDeviceConfiguration",
+            "disk_path": "/tmp/mp-t-1tk06njz/a/worker.ext4",
+            "image_format": "raw",
+            "pid": 33493,
+            "read_only": false,
+            "storage_device_index": 1,
+            "sync_mode": "fsync",
+            "vm_id": "ci-a8b0ccbf-5cec-4302-95c4-a3d106df378f"
+          },
+          "calibration": {
+            "started_unix_ns": 1795582701646202714,
+            "finished_unix_ns": 1795582701688475423,
+            "bytes": 1048576,
+            "sha256": "cb5c8dd173c874d693514a7f046d5edff55ea73f593b37226430ada9b5af8314",
+            "stages": {
+              "write": {
+                "elapsed_ns": 7776750,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 5,
+                  "write_merges": 254,
+                  "write_sectors": 4112,
+                  "write_ms": 8,
+                  "busy_ms": 8,
+                  "queue_ms": 13,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 2,
+                  "flush_ms": 6
+                }
+              },
+              "cold": {
+                "elapsed_ns": 1143459,
+                "stat_delta": {
+                  "reads": 2,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 1,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "warm": {
+                "elapsed_ns": 620167,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "direct": {
+                "elapsed_ns": 1174875,
+                "stat_delta": {
+                  "reads": 16,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              }
+            },
+            "guest_fsync_succeeded": true,
+            "separate_flush_observed": true,
+            "flush_evidence": "completed_separate_flush",
+            "write_bytes": 2105344,
+            "write_flushes": 2,
+            "device_read_bytes": {
+              "cold": 1048576,
+              "warm": 0,
+              "direct": 1048576
+            }
+          },
+          "device_windows": [
+            {
+              "block": 0,
+              "guest_before_unix_ns": 1795582666470775795,
+              "guest_after_unix_ns": 1795582670243925339,
+              "disk_stat_delta": {
+                "reads": 7,
+                "read_merges": 0,
+                "read_sectors": 640,
+                "read_ms": 2,
+                "writes": 270,
+                "write_merges": 581,
+                "write_sectors": 58960,
+                "write_ms": 69,
+                "busy_ms": 4,
+                "queue_ms": 71,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 57285,
+                "/proc/pressure/io.full": 16769,
+                "/sys/fs/cgroup/io.pressure.some": 10064,
+                "/sys/fs/cgroup/io.pressure.full": 6052
+              }
+            },
+            {
+              "block": 1,
+              "guest_before_unix_ns": 1795582675412665800,
+              "guest_after_unix_ns": 1795582679200425302,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 18,
+                "write_merges": 68,
+                "write_sectors": 688,
+                "write_ms": 1,
+                "busy_ms": 0,
+                "queue_ms": 2,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 2,
+                "flush_ms": 1
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 65121,
+                "/proc/pressure/io.full": 18302,
+                "/sys/fs/cgroup/io.pressure.some": 19495,
+                "/sys/fs/cgroup/io.pressure.full": 11699
+              }
+            },
+            {
+              "block": 2,
+              "guest_before_unix_ns": 1795582688322386458,
+              "guest_after_unix_ns": 1795582692222070876,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 16,
+                "write_merges": 0,
+                "write_sectors": 128,
+                "write_ms": 1,
+                "busy_ms": 0,
+                "queue_ms": 1,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 59978,
+                "/proc/pressure/io.full": 18856,
+                "/sys/fs/cgroup/io.pressure.some": 11502,
+                "/sys/fs/cgroup/io.pressure.full": 9894
+              }
+            },
+            {
+              "block": 3,
+              "guest_before_unix_ns": 1795582697365562337,
+              "guest_after_unix_ns": 1795582701185651589,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 33,
+                "write_merges": 303,
+                "write_sectors": 4464,
+                "write_ms": 18,
+                "busy_ms": 16,
+                "queue_ms": 32,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 2,
+                "flush_ms": 13
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 62750,
+                "/proc/pressure/io.full": 19089,
+                "/sys/fs/cgroup/io.pressure.some": 13003,
+                "/sys/fs/cgroup/io.pressure.full": 8865
+              }
+            }
+          ],
+          "admission": {
+            "first_utc": "2026-11-25T04:57:06.119493+00:00",
+            "last_utc": "2026-11-25T04:58:27.004994+00:00",
+            "samples": 40,
+            "full_peer_cohort_samples": 28
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1397.959,
+                "build_makespan_s": 2.863391585,
+                "p99_us": 4040.125,
+                "service_p95_us": 475.75,
+                "service_p99_us": 1562.792,
+                "slowest_build_s": 2.859451502,
+                "dispatch_lateness_p95_us": 909.959,
+                "dispatch_lateness_p99_us": 3541.917,
+                "starts_after_next_due_fraction": 0.0761875,
+                "completed_after_window_fraction": 0.0001875,
+                "drain_after_window_ns": 1009710,
+                "first_build_end_margin_ns": 1204311500,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3363.139,
+                "build_makespan_s": 2.88076371,
+                "p99_us": 7506.947,
+                "service_p95_us": 271.376,
+                "service_p99_us": 1002.171,
+                "slowest_build_s": 2.87006391,
+                "dispatch_lateness_p95_us": 3039.692,
+                "dispatch_lateness_p99_us": 7057.699,
+                "starts_after_next_due_fraction": 0.183375,
+                "completed_after_window_fraction": 0.00038541666666666667,
+                "drain_after_window_ns": 13222083,
+                "first_build_end_margin_ns": 1243350714,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1378.25,
+                "build_makespan_s": 2.89157396,
+                "p99_us": 4266.542,
+                "service_p95_us": 416.0,
+                "service_p99_us": 1492.458,
+                "slowest_build_s": 2.889521668,
+                "dispatch_lateness_p95_us": 896.708,
+                "dispatch_lateness_p99_us": 3775.25,
+                "starts_after_next_due_fraction": 0.07110416666666666,
+                "completed_after_window_fraction": 0.00026041666666666666,
+                "drain_after_window_ns": 2382875,
+                "first_build_end_margin_ns": 1214649501,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3060.597,
+                "build_makespan_s": 2.846988553,
+                "p99_us": 5872.287,
+                "service_p95_us": 289.918,
+                "service_p99_us": 1001.005,
+                "slowest_build_s": 2.840048355,
+                "dispatch_lateness_p95_us": 2722.223,
+                "dispatch_lateness_p99_us": 5464.397,
+                "starts_after_next_due_fraction": 0.18129166666666666,
+                "completed_after_window_fraction": 0.00036458333333333335,
+                "drain_after_window_ns": 17705853,
+                "first_build_end_margin_ns": 1249942203,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 2134.75,
+                "build_makespan_s": 3.013838085,
+                "p99_us": 5783.0,
+                "service_p95_us": 775.833,
+                "service_p99_us": 1939.167,
+                "slowest_build_s": 3.004039502,
+                "dispatch_lateness_p95_us": 1640.167,
+                "dispatch_lateness_p99_us": 5283.125,
+                "starts_after_next_due_fraction": 0.12815625,
+                "completed_after_window_fraction": 0.00011458333333333333,
+                "drain_after_window_ns": 1428251,
+                "first_build_end_margin_ns": 1274583625,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 4617.57,
+                "build_makespan_s": 3.041433287,
+                "p99_us": 12161.413,
+                "service_p95_us": 418.335,
+                "service_p99_us": 1682.716,
+                "slowest_build_s": 3.035919512,
+                "dispatch_lateness_p95_us": 4171.719,
+                "dispatch_lateness_p99_us": 11661.496,
+                "starts_after_next_due_fraction": 0.25728125,
+                "completed_after_window_fraction": 0.0006354166666666666,
+                "drain_after_window_ns": 8668604,
+                "first_build_end_margin_ns": 1424029800,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1712.335,
+                "build_makespan_s": 2.970490709,
+                "p99_us": 4297.043,
+                "service_p95_us": 625.708,
+                "service_p99_us": 1799.75,
+                "slowest_build_s": 2.967845334,
+                "dispatch_lateness_p95_us": 1220.168,
+                "dispatch_lateness_p99_us": 3801.084,
+                "starts_after_next_due_fraction": 0.09902083333333334,
+                "completed_after_window_fraction": 0.00028125,
+                "drain_after_window_ns": 1121502,
+                "first_build_end_margin_ns": 1290340416,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 209,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3277.781,
+                "build_makespan_s": 2.859538029,
+                "p99_us": 8329.176,
+                "service_p95_us": 263.667,
+                "service_p99_us": 937.796,
+                "slowest_build_s": 2.858039772,
+                "dispatch_lateness_p95_us": 3001.554,
+                "dispatch_lateness_p99_us": 7852.238,
+                "starts_after_next_due_fraction": 0.19275,
+                "completed_after_window_fraction": 0.0004583333333333333,
+                "drain_after_window_ns": 7152889,
+                "first_build_end_margin_ns": 1257483904,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ]
+        },
+        "uncached": {
+          "archive": "20261125T045528Z-sibling-worker-disk-wqbmvehr",
+          "native_boot": "87e624f0-dce6-483d-815c-865bdff93721",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "attachment": {
+            "cache_mode": "uncached",
+            "device_type": "VZVirtioBlockDeviceConfiguration",
+            "disk_path": "/tmp/mp-t-bs87srvy/a/worker.ext4",
+            "image_format": "raw",
+            "pid": 27769,
+            "read_only": false,
+            "storage_device_index": 1,
+            "sync_mode": "fsync",
+            "vm_id": "ci-cefa34cc-a4e3-497a-86c9-e6814c5c18c6"
+          },
+          "calibration": {
+            "started_unix_ns": 1795582613211965302,
+            "finished_unix_ns": 1795582613265377593,
+            "bytes": 1048576,
+            "sha256": "8693edcf6537687cc72e92105d251f81a0e230edc91f57683ff8648d93d80293",
+            "stages": {
+              "write": {
+                "elapsed_ns": 8630000,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 5,
+                  "write_merges": 326,
+                  "write_sectors": 4688,
+                  "write_ms": 15,
+                  "busy_ms": 8,
+                  "queue_ms": 15,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 2,
+                  "flush_ms": 0
+                }
+              },
+              "cold": {
+                "elapsed_ns": 991167,
+                "stat_delta": {
+                  "reads": 2,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 1,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 4,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "warm": {
+                "elapsed_ns": 549458,
+                "stat_delta": {
+                  "reads": 0,
+                  "read_merges": 0,
+                  "read_sectors": 0,
+                  "read_ms": 0,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 0,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              },
+              "direct": {
+                "elapsed_ns": 1616583,
+                "stat_delta": {
+                  "reads": 16,
+                  "read_merges": 0,
+                  "read_sectors": 2048,
+                  "read_ms": 1,
+                  "writes": 0,
+                  "write_merges": 0,
+                  "write_sectors": 0,
+                  "write_ms": 0,
+                  "busy_ms": 0,
+                  "queue_ms": 1,
+                  "discards": 0,
+                  "discard_merges": 0,
+                  "discard_sectors": 0,
+                  "discard_ms": 0,
+                  "flushes": 0,
+                  "flush_ms": 0
+                }
+              }
+            },
+            "guest_fsync_succeeded": true,
+            "separate_flush_observed": true,
+            "flush_evidence": "completed_separate_flush",
+            "write_bytes": 2400256,
+            "write_flushes": 2,
+            "device_read_bytes": {
+              "cold": 1048576,
+              "warm": 0,
+              "direct": 1048576
+            }
+          },
+          "device_windows": [
+            {
+              "block": 0,
+              "guest_before_unix_ns": 1795582578025884049,
+              "guest_after_unix_ns": 1795582581902133426,
+              "disk_stat_delta": {
+                "reads": 13,
+                "read_merges": 0,
+                "read_sectors": 1192,
+                "read_ms": 2,
+                "writes": 12,
+                "write_merges": 400,
+                "write_sectors": 3296,
+                "write_ms": 14,
+                "busy_ms": 16,
+                "queue_ms": 17,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 2,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 65070,
+                "/proc/pressure/io.full": 17701,
+                "/sys/fs/cgroup/io.pressure.some": 18572,
+                "/sys/fs/cgroup/io.pressure.full": 10279
+              }
+            },
+            {
+              "block": 1,
+              "guest_before_unix_ns": 1795582587106093220,
+              "guest_after_unix_ns": 1795582590909912722,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 46,
+                "write_merges": 80,
+                "write_sectors": 10064,
+                "write_ms": 46,
+                "busy_ms": 0,
+                "queue_ms": 47,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 63101,
+                "/proc/pressure/io.full": 21764,
+                "/sys/fs/cgroup/io.pressure.some": 10121,
+                "/sys/fs/cgroup/io.pressure.full": 7137
+              }
+            },
+            {
+              "block": 2,
+              "guest_before_unix_ns": 1795582599989518087,
+              "guest_after_unix_ns": 1795582603844326256,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 454,
+                "write_merges": 360,
+                "write_sectors": 77800,
+                "write_ms": 3520,
+                "busy_ms": 68,
+                "queue_ms": 3520,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 62386,
+                "/proc/pressure/io.full": 18158,
+                "/sys/fs/cgroup/io.pressure.some": 16468,
+                "/sys/fs/cgroup/io.pressure.full": 9224
+              }
+            },
+            {
+              "block": 3,
+              "guest_before_unix_ns": 1795582608995917300,
+              "guest_after_unix_ns": 1795582612754877843,
+              "disk_stat_delta": {
+                "reads": 0,
+                "read_merges": 0,
+                "read_sectors": 0,
+                "read_ms": 0,
+                "writes": 21,
+                "write_merges": 5,
+                "write_sectors": 1400,
+                "write_ms": 5,
+                "busy_ms": 0,
+                "queue_ms": 5,
+                "discards": 0,
+                "discard_merges": 0,
+                "discard_sectors": 0,
+                "discard_ms": 0,
+                "flushes": 0,
+                "flush_ms": 0
+              },
+              "io_pressure_delta_usec": {
+                "/proc/pressure/io.some": 62320,
+                "/proc/pressure/io.full": 19834,
+                "/sys/fs/cgroup/io.pressure.some": 17951,
+                "/sys/fs/cgroup/io.pressure.full": 14834
+              }
+            }
+          ],
+          "admission": {
+            "first_utc": "2026-11-25T04:55:29.041959+00:00",
+            "last_utc": "2026-11-25T04:56:58.589326+00:00",
+            "samples": 44,
+            "full_peer_cohort_samples": 30
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1962.25,
+                "build_makespan_s": 3.008849502,
+                "p99_us": 4997.084,
+                "service_p95_us": 779.875,
+                "service_p99_us": 1896.458,
+                "slowest_build_s": 3.002137085,
+                "dispatch_lateness_p95_us": 1467.917,
+                "dispatch_lateness_p99_us": 4500.333,
+                "starts_after_next_due_fraction": 0.12417708333333333,
+                "completed_after_window_fraction": 0.00017708333333333335,
+                "drain_after_window_ns": 1368792,
+                "first_build_end_margin_ns": 1261985626,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3647.738,
+                "build_makespan_s": 2.899703312,
+                "p99_us": 9582.554,
+                "service_p95_us": 282.001,
+                "service_p99_us": 1163.755,
+                "slowest_build_s": 2.899703312,
+                "dispatch_lateness_p95_us": 3306.724,
+                "dispatch_lateness_p99_us": 9129.761,
+                "starts_after_next_due_fraction": 0.18909375,
+                "completed_after_window_fraction": 0.00032291666666666666,
+                "drain_after_window_ns": 4048632,
+                "first_build_end_margin_ns": 1325409517,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 2251.459,
+                "build_makespan_s": 2.921086334,
+                "p99_us": 8842.958,
+                "service_p95_us": 655.958,
+                "service_p99_us": 1837.375,
+                "slowest_build_s": 2.918065376,
+                "dispatch_lateness_p95_us": 1767.667,
+                "dispatch_lateness_p99_us": 8343.083,
+                "starts_after_next_due_fraction": 0.1195625,
+                "completed_after_window_fraction": 0.0003541666666666667,
+                "drain_after_window_ns": 2153250,
+                "first_build_end_margin_ns": 1231430334,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3251.009,
+                "build_makespan_s": 2.946991281,
+                "p99_us": 6805.219,
+                "service_p95_us": 236.001,
+                "service_p99_us": 1075.589,
+                "slowest_build_s": 2.936381149,
+                "dispatch_lateness_p95_us": 2927.859,
+                "dispatch_lateness_p99_us": 6366.782,
+                "starts_after_next_due_fraction": 0.17371875,
+                "completed_after_window_fraction": 0.0002708333333333333,
+                "drain_after_window_ns": 4407343,
+                "first_build_end_margin_ns": 1372352109,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1719.001,
+                "build_makespan_s": 2.993292918,
+                "p99_us": 6324.085,
+                "service_p95_us": 586.125,
+                "service_p99_us": 1739.167,
+                "slowest_build_s": 2.985371751,
+                "dispatch_lateness_p95_us": 1224.709,
+                "dispatch_lateness_p99_us": 5824.21,
+                "starts_after_next_due_fraction": 0.09721875,
+                "completed_after_window_fraction": 0.00038541666666666667,
+                "drain_after_window_ns": 1256210,
+                "first_build_end_margin_ns": 1226453041,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3121.384,
+                "build_makespan_s": 2.896293338,
+                "p99_us": 6864.01,
+                "service_p95_us": 266.543,
+                "service_p99_us": 987.63,
+                "slowest_build_s": 2.88797905,
+                "dispatch_lateness_p95_us": 2824.999,
+                "dispatch_lateness_p99_us": 6485.656,
+                "starts_after_next_due_fraction": 0.18020833333333333,
+                "completed_after_window_fraction": 0.00013541666666666666,
+                "drain_after_window_ns": 333989,
+                "first_build_end_margin_ns": 1314878386,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1295.793,
+                "build_makespan_s": 2.921697877,
+                "p99_us": 4519.0,
+                "service_p95_us": 432.458,
+                "service_p99_us": 1484.5,
+                "slowest_build_s": 2.921697877,
+                "dispatch_lateness_p95_us": 817.335,
+                "dispatch_lateness_p99_us": 4021.709,
+                "starts_after_next_due_fraction": 0.06769791666666666,
+                "completed_after_window_fraction": 0.00010416666666666667,
+                "drain_after_window_ns": 1016292,
+                "first_build_end_margin_ns": 1156705585,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 208,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2955.837,
+                "build_makespan_s": 2.863399061,
+                "p99_us": 5868.719,
+                "service_p95_us": 246.834,
+                "service_p99_us": 1040.38,
+                "slowest_build_s": 2.855904359,
+                "dispatch_lateness_p95_us": 2603.635,
+                "dispatch_lateness_p99_us": 5460.397,
+                "starts_after_next_due_fraction": 0.16865625,
+                "completed_after_window_fraction": 0.0004166666666666667,
+                "drain_after_window_ns": 1739538,
+                "first_build_end_margin_ns": 1277421628,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ]
+        }
+      },
+      "within_engine": {
+        "micropod": {
+          "metrics": {
+            "p95_us": {
+              "uncached": 1840.6255,
+              "cached": 1555.147,
+              "paired_ratio": 1.104450226758781,
+              "paired_difference": 74.27099999999996,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "uncached": 2.9574953975,
+              "cached": 2.9310323345000002,
+              "paired_ratio": 1.0016946955000579,
+              "paired_difference": 0.0044836034999997665,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "p99_us": {
+              "uncached": 5660.5845,
+              "cached": 4281.7925,
+              "paired_ratio": 1.165214234837878,
+              "paired_difference": 749.0219999999999,
+              "uncached_higher": 4,
+              "uncached_lower": 0,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "uncached": 621.0415,
+              "cached": 550.729,
+              "paired_ratio": 1.166150210319226,
+              "paired_difference": 25.125,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "uncached": 1788.271,
+              "cached": 1681.271,
+              "paired_ratio": 1.0551846356433223,
+              "paired_difference": 66.83300000000008,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "uncached": 2.953534814,
+              "cached": 2.928683501,
+              "paired_ratio": 1.00183206717202,
+              "paired_difference": 0.004937978500000106,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "uncached": 1346.313,
+              "cached": 1065.0635,
+              "paired_ratio": 1.1799330152034464,
+              "paired_difference": 77.56250000000006,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "uncached": 5162.2715,
+              "cached": 3788.167,
+              "paired_ratio": 1.1865050267886508,
+              "paired_difference": 749.7504999999999,
+              "uncached_higher": 4,
+              "uncached_lower": 0,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "uncached": 0.108390625,
+              "cached": 0.08760416666666668,
+              "paired_ratio": 1.1942416753832026,
+              "paired_difference": 0.008526041666666664,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "uncached": 0.000265625,
+              "cached": 0.00022395833333333333,
+              "paired_ratio": 1.1522222222222223,
+              "paired_difference": 4.1666666666666686e-05,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "uncached": 1312501.0,
+              "cached": 1274876.5,
+              "paired_ratio": 0.9049118113315604,
+              "paired_difference": -138625.5,
+              "uncached_higher": 1,
+              "uncached_lower": 3,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "uncached": 1228941687.5,
+              "cached": 1244616563.0,
+              "paired_ratio": null,
+              "paired_difference": -15674875.5,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "cached": 2,
+            "uncached": 2,
+            "split_or_tied": 0
+          },
+          "joint_win_positions": {
+            "cached": [
+              0,
+              1
+            ],
+            "uncached": [
+              2,
+              3
+            ]
+          }
+        },
+        "orbstack": {
+          "metrics": {
+            "p95_us": {
+              "uncached": 3186.1965,
+              "cached": 3320.46,
+              "paired_ratio": 0.9819969495629018,
+              "paired_difference": -65.76600000000008,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "uncached": 2.897998325,
+              "cached": 2.8701508694999998,
+              "paired_ratio": 1.0039623682874301,
+              "paired_difference": 0.011400317000000104,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "uncached": 6834.6145,
+              "cached": 7918.0615,
+              "paired_ratio": 0.9317340450960878,
+              "paired_difference": -763.7624999999998,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "uncached": 256.6885,
+              "cached": 280.647,
+              "paired_ratio": 0.8750924166606486,
+              "paired_difference": -35.374999999999986,
+              "uncached_higher": 1,
+              "uncached_lower": 3,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "uncached": 1057.9845,
+              "cached": 1001.588,
+              "paired_ratio": 1.0919487570532906,
+              "paired_difference": 88.584,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "uncached": 2.893841181,
+              "cached": 2.864051841,
+              "paired_ratio": 1.0047899639010192,
+              "paired_difference": 0.013751994500000198,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "uncached": 2876.429,
+              "cached": 3020.623,
+              "paired_ratio": 0.9714843693139734,
+              "paired_difference": -96.14149999999995,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "uncached": 6426.219,
+              "cached": 7454.9685,
+              "paired_ratio": 0.9302663552956534,
+              "paired_difference": -744.7280000000001,
+              "uncached_higher": 2,
+              "uncached_lower": 2,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "uncached": 0.17696354166666667,
+              "cached": 0.18806250000000002,
+              "paired_ratio": 0.916613996782349,
+              "paired_difference": -0.015833333333333324,
+              "uncached_higher": 1,
+              "uncached_lower": 3,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "uncached": 0.000296875,
+              "cached": 0.000421875,
+              "paired_ratio": 0.7903474903474903,
+              "paired_difference": -7.812500000000002e-05,
+              "uncached_higher": 0,
+              "uncached_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "uncached": 2894085.0,
+              "cached": 10945343.5,
+              "paired_ratio": 0.2460569405333089,
+              "paired_difference": -8754033.0,
+              "uncached_higher": 0,
+              "uncached_lower": 4,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "uncached": 1320143951.5,
+              "cached": 1253713053.5,
+              "paired_ratio": null,
+              "paired_difference": 50998263.5,
+              "uncached_higher": 3,
+              "uncached_lower": 1,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "cached": 2,
+            "uncached": 1,
+            "split_or_tied": 1
+          },
+          "joint_win_positions": {
+            "cached": [
+              0,
+              1
+            ],
+            "uncached": [
+              2
+            ]
+          }
+        }
+      },
+      "within_mode": {
+        "cached": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1555.147,
+              "orbstack": 3320.46,
+              "paired_ratio": 0.4563154514076918,
+              "paired_difference": -1823.7635,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.9310323345000002,
+              "orbstack": 2.8701508694999998,
+              "paired_ratio": 1.004815080709951,
+              "paired_difference": 0.013606640999999975,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 4281.7925,
+              "orbstack": 7918.0615,
+              "paired_ratio": 0.5270436820600369,
+              "paired_difference": -3749.4775,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 550.729,
+              "orbstack": 280.647,
+              "paired_ratio": 1.8038380969816947,
+              "paired_difference": 280.93600000000004,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1681.271,
+              "orbstack": 1001.588,
+              "paired_ratio": 1.5251830570216205,
+              "paired_difference": 526.037,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.928683501,
+              "orbstack": 2.864051841,
+              "paired_ratio": 1.006861131619778,
+              "paired_difference": 0.019430452500000195,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1065.0635,
+              "orbstack": 3020.623,
+              "paired_ratio": 0.36128309525688185,
+              "paired_difference": -1977.624,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 3788.167,
+              "orbstack": 7454.9685,
+              "paired_ratio": 0.49296401918348876,
+              "paired_difference": -3783.468,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.08760416666666668,
+              "orbstack": 0.18806250000000002,
+              "paired_ratio": 0.45679554432504366,
+              "paired_difference": -0.10868749999999999,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.00022395833333333333,
+              "orbstack": 0.000421875,
+              "paired_ratio": 0.5500614250614251,
+              "paired_difference": -0.0001875,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1274876.5,
+              "orbstack": 10945343.5,
+              "paired_ratio": 0.14568563889397906,
+              "paired_difference": -9726363.0,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1244616563.0,
+              "orbstack": 1253713053.5,
+              "paired_ratio": null,
+              "paired_difference": -37165958.0,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 2,
+            "split_or_tied": 2
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              0,
+              2
+            ]
+          }
+        },
+        "uncached": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1840.6255,
+              "orbstack": 3186.1965,
+              "paired_ratio": 0.5443268395232479,
+              "paired_difference": -1531.2135,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.9574953975,
+              "orbstack": 2.897998325,
+              "paired_ratio": 1.0269254708356206,
+              "paired_difference": 0.07764919800000003,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 5660.5845,
+              "orbstack": 6834.6145,
+              "paired_ratio": 0.8456772147555323,
+              "paired_difference": -944.8220000000001,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 621.0415,
+              "orbstack": 256.6885,
+              "paired_ratio": 2.482246454287635,
+              "paired_difference": 369.7695,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1788.271,
+              "orbstack": 1057.9845,
+              "paired_ratio": 1.6689262675300105,
+              "paired_difference": 742.1199999999999,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.953534814,
+              "orbstack": 2.893841181,
+              "paired_ratio": 1.0283805983066379,
+              "paired_difference": 0.08159310949999998,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1346.313,
+              "orbstack": 2876.429,
+              "paired_ratio": 0.4387221391560864,
+              "paired_difference": -1693.295,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 5162.2715,
+              "orbstack": 6426.219,
+              "paired_ratio": 0.8172686021309379,
+              "paired_difference": -1050.067,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.108390625,
+              "orbstack": 0.17696354166666667,
+              "paired_ratio": 0.5980878158644458,
+              "paired_difference": -0.07395312500000001,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.000265625,
+              "orbstack": 0.000296875,
+              "paired_ratio": 0.9280397022332507,
+              "paired_difference": -3.1249999999999974e-05,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1312501.0,
+              "orbstack": 2894085.0,
+              "paired_ratio": 0.5363953230084361,
+              "paired_difference": -1488669.5,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1228941687.5,
+              "orbstack": 1320143951.5,
+              "paired_ratio": null,
+              "paired_difference": -104570694.0,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 1,
+            "split_or_tied": 3
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              1
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "within_engine": {
+    "micropod": {
+      "metrics": {
+        "p95_us": {
+          "uncached": 1832.146,
+          "cached": 1410.4375,
+          "paired_ratio": 1.3344665264841593,
+          "paired_difference": 447.89549999999997,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "uncached": 2.981549765,
+          "cached": 2.93146873,
+          "paired_ratio": 1.0112986366192658,
+          "paired_difference": 0.03301261749999984,
+          "uncached_higher": 5,
+          "uncached_lower": 3,
+          "pairs": 8
+        },
+        "p99_us": {
+          "uncached": 5147.584,
+          "cached": 4238.3125,
+          "paired_ratio": 1.177852882961685,
+          "paired_difference": 749.0219999999999,
+          "uncached_higher": 7,
+          "uncached_lower": 1,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "uncached": 621.0415,
+          "cached": 470.89599999999996,
+          "paired_ratio": 1.3225197889793932,
+          "paired_difference": 151.2505,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "uncached": 1788.271,
+          "cached": 1549.8335,
+          "paired_ratio": 1.1831742054606946,
+          "paired_difference": 276.66600000000005,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "uncached": 2.9773987025,
+          "cached": 2.9272760635,
+          "paired_ratio": 1.011695364350639,
+          "paired_difference": 0.03414570099999992,
+          "uncached_higher": 5,
+          "uncached_lower": 3,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "uncached": 1339.2085000000002,
+          "cached": 924.7085,
+          "paired_ratio": 1.5234152223129254,
+          "paired_difference": 445.0625,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "uncached": 4649.833,
+          "cached": 3742.7084999999997,
+          "paired_ratio": 1.2022675780747865,
+          "paired_difference": 749.7504999999999,
+          "uncached_higher": 7,
+          "uncached_lower": 1,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "uncached": 0.10561979166666667,
+          "cached": 0.07521875,
+          "paired_ratio": 1.4596807852280413,
+          "paired_difference": 0.031822916666666666,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "uncached": 0.000234375,
+          "cached": 0.00022395833333333333,
+          "paired_ratio": 1.0025252525252526,
+          "paired_difference": 5.208333333333356e-06,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "uncached": 1275979.5,
+          "cached": 1274876.5,
+          "paired_ratio": 0.9049118113315604,
+          "paired_difference": -138625.5,
+          "uncached_higher": 3,
+          "uncached_lower": 5,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "uncached": 1268223493.5,
+          "cached": 1244616563.0,
+          "paired_ratio": null,
+          "paired_difference": -7020750.0,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "cached": 5,
+        "uncached": 2,
+        "split_or_tied": 1
+      },
+      "joint_win_positions": {
+        "cached": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "uncached": [
+          6,
+          7
+        ]
+      }
+    },
+    "orbstack": {
+      "metrics": {
+        "p95_us": {
+          "uncached": 3372.3365000000003,
+          "cached": 3246.3755,
+          "paired_ratio": 1.0172059272025986,
+          "paired_difference": 44.66849999999977,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "uncached": 2.9233472965000002,
+          "cached": 2.8750098294999997,
+          "paired_ratio": 1.0149976998104953,
+          "paired_difference": 0.043299519500000105,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        },
+        "p99_us": {
+          "uncached": 6834.6145,
+          "cached": 7491.0765,
+          "paired_ratio": 0.9365475749619696,
+          "paired_difference": -484.91449999999986,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "uncached": 274.272,
+          "cached": 274.772,
+          "paired_ratio": 0.9876552142757755,
+          "paired_difference": -3.103999999999985,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "uncached": 1095.6925,
+          "cached": 1001.588,
+          "paired_ratio": 1.0919487570532906,
+          "paired_difference": 88.83399999999995,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "uncached": 2.9180422305000002,
+          "cached": 2.864051841,
+          "paired_ratio": 1.0158590273569654,
+          "paired_difference": 0.04570634400000029,
+          "uncached_higher": 5,
+          "uncached_lower": 3,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "uncached": 3024.0045,
+          "cached": 2949.4674999999997,
+          "paired_ratio": 1.0181062880116407,
+          "paired_difference": 37.95450000000005,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "uncached": 6426.219,
+          "cached": 7034.097,
+          "paired_ratio": 0.9387619055734013,
+          "paired_difference": -450.79050000000007,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "uncached": 0.18465104166666668,
+          "cached": 0.18278125,
+          "paired_ratio": 0.9947070438171137,
+          "paired_difference": -0.0009270833333333284,
+          "uncached_higher": 4,
+          "uncached_lower": 4,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "uncached": 0.000296875,
+          "cached": 0.0005468749999999999,
+          "paired_ratio": 0.5811059907834101,
+          "paired_difference": -0.00023437500000000002,
+          "uncached_higher": 1,
+          "uncached_lower": 7,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "uncached": 1940678.0,
+          "cached": 9162294.0,
+          "paired_ratio": 0.2460569405333089,
+          "paired_difference": -8754033.0,
+          "uncached_higher": 1,
+          "uncached_lower": 7,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "uncached": 1339453162.0,
+          "cached": 1263027617.5,
+          "paired_ratio": null,
+          "paired_difference": 66038579.0,
+          "uncached_higher": 6,
+          "uncached_lower": 2,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "cached": 4,
+        "uncached": 2,
+        "split_or_tied": 2
+      },
+      "joint_win_positions": {
+        "cached": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "uncached": [
+          0,
+          6
+        ]
+      }
+    }
+  },
+  "within_mode": {
+    "cached": {
+      "metrics": {
+        "p95_us": {
+          "micropod": 1410.4375,
+          "orbstack": 3246.3755,
+          "paired_ratio": 0.43299576780568205,
+          "paired_difference": -1910.1444999999999,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "micropod": 2.93146873,
+          "orbstack": 2.8750098294999997,
+          "paired_ratio": 1.0080782830372865,
+          "paired_difference": 0.023040022000000215,
+          "micropod_higher": 5,
+          "micropod_lower": 3,
+          "pairs": 8
+        },
+        "p99_us": {
+          "micropod": 4238.3125,
+          "orbstack": 7491.0765,
+          "paired_ratio": 0.5337395702064858,
+          "paired_difference": -3492.722,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "micropod": 470.89599999999996,
+          "orbstack": 274.772,
+          "paired_ratio": 1.8038380969816947,
+          "paired_difference": 214.24850000000004,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "micropod": 1549.8335,
+          "orbstack": 1001.588,
+          "paired_ratio": 1.5237948565934867,
+          "paired_difference": 530.2660000000001,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "micropod": 2.9272760635,
+          "orbstack": 2.864051841,
+          "paired_ratio": 1.009409177342353,
+          "paired_difference": 0.026841752500000204,
+          "micropod_higher": 5,
+          "micropod_lower": 3,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "micropod": 924.7085,
+          "orbstack": 2949.4674999999997,
+          "paired_ratio": 0.31438089643481903,
+          "paired_difference": -2086.6630000000005,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "micropod": 3742.7084999999997,
+          "orbstack": 7034.097,
+          "paired_ratio": 0.49682494607406275,
+          "paired_difference": -3539.2635,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "micropod": 0.07521875,
+          "orbstack": 0.18278125,
+          "paired_ratio": 0.420181514210652,
+          "paired_difference": -0.1061875,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "micropod": 0.00022395833333333333,
+          "orbstack": 0.0005468749999999999,
+          "paired_ratio": 0.4060339409176619,
+          "paired_difference": -0.00030208333333333335,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "micropod": 1274876.5,
+          "orbstack": 9162294.0,
+          "paired_ratio": 0.14568563889397906,
+          "paired_difference": -8238877.0,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "micropod": 1244616563.0,
+          "orbstack": 1263027617.5,
+          "paired_ratio": null,
+          "paired_difference": -43196917.0,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "orbstack": 0,
+        "micropod": 3,
+        "split_or_tied": 5
+      },
+      "joint_win_positions": {
+        "orbstack": [],
+        "micropod": [
+          3,
+          4,
+          6
+        ]
+      }
+    },
+    "uncached": {
+      "metrics": {
+        "p95_us": {
+          "micropod": 1832.146,
+          "orbstack": 3372.3365000000003,
+          "paired_ratio": 0.5491586354238868,
+          "paired_difference": -1504.7440000000001,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "micropod": 2.981549765,
+          "orbstack": 2.9233472965000002,
+          "paired_ratio": 1.0141269608694738,
+          "paired_difference": 0.04081862800000002,
+          "micropod_higher": 5,
+          "micropod_lower": 3,
+          "pairs": 8
+        },
+        "p99_us": {
+          "micropod": 5147.584,
+          "orbstack": 6834.6145,
+          "paired_ratio": 0.824768483895034,
+          "paired_difference": -989.0680000000002,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "micropod": 621.0415,
+          "orbstack": 274.272,
+          "paired_ratio": 2.2538327840427685,
+          "paired_difference": 358.1655,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "micropod": 1788.271,
+          "orbstack": 1095.6925,
+          "paired_ratio": 1.6775658268938116,
+          "paired_difference": 742.1199999999999,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "micropod": 2.9773987025,
+          "orbstack": 2.9180422305000002,
+          "paired_ratio": 1.0155666703975013,
+          "paired_difference": 0.044836161499999916,
+          "micropod_higher": 5,
+          "micropod_lower": 3,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "micropod": 1339.2085000000002,
+          "orbstack": 3024.0045,
+          "paired_ratio": 0.4387221391560864,
+          "paired_difference": -1678.9499999999998,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "micropod": 4649.833,
+          "orbstack": 6426.219,
+          "paired_ratio": 0.7949434254450867,
+          "paired_difference": -1070.6895,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "micropod": 0.10561979166666667,
+          "orbstack": 0.18465104166666668,
+          "paired_ratio": 0.5518969189860419,
+          "paired_difference": -0.08451562500000001,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "micropod": 0.000234375,
+          "orbstack": 0.000296875,
+          "paired_ratio": 0.5532633158289573,
+          "paired_difference": -0.00013541666666666666,
+          "micropod_higher": 3,
+          "micropod_lower": 5,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "micropod": 1275979.5,
+          "orbstack": 1940678.0,
+          "paired_ratio": 0.6305784532644967,
+          "paired_difference": -666576.5,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "micropod": 1268223493.5,
+          "orbstack": 1339453162.0,
+          "paired_ratio": null,
+          "paired_difference": -93488201.0,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "orbstack": 0,
+        "micropod": 3,
+        "split_or_tied": 5
+      },
+      "joint_win_positions": {
+        "orbstack": [],
+        "micropod": [
+          1,
+          2,
+          5
+        ]
+      }
+    }
+  }
+}

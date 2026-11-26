@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/api/types"
-	"github.com/containerd/containerd/defaults"
 	control "github.com/moby/buildkit/api/services/control"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/net/http/httpguts"
@@ -51,7 +50,7 @@ func (s *dockerEngine) dockerBuildkitUpgrade(w http.ResponseWriter, r *http.Requ
 		return fail(http.StatusBadRequest, "missing BuildKit session ID")
 	}
 	cc, err := grpc.NewClient("unix://"+s.buildkitSocket, grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)))
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(buildkitMaxMessage), grpc.MaxCallSendMsgSize(buildkitMaxMessage)))
 	if err != nil {
 		return err
 	}
@@ -91,7 +90,7 @@ func (s *dockerEngine) serveDockerBuildControl(ctx context.Context, conn net.Con
 	proxy := httputil.ReverseProxy{Transport: transport, FlushInterval: -1, Rewrite: func(r *httputil.ProxyRequest) {
 		r.Out.URL.Scheme, r.Out.URL.Host, r.Out.Host = "http", "localhost", "localhost"
 	}}
-	solver := grpc.NewServer(grpc.MaxRecvMsgSize(defaults.DefaultMaxRecvMsgSize))
+	solver := grpc.NewServer(grpc.MaxRecvMsgSize(buildkitMaxMessage), grpc.MaxSendMsgSize(buildkitMaxMessage))
 	control.RegisterControlServer(solver, dockerBuildSolver{backend: bk, node: s.node})
 	defer solver.Stop()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -259,7 +258,7 @@ func serveDockerBuildSession(r *http.Request, client net.Conn, bk control.Contro
 	md := metadata.MD{}
 	for key, values := range r.Header {
 		key = strings.ToLower(key)
-		if strings.HasPrefix(key, "x-docker-expose-session-") {
+		if strings.HasPrefix(key, "x-docker-expose-session-") || strings.HasPrefix(key, "x-buildkit-session-") {
 			md[key] = values
 		}
 	}

@@ -1,0 +1,10 @@
+{
+  "requested_first": "Interactive",
+  "launches": [
+    {
+      "arm": "B",
+      "process_type": "Interactive",
+      "start_monotonic_ns": 13107839565333
+    }
+  ]
+}

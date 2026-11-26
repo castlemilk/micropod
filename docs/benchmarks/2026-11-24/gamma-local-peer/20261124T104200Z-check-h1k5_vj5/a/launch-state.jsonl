@@ -1,0 +1,3 @@
+{"time": "2026-11-24T10:42:01.633863+00:00", "print_status": 0, "state": "xpcproxy", "runs": "1", "pid": "6584", "last exit code": "(never exited)"}
+{"time": "2026-11-24T10:42:02.140942+00:00", "print_status": 0, "state": "running", "runs": "1", "pid": "6584", "last exit code": "(never exited)"}
+{"time": "2026-11-24T10:42:03.686107+00:00", "ready": true}

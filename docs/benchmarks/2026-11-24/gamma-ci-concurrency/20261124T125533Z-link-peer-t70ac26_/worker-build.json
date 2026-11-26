@@ -1,0 +1,50 @@
+{
+  "base_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "patch_sha256": "e5d67d621c2ced343ba83aef9fa2929521fb4c0148ad7f585d65c6e41823edcd",
+  "compiled_sources": {
+    "Sources/MicropodRuntime/CIWorker.swift": "f83bb17aec876767f931d093e8287dbadade6dfa61df7bd0ad8226cc005a026f",
+    "Sources/MicropodRuntime/SandboxVM.swift": "1f4b968e79ac3475806848973a19915cda49b403401115a7212fc5a536b0fd6b",
+    "Sources/MicropodRuntime/SandboxNetwork.swift": "1e85ee417780fa2f29773e7be9d4f75ce366f5011118e7f2882ade1fcceabbf3",
+    "Tests/MicropodRuntimeTests/CIWorkerTests.swift": "68708239d19615e0871f47b39c47742ccfa34c456e0d0cfd8ed1caea4b4046eb",
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Package.swift": "e210ceb792138fa6202b50895db83078e80326cddefc979ba4d55a7d48a7db7c",
+    "Package.resolved": "454d6842e3091abd3a0ce674f9ca320a6b802c899950b71f91bf3ba669a1cadf"
+  },
+  "publication_key": "MICROPOD_CI_PUBLISHED_MTU",
+  "guest_mtu_at_boot": true,
+  "arena": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-bb4eb68b06f362e2",
+  "worker_executable": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-bb4eb68b06f362e2/micropod",
+  "worker_executable_sha256": "b97318b3eb3d22698db277e95b1c9cdab155d0d3252b188b8a58eaad365fc48a",
+  "entitlements": {
+    "com.apple.security.virtualization": true
+  },
+  "command": [
+    "xcrun",
+    "swift",
+    "build",
+    "--disable-sandbox",
+    "--skip-update",
+    "--only-use-versions-from-resolved-file",
+    "--scratch-path",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-bb4eb68b06f362e2/build",
+    "--cache-path",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-bb4eb68b06f362e2/cache",
+    "--config-path",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-bb4eb68b06f362e2/config",
+    "--security-path",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-bb4eb68b06f362e2/security",
+    "-c",
+    "release",
+    "--jobs",
+    "4",
+    "--product",
+    "micropod",
+    "-Xswiftc",
+    "-num-threads",
+    "-Xswiftc",
+    "1",
+    "-Xswiftc",
+    "-j1"
+  ],
+  "build_log_sha256": "5782da2e4c016e09f177f84c54d253f8d5a6a5d527f3c9079412647acb2fbfba"
+}

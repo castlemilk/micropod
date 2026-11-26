@@ -10,7 +10,8 @@ import XCTest
 final class NativePublishedPortsTests: XCTestCase {
     func testLocalNetworkDiagnosticRequiresAnExplicitDenialOnAWaitingPath() {
         let waiting = NWConnection.State.waiting(.posix(.EHOSTUNREACH))
-        XCTAssertEqual(NativeLoopbackRelay.localNetworkOutcome(waiting, reason: .localNetworkDenied), "local-network-denied")
+        XCTAssertEqual(
+            NativeLoopbackRelay.localNetworkOutcome(waiting, reason: .localNetworkDenied), "local-network-denied")
         XCTAssertNil(NativeLoopbackRelay.localNetworkOutcome(waiting, reason: .notAvailable))
         XCTAssertNil(NativeLoopbackRelay.localNetworkOutcome(.preparing, reason: .localNetworkDenied))
         XCTAssertEqual(NativeLoopbackRelay.localNetworkOutcome(.ready, reason: .notAvailable), "ready")

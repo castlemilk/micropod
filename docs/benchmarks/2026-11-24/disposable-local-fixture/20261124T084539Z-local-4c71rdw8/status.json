@@ -1,0 +1,83 @@
+{
+  "time": "2026-11-24T08:45:39.428382+00:00",
+  "mode": "baseline",
+  "action": "check-inputs",
+  "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs",
+  "min_free_gib": 12,
+  "receiver_sha256": "590af77f68d3a8fe98a180cf67b03a78befcbde8304c2a7450b5880662f3796f",
+  "netbench_identity": {
+    "manifest": "43c8761c8d7d97587c47c1b2a8f87941c24d919cb89b1d9268592dbc4025e93f",
+    "config": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "compressed_layer": "7d4ee779f04af2802fa3613187490f443211d116770559941ad4094137353af4",
+    "diff_id": "10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7",
+    "netbench": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+    "archive": "36703da965e7e5fb09d6e31c533deae862cedb8596e6716aa76c9e67df49f6fa"
+  },
+  "host_image_cache": {
+    "docker.io/library/alpine@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+    "ghcr.io/apple/containerization/vminit:0.47.0": "sha256:4c1836052eafcbc944c403fb23ded06562962d2402c9dcc651495a32300614df"
+  },
+  "inputs_verified": {
+    "kernel": {
+      "path": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+      "sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+    },
+    "kernel_config": {
+      "path": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/config",
+      "sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c"
+    },
+    "netbench_image_tar": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs/netbench-v2.tar",
+      "sha256": "36703da965e7e5fb09d6e31c533deae862cedb8596e6716aa76c9e67df49f6fa"
+    },
+    "pause": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs/pause-3.10.2.tar",
+      "sha256": "6c3e11bf4ada3dc89fe6819b2f5c6c0a626ba131fe18c6207eedffc1205285a0"
+    },
+    "check": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs/check",
+      "sha256": "958cc821d394f4ff6e64d8544b63d8976730d2d4fd52267c63499e1698ebf272"
+    },
+    "pathproof": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs/pathproof",
+      "sha256": "00d28ea9a56d41cf7a4a0d34aaa47da1699a60f8978c795bd9f74a7ac1e94f8d"
+    },
+    "fixed": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/mixed/fixed",
+      "sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53"
+    },
+    "rusage": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/usage-recovery/host-rusage",
+      "sha256": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+    },
+    "build": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T062433Z/revised-runtime-build.json",
+      "sha256": "ef153af3fbd785bca99558a1909f8820eb17cd462e063916866c374125608dbe"
+    },
+    "cli": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+      "sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8"
+    },
+    "oci-start.sh": {
+      "path": "/Users/benebsworth/.micropod/qualified/interactive-a41976076b67-2293dd639a7a/micropod-oci-tools/runner/start.sh",
+      "sha256": "b8a300f0dab2d1c38ad30bf9e64d5074ddcf8a7f6e1b4f5e4e97b2ec7b4b9133"
+    },
+    "oci-published-ports.sh": {
+      "path": "/Users/benebsworth/.micropod/qualified/interactive-a41976076b67-2293dd639a7a/micropod-oci-tools/runner/published-ports.sh",
+      "sha256": "bfc3e9163bd652c3e4f9d9fc269144496aaffac2c26ceaf2e504f6fd0a419b1d"
+    },
+    "oci-job": {
+      "path": "/Users/benebsworth/.micropod/qualified/interactive-a41976076b67-2293dd639a7a/micropod-oci-tools/runner/bin/job",
+      "sha256": "2293dd639a7ad37007c7125979707d74b76b926b13e99216fed3f1f176dcd693"
+    },
+    "ss": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs/diag/sbin/ss",
+      "sha256": "2bffc2679d8f387526bedd86b89c270ef9d18d5e56e286fb7dc163e11ae5cbbd"
+    },
+    "ethtool": {
+      "path": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs/diag/bin/ethtool",
+      "sha256": "047a85c7b6788c3553579dfc72cf89c9dd4a952e6d4d2cefaca8812237782377"
+    }
+  },
+  "end": "2026-11-24T08:45:39.592044+00:00"
+}

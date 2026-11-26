@@ -1,0 +1,16 @@
+{
+  "configurationValid": false,
+  "errors": [
+    {
+      "code": 2,
+      "reason": "Virtualization is not available on this hardware.",
+      "domain": "VZErrorDomain",
+      "description": "Invalid virtual machine configuration. Virtualization is not available on this hardware."
+    }
+  ],
+  "isSupported": false,
+  "utc": "2026-11-24T08:33:02.469607+00:00",
+  "control": "signed diagnostic, 4 vCPUs, 4 GiB, pinned Linux bootloader; configuration validation only",
+  "sysctl_exit": 1,
+  "sysctl_stderr": "sysctl: sysctl fmt -1 1024 1: Operation not permitted"
+}

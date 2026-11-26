@@ -1,0 +1,14 @@
+[
+  {
+    "path": "default",
+    "correct": true
+  },
+  {
+    "path": "bound-address",
+    "correct": true
+  },
+  {
+    "path": "bound-interface",
+    "correct": true
+  }
+]

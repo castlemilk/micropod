@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -19,6 +18,18 @@ import (
 	"golang.org/x/sys/unix"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
+
+// extraRoutes lets feature files add Docker API routes from their own init()
+// without editing dispatch. They are consulted, in registration order, only
+// for requests no built-in route matched, just before the 501 fallback; the
+// first handler that returns handled=true wins. path has the leading slash and
+// any /v1.NN prefix removed. POST and DELETE requests already hold an
+// engineLease for the handler's lifetime (a hijacked connection included).
+var extraRoutes []func(s *dockerEngine, w http.ResponseWriter, r *http.Request, method, path string) (handled bool, err error)
+
+// engineCommit is set at link time by ci/build-runner-tools.sh to the commit
+// recorded in the bundle's runner/manifest.json, and reported as GitCommit.
+var engineCommit = "unknown"
 
 func (s *dockerEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -63,12 +74,12 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		}
 		return nil
 	case path == "version" && method == "GET":
-		writeJSON(w, 200, map[string]any{"Version": "micropod", "ApiVersion": dockerAPI, "MinAPIVersion": "1.44", "Os": "linux", "Arch": "arm64", "Platform": map[string]string{"Name": "Micropod"}})
+		writeJSON(w, 200, map[string]any{"Version": "micropod", "ApiVersion": dockerAPI, "MinAPIVersion": "1.44", "Os": "linux", "Arch": "arm64", "Platform": map[string]string{"Name": "Micropod"}, "GitCommit": engineCommit, "MicropodCapabilities": engineCapabilities(s.buildkitSocket != "")})
 		return nil
 	case path == "events" && method == "GET":
 		return s.serveEvents(w, r)
 	case path == "micropod/buildkit" && method == "GET":
-		if _, err := os.Stat(buildkitBinary); err != nil {
+		if s.buildkitSocket == "" {
 			return fail(503, "BuildKit is unavailable")
 		}
 		writeJSON(w, 200, map[string]string{"worker": "containerd", "runtime": "crun"})
@@ -184,6 +195,12 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 			return fail(501, "unsupported container operation: "+op)
 		}
 	default:
+		for _, route := range extraRoutes {
+			// An error counts as handled: the route recognised the request.
+			if handled, err := route(s, w, r, method, path); handled || err != nil {
+				return err
+			}
+		}
 		return fail(501, "operation is unavailable on the Micropod native engine")
 	}
 }

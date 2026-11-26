@@ -1,0 +1,244 @@
+{
+  "phase": "measured",
+  "arm": "A",
+  "index": 3,
+  "clean": true,
+  "fixed_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+  "idle_observations": [
+    {
+      "elapsed_seconds": 1.010592334001558,
+      "idle_pct": 88.96,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 3.0270387920008943,
+      "idle_pct": 91.82,
+      "paired_idle_gap_pp": null,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 5.042334459001722,
+      "idle_pct": 89.75,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 7.055706250001094,
+      "idle_pct": 90.14,
+      "paired_idle_gap_pp": null,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 9.077694250001514,
+      "idle_pct": 83.47,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 11.099521625001216,
+      "idle_pct": 92.01,
+      "paired_idle_gap_pp": null,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 13.109215667000171,
+      "idle_pct": 94.14,
+      "paired_idle_gap_pp": null,
+      "eligible": true
+    }
+  ],
+  "idle_pct": 94.14,
+  "paired_idle_gap_pp": null,
+  "idle_gate_passed": true,
+  "nic_before": {
+    "request_ns": 1795517519988538000,
+    "received_ns": 1795517520217820000,
+    "values": {
+      "boot": "5cb3e71b-67c2-446b-b5b6-31aa4fe52223",
+      "netns": "net:[4026531833]",
+      "driver": "virtio_net",
+      "queues": 1,
+      "ifindex": 3,
+      "address": "6a:c5:2b:01:d5:cf",
+      "tx_bytes": 157494172624,
+      "tx_packets": 2978112,
+      "rx_bytes": 175901316,
+      "tx_dropped": 0,
+      "rx_dropped": 0,
+      "tx_errors": 0,
+      "rx_errors": 0,
+      "tx_timeout": 0,
+      "tx_kicks": 115566,
+      "tx0_kicks": 115566,
+      "rx_kicks": 21,
+      "tx_tx_timeouts": 0
+    }
+  },
+  "before": {
+    "epoch_ns": 1795517520226468000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 22913,
+        "birth_ticks": 361718192923,
+        "user_ticks": 822675425,
+        "system_ticks": 389704075,
+        "runnable_ticks": 1367931397,
+        "background_ticks": 2687,
+        "utility_ticks": 1829,
+        "default_ticks": 33614,
+        "initiated_ticks": 3485,
+        "interactive_ticks": 1247069,
+        "instructions": 338227450905,
+        "cycles": 208382573372
+      },
+      {
+        "pid": 22906,
+        "birth_ticks": 361710716315,
+        "user_ticks": 11972338,
+        "system_ticks": 737596397,
+        "runnable_ticks": 881035188,
+        "background_ticks": 0,
+        "utility_ticks": 749407536,
+        "default_ticks": 32353,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 144646757471,
+        "cycles": 131551234853
+      }
+    ]
+  },
+  "client_arguments": [
+    "http://127.0.0.1:53071",
+    "mp-t-8tk5g5n0-a"
+  ],
+  "client_spawn_start_ns": 1795517520227675000,
+  "client_reaped_ns": 1795517526320007000,
+  "exit_code": 0,
+  "stdout": "{\"arrivals\":240,\"bulk_body_bytes\":{\"warmup\":{\"bytes\":282879784,\"per_stream_bytes\":[9174896,8388608,8388608,8388608,9699184,9699184,8388608,8388608,9435536,8912744,9567344,9654184,8748912,8388608,8388608,9437040,8388608,9437040,8388608,8388608,8388608,8388608,8388608,8388608,8388608,9959824,9502184,9744016,8388608,8388608,8912752,8388608]},\"scored\":{\"bytes\":51615052464,\"per_stream_bytes\":[1612972032,1610612736,1614282608,1611661168,1617428480,1611661312,1609564016,1606156144,1617670296,1612447752,1615725312,1615638472,1610776576,1611923312,1613758320,1615855616,1616379760,1617428480,1615069040,1606156144,1619001344,1606156144,1615069040,1611399024,1609564016,1615332832,1612382600,1614762208,1609039728,1615593328,1612709888,1610874736]},\"drain\":{\"bytes\":136603176,\"per_stream_bytes\":[5243024,8388608,4718736,7340176,262288,6029456,1048720,4456592,284120,6029456,2097296,2097296,7864464,7078032,5243024,2097296,2621584,524432,3932304,4456592,8388608,4456592,3932304,7602320,1048720,2097296,5505168,2883728,1573008,3408016,5767312,8126608]},\"invocation\":{\"bytes\":52034535424,\"per_stream_bytes\":[1627389952,1627389952,1627389952,1627389952,1627389952,1627389952,1619001344,1619001344,1627389952,1627389952,1627389952,1627389952,1627389952,1627389952,1627389952,1627389952,1627389952,1627389952,1627389952,1619001344,1635778560,1619001344,1627389952,1627389952,1619001344,1627389952,1627389952,1627389952,1619001344,1627389952,1627389952,1627389952]}},\"bytes\":51615052464,\"dispatch_max_us\":317,\"dispatch_p95_us\":199,\"errors\":null,\"fresh_p50_us\":7112,\"fresh_p95_us\":10328,\"fresh_p99_us\":11204,\"mib_s\":8203.888014299591,\"per_stream_bytes\":[1612972032,1610612736,1614282608,1611661168,1617428480,1611661312,1609564016,1606156144,1617670296,1612447752,1615725312,1615638472,1610776576,1611923312,1613758320,1615855616,1616379760,1617428480,1615069040,1606156144,1619001344,1606156144,1615069040,1611399024,1609564016,1615332832,1612382600,1614762208,1609039728,1615593328,1612709888,1610874736],\"period_us\":25000,\"published_ports\":1,\"reopened\":0,\"streams\":32,\"window_s\":6.000075792}\n",
+  "stderr": "",
+  "after": {
+    "epoch_ns": 1795517526322746000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 22913,
+        "birth_ticks": 361718192923,
+        "user_ticks": 1083412123,
+        "system_ticks": 515527533,
+        "runnable_ticks": 1805596544,
+        "background_ticks": 2687,
+        "utility_ticks": 1829,
+        "default_ticks": 33614,
+        "initiated_ticks": 3485,
+        "interactive_ticks": 1247069,
+        "instructions": 446171864428,
+        "cycles": 276088091895
+      },
+      {
+        "pid": 22906,
+        "birth_ticks": 361710716315,
+        "user_ticks": 15266215,
+        "system_ticks": 982175190,
+        "runnable_ticks": 1173465428,
+        "background_ticks": 0,
+        "utility_ticks": 997280206,
+        "default_ticks": 32353,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 192300165196,
+        "cycles": 175235028547
+      }
+    ]
+  },
+  "fresh_failed": 0,
+  "host": {
+    "vmm": {
+      "cpu_s": 16.106673166666663,
+      "runnable_s": 18.236047791666664,
+      "wait_s": 2.1293746249999996,
+      "sample_seconds": 6.096278,
+      "cpu_s_per_gib": 0.3350652144858492,
+      "runnable_s_per_s": 2.9913412399609505,
+      "wait_s_per_s": 0.3492909321064426,
+      "mean_host_cores": 2.642050307854508,
+      "instructions_per_byte": 2.0913359256640898,
+      "cycles_per_byte": 1.3117397985834196,
+      "instructions_per_cycle": 1.5943222336644625,
+      "invocation_cpu_s_per_bulk_gib": 0.3323640440646998,
+      "invocation_instructions_per_bulk_byte": 2.074476357738606,
+      "invocation_cycles_per_bulk_byte": 1.3011650430104933
+    },
+    "relay": {
+      "cpu_s": 10.328027916666665,
+      "runnable_s": 12.184593333333332,
+      "wait_s": 1.8565654166666665,
+      "sample_seconds": 6.096278,
+      "cpu_s_per_gib": 0.21485274167451993,
+      "runnable_s_per_s": 1.9986938478418033,
+      "wait_s_per_s": 0.30454080615527485,
+      "mean_host_cores": 1.6941530416865282,
+      "instructions_per_byte": 0.9232463293190851,
+      "cycles_per_byte": 0.8463382600350582,
+      "instructions_per_cycle": 1.0908715497286408,
+      "invocation_cpu_s_per_bulk_gib": 0.21312067924122732,
+      "invocation_instructions_per_bulk_byte": 0.9158034627713947,
+      "invocation_cycles_per_bulk_byte": 0.8395153975728902
+    }
+  },
+  "fresh_p50_us": 7112,
+  "bulk_streams_with_bytes": 32,
+  "mib_s": 8203.888014299591,
+  "fresh_p95_us": 10328,
+  "fresh_p99_us": 11204,
+  "arrivals": 240,
+  "reopened": 0,
+  "nic_after": {
+    "request_ns": 1795517526323127000,
+    "received_ns": 1795517526491832000,
+    "values": {
+      "boot": "5cb3e71b-67c2-446b-b5b6-31aa4fe52223",
+      "netns": "net:[4026531833]",
+      "driver": "virtio_net",
+      "queues": 1,
+      "ifindex": 3,
+      "address": "6a:c5:2b:01:d5:cf",
+      "tx_bytes": 209594000652,
+      "tx_packets": 3953214,
+      "rx_bytes": 232602702,
+      "tx_dropped": 0,
+      "rx_dropped": 0,
+      "tx_errors": 0,
+      "rx_errors": 0,
+      "tx_timeout": 0,
+      "tx_kicks": 154050,
+      "tx0_kicks": 154050,
+      "rx_kicks": 24,
+      "tx_tx_timeouts": 0
+    }
+  },
+  "metrics": {
+    "delta": {
+      "tx_kicks": 38484,
+      "rx_kicks": 3,
+      "tx_packets": 975102,
+      "tx_bytes": 52099828028,
+      "rx_bytes": 56701386,
+      "tx_timeout": 0,
+      "tx_tx_timeouts": 0,
+      "rx_dropped": 0,
+      "tx_dropped": 0,
+      "tx_errors": 0,
+      "rx_errors": 0
+    },
+    "delivered_bytes": 52034535424,
+    "tx_kicks_per_delivered_gib": 794.1241334837981,
+    "mib_s": 8203.888014299591,
+    "fresh_p95_ms": 10.328,
+    "vmm_cpu_s_per_delivered_gib": 0.3323640440646998,
+    "total_cpu_s_per_delivered_gib": 0.5454847233059271
+  }
+}

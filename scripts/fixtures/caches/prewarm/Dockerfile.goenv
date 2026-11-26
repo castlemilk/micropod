@@ -1,0 +1,5 @@
+# T3: an image that sets its own Go cache locations (nothing baked in). The
+# engine keeps GOCACHE/GOMODCACHE as the image set them and binds the scope's
+# stores at those paths instead.
+FROM golang:alpine
+ENV GOTOOLCHAIN=local GOCACHE=/opt/qual/gocache GOMODCACHE=/opt/qual/gomod

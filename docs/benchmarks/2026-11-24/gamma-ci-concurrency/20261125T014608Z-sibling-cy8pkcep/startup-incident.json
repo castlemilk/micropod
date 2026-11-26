@@ -1,0 +1,132 @@
+{
+  "attempt": "20261125T014608Z-sibling-cy8pkcep",
+  "seed": 250133,
+  "wave": "grouped-2-all-A",
+  "arm": "Micropod",
+  "phase": "before HTTP release",
+  "settings": {
+    "topology": "per-job",
+    "build_scratch": "overlay",
+    "scheduler": "hrtick-250us",
+    "base_slice_ns": 250000,
+    "offered_rps_planned": 64000
+  },
+  "primary": {
+    "utc": "2026-11-25T01:47:05.511886678Z",
+    "slot": 1,
+    "returncode": 1,
+    "stderr": "Error response from daemon: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"a73dee4c088e6848548f7a0dc284619abbab13c4f79f7499bddc120e6fc06d28\": OCI runtime exec failed: read pipe failed",
+    "docker_container": "017cee643ba84ff19cec359cd6403a5aac6107c7c22ffa7560c7491c71d8950f",
+    "docker_name": "mp-t-0j89gdza-a-grouped-c1",
+    "cri_container": "7b1e3c7b4a963cb195bca612119ee227738407a9d62dbbf67ffc78d7a5adf265",
+    "exec_id": "a73dee4c088e6848548f7a0dc284619abbab13c4f79f7499bddc120e6fc06d28",
+    "daemon_log": {
+      "path": "a/service.stderr",
+      "line": 959
+    }
+  },
+  "barrier": {
+    "client_rows": 32,
+    "waiting_client_deadlines": 31,
+    "waiting_clients_eventual_ready_unix_ns": [
+      1795571225529037428,
+      1795571225622219178
+    ],
+    "ready_slots_at_break": null,
+    "gate_published": false,
+    "timed_requests": 0,
+    "build_wave_started": false,
+    "prior_saved_windows": [
+      "grouped-0-one",
+      "grouped-0-all",
+      "grouped-1-one",
+      "grouped-1-all",
+      "grouped-2-one"
+    ],
+    "raw_rows": "grouped-2-all-A.json.gz",
+    "original_status_error": "incomplete paced A slot 0: expected 3000, recorded 0. context deadline exceeded"
+  },
+  "resident_container_lifecycle": {
+    "started_utc": "2026-11-25T01:46:18.540731462Z",
+    "force_stop_utc": "2026-11-25T01:47:39.293561597Z",
+    "kill_utc": "2026-11-25T01:47:39.295624763Z",
+    "exit_logged_utc": "2026-11-25T01:47:39.361060222Z",
+    "exit_status": 137,
+    "daemon_log_lines": [
+      740,
+      1026,
+      1034,
+      1087
+    ]
+  },
+  "resources": {
+    "pre_wave_client": {
+      "cpu_max": "100000 100000",
+      "cpuset_cpus_effective": "1",
+      "nr_throttled": 0,
+      "pids_max": 192,
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 24690688,
+      "oom": 0,
+      "oom_kill": 0,
+      "tmp_capacity_kib": 6223472,
+      "sources": [
+        "grouped-inventory.json",
+        "go-scratch-before.json"
+      ]
+    },
+    "host": {
+      "idle_pct_before_boot": 86,
+      "idle_pct_after_cleanup": 86,
+      "thermal_warning_observed": false,
+      "performance_warning_observed": false,
+      "admission_samples": 46,
+      "admission_samples_with_blockers": 0,
+      "disk_samples": 122,
+      "disk_samples_below_floor": 0,
+      "min_free_bytes": 447705772032,
+      "nearest_disk_sample_utc": "2026-11-25T01:47:05.489222+00:00",
+      "nearest_disk_sample_min_free_bytes": 447737192448,
+      "sources": [
+        "host-load-context.json",
+        "admission.jsonl",
+        "disk.jsonl"
+      ]
+    }
+  },
+  "observed_log_coverage": {
+    "criteria": "Finalized factorial attempts with the same harness and guest runner through 01:56:57 UTC.",
+    "harness_sha256": "3ea5b41fc317415c59d8835bf05fcac77033679812e266ca0f514efa1d04b0a9",
+    "guest_runner_sha256": "aca8baeaf0d8692f14235a25ada3ebc064eac3003db3a774f269376cc178718c",
+    "attempts": [
+      "20261125T013856Z-sibling-65h3k62p",
+      "20261125T014021Z-sibling-qnzzq343",
+      "20261125T014145Z-sibling-b7kludqp",
+      "20261125T014310Z-sibling-9m3sesg6",
+      "20261125T014442Z-sibling-prcb9fdz",
+      "20261125T014608Z-sibling-cy8pkcep",
+      "20261125T014950Z-sibling-ctwv8j9_",
+      "20261125T015115Z-sibling-z9erlpic",
+      "20261125T015239Z-sibling-g4kvtbf5",
+      "20261125T015405Z-sibling-xnamh2ei",
+      "20261125T015532Z-sibling-61h2_skn",
+      "20261125T015657Z-sibling-gnxbt73i"
+    ],
+    "completed_attempts": 11,
+    "matching_daemon_errors": 1
+  },
+  "source_readback": {
+    "runner_exec": {
+      "path": "guest/runner/docker_exec_linux.go",
+      "sha256": "3874495c1bf4c686fb752e4f08c6e759296dd87b56a8093a67ab54ec33032990"
+    },
+    "containerd": "https://github.com/containerd/containerd/blob/b7a25261e029d68978bbf290df0a62fc819b3c51/internal/cri/server/container_execsync.go#L171-L194",
+    "crun": "https://github.com/containers/crun/blob/1.31/src/libcrun/container.c#L4288-L4299"
+  },
+  "limits": [
+    "The original barrier did not archive readiness at break. All 31 remaining clients recorded readiness later and expired without a published gate.",
+    "crun failed to read a complete child status word during exec start. The error omits the read result and errno.",
+    "The resident task exited during explicit cleanup. The archive has no failure-time guest OOM, PID exhaustion, FD or pipe telemetry and lacks final cgroup snapshots for this arm.",
+    "The selected stderr logs count this signature per archived study attempt. Successful exec RPCs are not all logged, so no per-exec rate or systemic inference follows."
+  ]
+}

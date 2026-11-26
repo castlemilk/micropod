@@ -1,0 +1,33 @@
+{
+  "order": [
+    [
+      "A-memory",
+      "A-file",
+      "B-file",
+      "B-memory"
+    ],
+    [
+      "B-file",
+      "A-memory",
+      "B-memory",
+      "A-file"
+    ],
+    [
+      "A-file",
+      "B-memory",
+      "A-memory",
+      "B-file"
+    ],
+    [
+      "B-memory",
+      "B-file",
+      "A-file",
+      "A-memory"
+    ]
+  ],
+  "order_seed": 170011,
+  "build_cpus": "0-3",
+  "build_slots": 8,
+  "service_file_sha256": "dfb347656ada2a2acf7f034bc5ac70f11b5d79cc5ed731701e398be2d8e2a608",
+  "fixed_client_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53"
+}

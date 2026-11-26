@@ -1,0 +1,54 @@
+{
+  "seed": 34225,
+  "order": [
+    [
+      {
+        "block": 0,
+        "transport": "mmio",
+        "batch": 1
+      },
+      {
+        "block": 0,
+        "transport": "hvc",
+        "batch": 1
+      },
+      {
+        "block": 0,
+        "transport": "mmio",
+        "batch": 8
+      },
+      {
+        "block": 0,
+        "transport": "hvc",
+        "batch": 8
+      }
+    ]
+  ],
+  "total": 65537,
+  "page_bytes": 16384,
+  "vcpus": 1,
+  "host": "Gamma-128GB.local",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+  "cpu": "Apple M5 Max",
+  "hv_support": "1",
+  "sources": {
+    "docs/benchmarks/2026-11-24/gamma-hypervisor/hardware.py": "15da6d4df0df2c73c6ecdd704c673006e0ec71ba218d1bf9c163de7c4631c7b3",
+    "scripts/relaybench/hvf_notify/guest.S": "f4c6e0a866e61f060cc0f0bb7fda8b034c7f9a533eb38b7f37856035bbed02c0",
+    "scripts/relaybench/hvf_notify/notify.c": "656c5631c0dfb35fbb65069775fdc62d185a682854d2190c3f4d5a7b08341a70",
+    "scripts/relaybench/hvf_tx_probe/apple.c": "226f793ab483e734f9c306a5279932f96872056396879bec09e3c03908c5d37d"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "flags": [
+    "xcrun",
+    "clang",
+    "-arch",
+    "arm64",
+    "-O2",
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sdk": "26.5",
+  "binary_sha256": "4a73946fa4afc671a47b920c9839e55c1d016b5412e6da44c827479bcf4df049"
+}

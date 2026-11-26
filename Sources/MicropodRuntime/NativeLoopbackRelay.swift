@@ -271,9 +271,11 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             withUnsafeBytes(of: tuple) { Array($0.bindMemory(to: UInt64.self)) }
         }
         func handoffBuckets(_ sample: mp_tcp_handoff_stats) -> [String: [UInt64]] {
-            ["accept_to_enqueue_us": buckets(sample.accept_to_enqueue_us),
-             "enqueue_to_adopt_us": buckets(sample.enqueue_to_adopt_us),
-             "accept_to_adopt_us": buckets(sample.accept_to_adopt_us)]
+            [
+                "accept_to_enqueue_us": buckets(sample.accept_to_enqueue_us),
+                "enqueue_to_adopt_us": buckets(sample.enqueue_to_adopt_us),
+                "accept_to_adopt_us": buckets(sample.accept_to_adopt_us),
+            ]
         }
         let guestReadSupply: [String: Any] = [
             "read_cap_bytes": readBytes as Any, "bytes": stats.guest_read_bytes,
@@ -282,7 +284,8 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "full_cap_reads": stats.guest_full_cap_reads,
             "full_cap_with_ready_hint_above_cap": stats.guest_full_cap_ready_above_cap,
             "flat_bulk_full_cap_with_ready_hint_above_cap": stats.guest_flat_bulk_full_cap_ready_above_cap,
-            "sparse_flat_bulk_full_cap_with_ready_hint_above_cap": stats.guest_sparse_flat_bulk_full_cap_ready_above_cap,
+            "sparse_flat_bulk_full_cap_with_ready_hint_above_cap": stats
+                .guest_sparse_flat_bulk_full_cap_ready_above_cap,
         ]
         var event: [String: Any] = [
             "port": port, "accepted": stats.accepted, "connected": stats.connected,

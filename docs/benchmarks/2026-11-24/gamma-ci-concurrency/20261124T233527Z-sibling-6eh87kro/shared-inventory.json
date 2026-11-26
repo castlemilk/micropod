@@ -1,0 +1,478 @@
+{
+  "A": {
+    "network": "mp-t-f3ph531v-a-shared",
+    "network_id": "7500bdc57b7e9cb494b1828c146eb01fd787b2dfeda221f17de0caf888b7f2e3",
+    "jobs": [
+      {
+        "id": "0998e2a4f382d407588d8edf318aab660993ba36da61090b545282fb8efea17f",
+        "name": "mp-t-f3ph531v-a-shared-s0",
+        "ip": "10.90.0.2",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5702\nuser_usec 0\nsystem_usec 5702\nnice_usec 0\nnr_periods 1\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.2"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "eb76969028ff4815ce048298445d2381842ebee819c682d84de98f9b03805cfe",
+        "name": "mp-t-f3ph531v-a-shared-s1",
+        "ip": "10.90.0.3",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 6133\nuser_usec 6133\nsystem_usec 0\nnice_usec 0\nnr_periods 1\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.3"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "05ad9f3286b6744bcd8ac2fee2837411d3ce2e406ad8850deb4140b499d09b62",
+        "name": "mp-t-f3ph531v-a-shared-s2",
+        "ip": "10.90.0.4",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5827\nuser_usec 5827\nsystem_usec 0\nnice_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.4"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "8a684c9fce6a7484fc404c5bdeaae9fbcc4b594ec4d87788734076d4f6ff9db8",
+        "name": "mp-t-f3ph531v-a-shared-s3",
+        "ip": "10.90.0.5",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5824\nuser_usec 5824\nsystem_usec 0\nnice_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.5"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "c67a30694dc5c4eb7af7b6b38168e0fd9840074fdee932810aaf5ce9abfa228c",
+        "name": "mp-t-f3ph531v-a-shared-c0",
+        "ip": "10.90.0.7",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 6476\nuser_usec 3238\nsystem_usec 3238\nnice_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.7"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "2d71febcaaa504f06c39f1b3273a341ab660151c0caaada7ffdd68b0b9868a39",
+        "name": "mp-t-f3ph531v-a-shared-c1",
+        "ip": "10.90.0.6",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5326\nuser_usec 0\nsystem_usec 5326\nnice_usec 0\nnr_periods 1\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.6"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "b417df561590816c2adb6570543b32693a540a78c75322efabc2a1602a04de29",
+        "name": "mp-t-f3ph531v-a-shared-c2",
+        "ip": "10.90.0.9",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5816\nuser_usec 0\nsystem_usec 5816\nnice_usec 0\nnr_periods 1\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.9"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "6c5448efb3c1887901f29d3109cb3297fef460212efdc24345975e6b8a06bb3f",
+        "name": "mp-t-f3ph531v-a-shared-c3",
+        "ip": "10.90.0.8",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 5656\nuser_usec 3770\nsystem_usec 1885\nnice_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "10.90.0.8"
+          ],
+          "default_route": false
+        }
+      }
+    ],
+    "inspect": {
+      "Attachable": false,
+      "Containers": {},
+      "Created": "2026-11-24T23:35:31.484268043Z",
+      "Driver": "ipvlan",
+      "EnableIPv4": true,
+      "IPAM": {
+        "Config": [
+          {
+            "Gateway": "10.90.0.1",
+            "Subnet": "10.90.0.0/24"
+          }
+        ],
+        "Driver": "default"
+      },
+      "Id": "7500bdc57b7e9cb494b1828c146eb01fd787b2dfeda221f17de0caf888b7f2e3",
+      "Internal": true,
+      "Labels": {
+        "io.micropod.bench.ci-concurrency": "mp-t-f3ph531v"
+      },
+      "Name": "mp-t-f3ph531v-a-shared",
+      "Options": {},
+      "Scope": "local"
+    }
+  },
+  "B": {
+    "network": "mp-t-f3ph531v-b-shared",
+    "network_id": "76dab11dcb873df3171d0e098b7acbd39f8c46a79cb48076beddb24a73778912",
+    "jobs": [
+      {
+        "id": "5bbd43bd8323381a3198c831a51bdc3b4c4fb9f727893f9a18711aee83236701",
+        "name": "mp-t-f3ph531v-b-shared-s0",
+        "ip": "192.168.97.2",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 16263\nuser_usec 10842\nsystem_usec 5421\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.2"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "bd144f26d5a54123f51be25ee4ca4d6bc9b03ae8657a4e23dba15d555e1a04c0",
+        "name": "mp-t-f3ph531v-b-shared-s1",
+        "ip": "192.168.97.1",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14476\nuser_usec 8272\nsystem_usec 6204\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.1"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "3f5d459bf7da4bb9f9ce8034263b5cf3e643a1de682c7e02f817f0c613d7f51e",
+        "name": "mp-t-f3ph531v-b-shared-s2",
+        "ip": "192.168.97.4",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14963\nuser_usec 9975\nsystem_usec 4987\nnice_usec 0\nnr_periods 1\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.4"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "8caf19eabc83134ee6b43ce1d32777d18b765fa23d7789973dcd95507cb1b9db",
+        "name": "mp-t-f3ph531v-b-shared-s3",
+        "ip": "192.168.97.5",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14838\nuser_usec 9892\nsystem_usec 4946\nnice_usec 0\nnr_periods 1\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.5"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "3dba7b2a929e4775c95d3d22e3d7a7e5fa349be06efa86ae63dd8ea019aa4879",
+        "name": "mp-t-f3ph531v-b-shared-c0",
+        "ip": "192.168.97.6",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 13909\nuser_usec 7586\nsystem_usec 6322\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.6"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "9fc6d5c251242aa8da54d85dcc7cc9c687ffc84a3a79857cca1ba06fbb73c522",
+        "name": "mp-t-f3ph531v-b-shared-c1",
+        "ip": "192.168.97.3",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 17334\nuser_usec 8667\nsystem_usec 8667\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.3"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "da7cac2da93e64992e5e18e236a96787daa87a9ec182cf1c76ad1ff4a92aff1c",
+        "name": "mp-t-f3ph531v-b-shared-c2",
+        "ip": "192.168.97.7",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 14499\nuser_usec 8699\nsystem_usec 5799\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.7"
+          ],
+          "default_route": false
+        }
+      },
+      {
+        "id": "d78b1ea156cf1d792954cd22daf5bd42cda444801096eca2c0b2fb38c07a38c9",
+        "name": "mp-t-f3ph531v-b-shared-c3",
+        "ip": "192.168.97.8",
+        "mask": "0-3",
+        "docker_cpuset": "",
+        "cgroup": {
+          "cpu.max": "100000 100000",
+          "cpu.stat": "usage_usec 15419\nuser_usec 7195\nsystem_usec 8223\nnice_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpuset.cpus.effective": "0-3",
+          "gomaxprocs": 1,
+          "memory.max": "134217728",
+          "pids.max": "64",
+          "visible_cpus": 4
+        },
+        "endpoint": {
+          "kind": "ipvlan",
+          "mode": "l2",
+          "mtu": 1500,
+          "ipv4": [
+            "192.168.97.8"
+          ],
+          "default_route": false
+        }
+      }
+    ],
+    "inspect": {
+      "Name": "mp-t-f3ph531v-b-shared",
+      "Id": "76dab11dcb873df3171d0e098b7acbd39f8c46a79cb48076beddb24a73778912",
+      "Created": "2026-11-25T10:35:31.60958966+11:00",
+      "Scope": "local",
+      "Driver": "ipvlan",
+      "EnableIPv4": true,
+      "EnableIPv6": false,
+      "IPAM": {
+        "Driver": "default",
+        "Options": {},
+        "Config": [
+          {
+            "Subnet": "192.168.97.0/24"
+          }
+        ]
+      },
+      "Internal": true,
+      "Attachable": false,
+      "Ingress": false,
+      "ConfigFrom": {
+        "Network": ""
+      },
+      "ConfigOnly": false,
+      "Options": {},
+      "Labels": {
+        "io.micropod.bench.ci-concurrency": "mp-t-f3ph531v"
+      },
+      "Containers": {},
+      "Status": {
+        "IPAM": {
+          "Subnets": {
+            "192.168.97.0/24": {
+              "IPsInUse": 2,
+              "DynamicIPsAvailable": 254
+            }
+          }
+        }
+      }
+    }
+  }
+}

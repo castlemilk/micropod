@@ -1,0 +1,18 @@
+{
+  "id": "8e145cef2f93c940f5d07dc71b8b54788e43540142295eb92d6121bc707752b9",
+  "states": [
+    [
+      "1-2",
+      "1-2",
+      "100000 100000"
+    ],
+    [
+      "1-2",
+      "1-2",
+      "100000 100000"
+    ]
+  ],
+  "out_of_range": "0,4",
+  "rejection": "Error response from daemon: CPU 4 is unavailable to the worker",
+  "removed": true
+}

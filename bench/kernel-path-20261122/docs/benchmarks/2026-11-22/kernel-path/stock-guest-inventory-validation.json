@@ -1,0 +1,228 @@
+{
+  "kind": "Offline stock-baseline guest inventory regression. Worker observations are simulated and timing and counter inputs come from saved rounds.",
+  "base_revision": "2be5d09197ec853983e4a40af53210b15c2c4beb",
+  "relay_source_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "python": "3.15.0",
+  "live": {
+    "baseline_attempts": 0,
+    "paired_attempts": 0,
+    "effective_disk_gate_verified_this_pass": false,
+    "explicit_warm_ci_handoff_supplied": false
+  },
+  "files_sha256": {
+    "scripts/gamma_path_pilot.py": "088b9007e155eaa655d18276b581a755aa1420785bf5131ef96851bb11d14ea3",
+    "scripts/gamma_path_study.py": "003f869072074b5c3fcc4e771112fc00b0e35cef9685f1a2c7823aa52329636d",
+    "scripts/test_gamma_path.py": "e438b40ed54f65285d839066661d385a701fd5d020f7f8075b7a00265a189113",
+    "docs/benchmarks/2026-11-22/kernel-path/stock-guest-mixed.txt": "8c85b73c1130419e43f1dc33f23584197ea3b6de94f1b180c5a4a125451b46f6",
+    "docs/benchmarks/2026-11-22/kernel-path/stock-guest-inventory-fixtures.zip": "2b18ff3e1c1ee6f5beebead6462a570b7b2b7b5901c74ba704fa2e23de9797a4"
+  },
+  "suite": {
+    "command": "MICROPOD_RELAY_SOURCE=/Users/benebsworth/projects/micropod/bench/worker-performance python3 -B scripts/test_gamma_path.py -v",
+    "exit": 0,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr": "test_accepted_socket_proof_rejects_a_second_connection_or_wrong_controller (__main__.GammaPathTests.test_accepted_socket_proof_rejects_a_second_connection_or_wrong_controller) ... ok\ntest_baseline_rejects_relabelled_warmup_and_detached_evidence (__main__.GammaPathTests.test_baseline_rejects_relabelled_warmup_and_detached_evidence) ... ok\ntest_baseline_replays_the_mapped_build_observation (__main__.GammaPathTests.test_baseline_replays_the_mapped_build_observation) ... ok\ntest_client_boundaries_capture_real_subprocess_output_without_network (__main__.GammaPathTests.test_client_boundaries_capture_real_subprocess_output_without_network) ... ok\ntest_dry_plans_and_interface_counters (__main__.GammaPathTests.test_dry_plans_and_interface_counters) ... ok\ntest_fleet_and_owner_are_independent (__main__.GammaPathTests.test_fleet_and_owner_are_independent) ... ok\ntest_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm (__main__.GammaPathTests.test_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm) ... ok\ntest_guest_inventory_requires_booted_config_and_effective_offloads (__main__.GammaPathTests.test_guest_inventory_requires_booted_config_and_effective_offloads) ... ok\ntest_held_out_cpu_and_unavailable_counters (__main__.GammaPathTests.test_held_out_cpu_and_unavailable_counters) ... ok\ntest_mismatched_counters_and_bytes_cannot_score (__main__.GammaPathTests.test_mismatched_counters_and_bytes_cannot_score) ... ok\ntest_occupied_lane_never_opens_an_endpoint (__main__.GammaPathTests.test_occupied_lane_never_opens_an_endpoint) ... ok\ntest_paired_host_cpu_cost_and_occupancy_from_saved_ticks (__main__.GammaPathTests.test_paired_host_cpu_cost_and_occupancy_from_saved_ticks) ... ok\ntest_quota_gate_recomputes_throttling_and_checks_fallback_on_the_same_boot (__main__.GammaPathTests.test_quota_gate_recomputes_throttling_and_checks_fallback_on_the_same_boot) ... ok\ntest_readback_on_archived_bridge_and_direct (__main__.GammaPathTests.test_readback_on_archived_bridge_and_direct) ... ok\ntest_replay_all_six_series_preserves_pair_direction_and_peer_eof (__main__.GammaPathTests.test_replay_all_six_series_preserves_pair_direction_and_peer_eof) ... ok\ntest_separate_plans_carry_no_measured_cost (__main__.GammaPathTests.test_separate_plans_carry_no_measured_cost) ... ok\ntest_stock_replay_requires_the_exact_inventory_from_one_boot (__main__.GammaPathTests.test_stock_replay_requires_the_exact_inventory_from_one_boot) ... ok\ntest_stock_tail_can_drain_and_old_completion_stays_diagnostic (__main__.GammaPathTests.test_stock_tail_can_drain_and_old_completion_stays_diagnostic) ... ok\n\n----------------------------------------------------------------------\nRan 18 tests in 2.313s\n\nOK\n",
+    "stdout": ""
+  },
+  "producer_fixture_runs": [
+    {
+      "command": "python3 -B $REPRO/capture.py v1",
+      "run_against": "2be5d09197ec853983e4a40af53210b15c2c4beb",
+      "case_directories": [
+        "v1-mixed"
+      ],
+      "test_exit": 0,
+      "stderr": "test_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm (test_gamma_path.GammaPathTests.test_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.662s\n\nOK\n"
+    },
+    {
+      "command": "python3 -B $REPRO/capture.py v2",
+      "run_against": "changed source pinned in files_sha256",
+      "case_directories": [
+        "v2-control",
+        "v2-mixed-stop"
+      ],
+      "test_exit": 0,
+      "stderr": "test_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm (test_gamma_path.GammaPathTests.test_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.222s\n\nOK\n"
+    }
+  ],
+  "replays": [
+    {
+      "implementation": "2be5d09197ec853983e4a40af53210b15c2c4beb",
+      "case": "v1-mixed",
+      "command": "python3 -B $REPRO/parent/scripts/gamma_path_study.py cpu-attribution --pilot-dir $REPRO/v1-mixed",
+      "exit": 0,
+      "stdout_sha256": "750e37a552b5434b7624224f99032990e5b6ddcd5543125e2949a0a4fa0d875c",
+      "stderr": "",
+      "guest_A_txt_sha256": "8c85b73c1130419e43f1dc33f23584197ea3b6de94f1b180c5a4a125451b46f6",
+      "status": "complete",
+      "aggregate": true,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {}
+      },
+      "stop": null,
+      "input_inventory_sha256": null,
+      "scored_inventory_sha256": null
+    },
+    {
+      "implementation": "current",
+      "case": "v1-mixed",
+      "command": "python3 -B scripts/gamma_path_study.py cpu-attribution --pilot-dir $REPRO/v1-mixed",
+      "exit": 0,
+      "stdout_sha256": "b7289ce716403af2a9d6cafa70603f23c6b3904cad2f87a39d1c1595f09dba43",
+      "stderr": "",
+      "guest_A_txt_sha256": "8c85b73c1130419e43f1dc33f23584197ea3b6de94f1b180c5a4a125451b46f6",
+      "status": "unqualified legacy baseline",
+      "aggregate": false,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {}
+      },
+      "stop": null,
+      "input_inventory_sha256": null,
+      "scored_inventory_sha256": null
+    },
+    {
+      "implementation": "current",
+      "case": "v2-control",
+      "command": "python3 -B scripts/gamma_path_study.py cpu-attribution --pilot-dir $REPRO/v2-control",
+      "exit": 0,
+      "stdout_sha256": "f19ea8749e08a6606639151ceae3e94ba2e320210e1db0c3846983d157f87543",
+      "stderr": "",
+      "guest_A_txt_sha256": "aa8a59812d369563713a9d27d6939ee64da4cf16020803ea023422aa2e948a67",
+      "status": "complete",
+      "aggregate": true,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {}
+      },
+      "stop": null,
+      "input_inventory_sha256": "aa8a59812d369563713a9d27d6939ee64da4cf16020803ea023422aa2e948a67",
+      "scored_inventory_sha256": "aa8a59812d369563713a9d27d6939ee64da4cf16020803ea023422aa2e948a67"
+    },
+    {
+      "implementation": "current",
+      "case": "v2-mixed-stop",
+      "command": "python3 -B scripts/gamma_path_study.py cpu-attribution --pilot-dir $REPRO/v2-mixed-stop",
+      "exit": 0,
+      "stdout_sha256": "8a7663786005981bfcbeb3e86566e4b44ccd9bb08849a76c78f77fd5e1783a77",
+      "stderr": "",
+      "guest_A_txt_sha256": "8c85b73c1130419e43f1dc33f23584197ea3b6de94f1b180c5a4a125451b46f6",
+      "status": "stopped",
+      "aggregate": false,
+      "attempts": {
+        "planned": 2,
+        "recorded": 0,
+        "failed_or_stopped": {}
+      },
+      "stop": {
+        "error": "stock guest inventory requires exactly one matching boot",
+        "complete": false
+      },
+      "input_inventory_sha256": "8c85b73c1130419e43f1dc33f23584197ea3b6de94f1b180c5a4a125451b46f6",
+      "scored_inventory_sha256": null
+    },
+    {
+      "implementation": "current",
+      "case": "v2-resealed-mixed",
+      "command": "python3 -B scripts/gamma_path_study.py cpu-attribution --pilot-dir $REPRO/v2-resealed-mixed",
+      "exit": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "Invalid CPU receipt: stock guest inventory requires exactly one matching boot\n",
+      "guest_A_txt_sha256": "8c85b73c1130419e43f1dc33f23584197ea3b6de94f1b180c5a4a125451b46f6"
+    },
+    {
+      "implementation": "current",
+      "case": "v2-detached",
+      "command": "python3 -B scripts/gamma_path_study.py cpu-attribution --pilot-dir $REPRO/v2-detached",
+      "exit": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "Invalid CPU receipt: stock guest inventory digest differs\n",
+      "guest_A_txt_sha256": "6a0a8eeed60b187722dd2966a8e6d2848601772684032ed4f9fffcf2f3260249"
+    }
+  ],
+  "dry_plans": {
+    "baseline": {
+      "command": "python3 -B scripts/gamma_path_pilot.py baseline --seed 34199 --relay-checkout /Users/benebsworth/projects/micropod/bench/worker-performance",
+      "plan": "docs/benchmarks/2026-11-22/kernel-path/dry-stock-relay/plan.json",
+      "exit": 0,
+      "stdout_sha256": "cd292f182d629dc83e8ac7ae1632d4b474024e7171cc3c998459eddee99ca0d2",
+      "stderr": "",
+      "changed_fields_from_parent": [
+        "pilot_sha256",
+        "stock_window_version"
+      ],
+      "order": {
+        "warmup": [
+          "A"
+        ],
+        "scored": [
+          "A"
+        ]
+      },
+      "offered_seconds": 12,
+      "replay_status": "plan only",
+      "attempts": {
+        "planned": 2,
+        "recorded": 0,
+        "failed_or_stopped": {}
+      }
+    },
+    "path": {
+      "command": "python3 -B scripts/gamma_path_pilot.py path --seed 34199 --relay-checkout /Users/benebsworth/projects/micropod/bench/worker-performance",
+      "plan": "docs/benchmarks/2026-11-22/kernel-path/dry-bridge-direct/plan.json",
+      "exit": 0,
+      "stdout_sha256": "d423c7b2acdb0858672f4ddb637706a64a6ed80a5b4aac14de5cd8c79920b9ee",
+      "stderr": "",
+      "changed_fields_from_parent": [
+        "pilot_sha256"
+      ],
+      "order": {
+        "warmup": [
+          "AB",
+          "BA",
+          "BA"
+        ],
+        "scored": [
+          "BA",
+          "AB"
+        ]
+      },
+      "offered_seconds": 60,
+      "replay_status": "plan only",
+      "attempts": {
+        "planned": 10,
+        "recorded": 0,
+        "failed_or_stopped": {}
+      }
+    }
+  },
+  "historical_replay": {
+    "summary.json": {
+      "command": "python3 -B scripts/gamma_path_study.py replay",
+      "exit": 0,
+      "stdout_sha256": "2c061fcf45c5cca2c56ca2165b6b4ee0e5eb4db8ad658d352c6b08ddfc200567",
+      "stderr": "",
+      "matches_archived_bytes": true
+    },
+    "cpu-attribution.json": {
+      "command": "python3 -B scripts/gamma_path_study.py cpu-attribution --series path-confirmation",
+      "exit": 0,
+      "stdout_sha256": "5f62a1351c46aa284a148a36a7990b25e2fc23c4bf3243b289159f0bce42237b",
+      "stderr": "",
+      "matches_archived_bytes": true
+    }
+  },
+  "historical_extract": {
+    "command": "python3 -B scripts/gamma_path_study.py extract /Users/benebsworth/projects/micropod/bench/worker-performance $NEW_OUTPUT",
+    "exit": 0,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr": "",
+    "verified_files_sha256": {
+      "rounds.jsonl": "82f9803d9d423015d1f2a26086e8bee172b219acf8a3cb5fb72a89b3d6ae686a",
+      "index.json": "02f2783b13a19421e3aaef23c8dbf64e58710dc402c61c874f9c47243925627a"
+    }
+  }
+}

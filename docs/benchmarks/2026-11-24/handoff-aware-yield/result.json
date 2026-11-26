@@ -1,0 +1,260 @@
+{
+  "evidence": "Darwin fixed work on AF_UNIX stream socketpairs, one of four modeled data owners",
+  "source_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "input_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/callback_handoff_work.c": "53338b7b3602173b80dcc9cd733fa09183ee0b50be9958d2995891921248c623",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109"
+  },
+  "experiment_sha256": {
+    "experiment.patch": "84385b9532bcdc1c4f6404e1fb9b18e05528754d34ade608217318097621d917",
+    "run.py": "5a3234f55ff70677a76a31d1da59ed44e36ae563112f54f918132433fc364520"
+  },
+  "toolchain": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "platform": [
+    "arm64",
+    "26.5.1"
+  ],
+  "compiler_flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fblocks",
+    "-DMICROPOD_BENCH_FIXED_RELAY_BUDGET=1"
+  ],
+  "arm_order": [
+    "control",
+    "candidate",
+    "candidate",
+    "control"
+  ],
+  "raw_passes": [
+    [
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 0,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 1,
+        "handoff_yields": 0,
+        "verified_half_closes": 16
+      },
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 0,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 8126464,
+        "bytes_ahead_of_readable_reply": 8126464
+      },
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 0,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 4194304,
+        "bytes_ahead_of_readable_reply": 4194304
+      },
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 0,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 1835008,
+        "bytes_ahead_of_readable_reply": 1835008
+      }
+    ],
+    [
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 0,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 1,
+        "handoff_yields": 0,
+        "verified_half_closes": 16
+      },
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 1,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 1835008,
+        "bytes_ahead_of_readable_reply": 3932160
+      },
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 1,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 0,
+        "bytes_ahead_of_readable_reply": 2097152
+      },
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 1,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 1835008,
+        "bytes_ahead_of_readable_reply": 1835008
+      }
+    ],
+    [
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 0,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 1,
+        "handoff_yields": 0,
+        "verified_half_closes": 16
+      },
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 1,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 1835008,
+        "bytes_ahead_of_readable_reply": 3932160
+      },
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 1,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 0,
+        "bytes_ahead_of_readable_reply": 2097152
+      },
+      {
+        "yield_on_handoff": 1,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 1,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 1835008,
+        "bytes_ahead_of_readable_reply": 1835008
+      }
+    ],
+    [
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 0,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 4,
+        "nonempty_callbacks": 1,
+        "handoff_yields": 0,
+        "verified_half_closes": 16
+      },
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 0,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 8126464,
+        "bytes_ahead_of_readable_reply": 8126464
+      },
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 0,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 4194304,
+        "bytes_ahead_of_readable_reply": 4194304
+      },
+      {
+        "yield_on_handoff": 0,
+        "budget": 128,
+        "read_cap": 262144,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "nonempty_polls": 6,
+        "nonempty_callbacks": 2,
+        "handoff_yields": 0,
+        "verified_half_closes": 18,
+        "bytes_ahead_of_entry": 1835008,
+        "bytes_ahead_of_readable_reply": 1835008
+      }
+    ]
+  ]
+}

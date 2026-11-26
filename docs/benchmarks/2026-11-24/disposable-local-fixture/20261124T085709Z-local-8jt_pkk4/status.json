@@ -1,0 +1,12 @@
+{
+  "time": "2026-11-24T08:57:09.806877+00:00",
+  "mode": "baseline",
+  "action": "preflight",
+  "inputs": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/fixture-inputs",
+  "min_free_gib": 12,
+  "socket_evidence": "controller",
+  "receiver_sha256": "2da1804bfb3d209593fcd9106a20fc11cef7e884bc79be9826283b7691459843",
+  "error": "The stock kernel has CONFIG_INET_DIAG compiled out. To measure delivery with route-policy evidence, select --socket-evidence route. Direct sender-controller verification requires an independently qualified observable configuration.",
+  "completed_eligible_measurement": false,
+  "end": "2026-11-24T08:57:09.857480+00:00"
+}

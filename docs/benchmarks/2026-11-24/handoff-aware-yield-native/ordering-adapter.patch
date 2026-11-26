@@ -1,0 +1,81 @@
+--- a/scripts/relaybench/callback_handoff_work.c
++++ b/scripts/relaybench/callback_handoff_work.c
+@@ -14,8 +14,17 @@
+ static uint64_t bytes_done, bytes_at_entry, bytes_at_reply;
+ static bool counting;
+ static bool yield_on_handoff;
+-static atomic_bool handoff_queued;
+-static int nonempty_polls, nonempty_callbacks, handoff_yields;
++static void mark_enqueued(void);
++static int nonempty_polls, nonempty_callbacks;
++
++#include <sys/event.h>
++static int count_ready(int q, const struct kevent *changes, int n, struct kevent *events,
++                       int capacity, const struct timespec *timeout) {
++    int ready = kevent(q, changes, n, events, capacity, timeout);
++    if (counting && ready > 0 && events != NULL) ++nonempty_polls;
++    return ready;
++}
++#define FIXTURE_KEVENT count_ready
+ static int clients[FLOWS + 1][2], guests[FLOWS + 1][2];
+ 
+ static ssize_t relay_write(int fd, const void *data, size_t size) {
+@@ -26,7 +35,7 @@
+         ++writes_done;
+         bytes_done += (size_t)n;
+         if (writes_done == position) {
+-            atomic_store_explicit(&handoff_queued, true, memory_order_release);
++            if (yield_on_handoff) mark_enqueued();
+             dispatch_async_f(queue, NULL, enter_handoff);
+         }
+         return n;
+@@ -56,6 +65,10 @@
+ 
+ static mp_tcp_relay *owner;
+ static mp_tcp_listener *lease;
++
++static void mark_enqueued(void) {
++    mp_tcp_handoff_enqueued(owner);
++}
+ static const unsigned char marker = 91;
+ static unsigned char offered[FLOWS][OFFER];
+ 
+@@ -68,7 +81,7 @@
+ 
+ static void enter_handoff(void *context) {
+     (void)context;
+-    check(atomic_exchange_explicit(&handoff_queued, false, memory_order_acq_rel), "handoff was queued");
++    if (yield_on_handoff) mp_tcp_handoff_started(owner);
+     check(writes_at_entry < 0, "one handoff only");
+     writes_at_entry = writes_done;
+     bytes_at_entry = bytes_done;
+@@ -87,7 +100,7 @@
+ static void trial(int after) {
+     position = after;
+     int streams = FLOWS + (after != 0);
+-    nonempty_polls = nonempty_callbacks = handoff_yields = 0;
++    nonempty_polls = nonempty_callbacks = 0;
+     writes_done = 0;
+     bytes_done = bytes_at_entry = bytes_at_reply = 0;
+     writes_at_entry = writes_at_reply = -1;
+@@ -119,7 +132,7 @@
+     counting = false;
+     check(bytes_done == (uint64_t)FLOWS * OFFER && writes_done == FLOWS * OFFER / CHUNK, "bulk delivery count");
+     if (after) check(writes_at_entry >= position && writes_at_reply >= writes_at_entry, "handoff or reply missing");
+-    else check(writes_at_entry == -1 && writes_at_reply == -1 && !handoff_yields, "unexpected handoff");
++    else check(writes_at_entry == -1 && writes_at_reply == -1, "unexpected handoff");
+     for (int i = 0; i < FLOWS; ++i) expect_bytes(clients[i][0], offered[i], OFFER);
+     if (after) expect_bytes(clients[FLOWS][0], &marker, 1);
+     for (int i = 0; i < streams; ++i) check(shutdown(guests[i][0], SHUT_WR) == 0, "guest FIN");
+@@ -140,9 +153,9 @@
+     check(lease->active == 0, "retire all flows");
+     printf("{\"yield_on_handoff\":%d,\"budget\":%d,\"read_cap\":%u,\"enqueue_after_write\":%d,"
+            "\"bulk_writes\":%d,\"bulk_bytes\":%llu,\"nonempty_polls\":%d,\"nonempty_callbacks\":%d,"
+-           "\"handoff_yields\":%d,\"verified_half_closes\":%d", yield_on_handoff, mp_tcp_data_callback_events(4),
++           "\"verified_half_closes\":%d", yield_on_handoff, mp_tcp_data_callback_events(4),
+            mp_tcp_relay_read_bytes(owner), position, writes_done, (unsigned long long)bytes_done,
+-           nonempty_polls, nonempty_callbacks, handoff_yields, 2 * streams);
++           nonempty_polls, nonempty_callbacks, 2 * streams);
+     if (after) printf(",\"bytes_ahead_of_entry\":%llu,\"bytes_ahead_of_readable_reply\":%llu",
+                       (unsigned long long)(bytes_at_entry - (uint64_t)position * CHUNK),
+                       (unsigned long long)(bytes_at_reply - (uint64_t)position * CHUNK));

@@ -425,11 +425,20 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     public func create(_ request: ContainerRunRequest) async throws -> String {
         let engine = try await target(request)
         try Self.require(engine, "create")
-        return try await engine.containers.create(request)
+        return try await engine.containers.create(try Self.cacheLabels(request, for: engine))
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
-        try await target(request).containers.run(request)
+        let engine = try await target(request)
+        return try await engine.containers.run(try Self.cacheLabels(request, for: engine))
+    }
+
+    /// `--cache`/`--cache-scope` as labels for engines other than hvf,
+    /// which maps them itself (`HVFEngine.admit`).
+    static func cacheLabels(_ request: ContainerRunRequest, for engine: any RuntimeEngine) throws
+        -> ContainerRunRequest
+    {
+        engine.name == "hvf" ? request : try ContainerCacheOptions.admitted(request, runtime: engine.name)
     }
 
     public func exec(_ request: ContainerExecRequest) async throws -> String {

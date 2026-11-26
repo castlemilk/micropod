@@ -21,6 +21,9 @@ static int counted_kevent(int q, const struct kevent *changes, int n, struct kev
 #endif
 #include RELAY_SOURCE
 #undef kevent
+#ifndef CONNECT_WRITE_FLAGS
+#define CONNECT_WRITE_FLAGS EV_ADD  // Older relay revisions.
+#endif
 
 enum { PAYLOAD = 32 * 1024, SOCKET_BUFFER = 64 * 1024 };
 static unsigned char payload[PAYLOAD], padding[4096];
@@ -70,7 +73,7 @@ static struct pair *stage(mp_tcp_listener *l, int client[2], int guest[2]) {
     ++l->active;
     check(watch_fd(l->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) == 0 &&
           watch_fd(l->relay, &p->guest.watch, EVFILT_READ, EV_ADD | EV_DISABLE) == 0 &&
-          watch_fd(l->relay, &p->guest.watch, EVFILT_WRITE, EV_ADD) == 0, "stage async filters");
+          watch_fd(l->relay, &p->guest.watch, EVFILT_WRITE, CONNECT_WRITE_FLAGS) == 0, "stage async filters");
     return p;
 }
 

@@ -1,0 +1,83 @@
+--- a/Sources/MicropodRuntime/CIWorker.swift
++++ b/Sources/MicropodRuntime/CIWorker.swift
+@@ -43,7 +43,7 @@
+             "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
+             "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS", "MICROPOD_CI_ENGINE", "MICROPOD_CI_KATA_TOOLS",
+             "MICROPOD_CI_MAX_STARTING", "MICROPOD_CI_PORT_RELAY", "MICROPOD_CI_PORT_PROFILE",
+-            "MICROPOD_CI_PORT_RELAY_WORKERS",
++            "MICROPOD_CI_PORT_RELAY_WORKERS", "MICROPOD_BENCH_PRIVATE_PUBLICATION_MTU",
+             "MICROPOD_CI_KERNEL", "MICROPOD_CI_PUBLISHED_PATH",
+         ]
+         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
+@@ -51,6 +51,16 @@
+             environment["MICROPOD_CI_HOME"].map { URL(fileURLWithPath: $0).standardizedFileURL }
+             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+                 environment["MICROPOD_CI_ENGINE"] == "containerd" ? ".micropod/runner" : ".micropod/ci")
++    }
++
++    // Benchmark-only resource for one disposable worker. Existing manifests
++    // have no selector. The first explicit value is immutable for that scope.
++    func benchmarkPublicationMTU(existing: String?, publishedPath: String?) throws -> String? {
++        guard let value = resourceEnvironment["MICROPOD_BENCH_PRIVATE_PUBLICATION_MTU"] ?? existing else { return nil }
++        guard isNativeRunner, publishedPath == "macvlan", ["1500", "9000"].contains(value) else {
++            throw MicropodError.message("Benchmark publication MTU requires a native macvlan worker and 1500 or 9000")
++        }
++        return value
+     }
+ 
+     struct Configuration: Codable, Equatable {
+@@ -65,6 +75,7 @@
+         let kataTools: String?
+         var kernel: String? = nil
+         var publishedPath: String? = nil
++        var benchmarkPublicationMTU: String? = nil
+ 
+         var engine: Engine { image == CIWorker.dockerImage ? .docker : .containerd }
+     }
+@@ -241,7 +252,8 @@
+             diskGiB: resource("DISK_GIB", existing?.diskGiB ?? 32, 4...1024), workspace: workspace,
+             ext4MaxBatchUS: batchUS == 15000 ? nil : batchUS,
+             kataTools: resourceEnvironment["MICROPOD_CI_KATA_TOOLS"] ?? existing?.kataTools,
+-            kernel: kernel, publishedPath: publishedPath == "bridge" ? nil : publishedPath)
++            kernel: kernel, publishedPath: publishedPath == "bridge" ? nil : publishedPath,
++            benchmarkPublicationMTU: benchmarkPublicationMTU(existing: existing?.benchmarkPublicationMTU, publishedPath: publishedPath))
+         if let existing {
+             guard config == existing else {
+                 throw MicropodError.message(
+@@ -765,6 +777,7 @@
+         if config.publishedPath == "macvlan", !portRelay.usesKqueue {
+             throw MicropodError.message("Direct published ports require the native kqueue relay")
+         }
++        options.benchmarkPublicationMTU = config.benchmarkPublicationMTU
+         options.ciWorkspace = config.workspace
+         options.ciKernel = config.kernel.map { URL(fileURLWithPath: $0) }
+         if let path = config.kataTools {
+--- a/Sources/MicropodRuntime/CIWorkerService.swift
++++ b/Sources/MicropodRuntime/CIWorkerService.swift
+@@ -12,6 +12,7 @@
+ 
+     /// Used by launchd before the runner begins accepting individual jobs.
+     public func launchAgent(executable: URL) throws -> Data {
++        _ = try benchmarkPublicationMTU(existing: nil, publishedPath: resourceEnvironment["MICROPOD_CI_PUBLISHED_PATH"])
+         var environment = resourceEnvironment
+         environment["MICROPOD_CI_HOME"] = directory.path
+         var plist: [String: Any] = [
+--- a/Sources/MicropodRuntime/SandboxVM.swift
++++ b/Sources/MicropodRuntime/SandboxVM.swift
+@@ -68,6 +68,7 @@
+         public var guestTool: URL?
+         var ciKernel: URL?
+         var ciWorkspace: String?
++        var benchmarkPublicationMTU: String?
+         var ciOCITools: URL?
+         var ciKataTools: URL?
+         var isolatedCIJob = false
+@@ -249,7 +250,7 @@
+             FileManager.default.fileExists(atPath: tools.appendingPathComponent("runner/published-ports.sh").path)
+         {
+             publishedNetwork = try await SandboxNetwork.workerNetwork(
+-                mode: .VMNET_HOST_MODE, benchmarkPublicationMTU: ProcessInfo.processInfo.environment["MICROPOD_BENCH_PRIVATE_PUBLICATION_MTU"])
++                mode: .VMNET_HOST_MODE, benchmarkPublicationMTU: options.benchmarkPublicationMTU)
+         } else {
+             publishedNetwork = nil
+         }

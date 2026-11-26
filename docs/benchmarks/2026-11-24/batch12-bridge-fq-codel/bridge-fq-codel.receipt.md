@@ -1,0 +1,16 @@
+# Bridge and veth fq_codel with receive steering off and on
+
+Changing the bridge and veth root queues from noqueue to fq_codel reduced mixed receiver throughput in five of six paired rounds with guest receive steering off. With steering on, each queue policy won three rounds. Keep the existing queue policy for the stock comparison. This replay addresses issue 231.08 using a six-block Gamma experiment from 21 November 2026.
+
+| Receive steering | Mixed MiB/s, noqueue → fq_codel | Median paired change (95% interval) | fq_codel wins | Fresh p95 ms, noqueue → fq_codel | 256 MiB burst, paired change (wins) |
+|---|---:|---:|---:|---:|---:|
+| Off | 4,145.4 → 3,839.9 | −5.42% (−8.78% to −0.17%) | 1/6 | 4.15 → 4.22 | +4.36% (4/6) |
+| On | 3,872.0 → 3,957.2 | +0.30% (−19.35% to +26.64%) | 3/6 | 3.61 → 3.68 | −5.47% (2/6) |
+
+For each block we also divided the steering-on fq_codel/noqueue rate ratio by the steering-off ratio. Its median was +6.61% (−17.58% to +36.12%). Six blocks leave the interaction unresolved. The original report summarized several virtual NIC and guest network policies. This replay estimates both within-steering changes and their paired interaction from raw receiver counts. The batch-four pfifo_fast comparison changed a different queue.
+
+The Mac client measured 32 bulk sockets during 150 sequential fresh requests per attempt. Across 24 attempts, those sockets delivered 34,190,936,316 bytes during the overlap, every stream advanced, all 3,600 fresh requests completed and the client reported zero reopens. Each separate burst delivered 256 MiB on its 32 fresh sockets. The replay checks the received-byte sum and elapsed-time denominator on every mixed run and checks byte count, connection identity and rate on every burst. Arm medians and paired changes are calculated separately. The intervals resample complete blocks and enumerate all 46,656 six-block draws, with nearest-rank percentile endpoints.
+
+The archived driver rotated all four policies on the same service and requested the qdisc on both the Linux bridge and its veth peer. All 24 settings snapshots identified `mpci0 veth7c7f59d2` and confirmed the veth root, eth0 RX CPU mask (0 or f) and per-queue flow entries (0 or 32,768). The bridge root and system-wide flow table were set by the driver. Their effective values were not separately read back. The client used a closed-loop arrival pattern. Median overlap ranged from 0.293 to 0.373 s across policies. These historical shared-host results do not measure the revised direct-macvlan path, a six-second fixed-offer holdout, per-process CPU cost or a current OrbStack comparison.
+
+The raw input is [gamma-vnic.json.gz](../../2026-11-21/gamma-vnic.json.gz) at commit `4f887ba5d28f47fa37d4bd0a2d89cd0914d74754`, SHA-256 `2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f`. The receipt preserves the recording base, VM boot, service identity, all 24 per-attempt byte totals and durations, paired ratios, fresh p95/p99 and burst measurements. Four negative controls reject a wrong qdisc, wrong steering state, changed receiver-byte sum and changed time denominator. Run `python3 -B replay.py` from this directory to reproduce the JSON on stdout. [Raw-derived results](results.json) · [Replay](replay.py)

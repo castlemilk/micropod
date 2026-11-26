@@ -1,0 +1,14 @@
+From scripts/relaybench
+python3 -B -m unittest test_gamma_pilots test_peer_verdict test_peer_client_window test_compare test_host_role test_relay_read_size
+............................................
+----------------------------------------------------------------------
+Ran 44 tests in 2.215s
+
+OK
+
+From scripts/relaybench
+python3 -B -m unittest discover -p test_*.py -q
+----------------------------------------------------------------------
+Ran 148 tests in 11.042s
+
+OK

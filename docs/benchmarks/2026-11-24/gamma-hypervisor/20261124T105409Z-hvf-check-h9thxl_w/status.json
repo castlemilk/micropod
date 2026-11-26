@@ -1,0 +1,7 @@
+{
+  "action": "check",
+  "complete": false,
+  "start": "2026-11-24T10:54:09.273637+00:00",
+  "error": "KeyboardInterrupt",
+  "ended": "2026-11-24T10:55:37.981752+00:00"
+}

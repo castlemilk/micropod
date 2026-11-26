@@ -1,0 +1,1101 @@
+{
+  "scope": "Native counters between structural snapshots around the full workload and diagnostic activity. Each hierarchy level is reported separately.",
+  "runs": [
+    {
+      "archive": "20261125T042115Z-sibling-job-parent-95uspe4p",
+      "seed": 250221,
+      "mode": "flat",
+      "boot": "029d2b55-6f06-4e2b-9e97-fbd9572b129c",
+      "worker": {
+        "usage_usec": 56013169,
+        "user_usec": 42459589,
+        "system_usec": 13553579,
+        "nr_periods": 451,
+        "nr_throttled": 4,
+        "throttled_usec": 2674,
+        "pressure_usec": {
+          "some": 12167387,
+          "full": 222949
+        }
+      },
+      "runtime": {
+        "usage_usec": 46369019,
+        "user_usec": 35395584,
+        "system_usec": 10973435,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "pressure_usec": {
+          "some": 11451954,
+          "full": 491764
+        }
+      },
+      "per_job_parents": {},
+      "job_parent_totals": null,
+      "payload_totals": {
+        "usage_usec": 46366098,
+        "user_usec": 33196083,
+        "system_usec": 13170005,
+        "nr_periods": 6139,
+        "nr_throttled": 1,
+        "throttled_usec": 2020
+      },
+      "payload_by_role": {
+        "builder": {
+          "leaves": 8,
+          "usage_usec": 34378103,
+          "user_usec": 28150364,
+          "system_usec": 6227737,
+          "nr_periods": 1127,
+          "nr_throttled": 1,
+          "throttled_usec": 2020
+        },
+        "builder_dependency": {
+          "leaves": 8,
+          "usage_usec": 1107379,
+          "user_usec": 619331,
+          "system_usec": 488048,
+          "nr_periods": 577,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_client": {
+          "leaves": 24,
+          "usage_usec": 7736671,
+          "user_usec": 3081438,
+          "system_usec": 4655228,
+          "nr_periods": 2780,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_service": {
+          "leaves": 24,
+          "usage_usec": 3143945,
+          "user_usec": 1344950,
+          "system_usec": 1798992,
+          "nr_periods": 1655,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        }
+      }
+    },
+    {
+      "archive": "20261125T042246Z-sibling-job-parent-q6faac0l",
+      "seed": 250221,
+      "mode": "job",
+      "boot": "bd81ed6d-7ec9-47ee-845b-64819670d497",
+      "worker": {
+        "usage_usec": 56871173,
+        "user_usec": 42443735,
+        "system_usec": 14427439,
+        "nr_periods": 455,
+        "nr_throttled": 8,
+        "throttled_usec": 5158,
+        "pressure_usec": {
+          "some": 12348498,
+          "full": 225526
+        }
+      },
+      "runtime": {
+        "usage_usec": 47005804,
+        "user_usec": 35269704,
+        "system_usec": 11736099,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "pressure_usec": {
+          "some": 11614984,
+          "full": 507427
+        }
+      },
+      "per_job_parents": {
+        "/k8s.io/micropod-job-03fef952c15656130fca903db4ff45855b1015d7c894e9ef647d63a96b9821ae": {
+          "usage_usec": 477137,
+          "user_usec": 231728,
+          "system_usec": 245408,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6107120,
+            "full": 5693698
+          }
+        },
+        "/k8s.io/micropod-job-0687d682e148fbbfea33ec2578b1688fefc318108c1836e0742d5597580c2d4d": {
+          "usage_usec": 475118,
+          "user_usec": 167175,
+          "system_usec": 307942,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6006832,
+            "full": 5594306
+          }
+        },
+        "/k8s.io/micropod-job-0cc12a82e2f3e94ff720f57b5a8a0c8724e13571766cb3479ce85fc55ddb1b8b": {
+          "usage_usec": 4204406,
+          "user_usec": 3385518,
+          "system_usec": 818887,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9091450,
+            "full": 7298167
+          }
+        },
+        "/k8s.io/micropod-job-167d9bd079a9262ad4e41705c9f7a362f03c210e944d2123b7ecb2bf68a96402": {
+          "usage_usec": 462896,
+          "user_usec": 218877,
+          "system_usec": 244019,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6016952,
+            "full": 5614862
+          }
+        },
+        "/k8s.io/micropod-job-169d405f8d66e306165209d568e247b40caff8d8b51319426311985f3838b5e2": {
+          "usage_usec": 465897,
+          "user_usec": 248248,
+          "system_usec": 217649,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6067559,
+            "full": 5664172
+          }
+        },
+        "/k8s.io/micropod-job-1800259c0516ee45af8b9e688b42712acd9d46b6598475ef315425bca9e6272f": {
+          "usage_usec": 4686301,
+          "user_usec": 3877630,
+          "system_usec": 808672,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9033346,
+            "full": 7198549
+          }
+        },
+        "/k8s.io/micropod-job-1801e9d075200357e5e4911827647b5878f9156ea388c8662cfe75ae407c1856": {
+          "usage_usec": 471194,
+          "user_usec": 222771,
+          "system_usec": 248422,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5989900,
+            "full": 5579184
+          }
+        },
+        "/k8s.io/micropod-job-248095d9ce5e39a262ef3703f22139526ffcb9a48b290c40acae9a26a640c0e3": {
+          "usage_usec": 463337,
+          "user_usec": 215251,
+          "system_usec": 248085,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5998500,
+            "full": 5594936
+          }
+        },
+        "/k8s.io/micropod-job-26268e916690d9a64ede4dfb4e0270730649df1c5f8755a6a184682d7baff5d3": {
+          "usage_usec": 467341,
+          "user_usec": 204891,
+          "system_usec": 262450,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6005080,
+            "full": 5599052
+          }
+        },
+        "/k8s.io/micropod-job-3bb8373e49e08039aa8a646678bbcd90a2bbde5f66bbe3510b6af82f6fae0919": {
+          "usage_usec": 461117,
+          "user_usec": 224741,
+          "system_usec": 236376,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6039346,
+            "full": 5638413
+          }
+        },
+        "/k8s.io/micropod-job-45ad2a1f8552d7e2b737eed025b14f8b9efdc5159d5d6e89b66e87d08639dd43": {
+          "usage_usec": 466234,
+          "user_usec": 337642,
+          "system_usec": 128591,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6026425,
+            "full": 5618584
+          }
+        },
+        "/k8s.io/micropod-job-5f00c707f8e5ce7e73b4b82dcd9cf55589e17b33c3e6e9efba51843e9b1baf02": {
+          "usage_usec": 465663,
+          "user_usec": 211249,
+          "system_usec": 254414,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6042733,
+            "full": 5636588
+          }
+        },
+        "/k8s.io/micropod-job-67025284230d3a1f120ccfc94dcc8b5f5fe85d550f3bc751827f77afd8f0a8f9": {
+          "usage_usec": 467644,
+          "user_usec": 211632,
+          "system_usec": 256012,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6025121,
+            "full": 5620004
+          }
+        },
+        "/k8s.io/micropod-job-6fdc3b2e14b9a7b762f84fb182b8c17dc793d8eaef6f479e8d077c1df3730bb2": {
+          "usage_usec": 4718425,
+          "user_usec": 3968578,
+          "system_usec": 749846,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9011734,
+            "full": 7191448
+          }
+        },
+        "/k8s.io/micropod-job-73cf69a0b8d28dbd3f5b88fc19558bc8b2b99359e7e53e0f061fc4a6d1b2a220": {
+          "usage_usec": 488420,
+          "user_usec": 190077,
+          "system_usec": 298342,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6141003,
+            "full": 5720682
+          }
+        },
+        "/k8s.io/micropod-job-758ce521a1121c24d22e68d175fe5b8a70a1562340ff5e18c43ea9101752e0e1": {
+          "usage_usec": 473512,
+          "user_usec": 199374,
+          "system_usec": 274137,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6048261,
+            "full": 5639483
+          }
+        },
+        "/k8s.io/micropod-job-75b98ce8aa3edb1340985fecd131dff279fd2679fd7c24804fc556d3dbcaf1a1": {
+          "usage_usec": 470025,
+          "user_usec": 170856,
+          "system_usec": 299169,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5985656,
+            "full": 5575756
+          }
+        },
+        "/k8s.io/micropod-job-8941a2d205a43da837201d0d286f24f63fe7d079575861bfab095037fa9f5f76": {
+          "usage_usec": 481500,
+          "user_usec": 320428,
+          "system_usec": 161071,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6121395,
+            "full": 5702563
+          }
+        },
+        "/k8s.io/micropod-job-8c2060156a05c4ed91875bc3330b04fb002921863e1fd2e89f4fb6d12272cbd3": {
+          "usage_usec": 4214611,
+          "user_usec": 3459887,
+          "system_usec": 754724,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9018704,
+            "full": 7215872
+          }
+        },
+        "/k8s.io/micropod-job-92ea46455bafc30f44f05a33b118a327a4614fee7dd95ed08047a40a818a7bd6": {
+          "usage_usec": 459136,
+          "user_usec": 229220,
+          "system_usec": 229917,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6017197,
+            "full": 5616966
+          }
+        },
+        "/k8s.io/micropod-job-9b3e4d04de0df0ee9c6442b73873839598e0bdd208ad0467cbf1a480aca7be71": {
+          "usage_usec": 4818308,
+          "user_usec": 3788819,
+          "system_usec": 1029488,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 8938301,
+            "full": 7084169
+          }
+        },
+        "/k8s.io/micropod-job-a6257ff89000146e1d81c492c92bfeaea406a6bbbcea817328e63f1dc9523f3e": {
+          "usage_usec": 457537,
+          "user_usec": 228389,
+          "system_usec": 229148,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6006758,
+            "full": 5607776
+          }
+        },
+        "/k8s.io/micropod-job-bc83f73c4e8aa87811e6d94a59af36c1342d3f12fde5d3615105579bceced6ec": {
+          "usage_usec": 467708,
+          "user_usec": 246799,
+          "system_usec": 220909,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6033542,
+            "full": 5630508
+          }
+        },
+        "/k8s.io/micropod-job-bc996ff2d6dcddf30c776202149d96bf2dc2819f7510023349ddc8aa5a5fa1fa": {
+          "usage_usec": 458645,
+          "user_usec": 193735,
+          "system_usec": 264910,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6009940,
+            "full": 5608050
+          }
+        },
+        "/k8s.io/micropod-job-c75568dc56c6a92a50e81f74407432ddeb75e7177a9feacf6e10ef0728f3d971": {
+          "usage_usec": 462296,
+          "user_usec": 208706,
+          "system_usec": 253591,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6039997,
+            "full": 5636951
+          }
+        },
+        "/k8s.io/micropod-job-cc4d5429cbf90460aeb8fd2e40c1e17fda076e516d3274e800303a94fdab5bca": {
+          "usage_usec": 455676,
+          "user_usec": 246456,
+          "system_usec": 209221,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5973235,
+            "full": 5574464
+          }
+        },
+        "/k8s.io/micropod-job-dee1fde112832c5e94c647e852936767d1586dcbcf8bf62e8e3081869170a682": {
+          "usage_usec": 473157,
+          "user_usec": 124392,
+          "system_usec": 348765,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6063399,
+            "full": 5649963
+          }
+        },
+        "/k8s.io/micropod-job-e200aa565a05d5820c1926750f32588f66d3740fe823ea13792705d5d1d043e0": {
+          "usage_usec": 4179983,
+          "user_usec": 3265912,
+          "system_usec": 914072,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 8834017,
+            "full": 6976579
+          }
+        },
+        "/k8s.io/micropod-job-e37253a82a95655550442b144a452f5471b8e015d29fb677b5e8ee6c2b38fe38": {
+          "usage_usec": 4254476,
+          "user_usec": 3225450,
+          "system_usec": 1029026,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9065173,
+            "full": 7229315
+          }
+        },
+        "/k8s.io/micropod-job-eafa3362b60b6f689e36cc43dfcb5aaa45bd414d0ee219f70c335a8fd4173ffb": {
+          "usage_usec": 4705990,
+          "user_usec": 3942378,
+          "system_usec": 763612,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 8887303,
+            "full": 7020129
+          }
+        },
+        "/k8s.io/micropod-job-eeb037896556e9f51c27a3a6ab848e606c4ea478294a3795e3ba00fe707dc7e3": {
+          "usage_usec": 469980,
+          "user_usec": 259149,
+          "system_usec": 210830,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6011427,
+            "full": 5601816
+          }
+        },
+        "/k8s.io/micropod-job-fac34aa01675ea0c3f3a08a86f9c1a061d4a4ff7d620287b07568317e4f5a2d9": {
+          "usage_usec": 459318,
+          "user_usec": 214720,
+          "system_usec": 244598,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5979963,
+            "full": 5579617
+          }
+        }
+      },
+      "job_parent_totals": {
+        "usage_usec": 47002988,
+        "user_usec": 34240678,
+        "system_usec": 12762303,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "payload_totals": {
+        "usage_usec": 47002890,
+        "user_usec": 33994726,
+        "system_usec": 13008146,
+        "nr_periods": 6290,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "payload_by_role": {
+        "builder": {
+          "leaves": 8,
+          "usage_usec": 34730092,
+          "user_usec": 28316908,
+          "system_usec": 6413182,
+          "nr_periods": 1142,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "builder_dependency": {
+          "leaves": 8,
+          "usage_usec": 1052409,
+          "user_usec": 528839,
+          "system_usec": 523566,
+          "nr_periods": 567,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_client": {
+          "leaves": 24,
+          "usage_usec": 8173907,
+          "user_usec": 3676003,
+          "system_usec": 4497898,
+          "nr_periods": 2922,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_service": {
+          "leaves": 24,
+          "usage_usec": 3046482,
+          "user_usec": 1472976,
+          "system_usec": 1573500,
+          "nr_periods": 1659,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        }
+      }
+    },
+    {
+      "archive": "20261125T042419Z-sibling-job-parent-jetumwg2",
+      "seed": 250223,
+      "mode": "job",
+      "boot": "6adfb493-dda1-4e2e-aabf-04b66cdf0e1a",
+      "worker": {
+        "usage_usec": 56810160,
+        "user_usec": 42027436,
+        "system_usec": 14782725,
+        "nr_periods": 451,
+        "nr_throttled": 2,
+        "throttled_usec": 881,
+        "pressure_usec": {
+          "some": 12345110,
+          "full": 223019
+        }
+      },
+      "runtime": {
+        "usage_usec": 46963588,
+        "user_usec": 34835413,
+        "system_usec": 12128175,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "pressure_usec": {
+          "some": 11665202,
+          "full": 518605
+        }
+      },
+      "per_job_parents": {
+        "/k8s.io/micropod-job-0d5464017386afd5b7f9c85086110271de692f3bc9cee51dd6371d690fb547fb": {
+          "usage_usec": 4713927,
+          "user_usec": 3853615,
+          "system_usec": 860313,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 8829115,
+            "full": 6988357
+          }
+        },
+        "/k8s.io/micropod-job-119a95583ac3a10d6dc2e97bfe2ae76428d57f1b8060d9779b550109fbf2ed26": {
+          "usage_usec": 473732,
+          "user_usec": 307079,
+          "system_usec": 166654,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6046976,
+            "full": 5635077
+          }
+        },
+        "/k8s.io/micropod-job-2dff152bb2b413903af45d98b8ecb821fb1267224dda5efe5b9bbd8735ee91a0": {
+          "usage_usec": 479254,
+          "user_usec": 216273,
+          "system_usec": 262981,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6032707,
+            "full": 5614623
+          }
+        },
+        "/k8s.io/micropod-job-4462b6839f8e9d5933bab6b6922612016264508f22cf1c85292e2211838e0972": {
+          "usage_usec": 475774,
+          "user_usec": 185339,
+          "system_usec": 290434,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6033938,
+            "full": 5617244
+          }
+        },
+        "/k8s.io/micropod-job-4d082eacda52dab8046cab36237b1d7b525ff9697d490deb5c2f15c9f87a37cc": {
+          "usage_usec": 4213949,
+          "user_usec": 3312448,
+          "system_usec": 901500,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9068178,
+            "full": 7220037
+          }
+        },
+        "/k8s.io/micropod-job-4e06ca2677d10052bdd33284b71d1b308344c46d555ed3e667ffca371d3f7d50": {
+          "usage_usec": 490487,
+          "user_usec": 260237,
+          "system_usec": 230249,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6037106,
+            "full": 5612205
+          }
+        },
+        "/k8s.io/micropod-job-57dd2486a0296180eba54cff69f443c0bceed10f1fa61f8212219845d48a2210": {
+          "usage_usec": 4699048,
+          "user_usec": 3875199,
+          "system_usec": 823848,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 8911668,
+            "full": 7063158
+          }
+        },
+        "/k8s.io/micropod-job-5a6671c8f73270e08f5476250a4808f756cfe806c54ac59379aa835ec268cbae": {
+          "usage_usec": 495553,
+          "user_usec": 210748,
+          "system_usec": 284805,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6136187,
+            "full": 5706311
+          }
+        },
+        "/k8s.io/micropod-job-672492527dd4f89764e2350860ec906ec4502a67a730f7d169cb90dbceb12869": {
+          "usage_usec": 464697,
+          "user_usec": 236340,
+          "system_usec": 228357,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6027586,
+            "full": 5625254
+          }
+        },
+        "/k8s.io/micropod-job-6c37a38a0f721bb89cd113b0dfddcc286349f9998e27e00671329c025d576599": {
+          "usage_usec": 4170293,
+          "user_usec": 3409160,
+          "system_usec": 761132,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 8859091,
+            "full": 7022850
+          }
+        },
+        "/k8s.io/micropod-job-6eb3bdc5645927c1f8289ef716e57f7211c54a51d580fb68ec96fa6a4cd89355": {
+          "usage_usec": 463640,
+          "user_usec": 208297,
+          "system_usec": 255343,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5992085,
+            "full": 5587693
+          }
+        },
+        "/k8s.io/micropod-job-715e9e2b6b7c0d45707556f480caa85e02853a6e8c9c4f7225cfa7310ab0f950": {
+          "usage_usec": 477403,
+          "user_usec": 204520,
+          "system_usec": 272883,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6022580,
+            "full": 5607681
+          }
+        },
+        "/k8s.io/micropod-job-7407b0a3fa273cb47645b6d52876b86a3430c019ee769cdc2a64b195a945ff4b": {
+          "usage_usec": 4159202,
+          "user_usec": 3279785,
+          "system_usec": 879417,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 8906669,
+            "full": 7082979
+          }
+        },
+        "/k8s.io/micropod-job-7407ecf247a3e0f05fb32c227fac05abfb5d18fab98588698e6e29f9cc2ec004": {
+          "usage_usec": 467468,
+          "user_usec": 176911,
+          "system_usec": 290557,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6092527,
+            "full": 5683484
+          }
+        },
+        "/k8s.io/micropod-job-778ac4d94b2a8dac8d0dcf418d7ae137106a553cbd0aa2ef7a3a6d0fb6d543c4": {
+          "usage_usec": 4663819,
+          "user_usec": 3678519,
+          "system_usec": 985300,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9229829,
+            "full": 7444458
+          }
+        },
+        "/k8s.io/micropod-job-7df7f0344da5aed299ff8be20cdbd0ef9304bf00b66eaeb2c871d3c8a37d2f3a": {
+          "usage_usec": 488791,
+          "user_usec": 244015,
+          "system_usec": 244776,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6060474,
+            "full": 5636419
+          }
+        },
+        "/k8s.io/micropod-job-80cc4d8f9fc88665cd091c1c36390cb73b38a93ddbc71d8f10a5ff2b86367893": {
+          "usage_usec": 484212,
+          "user_usec": 225146,
+          "system_usec": 259066,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6046020,
+            "full": 5626992
+          }
+        },
+        "/k8s.io/micropod-job-86bb0ca71cd98248ed478e64ea23455135cad02978f2a47d8f7f8b88ababec3a": {
+          "usage_usec": 478822,
+          "user_usec": 247114,
+          "system_usec": 231708,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6014141,
+            "full": 5596609
+          }
+        },
+        "/k8s.io/micropod-job-98d926c8d49683b9ab704abe6cb9d3cd6dd73c92bde387904c8a8c0c1000a360": {
+          "usage_usec": 471749,
+          "user_usec": 162520,
+          "system_usec": 309229,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6040672,
+            "full": 5628870
+          }
+        },
+        "/k8s.io/micropod-job-99764f9e38c7e69c98dac66da8ba76367abb549662dd45dc6690f2d445757b61": {
+          "usage_usec": 471665,
+          "user_usec": 178812,
+          "system_usec": 292854,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5987226,
+            "full": 5576834
+          }
+        },
+        "/k8s.io/micropod-job-a1c447161ba33f53b2b99078cba1a88cab4e60221f6bf42c3b79a69b072f78ea": {
+          "usage_usec": 468986,
+          "user_usec": 200293,
+          "system_usec": 268692,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6011910,
+            "full": 5602862
+          }
+        },
+        "/k8s.io/micropod-job-b7638bcc0e8de95e636005a2a5e780e5dc39218f02ea74debc448e5f80f0f6f0": {
+          "usage_usec": 4789777,
+          "user_usec": 3887826,
+          "system_usec": 901951,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9029776,
+            "full": 7196252
+          }
+        },
+        "/k8s.io/micropod-job-c29dd6cdbbea841be8404e7b05e643ab6f18acd2556d82c3557271f486c36fa1": {
+          "usage_usec": 4196598,
+          "user_usec": 3368129,
+          "system_usec": 828470,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 9236202,
+            "full": 7465503
+          }
+        },
+        "/k8s.io/micropod-job-c65b22362b63dd3457653d090002b4cad8a39e654292f75f8acce89103e78b6e": {
+          "usage_usec": 467333,
+          "user_usec": 214032,
+          "system_usec": 253301,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5995406,
+            "full": 5588132
+          }
+        },
+        "/k8s.io/micropod-job-c81ffa2969571aa23cfb1ed4b6e314b75b14c3d2f0d909c15362ea51cc6cd574": {
+          "usage_usec": 479731,
+          "user_usec": 226757,
+          "system_usec": 252974,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6095947,
+            "full": 5676864
+          }
+        },
+        "/k8s.io/micropod-job-d06644471547e1cc72138e095ccf4483b2585a2fa5b6b19991ed9840fca32514": {
+          "usage_usec": 475925,
+          "user_usec": 194140,
+          "system_usec": 281784,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6097574,
+            "full": 5687934
+          }
+        },
+        "/k8s.io/micropod-job-f0a784b0bb689e8f7036a700626384757314120ff556247145f39f7832812f73": {
+          "usage_usec": 458778,
+          "user_usec": 207630,
+          "system_usec": 251148,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6061157,
+            "full": 5661627
+          }
+        },
+        "/k8s.io/micropod-job-f1741fff04838122d011448b5aa6e1a8f26338c6fb5bbca7f32d8993b8fa9b3b": {
+          "usage_usec": 455770,
+          "user_usec": 187943,
+          "system_usec": 267827,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6035915,
+            "full": 5637601
+          }
+        },
+        "/k8s.io/micropod-job-f4a329c69b8d1a9cc31349a781652c21aa890e683b0ad4a0844b2cbd9bd1f58e": {
+          "usage_usec": 477997,
+          "user_usec": 234289,
+          "system_usec": 243707,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6074581,
+            "full": 5656139
+          }
+        },
+        "/k8s.io/micropod-job-f94ed969b100d1cd0c81105c19c80970f88e45ea4850d5f39788a784b5c42b4e": {
+          "usage_usec": 478068,
+          "user_usec": 217771,
+          "system_usec": 260297,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6055924,
+            "full": 5636753
+          }
+        },
+        "/k8s.io/micropod-job-fcac4e4af25262a00c5d5698dee09ca9049ed77292e995a031a32a73c1db74c7": {
+          "usage_usec": 457319,
+          "user_usec": 236676,
+          "system_usec": 220643,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 5992614,
+            "full": 5593917
+          }
+        },
+        "/k8s.io/micropod-job-ff4f6df5b9955c1fe3478aabd3b7370c8af85f80237f658ab8b82672cdf3e166": {
+          "usage_usec": 450839,
+          "user_usec": 227025,
+          "system_usec": 223814,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "pressure_usec": {
+            "some": 6001481,
+            "full": 5606922
+          }
+        }
+      },
+      "job_parent_totals": {
+        "usage_usec": 46960606,
+        "user_usec": 33874588,
+        "system_usec": 13086014,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "payload_totals": {
+        "usage_usec": 46960478,
+        "user_usec": 33738518,
+        "system_usec": 13221952,
+        "nr_periods": 6302,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "payload_by_role": {
+        "builder": {
+          "leaves": 8,
+          "usage_usec": 34530441,
+          "user_usec": 28109920,
+          "system_usec": 6420520,
+          "nr_periods": 1143,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "builder_dependency": {
+          "leaves": 8,
+          "usage_usec": 1076092,
+          "user_usec": 545705,
+          "system_usec": 530389,
+          "nr_periods": 561,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_client": {
+          "leaves": 24,
+          "usage_usec": 8273955,
+          "user_usec": 3585548,
+          "system_usec": 4688400,
+          "nr_periods": 2946,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_service": {
+          "leaves": 24,
+          "usage_usec": 3079990,
+          "user_usec": 1497345,
+          "system_usec": 1582643,
+          "nr_periods": 1652,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        }
+      }
+    },
+    {
+      "archive": "20261125T042552Z-sibling-job-parent-arsc78zc",
+      "seed": 250223,
+      "mode": "flat",
+      "boot": "eca54e88-3424-4cb3-83ac-25836291fa17",
+      "worker": {
+        "usage_usec": 56570640,
+        "user_usec": 41831558,
+        "system_usec": 14739082,
+        "nr_periods": 454,
+        "nr_throttled": 3,
+        "throttled_usec": 1531,
+        "pressure_usec": {
+          "some": 12282917,
+          "full": 267805
+        }
+      },
+      "runtime": {
+        "usage_usec": 46774363,
+        "user_usec": 34635353,
+        "system_usec": 12139009,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "pressure_usec": {
+          "some": 11556951,
+          "full": 525713
+        }
+      },
+      "per_job_parents": {},
+      "job_parent_totals": null,
+      "payload_totals": {
+        "usage_usec": 46771360,
+        "user_usec": 33489878,
+        "system_usec": 13281474,
+        "nr_periods": 6205,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "payload_by_role": {
+        "builder": {
+          "leaves": 8,
+          "usage_usec": 34706471,
+          "user_usec": 28343929,
+          "system_usec": 6362540,
+          "nr_periods": 1137,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "builder_dependency": {
+          "leaves": 8,
+          "usage_usec": 1112945,
+          "user_usec": 587578,
+          "system_usec": 525366,
+          "nr_periods": 562,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_client": {
+          "leaves": 24,
+          "usage_usec": 7810859,
+          "user_usec": 3174559,
+          "system_usec": 4636296,
+          "nr_periods": 2855,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "http_only_service": {
+          "leaves": 24,
+          "usage_usec": 3141085,
+          "user_usec": 1383812,
+          "system_usec": 1757272,
+          "nr_periods": 1651,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        }
+      }
+    }
+  ]
+}

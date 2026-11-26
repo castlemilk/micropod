@@ -1,0 +1,18 @@
+{
+  "phase": "warmup",
+  "pair": 1,
+  "arm": "A",
+  "workers": 2,
+  "clean": true,
+  "fresh_offered": 240,
+  "mib_s": 16696.89357283375,
+  "p95_ms": 14.766458,
+  "p99_ms": 15.250416,
+  "cpu_s_per_gib": 0.29205393935505974,
+  "runnable_s_per_s": 5.270240879556492,
+  "wait_s_per_s": 0.5081577908474122,
+  "submitted": 240,
+  "completed": 240,
+  "never_submitted": 0,
+  "submitted_without_reply": 0
+}

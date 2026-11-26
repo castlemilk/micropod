@@ -361,6 +361,11 @@ public actor HVFMachineSupervisor {
         removeSocket()
         let process: any HVFVMMProcess
         do {
+            // The guest reads it from boot on: render it before every launch,
+            // from machine.json as it is now (`machine cache policy` may have
+            // changed it since this supervisor started).
+            let policy = try HVFMachineCachePolicy.writeGuestFile(layout: layout, fallback: config)
+            log("cache policy: \(policy.summary) (\(layout.cachePolicyFile.path))")
             let arguments = try HVFVMMCommand.arguments(layout: layout, config: config, parentPID: pid)
             process = try launcher.launch(executable: layout.vmm, arguments: arguments)
         } catch {
@@ -504,6 +509,20 @@ public actor HVFMachineSupervisor {
             throw MicropodError.message(
                 "unavailable: hvf: orphaned micropod-vmm \(orphan) is still running on \(layout.disk.path)")
         }
+    }
+}
+
+// MARK: - Guest configuration
+
+extension HVFMachineSupervisor {
+    /// Re-renders the cache policy machine.json holds into the running
+    /// machine's `mp-config` share; the guest engine picks the new file up
+    /// within seconds. `machine cache policy` calls it after an edit. A
+    /// stopped machine needs nothing: its supervisor renders the file
+    /// before every launch.
+    @discardableResult
+    public static func rewritePolicy(layout: HVFMachineLayout) throws -> HVFMachineCachePolicy {
+        try HVFMachineCachePolicy.writeGuestFile(layout: layout)
     }
 }
 

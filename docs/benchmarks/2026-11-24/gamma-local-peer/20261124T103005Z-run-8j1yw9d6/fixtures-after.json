@@ -1,0 +1,96 @@
+{
+  "A": {
+    "scope": "/private/tmp/mp-t-2isnhr80/data/a",
+    "engine": "BE3A8174-E175-49DD-A436-A64D3E55758E",
+    "engine_version": "micropod",
+    "id": "f1aa7ea2b629f52d79035f481efb779299173321739a4dc12ae52510cb81fb53",
+    "name": "mp-t-2isnhr80-a",
+    "address": "127.0.0.1:64715",
+    "cpus": 4,
+    "memory_bytes": 4116488192,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.3.5-micropod",
+    "pids": {
+      "vmm": 78350,
+      "relay": 78346
+    },
+    "vmm_executable": "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+    "process_type": "Standard",
+    "spawn_type": "daemon (3)",
+    "job_controls_sha256": "bb5f52c85a60db07264cc652a468cf49a7914b4a2fefef6bee1892c44a694d9a",
+    "docker_socket": "/private/tmp/mp-t-2isnhr80/a/docker.sock",
+    "guest_probe_mount": {
+      "source": "HostConfig.Mounts",
+      "target": "/mpcheck",
+      "bind_source": "/private/tmp/mp-t-2isnhr80/workspace/probe",
+      "readonly": true
+    },
+    "guest_probe_sha256": "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605",
+    "guest_boot": "8dd1e1a1-bb21-4125-bf5d-2a5decab174a",
+    "instance": "F95A1E14-FCFB-40FD-9493-434BCD271A09",
+    "worker": "BE3A8174-E175-49DD-A436-A64D3E55758E",
+    "kernel": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+    "cli_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+    "relay_workers": 2,
+    "callback_events": 128,
+    "read_bytes": 262144,
+    "route": {
+      "RtoMin": 20,
+      "RtoMinLock": true,
+      "QuickACK": 0,
+      "Congctl": "reno",
+      "MTU": 0
+    },
+    "service_env_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "relay_nice": 0,
+    "worker_disk_holder_check": "exact named VMM PID holds the worker disk",
+    "nic_offload_readback": "TSO and GRO in guest inventory",
+    "boot": "8dd1e1a1-bb21-4125-bf5d-2a5decab174a",
+    "guest_config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "guest_inventory_sha256": "42724ffdac15638918c455fdc75f2e50f58239b57eef6c3a2454aff382943f30",
+    "guest_reported_sched_ext": false,
+    "callback_events_origin": "mapped build",
+    "read_bytes_origin": "mapped build",
+    "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "mapped_relay_build": {
+      "source_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+      "worker_executable_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+      "mapped_device": 16777232,
+      "mapped_inode": 1220456239,
+      "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+    },
+    "socket_evidence": "route",
+    "accepted_socket_reno_verified": false,
+    "births": {
+      "78350": 331285323789,
+      "78346": 331279528689
+    }
+  },
+  "B": {
+    "scope": "/private/tmp/mp-t-2isnhr80/data/orb",
+    "engine": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+    "engine_version": "29.8.2",
+    "id": "f5d59b41e69f770cb3d22d3ae603cee25832264620c2dcfd721865bcd7b79cdb",
+    "name": "mp-t-2isnhr80-orb",
+    "address": "127.0.0.1:32770",
+    "cpus": 4,
+    "memory_bytes": 4180480000,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.2.12-orbstack-00394-gbecdd6130068",
+    "pids": {
+      "vmm": 3279
+    }
+  }
+}

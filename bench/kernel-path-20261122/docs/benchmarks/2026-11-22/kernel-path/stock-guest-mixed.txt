@@ -1,0 +1,20 @@
+release=7.3.5-micropod
+boot=retired
+machine=aarch64
+config_sha256=a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c
+# CONFIG_SCHED_CLASS_EXT is not set
+virtio_nic=eth1
+/sys/class/net/eth1/queues/rx-0
+/sys/class/net/eth1/queues/tx-0
+tcp-segmentation-offload: on
+generic-receive-offload: on
+release=7.3.5-micropod
+boot=B
+machine=aarch64
+config_sha256=ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+# CONFIG_SCHED_CLASS_EXT is not set
+virtio_nic=eth1
+/sys/class/net/eth1/queues/rx-0
+/sys/class/net/eth1/queues/tx-0
+tcp-segmentation-offload: on
+generic-receive-offload: on

@@ -61,6 +61,38 @@ func TestParseWorkspace(t *testing.T) {
 	}
 }
 
+func TestHostConfigRequested(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		args    string
+		want    bool
+		invalid bool
+	}{
+		{name: "old host", args: "console=ttyAMA0 mp.worker=sample panic=-1"},
+		{name: "requested", args: "panic=-1 mp.config=1", want: true},
+		{name: "with workspace", args: "mp.workspace_b64=L3RtcC93cw==. mp.config=1 mp.mtu=9000", want: true},
+		{name: "off", args: "mp.config=0"},
+		{name: "last one wins", args: "mp.config=0 mp.config=1", want: true},
+		{name: "turned off again", args: "mp.config=1 mp.config=0"},
+		{name: "bare key", args: "mp.config"},
+		{name: "empty", args: "mp.config=", invalid: true},
+		{name: "word", args: "mp.config=yes", invalid: true},
+		{name: "quoted", args: `mp.config="1"`, invalid: true},
+		{name: "lookalike key", args: "mp.configs=1 mp.config_b64=1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := hostConfigRequested(cmdlineParams(strings.Fields(tc.args)))
+			if got != tc.want || (err != nil) != tc.invalid {
+				t.Fatalf("hostConfigRequested(%q) = %t, %v; want %t, invalid %t", tc.args, got, err, tc.want, tc.invalid)
+			}
+		})
+	}
+	// The mount point must never be one a workspace may take or hide.
+	if reserved := reservedOverlap(hostConfigMount); reserved != "/run" {
+		t.Fatalf("reservedOverlap(%q) = %q, want /run", hostConfigMount, reserved)
+	}
+}
+
 func TestPrepareWorkspaceMountRejectsSymlinks(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

@@ -1,0 +1,66 @@
+{
+  "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "unmodified_native": "549259065039321394cb9b41c7f0011206f589ccca6b19e95af044ef6bf5db1e",
+  "unchanged_c_hash": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+  "commands": [
+    [
+      "xcrun",
+      "clang",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-c",
+      "queue_probe.c",
+      "-o",
+      "qos.o"
+    ],
+    [
+      "xcrun",
+      "clang",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-dynamiclib",
+      "energy.c",
+      "-o",
+      "energy.dylib"
+    ],
+    [
+      "xcrun",
+      "swiftc",
+      "-O",
+      "-swift-version",
+      "6",
+      "-module-cache-path",
+      "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/20261124-after-restart/foundation-activity/modules",
+      "-I.",
+      "NativeLoopbackRelay.swift",
+      "Probe.swift",
+      "relay-0.o",
+      "qos.o",
+      "-o",
+      "relay"
+    ]
+  ],
+  "files": {
+    "energy.dylib": "ec605c7e5c375eb5c7252fe8126984743bd39516ba3fc45924755c00872c7ae4",
+    "PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "meter.dylib": "0a647ab4b304104c53fc05c17e1b64cfaf8d198b38b099f30bf1d7ddfff1a364",
+    "energy.c": "ec3d17b4d13d253ff8aed0920a85b0c7f4e73c84251539082899f022a73af83e",
+    "suite.py": "3f21396ff081b87deb6259904409f524fc0cca7b85e80ee0473531362a5cd15a",
+    "NativeLoopbackRelay.swift": "eadf70a3ccd0c866d63f5fd2f971705f8b486c54423bdde704bc78b163796b99",
+    "relay-0.o": "76e93aee7c1afae22e8e14a18aaf6e05263cb9e4186a7b67da4d7d8684faeb44",
+    "queue_probe.h": "2ac5ec27a37a1588129e438d7793c7b307f07a7b8f5c0184c13d9e09aab0b3fb",
+    "server": "f44e1bd7fe526dbcab18ed20b029923b7070aae2c3542d32e1d045eef1977ae6",
+    "Probe.swift": "191c218b6eb0f44a0460c4863a2d07dd9b987886d5353dd0b69058653d98e5aa",
+    "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "queue_probe.c": "d536f5a2a622c761a65438dbb0380a716031069b7015dda88b01bbdb2d573b55",
+    "module.modulemap": "37e3a01c39a57f8dd2a49fd5182111904d465dbe7d3520dfcd7c0b63c316eaab",
+    "relay": "cc55881b1a25ac11e9b802393fda9f97202c76a9a95a3c268dcb5c6c832fb366",
+    "qos.o": "0627859c0d737378cd1ba714a138c23ea674555bb5b81c2f6b648c825b6bb3a1"
+  },
+  "shared_reference": "batch11-handshake-tcp/post-restart-build.json",
+  "proposal": "host-queue-controls.md, Foundation activity on first parallel listener through last release"
+}

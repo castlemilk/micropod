@@ -1,0 +1,393 @@
+{
+  "path": "mapped",
+  "fault": true,
+  "raw": {
+    "direct": 1,
+    "grants": 499,
+    "data_exits": 361,
+    "max_group": 8,
+    "group_limit": 8,
+    "vector_store": 1,
+    "completion_exits": 1,
+    "polls": 604,
+    "vcpu_ns": 5370333,
+    "wall_ns": 90896458,
+    "sender_cpu_ns": 41809167,
+    "flows": [
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 576
+      },
+      {
+        "bytes": 1358884,
+        "error": 32,
+        "sends": 6,
+        "waits": 55
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 38,
+        "waits": 343
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 45,
+        "waits": 366
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 44,
+        "waits": 156
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 31,
+        "waits": 535
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 32,
+        "waits": 168
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 40,
+        "waits": 229
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 34,
+        "waits": 503
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 31,
+        "waits": 485
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 34,
+        "waits": 291
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 33,
+        "waits": 544
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 35,
+        "waits": 528
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 46,
+        "waits": 277
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 40,
+        "waits": 484
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 36,
+        "waits": 337
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 37,
+        "waits": 360
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 38,
+        "waits": 328
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 35,
+        "waits": 429
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 35,
+        "waits": 361
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 34,
+        "waits": 449
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 32,
+        "waits": 384
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 36,
+        "waits": 537
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 32,
+        "waits": 231
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 31,
+        "waits": 430
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 36,
+        "waits": 241
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 31,
+        "waits": 445
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 29,
+        "waits": 442
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 32,
+        "waits": 527
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 31,
+        "waits": 552
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 33,
+        "waits": 558
+      },
+      {
+        "bytes": 8388608,
+        "error": 0,
+        "sends": 28,
+        "waits": 468
+      }
+    ]
+  },
+  "send_kib": 512,
+  "group": 8,
+  "store": "neon",
+  "delivery": [
+    {
+      "name": "mci-10228ddec9-a-0",
+      "seconds": 0.10682941699997173,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-1",
+      "seconds": 0.023464709000108996,
+      "verified": false,
+      "error": "[Errno 54] Connection reset by peer",
+      "disconnected": true
+    },
+    {
+      "name": "mci-10228ddec9-a-2",
+      "seconds": 0.07619224999871221,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-3",
+      "seconds": 0.07537237500218907,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-4",
+      "seconds": 0.0852237500002957,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-5",
+      "seconds": 0.09713887500038254,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-6",
+      "seconds": 0.05926862500200514,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-7",
+      "seconds": 0.050724291999358684,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-8",
+      "seconds": 0.09029150000060326,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-9",
+      "seconds": 0.08700816700002179,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-10",
+      "seconds": 0.05813404199943761,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-11",
+      "seconds": 0.09995987500224146,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-12",
+      "seconds": 0.09481166700061294,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-13",
+      "seconds": 0.05754808400160982,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-14",
+      "seconds": 0.0972522090014536,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-15",
+      "seconds": 0.06617866699889419,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-16",
+      "seconds": 0.09121845900153858,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-17",
+      "seconds": 0.06520525000087218,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-18",
+      "seconds": 0.07939704200180131,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-19",
+      "seconds": 0.07601329200042528,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-20",
+      "seconds": 0.0824427920015296,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-21",
+      "seconds": 0.08055020900064847,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-22",
+      "seconds": 0.09720129199922667,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-23",
+      "seconds": 0.04765420900002937,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-24",
+      "seconds": 0.09159604199885507,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-25",
+      "seconds": 0.06532766700183856,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-26",
+      "seconds": 0.08308987499913201,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-27",
+      "seconds": 0.07994987500205752,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-28",
+      "seconds": 0.09347345900096116,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-29",
+      "seconds": 0.09834554199915146,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-30",
+      "seconds": 0.10098395900058676,
+      "verified": true
+    },
+    {
+      "name": "mci-10228ddec9-a-31",
+      "seconds": 0.08334908400138374,
+      "verified": true
+    }
+  ],
+  "host_monotonic_start": 19589.074754791,
+  "healthy_finished_before_release": 0.1028605419996893,
+  "reset_after_verified_frame": 1,
+  "e2e_s": 0.10682941699997173,
+  "ci_wave": "hv50",
+  "overlap_builds": [
+    "mci-10228ddec9-a-0",
+    "mci-10228ddec9-a-1",
+    "mci-10228ddec9-a-2",
+    "mci-10228ddec9-a-3"
+  ],
+  "transfer_relative_to_wave_s": [
+    0.018208790999779012,
+    0.12503820799975074
+  ]
+}

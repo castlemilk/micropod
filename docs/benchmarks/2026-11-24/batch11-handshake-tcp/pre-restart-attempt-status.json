@@ -1,0 +1,9 @@
+{
+  "status": "interrupted by machine restart",
+  "prior_receipt_sha256": "b997e6039d04a4e9c1a0ec23a4919f8f9f254b7a027810b71f38183097490d6c",
+  "prior_first_attempts_started": 1,
+  "prior_client_output_bytes": 0,
+  "completed_pairs": 0,
+  "throughput": null,
+  "next": "New independent post-restart campaign; retain this interrupted first attempt in the total count."
+}

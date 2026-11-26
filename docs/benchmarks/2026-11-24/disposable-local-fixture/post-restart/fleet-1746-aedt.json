@@ -1,0 +1,70 @@
+{
+  "project": "cuttlefish",
+  "action": "read-only",
+  "Mac": {
+    "state": "offline",
+    "summary": {
+      "connection": {
+        "secondsSinceSeen": 3477,
+        "state": "offline"
+      },
+      "containerRuntime": null,
+      "dataJobs": null,
+      "executors": [],
+      "operatorPaused": true,
+      "pressure": null,
+      "registry": null,
+      "release": {
+        "state": "unknown",
+        "targetVersion": "",
+        "version": "0.2.134"
+      },
+      "slots": {
+        "activeLeases": 0,
+        "capacity": 6,
+        "free": null
+      },
+      "snapshotFreshness": "stale"
+    },
+    "serverTime": "2026-11-24T06:46:14.604927858Z",
+    "name": "Gamma-128GB.local",
+    "leases": 0,
+    "capacity": 6,
+    "accepting": false,
+    "latest": "2026-11-24T05:48:16.953687Z",
+    "fresh": "stale"
+  },
+  "isolated_linux": {
+    "state": "offline",
+    "summary": {
+      "connection": {
+        "secondsSinceSeen": 3387,
+        "state": "offline"
+      },
+      "containerRuntime": null,
+      "dataJobs": null,
+      "executors": [],
+      "operatorPaused": true,
+      "pressure": null,
+      "registry": null,
+      "release": {
+        "state": "unknown",
+        "targetVersion": "",
+        "version": "v0.2.111"
+      },
+      "slots": {
+        "activeLeases": 1,
+        "capacity": 1,
+        "free": null
+      },
+      "snapshotFreshness": "stale"
+    },
+    "serverTime": "2026-11-24T06:46:12.480144106Z",
+    "name": "Gamma-128GB Linux CI (isolated VM)",
+    "leases": 1,
+    "capacity": 1,
+    "accepting": false,
+    "latest": "2026-11-24T05:49:45.17589Z",
+    "fresh": "stale"
+  }
+}

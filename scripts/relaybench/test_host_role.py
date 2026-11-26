@@ -172,7 +172,8 @@ class HostRoleTests(unittest.TestCase):
                 (scope / key).write_text(value)
             sock = home / "oci.sock"
             sock.touch()
-            config = dict(worker="w", kernel="/same/Image", memoryMiB=4096, publishedPath="macvlan")
+            config = dict(worker="w", kernel="/same/Image", memoryMiB=4096, publishedPath="macvlan",
+                          workspace=str(root / "workspace"))
             session = dict(instance="boot", nativeOCI=True, started=True, owner={"pid": 102},
                            publishedRelayWorkers=2, publishedRelayCallbackEvents=128,
                            readySocket=dict(worker="w", device=sock.stat().st_dev, inode=sock.stat().st_ino))
@@ -234,12 +235,70 @@ class HostRoleTests(unittest.TestCase):
                 container["Mounts"][0]["RW"] = True
                 with self.assertRaisesRegex(ValueError, "read-only"):
                     pilot.inspect(scope, 4, False, "Standard")
+                target = "/mpcheck"
+                source = str(root / "workspace/probe")
+                native = {"Type": "bind", "Source": source, "Target": target, "ReadOnly": True}
+                container["HostConfig"] = {"Mounts": [native], "Binds": None}
+                # A contradictory runtime inspection must never fall back to the declaration.
+                with self.assertRaisesRegex(ValueError, "read-only"):
+                    pilot.inspect(scope, 4, False, "Standard")
+                container["Mounts"] = None
+                fx = pilot.inspect(scope, 4, False, "Standard")
+                self.assertEqual(fx["guest_probe_mount"], {
+                    "source": "HostConfig.Mounts", "bind_source": source, "target": target, "readonly": True})
+                self.assertEqual(fx["guest_probe_sha256"], role.GUEST_PROBE_SHA256)
+                with patch.dict(outputs, probe="wrong"), self.assertRaisesRegex(ValueError, "unrecognized running"):
+                    pilot.inspect(scope, 4, False, "Standard")
+                for change in ({"ReadOnly": False}, {"ReadOnly": "true"}, {"Source": str(root)},
+                               {"Target": "/elsewhere"}, {"Type": "volume"}):
+                    with self.subTest(change=change), patch.dict(native, change), self.assertRaisesRegex(
+                            ValueError, "read-only"):
+                        pilot.inspect(scope, 4, False, "Standard")
+                for shadow in (target, target + "/netbench"):
+                    with self.subTest(shadow=shadow), patch.dict(container["HostConfig"], Binds=[source + ":" + shadow]), \
+                            self.assertRaisesRegex(ValueError, "unshadowed"):
+                        pilot.inspect(scope, 4, False, "Standard")
                 job["ProcessType"] = "Interactive"
                 (owner / "job.plist").write_bytes(plistlib.dumps(job))
                 outputs["spawn"] = "interactive (4)"
                 worker = pilot.inspect(scope, 4, False, worker_count=2)
                 self.assertEqual((worker["relay_nice"], worker["relay_workers"]), (7, 2))
                 self.assertEqual(len(worker["job_controls_sha256"]), 64)
+
+                # The signed stock executable used for the disposable baseline omits both readbacks.
+                del session["publishedRelayReadBytes"], session["publishedRelayCallbackEvents"]
+                (home / "session.json").write_text(json.dumps(session))
+                mapping = dict(sha256=pilot.STOCK_RELAY_SHA, pid=102, device=11, inode=12)
+                with patch.object(pilot, "mapped_executable", return_value=mapping):
+                    peer = pilot.inspect(scope, 4, False, peer_arm=True)
+                    self.assertEqual((peer["callback_events"], peer["read_bytes"]), (128, 262144))
+                    self.assertEqual(peer["stock_build_controls"]["mapped_executable"], mapping)
+                    self.assertEqual(peer["stock_build_controls"]["session_controls"],
+                                     dict(callback_events=None, read_bytes=None))
+                    for bad in ({"publishedRelayReadBytes": 524288}, {"publishedRelayReadBytes": 262144.0},
+                                {"publishedRelayCallbackEvents": 24}, {"publishedRelayWorkers": 4}):
+                        with self.subTest(bad=bad), patch.dict(session, bad):
+                            (home / "session.json").write_text(json.dumps(session))
+                            with self.assertRaises(ValueError):
+                                pilot.inspect(scope, 4, False, peer_arm=True)
+                    (home / "session.json").write_text(json.dumps(session))
+                    with patch.object(pilot, "digest", return_value="other kernel"), self.assertRaisesRegex(ValueError, "kernel"):
+                        pilot.inspect(scope, 4, False, peer_arm=True)
+                    with patch.dict(mapping, sha256="b"*64):
+                        other = pilot.inspect(scope, 4, False, peer_arm=True)
+                        self.assertIsNone(other["read_bytes"])
+                        self.assertIsNone(other["callback_events"])
+                        self.assertNotIn("stock_build_controls", other)
+                    with patch.dict(outputs, spawn="daemon (3)"), self.assertRaisesRegex(ValueError, "role"):
+                        pilot.inspect(scope, 4, False, peer_arm=True)
+                    job["ProcessType"] = "Standard"
+                    (owner / "job.plist").write_bytes(plistlib.dumps(job))
+                    with self.assertRaisesRegex(ValueError, "expected live Standard"):
+                        pilot.inspect(scope, 4, False, process_type="Standard", peer_arm=True)
+                    with patch.dict(outputs, spawn="daemon (3)", probe="not-mounted"):
+                        peer = pilot.inspect(scope, 4, False, process_type="Standard", peer_arm=True)
+                    self.assertEqual((peer["spawn_type"], peer["read_bytes"]), ("daemon (3)", 262144))
+                    self.assertNotIn("guest_probe_sha256", peer)
 
     def test_decision_rejects_a_faster_dirty_or_slower_to_schedule_candidate(self):
         def series():

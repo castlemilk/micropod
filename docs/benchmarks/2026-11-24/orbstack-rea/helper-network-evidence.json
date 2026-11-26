@@ -1,0 +1,28 @@
+{
+  "binary": "/Applications/OrbStack.app/Contents/Frameworks/OrbStack Helper.app/Contents/MacOS/OrbStack Helper",
+  "sha256": "9898a51367c3097131ff2aec51242c7386827b0a1074014605340b354cc39b1e",
+  "arch": "arm64",
+  "signature": {
+    "rea_evidence_id": "ev_c5f419ac9bbf5c7775eea06b548b700e94b9b1e71a17554da99e5cf7a726af46",
+    "identifier": "dev.kdrag0n.MacVirt.vmgr",
+    "signed": true,
+    "selected_entitlements": {
+      "com.apple.security.hypervisor": true,
+      "com.apple.security.virtualization": true,
+      "com.apple.vm.networking": true
+    }
+  },
+  "macho": {
+    "rea_evidence_id": "ev_6e5478a44cdd169ba387891682fb27858f7c27b1ad2c438ec2a444a29f442dee",
+    "imports_exhaustive": false,
+    "selected_imports": [
+      "_vmnet_enable_checksum_offload_key",
+      "_vmnet_enable_tso_key",
+      "_vmnet_start_interface",
+      "_vmnet_read",
+      "_vmnet_write",
+      "_hv_vcpu_run"
+    ]
+  },
+  "scope": "Static inspection of the installed helper. The signed capabilities and imported vmnet keys do not establish negotiated feature values or the route carrying a published connection."
+}

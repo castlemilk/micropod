@@ -1,0 +1,13 @@
+{
+  "idle_observations": [
+    {
+      "elapsed_seconds": 1.0098017909986083,
+      "idle_pct": 96.31,
+      "paired_idle_gap_pp": null,
+      "eligible": true
+    }
+  ],
+  "idle_pct": 96.31,
+  "paired_idle_gap_pp": null,
+  "idle_gate_passed": true
+}

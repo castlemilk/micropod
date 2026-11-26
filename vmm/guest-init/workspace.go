@@ -15,6 +15,39 @@ const (
 	encodedWorkspaceArg = "mp.workspace_b64"
 )
 
+// The host config share: machine policy the host renders (cache-policy.json)
+// for the engine, mounted read-only. Hosts that predate it pass no mp.config.
+const (
+	hostConfigArg   = "mp.config"
+	hostConfigTag   = "mp-config"
+	hostConfigMount = "/run/micropod/host-config"
+)
+
+func cmdlineParams(fields []string) map[string]string {
+	out := map[string]string{}
+	for _, f := range fields {
+		if k, v, ok := strings.Cut(f, "="); ok {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// hostConfigRequested reports whether the host shares its config directory
+// (mp.config=1). Any other value mounts nothing, and is returned as an error
+// to log: the engine then runs on its built-in policy defaults.
+func hostConfigRequested(params map[string]string) (bool, error) {
+	value, ok := params[hostConfigArg]
+	switch {
+	case !ok || value == "0":
+		return false, nil
+	case value == "1":
+		return true, nil
+	default:
+		return false, fmt.Errorf("ignoring %s=%q (want 1)", hostConfigArg, value)
+	}
+}
+
 func parseWorkspace(fields []string) (string, error) {
 	var workspace string
 	var seen bool

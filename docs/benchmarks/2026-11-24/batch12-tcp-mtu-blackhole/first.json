@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-24",
+  "stable_id": "229.02",
+  "tier": "source/fixture",
+  "micropod_head": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "linux": "v7.3.5",
+  "kernel_config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+  "hz": 250,
+  "source_sha256": {
+    "fixture.c": "ced492d5d9c536c65d2a5bc5a0cef18616d651309346c22bb51afaad6bf9c016",
+    "kernel_excerpt.h": "22f5806a501bf27248b5bd8025a8f9a5e0f1bf134285b8485902d896f50a96ee",
+    "source.json": "fee877287a13e5df96f21f4b8f47371eb254847e02ab4e8c2750b94ffb39db83",
+    "reproduce.py": "6180045108101ae5be1b3507addcc71f12f3219f0150c1dcc4dc50f492599bb4"
+  },
+  "fixture": {
+    "ipv4_header": 20,
+    "tcp_header_including_timestamps": 32,
+    "cached_pmtu": 9000,
+    "advertised_mss": 8960,
+    "tcp_window": 262144,
+    "bottleneck_mtu": 1500,
+    "feedback": "no ICMP PTB; unchanged destination",
+    "df": true,
+    "payload_bytes": 17896,
+    "payload_sha256": "6314f40f21d3267ee0c4a0b2c1178047a77bdc3d9c8e49f0be877d529ba44013"
+  },
+  "observations": [
+    {
+      "tcp_mtu_probing": 0,
+      "elapsed_since_first_retransmit_ms": 0,
+      "send_mss": 8948,
+      "probing_enabled": 0,
+      "search_low_mtu": 1076,
+      "simulated_df_receiver": {
+        "accepted": 0,
+        "rejected_oversize": 2,
+        "receiver_bytes": 0,
+        "receiver_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete": false
+      }
+    },
+    {
+      "tcp_mtu_probing": 0,
+      "elapsed_since_first_retransmit_ms": 2996,
+      "send_mss": 8948,
+      "probing_enabled": 0,
+      "search_low_mtu": 1076,
+      "simulated_df_receiver": {
+        "accepted": 0,
+        "rejected_oversize": 2,
+        "receiver_bytes": 0,
+        "receiver_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete": false
+      }
+    },
+    {
+      "tcp_mtu_probing": 0,
+      "elapsed_since_first_retransmit_ms": 3000,
+      "send_mss": 8948,
+      "probing_enabled": 0,
+      "search_low_mtu": 1076,
+      "simulated_df_receiver": {
+        "accepted": 0,
+        "rejected_oversize": 2,
+        "receiver_bytes": 0,
+        "receiver_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete": false
+      }
+    },
+    {
+      "tcp_mtu_probing": 1,
+      "elapsed_since_first_retransmit_ms": 0,
+      "send_mss": 8948,
+      "probing_enabled": 0,
+      "search_low_mtu": 1076,
+      "simulated_df_receiver": {
+        "accepted": 0,
+        "rejected_oversize": 2,
+        "receiver_bytes": 0,
+        "receiver_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete": false
+      }
+    },
+    {
+      "tcp_mtu_probing": 1,
+      "elapsed_since_first_retransmit_ms": 2996,
+      "send_mss": 8948,
+      "probing_enabled": 0,
+      "search_low_mtu": 1076,
+      "simulated_df_receiver": {
+        "accepted": 0,
+        "rejected_oversize": 2,
+        "receiver_bytes": 0,
+        "receiver_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete": false
+      }
+    },
+    {
+      "tcp_mtu_probing": 1,
+      "elapsed_since_first_retransmit_ms": 3000,
+      "send_mss": 1024,
+      "probing_enabled": 1,
+      "search_low_mtu": 1076,
+      "simulated_df_receiver": {
+        "accepted": 18,
+        "rejected_oversize": 0,
+        "receiver_bytes": 17896,
+        "receiver_sha256": "6314f40f21d3267ee0c4a0b2c1178047a77bdc3d9c8e49f0be877d529ba44013",
+        "complete": true
+      }
+    }
+  ]
+}

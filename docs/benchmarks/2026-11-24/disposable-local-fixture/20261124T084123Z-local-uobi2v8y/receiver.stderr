@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 385, in <module>
+    run(p.parse_args())
+    ~~~^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 273, in run
+    fixtures[arm], dockers[arm] = scope_fixture(args, arm)
+                                  ~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 142, in scope_fixture
+    boot = path_pilot.kernel_facts(relay, home, raw.decode())
+  File "/Users/benebsworth/projects/micropod/bench/kernel-path-20261122/scripts/gamma_path_pilot.py", line 213, in kernel_facts
+    and (live["sched_ext"] is None or live["sched_ext"]["state"] == "disabled"),
+         ~~~~^^^^^^^^^^^^^
+KeyError: 'sched_ext'

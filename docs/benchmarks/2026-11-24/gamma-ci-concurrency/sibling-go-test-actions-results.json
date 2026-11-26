@@ -1,0 +1,262 @@
+{
+  "archive": "20261125T054552Z-sibling-go-test-actions-htr7sfgd",
+  "stock_image_go": "go version go1.26.11 linux/arm64",
+  "instrumented_go_test_invocations": 128,
+  "action_nodes": 50432,
+  "action_nodes_per_invocation": [
+    394
+  ],
+  "external_commands": 640,
+  "external_commands_by_tool": {
+    "link": 256,
+    "vet": 128,
+    "compile": 256
+  },
+  "full_http_and_ci_replay": {
+    "offered_requests": 768000,
+    "completed_requests": 768000,
+    "warm_connections": 256,
+    "jobs": 64,
+    "revisions": 128,
+    "test_passes": 1024
+  },
+  "minimum_first_build_end_margin_ns": 1212044125,
+  "selected_slot_result": {
+    "all": [
+      {
+        "pairs": 32,
+        "phase_mean_ns": -15077199.71875,
+        "phase_median_ns": -37344425.0,
+        "group_mean_ns": {
+          "after_last_action": -6038591.09375,
+          "before_first_action": -22604144.8125,
+          "between_actions": 400628.90625,
+          "build check cache": -10918358.84375,
+          "external_build_action": -11089250.65625,
+          "link": 173094.375,
+          "other_action": -1847002.0625,
+          "other_build_action": -84922.8125,
+          "test run": 8078056.125,
+          "vet": 28853291.15625
+        },
+        "group_median_ns": {
+          "after_last_action": -3823857.5,
+          "before_first_action": -4464020.5,
+          "between_actions": 514587.0,
+          "build check cache": -10573385.0,
+          "external_build_action": -19192472.5,
+          "link": -735785.0,
+          "other_action": -631772.0,
+          "other_build_action": 33862.0,
+          "test run": 11387467.0,
+          "vet": 28932667.0
+        },
+        "tool_mean_gap_ns": {
+          "compile": {
+            "wall": -13163537.96875,
+            "user": -1717656.25,
+            "system": -1456218.75
+          },
+          "vet": {
+            "wall": 17816332.125,
+            "user": -117312.5,
+            "system": 467093.75
+          },
+          "link": {
+            "wall": -6075431.53125,
+            "user": -6125406.25,
+            "system": -361218.75
+          }
+        }
+      },
+      {
+        "pairs": 32,
+        "phase_mean_ns": -773639.96875,
+        "phase_median_ns": -2340278.5,
+        "group_mean_ns": {
+          "after_last_action": -3953248.46875,
+          "before_first_action": 4501945.6875,
+          "between_actions": 201960.9375,
+          "build check cache": -1730430.03125,
+          "external_build_action": 8343682.15625,
+          "link": -10458732.71875,
+          "other_action": -702323.21875,
+          "other_build_action": 2616.90625,
+          "test run": 388504.15625,
+          "vet": 2632384.625
+        },
+        "group_median_ns": {
+          "after_last_action": -3371130.5,
+          "before_first_action": 4068541.0,
+          "between_actions": 158335.5,
+          "build check cache": -2920057.0,
+          "external_build_action": 8230673.0,
+          "link": -8168126.0,
+          "other_action": -284697.0,
+          "other_build_action": 3102.5,
+          "test run": 617974.0,
+          "vet": 1860221.0
+        },
+        "tool_mean_gap_ns": {
+          "compile": {
+            "wall": 8364077.65625,
+            "user": 884281.25,
+            "system": 759281.25
+          },
+          "vet": {
+            "wall": 1104013.0625,
+            "user": -1100937.5,
+            "system": 769593.75
+          },
+          "link": {
+            "wall": -12442141.125,
+            "user": -4017000.0,
+            "system": -1939875.0
+          }
+        }
+      }
+    ],
+    "native_last_two": [
+      {
+        "pairs": 8,
+        "phase_mean_ns": 17575125.75,
+        "phase_median_ns": 16446382.0,
+        "group_mean_ns": {
+          "after_last_action": -6574701.25,
+          "before_first_action": -4573322.125,
+          "between_actions": 502200.625,
+          "build check cache": -9304894.5,
+          "external_build_action": 16315892.5,
+          "link": -8573212.875,
+          "other_action": -1097533.25,
+          "other_build_action": 65614.5,
+          "test run": 9568416.5,
+          "vet": 21246665.625
+        },
+        "group_median_ns": {
+          "after_last_action": -3105004.0,
+          "before_first_action": -3422056.5,
+          "between_actions": 418815.5,
+          "build check cache": -12154760.0,
+          "external_build_action": -4408427.0,
+          "link": -9221225.0,
+          "other_action": -569309.5,
+          "other_build_action": -16998.0,
+          "test run": 13735307.0,
+          "vet": -1467681.0
+        },
+        "tool_mean_gap_ns": {
+          "compile": {
+            "wall": 14389047.125,
+            "user": -9063875.0,
+            "system": 5740375.0
+          },
+          "vet": {
+            "wall": 15349145.625,
+            "user": 974750.0,
+            "system": -646375.0
+          },
+          "link": {
+            "wall": -14499002.375,
+            "user": -7680750.0,
+            "system": -70375.0
+          }
+        }
+      },
+      {
+        "pairs": 8,
+        "phase_mean_ns": 24626588.5,
+        "phase_median_ns": 1857885.5,
+        "group_mean_ns": {
+          "after_last_action": -3904745.25,
+          "before_first_action": 9677702.25,
+          "between_actions": 73368.0,
+          "build check cache": 5990880.5,
+          "external_build_action": 12481596.875,
+          "link": -8509468.75,
+          "other_action": -1757402.0,
+          "other_build_action": 16054.875,
+          "test run": 2723428.75,
+          "vet": 7835173.25
+        },
+        "group_median_ns": {
+          "after_last_action": -3618061.5,
+          "before_first_action": 7042737.5,
+          "between_actions": 9370.0,
+          "build check cache": 6200006.0,
+          "external_build_action": 12050544.0,
+          "link": -5568590.0,
+          "other_action": -721311.5,
+          "other_build_action": -6864.0,
+          "test run": 2957946.5,
+          "vet": 8610889.5
+        },
+        "tool_mean_gap_ns": {
+          "compile": {
+            "wall": 12541775.375,
+            "user": 88125.0,
+            "system": 1233125.0
+          },
+          "vet": {
+            "wall": 4200000.75,
+            "user": -359500.0,
+            "system": 118625.0
+          },
+          "link": {
+            "wall": -11035495.25,
+            "user": -2776625.0,
+            "system": -1837500.0
+          }
+        }
+      }
+    ]
+  },
+  "shared_drive_source_sha256": "e68731ce5ff24b1989fdd8d42553d0c5fab412bc8c196f7aa5a79b3a82db15df",
+  "host_volume": {
+    "host_worker_volume": "apfs-no-index",
+    "scope": "/private/tmp/mp-t-axb7q3rb",
+    "mount": "/private/tmp/mp-t-axb7q3rb/a",
+    "image": "/private/tmp/mp-t-axb7q3rb/a-worker.sparseimage",
+    "volume_uuid": "36652ddd-9146-4bab-b28a-88caf5177067",
+    "container_uuid": "bfdeeda2-e0fc-4961-9ef1-68b01256307c",
+    "partition_uuid": "ee5f351e-c55b-46fa-96f2-ab4d92b732f7",
+    "device": "disk14s1",
+    "container_device": "disk14",
+    "image_device": "disk13",
+    "partition_device": "disk13s2",
+    "volume_st_dev": 16777259,
+    "image_st_dev": 16777232,
+    "image_inode": 1226421253,
+    "volume_name": "MicropodCI-7669b782cba0",
+    "mountpoint_inode": 1226421248,
+    "raw_disk": {
+      "path": "/private/tmp/mp-t-axb7q3rb/a/worker.ext4",
+      "raw_st_dev": 16777259,
+      "parent_st_dev": 16777232,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "configured_disk_gib": 6
+    },
+    "spotlight": {
+      "live": "Indexing and searching disabled.",
+      "post": "Indexing and searching disabled."
+    },
+    "journal_files": 0,
+    "journal_bytes": 0,
+    "journal_observed_through": "read_only_remount",
+    "live_observed_unix_ns": 1795585558588830000,
+    "post_observed_unix_ns": 1795585642300357000,
+    "detached": true,
+    "persisted_policy": {
+      "read_only": true,
+      "device": "disk14s1",
+      "volume_st_dev": 16777259,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "spotlight": "Indexing and searching disabled.",
+      "journal_files": 0,
+      "journal_bytes": 0
+    }
+  },
+  "baseline_files_and_copies_verified": 24
+}

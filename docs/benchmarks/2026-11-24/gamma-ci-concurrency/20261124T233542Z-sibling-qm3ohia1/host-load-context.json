@@ -1,0 +1,24 @@
+{
+  "before_boot": {
+    "utc": "2026-11-24T23:35:42.205465+00:00",
+    "host_idle_pct": 92,
+    "load_average": [
+      4.53,
+      5.66,
+      5.54
+    ],
+    "iostat": "      cpu    load average\n us sy id   1m   5m   15m\n 19  9 72  4.53 5.66 5.54\n  5  3 92  4.53 5.66 5.54\n",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+  },
+  "after_cleanup": {
+    "utc": "2026-11-24T23:38:22.741942+00:00",
+    "host_idle_pct": 95,
+    "load_average": [
+      4.66,
+      5.09,
+      5.31
+    ],
+    "iostat": "      cpu    load average\n us sy id   1m   5m   15m\n 19  9 72  4.66 5.09 5.31\n  2  2 95  4.66 5.09 5.31\n",
+    "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+  }
+}

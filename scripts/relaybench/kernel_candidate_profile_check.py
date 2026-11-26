@@ -50,6 +50,7 @@ exec "$SYSTEM_SHA256SUM" "$@"''')
     case "$RESOLUTION" in
         resolved|publish-copy|publish-hash) scripts/config -e PAGE_SIZE_16KB -d PAGE_SIZE_4KB --set-val PAGE_SHIFT 14 ;;
         conflict) scripts/config -e PAGE_SIZE_16KB --set-val PAGE_SHIFT 14 -e ARM64_4K_PAGES ;;
+        thp-disabled) scripts/config -d TRANSPARENT_HUGEPAGE ;;
     esac
     exit 0
 fi
@@ -98,8 +99,23 @@ exit 1''')
         errors, _ = run("full-16k", "existing", 1, control_out)
         if "requires a new output directory" not in errors:
             raise ValueError("builder accepted control output as candidate destination")
+
+        thp_out = work / "mthp-output"
+        _, thp = run("full-mthp", "unchanged", 75, thp_out)
+        thp_delta = {key: thp.get(key) for key in control.keys() | thp.keys() if control.get(key) != thp.get(key)}
+        if thp_delta != {"CONFIG_TRANSPARENT_HUGEPAGE": "y", "CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS": "n",
+                         "CONFIG_TRANSPARENT_HUGEPAGE_MADVISE": "y"}:
+            raise ValueError(f"unexpected mTHP config edits: {thp_delta}")
+        for resolution, option in (("resolved", "PAGE_SHIFT=12"), ("thp-disabled", "TRANSPARENT_HUGEPAGE=y")):
+            errors, _ = run("full-mthp", resolution, 1, thp_out)
+            if "Missing 4 KiB THP kernel setting " + option not in errors or thp_out.exists():
+                raise ValueError(f"mTHP profile did not reject {resolution} before publishing")
+        errors, _ = run("full-mthp", "existing", 1, control_out)
+        if "requires a new output directory" not in errors:
+            raise ValueError("mTHP builder accepted an existing control directory")
         return {"linux_source_sha256": ARCHIVE_SHA256, "apple_seed_sha256": hashlib.sha256(seed.read_bytes()).hexdigest(),
                 "requested_config_differences": delta, "resolved_page_guard_fixture_checks": ["stale", "conflicting"],
+                "mthp_requested_config_edits": thp_delta, "mthp_guards_checked": ["page shift", "THP", "existing output"],
                 "existing_control_directory_refused": True, "retry_after_fixture_failures": ["copy", "checksum"],
                 "kernel_builds": 0, "boots": 0}
 

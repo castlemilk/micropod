@@ -1,0 +1,2579 @@
+{
+  "arm": "A",
+  "block": 0,
+  "pre_idle": 89.02,
+  "resident_services": 32,
+  "running_ephemeral_at_barrier": 32,
+  "provision_and_inspect_s": 0.9864822079980513,
+  "job_release_monotonic_s": 44813.329706916,
+  "invocation": {
+    "arguments": [
+      "--targets",
+      "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T190518Z-link-peer-4kaav1ag/targets-A.tsv"
+    ],
+    "target_sha256": "361090732ec7274ecc05c97329137554d2a6b328527b3d08b9c920e0bfd107af",
+    "started_s": 44813.3423955,
+    "ended_s": 44819.446601083
+  },
+  "jobs": [
+    {
+      "id": "abe51553982ce1747a6855b2020a1af3aa3f59f62f408e2532db273d73245f0e",
+      "name": "mci-f571112e1f-a-ep0-0",
+      "kind": "fail",
+      "revision": "e0j00",
+      "docker_cpu_list": "0-3",
+      "exit": 1,
+      "submitted_s": 0.00037037499714642763,
+      "finished_s": 1.8239188339939574,
+      "receipts": [],
+      "failure_log": "waiting-for-dispatch\nmci-build-cgroup=0-3 quota=100000 100000\nmci-build-cpus=0-3\n=== RUN   TestFanoutRevision\n    fanout_test.go:4: built \"seed\", want \"e0j00-deliberate-mismatch\"\n--- FAIL: TestFanoutRevision (0.00s)\nFAIL\nFAIL\tgithub.com/castlemilk/micropod/guest\t0.031s\nFAIL\n\n",
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000"
+    },
+    {
+      "id": "d8bbc295947ccd79a5762a6ab8af4df9a5e8b44b33457ebfa895e54059f445ec",
+      "name": "mci-f571112e1f-a-ep0-1",
+      "kind": "cancel",
+      "revision": "e0j01",
+      "docker_cpu_list": "0-3",
+      "exit": 137,
+      "submitted_s": 0.0005296249946695752,
+      "finished_s": 1.1625114589987788,
+      "receipts": [],
+      "failure_log": "waiting-for-dispatch\nmci-build-cgroup=0-3 quota=100000 100000\nmci-build-cpus=0-3\ncancellation-step-started\n\n",
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000"
+    },
+    {
+      "id": "3c420c9a292a1b8dae05ee9a13e79dd0d5054df17e0fc42634d77ea781670956",
+      "name": "mci-f571112e1f-a-ep0-2",
+      "kind": "pass",
+      "revision": "e0j02",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 0.0033195419964613393,
+      "finished_s": 6.988909416999377,
+      "receipts": [
+        {
+          "revision": "e0j02-a",
+          "container": "mp-62113a7589fa2ae97571ae82124ca29d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.050008,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c89e8f7e9640a5cb57b8c0599e5ceac5cabde1ec9de52a0c0e2fbb11a7de7b9d",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j02-b",
+          "container": "mp-62113a7589fa2ae97571ae82124ca29d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.765953,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "382f45a8484a26c6b87a5a9de8f5201062f60148a08b5e68c82b3127c5602325",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 65,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1138997,
+        "system_usec": 802420
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 1847,
+        "volume_id": 1839
+      }
+    },
+    {
+      "id": "e74007a861e3133fb8f67788ca55e432104c67964175ba9101c30fa71fc1bff4",
+      "name": "mci-f571112e1f-a-ep0-3",
+      "kind": "pass",
+      "revision": "e0j03",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 0.0064826669986359775,
+      "finished_s": 6.913179208997462,
+      "receipts": [
+        {
+          "revision": "e0j03-a",
+          "container": "mp-eec3c9c5aa5ef23f4bf7cd9f38e655a5",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.041425,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "151153db8cafe0fa29f5b956c609914282dc8916c85a2220051b2ca73789a744",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j03-b",
+          "container": "mp-eec3c9c5aa5ef23f4bf7cd9f38e655a5",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.86519,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "6e577d115a2fac78519f2ee0d941959e596168b91201242b3ff8ca5ba28ad317",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 65,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1111462,
+        "system_usec": 905752
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 1887,
+        "volume_id": 1879
+      }
+    },
+    {
+      "id": "66e8d17db550adc61f250bb88124aa6d61e9114cdb541ee442bc15fbe1bb9f1f",
+      "name": "mci-f571112e1f-a-ep0-4",
+      "kind": "pass",
+      "revision": "e0j04",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 0.00919779199466575,
+      "finished_s": 6.839770874998067,
+      "receipts": [
+        {
+          "revision": "e0j04-a",
+          "container": "mp-ff61319b2c67cba82a51d77c276f40d1",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.962762,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "69438de62fc21b556ecee9235d84fad1a214c0360075bbc59202c790518f7be4",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j04-b",
+          "container": "mp-ff61319b2c67cba82a51d77c276f40d1",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.913768,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "663fb57d089ce1a9950af33742eedf1cfe3664d96946bd9823bb1f1e614de97f",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 64,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1174794,
+        "system_usec": 791636
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2025,
+        "volume_id": 2017
+      }
+    },
+    {
+      "id": "d92100b72d552c8e9d3c268f0339814bde3796bd61aa6dff0c89024f97f1abb4",
+      "name": "mci-f571112e1f-a-ep0-5",
+      "kind": "pass",
+      "revision": "e0j05",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 0.014906999997037929,
+      "finished_s": 7.301080708995869,
+      "receipts": [
+        {
+          "revision": "e0j05-a",
+          "container": "mp-225c7d8de06eedabc7c365aa36ed1248",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.197562,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "e97319dfd0dc5917dd5bc6b5621d40fbb86b0ec072bcf5bb49c4dae853f795a9",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j05-b",
+          "container": "mp-225c7d8de06eedabc7c365aa36ed1248",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.652885,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c01cb0e552275a2ff4653b1aa5111afba67d19424f1a6f1ec496b7ab374d3dc1",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 67,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1106014,
+        "system_usec": 855978
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2045,
+        "volume_id": 2037
+      }
+    },
+    {
+      "id": "a6f259e5b30dd42f5bdcb2c334fd036bb2f80e15a93fbdf42eaa682f796c1b80",
+      "name": "mci-f571112e1f-a-ep0-6",
+      "kind": "pass",
+      "revision": "e0j06",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 0.01738695899985032,
+      "finished_s": 6.989036708997446,
+      "receipts": [
+        {
+          "revision": "e0j06-a",
+          "container": "mp-16957a2bb3930ad934f60f757b67418a",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.050746,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "57e16ec27b8ba9ce2ba6568111a204e0bde4da2cd7d0c97e11f6cdcb3c6a211d",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j06-b",
+          "container": "mp-16957a2bb3930ad934f60f757b67418a",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.824974,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "30ac4cca465c5ba88026526568160d64353d4627a7530aef9de06873921746af",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 65,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1176606,
+        "system_usec": 797382
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2099,
+        "volume_id": 2084
+      }
+    },
+    {
+      "id": "1474b6ba247780ba7ac259969cb945d6335447fccfa767ddfb898b52e16fd0fe",
+      "name": "mci-f571112e1f-a-ep0-7",
+      "kind": "pass",
+      "revision": "e0j07",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 0.017717791997711174,
+      "finished_s": 6.992155041996739,
+      "receipts": [
+        {
+          "revision": "e0j07-a",
+          "container": "mp-16f75da34d4ae553b1b4c853422f59ca",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.068875,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "a8040b0478f810eb4428d0e82d3a734240c1f956a3b7e603d0549f3085225c74",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j07-b",
+          "container": "mp-16f75da34d4ae553b1b4c853422f59ca",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.797194,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "486dd2c895ab7143974ec7dcf1954c6b81931530a1484f4e41fdfb6042a62bfc",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 66,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1161568,
+        "system_usec": 800556
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2108,
+        "volume_id": 2085
+      }
+    },
+    {
+      "id": "18d63a147532069bdbc7e59b75154c01933a3fd6a6d07a94fd49528e1f48adf2",
+      "name": "mci-f571112e1f-a-ep0-8",
+      "kind": "pass",
+      "revision": "e0j08",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 1.1625571249969653,
+      "finished_s": 7.323895666995668,
+      "receipts": [
+        {
+          "revision": "e0j08-a",
+          "container": "mp-4ba4265f9d7c5953e38fb6e70117c762",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.148128,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "4b8d1273f2930aa02bfb39cfa3896b0429e04cf82ab4e18378d55e875f996bcb",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j08-b",
+          "container": "mp-4ba4265f9d7c5953e38fb6e70117c762",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.549496,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c55795b62c85cfe1f6dfa000ff10a27e83a805cf4b92d4b2a77136507e04ba47",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 55,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1104893,
+        "system_usec": 691808
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2245,
+        "volume_id": 2237
+      }
+    },
+    {
+      "id": "37e49262966c0f038b35b7ebfce85484c0d7620573b72724117e2a6a38113ca7",
+      "name": "mci-f571112e1f-a-ep0-9",
+      "kind": "pass",
+      "revision": "e0j09",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 1.8239785419937107,
+      "finished_s": 7.505521999999473,
+      "receipts": [
+        {
+          "revision": "e0j09-a",
+          "container": "mp-359374dcb6a1424413aa41e22024fe4d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 1.175606,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "6ee74fff767fe7a9b5e66da0abfd0ad248d06d4908bda736b43ba834631cba9e",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j09-b",
+          "container": "mp-359374dcb6a1424413aa41e22024fe4d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.480704,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "fb4bfb44d655152063e29851f624dbd2ec64d4ddaf14b858a7609375ba76db19",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 51,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 1121792,
+        "system_usec": 603825
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2219,
+        "volume_id": 2211
+      }
+    },
+    {
+      "id": "a56953800d7501920d9c6b06a28af2833aa28412792cabc339ed9179b4b18634",
+      "name": "mci-f571112e1f-a-ep0-10",
+      "kind": "pass",
+      "revision": "e0j10",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 6.839809583994793,
+      "finished_s": 9.348345749996952,
+      "receipts": [
+        {
+          "revision": "e0j10-a",
+          "container": "mp-5152d132f35578e1695309099a36d6fa",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.487952,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "bf50a1bdccdb2f668904010cbe8bfd5307d9d88f17e23ca1a650ad1b84166a5f",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j10-b",
+          "container": "mp-5152d132f35578e1695309099a36d6fa",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.466464,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "a3cba38a7d65dfef19e66acee5cdb3c4a52f2cf9ff79f0db4450ba5be856d394",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 19,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 838528,
+        "system_usec": 179050
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2301,
+        "volume_id": 2283
+      }
+    },
+    {
+      "id": "9c85897eff1f3034eea41e3ead623435bfc09766ebd5acbf7522150346d08d05",
+      "name": "mci-f571112e1f-a-ep0-11",
+      "kind": "pass",
+      "revision": "e0j11",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 6.913210833998164,
+      "finished_s": 9.337716999994882,
+      "receipts": [
+        {
+          "revision": "e0j11-a",
+          "container": "mp-0047ac36f9b15d5220b1605dc62de72b",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.468415,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "f608e5d2c73bf394bc842d5ed192767eab4ed2de64d0f2c46b1226c7342b6894",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j11-b",
+          "container": "mp-0047ac36f9b15d5220b1605dc62de72b",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.462048,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "380f702b1c21e86c6744208943164a8e7249690ad5bca3eaf49bcabe412d97c3",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 19,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 810364,
+        "system_usec": 183125
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2299,
+        "volume_id": 2284
+      }
+    },
+    {
+      "id": "814181846bd53ea520a3e0d3fef6b5f44bef0db92b8677da93a6d1be13e2a057",
+      "name": "mci-f571112e1f-a-ep0-12",
+      "kind": "pass",
+      "revision": "e0j12",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 6.988942208998196,
+      "finished_s": 9.44546391699987,
+      "receipts": [
+        {
+          "revision": "e0j12-a",
+          "container": "mp-7a885a3689a7f543a646982293eea2c9",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.47177,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "ff6e8e42c68f52aad8fa4562fcae2f3d48940084a6c9e925112d8e3cbc702be1",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j12-b",
+          "container": "mp-7a885a3689a7f543a646982293eea2c9",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.483269,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "0ff84280d7b9529bb8b2b7b1261dad2f87934499f900ad1932d9257b475fbf9b",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 21,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 822128,
+        "system_usec": 200836
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2445,
+        "volume_id": 2437
+      }
+    },
+    {
+      "id": "e597b75b0eb8e482e814e6062c3b817cb7d770d357c6593b1b3e6bcab1338089",
+      "name": "mci-f571112e1f-a-ep0-13",
+      "kind": "pass",
+      "revision": "e0j13",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 6.989045624999562,
+      "finished_s": 9.3164414999992,
+      "receipts": [
+        {
+          "revision": "e0j13-a",
+          "container": "mp-14336a4c679df557c96a6fafc0c42908",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.469423,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "d9049a7d352df3a56d0e72ff5c6c6cbe9cab5cb87643f824f7026eed002b14b1",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j13-b",
+          "container": "mp-14336a4c679df557c96a6fafc0c42908",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.465563,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "43e460f2944e362497956e245ffa0d896f9d3c1c354c804f07f0c715a2e51b97",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 783677,
+        "system_usec": 213456
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2425,
+        "volume_id": 2417
+      }
+    },
+    {
+      "id": "629c4810342ebef19d187883934deacb3aff060a836330b0a4a10ff428b54cbc",
+      "name": "mci-f571112e1f-a-ep0-14",
+      "kind": "pass",
+      "revision": "e0j14",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 6.992214708996471,
+      "finished_s": 9.293105249998916,
+      "receipts": [
+        {
+          "revision": "e0j14-a",
+          "container": "mp-3b535e81c7455ee8a47c8ca123369815",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.465117,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "24035923194d2f2447b574b0a489eca3d87457cb0267840eca7d924d3206798f",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j14-b",
+          "container": "mp-3b535e81c7455ee8a47c8ca123369815",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.473002,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "9fefc92b0ab1f111d3a6fd002715421a09c49f3855f7338aeff04638d8105231",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 21,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 778559,
+        "system_usec": 227079
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2501,
+        "volume_id": 2485
+      }
+    },
+    {
+      "id": "21845355ced69a9c5df2a4a306a4dcde9b81c973e4dee49bb28db26683330518",
+      "name": "mci-f571112e1f-a-ep0-15",
+      "kind": "pass",
+      "revision": "e0j15",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 7.301120249998348,
+      "finished_s": 9.705332374993304,
+      "receipts": [
+        {
+          "revision": "e0j15-a",
+          "container": "mp-f376824caae7cfa172cf969cc657b110",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.468997,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "88488efca07fbf863978bd8adffe42ba35d5ed5655529ef58584e92f94dc863b",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j15-b",
+          "container": "mp-f376824caae7cfa172cf969cc657b110",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.485949,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "343c82538ee9bf9133b3a9ea216a3c1cf06d56e0686ef3415291e1a15846725f",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 19,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 789595,
+        "system_usec": 229031
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2499,
+        "volume_id": 2484
+      }
+    },
+    {
+      "id": "7b3fe395abbe79e53ea195f42b4528cd2f3cabd721bb8e70ba00c681b037cfef",
+      "name": "mci-f571112e1f-a-ep0-16",
+      "kind": "pass",
+      "revision": "e0j16",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 7.323931791994255,
+      "finished_s": 9.78790054199635,
+      "receipts": [
+        {
+          "revision": "e0j16-a",
+          "container": "mp-b99c9764b052a20772a9b6d596ca9d47",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.477834,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "cbd86e4ad75bbd0fe090226f0c08798730d245f77777cff46208a29d0bf78670",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j16-b",
+          "container": "mp-b99c9764b052a20772a9b6d596ca9d47",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.497162,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "db86c10f81845295217bc8759834946084099f6aeb411d65fadaad731bd9286b",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 813880,
+        "system_usec": 223475
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2577,
+        "volume_id": 2569
+      }
+    },
+    {
+      "id": "b157e46ff4e13e6dae533e1ecbb68293c0e879428ab4dc974e90afb07ec70610",
+      "name": "mci-f571112e1f-a-ep0-17",
+      "kind": "pass",
+      "revision": "e0j17",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 7.505572666996159,
+      "finished_s": 9.787756624995382,
+      "receipts": [
+        {
+          "revision": "e0j17-a",
+          "container": "mp-d0fb033fa0f717c77f9dd26af091eb75",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.47966,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "9147f1a093f022d5033d95296cb8bb2b9f33b1500613f3e8abecf05dbd3ef24e",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j17-b",
+          "container": "mp-d0fb033fa0f717c77f9dd26af091eb75",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.489229,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "b15f05cea36078240d529687ac2883bf6962b483990c3c6ddf79f82d111b99c0",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 807839,
+        "system_usec": 222622
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2629,
+        "volume_id": 2608
+      }
+    },
+    {
+      "id": "04d25a65e754e3f782f6485559c4d6d4da969d4ffaacfed7e5c5bdef46516d88",
+      "name": "mci-f571112e1f-a-ep0-18",
+      "kind": "pass",
+      "revision": "e0j18",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.293140458998096,
+      "finished_s": 11.833836458994483,
+      "receipts": [
+        {
+          "revision": "e0j18-a",
+          "container": "mp-6e4d88f36bbb2a2a5951b815209a1517",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.473847,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "5bbd6a93fa111e9b06b0059dba6f69ee0974bd62383462965eeb5d269f515b35",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j18-b",
+          "container": "mp-6e4d88f36bbb2a2a5951b815209a1517",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.463417,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "d74cc52e5b850984ab962616ccd1ef4f7c55f9c79ede9269f937a0cac99f505b",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 20,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 821876,
+        "system_usec": 174574
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2677,
+        "volume_id": 2669
+      }
+    },
+    {
+      "id": "a9adac2637bb5cd4a17358d4b3716a82f73c9138afd2c91fa51fedc8e27bdc31",
+      "name": "mci-f571112e1f-a-ep0-19",
+      "kind": "pass",
+      "revision": "e0j19",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.316472624996095,
+      "finished_s": 11.692160291997425,
+      "receipts": [
+        {
+          "revision": "e0j19-a",
+          "container": "mp-645ca666ce4dda990cd35bfebe05a671",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.483028,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "246704e85ee66adf1f6d6b37aa259a20a0db6064b6dbc7b1908b42a80a441196",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j19-b",
+          "container": "mp-645ca666ce4dda990cd35bfebe05a671",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.461047,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c5ac7a982c1c540845f7888eb5d115050ba5162b1a3a24eb121a512f78304155",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 771330,
+        "system_usec": 230730
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2733,
+        "volume_id": 2709
+      }
+    },
+    {
+      "id": "5981b709ec3bce12336ab5c7ed866b6ae7fe6893874e65b4ab000ede74b34c24",
+      "name": "mci-f571112e1f-a-ep0-20",
+      "kind": "pass",
+      "revision": "e0j20",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.337780208996264,
+      "finished_s": 11.497909999998228,
+      "receipts": [
+        {
+          "revision": "e0j20-a",
+          "container": "mp-5a6b191db307b625e620afb72f634691",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.484202,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "ae9161466f57d671013a1ee4bfcb5796393e129aac2a0aba575b03dbd6bea855",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j20-b",
+          "container": "mp-5a6b191db307b625e620afb72f634691",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.452973,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "dc93b54611e2f96897906dbc2bf8d83402168fd6aaf093699c982c0abec5d2e0",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 811614,
+        "system_usec": 187965
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2803,
+        "volume_id": 2795
+      }
+    },
+    {
+      "id": "1dd6898b4b19399e69bb005acbb0a4e8adaaf2bab59848ac5e9fc340bed51c91",
+      "name": "mci-f571112e1f-a-ep0-21",
+      "kind": "pass",
+      "revision": "e0j21",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.348381708994566,
+      "finished_s": 11.521571583994955,
+      "receipts": [
+        {
+          "revision": "e0j21-a",
+          "container": "mp-877d0117128deb5cce2583dc141f7d07",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.472641,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "1b99a9b1e2da4c3048affdd7218039e4fcf9629efa4ee30a0338d7a94f61c961",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j21-b",
+          "container": "mp-877d0117128deb5cce2583dc141f7d07",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.457089,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "e8f039056c8665a0800152aef98ea6361871d75ae5d5bcfd9a73202695af35c8",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 805604,
+        "system_usec": 183158
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2777,
+        "volume_id": 2769
+      }
+    },
+    {
+      "id": "88602c43e748adcc684e3a3b2e0a5e203cae156697014249854bdeed75bd378e",
+      "name": "mci-f571112e1f-a-ep0-22",
+      "kind": "pass",
+      "revision": "e0j22",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.445495541993296,
+      "finished_s": 11.616553791995102,
+      "receipts": [
+        {
+          "revision": "e0j22-a",
+          "container": "mp-574b12e29ea4b6794143719b943fe1f3",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.49018,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "34e54198a225589b021361fad4c8311ee94065505cb7e358458c79acde3a7d61",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j22-b",
+          "container": "mp-574b12e29ea4b6794143719b943fe1f3",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.461853,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "b1f52c184a3ddf304bec575abc67e5b31f54b9a8b37daf8f4b094753c51911aa",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 839650,
+        "system_usec": 172475
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2875,
+        "volume_id": 2867
+      }
+    },
+    {
+      "id": "1a02441f70f6385c3508127613084cf126f590b731684ce3e052908bdbab1bbe",
+      "name": "mci-f571112e1f-a-ep0-23",
+      "kind": "pass",
+      "revision": "e0j23",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.705375833997095,
+      "finished_s": 11.99594670899387,
+      "receipts": [
+        {
+          "revision": "e0j23-a",
+          "container": "mp-bd9a606d324f14f0c79784f321610fc5",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.458534,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "dd5c97ed5484f37c2717e4abb3efb8f26384d9be4027a0cf13f796a4564416b4",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j23-b",
+          "container": "mp-bd9a606d324f14f0c79784f321610fc5",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.462283,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "cab3d86af17347f93727f96795a3b3e7ac0397c9abbcde8cee9eb961949fb11e",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 793300,
+        "system_usec": 188180
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2923,
+        "volume_id": 2907
+      }
+    },
+    {
+      "id": "9a8b80b40e93eede85d89df1955ace50e478be95dd0430b38ef5376ca1221269",
+      "name": "mci-f571112e1f-a-ep0-24",
+      "kind": "pass",
+      "revision": "e0j24",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.787797833996592,
+      "finished_s": 12.205249749997165,
+      "receipts": [
+        {
+          "revision": "e0j24-a",
+          "container": "mp-90ad6a89665aec003f67a70e91a0e0d3",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.470427,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c3f472244adb84dfa6eec2cd047f65fcba66c1ba7e40b69775f83fea007790c8",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j24-b",
+          "container": "mp-90ad6a89665aec003f67a70e91a0e0d3",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.49784,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "cf5282aa345c073dbd278a87caa4c6914544ddfa7a7dca74a007a28ad3b2161c",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 19,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 843267,
+        "system_usec": 188810
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 2976,
+        "volume_id": 2968
+      }
+    },
+    {
+      "id": "5abd3c5ff7fd5d160bd19be6e4863e36ec8ab85f65f9d73b277d6fdec2c951a3",
+      "name": "mci-f571112e1f-a-ep0-25",
+      "kind": "pass",
+      "revision": "e0j25",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 9.787915791996056,
+      "finished_s": 12.043970083999739,
+      "receipts": [
+        {
+          "revision": "e0j25-a",
+          "container": "mp-08b1ef20ffc7bc88508a7239bc4d95e6",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.458122,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c99b0b9e45621c9bb084219887f3fc4823563b9704869abdfeb60c107308770f",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j25-b",
+          "container": "mp-08b1ef20ffc7bc88508a7239bc4d95e6",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.469569,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "982a4cfed045512e8f9a22176aa66c064fb9ecc3b9807e7bc34fba65f538695a",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 18,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 812451,
+        "system_usec": 178560
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 3003,
+        "volume_id": 2995
+      }
+    },
+    {
+      "id": "bf0c1a3c159732fcdb303baa4d6b851f8dc14a01ad6124c27c09d08f665864d8",
+      "name": "mci-f571112e1f-a-ep0-26",
+      "kind": "pass",
+      "revision": "e0j26",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 11.49794554199616,
+      "finished_s": 13.282949833999737,
+      "receipts": [
+        {
+          "revision": "e0j26-a",
+          "container": "mp-d957897f809dd87173e090cb04b71f62",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.487139,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "05db0b510e05b1f4cdb0f618aaa0b59c3c110b94c876fa21653d7d9cba9e4acd",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j26-b",
+          "container": "mp-d957897f809dd87173e090cb04b71f62",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.436252,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "fd747df14f042866245a6ed57a7f00a3fb16302676cac4097bfd73fdccb82c2f",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 13,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 780277,
+        "system_usec": 206491
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 3076,
+        "volume_id": 3068
+      }
+    },
+    {
+      "id": "258f55322a2a26dc48d1f7c38de008289a6d14f06996cb8c04fb785b5dfea940",
+      "name": "mci-f571112e1f-a-ep0-27",
+      "kind": "pass",
+      "revision": "e0j27",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 11.52159749999555,
+      "finished_s": 13.457523208999191,
+      "receipts": [
+        {
+          "revision": "e0j27-a",
+          "container": "mp-24d05cdd0888b5a57e3588e254cf72b4",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.469092,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "b52258b7b12c44c9dad49779bf89e766df5a12b7021eddd49527e2967e9ffb2b",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j27-b",
+          "container": "mp-24d05cdd0888b5a57e3588e254cf72b4",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.450029,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "aa9cd1b7808db1f89de14b974427969b09d90442c954cda313eb01eb63bceecf",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 16,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 792386,
+        "system_usec": 187003
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 3103,
+        "volume_id": 3095
+      }
+    },
+    {
+      "id": "cd60d9a4d381f63ebffdbf99132f36a2ad52d57877eda7eaa97b0a0da1c304d1",
+      "name": "mci-f571112e1f-a-ep0-28",
+      "kind": "pass",
+      "revision": "e0j28",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 11.61658608399739,
+      "finished_s": 13.399475374993926,
+      "receipts": [
+        {
+          "revision": "e0j28-a",
+          "container": "mp-5911827fe8b1ccfb8a99772748a69180",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.473822,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "36775d18a751f50c6088766c3b56d69da2c946640c02375184b917a28b09392d",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j28-b",
+          "container": "mp-5911827fe8b1ccfb8a99772748a69180",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.45929,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "202a10d06b9b5313d927c8df5f5e28591e606a4d5bd19191a5fc99edb2542d54",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 14,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 769153,
+        "system_usec": 222714
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 3176,
+        "volume_id": 3168
+      }
+    },
+    {
+      "id": "60e661ad791e9ab148e535f30384f91d8f774b082b3d6dde2b4d4b14d2e4a061",
+      "name": "mci-f571112e1f-a-ep0-29",
+      "kind": "pass",
+      "revision": "e0j29",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 11.692190583999036,
+      "finished_s": 13.399379958995269,
+      "receipts": [
+        {
+          "revision": "e0j29-a",
+          "container": "mp-242339df0c8a785b9f98e27292ac423d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.471621,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "efff65c3022406b482f0dd40fc49c7a32f52944abb5eb14d53c136529b518ba0",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j29-b",
+          "container": "mp-242339df0c8a785b9f98e27292ac423d",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.457524,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "f026a57e80674f88981c234027e97af4590df0db0c850161007ae3cb0fbccd6d",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 14,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 790034,
+        "system_usec": 196037
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 3203,
+        "volume_id": 3195
+      }
+    },
+    {
+      "id": "d2df4da5a72ddbe59e7952ff18200cdbdffec8706bf9b7f6c0221882107c82af",
+      "name": "mci-f571112e1f-a-ep0-30",
+      "kind": "pass",
+      "revision": "e0j30",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 11.833877583994763,
+      "finished_s": 13.5823073749998,
+      "receipts": [
+        {
+          "revision": "e0j30-a",
+          "container": "mp-ba9c8a3dd909d680491c3ac9ccd26e8a",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.455602,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "84bbb8a656757239ad632d6da51d7570febf8080eaf101cfa205a603ec21ce4a",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j30-b",
+          "container": "mp-ba9c8a3dd909d680491c3ac9ccd26e8a",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.481505,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "c92081a567a44ba02efc1579177b6553d3674094dedfd15079ea302a81e2c4f6",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 15,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 762516,
+        "system_usec": 231958
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 3271,
+        "volume_id": 3263
+      }
+    },
+    {
+      "id": "f5a0f2facb94ed3f73b959048805600239e85bca4bfa3e0f1456f71738b4d14e",
+      "name": "mci-f571112e1f-a-ep0-31",
+      "kind": "pass",
+      "revision": "e0j31",
+      "docker_cpu_list": "0-3",
+      "exit": 0,
+      "submitted_s": 11.995990999996138,
+      "finished_s": 13.655643958998553,
+      "receipts": [
+        {
+          "revision": "e0j31-a",
+          "container": "mp-78b98f2d16e916c8d2aca1d1704749a2",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.456153,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "bf883058554e14f87df71accedb93484d87ce1ad69a85fee461842ddb54d7d18",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        },
+        {
+          "revision": "e0j31-b",
+          "container": "mp-78b98f2d16e916c8d2aca1d1704749a2",
+          "tests": 8,
+          "seconds": null,
+          "cpu_s": 0.481131,
+          "compile": 3,
+          "vet": 2,
+          "link": 3,
+          "product": "50f13844d90fbdebbd3fde2e561fb0a8621c6b69167fa41e66268dcfd4316001",
+          "module_inode": "65040:327810",
+          "dependency_inode": "65040:327835",
+          "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+          "toolchain_inode": "7636",
+          "dependency": "110af091ef82611093fedc544f08d55b6e1b862417c2389e2066587818a0cb9b-d"
+        }
+      ],
+      "failure_log": null,
+      "effective_cpu_list": "0-3",
+      "cgroup_cpu_list": "0-3",
+      "cpu_max": "100000 100000",
+      "cpu_stat_delta": {
+        "nr_periods": 14,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "user_usec": 794014,
+        "system_usec": 200323
+      },
+      "scratch_mount": {
+        "parent": "/tmp",
+        "filesystem": "overlayfs",
+        "mount_id": 3297,
+        "volume_id": 3289
+      }
+    }
+  ],
+  "last_job_s": 13.655643958998553,
+  "both_finished_s": 13.655711624996911,
+  "client": {
+    "arrivals": 240,
+    "bulk_body_bytes": {
+      "warmup": {
+        "bytes": 542387488,
+        "per_stream_bytes": [
+          10831924,
+          14497580,
+          14903264,
+          23583884,
+          8388608,
+          22760916,
+          13274728,
+          19736120,
+          11591744,
+          18251124,
+          15168960,
+          17937944,
+          8388608,
+          10927328,
+          17529360,
+          30711072,
+          21099612,
+          8609796,
+          14214268,
+          25165824,
+          24168776,
+          18612736,
+          14276904,
+          22760916,
+          18782080,
+          13119588,
+          17591996,
+          13185124,
+          8388608,
+          25015812,
+          18594172,
+          20318112
+        ]
+      },
+      "scored": {
+        "bytes": 52230629512,
+        "per_stream_bytes": [
+          1452669812,
+          1822338088,
+          1382554420,
+          1780814384,
+          1488667560,
+          1838169964,
+          1462561684,
+          1643245896,
+          1492287132,
+          1833038428,
+          1446766876,
+          1737318760,
+          1535115264,
+          1878683976,
+          1451041276,
+          1775315732,
+          1445422640,
+          1841427036,
+          1498366396,
+          1654906588,
+          1502557880,
+          1844818968,
+          1470506712,
+          1797567020,
+          1555086916,
+          1828090184,
+          1407223772,
+          1760226788,
+          1480905312,
+          1824519932,
+          1476582916,
+          1821831200
+        ]
+      },
+      "drain": {
+        "bytes": 159099480,
+        "per_stream_bytes": [
+          4504664,
+          269484,
+          3439852,
+          7541060,
+          4504664,
+          1340096,
+          558596,
+          6350976,
+          6070564,
+          2592816,
+          6070564,
+          6350976,
+          8388608,
+          6214104,
+          7824372,
+          5912524,
+          1484148,
+          3845536,
+          5757384,
+          6037796,
+          8388608,
+          7227880,
+          8388608,
+          8388608,
+          3189308,
+          4283988,
+          1247592,
+          4972984,
+          3878304,
+          4346624,
+          6383744,
+          3344448
+        ]
+      },
+      "invocation": {
+        "bytes": 52932116480,
+        "per_stream_bytes": [
+          1468006400,
+          1837105152,
+          1400897536,
+          1811939328,
+          1501560832,
+          1862270976,
+          1476395008,
+          1669332992,
+          1509949440,
+          1853882368,
+          1468006400,
+          1761607680,
+          1551892480,
+          1895825408,
+          1476395008,
+          1811939328,
+          1468006400,
+          1853882368,
+          1518338048,
+          1686110208,
+          1535115264,
+          1870659584,
+          1493172224,
+          1828716544,
+          1577058304,
+          1845493760,
+          1426063360,
+          1778384896,
+          1493172224,
+          1853882368,
+          1501560832,
+          1845493760
+        ]
+      }
+    },
+    "bytes": 52230629512,
+    "dispatch_max_us": 1739,
+    "dispatch_p95_us": 97,
+    "errors": null,
+    "fresh_p50_us": 4898,
+    "fresh_p95_us": 9489,
+    "fresh_p99_us": 17501,
+    "mib_s": 8301.719566514224,
+    "per_stream_bytes": [
+      1452669812,
+      1822338088,
+      1382554420,
+      1780814384,
+      1488667560,
+      1838169964,
+      1462561684,
+      1643245896,
+      1492287132,
+      1833038428,
+      1446766876,
+      1737318760,
+      1535115264,
+      1878683976,
+      1451041276,
+      1775315732,
+      1445422640,
+      1841427036,
+      1498366396,
+      1654906588,
+      1502557880,
+      1844818968,
+      1470506712,
+      1797567020,
+      1555086916,
+      1828090184,
+      1407223772,
+      1760226788,
+      1480905312,
+      1824519932,
+      1476582916,
+      1821831200
+    ],
+    "period_us": 25000,
+    "published_ports": 32,
+    "reopened": 0,
+    "streams": 32,
+    "window_s": 6.000083416
+  },
+  "client_exit": 0,
+  "client_stderr": "",
+  "counter_before": {
+    "epoch_ns": 1795547216510160000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 67400,
+        "birth_ticks": 1073257003879,
+        "user_ticks": 1830620645,
+        "system_ticks": 287070256,
+        "runnable_ticks": 2222974669,
+        "background_ticks": 2676,
+        "utility_ticks": 1887,
+        "default_ticks": 32183,
+        "initiated_ticks": 3214,
+        "interactive_ticks": 1191085,
+        "instructions": 742825897119,
+        "cycles": 350983885942
+      },
+      {
+        "pid": 67393,
+        "birth_ticks": 1073251043209,
+        "user_ticks": 15319997,
+        "system_ticks": 398446927,
+        "runnable_ticks": 527465348,
+        "background_ticks": 0,
+        "utility_ticks": 413582292,
+        "default_ticks": 72322,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 62490107961,
+        "cycles": 73720412023
+      }
+    ],
+    "guest_queue": {
+      "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+      "virtio": "virtio1",
+      "driver": "virtio_net",
+      "ifindex": "3",
+      "irq": "14",
+      "effective": "3",
+      "irq_counts": "0,0,0,15635",
+      "NET_TX": "13164,15991,17991,16003",
+      "NET_RX": "11166,11260,12894,17549",
+      "tx_bytes": "57364145108",
+      "rx_bytes": "26247503",
+      "tx_packets": "930615",
+      "tx_dropped": "0",
+      "rx_dropped": "0",
+      "tx_errors": "0",
+      "rx_errors": "0",
+      "tx_kicks": "13743",
+      "tx_tx_timeouts": "0",
+      "tx0_kicks": "13743",
+      "rps_cpus": "7",
+      "received_rps_00000000": "000021e7",
+      "received_rps_00000001": "00001dbd",
+      "received_rps_00000002": "00001f90",
+      "received_rps_00000003": "00000000",
+      "global_flow_entries": "0",
+      "queue_flow_entries": "0",
+      "egress_flow_entries": "0",
+      "softnet_00000000": "0002b31b,00000000,00000000",
+      "softnet_00000001": "00050227,00000000,00000000",
+      "softnet_00000002": "0004342c,00000000,00000000",
+      "softnet_00000003": "00001025,00000000,00000000"
+    },
+    "service_cgroups": {
+      "686": {
+        "usage_usec": 9331409,
+        "nr_throttled": 52,
+        "throttled_usec": 127211
+      },
+      "1350": {
+        "usage_usec": 156867,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1267": {
+        "usage_usec": 285754,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1101": {
+        "usage_usec": 201412,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1184": {
+        "usage_usec": 249068,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1765": {
+        "usage_usec": 139889,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1931": {
+        "usage_usec": 256869,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2014": {
+        "usage_usec": 152324,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1848": {
+        "usage_usec": 234236,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2429": {
+        "usage_usec": 140451,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2595": {
+        "usage_usec": 249326,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2678": {
+        "usage_usec": 143023,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2512": {
+        "usage_usec": 248512,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3093": {
+        "usage_usec": 134928,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3342": {
+        "usage_usec": 245182,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3176": {
+        "usage_usec": 160887,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3259": {
+        "usage_usec": 237917,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4006": {
+        "usage_usec": 137790,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3840": {
+        "usage_usec": 246081,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3923": {
+        "usage_usec": 142762,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3757": {
+        "usage_usec": 243576,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4504": {
+        "usage_usec": 131344,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4421": {
+        "usage_usec": 246113,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4587": {
+        "usage_usec": 150208,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4670": {
+        "usage_usec": 247206,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5168": {
+        "usage_usec": 132577,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5085": {
+        "usage_usec": 246384,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5251": {
+        "usage_usec": 153791,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5334": {
+        "usage_usec": 235837,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5666": {
+        "usage_usec": 130764,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5749": {
+        "usage_usec": 274451,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5832": {
+        "usage_usec": 151396,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      }
+    }
+  },
+  "counter_after": {
+    "epoch_ns": 1795547222631436000,
+    "tick_numer": 125,
+    "tick_denom": 3,
+    "tasks": [
+      {
+        "pid": 67400,
+        "birth_ticks": 1073257003879,
+        "user_ticks": 2345694033,
+        "system_ticks": 418328669,
+        "runnable_ticks": 2916343497,
+        "background_ticks": 2676,
+        "utility_ticks": 1887,
+        "default_ticks": 32183,
+        "initiated_ticks": 3214,
+        "interactive_ticks": 1191085,
+        "instructions": 902435037231,
+        "cycles": 465456859678
+      },
+      {
+        "pid": 67393,
+        "birth_ticks": 1073251043209,
+        "user_ticks": 22832926,
+        "system_ticks": 746296215,
+        "runnable_ticks": 995525031,
+        "background_ticks": 0,
+        "utility_ticks": 768944509,
+        "default_ticks": 72322,
+        "initiated_ticks": 0,
+        "interactive_ticks": 0,
+        "instructions": 115451855682,
+        "cycles": 137489254407
+      }
+    ],
+    "guest_queue": {
+      "boot": "d1da2378-0fe9-49a8-b211-98caf5a050fb",
+      "virtio": "virtio1",
+      "driver": "virtio_net",
+      "ifindex": "3",
+      "irq": "14",
+      "effective": "3",
+      "irq_counts": "0,0,0,26243",
+      "NET_TX": "26447,28493,35721,29193",
+      "NET_RX": "19965,19822,23663,29304",
+      "tx_bytes": "110353987732",
+      "rx_bytes": "50499755",
+      "tx_packets": "1788870",
+      "tx_dropped": "0",
+      "rx_dropped": "0",
+      "tx_errors": "0",
+      "rx_errors": "0",
+      "tx_kicks": "23970",
+      "tx_tx_timeouts": "0",
+      "tx0_kicks": "23970",
+      "rps_cpus": "7",
+      "received_rps_00000000": "00003a01",
+      "received_rps_00000001": "00003639",
+      "received_rps_00000002": "0000375f",
+      "received_rps_00000003": "00000000",
+      "global_flow_entries": "0",
+      "queue_flow_entries": "0",
+      "egress_flow_entries": "0",
+      "softnet_00000000": "00066437,00000000,00000000",
+      "softnet_00000001": "00083871,00000000,00000000",
+      "softnet_00000002": "00083566,00000000,00000000",
+      "softnet_00000003": "000010cf,00000000,00000000"
+    },
+    "service_cgroups": {
+      "686": {
+        "usage_usec": 9443236,
+        "nr_throttled": 52,
+        "throttled_usec": 127211
+      },
+      "1350": {
+        "usage_usec": 439356,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1267": {
+        "usage_usec": 416391,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1101": {
+        "usage_usec": 489775,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1184": {
+        "usage_usec": 376762,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1765": {
+        "usage_usec": 413243,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1931": {
+        "usage_usec": 380603,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2014": {
+        "usage_usec": 449572,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "1848": {
+        "usage_usec": 342363,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2429": {
+        "usage_usec": 412653,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2595": {
+        "usage_usec": 366279,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2678": {
+        "usage_usec": 441242,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "2512": {
+        "usage_usec": 350412,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3093": {
+        "usage_usec": 402388,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3342": {
+        "usage_usec": 366029,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3176": {
+        "usage_usec": 441583,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3259": {
+        "usage_usec": 351600,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4006": {
+        "usage_usec": 410335,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3840": {
+        "usage_usec": 362313,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3923": {
+        "usage_usec": 459708,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "3757": {
+        "usage_usec": 356810,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4504": {
+        "usage_usec": 389747,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4421": {
+        "usage_usec": 369404,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4587": {
+        "usage_usec": 415389,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "4670": {
+        "usage_usec": 349682,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5168": {
+        "usage_usec": 405601,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5085": {
+        "usage_usec": 379790,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5251": {
+        "usage_usec": 443293,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5334": {
+        "usage_usec": 339297,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5666": {
+        "usage_usec": 398518,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5749": {
+        "usage_usec": 377580,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      },
+      "5832": {
+        "usage_usec": 415321,
+        "nr_throttled": 0,
+        "throttled_usec": 0
+      }
+    }
+  },
+  "provision_to_final_cleanup_s": 15.895522499995423,
+  "removed": [
+    "abe51553982ce1747a6855b2020a1af3aa3f59f62f408e2532db273d73245f0e",
+    "d8bbc295947ccd79a5762a6ab8af4df9a5e8b44b33457ebfa895e54059f445ec",
+    "3c420c9a292a1b8dae05ee9a13e79dd0d5054df17e0fc42634d77ea781670956",
+    "e74007a861e3133fb8f67788ca55e432104c67964175ba9101c30fa71fc1bff4",
+    "66e8d17db550adc61f250bb88124aa6d61e9114cdb541ee442bc15fbe1bb9f1f",
+    "d92100b72d552c8e9d3c268f0339814bde3796bd61aa6dff0c89024f97f1abb4",
+    "a6f259e5b30dd42f5bdcb2c334fd036bb2f80e15a93fbdf42eaa682f796c1b80",
+    "1474b6ba247780ba7ac259969cb945d6335447fccfa767ddfb898b52e16fd0fe",
+    "18d63a147532069bdbc7e59b75154c01933a3fd6a6d07a94fd49528e1f48adf2",
+    "37e49262966c0f038b35b7ebfce85484c0d7620573b72724117e2a6a38113ca7",
+    "a56953800d7501920d9c6b06a28af2833aa28412792cabc339ed9179b4b18634",
+    "9c85897eff1f3034eea41e3ead623435bfc09766ebd5acbf7522150346d08d05",
+    "814181846bd53ea520a3e0d3fef6b5f44bef0db92b8677da93a6d1be13e2a057",
+    "e597b75b0eb8e482e814e6062c3b817cb7d770d357c6593b1b3e6bcab1338089",
+    "629c4810342ebef19d187883934deacb3aff060a836330b0a4a10ff428b54cbc",
+    "21845355ced69a9c5df2a4a306a4dcde9b81c973e4dee49bb28db26683330518",
+    "7b3fe395abbe79e53ea195f42b4528cd2f3cabd721bb8e70ba00c681b037cfef",
+    "b157e46ff4e13e6dae533e1ecbb68293c0e879428ab4dc974e90afb07ec70610",
+    "04d25a65e754e3f782f6485559c4d6d4da969d4ffaacfed7e5c5bdef46516d88",
+    "a9adac2637bb5cd4a17358d4b3716a82f73c9138afd2c91fa51fedc8e27bdc31",
+    "5981b709ec3bce12336ab5c7ed866b6ae7fe6893874e65b4ab000ede74b34c24",
+    "1dd6898b4b19399e69bb005acbb0a4e8adaaf2bab59848ac5e9fc340bed51c91",
+    "88602c43e748adcc684e3a3b2e0a5e203cae156697014249854bdeed75bd378e",
+    "1a02441f70f6385c3508127613084cf126f590b731684ce3e052908bdbab1bbe",
+    "9a8b80b40e93eede85d89df1955ace50e478be95dd0430b38ef5376ca1221269",
+    "5abd3c5ff7fd5d160bd19be6e4863e36ec8ab85f65f9d73b277d6fdec2c951a3",
+    "bf0c1a3c159732fcdb303baa4d6b851f8dc14a01ad6124c27c09d08f665864d8",
+    "258f55322a2a26dc48d1f7c38de008289a6d14f06996cb8c04fb785b5dfea940",
+    "cd60d9a4d381f63ebffdbf99132f36a2ad52d57877eda7eaa97b0a0da1c304d1",
+    "60e661ad791e9ab148e535f30384f91d8f774b082b3d6dde2b4d4b14d2e4a061",
+    "d2df4da5a72ddbe59e7952ff18200cdbdffec8706bf9b7f6c0221882107c82af",
+    "f5a0f2facb94ed3f73b959048805600239e85bca4bfa3e0f1456f71738b4d14e"
+  ]
+}

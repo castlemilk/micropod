@@ -1,0 +1,90 @@
+{
+  "direction": "237.05",
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "rows": [
+    {
+      "arm": "first-cpu",
+      "attempt": 1,
+      "irq_deltas": [
+        292,
+        0,
+        0,
+        0
+      ],
+      "timeout_delta": 0,
+      "rx_drops": 0,
+      "tx_drops": 0,
+      "bytes": 1686651672,
+      "mib_s": 268.03906903317295,
+      "fresh_get_errors": 229,
+      "bulk_reopens": 22,
+      "raw_p95_us": 0,
+      "raw_p99_us": 33029,
+      "start_ns": 1795258928977742000,
+      "end_ns": 1795258959347108000
+    },
+    {
+      "arm": "first-cpu",
+      "attempt": 2,
+      "irq_deltas": [
+        2761,
+        0,
+        0,
+        0
+      ],
+      "timeout_delta": 8,
+      "rx_drops": 0,
+      "tx_drops": 0,
+      "bytes": 60550556,
+      "mib_s": 9.622530786939613,
+      "fresh_get_errors": 239,
+      "bulk_reopens": 4,
+      "raw_p95_us": 0,
+      "raw_p99_us": 0,
+      "start_ns": 1795258961085314000,
+      "end_ns": 1795259021136787000
+    },
+    {
+      "arm": "all-cpus",
+      "attempt": 1,
+      "irq_deltas": [
+        1497,
+        0,
+        0,
+        0
+      ],
+      "timeout_delta": 4,
+      "rx_drops": 0,
+      "tx_drops": 0,
+      "bytes": 2014439232,
+      "mib_s": 320.1298166036407,
+      "fresh_get_errors": 224,
+      "bulk_reopens": 15,
+      "raw_p95_us": 22496,
+      "raw_p99_us": 40155,
+      "start_ns": 1795259022847295000,
+      "end_ns": 1795259049582695000
+    },
+    {
+      "arm": "all-cpus",
+      "attempt": 2,
+      "irq_deltas": [
+        3326,
+        0,
+        0,
+        0
+      ],
+      "timeout_delta": 0,
+      "rx_drops": 0,
+      "tx_drops": 10,
+      "bytes": 20680657000,
+      "mib_s": 3286.4989913814707,
+      "fresh_get_errors": 98,
+      "bulk_reopens": 4,
+      "raw_p95_us": 25706,
+      "raw_p99_us": 39907,
+      "start_ns": 1795259049773019000,
+      "end_ns": 1795259080726227000
+    }
+  ]
+}

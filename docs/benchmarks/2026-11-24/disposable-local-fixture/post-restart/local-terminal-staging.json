@@ -1,0 +1,32 @@
+{
+  "utc": "2026-11-24T07:03:22.945515+00:00",
+  "validator": "private APFS CoW staging, full guest inventory shell syntax, original signed CLI plist rendering, post-render private home, explicit selectors",
+  "shell_syntax_and_render_passed": true,
+  "job_role": "Interactive",
+  "pinned_cli_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+  "job_role_sha256": "2293dd639a7ad37007c7125979707d74b76b926b13e99216fed3f1f176dcd693",
+  "startup_hashes": {
+    "fixture-facts.sh": "660b8877914a4cc3c7b8a9c1018d9a245e0ecb026f950d5aa68f5e04483d1f1d",
+    "start.sh": "f61e955e472b97ac1df7c1739eaa4e6374b1dad067ab953b2407ab054be4fa2b"
+  },
+  "service_guest_probes": {
+    "ss": "2bffc2679d8f387526bedd86b89c270ef9d18d5e56e286fb7dc163e11ae5cbbd",
+    "check": "958cc821d394f4ff6e64d8544b63d8976730d2d4fd52267c63499e1698ebf272",
+    "pathproof": "00d28ea9a56d41cf7a4a0d34aaa47da1699a60f8978c795bd9f74a7ac1e94f8d"
+  },
+  "staged_libraries": {
+    "bin/ethtool": "047a85c7b6788c3553579dfc72cf89c9dd4a952e6d4d2cefaca8812237782377",
+    "sbin/ss": "2bffc2679d8f387526bedd86b89c270ef9d18d5e56e286fb7dc163e11ae5cbbd",
+    "lib/libc.musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793",
+    "lib/ld-musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793",
+    "usr/lib/libmnl.so.0": "5ef247ecc2ceb439fbaa595b163589670db47304f946e0b169473782a30d8687",
+    "usr/lib/libmnl.so.0.2.0": "5ef247ecc2ceb439fbaa595b163589670db47304f946e0b169473782a30d8687",
+    "usr/lib/libcap.so.2": "b9b99aeed8398489c52c605a92ce9f2418641c6f744832eab76d6400776c9120",
+    "usr/lib/libcap.so.2.78": "b9b99aeed8398489c52c605a92ce9f2418641c6f744832eab76d6400776c9120"
+  },
+  "client_sha256": {
+    "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+  },
+  "vm_or_timed_clients_started": 0
+}

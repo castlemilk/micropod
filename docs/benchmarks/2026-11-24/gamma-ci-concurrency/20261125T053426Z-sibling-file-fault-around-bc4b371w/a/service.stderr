@@ -1,0 +1,47 @@
+Preparing the CI disk at /tmp/mp-t-8ud4js6y/a/worker.ext4
+Worker kernel: /Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T233020Z-ipvlan-my8pf7su/full-16k/Image
+using ghcr.io/apple/containerization/vminit:0.47.0; micropod's sandbox is built for vminit 0.42.0
+CI fair scheduler enabled HRTICK with base slice 250000 ns
+CI fair scheduler enabled NEXT_BUDDY
++mpfault tr ' ' '\n'
++mpfault sed -n '/^micropod\.bench_file_fault_around=/p'
++mpfault selection='micropod.bench_file_fault_around=65536'
++mpfault '[' -n 'micropod.bench_file_fault_around=65536' ]
++mpfault selected=65536
++mpfault workspace=/private/tmp/mp-t-8ud4js6y/workspace
++mpfault marker=/opt/micropod-oci/runner/file-fault-around.fixture
++mpfault id -u
++mpfault '[' 0 '!=' 0 ]
++mpfault '[' 1 '!=' 1 ]
++mpfault '[' 1 '!=' 1 ]
++mpfault '[' '!' -d /private/tmp/mp-t-8ud4js6y/workspace ]
++mpfault '[' -L /private/tmp/mp-t-8ud4js6y/workspace ]
++mpfault printf '%s\n' /private/tmp/mp-t-8ud4js6y/workspace
++mpfault grep -Eq '^(/private)?/tmp/mp-t-[a-z0-9_]{8}/workspace$'
++mpfault '[' '!' -f /opt/micropod-oci/runner/file-fault-around.fixture ]
++mpfault '[' -L /opt/micropod-oci/runner/file-fault-around.fixture ]
++mpfault cat /opt/micropod-oci/runner/file-fault-around.fixture
++mpfault '[' micropod-file-fault-around-fixture-v1 '!=' micropod-file-fault-around-fixture-v1 ]
++mpfault mktemp -d
++mpfault isolated=/tmp/tmp.DpcEnG
++mpfault debug=/tmp/tmp.DpcEnG/debug
++mpfault mkdir /tmp/tmp.DpcEnG/debug
++mpfault trap 'rmdir "$debug" "$isolated"' EXIT
++mpfault mount -t debugfs -o nosuid,nodev,noexec debugfs /tmp/tmp.DpcEnG/debug
++mpfault trap 'status=$?; if ! umount "$debug" || ! rmdir "$debug" "$isolated"; then status=1; fi; exit "$status"' EXIT
++mpfault knob=/tmp/tmp.DpcEnG/debug/fault_around_bytes
++mpfault '[' -r /tmp/tmp.DpcEnG/debug/fault_around_bytes ]
++mpfault awk '$1 == "KernelPageSize:" && $3 == "kB" { print $2*1024; exit }' /proc/self/smaps
++mpfault page=16384
++mpfault '[' 16384 '=' 16384 ]
++mpfault cat /proc/sys/kernel/random/boot_id
++mpfault boot=8de803d8-292d-4a30-9e1d-289955152561
++mpfault '[' -n 8de803d8-292d-4a30-9e1d-289955152561 ]
++mpfault cat /tmp/tmp.DpcEnG/debug/fault_around_bytes
++mpfault before=65536
++mpfault '[' 65536 '=' 65536 ]
++mpfault printf '%s\n' 65536
++mpfault status=1
++mpfault umount /tmp/tmp.DpcEnG/debug
++mpfault rmdir /tmp/tmp.DpcEnG/debug /tmp/tmp.DpcEnG
++mpfault exit 1

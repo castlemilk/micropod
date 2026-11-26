@@ -1,0 +1,1346 @@
+{
+  "host": "Gamma-128GB.local",
+  "boots": [
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235212Z-sibling-sltf15br",
+      "arm": "control",
+      "seed": 231201,
+      "boot_id": "64d2e26f-d7c9-4126-b077-1b4ef9a235e3",
+      "create_total_ns": 436500583
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235233Z-sibling-awvwvpcn",
+      "arm": "candidate",
+      "seed": 231201,
+      "boot_id": "b9eb6bab-7b0a-4cb9-9829-a9a9bb044172",
+      "create_total_ns": 488940625
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235255Z-sibling-cimxi2yh",
+      "arm": "candidate",
+      "seed": 231203,
+      "boot_id": "a9408be7-242e-4562-957e-2450aa6fd40f",
+      "create_total_ns": 454161041
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235316Z-sibling-pgs47a05",
+      "arm": "control",
+      "seed": 231203,
+      "boot_id": "f1dc2e26-6636-4b6a-a83d-33453d6b9284",
+      "create_total_ns": 478831917
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235430Z-sibling-0_22fvko",
+      "arm": "candidate",
+      "seed": 231205,
+      "boot_id": "50bb6859-fc7b-49a5-af1a-5e628b385e6b",
+      "create_total_ns": 469814042
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235452Z-sibling-ns7w83zs",
+      "arm": "control",
+      "seed": 231205,
+      "boot_id": "b251b603-9459-472e-95a4-fea0bde66265",
+      "create_total_ns": 506323750
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235515Z-sibling-0_7g8qz_",
+      "arm": "control",
+      "seed": 231207,
+      "boot_id": "4c12fd93-66ea-4b99-a8c3-1c8bbe189952",
+      "create_total_ns": 473070917
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235536Z-sibling-qdnh_gui",
+      "arm": "candidate",
+      "seed": 231207,
+      "boot_id": "dc337b4a-948a-450e-8345-92f3954fb878",
+      "create_total_ns": 477451666
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235557Z-sibling-a87yojw7",
+      "arm": "control",
+      "seed": 231209,
+      "boot_id": "3bba060b-a5cc-4909-8a7b-c05fbf63ca0f",
+      "create_total_ns": 487328583
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235619Z-sibling-t_4gj07g",
+      "arm": "candidate",
+      "seed": 231209,
+      "boot_id": "479f8e2b-0db0-4596-a975-7e27b9193b4f",
+      "create_total_ns": 439819458
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235640Z-sibling-12df65mb",
+      "arm": "candidate",
+      "seed": 231211,
+      "boot_id": "367b78d9-0d87-4ba3-9445-a08064e34ae5",
+      "create_total_ns": 445686958
+    },
+    {
+      "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235700Z-sibling-4fqo5owc",
+      "arm": "control",
+      "seed": 231211,
+      "boot_id": "1cf14a56-b324-4ac1-a4e6-199c6c1f176c",
+      "create_total_ns": 438182917
+    }
+  ],
+  "provisioning": {
+    "pairs": [
+      {
+        "seed": 231201,
+        "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235212Z-sibling-sltf15br",
+        "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235233Z-sibling-awvwvpcn",
+        "control_ns": 436500583,
+        "candidate_ns": 488940625,
+        "candidate_over_control": 1.1201373928061855
+      },
+      {
+        "seed": 231203,
+        "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235316Z-sibling-pgs47a05",
+        "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235255Z-sibling-cimxi2yh",
+        "control_ns": 478831917,
+        "candidate_ns": 454161041,
+        "candidate_over_control": 0.9484769600268731
+      },
+      {
+        "seed": 231205,
+        "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235452Z-sibling-ns7w83zs",
+        "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235430Z-sibling-0_22fvko",
+        "control_ns": 506323750,
+        "candidate_ns": 469814042,
+        "candidate_over_control": 0.9278925628118373
+      },
+      {
+        "seed": 231207,
+        "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235515Z-sibling-0_7g8qz_",
+        "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235536Z-sibling-qdnh_gui",
+        "control_ns": 473070917,
+        "candidate_ns": 477451666,
+        "candidate_over_control": 1.0092602374032644
+      },
+      {
+        "seed": 231209,
+        "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235557Z-sibling-a87yojw7",
+        "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235619Z-sibling-t_4gj07g",
+        "control_ns": 487328583,
+        "candidate_ns": 439819458,
+        "candidate_over_control": 0.9025111051202183
+      },
+      {
+        "seed": 231211,
+        "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235700Z-sibling-4fqo5owc",
+        "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235640Z-sibling-12df65mb",
+        "control_ns": 438182917,
+        "candidate_ns": 445686958,
+        "candidate_over_control": 1.0171253618269194
+      }
+    ],
+    "candidate_wins": 3,
+    "median_candidate_over_control": 0.9788685987150687
+  },
+  "route_probe": {
+    "pairs": [
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235212Z-sibling-sltf15br",
+        "worker_arm": "control",
+        "seed": 231201,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 338,
+          "ns/op": 879109.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579105.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9362,
+          "ns/op": 31451.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03577599592314491,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235212Z-sibling-sltf15br",
+        "worker_arm": "control",
+        "seed": 231201,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 337,
+          "ns/op": 888943.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579105.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8674,
+          "ns/op": 31011.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.034885251360323444,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235233Z-sibling-awvwvpcn",
+        "worker_arm": "candidate",
+        "seed": 231201,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 320,
+          "ns/op": 898181.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579106.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9322,
+          "ns/op": 31620.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03520448551015887,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235233Z-sibling-awvwvpcn",
+        "worker_arm": "candidate",
+        "seed": 231201,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 334,
+          "ns/op": 863683.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579087.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8484,
+          "ns/op": 31149.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80521.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03606531563085067,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235255Z-sibling-cimxi2yh",
+        "worker_arm": "candidate",
+        "seed": 231203,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 358,
+          "ns/op": 850888.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579085.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8808,
+          "ns/op": 31538.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03706480758924794,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235255Z-sibling-cimxi2yh",
+        "worker_arm": "candidate",
+        "seed": 231203,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 331,
+          "ns/op": 900706.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579109.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9378,
+          "ns/op": 32433.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03600842006159612,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235316Z-sibling-pgs47a05",
+        "worker_arm": "control",
+        "seed": 231203,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 321,
+          "ns/op": 894911.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579088.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8355,
+          "ns/op": 32215.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80521.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.035997993096520214,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235316Z-sibling-pgs47a05",
+        "worker_arm": "control",
+        "seed": 231203,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 336,
+          "ns/op": 886208.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579105.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9873,
+          "ns/op": 32991.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03722715209070557,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235430Z-sibling-0_22fvko",
+        "worker_arm": "candidate",
+        "seed": 231205,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 340,
+          "ns/op": 874732.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579106.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9394,
+          "ns/op": 32082.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.036676376307257536,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235430Z-sibling-0_22fvko",
+        "worker_arm": "candidate",
+        "seed": 231205,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 331,
+          "ns/op": 885393.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579089.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8656,
+          "ns/op": 31896.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03602468056557935,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235452Z-sibling-ns7w83zs",
+        "worker_arm": "control",
+        "seed": 231205,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 322,
+          "ns/op": 897196.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579109.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9435,
+          "ns/op": 31734.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.035370197816307694,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235452Z-sibling-ns7w83zs",
+        "worker_arm": "control",
+        "seed": 231205,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 331,
+          "ns/op": 885419.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579087.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8542,
+          "ns/op": 31860.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80521.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03598296399783605,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235515Z-sibling-0_7g8qz_",
+        "worker_arm": "control",
+        "seed": 231207,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 344,
+          "ns/op": 869831.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579087.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8217,
+          "ns/op": 31794.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80521.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03655192790323637,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235515Z-sibling-0_7g8qz_",
+        "worker_arm": "control",
+        "seed": 231207,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 331,
+          "ns/op": 875337.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579105.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9220,
+          "ns/op": 31336.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03579878378270312,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235536Z-sibling-qdnh_gui",
+        "worker_arm": "candidate",
+        "seed": 231207,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 326,
+          "ns/op": 899659.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579085.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9448,
+          "ns/op": 31531.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.035047723637511546,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235536Z-sibling-qdnh_gui",
+        "worker_arm": "candidate",
+        "seed": 231207,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 332,
+          "ns/op": 882141.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579123.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9574,
+          "ns/op": 31734.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.035973840916588166,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235557Z-sibling-a87yojw7",
+        "worker_arm": "control",
+        "seed": 231209,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 325,
+          "ns/op": 889432.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579110.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9878,
+          "ns/op": 31182.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03505832936076057,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235557Z-sibling-a87yojw7",
+        "worker_arm": "control",
+        "seed": 231209,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 326,
+          "ns/op": 887831.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579088.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8410,
+          "ns/op": 31468.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80521.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.035443682412531215,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235619Z-sibling-t_4gj07g",
+        "worker_arm": "candidate",
+        "seed": 231209,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 325,
+          "ns/op": 901765.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579107.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9372,
+          "ns/op": 31590.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03503129972886506,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235619Z-sibling-t_4gj07g",
+        "worker_arm": "candidate",
+        "seed": 231209,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 336,
+          "ns/op": 895519.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579105.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8176,
+          "ns/op": 31862.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80521.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.035579367941942046,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235640Z-sibling-12df65mb",
+        "worker_arm": "candidate",
+        "seed": 231211,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 343,
+          "ns/op": 871119.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579087.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8092,
+          "ns/op": 32534.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80521.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03734736585931429,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235640Z-sibling-12df65mb",
+        "worker_arm": "candidate",
+        "seed": 231211,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 340,
+          "ns/op": 882182.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579106.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9423,
+          "ns/op": 31893.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03615240392572054,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235700Z-sibling-4fqo5owc",
+        "worker_arm": "control",
+        "seed": 231211,
+        "order": "new-first",
+        "per_candidate": {
+          "iterations": 340,
+          "ns/op": 874742.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579088.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 8479,
+          "ns/op": 32147.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03675026464946236,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      },
+      {
+        "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235700Z-sibling-4fqo5owc",
+        "worker_arm": "control",
+        "seed": 231211,
+        "order": "old-first",
+        "per_candidate": {
+          "iterations": 338,
+          "ns/op": 888603.0,
+          "route-dumps/op": 33.0,
+          "B/op": 2579108.0,
+          "allocs/op": 8188.0
+        },
+        "snapshot": {
+          "iterations": 9495,
+          "ns/op": 31799.0,
+          "route-dumps/op": 1.0,
+          "B/op": 80520.0,
+          "allocs/op": 317.0
+        },
+        "ns_per_op_ratio": 0.03578538447428154,
+        "route_dumps_per_op_ratio": 0.030303030303030304
+      }
+    ],
+    "first_free": "10.90.32.0/24",
+    "ns_per_op_ratio": {
+      "snapshot_wins": 24,
+      "median_snapshot_over_per_candidate": 0.03597840245721211
+    },
+    "route_dumps_per_op_ratio": {
+      "snapshot_wins": 24,
+      "median_snapshot_over_per_candidate": 0.030303030303030304
+    }
+  },
+  "identities": {
+    "worker_executable_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+    "guest_oci_sha256": "369f9e2e0cee2dc53e63e3eb441ac029003506d75853398768824a3c667c7b97",
+    "control_runner_sha256": "29c50a82476128d84da883b96257de961c9d754586060eda4ff0ab720a38ed6e",
+    "candidate_runner_sha256": "670dee15fcd70a6aa43f2a02b643e9ed62d67d9fb86dcce5b02a1bfdceee6bee",
+    "kernel": {
+      "kernel_ipvlan": true,
+      "kernel_page_kib": 16,
+      "kernel_image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+      "kernel_config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c"
+    },
+    "service_image": {
+      "manifest": "43c8761c8d7d97587c47c1b2a8f87941c24d919cb89b1d9268592dbc4025e93f",
+      "config": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+      "compressed_layer": "7d4ee779f04af2802fa3613187490f443211d116770559941ad4094137353af4",
+      "diff_id": "10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7",
+      "netbench": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+      "archive": "36703da965e7e5fb09d6e31c533deae862cedb8596e6716aa76c9e67df49f6fa"
+    },
+    "changed_sources": [
+      "guest/runner/docker_links_linux.go",
+      "guest/runner/docker_networks_linux.go",
+      "guest/runner/docker_networks_linux_test.go"
+    ],
+    "harness_sha256": "50bf819a3b6d9e9c258c60cac2cb5daa0f14dedc33d6e21efdc4f1875f6d866c",
+    "quiet_sha256": "c8aedee551d9c9e204cf62063ce0d74398a881a7485c8610ef24ef75903ba019",
+    "quiet_source_sha256": "568ec87401b60bda95ae8c51871feddb801ef4d4244d4b3d16be0b5f47a88fbf",
+    "job_network_smoke_driver_sha256": "0e3db5ad8f4a98f2661f5e5d1909b47d438e2800b495660750fdcb113a0409a7",
+    "ipam_driver_sha256": "3c486f3defc7af6d4a8ed40ebe600810a46dea1cfde4fed8536ded659f258aa7",
+    "ipam_product_sha256": "0de63ae3fb7b1a915bfa94a52741d35cfade209cc2fe29dd8c4f4a0e479dab03",
+    "ipam_test_sha256": "97afcb162901fb125d0af0fe3628a938a1521a6f936c39081351732df9962c08"
+  },
+  "subsets": {
+    "pilot": {
+      "seeds": [
+        231201,
+        231203
+      ],
+      "provisioning": {
+        "pairs": [
+          {
+            "seed": 231201,
+            "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235212Z-sibling-sltf15br",
+            "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235233Z-sibling-awvwvpcn",
+            "control_ns": 436500583,
+            "candidate_ns": 488940625,
+            "candidate_over_control": 1.1201373928061855
+          },
+          {
+            "seed": 231203,
+            "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235316Z-sibling-pgs47a05",
+            "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235255Z-sibling-cimxi2yh",
+            "control_ns": 478831917,
+            "candidate_ns": 454161041,
+            "candidate_over_control": 0.9484769600268731
+          }
+        ],
+        "candidate_wins": 1,
+        "median_candidate_over_control": 1.0343071764165293
+      },
+      "route_probe": {
+        "pairs": [
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235212Z-sibling-sltf15br",
+            "worker_arm": "control",
+            "seed": 231201,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 338,
+              "ns/op": 879109.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579105.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9362,
+              "ns/op": 31451.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03577599592314491,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235212Z-sibling-sltf15br",
+            "worker_arm": "control",
+            "seed": 231201,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 337,
+              "ns/op": 888943.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579105.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8674,
+              "ns/op": 31011.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.034885251360323444,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235233Z-sibling-awvwvpcn",
+            "worker_arm": "candidate",
+            "seed": 231201,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 320,
+              "ns/op": 898181.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579106.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9322,
+              "ns/op": 31620.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03520448551015887,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235233Z-sibling-awvwvpcn",
+            "worker_arm": "candidate",
+            "seed": 231201,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 334,
+              "ns/op": 863683.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579087.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8484,
+              "ns/op": 31149.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80521.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03606531563085067,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235255Z-sibling-cimxi2yh",
+            "worker_arm": "candidate",
+            "seed": 231203,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 358,
+              "ns/op": 850888.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579085.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8808,
+              "ns/op": 31538.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03706480758924794,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235255Z-sibling-cimxi2yh",
+            "worker_arm": "candidate",
+            "seed": 231203,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 331,
+              "ns/op": 900706.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579109.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9378,
+              "ns/op": 32433.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03600842006159612,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235316Z-sibling-pgs47a05",
+            "worker_arm": "control",
+            "seed": 231203,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 321,
+              "ns/op": 894911.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579088.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8355,
+              "ns/op": 32215.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80521.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.035997993096520214,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235316Z-sibling-pgs47a05",
+            "worker_arm": "control",
+            "seed": 231203,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 336,
+              "ns/op": 886208.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579105.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9873,
+              "ns/op": 32991.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03722715209070557,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          }
+        ],
+        "first_free": "10.90.32.0/24",
+        "ns_per_op_ratio": {
+          "snapshot_wins": 8,
+          "median_snapshot_over_per_candidate": 0.03600320657905817
+        },
+        "route_dumps_per_op_ratio": {
+          "snapshot_wins": 8,
+          "median_snapshot_over_per_candidate": 0.030303030303030304
+        }
+      }
+    },
+    "holdout": {
+      "seeds": [
+        231205,
+        231207,
+        231209,
+        231211
+      ],
+      "provisioning": {
+        "pairs": [
+          {
+            "seed": 231205,
+            "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235452Z-sibling-ns7w83zs",
+            "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235430Z-sibling-0_22fvko",
+            "control_ns": 506323750,
+            "candidate_ns": 469814042,
+            "candidate_over_control": 0.9278925628118373
+          },
+          {
+            "seed": 231207,
+            "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235515Z-sibling-0_7g8qz_",
+            "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235536Z-sibling-qdnh_gui",
+            "control_ns": 473070917,
+            "candidate_ns": 477451666,
+            "candidate_over_control": 1.0092602374032644
+          },
+          {
+            "seed": 231209,
+            "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235557Z-sibling-a87yojw7",
+            "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235619Z-sibling-t_4gj07g",
+            "control_ns": 487328583,
+            "candidate_ns": 439819458,
+            "candidate_over_control": 0.9025111051202183
+          },
+          {
+            "seed": 231211,
+            "control_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235700Z-sibling-4fqo5owc",
+            "candidate_run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235640Z-sibling-12df65mb",
+            "control_ns": 438182917,
+            "candidate_ns": 445686958,
+            "candidate_over_control": 1.0171253618269194
+          }
+        ],
+        "candidate_wins": 2,
+        "median_candidate_over_control": 0.9685764001075509
+      },
+      "route_probe": {
+        "pairs": [
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235430Z-sibling-0_22fvko",
+            "worker_arm": "candidate",
+            "seed": 231205,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 340,
+              "ns/op": 874732.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579106.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9394,
+              "ns/op": 32082.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.036676376307257536,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235430Z-sibling-0_22fvko",
+            "worker_arm": "candidate",
+            "seed": 231205,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 331,
+              "ns/op": 885393.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579089.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8656,
+              "ns/op": 31896.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03602468056557935,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235452Z-sibling-ns7w83zs",
+            "worker_arm": "control",
+            "seed": 231205,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 322,
+              "ns/op": 897196.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579109.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9435,
+              "ns/op": 31734.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.035370197816307694,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235452Z-sibling-ns7w83zs",
+            "worker_arm": "control",
+            "seed": 231205,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 331,
+              "ns/op": 885419.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579087.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8542,
+              "ns/op": 31860.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80521.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03598296399783605,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235515Z-sibling-0_7g8qz_",
+            "worker_arm": "control",
+            "seed": 231207,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 344,
+              "ns/op": 869831.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579087.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8217,
+              "ns/op": 31794.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80521.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03655192790323637,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235515Z-sibling-0_7g8qz_",
+            "worker_arm": "control",
+            "seed": 231207,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 331,
+              "ns/op": 875337.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579105.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9220,
+              "ns/op": 31336.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03579878378270312,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235536Z-sibling-qdnh_gui",
+            "worker_arm": "candidate",
+            "seed": 231207,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 326,
+              "ns/op": 899659.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579085.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9448,
+              "ns/op": 31531.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.035047723637511546,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235536Z-sibling-qdnh_gui",
+            "worker_arm": "candidate",
+            "seed": 231207,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 332,
+              "ns/op": 882141.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579123.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9574,
+              "ns/op": 31734.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.035973840916588166,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235557Z-sibling-a87yojw7",
+            "worker_arm": "control",
+            "seed": 231209,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 325,
+              "ns/op": 889432.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579110.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9878,
+              "ns/op": 31182.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03505832936076057,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235557Z-sibling-a87yojw7",
+            "worker_arm": "control",
+            "seed": 231209,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 326,
+              "ns/op": 887831.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579088.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8410,
+              "ns/op": 31468.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80521.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.035443682412531215,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235619Z-sibling-t_4gj07g",
+            "worker_arm": "candidate",
+            "seed": 231209,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 325,
+              "ns/op": 901765.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579107.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9372,
+              "ns/op": 31590.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03503129972886506,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235619Z-sibling-t_4gj07g",
+            "worker_arm": "candidate",
+            "seed": 231209,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 336,
+              "ns/op": 895519.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579105.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8176,
+              "ns/op": 31862.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80521.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.035579367941942046,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235640Z-sibling-12df65mb",
+            "worker_arm": "candidate",
+            "seed": 231211,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 343,
+              "ns/op": 871119.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579087.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8092,
+              "ns/op": 32534.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80521.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03734736585931429,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235640Z-sibling-12df65mb",
+            "worker_arm": "candidate",
+            "seed": 231211,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 340,
+              "ns/op": 882182.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579106.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9423,
+              "ns/op": 31893.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03615240392572054,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235700Z-sibling-4fqo5owc",
+            "worker_arm": "control",
+            "seed": 231211,
+            "order": "new-first",
+            "per_candidate": {
+              "iterations": 340,
+              "ns/op": 874742.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579088.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 8479,
+              "ns/op": 32147.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03675026464946236,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          },
+          {
+            "run": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261124T235700Z-sibling-4fqo5owc",
+            "worker_arm": "control",
+            "seed": 231211,
+            "order": "old-first",
+            "per_candidate": {
+              "iterations": 338,
+              "ns/op": 888603.0,
+              "route-dumps/op": 33.0,
+              "B/op": 2579108.0,
+              "allocs/op": 8188.0
+            },
+            "snapshot": {
+              "iterations": 9495,
+              "ns/op": 31799.0,
+              "route-dumps/op": 1.0,
+              "B/op": 80520.0,
+              "allocs/op": 317.0
+            },
+            "ns_per_op_ratio": 0.03578538447428154,
+            "route_dumps_per_op_ratio": 0.030303030303030304
+          }
+        ],
+        "first_free": "10.90.32.0/24",
+        "ns_per_op_ratio": {
+          "snapshot_wins": 16,
+          "median_snapshot_over_per_candidate": 0.03588631234964564
+        },
+        "route_dumps_per_op_ratio": {
+          "snapshot_wins": 16,
+          "median_snapshot_over_per_candidate": 0.030303030303030304
+        }
+      }
+    }
+  }
+}

@@ -16,7 +16,8 @@
 #   volumes and images on the machine through the micropod CLI: volume
 #   create/ls/rm (and a micropod-made volume mounted by a container), image
 #   pull/ls/inspect, and the operations the guest engine does not implement
-#   (image rm, volume prune, sizes) refused as unsupported;
+#   (image rm, volume prune, sizes) refused as unsupported, and an image
+#   save/load round trip through the guest;
 #   `machine status --json` capabilities, the BuildKit socket in the VMM argv,
 #   and `machine buildkit-endpoint` refusing a bundle without BuildKit — or,
 #   with a BuildKit bundle, a throwaway remote buildx builder whose
@@ -240,8 +241,10 @@ check "rmi is refused as unsupported (the guest answers 501)" \
 check "…and the image stays" "$(hvf_image docker.io/library/busybox:1.36 "'kept'")" "kept"
 check "another platform is refused by the guest" \
     "$("$M" pull --runtime hvf --platform linux/amd64 alpine:3.20 2>&1 | grep -c 'unsupported platform')" "1"
-check "save is refused as unsupported" \
-    "$("$M" save --runtime hvf busybox:1.36 -o "$TMP/busybox.tar" 2>&1 | grep -c "runtime 'hvf' does not support image save")" "1"
+check "save --runtime hvf writes the guest's OCI archive" \
+    "$("$M" save --runtime hvf busybox:1.36 -o "$TMP/busybox.tar" >/dev/null 2>&1 && tar -tf "$TMP/busybox.tar" | grep -cx 'index.json')" "1"
+check "…and load --runtime hvf takes it back" \
+    "$("$M" load --runtime hvf -i "$TMP/busybox.tar" >/dev/null 2>&1 && echo loaded)" "loaded"
 
 echo "== capabilities and the BuildKit socket"
 status_field() { "$M" --json machine status | python3 -c "import sys,json; s=json.load(sys.stdin); print($1)"; }

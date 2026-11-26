@@ -1,0 +1,179 @@
+{
+  "kind": "Offline receipt regression; all worker and benchmark observations in the fixture ZIP are simulated or drawn from saved rounds.",
+  "base_revision": "ed8bb626129adb8dd339804def0ea5b1dcd2a983",
+  "relay_helper_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "local_admission": {
+    "fleet_observed_at_utc": "2026-11-22T12:11:54.893601461Z",
+    "fleet_source": "cuttlefish_fleet_summary",
+    "mac": {
+      "active_leases": 0,
+      "capacity": 6,
+      "heartbeat_utc": "2026-11-22T12:11:47.840628Z"
+    },
+    "isolated_linux": {
+      "active_leases": 1,
+      "capacity": 1,
+      "heartbeat_utc": "2026-11-22T12:11:52.619598Z"
+    },
+    "disk": {
+      "observed_at_utc": "2026-11-22T12:11:55Z",
+      "command": "df -kP .",
+      "source": "/dev/disk3s5",
+      "mount": "/System/Volumes/Data",
+      "available_kib": 41147844,
+      "capacity_pct": 98
+    },
+    "verified_effective_disk_gate": null,
+    "explicit_isolated_warm_ci_release": null,
+    "live_baseline_attempts": 0,
+    "live_path_pairs": 0
+  },
+  "fixture_sha256": "587d803dc78003452bc18661c0307a903a3480a4dd3b25bbe70dbe913b6ab6cc",
+  "files_sha256": {
+    "scripts/gamma_path_study.py": "975f4029fbefb7e6dce859d146903464a61c25dda09d3e623f9840ffa0af6d34",
+    "scripts/gamma_path_pilot.py": "60c3781e26db1d95a2cba43b94aab299b30905954be21bede85b22d784e48ebd",
+    "scripts/test_gamma_path.py": "385ddd92e0268fa478e771998afdddb0fb52031f7383786a738fa87589afbabe",
+    "docs/benchmarks/2026-11-22/kernel-path/dry-stock-relay/plan.json": "281a0ebd8a86000757f8209bae4ed5e654fcb2d7f3269d3981443a74b805b282",
+    "docs/benchmarks/2026-11-22/kernel-path/dry-bridge-direct/plan.json": "f407a342ecbd291ed3d762f45b88029eaa628946583e66c11eefd90d2cda3992"
+  },
+  "replays": [
+    {
+      "implementation": "ed8bb626",
+      "fixture": "reused",
+      "exit": 0,
+      "stdout_sha256": "2eb8ed20029948c3a4322be4e9112a479ccbe7ee88db223937ec54c7598017b8",
+      "stderr": "",
+      "status": "complete",
+      "aggregate_available": true,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {}
+      }
+    },
+    {
+      "implementation": "working tree",
+      "fixture": "reused",
+      "exit": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "Invalid CPU receipt: scored host window overlaps or precedes warmup\n"
+    },
+    {
+      "implementation": "working tree",
+      "fixture": "control",
+      "exit": 0,
+      "stdout_sha256": "07222a5c8b55d0522a166e714b24fdd5936861ce8e7bf8524d4ebf2456bd3fb6",
+      "stderr": "",
+      "status": "complete",
+      "aggregate_available": true,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {}
+      }
+    },
+    {
+      "implementation": "working tree",
+      "fixture": "producer-stop",
+      "exit": 0,
+      "stdout_sha256": "9a948e25486dc9f8a8914f4f5f5c344786c3259c323fd5e6e4f41c580685946e",
+      "stderr": "",
+      "status": "stopped",
+      "aggregate_available": false,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {
+          "scored-1-A.json": {
+            "started": true,
+            "error": "scored host window overlaps or precedes warmup",
+            "fresh_failed": 0
+          }
+        }
+      },
+      "stop": {
+        "error": "scored host window overlaps or precedes warmup",
+        "complete": false
+      }
+    },
+    {
+      "implementation": "ed8bb626",
+      "fixture": "legacy-ed8bb626",
+      "exit": 0,
+      "stdout_sha256": "21a17a433c6f73f7c1cefcea562504f3cb6f4c5ec999381ef8f655e00c5fe83c",
+      "stderr": "",
+      "status": "complete",
+      "aggregate_available": true,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {}
+      }
+    },
+    {
+      "implementation": "working tree",
+      "fixture": "legacy-ed8bb626",
+      "exit": 0,
+      "stdout_sha256": "568266ccc30508d489007e9d9e417e2cac2eb5c93cc88466735c6ea8243c04c1",
+      "stderr": "",
+      "status": "unqualified legacy baseline",
+      "aggregate_available": false,
+      "attempts": {
+        "planned": 2,
+        "recorded": 2,
+        "failed_or_stopped": {}
+      }
+    }
+  ],
+  "reused_window": {
+    "warmup_counter_epoch_ns": [
+      1795250252622046000,
+      1795250258917680000
+    ],
+    "scored_counter_epoch_ns": [
+      1795250252622046000,
+      1795250258917680000
+    ],
+    "identical_client_stdout": true
+  },
+  "integration": {
+    "command": "MICROPOD_RELAY_SOURCE=/Users/benebsworth/projects/micropod/bench/worker-performance python3 -B scripts/test_gamma_path.py -v",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "test_accepted_socket_proof_rejects_a_second_connection_or_wrong_controller (__main__.GammaPathTests.test_accepted_socket_proof_rejects_a_second_connection_or_wrong_controller) ... ok\ntest_baseline_rejects_relabelled_warmup_and_detached_evidence (__main__.GammaPathTests.test_baseline_rejects_relabelled_warmup_and_detached_evidence) ... ok\ntest_baseline_replays_the_mapped_build_observation (__main__.GammaPathTests.test_baseline_replays_the_mapped_build_observation) ... ok\ntest_client_boundaries_capture_real_subprocess_output_without_network (__main__.GammaPathTests.test_client_boundaries_capture_real_subprocess_output_without_network) ... ok\ntest_dry_plans_and_interface_counters (__main__.GammaPathTests.test_dry_plans_and_interface_counters) ... ok\ntest_fleet_and_owner_are_independent (__main__.GammaPathTests.test_fleet_and_owner_are_independent) ... ok\ntest_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm (__main__.GammaPathTests.test_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm) ... ok\ntest_guest_inventory_requires_booted_config_and_effective_offloads (__main__.GammaPathTests.test_guest_inventory_requires_booted_config_and_effective_offloads) ... ok\ntest_held_out_cpu_and_unavailable_counters (__main__.GammaPathTests.test_held_out_cpu_and_unavailable_counters) ... ok\ntest_mismatched_counters_and_bytes_cannot_score (__main__.GammaPathTests.test_mismatched_counters_and_bytes_cannot_score) ... ok\ntest_occupied_lane_never_opens_an_endpoint (__main__.GammaPathTests.test_occupied_lane_never_opens_an_endpoint) ... ok\ntest_paired_host_cpu_cost_and_occupancy_from_saved_ticks (__main__.GammaPathTests.test_paired_host_cpu_cost_and_occupancy_from_saved_ticks) ... ok\ntest_quota_gate_recomputes_throttling_and_checks_fallback_on_the_same_boot (__main__.GammaPathTests.test_quota_gate_recomputes_throttling_and_checks_fallback_on_the_same_boot) ... ok\ntest_readback_on_archived_bridge_and_direct (__main__.GammaPathTests.test_readback_on_archived_bridge_and_direct) ... ok\ntest_replay_all_six_series_preserves_pair_direction_and_peer_eof (__main__.GammaPathTests.test_replay_all_six_series_preserves_pair_direction_and_peer_eof) ... ok\ntest_separate_plans_carry_no_measured_cost (__main__.GammaPathTests.test_separate_plans_carry_no_measured_cost) ... ok\ntest_stock_tail_can_drain_and_old_completion_stays_diagnostic (__main__.GammaPathTests.test_stock_tail_can_drain_and_old_completion_stays_diagnostic) ... ok\n\n----------------------------------------------------------------------\nRan 17 tests in 0.491s\n\nOK\n"
+  },
+  "raw_replay": {
+    "command": "python3 -B scripts/gamma_path_study.py replay",
+    "same_bytes_as_base": true,
+    "stdout_sha256": "2c061fcf45c5cca2c56ca2165b6b4ee0e5eb4db8ad658d352c6b08ddfc200567"
+  },
+  "historical_cpu": {
+    "command": "python3 -B scripts/gamma_path_study.py cpu-attribution --series path-confirmation",
+    "same_bytes_as_base": true,
+    "stdout_sha256": "5f62a1351c46aa284a148a36a7990b25e2fc23c4bf3243b289159f0bce42237b"
+  },
+  "baseline_plan": {
+    "recorded": "docs/benchmarks/2026-11-22/kernel-path/dry-stock-relay/plan.json",
+    "sha256": "281a0ebd8a86000757f8209bae4ed5e654fcb2d7f3269d3981443a74b805b282",
+    "changed_fields_from_base": [
+      "pilot_sha256",
+      "stock_window_version"
+    ],
+    "scored_order": [
+      "A"
+    ],
+    "offered_seconds": 12
+  },
+  "path_plan": {
+    "recorded": "docs/benchmarks/2026-11-22/kernel-path/dry-bridge-direct/plan.json",
+    "sha256": "f407a342ecbd291ed3d762f45b88029eaa628946583e66c11eefd90d2cda3992",
+    "changed_fields_from_base": [
+      "pilot_sha256"
+    ],
+    "scored_order": [
+      "BA",
+      "AB"
+    ],
+    "offered_seconds": 60
+  }
+}

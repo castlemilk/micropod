@@ -1,0 +1,58 @@
+{
+  "arms": {
+    "tasks-wait": {
+      "archive": "20261125T073746Z-sibling-log-burst-tasks-wait-4slvywq7",
+      "boot": "e6843fa8-4b0c-4b4a-b0a1-c0af6d2cbe8b",
+      "runner_sha256": "3e8abc928350bd4d384044dd87b8cc3ba67ba787581a922dd105b1e5c879ad0c",
+      "jobs": 8,
+      "stream_bytes": 2409296,
+      "exit_codes": [
+        0,
+        7,
+        12,
+        19,
+        23,
+        37,
+        43,
+        61
+      ],
+      "source_sha256": "0e7c4f6368248ef109ab7c44ec5a0e05d1da3c75cbae7abe55ec5e57a52b3472"
+    },
+    "log-notify": {
+      "archive": "20261125T073800Z-sibling-log-burst-log-notify-tx5s2ly6",
+      "boot": "d6e7c034-0d8f-4660-85ce-07245cffcede",
+      "runner_sha256": "58846d9c91426bf22efdb37752d1d0f6bb9014ab33e8fdd00f16e829fe96726a",
+      "jobs": 8,
+      "stream_bytes": 2409296,
+      "exit_codes": [
+        0,
+        7,
+        12,
+        19,
+        23,
+        37,
+        43,
+        61
+      ],
+      "source_sha256": "0e7c4f6368248ef109ab7c44ec5a0e05d1da3c75cbae7abe55ec5e57a52b3472"
+    }
+  },
+  "shared_stream_sha256": {
+    "0.out": "677269ea8339368470145f483788cf0ef2a516f662e28c0b17c4b571d4faf08f",
+    "0.err": "5878f338313c3eb2300c17e3b83fa308947e534516e8105ec523520f084c75cf",
+    "1.out": "3b310628f0a6e634aab20b24e72950d7942618c949aedff8804c97571763ad69",
+    "1.err": "979a0e4f1c99663369b67908a36a476a70116531782c924570f215be8ec0fce4",
+    "2.out": "5323c4ed6aa2ab8b2b7f57f151f1793d771872061c2aa0af1ae6013ee0eabcfe",
+    "2.err": "2ab70d5f6689a730d99a9bc85e46d3b84cf7372e25ad1ea7655bc2545cf8954b",
+    "3.out": "8167853e4107c92bdd9189fd96719d6d49405afb0547c27d592d914405bb2d89",
+    "3.err": "b0f2126cbc1a8570dccc58dac70bee4279e2aae5ce2b99615214748be2004f35",
+    "4.out": "01c2db071521f67f91aa4717f629fb9bf2ef2b33caab699e08bb0728d482e903",
+    "4.err": "50fcb47d272d3058a4e1e90750a7bc087b31d0027d6bc5f41d3d6c2030c117b6",
+    "5.out": "a697fad85fb10ea67b2e37c555f719da0f83af70fbedeacecf91e8516eb63f9b",
+    "5.err": "3d79bca7608bdd9320c80db22bf851cf3823fe33f3455236fe80bfd5f27b4e1c",
+    "6.out": "59a01e991879c7c39cea04e9c5b1dbb0a26e25a27dae2bfff91e64dafab9a51c",
+    "6.err": "b395ee9bb92a93ff03936daff3a083007df6582ec6fc30a99db02b051c267e64",
+    "7.out": "76487032e0d64ebf800b349d404fc3a8d674d2ceda64d026d2cef3cad00f9445",
+    "7.err": "1cf0c4689cec33d2a95fabb929a8778a6756ccc3dbec796d5a7046afa038ba8d"
+  }
+}

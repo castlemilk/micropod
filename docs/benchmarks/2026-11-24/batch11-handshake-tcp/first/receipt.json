@@ -1,0 +1,63 @@
+{
+  "issue": 230,
+  "direction": "230.14",
+  "control": "eager",
+  "candidate": "defer asynchronous read filter registration",
+  "source": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "tier": "Darwin host-only TCP loopback",
+  "predeclared_mode": "ambient host load diagnostic",
+  "floor_free_gib": 60,
+  "endpoints": "two-worker native relay between Darwin Go service and fixed client, one published port per attempt",
+  "workers": 2,
+  "callback_events": 128,
+  "read_bytes": 262144,
+  "profiling": false,
+  "fixture_source_sha256": "fcfd72afcef6539068bc5eac4128d11155d0190669116c70e3c7c3b5b14f731b",
+  "build_receipt_sha256": "917178c4243b3ffbf6b018a0abbac9459a0b41324e031ab9c13aff47fda1d601",
+  "started": "2026-11-24T06:38:21.545274+00:00",
+  "order_seed": 202611242314,
+  "order": [
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      0
+    ]
+  ],
+  "raw": [
+    {
+      "block": 1,
+      "arm": 1,
+      "started": "2026-11-24T06:38:23.607461+00:00",
+      "admission": {
+        "eligible": false,
+        "idle_fraction": 0.290893760539629,
+        "idle_observation_s": 2,
+        "floor_idle": 0.9,
+        "filesystem_free_GiB": 326.67078018188477,
+        "min_free_GiB": 60,
+        "timestamp": "2026-11-24T06:38:23.607435+00:00"
+      },
+      "marker": "two-worker-filter-808c95ed466248e0a290c374670f4f15"
+    }
+  ],
+  "status": "running"
+}

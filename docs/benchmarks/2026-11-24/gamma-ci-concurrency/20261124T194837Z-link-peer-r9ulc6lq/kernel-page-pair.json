@@ -1,0 +1,157 @@
+{
+  "control": {
+    "image_sha256": "05a60bc4d12c7498028a72818df518ced8a8088d67eeae952e79861c699f8ef4",
+    "config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "image_bytes": 29483520,
+    "image_memory_bytes": 30212096,
+    "page_kib": 4,
+    "embedded_config_verified": true
+  },
+  "candidate": {
+    "image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+    "config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "config_changes": {
+    "CONFIG_ARCH_FORCE_MAX_ORDER": [
+      "10",
+      "11"
+    ],
+    "CONFIG_ARCH_MMAP_RND_BITS_MAX": [
+      "33",
+      "31"
+    ],
+    "CONFIG_ARCH_MMAP_RND_BITS_MIN": [
+      "18",
+      "16"
+    ],
+    "CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MIN": [
+      "11",
+      "9"
+    ],
+    "CONFIG_ARCH_WANTS_THP_SWAP": [
+      "y",
+      null
+    ],
+    "CONFIG_ARM64_16K_PAGES": [
+      "n",
+      "y"
+    ],
+    "CONFIG_ARM64_4K_PAGES": [
+      "y",
+      "n"
+    ],
+    "CONFIG_ARM64_CONT_PMD_SHIFT": [
+      "4",
+      "5"
+    ],
+    "CONFIG_ARM64_CONT_PTE_SHIFT": [
+      "4",
+      "7"
+    ],
+    "CONFIG_ARM64_VA_BITS_36": [
+      null,
+      "n"
+    ],
+    "CONFIG_ARM64_VA_BITS_39": [
+      "n",
+      null
+    ],
+    "CONFIG_ARM64_VA_BITS_47": [
+      null,
+      "n"
+    ],
+    "CONFIG_HAVE_PAGE_SIZE_16KB": [
+      null,
+      "y"
+    ],
+    "CONFIG_HAVE_PAGE_SIZE_4KB": [
+      "y",
+      null
+    ],
+    "CONFIG_PAGE_SHIFT": [
+      "12",
+      "14"
+    ],
+    "CONFIG_PAGE_SIZE_16KB": [
+      null,
+      "y"
+    ],
+    "CONFIG_PAGE_SIZE_4KB": [
+      "y",
+      null
+    ]
+  },
+  "additional_config_changes": [
+    "CONFIG_ARCH_FORCE_MAX_ORDER",
+    "CONFIG_ARCH_MMAP_RND_BITS_MAX",
+    "CONFIG_ARCH_MMAP_RND_BITS_MIN",
+    "CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MIN",
+    "CONFIG_ARCH_WANTS_THP_SWAP",
+    "CONFIG_ARM64_CONT_PMD_SHIFT",
+    "CONFIG_ARM64_CONT_PTE_SHIFT",
+    "CONFIG_ARM64_VA_BITS_36",
+    "CONFIG_ARM64_VA_BITS_39",
+    "CONFIG_ARM64_VA_BITS_47",
+    "CONFIG_HAVE_PAGE_SIZE_16KB",
+    "CONFIG_HAVE_PAGE_SIZE_4KB",
+    "CONFIG_PAGE_SHIFT",
+    "CONFIG_PAGE_SIZE_16KB",
+    "CONFIG_PAGE_SIZE_4KB"
+  ],
+  "verdict": "review additional Kconfig changes",
+  "inputs": {
+    "alpine_image": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+    "source_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+    "config_sha256": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21",
+    "builder_sha256": "8428aa21d3c3f496482a47453542450025d625b763a4aef759f0b4f37d1697ad",
+    "profile_order": [
+      "full",
+      "full-16k"
+    ],
+    "label": "mp-pages-20261124t192542z-cny-trn8",
+    "jobs": 4,
+    "source": "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.3.5.tar.xz",
+    "command": "set -eu\napk add --no-cache build-base bc bison flex perl openssl-dev elfutils-dev linux-headers xz zstd bash coreutils pahole gmp-dev mpc1-dev mpfr-dev cpio python3 gawk perl-utils diffutils findutils file rsync\n{ gcc --version; ld --version; pahole --version; uname -a; df -h /tmp; apk info -vv; } > /out/toolchain.txt\nfor mode in full full-16k; do\n  echo \"Starting $mode\"\n  sh /inputs/build-worker-kernel.sh /inputs/linux.tar.xz /inputs/apple.config /out/$mode $mode > \"/out/$mode.log\" 2>&1 || { tail -42 \"/out/$mode.log\"; exit 1; }\n  cat /out/$mode/SHA256SUMS\ndone\n"
+  },
+  "build_container": {
+    "image": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+    "platform": "linux",
+    "env": {
+      "KBUILD_BUILD_HOST": "gamma",
+      "KBUILD_BUILD_TIMESTAMP": "Tue Nov 17 10:35:00 UTC 2026",
+      "KBUILD_BUILD_VERSION": "1",
+      "JOBS": "4",
+      "KBUILD_BUILD_USER": "micropod"
+    },
+    "nano_cpus": 4000000000,
+    "pids_limit": 1024,
+    "mounts": [
+      {
+        "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T192542Z-cny_trn8",
+        "destination": "/out",
+        "read_only": false
+      },
+      {
+        "source": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/apple.config",
+        "destination": "/inputs/apple.config",
+        "read_only": true
+      },
+      {
+        "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/ci/build-worker-kernel.sh",
+        "destination": "/inputs/build-worker-kernel.sh",
+        "read_only": true
+      },
+      {
+        "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T192542Z-cny_trn8/linux-7.3.5.tar.xz",
+        "destination": "/inputs/linux.tar.xz",
+        "read_only": true
+      }
+    ]
+  },
+  "host_page_bytes": 16384,
+  "toolchain_sha256": "c876eff72b454f12036c88e9bf1b326f2883f0416036bd260e8e3b452c6f68a5"
+}

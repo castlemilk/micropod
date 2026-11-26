@@ -1,0 +1,478 @@
+{
+  "path-confirmation": {
+    "control": "full-bridge",
+    "candidate": "full-reno",
+    "paired_blocks": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "paired_ratios": [
+      1.2657194606927982,
+      0.9611691341012498,
+      0.4116191707589957,
+      0.491338436428549,
+      1.729804246677894,
+      1.390127421267929,
+      1.3791614520736237,
+      1.2273395169558647,
+      1.6323064350994807,
+      3.179289833233147,
+      1.2376394466787692,
+      1.2132050003662684
+    ],
+    "paired_change_pct": 25.16794536857838,
+    "paired_bootstrap_interval_pct": [
+      8.718706723375913,
+      51.12169281837049
+    ],
+    "arms": {
+      "full-bridge": {
+        "mib_s": 2495.9210158154497,
+        "p95_ms": 114.188,
+        "p99_ms": 170.41250000000002,
+        "seconds": 6.0002132915,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": {
+          "cpu_s_per_gib": 0.5706058931153238,
+          "cpu_ns_per_byte": 0.531418149466928,
+          "cpu_seconds": 8.206489833333332,
+          "counter_window_s": 6.464962,
+          "runnable_wait_thread_s_per_s": 2.309276133178843
+        },
+        "relay": {
+          "cpu_s_per_gib": 0.3051247052579982,
+          "cpu_ns_per_byte": 0.28416952607966783,
+          "cpu_seconds": 4.439271166666666,
+          "counter_window_s": 6.464962,
+          "runnable_wait_thread_s_per_s": 0.9347187509352755
+        }
+      },
+      "full-reno": {
+        "mib_s": 3237.9778429116614,
+        "p95_ms": 73.201,
+        "p99_ms": 130.38850000000002,
+        "seconds": 6.000786688,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": {
+          "cpu_s_per_gib": 0.47551869731490615,
+          "cpu_ns_per_byte": 0.4428612974611168,
+          "cpu_seconds": 9.002609854166666,
+          "counter_window_s": 6.298825,
+          "runnable_wait_thread_s_per_s": 1.9743566410143227
+        },
+        "relay": {
+          "cpu_s_per_gib": 0.29750933596246054,
+          "cpu_ns_per_byte": 0.2770771607407001,
+          "cpu_seconds": 5.578241437499999,
+          "counter_window_s": 6.298825,
+          "runnable_wait_thread_s_per_s": 0.8242351393595766
+        }
+      }
+    }
+  },
+  "path-first": {
+    "control": "new",
+    "candidate": "direct",
+    "paired_blocks": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "paired_ratios": [
+      0.9420998355594211,
+      0.9320043088318808,
+      1.3643319679454884,
+      1.359563864145761,
+      0.8659472367519662,
+      1.0276719139244928,
+      1.0748808517346746,
+      1.1362728636002117,
+      1.1171892657476747,
+      0.8580792361887358,
+      0.9224100272077015,
+      1.1671193864963105
+    ],
+    "paired_change_pct": 5.127638282958369,
+    "paired_bootstrap_interval_pct": [
+      -7.279283198020892,
+      15.169612504826112
+    ],
+    "arms": {
+      "new": {
+        "mib_s": 2117.212601141554,
+        "p95_ms": 124.5985,
+        "p99_ms": 171.62900000000002,
+        "seconds": 6.000194854,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": null,
+        "relay": null
+      },
+      "direct": {
+        "mib_s": 2037.5288270969036,
+        "p95_ms": 114.86,
+        "p99_ms": 162.062,
+        "seconds": 6.0008575835,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": null,
+        "relay": null
+      }
+    }
+  },
+  "path-holdout-lazy": {
+    "control": "lazy-bridge",
+    "candidate": "lazy-reno",
+    "paired_blocks": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "paired_ratios": [
+      1.8823150933891912,
+      0.7200746926799703,
+      1.3921610634799717,
+      0.6020765199507873,
+      1.7012340088644966,
+      1.1490639229986797,
+      0.9573512004152879,
+      1.0687914816428672,
+      0.824925020379492,
+      0.9925778952933572,
+      1.1305928163602927,
+      1.1829686764188776
+    ],
+    "paired_change_pct": 9.969214900158008,
+    "paired_bootstrap_interval_pct": [
+      -10.886188960261013,
+      28.756486994942463
+    ],
+    "arms": {
+      "lazy-bridge": {
+        "mib_s": 2628.3858109115936,
+        "p95_ms": 121.87799999999999,
+        "p99_ms": 181.3025,
+        "seconds": 6.000120062500001,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": {
+          "cpu_s_per_gib": 0.544008435125117,
+          "cpu_ns_per_byte": 0.5066473364132615,
+          "cpu_seconds": 8.3507719375,
+          "counter_window_s": 6.3129715,
+          "runnable_wait_thread_s_per_s": 2.293455271900485
+        },
+        "relay": {
+          "cpu_s_per_gib": 0.29921573459071427,
+          "cpu_ns_per_byte": 0.27866636830448566,
+          "cpu_seconds": 4.593264833333333,
+          "counter_window_s": 6.3129715,
+          "runnable_wait_thread_s_per_s": 0.9958960190964803
+        }
+      },
+      "lazy-reno": {
+        "mib_s": 2576.242133943543,
+        "p95_ms": 74.705,
+        "p99_ms": 108.2485,
+        "seconds": 6.0001811875,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": {
+          "cpu_s_per_gib": 0.46644961173243127,
+          "cpu_ns_per_byte": 0.4344150533270382,
+          "cpu_seconds": 7.041339249999999,
+          "counter_window_s": 6.265475,
+          "runnable_wait_thread_s_per_s": 2.3693559632600847
+        },
+        "relay": {
+          "cpu_s_per_gib": 0.2932945179589107,
+          "cpu_ns_per_byte": 0.27315180558609836,
+          "cpu_seconds": 4.4546736875,
+          "counter_window_s": 6.265475,
+          "runnable_wait_thread_s_per_s": 1.0270102493167084
+        }
+      }
+    }
+  },
+  "bridge-kernel": {
+    "control": "old",
+    "candidate": "new",
+    "paired_blocks": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "paired_ratios": [
+      1.0942350645300638,
+      1.0950053329825087,
+      0.7864683611399202,
+      0.7816652537738926,
+      1.0278962848048896,
+      0.8266407821568224,
+      0.8221061200180302,
+      1.0418733831402724,
+      1.0589823955555786,
+      0.9772525066360236,
+      1.2516804153708685,
+      0.9598426635682048
+    ],
+    "paired_change_pct": 0.25743957204564794,
+    "paired_bootstrap_interval_pct": [
+      -17.562654891257367,
+      7.660873004282109
+    ],
+    "arms": {
+      "old": {
+        "mib_s": 2179.3528556047877,
+        "p95_ms": 112.44749999999999,
+        "p99_ms": 160.23149999999998,
+        "seconds": 6.0002969585,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": null,
+        "relay": null
+      },
+      "new": {
+        "mib_s": 2117.212601141554,
+        "p95_ms": 124.5985,
+        "p99_ms": 171.62900000000002,
+        "seconds": 6.000194854,
+        "attempted": 12,
+        "clean": 12,
+        "dirty_blocks": [],
+        "offered": 2880,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": null,
+        "vmm": null,
+        "relay": null
+      }
+    }
+  },
+  "older-relay-vm-holdout": {
+    "control": "confirm-orb",
+    "candidate": "confirm-micropod",
+    "paired_blocks": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      13,
+      14,
+      15,
+      16
+    ],
+    "paired_ratios": [
+      0.7090052427711508,
+      0.5776675484606989,
+      1.305468423312647,
+      1.261215744615861,
+      0.6749446016707904,
+      0.7804111168275599,
+      2.0453716978386045,
+      0.8540445809525004,
+      0.7304802693259016,
+      1.1173812254569129,
+      1.2308756575996342,
+      1.2586594205448958,
+      1.1467680198462595,
+      0.684747730750259,
+      0.651155400960701
+    ],
+    "paired_change_pct": -14.595541904749965,
+    "paired_bootstrap_interval_pct": [
+      -29.099475722884915,
+      25.865942054489576
+    ],
+    "arms": {
+      "confirm-micropod": {
+        "mib_s": 2709.8300097735155,
+        "p95_ms": 35.208,
+        "p99_ms": 58.147,
+        "seconds": 6.0007295,
+        "attempted": 16,
+        "clean": 16,
+        "dirty_blocks": [],
+        "offered": 3840,
+        "reopened": 0,
+        "fresh_failed": 0,
+        "link_drops": 0,
+        "vmm": {
+          "cpu_s_per_gib": 0.6053304914790439,
+          "cpu_ns_per_byte": 0.5637579518175162,
+          "cpu_seconds": 9.595033729166666,
+          "counter_window_s": 6.1892055,
+          "runnable_wait_thread_s_per_s": 2.0938621244138527
+        },
+        "relay": {
+          "cpu_s_per_gib": 0.3480786537894611,
+          "cpu_ns_per_byte": 0.32417350801589073,
+          "cpu_seconds": 5.562286541666666,
+          "counter_window_s": 6.1892055,
+          "runnable_wait_thread_s_per_s": 0.12357918620473943
+        }
+      },
+      "confirm-orb": {
+        "mib_s": 3010.383519887246,
+        "p95_ms": 220.325,
+        "p99_ms": 1027.418,
+        "seconds": 6.000922541,
+        "attempted": 16,
+        "clean": 15,
+        "dirty_blocks": [
+          12
+        ],
+        "offered": 3840,
+        "reopened": 0,
+        "fresh_failed": 1,
+        "link_drops": null,
+        "vmm": {
+          "cpu_s_per_gib": 1.073912669733817,
+          "cpu_ns_per_byte": 1.0001591124886806,
+          "cpu_seconds": 20.017833874999997,
+          "counter_window_s": 7.307981,
+          "runnable_wait_thread_s_per_s": 6.284536455313784
+        },
+        "relay": null
+      }
+    }
+  },
+  "rps-rfs": {
+    "control": "base",
+    "candidate": "rfs",
+    "paired_blocks": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "paired_ratios": [
+      0.9577667173058102,
+      0.8893026654905026,
+      1.0037579637851257,
+      0.9525648215664955,
+      0.9936498183857134,
+      0.7182646947467405
+    ],
+    "paired_change_pct": -4.483423056384717,
+    "paired_bootstrap_interval_pct": [
+      -19.621631988137842,
+      -0.12961089145804294
+    ],
+    "arms": {
+      "base": {
+        "mib_s": 4145.367087517647,
+        "p95_ms": 4.1450835,
+        "p99_ms": 4.970000000000001,
+        "seconds": 0.344339271,
+        "attempted": 6,
+        "clean": 6,
+        "dirty_blocks": [],
+        "offered": 900,
+        "reopened": 0,
+        "fresh_failed": null,
+        "link_drops": null,
+        "vmm": null,
+        "relay": null
+      },
+      "rfs": {
+        "mib_s": 3871.980692635741,
+        "p95_ms": 3.610646,
+        "p99_ms": 5.027271,
+        "seconds": 0.29521541650000005,
+        "attempted": 6,
+        "clean": 6,
+        "dirty_blocks": [],
+        "offered": 900,
+        "reopened": 0,
+        "fresh_failed": null,
+        "link_drops": null,
+        "vmm": null,
+        "relay": null
+      }
+    }
+  }
+}

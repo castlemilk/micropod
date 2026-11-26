@@ -1,0 +1,67 @@
+#include <assert.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+typedef unsigned short u16;
+struct scatterlist { const void *msg; };
+struct virtio_net_ctrl_mq { u16 virtqueue_pairs; };
+struct virtio_net_rss_config_hdr { int unused; };
+struct virtio_net_rss_config_trailer { u16 max_tx_vq; };
+struct vdev { int dev; };
+struct net_device { int flags,tx,rx; void *priv; };
+struct queue { int napi,vq; };
+struct virtnet_info { bool has_cvq, has_rss; struct vdev *vdev; struct net_device *dev;
+    struct virtio_net_rss_config_hdr *rss_hdr; struct virtio_net_rss_config_trailer rss_trailer;
+    struct queue *rq; u16 curr_queue_pairs, max_queue_pairs; };
+struct ethtool_channels { int combined_count,max_combined,max_other,rx_count,tx_count,other_count; };
+static int acknowledge,device_pairs=1,requested,calls;
+static struct virtio_net_ctrl_mq slot;
+#define __free(x)
+#define virtio_has_feature(v,f) (1)
+#define netif_is_rxfh_configured(d) (0)
+#define devm_kzalloc(...) (abort(),(void*)0)
+#define virtnet_rss_update_by_qpairs(...) abort()
+#define virtnet_commit_rss_command(...) (abort(),0)
+#define devm_kfree(...) abort()
+#define dev_warn(...) ((void)0)
+#define kzalloc_obj(x) (&slot)
+#define cpu_to_virtio16(d,x) (x)
+#define cpu_to_le16(x) (x)
+#define sg_init_one(s,p,n) ((s)->msg=(p))
+#define VIRTIO_NET_CTRL_MQ 4
+#define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET 0
+static bool virtnet_send_command(struct virtnet_info *v, int cls, int cmd, struct scatterlist *sg) {
+    assert(cls==VIRTIO_NET_CTRL_MQ && cmd==VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET);
+    calls++;
+    requested = ((const struct virtio_net_ctrl_mq*)sg->msg)->virtqueue_pairs;
+    if (acknowledge) device_pairs=requested;
+    return acknowledge;
+}
+#define IFF_UP 1
+#define local_bh_disable() abort()
+#define local_bh_enable() abort()
+#define virtqueue_napi_schedule(...) abort()
+#define netdev_priv(d) ((d)->priv)
+#define num_online_cpus() 4
+#define netif_set_real_num_tx_queues(d,n) ((d)->tx=(n))
+#define netif_set_real_num_rx_queues(d,n) ((d)->rx=(n))
+@SET_QUEUES@
+@GET_CHANNELS@
+int main(int argc,char **argv) {
+    assert(argc==2);
+    acknowledge=atoi(argv[1]);
+    struct net_device device={0}, *dev=&device;
+    struct vdev backend={0};
+    struct virtnet_info info={.dev=dev,.vdev=&backend,.has_cvq=true}, *vi=&info;
+    dev->priv=vi;
+    u16 max_queue_pairs=4;
+    @INIT@
+    @COUNTS@
+    @CONFIGURE@
+    struct ethtool_channels c={0};
+    virtnet_get_channels(dev,&c);
+    printf("{\"acknowledged\":%d,\"calls\":%d,\"requested\":%d,\"mock_device_pairs\":%d,"
+           "\"linux_tx\":%d,\"linux_rx\":%d,\"ethtool_combined\":%d}\n",
+           acknowledge,calls,requested,device_pairs,dev->tx,dev->rx,c.combined_count);
+}

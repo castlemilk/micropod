@@ -1,0 +1,29 @@
+{
+  "source_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "seed_sha256": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21",
+  "builder_sha256": "5addb8f9b0f0506c300747ed9a9bbafe212a4b9ac1fee84b17cdc0c267030785",
+  "profile": "full-mthp",
+  "container_image": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+  "build_environment": {
+    "KBUILD_BUILD_HOST": "gamma",
+    "KBUILD_BUILD_TIMESTAMP": "Tue Nov 17 10:35:00 UTC 2026",
+    "KBUILD_BUILD_VERSION": "1",
+    "JOBS": "4",
+    "KBUILD_BUILD_USER": "micropod"
+  },
+  "command": "set -eu\napk add --no-cache build-base bc bison flex perl openssl-dev elfutils-dev linux-headers xz zstd bash coreutils pahole gmp-dev mpc1-dev mpfr-dev cpio python3 gawk perl-utils diffutils findutils file rsync\n{ gcc --version; ld --version; pahole --version; uname -a; df -h /tmp; apk info -vv; } > /out/toolchain.txt\nmkdir -m 755 /tmp/profile-input\ncp /inputs/seed /tmp/profile-input/apple.config\ncp /inputs/linux.tar.xz /tmp/profile-input/linux.tar.xz\ncp /inputs/builder /tmp/profile-input/builder\nchmod 0444 /tmp/profile-input/*\nmkdir /tmp/profile-destination\nchown nobody /tmp/profile-destination\nsu -p -s /bin/sh nobody -c 'id -u; stat -c \"%a\" /tmp/profile-input/apple.config; sha256sum /tmp/profile-input/apple.config' > /out/builder-user.txt\nsu -p -s /bin/sh nobody -c 'sh /tmp/profile-input/builder /tmp/profile-input/linux.tar.xz /tmp/profile-input/apple.config /tmp/profile-destination/full full-mthp' > /out/full.log 2>&1 || { tail -30 /out/full.log; exit 1; }\ncp -a /tmp/profile-destination/full /out/full\nsha256sum /tmp/profile-input/apple.config > /out/seed-after.txt\n",
+  "uid": 65534,
+  "seed_mode": "444",
+  "seed_sha256_after": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21",
+  "resolved_config_sha256": "6691e357388cc628832113a3b341428430d04c63ebf485c5a8c0535498abf7e5",
+  "verified_toolchain_packages": 97,
+  "reference_image_sha256": "8a758aee9fccb7871df5a3589eb619d5596fbf6569d222fe5699490f094d156e",
+  "image_sha256": "b78725318101a37f4618f3d428b11e56dae50176dc8c42a8b755f6f3cb9bc2bf",
+  "identical_except_gnu_build_ids": true,
+  "gnu_build_id_differences_at": [
+    15893168,
+    19691868
+  ],
+  "normalized_sha256": "40c18ae1a8590d4a54b42bacec048999dcd8d76ccafa25b11f69582e7c570389",
+  "builder_retired": true
+}

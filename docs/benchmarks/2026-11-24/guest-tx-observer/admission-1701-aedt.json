@@ -1,0 +1,61 @@
+{
+  "at": "2026-11-24T06:01:47.508406296Z",
+  "rigs": [
+    {
+      "displayName": "Gamma-128GB Linux CI (isolated VM)",
+      "activeLeases": 1,
+      "capacity": 1,
+      "acceptingWork": false,
+      "snapshotFreshness": "stale",
+      "connectionState": "online"
+    },
+    {
+      "displayName": "Gamma-128GB.local",
+      "activeLeases": 0,
+      "capacity": 6,
+      "acceptingWork": false,
+      "snapshotFreshness": "stale",
+      "connectionState": "online"
+    }
+  ],
+  "pool": {
+    "heldSlots": 1,
+    "allocations": {
+      "busy": 1
+    },
+    "minRunners": 1,
+    "maxRunners": 1,
+    "demand": {
+      "assignedJobs": 1,
+      "availableJobs": 0,
+      "complete": true,
+      "fresh": true,
+      "observedAt": "2026-11-24T06:01:10.103755Z",
+      "poolRevision": 8,
+      "sequence": 13792
+    }
+  },
+  "kind": "Read-only Cuttlefish/GitHub admission observation; no experiment",
+  "project": "cuttlefish",
+  "github_job": {
+    "id": 138245037112,
+    "name": "Docker integration",
+    "url": "https://github.com/skunkworq/cuttlefish/actions/runs/45335045120/job/138245037112",
+    "runner_id": 2304,
+    "completed_at": "2026-11-24T05:54:37Z",
+    "conclusion": "failure",
+    "failure_annotation": "The self-hosted runner lost communication with the server."
+  },
+  "other_job_from_same_workflow": {
+    "name": "Embedded app",
+    "state": "queued",
+    "runner_id": 0
+  },
+  "attribution": "The completed job and held pool slot are separate observations. There is no joined allocation identifier or verified cleanup receipt.",
+  "baseline": {
+    "qualified_receipt_found": false,
+    "current_serving_scope_handoff_found": false,
+    "preflight": "not run",
+    "scored_samples": 0
+  }
+}

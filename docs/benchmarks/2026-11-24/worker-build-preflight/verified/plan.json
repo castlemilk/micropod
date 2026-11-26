@@ -1,0 +1,47 @@
+{
+  "host": "Gamma-128GB.local",
+  "macos": "26.5.1",
+  "revision": "5b8ea1a6a79d1741e521c080f968fcf04c591e68",
+  "factor": "workers",
+  "ports": 1,
+  "seed": 34200,
+  "order": {
+    "warmup": [
+      "BA",
+      "BA",
+      "AB"
+    ],
+    "scored": [
+      "BA",
+      "AB",
+      "BA",
+      "AB",
+      "BA",
+      "AB"
+    ]
+  },
+  "action": "check",
+  "callback_events": 128,
+  "seconds": 6,
+  "fixture_sha256": "0457741fe6d31cffe176e33b6c53f6966e8cd7f75ea7f60acbbc8ca4556e9c24",
+  "arm_binaries": {
+    "A": "False",
+    "B": "False"
+  },
+  "binaries": {
+    "False": {
+      "binary": "c9de90b644b4ed8d311bc4b8fe3efef49421efd1f17dc7c85a44f918e6353737",
+      "flags": [
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fblocks",
+        "-DRELAYBENCH_NATIVE_WORKERS",
+        "-DMICROPOD_BENCH_FIXED_RELAY_BUDGET=1"
+      ],
+      "c": "c877f1efe9b46a9e80385bf6f8b1a00add0b1671cf8d0d8d8ec02d2d0842990f",
+      "header": "039b653ac1ae9472a1ce71251b82e485b06d198b8745437326f7933942f545db"
+    }
+  }
+}

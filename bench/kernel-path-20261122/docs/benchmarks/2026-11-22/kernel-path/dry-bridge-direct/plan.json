@@ -1,0 +1,31 @@
+{
+  "mode": "path",
+  "paths": {
+    "A": "bridge",
+    "B": "macvlan"
+  },
+  "seed": 34199,
+  "order": {
+    "warmup": [
+      "AB",
+      "BA",
+      "BA"
+    ],
+    "scored": [
+      "BA",
+      "AB"
+    ]
+  },
+  "offered_seconds": 60,
+  "vcpus": 4,
+  "memory_mib": 4096,
+  "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "source": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "pilot_sha256": "088b9007e155eaa655d18276b581a755aa1420785bf5131ef96851bb11d14ea3",
+  "path_extension_sha256": "3f61e98546feeca68d2e7178feae9b1423ff6866ea5aca82ccaa325a43aa6f43",
+  "tools_sha256": {
+    "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+  }
+}

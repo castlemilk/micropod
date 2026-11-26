@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+    "ci",
+    "serve"
+  ],
+  "started": "2026-11-24T06:32:06.403518+00:00",
+  "free_gib": 289.3983917236328,
+  "launch_mode": "direct ci serve",
+  "checks": [
+    {
+      "t": 0,
+      "rc": null,
+      "socket": false,
+      "free_gib": 289.398
+    },
+    {
+      "t": 1,
+      "rc": 1,
+      "socket": false,
+      "free_gib": 289.399
+    }
+  ],
+  "pid": 41560
+}

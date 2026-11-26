@@ -1,0 +1,55 @@
+{
+  "base_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "changed_packaged_inputs": [
+    "ci/runner/start.sh"
+  ],
+  "current_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-865790d7164265c1/product.json",
+  "entitlements": {
+    "com.apple.security.virtualization": true
+  },
+  "fragment_sha256": "d4233a3c4fa4e20d281086cd15c756fbeb6b220f3f898c13f802364317ea8e0c",
+  "host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "kernel": {
+    "allowed_windows_bytes": [
+      65536,
+      1048576
+    ],
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "debugfs_file": "fault_around_bytes",
+    "default_window_bytes": 65536,
+    "embedded_config_verified": true,
+    "image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "kconfig": {
+      "CONFIG_ARM64_16K_PAGES": "y",
+      "CONFIG_DEBUG_FS": "y",
+      "CONFIG_DEBUG_FS_ALLOW_ALL": "y",
+      "CONFIG_IKCONFIG": "y",
+      "CONFIG_IPVLAN": "y",
+      "CONFIG_PAGE_SHIFT": "14",
+      "CONFIG_PROC_PAGE_MONITOR": "y",
+      "CONFIG_TRANSPARENT_HUGEPAGE": "n"
+    },
+    "maximum_effective_window_bytes": 33554432,
+    "page_size_bytes": 16384,
+    "ptes_per_page_table": 2048,
+    "release": "7.3.5-micropod",
+    "source_files_sha256": {
+      "arch/arm64/include/asm/pgtable-hwdef.h": "b6bc393bc34fe5237efb464d7426094523619f39241fac87588adfa1edf81140",
+      "mm/filemap.c": "5e78edb19bf7a2b3713f7d8c648617d8b20e614f8b9a9dda7b1b7b86b0e4d7df",
+      "mm/memory.c": "77daf1ece7086d469ed6806f6503927c945054e2ca58484ceaabd43c56f219c7"
+    },
+    "source_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990"
+  },
+  "new_bootstrap_sha256": "af583d573885ef7bf3340178ae1e0d2053fe191cd574a950e107148a96704704",
+  "new_guest_sha256": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895",
+  "old_bootstrap_sha256": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+  "old_host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "patch_sha256": "fd3ffa2b23f763cffe5851f0f27d2b4d897f5f5fa0b7080ca45855e48611a7e4",
+  "previous_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-1ca6188077ab406f/product.json",
+  "previous_product_sha256": "773d417936a11f3a0007fa9efa62b07efbb3763e14a0b9d6059063efce2b2645",
+  "sha256_by_changed_input": {
+    "ci/runner/start.sh": "af583d573885ef7bf3340178ae1e0d2053fe191cd574a950e107148a96704704"
+  },
+  "source_tree_without_start_sha256": "71b6448db427a7b51050a6d2ca115ff60e498ea003f10ebe02047baa8a082d63",
+  "tool_tree_without_start_sha256": "53dd6fd81223b96fd6df46b24594897ee62c9f5cde3b2f3151a785914ec21372"
+}

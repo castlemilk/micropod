@@ -1,0 +1,9 @@
+{
+  "action": "check",
+  "complete": true,
+  "start": "2026-11-24T11:05:56.446150+00:00",
+  "process_exit": 0,
+  "raw_sha256": "3208a15bca6c9fbd9f157436f64df1b9edeb048b59030e5b6ad6cdd748ce4f7e",
+  "temporary_build_removed": true,
+  "ended": "2026-11-24T11:05:57.772834+00:00"
+}

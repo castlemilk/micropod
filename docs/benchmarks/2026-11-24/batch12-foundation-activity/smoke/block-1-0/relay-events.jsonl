@@ -1,0 +1,9 @@
+{"event":"first_listener","held":false,"options":1095232389119,"pid":62194,"token":"none","uptime_ns":2915358623458}
+{"base_priority":31,"current_priority":31,"event":"owner_sample","owner":"dev.micropod.published-tcp.accept","phase":"held_before","pid":62194,"qos_class":25,"tid":1896947,"uptime_ns":2915362075625}
+{"base_priority":31,"current_priority":31,"event":"owner_sample","owner":"dev.micropod.published-tcp.io.0","phase":"held_before","pid":62194,"qos_class":25,"tid":1896947,"uptime_ns":2915362138791}
+{"base_priority":31,"current_priority":31,"event":"owner_sample","owner":"dev.micropod.published-tcp.io.1","phase":"held_before","pid":62194,"qos_class":25,"tid":1896947,"uptime_ns":2915362161416}
+{"base_priority":31,"current_priority":31,"event":"owner_sample","owner":"dev.micropod.published-tcp.accept","phase":"held_after","pid":62194,"qos_class":25,"tid":1896947,"uptime_ns":2915371627083}
+{"base_priority":31,"current_priority":31,"event":"owner_sample","owner":"dev.micropod.published-tcp.io.0","phase":"held_after","pid":62194,"qos_class":25,"tid":1896947,"uptime_ns":2915371702750}
+{"base_priority":31,"current_priority":31,"event":"owner_sample","owner":"dev.micropod.published-tcp.io.1","phase":"held_after","pid":62194,"qos_class":25,"tid":1896947,"uptime_ns":2915371728750}
+{"ended":false,"event":"last_listener","held":false,"pid":62194,"token":"none","uptime_ns":2915371777458}
+{"event":"lease_released","pid":62194,"port":64089,"uptime_ns":2915371801416}

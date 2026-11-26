@@ -1,0 +1,19 @@
+{
+  "passed": 13,
+  "cases": {
+    "shell text mentions a benchmark": false,
+    "inactive GitHub runner listener": false,
+    "actual job executor": true,
+    "TCP client first attempt": true,
+    "TCP server only": false,
+    "actual netbench client": true,
+    "separate named worker": true,
+    "idle attested persistent worker": false,
+    "active native sessions": true,
+    "running named container": true,
+    "socket inspection denied": true,
+    "native job between two polls": true,
+    "owned disposable supervisor": false
+  },
+  "unit": "blocked=true"
+}

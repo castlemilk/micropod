@@ -1,0 +1,2099 @@
+{
+  "source_score": {
+    "file": "sibling-output-polling-results.json",
+    "sha256": "c17e3fdf35cc75851c17004ad3945e4eaac714319b6bc53c62e70aafb25ee686"
+  },
+  "product_manifest_sha256": "cce41bbb97e4cf81c9ccbbfaa5af6650488307da345a49191bd2b88b6614e7d4",
+  "runner_sha256": {
+    "optimized": "3e8abc928350bd4d384044dd87b8cc3ba67ba787581a922dd105b1e5c879ad0c",
+    "stock": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895"
+  },
+  "protocol_sha256": "4841b5114540bfe896e0f7e7ead6a34ec0247f4d3483617602740fe9c77056e2",
+  "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+  "matched_boot_pairs": 2,
+  "native_boots": 4,
+  "paired_engine_windows": 16,
+  "completed_requests": 3072000,
+  "build_jobs": 256,
+  "minimum_first_build_end_margin_ns": 1152114362,
+  "offered_rps": 64000,
+  "selection": {
+    "own_p95_band": "Post-dispatch ranks above 94% through 96% within each engine and role.",
+    "same_offers_slowest_5pct_union": "Match the offered ordinal within a wave across engines when either arm places it in its slowest 5%.",
+    "optimized_minus_stock_ns": "Differences of selected phase means and of per-wave p95 medians over matched seeds. The selected populations can change with mode."
+  },
+  "aggregate": {
+    "by_mode": {
+      "stock": {
+        "paired_waves": 8,
+        "groups": {
+          "all": {
+            "median_p95_ns": {
+              "micropod": 582625.0,
+              "orbstack": 260208.5
+            },
+            "median_paired_p95_gap_ns": 278895.5,
+            "waves_with_higher_native_p95": 8,
+            "joint_slowest_5pct_requests": 2688,
+            "own_p95_band": {
+              "micropod": {
+                "requests": 15360,
+                "builder_requests": 3664,
+                "sum_ns": {
+                  "total": 9262585578,
+                  "dispatch_to_got_conn": 294856163,
+                  "got_conn_to_wrote_request": 1185153179,
+                  "wrote_request_to_first_byte": 3934946133,
+                  "first_byte_to_completion": 3847630103
+                }
+              },
+              "orbstack": {
+                "requests": 15360,
+                "builder_requests": 4623,
+                "sum_ns": {
+                  "total": 4603031083,
+                  "dispatch_to_got_conn": 113615936,
+                  "got_conn_to_wrote_request": 546306637,
+                  "wrote_request_to_first_byte": 2858759422,
+                  "first_byte_to_completion": 1084349088
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 303356.4124348958,
+                "dispatch_to_got_conn": 11799.4939453125,
+                "got_conn_to_wrote_request": 41591.57174479167,
+                "wrote_request_to_first_byte": 70064.23899739583,
+                "first_byte_to_completion": 179901.10774739584
+              }
+            },
+            "same_offers_slowest_5pct_union": {
+              "micropod": {
+                "requests": 74112,
+                "builder_requests": 23456,
+                "sum_ns": {
+                  "total": 54379618283,
+                  "dispatch_to_got_conn": 934568403,
+                  "got_conn_to_wrote_request": 12650749424,
+                  "wrote_request_to_first_byte": 23120672391,
+                  "first_byte_to_completion": 17673628065
+                }
+              },
+              "orbstack": {
+                "requests": 74112,
+                "builder_requests": 23456,
+                "sum_ns": {
+                  "total": 39245050179,
+                  "dispatch_to_got_conn": 778348487,
+                  "got_conn_to_wrote_request": 2918740639,
+                  "wrote_request_to_first_byte": 30283831461,
+                  "first_byte_to_completion": 5264129592
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 204212.11280224525,
+                "dispatch_to_got_conn": 2107.889626511226,
+                "got_conn_to_wrote_request": 131314.8853761874,
+                "wrote_request_to_first_byte": -96653.1610265544,
+                "first_byte_to_completion": 167442.49882610104
+              }
+            }
+          },
+          "builders": {
+            "median_p95_ns": {
+              "micropod": 679479.5,
+              "orbstack": 327583.5
+            },
+            "median_paired_p95_gap_ns": 308729.5,
+            "waves_with_higher_native_p95": 8,
+            "joint_slowest_5pct_requests": 678,
+            "own_p95_band": {
+              "micropod": {
+                "requests": 3840,
+                "builder_requests": 3840,
+                "sum_ns": {
+                  "total": 2756349767,
+                  "dispatch_to_got_conn": 27196921,
+                  "got_conn_to_wrote_request": 434169764,
+                  "wrote_request_to_first_byte": 1215370940,
+                  "first_byte_to_completion": 1079612142
+                }
+              },
+              "orbstack": {
+                "requests": 3840,
+                "builder_requests": 3840,
+                "sum_ns": {
+                  "total": 1460705833,
+                  "dispatch_to_got_conn": 57720015,
+                  "got_conn_to_wrote_request": 187436713,
+                  "wrote_request_to_first_byte": 851862075,
+                  "first_byte_to_completion": 363687030
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 337407.27447916666,
+                "dispatch_to_got_conn": -7948.722395833333,
+                "got_conn_to_wrote_request": 64253.398697916666,
+                "wrote_request_to_first_byte": 94663.76692708333,
+                "first_byte_to_completion": 186438.83125
+              }
+            },
+            "same_offers_slowest_5pct_union": {
+              "micropod": {
+                "requests": 18522,
+                "builder_requests": 18522,
+                "sum_ns": {
+                  "total": 15912068546,
+                  "dispatch_to_got_conn": 122942356,
+                  "got_conn_to_wrote_request": 3830149928,
+                  "wrote_request_to_first_byte": 6947724663,
+                  "first_byte_to_completion": 5011251599
+                }
+              },
+              "orbstack": {
+                "requests": 18522,
+                "builder_requests": 18522,
+                "sum_ns": {
+                  "total": 18965428689,
+                  "dispatch_to_got_conn": 382742646,
+                  "got_conn_to_wrote_request": 1441868394,
+                  "wrote_request_to_first_byte": 14820383892,
+                  "first_byte_to_completion": 2320433757
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": -164850.45583630278,
+                "dispatch_to_got_conn": -14026.578663211316,
+                "got_conn_to_wrote_request": 128942.96155922687,
+                "wrote_request_to_first_byte": -425043.6901522514,
+                "first_byte_to_completion": 145276.85141993305
+              }
+            }
+          },
+          "service_only": {
+            "median_p95_ns": {
+              "micropod": 554396.0,
+              "orbstack": 240583.5
+            },
+            "median_paired_p95_gap_ns": 275583.5,
+            "waves_with_higher_native_p95": 8,
+            "joint_slowest_5pct_requests": 1962,
+            "own_p95_band": {
+              "micropod": {
+                "requests": 11520,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 6598986645,
+                  "dispatch_to_got_conn": 264091390,
+                  "got_conn_to_wrote_request": 791856086,
+                  "wrote_request_to_first_byte": 2717038596,
+                  "first_byte_to_completion": 2826000573
+                }
+              },
+              "orbstack": {
+                "requests": 11520,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 3193542418,
+                  "dispatch_to_got_conn": 54354353,
+                  "got_conn_to_wrote_request": 335226351,
+                  "wrote_request_to_first_byte": 2122571867,
+                  "first_byte_to_completion": 681389847
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 295611.4780381945,
+                "dispatch_to_got_conn": 18206.34001736111,
+                "got_conn_to_wrote_request": 39637.99782986111,
+                "wrote_request_to_first_byte": 51603.01467013889,
+                "first_byte_to_completion": 186164.12552083333
+              }
+            },
+            "same_offers_slowest_5pct_union": {
+              "micropod": {
+                "requests": 55638,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 38366342386,
+                  "dispatch_to_got_conn": 847447062,
+                  "got_conn_to_wrote_request": 8776061781,
+                  "wrote_request_to_first_byte": 16060266643,
+                  "first_byte_to_completion": 12682566900
+                }
+              },
+              "orbstack": {
+                "requests": 55638,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 20088904503,
+                  "dispatch_to_got_conn": 361351817,
+                  "got_conn_to_wrote_request": 1413795705,
+                  "wrote_request_to_first_byte": 15480461995,
+                  "first_byte_to_completion": 2833294986
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 328506.37842841225,
+                "dispatch_to_got_conn": 8736.749074373629,
+                "got_conn_to_wrote_request": 132324.41992882563,
+                "wrote_request_to_first_byte": 10421.018871993962,
+                "first_byte_to_completion": 177024.19055321903
+              }
+            }
+          }
+        },
+        "fixed_8_to_24_role_mix_mean_gap_ns": {
+          "own_p95_band": {
+            "total": 306060.42714843753,
+            "dispatch_to_got_conn": 11667.5744140625,
+            "got_conn_to_wrote_request": 45791.848046875,
+            "wrote_request_to_first_byte": 62368.202734374994,
+            "first_byte_to_completion": 186232.801953125
+          }
+        }
+      },
+      "optimized": {
+        "paired_waves": 8,
+        "groups": {
+          "all": {
+            "median_p95_ns": {
+              "micropod": 514250.0,
+              "orbstack": 241479.0
+            },
+            "median_paired_p95_gap_ns": 218645.5,
+            "waves_with_higher_native_p95": 8,
+            "joint_slowest_5pct_requests": 2754,
+            "own_p95_band": {
+              "micropod": {
+                "requests": 15360,
+                "builder_requests": 3859,
+                "sum_ns": {
+                  "total": 8710906174,
+                  "dispatch_to_got_conn": 346804052,
+                  "got_conn_to_wrote_request": 811433941,
+                  "wrote_request_to_first_byte": 3825857708,
+                  "first_byte_to_completion": 3726810473
+                }
+              },
+              "orbstack": {
+                "requests": 15360,
+                "builder_requests": 4978,
+                "sum_ns": {
+                  "total": 4646287939,
+                  "dispatch_to_got_conn": 127600352,
+                  "got_conn_to_wrote_request": 502232922,
+                  "wrote_request_to_first_byte": 3005878111,
+                  "first_byte_to_completion": 1010576554
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 264623.5830078125,
+                "dispatch_to_got_conn": 14271.07421875,
+                "got_conn_to_wrote_request": 20130.274674479166,
+                "wrote_request_to_first_byte": 53384.08834635417,
+                "first_byte_to_completion": 176838.14576822918
+              }
+            },
+            "same_offers_slowest_5pct_union": {
+              "micropod": {
+                "requests": 74046,
+                "builder_requests": 24405,
+                "sum_ns": {
+                  "total": 49497362816,
+                  "dispatch_to_got_conn": 1055205165,
+                  "got_conn_to_wrote_request": 8353136628,
+                  "wrote_request_to_first_byte": 22257260680,
+                  "first_byte_to_completion": 17831760343
+                }
+              },
+              "orbstack": {
+                "requests": 74046,
+                "builder_requests": 24405,
+                "sum_ns": {
+                  "total": 40410007721,
+                  "dispatch_to_got_conn": 743130856,
+                  "got_conn_to_wrote_request": 2877053305,
+                  "wrote_request_to_first_byte": 31710541382,
+                  "first_byte_to_completion": 5079282178
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 122725.80686330119,
+                "dispatch_to_got_conn": 4214.60050509143,
+                "got_conn_to_wrote_request": 73955.15386381438,
+                "wrote_request_to_first_byte": -127667.67552602437,
+                "first_byte_to_completion": 172223.72802041975
+              }
+            }
+          },
+          "builders": {
+            "median_p95_ns": {
+              "micropod": 641083.0,
+              "orbstack": 296187.0
+            },
+            "median_paired_p95_gap_ns": 295208.5,
+            "waves_with_higher_native_p95": 8,
+            "joint_slowest_5pct_requests": 654,
+            "own_p95_band": {
+              "micropod": {
+                "requests": 3840,
+                "builder_requests": 3840,
+                "sum_ns": {
+                  "total": 2789561235,
+                  "dispatch_to_got_conn": 40038108,
+                  "got_conn_to_wrote_request": 372264042,
+                  "wrote_request_to_first_byte": 1281159475,
+                  "first_byte_to_completion": 1096099610
+                }
+              },
+              "orbstack": {
+                "requests": 3840,
+                "builder_requests": 3840,
+                "sum_ns": {
+                  "total": 1491621223,
+                  "dispatch_to_got_conn": 65568974,
+                  "got_conn_to_wrote_request": 192098184,
+                  "wrote_request_to_first_byte": 869301049,
+                  "first_byte_to_completion": 364653016
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 338005.21145833336,
+                "dispatch_to_got_conn": -6648.663020833334,
+                "got_conn_to_wrote_request": 46918.1921875,
+                "wrote_request_to_first_byte": 107254.7984375,
+                "first_byte_to_completion": 190480.88385416666
+              }
+            },
+            "same_offers_slowest_5pct_union": {
+              "micropod": {
+                "requests": 18546,
+                "builder_requests": 18546,
+                "sum_ns": {
+                  "total": 15131871015,
+                  "dispatch_to_got_conn": 145584489,
+                  "got_conn_to_wrote_request": 2717700704,
+                  "wrote_request_to_first_byte": 6888300481,
+                  "first_byte_to_completion": 5380285341
+                }
+              },
+              "orbstack": {
+                "requests": 18546,
+                "builder_requests": 18546,
+                "sum_ns": {
+                  "total": 19587737483,
+                  "dispatch_to_got_conn": 349745747,
+                  "got_conn_to_wrote_request": 1398746889,
+                  "wrote_request_to_first_byte": 15558334880,
+                  "first_byte_to_completion": 2280909967
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": -240260.24307128222,
+                "dispatch_to_got_conn": -11008.371508681117,
+                "got_conn_to_wrote_request": 71117.96694705058,
+                "wrote_request_to_first_byte": -467488.10519788635,
+                "first_byte_to_completion": 167118.26668823467
+              }
+            }
+          },
+          "service_only": {
+            "median_p95_ns": {
+              "micropod": 486146.0,
+              "orbstack": 224667.0
+            },
+            "median_paired_p95_gap_ns": 210979.0,
+            "waves_with_higher_native_p95": 8,
+            "joint_slowest_5pct_requests": 2010,
+            "own_p95_band": {
+              "micropod": {
+                "requests": 11520,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 6078413660,
+                  "dispatch_to_got_conn": 305522226,
+                  "got_conn_to_wrote_request": 505363702,
+                  "wrote_request_to_first_byte": 2595626760,
+                  "first_byte_to_completion": 2671900972
+                }
+              },
+              "orbstack": {
+                "requests": 11520,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 3208895190,
+                  "dispatch_to_got_conn": 63451840,
+                  "got_conn_to_wrote_request": 303855890,
+                  "wrote_request_to_first_byte": 2236955892,
+                  "first_byte_to_completion": 604631568
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 249090.14496527778,
+                "dispatch_to_got_conn": 21013.054340277777,
+                "got_conn_to_wrote_request": 17491.997569444444,
+                "wrote_request_to_first_byte": 31134.623958333334,
+                "first_byte_to_completion": 179450.46909722223
+              }
+            },
+            "same_offers_slowest_5pct_union": {
+              "micropod": {
+                "requests": 55590,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 34133959693,
+                  "dispatch_to_got_conn": 955831930,
+                  "got_conn_to_wrote_request": 5562510598,
+                  "wrote_request_to_first_byte": 15165253046,
+                  "first_byte_to_completion": 12450364119
+                }
+              },
+              "orbstack": {
+                "requests": 55590,
+                "builder_requests": 0,
+                "sum_ns": {
+                  "total": 20607301225,
+                  "dispatch_to_got_conn": 358376989,
+                  "got_conn_to_wrote_request": 1404164340,
+                  "wrote_request_to_first_byte": 16194009533,
+                  "first_byte_to_completion": 2650750363
+                }
+              },
+              "micropod_minus_orbstack_mean_ns": {
+                "total": 243328.9884511603,
+                "dispatch_to_got_conn": 10747.525472207231,
+                "got_conn_to_wrote_request": 74803.85425436229,
+                "wrote_request_to_first_byte": -18506.14295736643,
+                "first_byte_to_completion": 176283.7516819572
+              }
+            }
+          }
+        },
+        "fixed_8_to_24_role_mix_mean_gap_ns": {
+          "own_p95_band": {
+            "total": 271318.9115885417,
+            "dispatch_to_got_conn": 14097.625,
+            "got_conn_to_wrote_request": 24848.546223958332,
+            "wrote_request_to_first_byte": 50164.667578124994,
+            "first_byte_to_completion": 182208.07278645836
+          }
+        }
+      }
+    },
+    "optimized_minus_stock_ns": {
+      "all": {
+        "median_p95_ns": {
+          "micropod": -68375.0,
+          "orbstack": -18729.5
+        },
+        "own_p95_band": {
+          "micropod": {
+            "total": -35916.62786458333,
+            "dispatch_to_got_conn": 3382.0240234375,
+            "got_conn_to_wrote_request": -24330.679557291667,
+            "wrote_request_to_first_byte": -7102.111002604167,
+            "first_byte_to_completion": -7865.861328125
+          },
+          "orbstack": {
+            "total": 2816.2015625,
+            "dispatch_to_got_conn": 910.44375,
+            "got_conn_to_wrote_request": -2869.3824869791665,
+            "wrote_request_to_first_byte": 9578.0396484375,
+            "first_byte_to_completion": -4802.899348958334
+          },
+          "micropod_minus_orbstack": {
+            "total": -38732.82942708333,
+            "dispatch_to_got_conn": 2471.5802734375,
+            "got_conn_to_wrote_request": -21461.2970703125,
+            "wrote_request_to_first_byte": -16680.150651041666,
+            "first_byte_to_completion": -3062.9619791666664
+          }
+        },
+        "same_offers_slowest_5pct_union": {
+          "micropod": {
+            "total": -65281.41995464585,
+            "dispatch_to_got_conn": 1640.4537223161253,
+            "got_conn_to_wrote_request": -57887.62048565176,
+            "wrote_request_to_first_byte": -11382.407340948323,
+            "first_byte_to_completion": 2348.1541496381033
+          },
+          "orbstack": {
+            "total": 16204.88598429821,
+            "dispatch_to_got_conn": -466.25715626407805,
+            "got_conn_to_wrote_request": -527.8889732787499,
+            "wrote_request_to_first_byte": 19632.107158521638,
+            "first_byte_to_completion": -2433.0750446805996
+          },
+          "micropod_minus_orbstack": {
+            "total": -81486.30593894406,
+            "dispatch_to_got_conn": 2106.7108785802034,
+            "got_conn_to_wrote_request": -57359.73151237301,
+            "wrote_request_to_first_byte": -31014.51449946996,
+            "first_byte_to_completion": 4781.229194318703
+          }
+        }
+      },
+      "builders": {
+        "median_p95_ns": {
+          "micropod": -38396.5,
+          "orbstack": -31396.5
+        },
+        "own_p95_band": {
+          "micropod": {
+            "total": 8648.819791666667,
+            "dispatch_to_got_conn": 3344.059114583333,
+            "got_conn_to_wrote_request": -16121.281770833333,
+            "wrote_request_to_first_byte": 17132.430989583332,
+            "first_byte_to_completion": 4293.611458333334
+          },
+          "orbstack": {
+            "total": 8050.8828125,
+            "dispatch_to_got_conn": 2043.9997395833334,
+            "got_conn_to_wrote_request": 1213.9247395833333,
+            "wrote_request_to_first_byte": 4541.399479166666,
+            "first_byte_to_completion": 251.55885416666666
+          },
+          "micropod_minus_orbstack": {
+            "total": 597.9369791666668,
+            "dispatch_to_got_conn": 1300.0593749999998,
+            "got_conn_to_wrote_request": -17335.206510416665,
+            "wrote_request_to_first_byte": 12591.031510416666,
+            "first_byte_to_completion": 4042.052604166667
+          }
+        },
+        "same_offers_slowest_5pct_union": {
+          "micropod": {
+            "total": -43179.968490276464,
+            "dispatch_to_got_conn": 1212.2737871051838,
+            "got_conn_to_wrote_request": -60250.844671289145,
+            "wrote_request_to_first_byte": -3689.568676923096,
+            "first_byte_to_completion": 19548.171070830595
+          },
+          "orbstack": {
+            "total": 32229.818744702978,
+            "dispatch_to_got_conn": -1805.9333674250154,
+            "got_conn_to_wrote_request": -2425.8500591128595,
+            "wrote_request_to_first_byte": 38754.846368711864,
+            "first_byte_to_completion": -2293.2441974710114
+          },
+          "micropod_minus_orbstack": {
+            "total": -75409.78723497945,
+            "dispatch_to_got_conn": 3018.207154530199,
+            "got_conn_to_wrote_request": -57824.994612176284,
+            "wrote_request_to_first_byte": -42444.41504563496,
+            "first_byte_to_completion": 21841.415268301607
+          }
+        }
+      },
+      "service_only": {
+        "median_p95_ns": {
+          "micropod": -68250.0,
+          "orbstack": -15916.5
+        },
+        "own_p95_band": {
+          "micropod": {
+            "total": -45188.62717013889,
+            "dispatch_to_got_conn": 3596.426736111111,
+            "got_conn_to_wrote_request": -24869.130555555555,
+            "wrote_request_to_first_byte": -10539.221875,
+            "first_byte_to_completion": -13376.701475694445
+          },
+          "orbstack": {
+            "total": 1332.7059027777777,
+            "dispatch_to_got_conn": 789.7124131944445,
+            "got_conn_to_wrote_request": -2723.130295138889,
+            "wrote_request_to_first_byte": 9929.168836805555,
+            "first_byte_to_completion": -6663.045052083334
+          },
+          "micropod_minus_orbstack": {
+            "total": -46521.33307291667,
+            "dispatch_to_got_conn": 2806.714322916667,
+            "got_conn_to_wrote_request": -22146.000260416666,
+            "wrote_request_to_first_byte": -20468.390711805554,
+            "first_byte_to_completion": -6713.656423611111
+          }
+        },
+        "same_offers_slowest_5pct_union": {
+          "micropod": {
+            "total": -75540.26430452525,
+            "dispatch_to_got_conn": 1962.8706115375726,
+            "got_conn_to_wrote_request": -57671.88165862756,
+            "wrote_request_to_first_byte": -15851.01795638629,
+            "first_byte_to_completion": -3980.235301048969
+          },
+          "orbstack": {
+            "total": 9637.125672726714,
+            "dispatch_to_got_conn": -47.9057862960293,
+            "got_conn_to_wrote_request": -151.31598416422776,
+            "wrote_request_to_first_byte": 13076.143872974104,
+            "first_byte_to_completion": -3239.7964297871326
+          },
+          "micropod_minus_orbstack": {
+            "total": -85177.38997725197,
+            "dispatch_to_got_conn": 2010.7763978336018,
+            "got_conn_to_wrote_request": -57520.56567446333,
+            "wrote_request_to_first_byte": -28927.161829360393,
+            "first_byte_to_completion": -740.4388712618365
+          }
+        }
+      }
+    }
+  },
+  "by_seed": [
+    {
+      "seed": 250271,
+      "boot_order": [
+        "stock",
+        "optimized"
+      ],
+      "by_mode": {
+        "stock": {
+          "paired_waves": 4,
+          "groups": {
+            "all": {
+              "median_p95_ns": {
+                "micropod": 626459.0,
+                "orbstack": 318646.0
+              },
+              "median_paired_p95_gap_ns": 312187.0,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 1339,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 7680,
+                  "builder_requests": 1844,
+                  "sum_ns": {
+                    "total": 5056510642,
+                    "dispatch_to_got_conn": 143902782,
+                    "got_conn_to_wrote_request": 745785394,
+                    "wrote_request_to_first_byte": 2146852898,
+                    "first_byte_to_completion": 2019969568
+                  }
+                },
+                "orbstack": {
+                  "requests": 7680,
+                  "builder_requests": 2402,
+                  "sum_ns": {
+                    "total": 2635066926,
+                    "dispatch_to_got_conn": 62422648,
+                    "got_conn_to_wrote_request": 321146481,
+                    "wrote_request_to_first_byte": 1613727043,
+                    "first_byte_to_completion": 637770754
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 315292.1505208333,
+                  "dispatch_to_got_conn": 10609.392447916667,
+                  "got_conn_to_wrote_request": 55291.525130208334,
+                  "wrote_request_to_first_byte": 69417.42903645833,
+                  "first_byte_to_completion": 179973.80390625
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 37061,
+                  "builder_requests": 11758,
+                  "sum_ns": {
+                    "total": 28703383006,
+                    "dispatch_to_got_conn": 496671091,
+                    "got_conn_to_wrote_request": 7074403187,
+                    "wrote_request_to_first_byte": 12135068329,
+                    "first_byte_to_completion": 8997240399
+                  }
+                },
+                "orbstack": {
+                  "requests": 37061,
+                  "builder_requests": 11758,
+                  "sum_ns": {
+                    "total": 21859255392,
+                    "dispatch_to_got_conn": 453113180,
+                    "got_conn_to_wrote_request": 1698985242,
+                    "wrote_request_to_first_byte": 16539885801,
+                    "first_byte_to_completion": 3167271169
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 184671.96281805672,
+                  "dispatch_to_got_conn": 1175.3031758452282,
+                  "got_conn_to_wrote_request": 145042.44205499042,
+                  "wrote_request_to_first_byte": -118853.17374058983,
+                  "first_byte_to_completion": 157307.3913278109
+                }
+              }
+            },
+            "builders": {
+              "median_p95_ns": {
+                "micropod": 779437.5,
+                "orbstack": 405417.0
+              },
+              "median_paired_p95_gap_ns": 321354.5,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 348,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 1488643711,
+                    "dispatch_to_got_conn": 14202549,
+                    "got_conn_to_wrote_request": 256293590,
+                    "wrote_request_to_first_byte": 639486233,
+                    "first_byte_to_completion": 578661339
+                  }
+                },
+                "orbstack": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 840272656,
+                    "dispatch_to_got_conn": 30788799,
+                    "got_conn_to_wrote_request": 112091550,
+                    "wrote_request_to_first_byte": 477847408,
+                    "first_byte_to_completion": 219544899
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 337693.2578125,
+                  "dispatch_to_got_conn": -8638.671875,
+                  "got_conn_to_wrote_request": 75105.22916666667,
+                  "wrote_request_to_first_byte": 84186.88802083333,
+                  "first_byte_to_completion": 187039.8125
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 9252,
+                  "builder_requests": 9252,
+                  "sum_ns": {
+                    "total": 8324936788,
+                    "dispatch_to_got_conn": 69554437,
+                    "got_conn_to_wrote_request": 2101852449,
+                    "wrote_request_to_first_byte": 3654684706,
+                    "first_byte_to_completion": 2498845196
+                  }
+                },
+                "orbstack": {
+                  "requests": 9252,
+                  "builder_requests": 9252,
+                  "sum_ns": {
+                    "total": 10510276023,
+                    "dispatch_to_got_conn": 234297379,
+                    "got_conn_to_wrote_request": 813632974,
+                    "wrote_request_to_first_byte": 8062281733,
+                    "first_byte_to_completion": 1400063937
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": -236201.81960657155,
+                  "dispatch_to_got_conn": -17806.197795071337,
+                  "got_conn_to_wrote_request": 139236.8650021617,
+                  "wrote_request_to_first_byte": -476393.9717898833,
+                  "first_byte_to_completion": 118761.48497622136
+                }
+              }
+            },
+            "service_only": {
+              "median_p95_ns": {
+                "micropod": 593292.0,
+                "orbstack": 291020.5
+              },
+              "median_paired_p95_gap_ns": 306938.0,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 976,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 3608775566,
+                    "dispatch_to_got_conn": 131006308,
+                    "got_conn_to_wrote_request": 503146357,
+                    "wrote_request_to_first_byte": 1516822992,
+                    "first_byte_to_completion": 1457799909
+                  }
+                },
+                "orbstack": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 1820664005,
+                    "dispatch_to_got_conn": 29806515,
+                    "got_conn_to_wrote_request": 187913924,
+                    "wrote_request_to_first_byte": 1203064980,
+                    "first_byte_to_completion": 399878586
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 310436.03489583335,
+                  "dispatch_to_got_conn": 17569.408506944445,
+                  "got_conn_to_wrote_request": 54727.852951388886,
+                  "wrote_request_to_first_byte": 54471.87708333333,
+                  "first_byte_to_completion": 183666.89635416667
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 27824,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 20335183588,
+                    "dispatch_to_got_conn": 444590888,
+                    "got_conn_to_wrote_request": 4953106001,
+                    "wrote_request_to_first_byte": 8421075731,
+                    "first_byte_to_completion": 6516410968
+                  }
+                },
+                "orbstack": {
+                  "requests": 27824,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 11232070417,
+                    "dispatch_to_got_conn": 199662825,
+                    "got_conn_to_wrote_request": 838049427,
+                    "wrote_request_to_first_byte": 8493920745,
+                    "first_byte_to_completion": 1700437420
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 327167.66715784936,
+                  "dispatch_to_got_conn": 8802.762471247843,
+                  "got_conn_to_wrote_request": 147895.93782346175,
+                  "wrote_request_to_first_byte": -2618.064045428407,
+                  "first_byte_to_completion": 173087.03090856815
+                }
+              }
+            }
+          },
+          "fixed_8_to_24_role_mix_mean_gap_ns": {
+            "own_p95_band": {
+              "total": 317250.340625,
+              "dispatch_to_got_conn": 11017.388411458334,
+              "got_conn_to_wrote_request": 59822.197005208334,
+              "wrote_request_to_first_byte": 61900.62981770834,
+              "first_byte_to_completion": 184510.125390625
+            }
+          }
+        },
+        "optimized": {
+          "paired_waves": 4,
+          "groups": {
+            "all": {
+              "median_p95_ns": {
+                "micropod": 514250.0,
+                "orbstack": 270125.0
+              },
+              "median_paired_p95_gap_ns": 218645.5,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 1358,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 7680,
+                  "builder_requests": 1922,
+                  "sum_ns": {
+                    "total": 4149170288,
+                    "dispatch_to_got_conn": 185173099,
+                    "got_conn_to_wrote_request": 380217656,
+                    "wrote_request_to_first_byte": 1788303121,
+                    "first_byte_to_completion": 1795476412
+                  }
+                },
+                "orbstack": {
+                  "requests": 7680,
+                  "builder_requests": 2604,
+                  "sum_ns": {
+                    "total": 2377922707,
+                    "dispatch_to_got_conn": 70479613,
+                    "got_conn_to_wrote_request": 262961023,
+                    "wrote_request_to_first_byte": 1505505747,
+                    "first_byte_to_completion": 538976324
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 230631.19544270833,
+                  "dispatch_to_got_conn": 14934.04765625,
+                  "got_conn_to_wrote_request": 15267.790755208332,
+                  "wrote_request_to_first_byte": 36822.57473958333,
+                  "first_byte_to_completion": 163606.78229166666
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 37042,
+                  "builder_requests": 12261,
+                  "sum_ns": {
+                    "total": 23866884234,
+                    "dispatch_to_got_conn": 536354925,
+                    "got_conn_to_wrote_request": 4131861957,
+                    "wrote_request_to_first_byte": 10538099801,
+                    "first_byte_to_completion": 8660567551
+                  }
+                },
+                "orbstack": {
+                  "requests": 37042,
+                  "builder_requests": 12261,
+                  "sum_ns": {
+                    "total": 20724223471,
+                    "dispatch_to_got_conn": 395741094,
+                    "got_conn_to_wrote_request": 1408821103,
+                    "wrote_request_to_first_byte": 16348647205,
+                    "first_byte_to_completion": 2571014069
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 84840.47197775498,
+                  "dispatch_to_got_conn": 3796.0647643215807,
+                  "got_conn_to_wrote_request": 73512.25241617623,
+                  "wrote_request_to_first_byte": -156863.76016413802,
+                  "first_byte_to_completion": 164395.91496139517
+                }
+              }
+            },
+            "builders": {
+              "median_p95_ns": {
+                "micropod": 616687.5,
+                "orbstack": 330166.5
+              },
+              "median_paired_p95_gap_ns": 275708.5,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 307,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 1299929800,
+                    "dispatch_to_got_conn": 17516897,
+                    "got_conn_to_wrote_request": 172880409,
+                    "wrote_request_to_first_byte": 590897042,
+                    "first_byte_to_completion": 518635452
+                  }
+                },
+                "orbstack": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 790173358,
+                    "dispatch_to_got_conn": 33179426,
+                    "got_conn_to_wrote_request": 104548120,
+                    "wrote_request_to_first_byte": 454671089,
+                    "first_byte_to_completion": 197774723
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 265498.146875,
+                  "dispatch_to_got_conn": -8157.5671875,
+                  "got_conn_to_wrote_request": 35589.73385416667,
+                  "wrote_request_to_first_byte": 70951.0171875,
+                  "first_byte_to_completion": 167114.96302083333
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 9293,
+                  "builder_requests": 9293,
+                  "sum_ns": {
+                    "total": 7209030067,
+                    "dispatch_to_got_conn": 69433793,
+                    "got_conn_to_wrote_request": 1280617497,
+                    "wrote_request_to_first_byte": 3257486067,
+                    "first_byte_to_completion": 2601492710
+                  }
+                },
+                "orbstack": {
+                  "requests": 9293,
+                  "builder_requests": 9293,
+                  "sum_ns": {
+                    "total": 10285688221,
+                    "dispatch_to_got_conn": 190645712,
+                    "got_conn_to_wrote_request": 728357256,
+                    "wrote_request_to_first_byte": 8147857928,
+                    "first_byte_to_completion": 1218827325
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": -331072.65188851824,
+                  "dispatch_to_got_conn": -13043.357258151296,
+                  "got_conn_to_wrote_request": 59427.55202840848,
+                  "wrote_request_to_first_byte": -526242.5331970301,
+                  "first_byte_to_completion": 148785.6865382546
+                }
+              }
+            },
+            "service_only": {
+              "median_p95_ns": {
+                "micropod": 486146.0,
+                "orbstack": 253333.5
+              },
+              "median_paired_p95_gap_ns": 210979.0,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 1017,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 2913332575,
+                    "dispatch_to_got_conn": 167774919,
+                    "got_conn_to_wrote_request": 250477410,
+                    "wrote_request_to_first_byte": 1219891040,
+                    "first_byte_to_completion": 1275189206
+                  }
+                },
+                "orbstack": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 1630438064,
+                    "dispatch_to_got_conn": 33581831,
+                    "got_conn_to_wrote_request": 163613136,
+                    "wrote_request_to_first_byte": 1103803256,
+                    "first_byte_to_completion": 329439841
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 222724.74149305557,
+                  "dispatch_to_got_conn": 23297.411111111112,
+                  "got_conn_to_wrote_request": 15080.603125,
+                  "wrote_request_to_first_byte": 20154.129166666666,
+                  "first_byte_to_completion": 164192.59809027778
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 27783,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 16556781500,
+                    "dispatch_to_got_conn": 490818510,
+                    "got_conn_to_wrote_request": 2828054521,
+                    "wrote_request_to_first_byte": 7192214403,
+                    "first_byte_to_completion": 6045694066
+                  }
+                },
+                "orbstack": {
+                  "requests": 27783,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 10308062472,
+                    "dispatch_to_got_conn": 185457189,
+                    "got_conn_to_wrote_request": 636985600,
+                    "wrote_request_to_first_byte": 8221539938,
+                    "first_byte_to_completion": 1264079745
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 224911.60162689415,
+                  "dispatch_to_got_conn": 10990.9412590433,
+                  "got_conn_to_wrote_request": 78863.65478889969,
+                  "wrote_request_to_first_byte": -37048.75409423029,
+                  "first_byte_to_completion": 172105.75967318146
+                }
+              }
+            }
+          },
+          "fixed_8_to_24_role_mix_mean_gap_ns": {
+            "own_p95_band": {
+              "total": 233418.09283854166,
+              "dispatch_to_got_conn": 15433.666536458335,
+              "got_conn_to_wrote_request": 20207.885807291666,
+              "wrote_request_to_first_byte": 32853.351171874994,
+              "first_byte_to_completion": 164923.18932291667
+            }
+          }
+        }
+      },
+      "optimized_minus_stock_ns": {
+        "all": {
+          "median_p95_ns": {
+            "micropod": -112209.0,
+            "orbstack": -48521.0
+          },
+          "own_p95_band": {
+            "micropod": {
+              "total": -118143.27526041666,
+              "dispatch_to_got_conn": 5373.739192708334,
+              "got_conn_to_wrote_request": -47599.96588541667,
+              "wrote_request_to_first_byte": -46686.16888020833,
+              "first_byte_to_completion": -29230.8796875
+            },
+            "orbstack": {
+              "total": -33482.32018229167,
+              "dispatch_to_got_conn": 1049.083984375,
+              "got_conn_to_wrote_request": -7576.231510416666,
+              "wrote_request_to_first_byte": -14091.314583333333,
+              "first_byte_to_completion": -12863.858072916666
+            },
+            "micropod_minus_orbstack": {
+              "total": -84660.955078125,
+              "dispatch_to_got_conn": 4324.655208333334,
+              "got_conn_to_wrote_request": -40023.734375,
+              "wrote_request_to_first_byte": -32594.854296874997,
+              "first_byte_to_completion": -16367.021614583335
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "total": -130170.7104726126,
+              "dispatch_to_got_conn": 1078.1939831994462,
+              "got_conn_to_wrote_request": -79340.05744071823,
+              "wrote_request_to_first_byte": -42944.42155136358,
+              "first_byte_to_completion": -8964.425463730231
+            },
+            "orbstack": {
+              "total": -30339.21963231086,
+              "dispatch_to_got_conn": -1542.5676052769065,
+              "got_conn_to_wrote_request": -7809.8678019040435,
+              "wrote_request_to_first_byte": -4933.835127815411,
+              "first_byte_to_completion": -16052.949097314498
+            },
+            "micropod_minus_orbstack": {
+              "total": -99831.49084030173,
+              "dispatch_to_got_conn": 2620.7615884763527,
+              "got_conn_to_wrote_request": -71530.18963881419,
+              "wrote_request_to_first_byte": -38010.58642354817,
+              "first_byte_to_completion": 7088.523633584267
+            }
+          }
+        },
+        "builders": {
+          "median_p95_ns": {
+            "micropod": -162750.0,
+            "orbstack": -75250.5
+          },
+          "own_p95_band": {
+            "micropod": {
+              "total": -98288.4953125,
+              "dispatch_to_got_conn": 1726.2229166666666,
+              "got_conn_to_wrote_request": -43444.36510416667,
+              "wrote_request_to_first_byte": -25306.8703125,
+              "first_byte_to_completion": -31263.4828125
+            },
+            "orbstack": {
+              "total": -26093.384375,
+              "dispatch_to_got_conn": 1245.1182291666667,
+              "got_conn_to_wrote_request": -3928.8697916666665,
+              "wrote_request_to_first_byte": -12070.999479166667,
+              "first_byte_to_completion": -11338.633333333333
+            },
+            "micropod_minus_orbstack": {
+              "total": -72195.1109375,
+              "dispatch_to_got_conn": 481.10468749999995,
+              "got_conn_to_wrote_request": -39515.4953125,
+              "wrote_request_to_first_byte": -13235.870833333332,
+              "first_byte_to_completion": -19924.849479166667
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "total": -124050.19522478765,
+              "dispatch_to_got_conn": -46.15008052679383,
+              "got_conn_to_wrote_request": -89373.64221019461,
+              "wrote_request_to_first_byte": -44484.480820070654,
+              "first_byte_to_completion": 9854.077886004412
+            },
+            "orbstack": {
+              "total": -29179.36294284096,
+              "dispatch_to_got_conn": -4808.990617446833,
+              "got_conn_to_wrote_request": -9564.329236441396,
+              "wrote_request_to_first_byte": 5364.080587076103,
+              "first_byte_to_completion": -20170.12367602883
+            },
+            "micropod_minus_orbstack": {
+              "total": -94870.83228194668,
+              "dispatch_to_got_conn": 4762.840536920039,
+              "got_conn_to_wrote_request": -79809.31297375321,
+              "wrote_request_to_first_byte": -49848.56140714676,
+              "first_byte_to_completion": 30024.201562033242
+            }
+          }
+        },
+        "service_only": {
+          "median_p95_ns": {
+            "micropod": -107146.0,
+            "orbstack": -37687.0
+          },
+          "own_p95_band": {
+            "micropod": {
+              "total": -120736.63038194444,
+              "dispatch_to_got_conn": 6383.439409722222,
+              "got_conn_to_wrote_request": -43866.13663194444,
+              "wrote_request_to_first_byte": -51550.686111111114,
+              "first_byte_to_completion": -31703.247048611112
+            },
+            "orbstack": {
+              "total": -33025.33697916667,
+              "dispatch_to_got_conn": 655.4368055555556,
+              "got_conn_to_wrote_request": -4218.886805555556,
+              "wrote_request_to_first_byte": -17232.938194444443,
+              "first_byte_to_completion": -12228.948784722223
+            },
+            "micropod_minus_orbstack": {
+              "total": -87711.29340277778,
+              "dispatch_to_got_conn": 5728.002604166666,
+              "got_conn_to_wrote_request": -39647.249826388885,
+              "wrote_request_to_first_byte": -34317.747916666674,
+              "first_byte_to_completion": -19474.29826388889
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "total": -134918.37521386635,
+              "dispatch_to_got_conn": 1687.4616859586465,
+              "got_conn_to_wrote_request": -76224.77200009672,
+              "wrote_request_to_first_byte": -43784.05746546978,
+              "first_byte_to_completion": -16597.007434258485
+            },
+            "orbstack": {
+              "total": -32662.309682911153,
+              "dispatch_to_got_conn": -500.71710183680983,
+              "got_conn_to_wrote_request": -7192.488965534658,
+              "wrote_request_to_first_byte": -9353.367416667903,
+              "first_byte_to_completion": -15615.736198871782
+            },
+            "micropod_minus_orbstack": {
+              "total": -102256.06553095521,
+              "dispatch_to_got_conn": 2188.178787795456,
+              "got_conn_to_wrote_request": -69032.28303456206,
+              "wrote_request_to_first_byte": -34430.69004880187,
+              "first_byte_to_completion": -981.2712353867028
+            }
+          }
+        }
+      }
+    },
+    {
+      "seed": 250273,
+      "boot_order": [
+        "optimized",
+        "stock"
+      ],
+      "by_mode": {
+        "stock": {
+          "paired_waves": 4,
+          "groups": {
+            "all": {
+              "median_p95_ns": {
+                "micropod": 496771.0,
+                "orbstack": 257583.5
+              },
+              "median_paired_p95_gap_ns": 248812.0,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 1349,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 7680,
+                  "builder_requests": 1820,
+                  "sum_ns": {
+                    "total": 4206074936,
+                    "dispatch_to_got_conn": 150953381,
+                    "got_conn_to_wrote_request": 439367785,
+                    "wrote_request_to_first_byte": 1788093235,
+                    "first_byte_to_completion": 1827660535
+                  }
+                },
+                "orbstack": {
+                  "requests": 7680,
+                  "builder_requests": 2221,
+                  "sum_ns": {
+                    "total": 1967964157,
+                    "dispatch_to_got_conn": 51193288,
+                    "got_conn_to_wrote_request": 225160156,
+                    "wrote_request_to_first_byte": 1245032379,
+                    "first_byte_to_completion": 446578334
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 291420.67434895836,
+                  "dispatch_to_got_conn": 12989.595442708332,
+                  "got_conn_to_wrote_request": 27891.618359375,
+                  "wrote_request_to_first_byte": 70711.04895833334,
+                  "first_byte_to_completion": 179828.41158854167
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 37051,
+                  "builder_requests": 11698,
+                  "sum_ns": {
+                    "total": 25676235277,
+                    "dispatch_to_got_conn": 437897312,
+                    "got_conn_to_wrote_request": 5576346237,
+                    "wrote_request_to_first_byte": 10985604062,
+                    "first_byte_to_completion": 8676387666
+                  }
+                },
+                "orbstack": {
+                  "requests": 37051,
+                  "builder_requests": 11698,
+                  "sum_ns": {
+                    "total": 17385794787,
+                    "dispatch_to_got_conn": 325235307,
+                    "got_conn_to_wrote_request": 1219755397,
+                    "wrote_request_to_first_byte": 13743945660,
+                    "first_byte_to_completion": 2096858423
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 223757.53663868722,
+                  "dispatch_to_got_conn": 3040.727780626704,
+                  "got_conn_to_wrote_request": 117583.62365388249,
+                  "wrote_request_to_first_byte": -74447.15656797387,
+                  "first_byte_to_completion": 177580.3417721519
+                }
+              }
+            },
+            "builders": {
+              "median_p95_ns": {
+                "micropod": 615375.5,
+                "orbstack": 316875.0
+              },
+              "median_paired_p95_gap_ns": 308729.5,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 330,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 1267706056,
+                    "dispatch_to_got_conn": 12994372,
+                    "got_conn_to_wrote_request": 177876174,
+                    "wrote_request_to_first_byte": 575884707,
+                    "first_byte_to_completion": 500950803
+                  }
+                },
+                "orbstack": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 620433177,
+                    "dispatch_to_got_conn": 26931216,
+                    "got_conn_to_wrote_request": 75345163,
+                    "wrote_request_to_first_byte": 374014667,
+                    "first_byte_to_completion": 144142131
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 337121.2911458333,
+                  "dispatch_to_got_conn": -7258.772916666667,
+                  "got_conn_to_wrote_request": 53401.56822916667,
+                  "wrote_request_to_first_byte": 105140.64583333333,
+                  "first_byte_to_completion": 185837.85
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 9270,
+                  "builder_requests": 9270,
+                  "sum_ns": {
+                    "total": 7587131758,
+                    "dispatch_to_got_conn": 53387919,
+                    "got_conn_to_wrote_request": 1728297479,
+                    "wrote_request_to_first_byte": 3293039957,
+                    "first_byte_to_completion": 2512406403
+                  }
+                },
+                "orbstack": {
+                  "requests": 9270,
+                  "builder_requests": 9270,
+                  "sum_ns": {
+                    "total": 8455152666,
+                    "dispatch_to_got_conn": 148445267,
+                    "got_conn_to_wrote_request": 628235420,
+                    "wrote_request_to_first_byte": 6758102159,
+                    "first_byte_to_completion": 920369820
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": -93637.638403452,
+                  "dispatch_to_got_conn": -10254.298597626754,
+                  "got_conn_to_wrote_request": 118669.04627831715,
+                  "wrote_request_to_first_byte": -373793.11779935274,
+                  "first_byte_to_completion": 171740.73171521036
+                }
+              }
+            },
+            "service_only": {
+              "median_p95_ns": {
+                "micropod": 474187.5,
+                "orbstack": 240583.5
+              },
+              "median_paired_p95_gap_ns": 240667.0,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 986,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 2990211079,
+                    "dispatch_to_got_conn": 133085082,
+                    "got_conn_to_wrote_request": 288709729,
+                    "wrote_request_to_first_byte": 1200215604,
+                    "first_byte_to_completion": 1368200664
+                  }
+                },
+                "orbstack": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 1372878413,
+                    "dispatch_to_got_conn": 24547838,
+                    "got_conn_to_wrote_request": 147312427,
+                    "wrote_request_to_first_byte": 919506887,
+                    "first_byte_to_completion": 281511261
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 280786.92118055554,
+                  "dispatch_to_got_conn": 18843.27152777778,
+                  "got_conn_to_wrote_request": 24548.142708333333,
+                  "wrote_request_to_first_byte": 48734.15225694444,
+                  "first_byte_to_completion": 188661.3546875
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 27814,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 18031158798,
+                    "dispatch_to_got_conn": 402856174,
+                    "got_conn_to_wrote_request": 3822955780,
+                    "wrote_request_to_first_byte": 7639190912,
+                    "first_byte_to_completion": 6166155932
+                  }
+                },
+                "orbstack": {
+                  "requests": 27814,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 8856834086,
+                    "dispatch_to_got_conn": 161688992,
+                    "got_conn_to_wrote_request": 575746278,
+                    "wrote_request_to_first_byte": 6986541250,
+                    "first_byte_to_completion": 1132857566
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 329845.57100740634,
+                  "dispatch_to_got_conn": 8670.711943625513,
+                  "got_conn_to_wrote_request": 116747.3035881211,
+                  "wrote_request_to_first_byte": 23464.789746170994,
+                  "first_byte_to_completion": 180962.76572948875
+                }
+              }
+            }
+          },
+          "fixed_8_to_24_role_mix_mean_gap_ns": {
+            "own_p95_band": {
+              "total": 294870.513671875,
+              "dispatch_to_got_conn": 12317.760416666668,
+              "got_conn_to_wrote_request": 31761.49908854167,
+              "wrote_request_to_first_byte": 62835.775651041666,
+              "first_byte_to_completion": 187955.47851562497
+            }
+          }
+        },
+        "optimized": {
+          "paired_waves": 4,
+          "groups": {
+            "all": {
+              "median_p95_ns": {
+                "micropod": 546333.0,
+                "orbstack": 237791.5
+              },
+              "median_paired_p95_gap_ns": 296917.0,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 1396,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 7680,
+                  "builder_requests": 1937,
+                  "sum_ns": {
+                    "total": 4561735886,
+                    "dispatch_to_got_conn": 161630953,
+                    "got_conn_to_wrote_request": 431216285,
+                    "wrote_request_to_first_byte": 2037554587,
+                    "first_byte_to_completion": 1931334061
+                  }
+                },
+                "orbstack": {
+                  "requests": 7680,
+                  "builder_requests": 2374,
+                  "sum_ns": {
+                    "total": 2268365232,
+                    "dispatch_to_got_conn": 57120739,
+                    "got_conn_to_wrote_request": 239271899,
+                    "wrote_request_to_first_byte": 1500372364,
+                    "first_byte_to_completion": 471600230
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 298615.9705729167,
+                  "dispatch_to_got_conn": 13608.10078125,
+                  "got_conn_to_wrote_request": 24992.75859375,
+                  "wrote_request_to_first_byte": 69945.601953125,
+                  "first_byte_to_completion": 190069.50924479167
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 37004,
+                  "builder_requests": 12144,
+                  "sum_ns": {
+                    "total": 25630478582,
+                    "dispatch_to_got_conn": 518850240,
+                    "got_conn_to_wrote_request": 4221274671,
+                    "wrote_request_to_first_byte": 11719160879,
+                    "first_byte_to_completion": 9171192792
+                  }
+                },
+                "orbstack": {
+                  "requests": 37004,
+                  "builder_requests": 12144,
+                  "sum_ns": {
+                    "total": 19685784250,
+                    "dispatch_to_got_conn": 347389762,
+                    "got_conn_to_wrote_request": 1468232202,
+                    "wrote_request_to_first_byte": 15361894177,
+                    "first_byte_to_completion": 2508268109
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 160650.04680575072,
+                  "dispatch_to_got_conn": 4633.5660469138475,
+                  "got_conn_to_wrote_request": 74398.51013403956,
+                  "wrote_request_to_first_byte": -98441.60896119339,
+                  "first_byte_to_completion": 180059.5795859907
+                }
+              }
+            },
+            "builders": {
+              "median_p95_ns": {
+                "micropod": 719437.5,
+                "orbstack": 296187.0
+              },
+              "median_paired_p95_gap_ns": 413271.0,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 347,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 1489631435,
+                    "dispatch_to_got_conn": 22521211,
+                    "got_conn_to_wrote_request": 199383633,
+                    "wrote_request_to_first_byte": 690262433,
+                    "first_byte_to_completion": 577464158
+                  }
+                },
+                "orbstack": {
+                  "requests": 1920,
+                  "builder_requests": 1920,
+                  "sum_ns": {
+                    "total": 701447865,
+                    "dispatch_to_got_conn": 32389548,
+                    "got_conn_to_wrote_request": 87550064,
+                    "wrote_request_to_first_byte": 414629960,
+                    "first_byte_to_completion": 166878293
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 410512.2760416667,
+                  "dispatch_to_got_conn": -5139.758854166666,
+                  "got_conn_to_wrote_request": 58246.65052083333,
+                  "wrote_request_to_first_byte": 143558.5796875,
+                  "first_byte_to_completion": 213846.8046875
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 9253,
+                  "builder_requests": 9253,
+                  "sum_ns": {
+                    "total": 7922840948,
+                    "dispatch_to_got_conn": 76150696,
+                    "got_conn_to_wrote_request": 1437083207,
+                    "wrote_request_to_first_byte": 3630814414,
+                    "first_byte_to_completion": 2778792631
+                  }
+                },
+                "orbstack": {
+                  "requests": 9253,
+                  "builder_requests": 9253,
+                  "sum_ns": {
+                    "total": 9302049262,
+                    "dispatch_to_got_conn": 159100035,
+                    "got_conn_to_wrote_request": 670389633,
+                    "wrote_request_to_first_byte": 7410476952,
+                    "first_byte_to_completion": 1062082642
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": -149055.25926726466,
+                  "dispatch_to_got_conn": -8964.588673943586,
+                  "got_conn_to_wrote_request": 82858.91862098778,
+                  "wrote_request_to_first_byte": -408479.68637198745,
+                  "first_byte_to_completion": 185530.0971576786
+                }
+              }
+            },
+            "service_only": {
+              "median_p95_ns": {
+                "micropod": 508208.5,
+                "orbstack": 216812.5
+              },
+              "median_paired_p95_gap_ns": 271833.5,
+              "waves_with_higher_native_p95": 4,
+              "joint_slowest_5pct_requests": 993,
+              "own_p95_band": {
+                "micropod": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 3165081085,
+                    "dispatch_to_got_conn": 137747307,
+                    "got_conn_to_wrote_request": 254886292,
+                    "wrote_request_to_first_byte": 1375735720,
+                    "first_byte_to_completion": 1396711766
+                  }
+                },
+                "orbstack": {
+                  "requests": 5760,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 1578457126,
+                    "dispatch_to_got_conn": 29870009,
+                    "got_conn_to_wrote_request": 140242754,
+                    "wrote_request_to_first_byte": 1133152636,
+                    "first_byte_to_completion": 275191727
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 275455.5484375,
+                  "dispatch_to_got_conn": 18728.697569444445,
+                  "got_conn_to_wrote_request": 19903.39201388889,
+                  "wrote_request_to_first_byte": 42115.11875,
+                  "first_byte_to_completion": 194708.34010416668
+                }
+              },
+              "same_offers_slowest_5pct_union": {
+                "micropod": {
+                  "requests": 27807,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 17577178193,
+                    "dispatch_to_got_conn": 465013420,
+                    "got_conn_to_wrote_request": 2734456077,
+                    "wrote_request_to_first_byte": 7973038643,
+                    "first_byte_to_completion": 6404670053
+                  }
+                },
+                "orbstack": {
+                  "requests": 27807,
+                  "builder_requests": 0,
+                  "sum_ns": {
+                    "total": 10299238753,
+                    "dispatch_to_got_conn": 172919800,
+                    "got_conn_to_wrote_request": 767178740,
+                    "wrote_request_to_first_byte": 7972469595,
+                    "first_byte_to_completion": 1386670618
+                  }
+                },
+                "micropod_minus_orbstack_mean_ns": {
+                  "total": 261730.47937569677,
+                  "dispatch_to_got_conn": 10504.319775596074,
+                  "got_conn_to_wrote_request": 70747.55770129824,
+                  "wrote_request_to_first_byte": 20.46419966195562,
+                  "first_byte_to_completion": 180458.1376991405
+                }
+              }
+            }
+          },
+          "fixed_8_to_24_role_mix_mean_gap_ns": {
+            "own_p95_band": {
+              "total": 309219.7303385417,
+              "dispatch_to_got_conn": 12761.583463541669,
+              "got_conn_to_wrote_request": 29489.206640625,
+              "wrote_request_to_first_byte": 67475.983984375,
+              "first_byte_to_completion": 199492.95625000002
+            }
+          }
+        }
+      },
+      "optimized_minus_stock_ns": {
+        "all": {
+          "median_p95_ns": {
+            "micropod": 49562.0,
+            "orbstack": -19792.0
+          },
+          "own_p95_band": {
+            "micropod": {
+              "total": 46310.01953125,
+              "dispatch_to_got_conn": 1390.3088541666666,
+              "got_conn_to_wrote_request": -1061.3932291666667,
+              "wrote_request_to_first_byte": 32481.946875,
+              "first_byte_to_completion": 13499.15703125
+            },
+            "orbstack": {
+              "total": 39114.723307291664,
+              "dispatch_to_got_conn": 771.803515625,
+              "got_conn_to_wrote_request": 1837.4665364583334,
+              "wrote_request_to_first_byte": 33247.393880208336,
+              "first_byte_to_completion": 3258.059375
+            },
+            "micropod_minus_orbstack": {
+              "total": 7195.296223958336,
+              "dispatch_to_got_conn": 618.5053385416666,
+              "got_conn_to_wrote_request": -2898.8597656250004,
+              "wrote_request_to_first_byte": -765.4470052083343,
+              "first_byte_to_completion": 10241.09765625
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "total": -356.33530561480757,
+              "dispatch_to_got_conn": 2202.6918785026323,
+              "got_conn_to_wrote_request": -36428.4360992433,
+              "wrote_request_to_first_byte": 20200.310638836814,
+              "first_byte_to_completion": 13669.098276289045
+            },
+            "orbstack": {
+              "total": 62751.154527321676,
+              "dispatch_to_got_conn": 609.8536122154891,
+              "got_conn_to_wrote_request": 6756.677420599624,
+              "wrote_request_to_first_byte": 44194.763032056326,
+              "first_byte_to_completion": 11189.86046245024
+            },
+            "micropod_minus_orbstack": {
+              "total": -63107.48983293648,
+              "dispatch_to_got_conn": 1592.8382662871431,
+              "got_conn_to_wrote_request": -43185.113519842926,
+              "wrote_request_to_first_byte": -23994.45239321951,
+              "first_byte_to_completion": 2479.237813838805
+            }
+          }
+        },
+        "builders": {
+          "median_p95_ns": {
+            "micropod": 104062.0,
+            "orbstack": -20688.0
+          },
+          "own_p95_band": {
+            "micropod": {
+              "total": 115586.13489583334,
+              "dispatch_to_got_conn": 4961.8953125,
+              "got_conn_to_wrote_request": 11201.8015625,
+              "wrote_request_to_first_byte": 59571.73229166667,
+              "first_byte_to_completion": 39850.705729166664
+            },
+            "orbstack": {
+              "total": 42195.15,
+              "dispatch_to_got_conn": 2842.88125,
+              "got_conn_to_wrote_request": 6356.719270833333,
+              "wrote_request_to_first_byte": 21153.7984375,
+              "first_byte_to_completion": 11841.751041666666
+            },
+            "micropod_minus_orbstack": {
+              "total": 73390.98489583333,
+              "dispatch_to_got_conn": 2119.0140625,
+              "got_conn_to_wrote_request": 4845.0822916666675,
+              "wrote_request_to_first_byte": 38417.933854166666,
+              "first_byte_to_completion": 28008.954687499998
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "total": 37784.829121410345,
+              "dispatch_to_got_conn": 2470.623975745468,
+              "got_conn_to_wrote_request": -31129.881597594926,
+              "wrote_request_to_first_byte": 37156.97320894556,
+              "first_byte_to_completion": 29287.113534314245
+            },
+            "orbstack": {
+              "total": 93202.44998522302,
+              "dispatch_to_got_conn": 1180.914052062301,
+              "got_conn_to_wrote_request": 4680.246059734439,
+              "wrote_request_to_first_byte": 71843.54178158026,
+              "first_byte_to_completion": 15497.74809184601
+            },
+            "micropod_minus_orbstack": {
+              "total": -55417.62086381268,
+              "dispatch_to_got_conn": 1289.7099236831673,
+              "got_conn_to_wrote_request": -35810.127657329365,
+              "wrote_request_to_first_byte": -34686.56857263471,
+              "first_byte_to_completion": 13789.365442468235
+            }
+          }
+        },
+        "service_only": {
+          "median_p95_ns": {
+            "micropod": 34021.0,
+            "orbstack": -23771.0
+          },
+          "own_p95_band": {
+            "micropod": {
+              "total": 30359.376041666666,
+              "dispatch_to_got_conn": 809.4140625,
+              "got_conn_to_wrote_request": -5872.124479166667,
+              "wrote_request_to_first_byte": 30472.24236111111,
+              "first_byte_to_completion": 4949.844097222222
+            },
+            "orbstack": {
+              "total": 35690.74878472222,
+              "dispatch_to_got_conn": 923.9880208333333,
+              "got_conn_to_wrote_request": -1227.3737847222221,
+              "wrote_request_to_first_byte": 37091.275868055556,
+              "first_byte_to_completion": -1097.1413194444444
+            },
+            "micropod_minus_orbstack": {
+              "total": -5331.3727430555555,
+              "dispatch_to_got_conn": -114.57395833333328,
+              "got_conn_to_wrote_request": -4644.750694444445,
+              "wrote_request_to_first_byte": -6619.0335069444445,
+              "first_byte_to_completion": 6046.985416666666
+            }
+          },
+          "same_offers_slowest_5pct_union": {
+            "micropod": {
+              "total": -16162.932730951119,
+              "dispatch_to_got_conn": 2238.9554265647994,
+              "got_conn_to_wrote_request": -39110.20867987454,
+              "wrote_request_to_first_byte": 12075.027873547811,
+              "first_byte_to_completion": 8633.292648810808
+            },
+            "orbstack": {
+              "total": 51952.158900758455,
+              "dispatch_to_got_conn": 405.34759459423896,
+              "got_conn_to_wrote_request": 6889.537206948317,
+              "wrote_request_to_first_byte": 35519.35342005685,
+              "first_byte_to_completion": 9137.92067915905
+            },
+            "micropod_minus_orbstack": {
+              "total": -68115.09163170957,
+              "dispatch_to_got_conn": 1833.6078319705605,
+              "got_conn_to_wrote_request": -45999.74588682286,
+              "wrote_request_to_first_byte": -23444.325546509033,
+              "first_byte_to_completion": -504.62803034824174
+            }
+          }
+        }
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "seed": 250271,
+      "mode": "stock",
+      "archive": "20261125T065229Z-sibling-output-polling-h9cmmkdr",
+      "native_boot": "ca8d64b7-e613-4aaf-8f6c-67cc4089c5d3",
+      "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+      "native_volume_uuid": "c44f7d86-ac59-4449-ba2b-3f38a4e79a76",
+      "plan_sha256": "42319d6abf40cbc9709d9e0a5aeac12b459b4ca7b34616d72c1c024d6244b71d",
+      "raw_http_gzip_sha256": {
+        "grouped-0-one-B.json.gz": "5a51a1922a375ed81777703d1fd60ae02270ba911b4a9f8741631ca01f32efa2",
+        "grouped-0-one-A.json.gz": "70e1a757a92b1830f421c09f4e86ddd1b1d69d7a199026dc696804fc5e9df3fc",
+        "grouped-0-all-B.json.gz": "766aae0eb939bfadc09faf411cff613ec6c3f2433bb520256bcab8fe4db42d90",
+        "grouped-0-all-A.json.gz": "ed473bb97552e116efa46b1464aa4dd6a526cb71d9611f582452417644f4ba9b",
+        "grouped-1-one-B.json.gz": "a0d9921bfd22d32ed92b24e903d09920d5b6091eb65efd4e4a4385bd9770ce7a",
+        "grouped-1-one-A.json.gz": "ee009ff9477498c91a1dd2357ea7b2e35dbed0c56097d564fb712a42ca2881d6",
+        "grouped-1-all-B.json.gz": "f8413cc8d484689e75648a867dad874e7f80cb7d2261cd3ca823c6b76bbb7140",
+        "grouped-1-all-A.json.gz": "5bfebf3e74e400b555b465cc3e6cdbbe29e046f854686d03effaae9ca554fd61",
+        "grouped-2-one-A.json.gz": "0531458c5ca9ac79dee5ba943b9cc222511c31436ee23a7c3a2cc86473a49663",
+        "grouped-2-one-B.json.gz": "876c52dc14040ba9f823b3aa8fd116615aa93eb064618a5cf717fbb9f01320cc",
+        "grouped-2-all-A.json.gz": "783f5fa0dbeb132e574c8dea817212296e88d204b97f58cc112840776775b310",
+        "grouped-2-all-B.json.gz": "5759120a6c94c44de47d1e77d9d6c4ec33f1dfdec474963cfc525d869a9c1331",
+        "grouped-3-one-A.json.gz": "20d7b9565570b11076349735a3838e3e1bf6200cee463743d1b77c980edc39e8",
+        "grouped-3-one-B.json.gz": "4ecc595cc68fe665417aa79e2558a1174ef937e45abd6b0568da8c344b8da25f",
+        "grouped-3-all-A.json.gz": "8eb84157bb94477a2d878b9bc2c957e50f5faff06502851ec691c9ebe8886ecb",
+        "grouped-3-all-B.json.gz": "ec611fafec4278aabaea0a75b38b3c16c4d787ec6465f7d8d68c8b2eda01e79c"
+      },
+      "per_wave_p95_ns": [
+        {
+          "round": 0,
+          "engine_order": "BA",
+          "micropod": 784000,
+          "orbstack": 486250
+        },
+        {
+          "round": 1,
+          "engine_order": "BA",
+          "micropod": 588584,
+          "orbstack": 387250
+        },
+        {
+          "round": 2,
+          "engine_order": "AB",
+          "micropod": 576666,
+          "orbstack": 250042
+        },
+        {
+          "round": 3,
+          "engine_order": "AB",
+          "micropod": 664334,
+          "orbstack": 241792
+        }
+      ]
+    },
+    {
+      "seed": 250271,
+      "mode": "optimized",
+      "archive": "20261125T065406Z-sibling-output-polling-k9gnbwzr",
+      "native_boot": "295bd752-961d-4d70-a361-425b7a711eab",
+      "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+      "native_volume_uuid": "23397f3a-da1d-46e3-a727-5d52f7dab1f0",
+      "plan_sha256": "64ef68c17a4dec81cf6beb6a75958ed37d09a2a8fa558a7719bf6db21716b9db",
+      "raw_http_gzip_sha256": {
+        "grouped-0-one-A.json.gz": "479fab5d8345afa1ffb8fdb63fbc3ba663d5e243babac920f41a13a57d50ee78",
+        "grouped-1-one-A.json.gz": "4ecd9e1f8726fbb269249a79f41bb5ef3b8a68700f4a814f2fc4e299dcf05619",
+        "grouped-2-one-A.json.gz": "f9e6a9796c6cb6554bf9b2e35a13b2b952db6975353a7dad674c3ce334169732",
+        "grouped-3-one-A.json.gz": "b16935a99c627e7af79f6bf99512d58db85ed8f282badbc233098e2eeb4a9a2a",
+        "grouped-0-one-B.json.gz": "a1af211e2e6e45e4ed36f3ee3b2d42321719ce3f88679ddc02770b0a95e185c8",
+        "grouped-1-one-B.json.gz": "66863d7cd931d244949ca630ec6a105236925c2bde7aecbdbe17a125e09f0411",
+        "grouped-2-one-B.json.gz": "3280c8f1d087a12e9f30d5a1c561b32de7f26b3012218c7d4c4b8d902b1882f8",
+        "grouped-3-one-B.json.gz": "5f8d3e19897f92fc2ea10876ae7520a33a7e5f441cabb08723acee754c6bb217",
+        "grouped-0-all-B.json.gz": "c520db7358e43fa2b6756a3300f30520b2d3f2d2bfc5306a905dc9df0a608c80",
+        "grouped-0-all-A.json.gz": "3f535fd91022b0da43d9d7211076a46aef0c6aec18ee4edc6b97deb828730bfb",
+        "grouped-1-all-B.json.gz": "d38eb6f728823f6f71d4cc5a83e3057a350cc79affdcbb6825c48454a114050e",
+        "grouped-1-all-A.json.gz": "d1de9610db91b5aed6f620c91a9c7079405669c7c487ad6c4dcf874db78ebcc9",
+        "grouped-2-all-A.json.gz": "2353a19b78dedd06eaaac963990522c517b48c3a3925292528aec445b6c443c6",
+        "grouped-2-all-B.json.gz": "46c2e739c19a4c928b90339bbbc8eab947bcbf2bc489654278532dd8b4a96af0",
+        "grouped-3-all-A.json.gz": "2539b59be3f8df8e6dd10b30de32dbafea34be4ffd0c6960120b6f4a42b493a1",
+        "grouped-3-all-B.json.gz": "27053b0bde4d30486f997b81e4014104418cfe1750206cd41f971379c626ba92"
+      },
+      "per_wave_p95_ns": [
+        {
+          "round": 0,
+          "engine_order": "BA",
+          "micropod": 586708,
+          "orbstack": 295125
+        },
+        {
+          "round": 1,
+          "engine_order": "BA",
+          "micropod": 441792,
+          "orbstack": 245125
+        },
+        {
+          "round": 2,
+          "engine_order": "AB",
+          "micropod": 380667,
+          "orbstack": 196458
+        },
+        {
+          "round": 3,
+          "engine_order": "AB",
+          "micropod": 732833,
+          "orbstack": 492209
+        }
+      ]
+    },
+    {
+      "seed": 250273,
+      "mode": "stock",
+      "archive": "20261125T070017Z-sibling-output-polling-srb6jbpo",
+      "native_boot": "7bda2537-dde9-40d5-a3f8-a40666e0f4c4",
+      "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+      "native_volume_uuid": "ef94f9ed-f34f-4ccf-b0c2-61fc17ae87d5",
+      "plan_sha256": "d2bc641ccf6bf0a101c74aef92b4307144cfbd158b5af259d7a9bfef2993ffeb",
+      "raw_http_gzip_sha256": {
+        "grouped-0-one-A.json.gz": "7353b5596fbe3d6d6faea499d323c1e24734f4d9dd9e078ce8304f7f0bc9a35e",
+        "grouped-0-one-B.json.gz": "974660a58fe31040e142db501bea829de8430ac0f604cf390c352e80a39068ff",
+        "grouped-0-all-A.json.gz": "dec0afdc818b53003c88ee7d914deb2200ca07127da4b90a27629f2200b2824a",
+        "grouped-0-all-B.json.gz": "b836c3308735d8b5e6c31d14ea20448fa1379595b787397bee7e12a8f58c77e3",
+        "grouped-1-one-B.json.gz": "ca2ad0a525778f2a10293586f3cf9d223f0e515920c2213d8eed42875bb0ab3d",
+        "grouped-1-one-A.json.gz": "aaa2c5c423fd31e2d326157f1e066e1b0e3abeef01f7c0a73cff6d392ca9ab5d",
+        "grouped-1-all-B.json.gz": "ee6b4f49f1accccf8031201004b88d2a220352b3ff1d86220f8890c16e09efa1",
+        "grouped-1-all-A.json.gz": "7741433c27a179707f59d896a568347eb03bf75b370e6d822502e3f8a2e19695",
+        "grouped-2-one-A.json.gz": "f072e11ebc9ffabdd8921be690702c5c0d79dc4489a407e67647483c1e2583de",
+        "grouped-2-one-B.json.gz": "1fc1c1270aef43a434700e8b5c946a1cced62597b1148b28f0cb6ebe1ebb2baa",
+        "grouped-2-all-A.json.gz": "996f219191a55004597e20201cd307d4d98fa7afa2eefe2ab0fa38e98bc8e5d5",
+        "grouped-2-all-B.json.gz": "c5bdab4dc1a315957ba94da9ecee604807008fb8e9c21b6c6aa33d9bb8d53c90",
+        "grouped-3-one-B.json.gz": "4d7de09f6344bccea58951de4ce9ff3953b4c2e556626e70fe9df485ad25f976",
+        "grouped-3-one-A.json.gz": "d79d586ea56fcb4d133058f06f05238e85aea6d3a8113883bbdc2373c0f7cadc",
+        "grouped-3-all-B.json.gz": "54ab596c6ec02b2595de996558aa57f2ad38e6e6390f32079de7825ae9c8e027",
+        "grouped-3-all-A.json.gz": "001138988af978d5129aa0a5bb3ff6b6590bfbd63672889d101eead0b2c6fd62"
+      },
+      "per_wave_p95_ns": [
+        {
+          "round": 0,
+          "engine_order": "AB",
+          "micropod": 690333,
+          "orbstack": 273917
+        },
+        {
+          "round": 1,
+          "engine_order": "BA",
+          "micropod": 504833,
+          "orbstack": 244792
+        },
+        {
+          "round": 2,
+          "engine_order": "AB",
+          "micropod": 468041,
+          "orbstack": 230458
+        },
+        {
+          "round": 3,
+          "engine_order": "BA",
+          "micropod": 488709,
+          "orbstack": 270375
+        }
+      ]
+    },
+    {
+      "seed": 250273,
+      "mode": "optimized",
+      "archive": "20261125T065832Z-sibling-output-polling-ahbid92j",
+      "native_boot": "0fef2bea-9a53-4058-9581-cbaaff8d214e",
+      "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+      "native_volume_uuid": "829934d9-4818-46e3-bd19-f6618950863f",
+      "plan_sha256": "b6442927afcf2258f7f432361f0680fe477f51b6b3e7e8dfcdf5b1214a1688de",
+      "raw_http_gzip_sha256": {
+        "grouped-0-one-A.json.gz": "3dfb1e20e80088fceeaedc3399725e6898f64ddaf31cdcdc7c8300f4db16b663",
+        "grouped-0-one-B.json.gz": "ffb17dce907cc5e64fa1ae698d1fb9f40ff9f42fb264d8742df965483a0bed76",
+        "grouped-0-all-A.json.gz": "a8f2aff46ea6aa6287f9a245cdb3ce79fe4672ff85e1384ed03c8651de1f0937",
+        "grouped-0-all-B.json.gz": "bbabbbf9c7c445b0813a248e1514e1afb3bd46f5ba37a1f8da59758b3cc5a66a",
+        "grouped-1-one-B.json.gz": "5cfe1f5060efbd20ecf4011d9c75f6d9b666b2eb2a82e59d6a956eb58f3f3475",
+        "grouped-1-one-A.json.gz": "2f9e549b736c8f33d60ab4c06f47429d1e3505a4fbc2ce3e4c5271e5b85667d5",
+        "grouped-1-all-B.json.gz": "c96cb436937b1d94bd4f7231b1fa96cba213eab7f3a17760aad405f8a6f500d9",
+        "grouped-1-all-A.json.gz": "0495074ce1ec8e159d1a96702a96d61a806184270d347d02d269ef4eb378641d",
+        "grouped-2-one-A.json.gz": "b3137f7d5d2e1e6735098dd7927c3435617bab291b340c6432cfb4f3a90e8242",
+        "grouped-2-one-B.json.gz": "7f72b8f5afe0df58076e2f7da8c3677c3af40c817aabdd7ca1632b59155c251a",
+        "grouped-2-all-A.json.gz": "44044591ed66f54090337fd48b995b275be48368fad0e97e5d3cf7be885db0ad",
+        "grouped-2-all-B.json.gz": "4508bb984088a528c6c6ad54a517bf6cca4b78ef42a914a191867a08585467d2",
+        "grouped-3-one-B.json.gz": "8f4ae129a47eda484032fa7e151b9f19a5ee30812eba65179ee16f4b634fc0e2",
+        "grouped-3-one-A.json.gz": "ae88b6f1729a4247b4f91d6fe543b28dcfce8a83d9237dcc6680eadec4194454",
+        "grouped-3-all-B.json.gz": "45ca002dc3f3eff68f00e4a07522670bc88ce400605e7b184a90a175b5b1279c",
+        "grouped-3-all-A.json.gz": "96b3e39d4e113af87527372c24d96cc74370e2872a9d2340b9f892be83307899"
+      },
+      "per_wave_p95_ns": [
+        {
+          "round": 0,
+          "engine_order": "AB",
+          "micropod": 413000,
+          "orbstack": 237750
+        },
+        {
+          "round": 1,
+          "engine_order": "BA",
+          "micropod": 679666,
+          "orbstack": 233500
+        },
+        {
+          "round": 2,
+          "engine_order": "AB",
+          "micropod": 363334,
+          "orbstack": 237833
+        },
+        {
+          "round": 3,
+          "engine_order": "BA",
+          "micropod": 885209,
+          "orbstack": 466625
+        }
+      ]
+    }
+  ]
+}

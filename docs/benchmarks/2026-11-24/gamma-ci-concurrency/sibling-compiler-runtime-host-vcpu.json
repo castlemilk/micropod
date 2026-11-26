@@ -1,0 +1,1976 @@
+{
+  "host_profiler": {
+    "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/host-vcpu-187fc39c128f254a/profile_vm_scheduler.c",
+    "source_sha256": "187fc39c128f254a0370015d20b8ff71ee65748f82f2deb239a628e8d6e3664d",
+    "binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/host-vcpu-187fc39c128f254a/profile-vcpu",
+    "binary_sha256": "002e1183e9dd80f5f32d76ddffa3df7eacc9b86cf65b5f0d6d15595af7ced1b7",
+    "smoke_cpu_indices": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "level_names": [
+      "Super",
+      "Performance"
+    ]
+  },
+  "guest_instruction_loop": {
+    "elf": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/vcpu-calibration-d23f4aa15c54e23d/vcpu-instructions",
+    "binary_sha256": "00d8a319fb0b6d3a58996e20f323aa57430dcdd1fc0dc1f8e3fbcb66fe528a39",
+    "sources": {
+      "main.go": "019bb4230923546f264df761df13d7def6e07afc6996b0f29896845a58a535f6",
+      "work_arm64.s": "8cc3592cb44703b4d5d9cf5dc2ed40d9a3d859d4ff7a082de4ef3c04f4d13cad"
+    },
+    "disassembly_sha256": "3586e6a531e1ea51b10215e13cf738b492b201b2e2e4ff219cd8cd2b766569b3",
+    "instructions_per_iteration": 18
+  },
+  "runs": [
+    {
+      "mode": "inherit",
+      "seed": 250211,
+      "archive": "20261125T033812Z-sibling-compiler-runtime-7d1adf08",
+      "engines": {
+        "A": {
+          "minimum_numbering_fraction": 0.8737313148452925,
+          "observed_over_expected_instructions": 1.0382507924680358,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.9108243333333332,
+                  "level_instructions": [
+                    28886116034,
+                    156916967
+                  ],
+                  "level_cycles": [
+                    12250500453,
+                    144648313
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.892751583333333,
+                  "level_instructions": [
+                    28966548335,
+                    146210979
+                  ],
+                  "level_cycles": [
+                    12184080521,
+                    134736344
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.968767458333333,
+                  "level_instructions": [
+                    30382436786,
+                    162180867
+                  ],
+                  "level_cycles": [
+                    12493037178,
+                    146235271
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.890448458333333,
+                  "level_instructions": [
+                    28958841734,
+                    163500712
+                  ],
+                  "level_cycles": [
+                    12164188879,
+                    143878296
+                  ]
+                }
+              },
+              "vcpu_instructions": 117822752414,
+              "vcpu_cycles": 49661305255,
+              "vcpu_cpu_seconds": 11.662791833333333,
+              "instructions_per_cycle": 2.3725262920296957,
+              "last_over_other_instructions": 1.0491831888402086,
+              "last_over_other_cpu_seconds": 1.0262780514711212
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.834097083333333,
+                  "level_instructions": [
+                    29284693380,
+                    16681238
+                  ],
+                  "level_cycles": [
+                    12062279313,
+                    22743739
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.8069626666666667,
+                  "level_instructions": [
+                    29019824637,
+                    17291869
+                  ],
+                  "level_cycles": [
+                    11947644682,
+                    21739174
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.917406208333333,
+                  "level_instructions": [
+                    30369866867,
+                    16310661
+                  ],
+                  "level_cycles": [
+                    12418671625,
+                    22175100
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.8443130416666667,
+                  "level_instructions": [
+                    29072594218,
+                    10774848
+                  ],
+                  "level_cycles": [
+                    12113647207,
+                    16926703
+                  ]
+                }
+              },
+              "vcpu_instructions": 117808037718,
+              "vcpu_cycles": 48625827543,
+              "vcpu_cpu_seconds": 11.402778999999999,
+              "instructions_per_cycle": 2.4227461756578212,
+              "last_over_other_instructions": 1.0447956513925016,
+              "last_over_other_cpu_seconds": 1.0293952968266054
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "3",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.878836833333333,
+                  "level_instructions": [
+                    28536117674,
+                    348009038
+                  ],
+                  "level_cycles": [
+                    12003891581,
+                    247621768
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.820297583333333,
+                  "level_instructions": [
+                    28475668915,
+                    439591565
+                  ],
+                  "level_cycles": [
+                    11686864045,
+                    319126330
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.829742625,
+                  "level_instructions": [
+                    29052308693,
+                    320175892
+                  ],
+                  "level_cycles": [
+                    11815070051,
+                    226014795
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.959982,
+                  "level_instructions": [
+                    29880240330,
+                    414569173
+                  ],
+                  "level_cycles": [
+                    12290503213,
+                    305756434
+                  ]
+                }
+              },
+              "vcpu_instructions": 117466681280,
+              "vcpu_cycles": 48894848217,
+              "vcpu_cpu_seconds": 11.488859041666666,
+              "instructions_per_cycle": 2.402434726020043,
+              "last_over_other_instructions": 1.047710067282783,
+              "last_over_other_cpu_seconds": 1.0460251663346944
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "1",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.878493833333333,
+                  "level_instructions": [
+                    29489142168,
+                    29982221
+                  ],
+                  "level_cycles": [
+                    12214342357,
+                    34089774
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.9186041666666664,
+                  "level_instructions": [
+                    30181259768,
+                    27206046
+                  ],
+                  "level_cycles": [
+                    12391255263,
+                    28452025
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.828712458333333,
+                  "level_instructions": [
+                    28932087917,
+                    67343066
+                  ],
+                  "level_cycles": [
+                    11984486329,
+                    52805443
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.823889333333333,
+                  "level_instructions": [
+                    28762517794,
+                    24130893
+                  ],
+                  "level_cycles": [
+                    11990244463,
+                    27745254
+                  ]
+                }
+              },
+              "vcpu_instructions": 117513669873,
+              "vcpu_cycles": 48723420908,
+              "vcpu_cpu_seconds": 11.449699791666665,
+              "instructions_per_cycle": 2.41185178879148,
+              "last_over_other_instructions": 1.0416916742852216,
+              "last_over_other_cpu_seconds": 1.0317783124504274
+            }
+          ]
+        },
+        "B": {
+          "minimum_numbering_fraction": 0.9144000664281238,
+          "observed_over_expected_instructions": 1.0124460114373102,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "3",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.834361208333333,
+                  "level_instructions": [
+                    29472025637,
+                    21163152
+                  ],
+                  "level_cycles": [
+                    12077489217,
+                    27482941
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.865607625,
+                  "level_instructions": [
+                    29963301437,
+                    10557682
+                  ],
+                  "level_cycles": [
+                    12226053361,
+                    13296980
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.8121270416666664,
+                  "level_instructions": [
+                    29396897332,
+                    25743465
+                  ],
+                  "level_cycles": [
+                    11983295977,
+                    27749596
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.903686833333333,
+                  "level_instructions": [
+                    29605576302,
+                    7324331
+                  ],
+                  "level_cycles": [
+                    12392298794,
+                    11600381
+                  ]
+                }
+              },
+              "vcpu_instructions": 118502589338,
+              "vcpu_cycles": 48759267247,
+              "vcpu_cpu_seconds": 11.415782708333332,
+              "instructions_per_cycle": 2.4303603402754392,
+              "last_over_other_instructions": 1.004058965778724,
+              "last_over_other_cpu_seconds": 1.024458994427448
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "1",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8887517916666665,
+                  "level_instructions": [
+                    29034869791,
+                    52317570
+                  ],
+                  "level_cycles": [
+                    12250784026,
+                    69479335
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.874932625,
+                  "level_instructions": [
+                    29349367195,
+                    59177525
+                  ],
+                  "level_cycles": [
+                    12189839871,
+                    75146489
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.8166487916666667,
+                  "level_instructions": [
+                    28842022042,
+                    71553457
+                  ],
+                  "level_cycles": [
+                    11934246130,
+                    78122980
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.825439583333333,
+                  "level_instructions": [
+                    29008929715,
+                    63780591
+                  ],
+                  "level_cycles": [
+                    11978859574,
+                    70492991
+                  ]
+                }
+              },
+              "vcpu_instructions": 116482017886,
+              "vcpu_cycles": 48646971396,
+              "vcpu_cpu_seconds": 11.405772791666667,
+              "instructions_per_cycle": 2.3944351424840753,
+              "last_over_other_instructions": 1.011551534427483,
+              "last_over_other_cpu_seconds": 1.0175169350491924
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.883631958333333,
+                  "level_instructions": [
+                    29580852942,
+                    7390678
+                  ],
+                  "level_cycles": [
+                    12306391999,
+                    11587571
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.826068,
+                  "level_instructions": [
+                    28885136999,
+                    19998832
+                  ],
+                  "level_cycles": [
+                    12052118845,
+                    19799059
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.8146422916666665,
+                  "level_instructions": [
+                    29013028720,
+                    16421558
+                  ],
+                  "level_cycles": [
+                    12006385096,
+                    17380453
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.875199458333333,
+                  "level_instructions": [
+                    29371067729,
+                    17910094
+                  ],
+                  "level_cycles": [
+                    12268052592,
+                    14159391
+                  ]
+                }
+              },
+              "vcpu_instructions": 116911807552,
+              "vcpu_cycles": 48695875006,
+              "vcpu_cpu_seconds": 11.399541708333333,
+              "instructions_per_cycle": 2.4008564901564013,
+              "last_over_other_instructions": 1.019249187864349,
+              "last_over_other_cpu_seconds": 1.0203689218848708
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.868022458333333,
+                  "level_instructions": [
+                    28751760754,
+                    290137232
+                  ],
+                  "level_cycles": [
+                    12001978252,
+                    227940641
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.8626865416666667,
+                  "level_instructions": [
+                    28785068675,
+                    410872626
+                  ],
+                  "level_cycles": [
+                    11881631832,
+                    324878676
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.85520275,
+                  "level_instructions": [
+                    28503705072,
+                    580933600
+                  ],
+                  "level_cycles": [
+                    11755551442,
+                    421344348
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.8544794166666665,
+                  "level_instructions": [
+                    28747010350,
+                    319396094
+                  ],
+                  "level_cycles": [
+                    11912793408,
+                    257811760
+                  ]
+                }
+              },
+              "vcpu_instructions": 116388884403,
+              "vcpu_cycles": 48783930359,
+              "vcpu_cpu_seconds": 11.440391166666666,
+              "instructions_per_cycle": 2.3858037584609613,
+              "last_over_other_instructions": 1.0006272611660862,
+              "last_over_other_cpu_seconds": 0.9973857453277754
+            }
+          ]
+        }
+      }
+    },
+    {
+      "mode": "long",
+      "seed": 250211,
+      "archive": "20261125T033948Z-sibling-compiler-runtime-_upj8ow5",
+      "engines": {
+        "A": {
+          "minimum_numbering_fraction": 0.8719568713904198,
+          "observed_over_expected_instructions": 0.933680248260498,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "3",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.870399875,
+                  "level_instructions": [
+                    28938075022,
+                    260111830
+                  ],
+                  "level_cycles": [
+                    12090477720,
+                    146341808
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.859759375,
+                  "level_instructions": [
+                    28620313219,
+                    573090687
+                  ],
+                  "level_cycles": [
+                    11909923928,
+                    284844761
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.838279083333333,
+                  "level_instructions": [
+                    28575276050,
+                    497587284
+                  ],
+                  "level_cycles": [
+                    11858166768,
+                    245536880
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.9764157916666667,
+                  "level_instructions": [
+                    30065139659,
+                    657722130
+                  ],
+                  "level_cycles": [
+                    12345249512,
+                    349819501
+                  ]
+                }
+              },
+              "vcpu_instructions": 118187315881,
+              "vcpu_cycles": 49230360878,
+              "vcpu_cpu_seconds": 11.544854125,
+              "instructions_per_cycle": 2.4006997668346446,
+              "last_over_other_instructions": 1.0523905293101383,
+              "last_over_other_cpu_seconds": 1.04079238892841
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8765127916666664,
+                  "level_instructions": [
+                    29371615543,
+                    12915737
+                  ],
+                  "level_cycles": [
+                    12251735056,
+                    16196673
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.82771275,
+                  "level_instructions": [
+                    29276987644,
+                    13752900
+                  ],
+                  "level_cycles": [
+                    12041974102,
+                    19170065
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.9065365,
+                  "level_instructions": [
+                    30304964924,
+                    11161969
+                  ],
+                  "level_cycles": [
+                    12384468813,
+                    12364349
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.842737833333333,
+                  "level_instructions": [
+                    29425072708,
+                    8522219
+                  ],
+                  "level_cycles": [
+                    12111987712,
+                    13346310
+                  ]
+                }
+              },
+              "vcpu_instructions": 118424993644,
+              "vcpu_cycles": 48851243080,
+              "vcpu_cpu_seconds": 11.453499874999999,
+              "instructions_per_cycle": 2.4241961141104293,
+              "last_over_other_instructions": 1.0317036063676834,
+              "last_over_other_cpu_seconds": 1.0224426839220198
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.9151928333333332,
+                  "level_instructions": [
+                    29254856791,
+                    85733587
+                  ],
+                  "level_cycles": [
+                    12333704675,
+                    75668027
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.84339125,
+                  "level_instructions": [
+                    29048010130,
+                    45333407
+                  ],
+                  "level_cycles": [
+                    12060054098,
+                    43334412
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.9741995833333332,
+                  "level_instructions": [
+                    30638482937,
+                    69933790
+                  ],
+                  "level_cycles": [
+                    12606691457,
+                    53999732
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.8403572916666664,
+                  "level_instructions": [
+                    28999937237,
+                    40410233
+                  ],
+                  "level_cycles": [
+                    12045186754,
+                    46019943
+                  ]
+                }
+              },
+              "vcpu_instructions": 118182698112,
+              "vcpu_cycles": 49264659098,
+              "vcpu_cpu_seconds": 11.573140958333333,
+              "instructions_per_cycle": 2.39893465774125,
+              "last_over_other_instructions": 1.0555134953102245,
+              "last_over_other_cpu_seconds": 1.0460043384227666
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.9506251666666663,
+                  "level_instructions": [
+                    31077108200,
+                    31530516
+                  ],
+                  "level_cycles": [
+                    12418213253,
+                    33782854
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.85435675,
+                  "level_instructions": [
+                    29457522195,
+                    21758931
+                  ],
+                  "level_cycles": [
+                    12020988722,
+                    25179476
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.839831375,
+                  "level_instructions": [
+                    29158469683,
+                    25227449
+                  ],
+                  "level_cycles": [
+                    11955179620,
+                    29465530
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.824354208333333,
+                  "level_instructions": [
+                    28977359660,
+                    32686294
+                  ],
+                  "level_cycles": [
+                    11888081883,
+                    31878648
+                  ]
+                }
+              },
+              "vcpu_instructions": 118781662928,
+              "vcpu_cycles": 48402769986,
+              "vcpu_cpu_seconds": 11.4691675,
+              "instructions_per_cycle": 2.454026142767374,
+              "last_over_other_instructions": 1.0659594833133494,
+              "last_over_other_cpu_seconds": 1.0390142149431905
+            }
+          ]
+        },
+        "B": {
+          "minimum_numbering_fraction": 0.9364953951032395,
+          "observed_over_expected_instructions": 0.9939548933947527,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8245937916666666,
+                  "level_instructions": [
+                    29298558580,
+                    15119551
+                  ],
+                  "level_cycles": [
+                    12039264176,
+                    17208005
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.829017125,
+                  "level_instructions": [
+                    29543107109,
+                    12196103
+                  ],
+                  "level_cycles": [
+                    12058722292,
+                    14395175
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.9130382916666666,
+                  "level_instructions": [
+                    30277070092,
+                    15534715
+                  ],
+                  "level_cycles": [
+                    12416044146,
+                    17277738
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.855227583333333,
+                  "level_instructions": [
+                    29869695092,
+                    9411222
+                  ],
+                  "level_cycles": [
+                    12172862582,
+                    12513277
+                  ]
+                }
+              },
+              "vcpu_instructions": 119040692464,
+              "vcpu_cycles": 48748287391,
+              "vcpu_cpu_seconds": 11.421876791666666,
+              "instructions_per_cycle": 2.441946144880928,
+              "last_over_other_instructions": 1.0249465075594502,
+              "last_over_other_cpu_seconds": 1.0296997730852078
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.856028,
+                  "level_instructions": [
+                    28800301982,
+                    454723430
+                  ],
+                  "level_cycles": [
+                    11965918613,
+                    197301564
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.8412534166666665,
+                  "level_instructions": [
+                    28649321629,
+                    640732353
+                  ],
+                  "level_cycles": [
+                    11789196629,
+                    317164549
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.881170375,
+                  "level_instructions": [
+                    28551630076,
+                    617011026
+                  ],
+                  "level_cycles": [
+                    11960495132,
+                    317316180
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.861553708333333,
+                  "level_instructions": [
+                    28654628283,
+                    563009014
+                  ],
+                  "level_cycles": [
+                    11927578368,
+                    260938855
+                  ]
+                }
+              },
+              "vcpu_instructions": 116931357793,
+              "vcpu_cycles": 48735909890,
+              "vcpu_cpu_seconds": 11.4400055,
+              "instructions_per_cycle": 2.399285415147094,
+              "last_over_other_instructions": 0.997047197574316,
+              "last_over_other_cpu_seconds": 1.0088032662845043
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.843955083333333,
+                  "level_instructions": [
+                    29236858308,
+                    57057855
+                  ],
+                  "level_cycles": [
+                    11990444117,
+                    53320373
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.82646925,
+                  "level_instructions": [
+                    29109696334,
+                    36822444
+                  ],
+                  "level_cycles": [
+                    11939741111,
+                    32497809
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.806754208333333,
+                  "level_instructions": [
+                    29089779249,
+                    26031567
+                  ],
+                  "level_cycles": [
+                    11860247505,
+                    23998220
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.828728375,
+                  "level_instructions": [
+                    29228981880,
+                    27340553
+                  ],
+                  "level_cycles": [
+                    11952050672,
+                    28401467
+                  ]
+                }
+              },
+              "vcpu_instructions": 116812568190,
+              "vcpu_cycles": 47880701274,
+              "vcpu_cpu_seconds": 11.305906916666666,
+              "instructions_per_cycle": 2.439658674202233,
+              "last_over_other_instructions": 1.0050571180085923,
+              "last_over_other_cpu_seconds": 1.0061864580105844
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.836763958333333,
+                  "level_instructions": [
+                    29395825756,
+                    4040607
+                  ],
+                  "level_cycles": [
+                    12075225748,
+                    7145097
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.762728083333333,
+                  "level_instructions": [
+                    28822597544,
+                    8691258
+                  ],
+                  "level_cycles": [
+                    11755407021,
+                    12162733
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.7984485,
+                  "level_instructions": [
+                    29092552403,
+                    9679807
+                  ],
+                  "level_cycles": [
+                    11911687063,
+                    7725943
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.807953125,
+                  "level_instructions": [
+                    28990703234,
+                    4623163
+                  ],
+                  "level_cycles": [
+                    11955578765,
+                    4130475
+                  ]
+                }
+              },
+              "vcpu_instructions": 116328713772,
+              "vcpu_cycles": 47729062845,
+              "vcpu_cpu_seconds": 11.205893666666666,
+              "instructions_per_cycle": 2.4372721113292584,
+              "last_over_other_instructions": 1.0139519024708015,
+              "last_over_other_cpu_seconds": 1.0136916789189914
+            }
+          ]
+        }
+      }
+    },
+    {
+      "mode": "inherit",
+      "seed": 250213,
+      "archive": "20261125T034257Z-sibling-compiler-runtime-bs0ctd63",
+      "engines": {
+        "A": {
+          "minimum_numbering_fraction": 0.8799921623074007,
+          "observed_over_expected_instructions": 1.0778495558985957,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.953888833333333,
+                  "level_instructions": [
+                    30893217170,
+                    10517110
+                  ],
+                  "level_cycles": [
+                    12583687975,
+                    13846457
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.774733083333333,
+                  "level_instructions": [
+                    28950048640,
+                    8191927
+                  ],
+                  "level_cycles": [
+                    11826232524,
+                    13115974
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.761843125,
+                  "level_instructions": [
+                    28972261663,
+                    9517549
+                  ],
+                  "level_cycles": [
+                    11771132247,
+                    12016059
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.774032625,
+                  "level_instructions": [
+                    28998037440,
+                    8121397
+                  ],
+                  "level_cycles": [
+                    11824637770,
+                    12718915
+                  ]
+                }
+              },
+              "vcpu_instructions": 117849912896,
+              "vcpu_cycles": 48057387921,
+              "vcpu_cpu_seconds": 11.264497666666665,
+              "instructions_per_cycle": 2.452274624033451,
+              "last_over_other_instructions": 1.0663159792206343,
+              "last_over_other_cpu_seconds": 1.0648356499892764
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.9391925,
+                  "level_instructions": [
+                    30228665546,
+                    209396789
+                  ],
+                  "level_cycles": [
+                    12350452382,
+                    145898900
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.869497625,
+                  "level_instructions": [
+                    29216112509,
+                    247138711
+                  ],
+                  "level_cycles": [
+                    12021342243,
+                    181708147
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.783308625,
+                  "level_instructions": [
+                    28715358790,
+                    285577275
+                  ],
+                  "level_cycles": [
+                    11660942794,
+                    171496731
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.817316125,
+                  "level_instructions": [
+                    28878274173,
+                    178939568
+                  ],
+                  "level_cycles": [
+                    11834102682,
+                    141968010
+                  ]
+                }
+              },
+              "vcpu_instructions": 117959463361,
+              "vcpu_cycles": 48507911889,
+              "vcpu_cpu_seconds": 11.409314875,
+              "instructions_per_cycle": 2.431757186970345,
+              "last_over_other_instructions": 1.0475217137578339,
+              "last_over_other_cpu_seconds": 1.0432597442361922
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.813604208333333,
+                  "level_instructions": [
+                    28935021072,
+                    233406872
+                  ],
+                  "level_cycles": [
+                    11848806890,
+                    124062471
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.7991817916666664,
+                  "level_instructions": [
+                    28636098984,
+                    320632706
+                  ],
+                  "level_cycles": [
+                    11752688969,
+                    159946985
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.926822083333333,
+                  "level_instructions": [
+                    30282529121,
+                    354346586
+                  ],
+                  "level_cycles": [
+                    12271087114,
+                    182627778
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.7869554166666664,
+                  "level_instructions": [
+                    28527391593,
+                    283508961
+                  ],
+                  "level_cycles": [
+                    11718747747,
+                    139406438
+                  ]
+                }
+              },
+              "vcpu_instructions": 117572935895,
+              "vcpu_cycles": 48197374392,
+              "vcpu_cpu_seconds": 11.326563499999999,
+              "instructions_per_cycle": 2.4394054111486048,
+              "last_over_other_instructions": 1.0580225708822044,
+              "last_over_other_cpu_seconds": 1.045599143309184
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "3",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8332300416666665,
+                  "level_instructions": [
+                    29017942626,
+                    29117945
+                  ],
+                  "level_cycles": [
+                    11951941892,
+                    31734414
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.8049141666666664,
+                  "level_instructions": [
+                    28707775637,
+                    28351753
+                  ],
+                  "level_cycles": [
+                    11838801986,
+                    31937400
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.796933208333333,
+                  "level_instructions": [
+                    28902906762,
+                    48625313
+                  ],
+                  "level_cycles": [
+                    11791742127,
+                    44933801
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.89225975,
+                  "level_instructions": [
+                    30315045069,
+                    38522470
+                  ],
+                  "level_cycles": [
+                    12180234643,
+                    39659567
+                  ]
+                }
+              },
+              "vcpu_instructions": 117088287575,
+              "vcpu_cycles": 47910985830,
+              "vcpu_cpu_seconds": 11.327337166666666,
+              "instructions_per_cycle": 2.44387139080081,
+              "last_over_other_instructions": 1.0484269868816605,
+              "last_over_other_cpu_seconds": 1.0311401982888961
+            }
+          ]
+        },
+        "B": {
+          "minimum_numbering_fraction": 0.8454830807943776,
+          "observed_over_expected_instructions": 0.9985207204465513,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "1",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.854056583333333,
+                  "level_instructions": [
+                    29223472443,
+                    322227750
+                  ],
+                  "level_cycles": [
+                    12021954529,
+                    150340195
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.818955208333333,
+                  "level_instructions": [
+                    29087480806,
+                    249967405
+                  ],
+                  "level_cycles": [
+                    11889651260,
+                    131058141
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.8403047916666666,
+                  "level_instructions": [
+                    29019685161,
+                    360738793
+                  ],
+                  "level_cycles": [
+                    11951001054,
+                    158782765
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.8171172916666665,
+                  "level_instructions": [
+                    28903459623,
+                    253373086
+                  ],
+                  "level_cycles": [
+                    11871745276,
+                    141359021
+                  ]
+                }
+              },
+              "vcpu_instructions": 117420405067,
+              "vcpu_cycles": 48315892241,
+              "vcpu_cpu_seconds": 11.330433874999999,
+              "instructions_per_cycle": 2.4302646524937637,
+              "last_over_other_instructions": 0.9985372660698401,
+              "last_over_other_cpu_seconds": 0.9924833477745162
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.822520583333333,
+                  "level_instructions": [
+                    27944695794,
+                    743808065
+                  ],
+                  "level_cycles": [
+                    11446933007,
+                    577245769
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.835592958333333,
+                  "level_instructions": [
+                    28280009982,
+                    648082469
+                  ],
+                  "level_cycles": [
+                    11525498712,
+                    551917176
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.8679215416666666,
+                  "level_instructions": [
+                    28786530172,
+                    693002743
+                  ],
+                  "level_cycles": [
+                    11678939916,
+                    538979577
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.816333708333333,
+                  "level_instructions": [
+                    28254201305,
+                    705215419
+                  ],
+                  "level_cycles": [
+                    11461471124,
+                    532933287
+                  ]
+                }
+              },
+              "vcpu_instructions": 116055545949,
+              "vcpu_cycles": 48313918568,
+              "vcpu_cpu_seconds": 11.342368791666665,
+              "instructions_per_cycle": 2.402114119260607,
+              "last_over_other_instructions": 1.0190624551181195,
+              "last_over_other_cpu_seconds": 1.0160852532312505
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8389404166666665,
+                  "level_instructions": [
+                    29379169344,
+                    28577864
+                  ],
+                  "level_cycles": [
+                    12079423990,
+                    32460605
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.795583,
+                  "level_instructions": [
+                    28990594466,
+                    105431674
+                  ],
+                  "level_cycles": [
+                    11842222927,
+                    83583569
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.796367875,
+                  "level_instructions": [
+                    28972177960,
+                    61428345
+                  ],
+                  "level_cycles": [
+                    11868459728,
+                    59438884
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.7869105416666664,
+                  "level_instructions": [
+                    28847974536,
+                    67101735
+                  ],
+                  "level_cycles": [
+                    11826143619,
+                    62928112
+                  ]
+                }
+              },
+              "vcpu_instructions": 116452455924,
+              "vcpu_cycles": 47854661434,
+              "vcpu_cpu_seconds": 11.217801833333333,
+              "instructions_per_cycle": 2.4334610764012705,
+              "last_over_other_instructions": 1.0128864771075843,
+              "last_over_other_cpu_seconds": 1.015509257520405
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "1",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.836872333333333,
+                  "level_instructions": [
+                    28775926694,
+                    304511721
+                  ],
+                  "level_cycles": [
+                    11851859565,
+                    161948497
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.871863583333333,
+                  "level_instructions": [
+                    29273379942,
+                    140158716
+                  ],
+                  "level_cycles": [
+                    12078207020,
+                    78239528
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.833365708333333,
+                  "level_instructions": [
+                    28827043439,
+                    100903755
+                  ],
+                  "level_cycles": [
+                    11934292159,
+                    59936297
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.838645458333333,
+                  "level_instructions": [
+                    28935983916,
+                    163345951
+                  ],
+                  "level_cycles": [
+                    11925358742,
+                    93969105
+                  ]
+                }
+              },
+              "vcpu_instructions": 116521254134,
+              "vcpu_cycles": 48183810913,
+              "vcpu_cpu_seconds": 11.380747083333333,
+              "instructions_per_cycle": 2.4182656358250516,
+              "last_over_other_instructions": 1.01145444364512,
+              "last_over_other_cpu_seconds": 1.0123344464919524
+            }
+          ]
+        }
+      }
+    },
+    {
+      "mode": "long",
+      "seed": 250213,
+      "archive": "20261125T034123Z-sibling-compiler-runtime-jyeuc83r",
+      "engines": {
+        "A": {
+          "minimum_numbering_fraction": 0.8899812329859539,
+          "observed_over_expected_instructions": 1.0043031056722005,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8395012916666666,
+                  "level_instructions": [
+                    29446661178,
+                    34273636
+                  ],
+                  "level_cycles": [
+                    12063872160,
+                    39158756
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.7884255,
+                  "level_instructions": [
+                    29000332146,
+                    105791875
+                  ],
+                  "level_cycles": [
+                    11808034856,
+                    78675373
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.9424367916666667,
+                  "level_instructions": [
+                    30964120168,
+                    23486058
+                  ],
+                  "level_cycles": [
+                    12507869309,
+                    27901994
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.821343083333333,
+                  "level_instructions": [
+                    29150306667,
+                    21752733
+                  ],
+                  "level_cycles": [
+                    11998011910,
+                    28409948
+                  ]
+                }
+              },
+              "vcpu_instructions": 118746724461,
+              "vcpu_cycles": 48551934306,
+              "vcpu_cpu_seconds": 11.391706666666666,
+              "instructions_per_cycle": 2.445767118413764,
+              "last_over_other_instructions": 1.0622358127379927,
+              "last_over_other_cpu_seconds": 1.0429205895052882
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8515381666666664,
+                  "level_instructions": [
+                    29312631310,
+                    151143155
+                  ],
+                  "level_cycles": [
+                    12008020572,
+                    144177606
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.79776925,
+                  "level_instructions": [
+                    29209763166,
+                    130382707
+                  ],
+                  "level_cycles": [
+                    11794910805,
+                    130753484
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.9370631666666664,
+                  "level_instructions": [
+                    30898374869,
+                    190559231
+                  ],
+                  "level_cycles": [
+                    12355181259,
+                    159962198
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.776716208333333,
+                  "level_instructions": [
+                    28794818862,
+                    141304711
+                  ],
+                  "level_cycles": [
+                    11710289666,
+                    123759618
+                  ]
+                }
+              },
+              "vcpu_instructions": 118828978011,
+              "vcpu_cycles": 48427055208,
+              "vcpu_cpu_seconds": 11.363086791666666,
+              "instructions_per_cycle": 2.453772534807564,
+              "last_over_other_instructions": 1.059603937709434,
+              "last_over_other_cpu_seconds": 1.0497874928987323
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "3",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8045581666666664,
+                  "level_instructions": [
+                    29016938208,
+                    12290830
+                  ],
+                  "level_cycles": [
+                    11916180868,
+                    18341113
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.759443875,
+                  "level_instructions": [
+                    28999709622,
+                    9200236
+                  ],
+                  "level_cycles": [
+                    11728616009,
+                    12215596
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.7757022916666667,
+                  "level_instructions": [
+                    29186600911,
+                    9107316
+                  ],
+                  "level_cycles": [
+                    11798539631,
+                    12503602
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.900700958333333,
+                  "level_instructions": [
+                    30765945566,
+                    11087856
+                  ],
+                  "level_cycles": [
+                    12329421380,
+                    14429171
+                  ]
+                }
+              },
+              "vcpu_instructions": 118010880545,
+              "vcpu_cycles": 47830247370,
+              "vcpu_cpu_seconds": 11.240405291666667,
+              "instructions_per_cycle": 2.46728559925907,
+              "last_over_other_instructions": 1.060208432739019,
+              "last_over_other_cpu_seconds": 1.0450331676570441
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.847307083333333,
+                  "level_instructions": [
+                    28811403310,
+                    337985289
+                  ],
+                  "level_cycles": [
+                    11735370598,
+                    248505912
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.786440083333333,
+                  "level_instructions": [
+                    28307545637,
+                    295850323
+                  ],
+                  "level_cycles": [
+                    11507215649,
+                    217775067
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.913488583333333,
+                  "level_instructions": [
+                    30232284747,
+                    325043380
+                  ],
+                  "level_cycles": [
+                    12026637214,
+                    234672824
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.807229125,
+                  "level_instructions": [
+                    28955605566,
+                    288755900
+                  ],
+                  "level_cycles": [
+                    11594208359,
+                    216749366
+                  ]
+                }
+              },
+              "vcpu_instructions": 117554474152,
+              "vcpu_cycles": 47781134989,
+              "vcpu_cpu_seconds": 11.354464874999998,
+              "instructions_per_cycle": 2.4602696059660984,
+              "last_over_other_instructions": 1.0483008253575616,
+              "last_over_other_cpu_seconds": 1.0378520789012307
+            }
+          ]
+        },
+        "B": {
+          "minimum_numbering_fraction": 0.9256220325476522,
+          "observed_over_expected_instructions": 1.0495809590374983,
+          "instruction_calibration_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.891501875,
+                  "level_instructions": [
+                    28784030674,
+                    579744816
+                  ],
+                  "level_cycles": [
+                    12003820881,
+                    304522187
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.858556125,
+                  "level_instructions": [
+                    29026999710,
+                    549368187
+                  ],
+                  "level_cycles": [
+                    11876737022,
+                    297638703
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.8692392916666667,
+                  "level_instructions": [
+                    28954539716,
+                    580908046
+                  ],
+                  "level_cycles": [
+                    11903874910,
+                    312482781
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.867141958333333,
+                  "level_instructions": [
+                    29185472663,
+                    368337908
+                  ],
+                  "level_cycles": [
+                    11996818853,
+                    207818349
+                  ]
+                }
+              },
+              "vcpu_instructions": 118029401720,
+              "vcpu_cycles": 48903713686,
+              "vcpu_cpu_seconds": 11.48643925,
+              "instructions_per_cycle": 2.4135059042313403,
+              "last_over_other_instructions": 0.9935698619796097,
+              "last_over_other_cpu_seconds": 1.008496236677736
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.768570583333333,
+                  "level_instructions": [
+                    29010748691,
+                    25930311
+                  ],
+                  "level_cycles": [
+                    11764220201,
+                    30948384
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.760070375,
+                  "level_instructions": [
+                    28653189165,
+                    67338581
+                  ],
+                  "level_cycles": [
+                    11704748184,
+                    56921176
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.777129,
+                  "level_instructions": [
+                    29389934765,
+                    24592766
+                  ],
+                  "level_cycles": [
+                    11803185725,
+                    28695040
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.7533386666666666,
+                  "level_instructions": [
+                    29073492039,
+                    20333070
+                  ],
+                  "level_cycles": [
+                    11703143108,
+                    26144021
+                  ]
+                }
+              },
+              "vcpu_instructions": 116265559388,
+              "vcpu_cycles": 47118005839,
+              "vcpu_cpu_seconds": 11.059108625,
+              "instructions_per_cycle": 2.4675398994022353,
+              "last_over_other_instructions": 0.9980357994596482,
+              "last_over_other_cpu_seconds": 1.0030797071010673
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "2",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8600892916666667,
+                  "level_instructions": [
+                    28848520184,
+                    344147085
+                  ],
+                  "level_cycles": [
+                    11832838405,
+                    289787337
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.8717136666666665,
+                  "level_instructions": [
+                    29131529731,
+                    104581482
+                  ],
+                  "level_cycles": [
+                    12045191103,
+                    120938469
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.883214708333333,
+                  "level_instructions": [
+                    28989430108,
+                    266734264
+                  ],
+                  "level_cycles": [
+                    11984062634,
+                    237546491
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.857727875,
+                  "level_instructions": [
+                    28777157500,
+                    309205293
+                  ],
+                  "level_cycles": [
+                    11847583033,
+                    264540678
+                  ]
+                }
+              },
+              "vcpu_instructions": 116771305647,
+              "vcpu_cycles": 48622488150,
+              "vcpu_cpu_seconds": 11.472745541666667,
+              "instructions_per_cycle": 2.401590500403053,
+              "last_over_other_instructions": 1.0021751045361802,
+              "last_over_other_cpu_seconds": 1.0080855575852286
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "0",
+              "vcpu_counters": {
+                "0": {
+                  "cpu_seconds": 2.8221581666666666,
+                  "level_instructions": [
+                    29476271042,
+                    7847639
+                  ],
+                  "level_cycles": [
+                    11915208566,
+                    10942189
+                  ]
+                },
+                "1": {
+                  "cpu_seconds": 2.7987384583333332,
+                  "level_instructions": [
+                    29459561805,
+                    15378780
+                  ],
+                  "level_cycles": [
+                    11813537057,
+                    12933584
+                  ]
+                },
+                "2": {
+                  "cpu_seconds": 2.789731833333333,
+                  "level_instructions": [
+                    29058437542,
+                    12694450
+                  ],
+                  "level_cycles": [
+                    11777076000,
+                    11398280
+                  ]
+                },
+                "3": {
+                  "cpu_seconds": 2.7925517916666664,
+                  "level_instructions": [
+                    28999960036,
+                    18240682
+                  ],
+                  "level_cycles": [
+                    11787464351,
+                    15844834
+                  ]
+                }
+              },
+              "vcpu_instructions": 117048391976,
+              "vcpu_cycles": 47344404861,
+              "vcpu_cpu_seconds": 11.203180249999999,
+              "instructions_per_cycle": 2.472275072833764,
+              "last_over_other_instructions": 1.0142060752609718,
+              "last_over_other_cpu_seconds": 1.0106019072191783
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "summary": {
+    "inherit": {
+      "A": {
+        "minimum_numbering_fraction": 0.8737313148452925,
+        "instruction_calibration_ratios": [
+          1.0382507924680358,
+          1.0778495558985957
+        ],
+        "all_instruction_calibrations_passed": true,
+        "window_medians": {
+          "vcpu_instructions": 117690486806.5,
+          "vcpu_cycles": 48566869716.0,
+          "vcpu_cpu_seconds": 11.4060469375,
+          "instructions_per_cycle": 2.4272516813140834,
+          "last_over_other_instructions": 1.0480685270822216,
+          "last_over_other_cpu_seconds": 1.0375190283433098
+        }
+      },
+      "B": {
+        "minimum_numbering_fraction": 0.8454830807943776,
+        "instruction_calibration_ratios": [
+          1.0124460114373102,
+          0.9985207204465513
+        ],
+        "all_instruction_calibrations_passed": true,
+        "window_medians": {
+          "vcpu_instructions": 116501636010.0,
+          "vcpu_cycles": 48481431818.5,
+          "vcpu_cpu_seconds": 11.390144395833332,
+          "instructions_per_cycle": 2.4101898775428294,
+          "last_over_other_instructions": 1.0115029890363014,
+          "last_over_other_cpu_seconds": 1.0157972553758277
+        }
+      }
+    },
+    "long": {
+      "A": {
+        "minimum_numbering_fraction": 0.8719568713904198,
+        "instruction_calibration_ratios": [
+          0.933680248260498,
+          1.0043031056722005
+        ],
+        "all_instruction_calibrations_passed": true,
+        "window_medians": {
+          "vcpu_instructions": 118306154762.5,
+          "vcpu_cycles": 48489494757.0,
+          "vcpu_cpu_seconds": 11.422603270833331,
+          "instructions_per_cycle": 2.4497698266106642,
+          "last_over_other_instructions": 1.0575587165098292,
+          "last_over_other_cpu_seconds": 1.0418564892168491
+        }
+      },
+      "B": {
+        "minimum_numbering_fraction": 0.9256220325476522,
+        "instruction_calibration_ratios": [
+          0.9939548933947527,
+          1.0495809590374983
+        ],
+        "all_instruction_calibrations_passed": true,
+        "window_medians": {
+          "vcpu_instructions": 116871962991.5,
+          "vcpu_cycles": 48251594712.0,
+          "vcpu_cpu_seconds": 11.363891854166667,
+          "instructions_per_cycle": 2.4384653927657456,
+          "last_over_other_instructions": 1.0036161112723863,
+          "last_over_other_cpu_seconds": 1.0086497514811201
+        }
+      }
+    }
+  }
+}

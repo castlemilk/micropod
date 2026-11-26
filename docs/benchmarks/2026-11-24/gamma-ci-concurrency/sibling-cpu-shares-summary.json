@@ -1,0 +1,642 @@
+{
+  "control": {
+    "runs": [
+      "20261124T212304Z-sibling-vw9cqdjl",
+      "20261124T212430Z-sibling-s60ojub6"
+    ],
+    "kernel": {
+      "kernel_page_kib": 16,
+      "kernel_image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+      "kernel_config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98"
+    },
+    "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+    "guest": "b4b4bdb7b01c261261d4d6df6468339ddb66b994e93efc4ffb4286ff4115d69c",
+    "requests": 4135957,
+    "warm_connections": 528,
+    "min_dense_common_fraction": 0.9883786623342335,
+    "layouts": {
+      "same-one": {
+        "p50_us": {
+          "first": 47.041,
+          "second": 48.9165,
+          "median_ratio": 1.011776102631316,
+          "higher": 4,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 79.77,
+          "second": 83.625,
+          "median_ratio": 0.980814049224745,
+          "higher": 3,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 150.81099999999998,
+          "second": 146.083,
+          "median_ratio": 0.9823178888697645,
+          "higher": 3,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 18815.752540322508,
+          "second": 18197.544725599804,
+          "median_ratio": 0.9721328419049975,
+          "higher": 4,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 79.77,
+          "second": 83.625,
+          "median_ratio": 0.980814049224745,
+          "higher": 3,
+          "pairs": 8
+        }
+      },
+      "same-all": {
+        "p50_us": {
+          "first": 155.873,
+          "second": 17.51025,
+          "median_ratio": 0.11256569637187273,
+          "higher": 0,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 332.32899999999995,
+          "second": 753.479,
+          "median_ratio": 2.2542137635751716,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 996.6335,
+          "second": 3388.3955,
+          "median_ratio": 3.466351877622448,
+          "higher": 8,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 161438.00410896895,
+          "second": 183214.3832916816,
+          "median_ratio": 1.1357666388177432,
+          "higher": 8,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 378.20349999999996,
+          "second": 1340.479,
+          "median_ratio": 3.475226879109209,
+          "higher": 8,
+          "pairs": 8
+        },
+        "least_client_requests": {
+          "first": 4997.5,
+          "second": 5926.0,
+          "median_ratio": 1.174020651791305,
+          "higher": 8,
+          "pairs": 8
+        },
+        "most_client_requests": {
+          "first": 8461.0,
+          "second": 10040.5,
+          "median_ratio": 1.1896350220604206,
+          "higher": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "first": 3.256333821,
+          "second": 3.1495915635,
+          "median_ratio": 0.9650717271194775,
+          "higher": 0,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "first": 3.2526100524999997,
+          "second": 3.1384727305,
+          "median_ratio": 0.9630267065231188,
+          "higher": 0,
+          "pairs": 8
+        }
+      }
+    },
+    "changes_from_shared": {},
+    "idle_cpu_s_per_s": {
+      "micropod_vmm": 0.24207716013023284,
+      "micropod_supervisor": 0.0024380956124445442,
+      "orbstack_helper": 0.13796377454304432
+    },
+    "builder_shares": 0,
+    "cpu_allocation": {
+      "A": {
+        "effective_weight": 100.0,
+        "peer_weight": 100.0,
+        "solo_cpu_fraction": 0.9991411101979526,
+        "contended_cpu_fraction": 0.49904830596710653
+      },
+      "B": {
+        "effective_weight": 100.0,
+        "peer_weight": 100.0,
+        "solo_cpu_fraction": 0.9996203316620773,
+        "contended_cpu_fraction": 0.499943482175618
+      }
+    },
+    "builders": 8,
+    "build_nice": 5,
+    "jobs": 128,
+    "revisions": 256,
+    "test_passes": 2048,
+    "mixed_profiles": {
+      "same-A": {
+        "with_build": {
+          "calls_per_client": 6379.6875,
+          "p50_us": 17.2085,
+          "p95_us": 1199.708,
+          "p99_us": 4639.083500000001,
+          "wave_tail_calls_per_1000": 16.730006497751376
+        },
+        "http_only": {
+          "calls_per_client": 9358.25,
+          "p50_us": 17.5835,
+          "p95_us": 682.8335,
+          "p99_us": 2915.7285,
+          "wave_tail_calls_per_1000": 8.473758628403743
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.9985622295002031
+        }
+      },
+      "same-B": {
+        "with_build": {
+          "calls_per_client": 5410.0,
+          "p50_us": 161.394,
+          "p95_us": 349.392,
+          "p99_us": 2189.203,
+          "wave_tail_calls_per_1000": 16.506611637264527
+        },
+        "http_only": {
+          "calls_per_client": 8291.9375,
+          "p50_us": 154.019,
+          "p95_us": 330.12149999999997,
+          "p99_us": 846.4475,
+          "wave_tail_calls_per_1000": 8.607138607666162
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.9955215276330069
+        }
+      }
+    },
+    "builder_cgroup_totals": {
+      "same-A": {
+        "usage_usec": 80216929,
+        "system_usec": 10961184,
+        "nr_periods": 2574,
+        "nr_throttled": 30,
+        "throttled_usec": 100125
+      },
+      "same-B": {
+        "usage_usec": 85803913,
+        "system_usec": 12945749,
+        "nr_periods": 2658,
+        "nr_throttled": 5,
+        "throttled_usec": 2442
+      }
+    }
+  },
+  "candidate": {
+    "runs": [
+      "20261124T212137Z-sibling-h55n373c",
+      "20261124T212556Z-sibling-p8695rwf"
+    ],
+    "kernel": {
+      "kernel_page_kib": 16,
+      "kernel_image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+      "kernel_config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98"
+    },
+    "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+    "guest": "b4b4bdb7b01c261261d4d6df6468339ddb66b994e93efc4ffb4286ff4115d69c",
+    "requests": 4301005,
+    "warm_connections": 528,
+    "min_dense_common_fraction": 0.9738359069424488,
+    "layouts": {
+      "same-one": {
+        "p50_us": {
+          "first": 48.59375,
+          "second": 42.14625,
+          "median_ratio": 0.8449169127119079,
+          "higher": 1,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 78.45750000000001,
+          "second": 76.542,
+          "median_ratio": 0.9556511250473019,
+          "higher": 2,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 108.874,
+          "second": 113.8125,
+          "median_ratio": 1.0512565140592072,
+          "higher": 4,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 18804.400197334384,
+          "second": 19572.5249272771,
+          "median_ratio": 1.0777482759157495,
+          "higher": 6,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 78.45750000000001,
+          "second": 76.542,
+          "median_ratio": 0.9556511250473019,
+          "higher": 2,
+          "pairs": 8
+        }
+      },
+      "same-all": {
+        "p50_us": {
+          "first": 136.957,
+          "second": 18.771,
+          "median_ratio": 0.1368613064376655,
+          "higher": 0,
+          "pairs": 8
+        },
+        "p95_us": {
+          "first": 346.725,
+          "second": 627.0205000000001,
+          "median_ratio": 1.8083172788247048,
+          "higher": 8,
+          "pairs": 8
+        },
+        "p99_us": {
+          "first": 1069.0700000000002,
+          "second": 3390.4795,
+          "median_ratio": 3.1562224604643223,
+          "higher": 8,
+          "pairs": 8
+        },
+        "requests_per_second": {
+          "first": 168231.67859172926,
+          "second": 189141.1410463957,
+          "median_ratio": 1.115492660270908,
+          "higher": 8,
+          "pairs": 8
+        },
+        "slowest_client_p95_us": {
+          "first": 1413.046,
+          "second": 3788.0215,
+          "median_ratio": 2.807813216012729,
+          "higher": 8,
+          "pairs": 8
+        },
+        "least_client_requests": {
+          "first": 2614.5,
+          "second": 2538.0,
+          "median_ratio": 0.9722311241303552,
+          "higher": 4,
+          "pairs": 8
+        },
+        "most_client_requests": {
+          "first": 9845.0,
+          "second": 11745.0,
+          "median_ratio": 1.1924450488604783,
+          "higher": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "first": 3.295895407,
+          "second": 3.229203856,
+          "median_ratio": 0.986211709443975,
+          "higher": 0,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "first": 3.2930956074999997,
+          "second": 3.221883856,
+          "median_ratio": 0.984672795554532,
+          "higher": 0,
+          "pairs": 8
+        }
+      }
+    },
+    "changes_from_shared": {},
+    "idle_cpu_s_per_s": {
+      "micropod_vmm": 0.2323497231045913,
+      "micropod_supervisor": 0.0020703785590693103,
+      "orbstack_helper": 0.1935259227289676
+    },
+    "builder_shares": 512,
+    "cpu_allocation": {
+      "A": {
+        "effective_weight": 59.0,
+        "peer_weight": 100.0,
+        "solo_cpu_fraction": 0.9994226442444732,
+        "contended_cpu_fraction": 0.37158542953990115
+      },
+      "B": {
+        "effective_weight": 59.0,
+        "peer_weight": 100.0,
+        "solo_cpu_fraction": 0.9996221091736159,
+        "contended_cpu_fraction": 0.3714015843342408
+      }
+    },
+    "builders": 8,
+    "build_nice": 5,
+    "jobs": 128,
+    "revisions": 256,
+    "test_passes": 2048,
+    "mixed_profiles": {
+      "same-A": {
+        "with_build": {
+          "calls_per_client": 2749.6875,
+          "p50_us": 20.1045,
+          "p95_us": 3555.083,
+          "p99_us": 8145.25,
+          "wave_tail_calls_per_1000": 52.404132357404876
+        },
+        "http_only": {
+          "calls_per_client": 10904.541666666668,
+          "p50_us": 18.646,
+          "p95_us": 524.625,
+          "p99_us": 2141.75,
+          "wave_tail_calls_per_1000": 6.4663240636532535
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.9986120479889231
+        }
+      },
+      "same-B": {
+        "with_build": {
+          "calls_per_client": 2801.3125,
+          "p50_us": 253.122,
+          "p95_us": 1255.1515,
+          "p99_us": 5729.0145,
+          "wave_tail_calls_per_1000": 58.81857882674119
+        },
+        "http_only": {
+          "calls_per_client": 9647.3125,
+          "p50_us": 133.47699999999998,
+          "p95_us": 286.247,
+          "p99_us": 645.2005,
+          "wave_tail_calls_per_1000": 5.30118118855044
+        },
+        "wave_tail": {
+          "median_fraction_write_to_first_byte": 0.9952345019151125
+        }
+      }
+    },
+    "builder_cgroup_totals": {
+      "same-A": {
+        "usage_usec": 77006314,
+        "system_usec": 9941060,
+        "nr_periods": 2607,
+        "nr_throttled": 14,
+        "throttled_usec": 14186
+      },
+      "same-B": {
+        "usage_usec": 83208100,
+        "system_usec": 12444624,
+        "nr_periods": 2683,
+        "nr_throttled": 8,
+        "throttled_usec": 9323
+      }
+    }
+  },
+  "contrast": {
+    "change": {
+      "builder_shares": [
+        0,
+        512
+      ]
+    },
+    "modes": {
+      "same-one": {
+        "A": {
+          "p50_us": {
+            "first": 48.9165,
+            "second": 42.14625,
+            "median_ratio": 0.786477410081632,
+            "higher": 1,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 83.625,
+            "second": 76.542,
+            "median_ratio": 0.8680368398155205,
+            "higher": 1,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 146.083,
+            "second": 113.8125,
+            "median_ratio": 0.968607719050331,
+            "higher": 4,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 18197.544725599804,
+            "second": 19572.5249272771,
+            "median_ratio": 1.182052895361847,
+            "higher": 6,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 83.625,
+            "second": 76.542,
+            "median_ratio": 0.8680368398155205,
+            "higher": 1,
+            "pairs": 8
+          }
+        },
+        "B": {
+          "p50_us": {
+            "first": 47.041,
+            "second": 48.59375,
+            "median_ratio": 1.0320821027905613,
+            "higher": 4,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 79.77,
+            "second": 78.45750000000001,
+            "median_ratio": 1.0889873102869845,
+            "higher": 5,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 150.81099999999998,
+            "second": 108.874,
+            "median_ratio": 0.7013225079029232,
+            "higher": 1,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 18815.752540322508,
+            "second": 18804.400197334384,
+            "median_ratio": 0.95308547622955,
+            "higher": 3,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 79.77,
+            "second": 78.45750000000001,
+            "median_ratio": 1.0889873102869845,
+            "higher": 5,
+            "pairs": 8
+          }
+        },
+        "relative_to_peer": {
+          "p50_us": 0.7917379782909292,
+          "p95_us": 0.8323142143787026,
+          "p99_us": 1.3170193032646031,
+          "requests_per_second": 1.213781692131178,
+          "slowest_client_p95_us": 0.8323142143787026
+        }
+      },
+      "same-all": {
+        "A": {
+          "p50_us": {
+            "first": 17.51025,
+            "second": 18.771,
+            "median_ratio": 1.075037495114035,
+            "higher": 8,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 753.479,
+            "second": 627.0205000000001,
+            "median_ratio": 0.8267869476234546,
+            "higher": 0,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 3388.3955,
+            "second": 3390.4795,
+            "median_ratio": 0.9927540534406398,
+            "higher": 4,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 183214.3832916816,
+            "second": 189141.1410463957,
+            "median_ratio": 1.0287139069297886,
+            "higher": 6,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 1340.479,
+            "second": 3788.0215,
+            "median_ratio": 2.886763252847347,
+            "higher": 8,
+            "pairs": 8
+          },
+          "least_client_requests": {
+            "first": 5926.0,
+            "second": 2538.0,
+            "median_ratio": 0.4261351865929331,
+            "higher": 0,
+            "pairs": 8
+          },
+          "most_client_requests": {
+            "first": 10040.5,
+            "second": 11745.0,
+            "median_ratio": 1.1575302099191658,
+            "higher": 8,
+            "pairs": 8
+          },
+          "build_makespan_s": {
+            "first": 3.1495915635,
+            "second": 3.229203856,
+            "median_ratio": 1.0168356853439922,
+            "higher": 8,
+            "pairs": 8
+          },
+          "slowest_build_s": {
+            "first": 3.1384727305,
+            "second": 3.221883856,
+            "median_ratio": 1.0158184304913358,
+            "higher": 8,
+            "pairs": 8
+          }
+        },
+        "B": {
+          "p50_us": {
+            "first": 155.873,
+            "second": 136.957,
+            "median_ratio": 0.8788490105526898,
+            "higher": 0,
+            "pairs": 8
+          },
+          "p95_us": {
+            "first": 332.32899999999995,
+            "second": 346.725,
+            "median_ratio": 1.0429276237395901,
+            "higher": 8,
+            "pairs": 8
+          },
+          "p99_us": {
+            "first": 996.6335,
+            "second": 1069.0700000000002,
+            "median_ratio": 1.0922142510489765,
+            "higher": 5,
+            "pairs": 8
+          },
+          "requests_per_second": {
+            "first": 161438.00410896895,
+            "second": 168231.67859172926,
+            "median_ratio": 1.04308698521956,
+            "higher": 8,
+            "pairs": 8
+          },
+          "slowest_client_p95_us": {
+            "first": 378.20349999999996,
+            "second": 1413.046,
+            "median_ratio": 3.5438749127883433,
+            "higher": 8,
+            "pairs": 8
+          },
+          "least_client_requests": {
+            "first": 4997.5,
+            "second": 2614.5,
+            "median_ratio": 0.5024574542362966,
+            "higher": 0,
+            "pairs": 8
+          },
+          "most_client_requests": {
+            "first": 8461.0,
+            "second": 9845.0,
+            "median_ratio": 1.1635723449204927,
+            "higher": 8,
+            "pairs": 8
+          },
+          "build_makespan_s": {
+            "first": 3.256333821,
+            "second": 3.295895407,
+            "median_ratio": 1.0098454763571196,
+            "higher": 7,
+            "pairs": 8
+          },
+          "slowest_build_s": {
+            "first": 3.2526100524999997,
+            "second": 3.2930956074999997,
+            "median_ratio": 1.0076234514489473,
+            "higher": 8,
+            "pairs": 8
+          }
+        },
+        "relative_to_peer": {
+          "p50_us": 1.2211334533419662,
+          "p95_us": 0.780429623542795,
+          "p99_us": 0.9003459372594049,
+          "requests_per_second": 0.9827551941862889,
+          "slowest_client_p95_us": 0.8254417012158732,
+          "least_client_requests": 0.8160862327111504,
+          "most_client_requests": 1.0023578715694832,
+          "build_makespan_s": 1.0080375842174731,
+          "slowest_build_s": 1.0077385199263955
+        }
+      }
+    }
+  }
+}

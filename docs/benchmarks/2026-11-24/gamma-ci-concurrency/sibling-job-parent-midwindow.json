@@ -1,0 +1,1955 @@
+{
+  "scope": "Four host vCPU threads during the common scheduled HTTP and build interval.",
+  "summary": {
+    "flat": {
+      "A": {
+        "calibrated_boots": 2,
+        "examined_boots": 2,
+        "qualified_windows": 8,
+        "median_host_interval_ns": 794085958.5,
+        "minimum_overlap_margin_ns": 271318543,
+        "median_last_over_other_three": {
+          "instructions": 1.0036634352302345,
+          "cycles": 1.0001101722287982,
+          "cpu_seconds": 0.9999832535875004,
+          "instructions_per_cycle": 1.0034213329592925,
+          "cycles_per_cpu_second": 1.0000775003982203
+        },
+        "median_total_instructions_per_second": 35661009580.649506
+      },
+      "B": {
+        "calibrated_boots": 2,
+        "examined_boots": 2,
+        "qualified_windows": 8,
+        "median_host_interval_ns": 802647729.0,
+        "minimum_overlap_margin_ns": 270252980,
+        "median_last_over_other_three": {
+          "instructions": 0.9939414629693516,
+          "cycles": 1.0004179305378098,
+          "cpu_seconds": 1.0002041445951488,
+          "instructions_per_cycle": 0.997324302074829,
+          "cycles_per_cpu_second": 0.9999476973625111
+        },
+        "median_total_instructions_per_second": 36011255668.71295
+      }
+    },
+    "job": {
+      "A": {
+        "calibrated_boots": 2,
+        "examined_boots": 2,
+        "qualified_windows": 8,
+        "median_host_interval_ns": 799665583.5,
+        "minimum_overlap_margin_ns": 275646540,
+        "median_last_over_other_three": {
+          "instructions": 1.0194807698855155,
+          "cycles": 0.9999526269200922,
+          "cpu_seconds": 0.9999843939904604,
+          "instructions_per_cycle": 1.0206257681382223,
+          "cycles_per_cpu_second": 0.9999955818297306
+        },
+        "median_total_instructions_per_second": 35996704584.95856
+      },
+      "B": {
+        "calibrated_boots": 2,
+        "examined_boots": 2,
+        "qualified_windows": 8,
+        "median_host_interval_ns": 798571520.5,
+        "minimum_overlap_margin_ns": 268664383,
+        "median_last_over_other_three": {
+          "instructions": 0.999631064899405,
+          "cycles": 0.9985963243433733,
+          "cpu_seconds": 0.9983728604909234,
+          "instructions_per_cycle": 1.0057204758674776,
+          "cycles_per_cpu_second": 0.999998913422796
+        },
+        "median_total_instructions_per_second": 36192563011.82892
+      }
+    }
+  },
+  "runs": [
+    {
+      "archive": "20261125T042115Z-sibling-job-parent-95uspe4p",
+      "mode": "flat",
+      "seed": 250221,
+      "engines": {
+        "A": {
+          "guest_boot": "029d2b55-6f06-4e2b-9e97-fbd9572b129c",
+          "host_offset_range_ns": [
+            -4158874,
+            17990089
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 0.9901636702253285,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1177388950.0,
+                "1": 30573572.0,
+                "2": 22916901.5,
+                "3": -3429952.5
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 0.9858144237881615,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 35164494.5,
+                "1": 1172217325.5,
+                "2": 29244183.0,
+                "3": 27015100.0
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 1.0046758256471557,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 48557257.5,
+                "1": 43565463.0,
+                "2": 1194645139.0,
+                "3": 46608835.5
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 0.9762615484745625,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 37377687.0,
+                "1": 51488423.5,
+                "2": 37652759.0,
+                "3": 1160858143.0
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "3",
+              "start_margin_ns": 274406164,
+              "end_margin_ns": 403559040,
+              "host_interval_ns": 791610167,
+              "vcpu": {
+                "0": {
+                  "instructions": 6579085460,
+                  "cycles": 3336158425,
+                  "cpu_seconds": 0.784500125,
+                  "instructions_per_cycle": 1.972054267776567,
+                  "cycles_per_cpu_second": 4252591323.678884
+                },
+                "1": {
+                  "instructions": 6606933752,
+                  "cycles": 3335178770,
+                  "cpu_seconds": 0.7843612083333332,
+                  "instructions_per_cycle": 1.9809833917838233,
+                  "cycles_per_cpu_second": 4252095507.230433
+                },
+                "2": {
+                  "instructions": 6674297046,
+                  "cycles": 3335264244,
+                  "cpu_seconds": 0.7843207083333332,
+                  "instructions_per_cycle": 2.0011299128717552,
+                  "cycles_per_cpu_second": 4252424051.237119
+                },
+                "3": {
+                  "instructions": 6748872394,
+                  "cycles": 3336163590,
+                  "cpu_seconds": 0.7843185,
+                  "instructions_per_cycle": 2.0229440829069176,
+                  "cycles_per_cpu_second": 4253582683.5654135
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0214832851861173,
+                "cycles": 1.0002696476003716,
+                "cpu_seconds": 0.9999455501714268,
+                "instructions_per_cycle": 1.0211817480636776,
+                "cycles_per_cpu_second": 1.0002724639674534
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "start_margin_ns": 277371158,
+              "end_margin_ns": 394157713,
+              "host_interval_ns": 796561750,
+              "vcpu": {
+                "0": {
+                  "instructions": 7087842651,
+                  "cycles": 3405770867,
+                  "cpu_seconds": 0.796354125,
+                  "instructions_per_cycle": 2.0811272771392817,
+                  "cycles_per_cpu_second": 4276703993.967508
+                },
+                "1": {
+                  "instructions": 7172432033,
+                  "cycles": 3405301461,
+                  "cpu_seconds": 0.7962578333333332,
+                  "instructions_per_cycle": 2.1062546488597063,
+                  "cycles_per_cpu_second": 4276631661.8130608
+                },
+                "2": {
+                  "instructions": 7337162844,
+                  "cycles": 3406120068,
+                  "cpu_seconds": 0.7963489166666666,
+                  "instructions_per_cycle": 2.1541116277525187,
+                  "cycles_per_cpu_second": 4277170467.2585416
+                },
+                "3": {
+                  "instructions": 7087084151,
+                  "cycles": 3406271538,
+                  "cpu_seconds": 0.796394,
+                  "instructions_per_cycle": 2.080598705046632,
+                  "cycles_per_cpu_second": 4277118534.293327
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0351757516745697,
+                "cycles": 1.0001025321472397,
+                "cpu_seconds": 0.9999934597772902,
+                "instructions_per_cycle": 1.0350696237635024,
+                "cycles_per_cpu_second": 1.0001090730833118
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "0",
+              "start_margin_ns": 271318543,
+              "end_margin_ns": 407501120,
+              "host_interval_ns": 790513417,
+              "vcpu": {
+                "0": {
+                  "instructions": 6943699719,
+                  "cycles": 3376749184,
+                  "cpu_seconds": 0.7900590416666666,
+                  "instructions_per_cycle": 2.0563267630007074,
+                  "cycles_per_cpu_second": 4274046629.321005
+                },
+                "1": {
+                  "instructions": 6980195991,
+                  "cycles": 3377417580,
+                  "cpu_seconds": 0.7901667083333332,
+                  "instructions_per_cycle": 2.0667257825430045,
+                  "cycles_per_cpu_second": 4274310147.9482102
+                },
+                "2": {
+                  "instructions": 7242311821,
+                  "cycles": 3377226050,
+                  "cpu_seconds": 0.790203375,
+                  "instructions_per_cycle": 2.1444557497121046,
+                  "cycles_per_cpu_second": 4273869432.663458
+                },
+                "3": {
+                  "instructions": 7136269600,
+                  "cycles": 3377091839,
+                  "cpu_seconds": 0.7901946666666666,
+                  "instructions_per_cycle": 2.1131405185928083,
+                  "cycles_per_cpu_second": 4273746687.3141813
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9730153298860794,
+                "cycles": 0.9998587995020352,
+                "cpu_seconds": 0.9998283650779723,
+                "instructions_per_cycle": 0.9731140664370325,
+                "cycles_per_cpu_second": 1.0000414604751826
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "2",
+              "start_margin_ns": 275648916,
+              "end_margin_ns": 392260747,
+              "host_interval_ns": 800133875,
+              "vcpu": {
+                "0": {
+                  "instructions": 6932352607,
+                  "cycles": 3418717147,
+                  "cpu_seconds": 0.7998545833333333,
+                  "instructions_per_cycle": 2.0277643071709788,
+                  "cycles_per_cpu_second": 4274173353.8023324
+                },
+                "1": {
+                  "instructions": 7129070949,
+                  "cycles": 3418739817,
+                  "cpu_seconds": 0.8000266666666667,
+                  "instructions_per_cycle": 2.08529204637043,
+                  "cycles_per_cpu_second": 4273282328.5057163
+                },
+                "2": {
+                  "instructions": 7384743506,
+                  "cycles": 3419199554,
+                  "cpu_seconds": 0.7999622916666667,
+                  "instructions_per_cycle": 2.1597872219422967,
+                  "cycles_per_cpu_second": 4274200908.740751
+                },
+                "3": {
+                  "instructions": 7054003344,
+                  "cycles": 3418840049,
+                  "cpu_seconds": 0.7999355,
+                  "instructions_per_cycle": 2.063273871517702,
+                  "cycles_per_cpu_second": 4273894644.005673
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0468868734349723,
+                "cycles": 1.00013447557422,
+                "cpu_seconds": 1.0000334922836487,
+                "instructions_per_cycle": 1.0467768005774247,
+                "cycles_per_cpu_second": 1.0000716594021586
+              }
+            }
+          ]
+        },
+        "B": {
+          "guest_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "host_offset_range_ns": [
+            -1638990,
+            21329010
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 1.027695615455587,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1222017630.0,
+                "1": 3483876.5,
+                "2": 1901018.5,
+                "3": 3723846.0
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 1.0064475006527371,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 20475871.0,
+                "1": 1196751811.5,
+                "2": 226811139.0,
+                "3": -6606891.5
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 1.0003063207791176,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1953369.0,
+                "1": -9463943.0,
+                "2": 1189449425.5,
+                "3": 17465281.0
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 1.0044398888078316,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1756573.0,
+                "1": -4559238.5,
+                "2": 7623270.0,
+                "3": 1194364590.0
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "2",
+              "start_margin_ns": 274598564,
+              "end_margin_ns": 387335528,
+              "host_interval_ns": 806332000,
+              "vcpu": {
+                "0": {
+                  "instructions": 7378649153,
+                  "cycles": 3439868143,
+                  "cpu_seconds": 0.8045488333333333,
+                  "instructions_per_cycle": 2.1450383695710165,
+                  "cycles_per_cpu_second": 4275524369.040786
+                },
+                "1": {
+                  "instructions": 7209300810,
+                  "cycles": 3425649744,
+                  "cpu_seconds": 0.8013894166666666,
+                  "instructions_per_cycle": 2.104506107965952,
+                  "cycles_per_cpu_second": 4274638113.2019362
+                },
+                "2": {
+                  "instructions": 7232088773,
+                  "cycles": 3423339904,
+                  "cpu_seconds": 0.8005149166666666,
+                  "instructions_per_cycle": 2.112582733765253,
+                  "cycles_per_cpu_second": 4276422378.55447
+                },
+                "3": {
+                  "instructions": 7297228109,
+                  "cycles": 3419053410,
+                  "cpu_seconds": 0.7995581666666667,
+                  "instructions_per_cycle": 2.134283157922356,
+                  "cycles_per_cpu_second": 4276178460.2287636
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.991073413763829,
+                "cycles": 0.999325722075339,
+                "cpu_seconds": 0.9989087702160612,
+                "instructions_per_cycle": 0.9898324530760823,
+                "cycles_per_cpu_second": 1.0002100349421903
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "3",
+              "start_margin_ns": 270252980,
+              "end_margin_ns": 393476244,
+              "host_interval_ns": 807123375,
+              "vcpu": {
+                "0": {
+                  "instructions": 7343432073,
+                  "cycles": 3427517622,
+                  "cpu_seconds": 0.8030068333333332,
+                  "instructions_per_cycle": 2.1424928717696905,
+                  "cycles_per_cpu_second": 4268354240.2399654
+                },
+                "1": {
+                  "instructions": 7393612611,
+                  "cycles": 3444949343,
+                  "cpu_seconds": 0.8070924166666666,
+                  "instructions_per_cycle": 2.1462180934600754,
+                  "cycles_per_cpu_second": 4268345572.1561832
+                },
+                "2": {
+                  "instructions": 7377171859,
+                  "cycles": 3425272792,
+                  "cpu_seconds": 0.8025775416666666,
+                  "instructions_per_cycle": 2.153747250797069,
+                  "cycles_per_cpu_second": 4267840319.68666
+                },
+                "3": {
+                  "instructions": 7353635082,
+                  "cycles": 3438189425,
+                  "cpu_seconds": 0.8055455,
+                  "instructions_per_cycle": 2.1388103367806734,
+                  "cycles_per_cpu_second": 4268150495.5337715
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9968095121748742,
+                "cycles": 1.0031135661948174,
+                "cpu_seconds": 1.003161450888442,
+                "instructions_per_cycle": 0.9965484604281482,
+                "cycles_per_cpu_second": 0.9999542969004936
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "0",
+              "start_margin_ns": 276852386,
+              "end_margin_ns": 389001569,
+              "host_interval_ns": 798754750,
+              "vcpu": {
+                "0": {
+                  "instructions": 6928086057,
+                  "cycles": 3353521549,
+                  "cpu_seconds": 0.7872020416666666,
+                  "instructions_per_cycle": 2.0659136838008134,
+                  "cycles_per_cpu_second": 4260051894.555448
+                },
+                "1": {
+                  "instructions": 6891468587,
+                  "cycles": 3340157463,
+                  "cpu_seconds": 0.78412725,
+                  "instructions_per_cycle": 2.063216678656326,
+                  "cycles_per_cpu_second": 4259713538.842069
+                },
+                "2": {
+                  "instructions": 6853778275,
+                  "cycles": 3335096739,
+                  "cpu_seconds": 0.7827192083333333,
+                  "instructions_per_cycle": 2.05504631840306,
+                  "cycles_per_cpu_second": 4260910813.8556075
+                },
+                "3": {
+                  "instructions": 7121316681,
+                  "cycles": 3400601707,
+                  "cpu_seconds": 0.798135125,
+                  "instructions_per_cycle": 2.0941343016858047,
+                  "cycles_per_cpu_second": 4260684188.031444
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0053134494538762,
+                "cycles": 1.0040010347260686,
+                "cpu_seconds": 1.0039212916866065,
+                "instructions_per_cycle": 1.001307184636683,
+                "cycles_per_cpu_second": 0.9998515981358647
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "1",
+              "start_margin_ns": 275375461,
+              "end_margin_ns": 392127306,
+              "host_interval_ns": 803555791,
+              "vcpu": {
+                "0": {
+                  "instructions": 7362405947,
+                  "cycles": 3433518671,
+                  "cpu_seconds": 0.8032309583333332,
+                  "instructions_per_cycle": 2.144274329766707,
+                  "cycles_per_cpu_second": 4274634381.777803
+                },
+                "1": {
+                  "instructions": 7266510711,
+                  "cycles": 3417356222,
+                  "cpu_seconds": 0.7995066666666666,
+                  "instructions_per_cycle": 2.1263544795886955,
+                  "cycles_per_cpu_second": 4274331115.02093
+                },
+                "2": {
+                  "instructions": 7396225849,
+                  "cycles": 3433222073,
+                  "cpu_seconds": 0.8031424166666666,
+                  "instructions_per_cycle": 2.1543103509575974,
+                  "cycles_per_cpu_second": 4274736337.8578873
+                },
+                "3": {
+                  "instructions": 7318695181,
+                  "cycles": 3419930575,
+                  "cpu_seconds": 0.7999690416666666,
+                  "instructions_per_cycle": 2.14001279280355,
+                  "cycles_per_cpu_second": 4275078655.38755
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.986975013780777,
+                "cycles": 0.9953787285929523,
+                "cpu_seconds": 0.9954730942799788,
+                "instructions_per_cycle": 0.9916429302308716,
+                "cycles_per_cpu_second": 0.9999052051857868
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "archive": "20261125T042246Z-sibling-job-parent-q6faac0l",
+      "mode": "job",
+      "seed": 250221,
+      "engines": {
+        "A": {
+          "guest_boot": "bd81ed6d-7ec9-47ee-845b-64819670d497",
+          "host_offset_range_ns": [
+            -4154207,
+            18855793
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 0.9973879537464659,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1185979238.5,
+                "1": 45160181.5,
+                "2": 33971636.0,
+                "3": 25765060.5
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 0.9907233021246693,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 68974838.0,
+                "1": 1178054400.0,
+                "2": 30695970.5,
+                "3": 87310457.0
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 0.9997483237500334,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 78064263.5,
+                "1": 83636254.5,
+                "2": 1188785919.5,
+                "3": 82159041.5
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 0.9993337706073041,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 74997247.0,
+                "1": 74831032.0,
+                "2": 72957584.5,
+                "3": 1188292980.5
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "2",
+              "start_margin_ns": 278411955,
+              "end_margin_ns": 388242753,
+              "host_interval_ns": 804998500,
+              "vcpu": {
+                "0": {
+                  "instructions": 7203173961,
+                  "cycles": 3441022653,
+                  "cpu_seconds": 0.8046819583333332,
+                  "instructions_per_cycle": 2.093323609689122,
+                  "cycles_per_cpu_second": 4276251775.4555936
+                },
+                "1": {
+                  "instructions": 7189160964,
+                  "cycles": 3440415968,
+                  "cpu_seconds": 0.8046765416666666,
+                  "instructions_per_cycle": 2.089619694498523,
+                  "cycles_per_cpu_second": 4275526612.064672
+                },
+                "2": {
+                  "instructions": 7369117995,
+                  "cycles": 3440084921,
+                  "cpu_seconds": 0.8044990416666666,
+                  "instructions_per_cycle": 2.142132582255518,
+                  "cycles_per_cpu_second": 4276058444.859345
+                },
+                "3": {
+                  "instructions": 7155022790,
+                  "cycles": 3440950298,
+                  "cpu_seconds": 0.8047223333333332,
+                  "instructions_per_cycle": 2.079374059590093,
+                  "cycles_per_cpu_second": 4275947311.84711
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0250317153700053,
+                "cycles": 0.9997485063935672,
+                "cpu_seconds": 0.9997726845186818,
+                "instructions_per_cycle": 1.0251303564448828,
+                "cycles_per_cpu_second": 1.000025990266982
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "start_margin_ns": 276062366,
+              "end_margin_ns": 395679802,
+              "host_interval_ns": 798575542,
+              "vcpu": {
+                "0": {
+                  "instructions": 7138467516,
+                  "cycles": 3406541759,
+                  "cpu_seconds": 0.7973514166666666,
+                  "instructions_per_cycle": 2.0955173959457105,
+                  "cycles_per_cpu_second": 4272321698.8076253
+                },
+                "1": {
+                  "instructions": 7080239006,
+                  "cycles": 3408345179,
+                  "cpu_seconds": 0.7975874583333332,
+                  "instructions_per_cycle": 2.07732451795781,
+                  "cycles_per_cpu_second": 4273318422.1855717
+                },
+                "2": {
+                  "instructions": 7147063348,
+                  "cycles": 3407373760,
+                  "cpu_seconds": 0.7973650833333332,
+                  "instructions_per_cycle": 2.0975284343329568,
+                  "cycles_per_cpu_second": 4273291910.0943
+                },
+                "3": {
+                  "instructions": 7164968329,
+                  "cycles": 3407238091,
+                  "cpu_seconds": 0.7973228333333332,
+                  "instructions_per_cycle": 2.102866937278555,
+                  "cycles_per_cpu_second": 4273348195.429832
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0012041564916747,
+                "cycles": 1.0000398178807517,
+                "cpu_seconds": 1.0000171400794944,
+                "instructions_per_cycle": 1.0009596858471026,
+                "cycles_per_cpu_second": 0.999993795900831
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "1",
+              "start_margin_ns": 276753043,
+              "end_margin_ns": 393920749,
+              "host_interval_ns": 797443958,
+              "vcpu": {
+                "0": {
+                  "instructions": 7185474287,
+                  "cycles": 3403353290,
+                  "cpu_seconds": 0.7970643333333333,
+                  "instructions_per_cycle": 2.1112925032240777,
+                  "cycles_per_cpu_second": 4269860220.400445
+                },
+                "1": {
+                  "instructions": 7268758964,
+                  "cycles": 3401699939,
+                  "cpu_seconds": 0.796921375,
+                  "instructions_per_cycle": 2.1368019209056994,
+                  "cycles_per_cpu_second": 4268551510.492487
+                },
+                "2": {
+                  "instructions": 7066562429,
+                  "cycles": 3403058408,
+                  "cpu_seconds": 0.7970604583333333,
+                  "instructions_per_cycle": 2.076532807191242,
+                  "cycles_per_cpu_second": 4269511016.913136
+                },
+                "3": {
+                  "instructions": 7242641673,
+                  "cycles": 3403298574,
+                  "cpu_seconds": 0.7972188333333332,
+                  "instructions_per_cycle": 2.1281240877104426,
+                  "cycles_per_cpu_second": 4268964093.296843
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0115907000252828,
+                "cycles": 0.9995302689537107,
+                "cpu_seconds": 0.9998206439212561,
+                "instructions_per_cycle": 1.0120823702270847,
+                "cycles_per_cpu_second": 0.9997752655006983
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "1",
+              "start_margin_ns": 280092666,
+              "end_margin_ns": 386965627,
+              "host_interval_ns": 803428167,
+              "vcpu": {
+                "0": {
+                  "instructions": 7373772276,
+                  "cycles": 3435000720,
+                  "cpu_seconds": 0.803088,
+                  "instructions_per_cycle": 2.146658145678642,
+                  "cycles_per_cpu_second": 4277240750.702289
+                },
+                "1": {
+                  "instructions": 7420083098,
+                  "cycles": 3434726885,
+                  "cpu_seconds": 0.8031495,
+                  "instructions_per_cycle": 2.1603124051593987,
+                  "cycles_per_cpu_second": 4276572275.771821
+                },
+                "2": {
+                  "instructions": 7297246593,
+                  "cycles": 3435601568,
+                  "cpu_seconds": 0.8032763333333333,
+                  "instructions_per_cycle": 2.124008401023061,
+                  "cycles_per_cpu_second": 4276985920.5777674
+                },
+                "3": {
+                  "instructions": 7263490473,
+                  "cycles": 3434234806,
+                  "cpu_seconds": 0.8031590833333333,
+                  "instructions_per_cycle": 2.115024418339088,
+                  "cycles_per_cpu_second": 4275908568.1344366
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.016833267648901,
+                "cycles": 0.9999202809482963,
+                "cpu_seconds": 0.9999880679512537,
+                "instructions_per_cycle": 1.0170922130622702,
+                "cycles_per_cpu_second": 0.9999032859089023
+              }
+            }
+          ]
+        },
+        "B": {
+          "guest_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "host_offset_range_ns": [
+            -1971039,
+            22536143
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 1.0084258656442902,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1199104256.0,
+                "1": -4123417.0,
+                "2": 38604698.0,
+                "3": -4948080.5
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 1.0036414443290214,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 2122637.5,
+                "1": 1193415171.5,
+                "2": -2464493.0,
+                "3": 4666675.0
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 1.004129003595423,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": -2950369.0,
+                "1": -2538808.0,
+                "2": 1193994921.0,
+                "3": 5798258.5
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 1.0058333343929715,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 142664510.5,
+                "1": 32366117.0,
+                "2": -2006041.0,
+                "3": 1196021515.5
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "1",
+              "start_margin_ns": 272321027,
+              "end_margin_ns": 381724842,
+              "host_interval_ns": 811832417,
+              "vcpu": {
+                "0": {
+                  "instructions": 7386340198,
+                  "cycles": 3448507873,
+                  "cpu_seconds": 0.8066811666666667,
+                  "instructions_per_cycle": 2.141894543965276,
+                  "cycles_per_cpu_second": 4274932917.1149197
+                },
+                "1": {
+                  "instructions": 7475443301,
+                  "cycles": 3440506360,
+                  "cpu_seconds": 0.8050413333333333,
+                  "instructions_per_cycle": 2.172774155546104,
+                  "cycles_per_cpu_second": 4273701507.665859
+                },
+                "2": {
+                  "instructions": 7374903942,
+                  "cycles": 3450810246,
+                  "cpu_seconds": 0.8071648333333332,
+                  "instructions_per_cycle": 2.1371513981531165,
+                  "cycles_per_cpu_second": 4275223725.678502
+                },
+                "3": {
+                  "instructions": 7364149394,
+                  "cycles": 3426714761,
+                  "cpu_seconds": 0.8015301666666667,
+                  "instructions_per_cycle": 2.149040672370104,
+                  "cycles_per_cpu_second": 4275216209.5791364
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0136326330201306,
+                "cycles": 0.9976797173459723,
+                "cpu_seconds": 0.9979671853005947,
+                "instructions_per_cycle": 1.0144169616883474,
+                "cycles_per_cpu_second": 0.9996457016817341
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "3",
+              "start_margin_ns": 278828123,
+              "end_margin_ns": 395050325,
+              "host_interval_ns": 788604167,
+              "vcpu": {
+                "0": {
+                  "instructions": 7267947108,
+                  "cycles": 3368404971,
+                  "cpu_seconds": 0.7883605,
+                  "instructions_per_cycle": 2.1576820989675474,
+                  "cycles_per_cpu_second": 4272670904.998411
+                },
+                "1": {
+                  "instructions": 7412744234,
+                  "cycles": 3366711536,
+                  "cpu_seconds": 0.7880447083333333,
+                  "instructions_per_cycle": 2.2017758737973447,
+                  "cycles_per_cpu_second": 4272234177.0689516
+                },
+                "2": {
+                  "instructions": 7283133226,
+                  "cycles": 3366501556,
+                  "cpu_seconds": 0.78818625,
+                  "instructions_per_cycle": 2.1634129985829125,
+                  "cycles_per_cpu_second": 4271200564.5873675
+                },
+                "3": {
+                  "instructions": 7117532934,
+                  "cycles": 3362686327,
+                  "cpu_seconds": 0.7870039583333333,
+                  "instructions_per_cycle": 2.1166211302110547,
+                  "cycles_per_cpu_second": 4272769268.049531
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9772624930972257,
+                "cycles": 0.9988044093006013,
+                "cpu_seconds": 0.9984999844051241,
+                "instructions_per_cycle": 0.9783712733525649,
+                "cycles_per_cpu_second": 1.0001252485136352
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "3",
+              "start_margin_ns": 269108347,
+              "end_margin_ns": 398469293,
+              "host_interval_ns": 795014708,
+              "vcpu": {
+                "0": {
+                  "instructions": 6869605978,
+                  "cycles": 3343054585,
+                  "cpu_seconds": 0.783532375,
+                  "instructions_per_cycle": 2.054888965565604,
+                  "cycles_per_cpu_second": 4266645121.07748
+                },
+                "1": {
+                  "instructions": 6743285997,
+                  "cycles": 3339883078,
+                  "cpu_seconds": 0.7817827083333333,
+                  "instructions_per_cycle": 2.0190185822427162,
+                  "cycles_per_cpu_second": 4272137311.8116527
+                },
+                "2": {
+                  "instructions": 6803622245,
+                  "cycles": 3339785841,
+                  "cpu_seconds": 0.782047125,
+                  "instructions_per_cycle": 2.0371432687321223,
+                  "cycles_per_cpu_second": 4270568529.9974732
+                },
+                "3": {
+                  "instructions": 6894708734,
+                  "cycles": 3334499986,
+                  "cpu_seconds": 0.7806752083333333,
+                  "instructions_per_cycle": 2.067688937756079,
+                  "cycles_per_cpu_second": 4271302521.721982
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0133879403823367,
+                "cycles": 0.9983882393861454,
+                "cpu_seconds": 0.9982457365767227,
+                "instructions_per_cycle": 1.0149943646540716,
+                "cycles_per_cpu_second": 1.0001718721335
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "3",
+              "start_margin_ns": 275279129,
+              "end_margin_ns": 392747554,
+              "host_interval_ns": 798527750,
+              "vcpu": {
+                "0": {
+                  "instructions": 7299993653,
+                  "cycles": 3405863539,
+                  "cpu_seconds": 0.7979484583333333,
+                  "instructions_per_cycle": 2.143360580777514,
+                  "cycles_per_cpu_second": 4268275104.025882
+                },
+                "1": {
+                  "instructions": 7299054651,
+                  "cycles": 3407309834,
+                  "cpu_seconds": 0.7980599166666666,
+                  "instructions_per_cycle": 2.142175207598101,
+                  "cycles_per_cpu_second": 4269491253.528479
+                },
+                "2": {
+                  "instructions": 7193652266,
+                  "cycles": 3406629807,
+                  "cpu_seconds": 0.798064,
+                  "instructions_per_cycle": 2.1116624563133812,
+                  "cycles_per_cpu_second": 4268617312.646605
+                },
+                "3": {
+                  "instructions": 7249043577,
+                  "cycles": 3406636170,
+                  "cpu_seconds": 0.7980739166666666,
+                  "instructions_per_cycle": 2.127918337989114,
+                  "cycles_per_cpu_second": 4268572244.8223524
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.993148280648488,
+                "cycles": 1.0000018678284288,
+                "cpu_seconds": 1.0000175425424929,
+                "instructions_per_cycle": 0.9933446762158299,
+                "cycles_per_cpu_second": 0.9999894420555998
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "archive": "20261125T042419Z-sibling-job-parent-jetumwg2",
+      "mode": "job",
+      "seed": 250223,
+      "engines": {
+        "A": {
+          "guest_boot": "6adfb493-dda1-4e2e-aabf-04b66cdf0e1a",
+          "host_offset_range_ns": [
+            -3913540,
+            18078756
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 1.0107233049167317,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1201836107.0,
+                "1": 93716099.5,
+                "2": 82290663.0,
+                "3": 101214268.5
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 1.0047625616534468,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 84104150.0,
+                "1": 1194748275.5,
+                "2": 102076012.0,
+                "3": 64958411.0
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 1.0079279765880929,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 83014605.5,
+                "1": 104996516.0,
+                "2": 1198512223.5,
+                "3": 129421191.5
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 1.017418493459254,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 91116986.0,
+                "1": 95323385.5,
+                "2": 88960902.0,
+                "3": 1209797256.5
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "2",
+              "start_margin_ns": 281462414,
+              "end_margin_ns": 398833916,
+              "host_interval_ns": 789602250,
+              "vcpu": {
+                "0": {
+                  "instructions": 6404225925,
+                  "cycles": 3303811499,
+                  "cpu_seconds": 0.7742067083333333,
+                  "instructions_per_cycle": 1.9384356301618406,
+                  "cycles_per_cpu_second": 4267350648.6559014
+                },
+                "1": {
+                  "instructions": 6398388961,
+                  "cycles": 3302761271,
+                  "cpu_seconds": 0.7740957083333333,
+                  "instructions_per_cycle": 1.9372847251120622,
+                  "cycles_per_cpu_second": 4266605841.428846
+                },
+                "2": {
+                  "instructions": 6545940379,
+                  "cycles": 3297259579,
+                  "cpu_seconds": 0.7730075833333333,
+                  "instructions_per_cycle": 1.9852669230807927,
+                  "cycles_per_cpu_second": 4265494479.086072
+                },
+                "3": {
+                  "instructions": 6572459571,
+                  "cycles": 3311818964,
+                  "cpu_seconds": 0.7762186666666666,
+                  "instructions_per_cycle": 1.9845467528399598,
+                  "cycles_per_cpu_second": 4266605669.5364194
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.02212827212213,
+                "cycles": 0.9980168602228114,
+                "cpu_seconds": 0.9984511565359833,
+                "instructions_per_cycle": 1.0241593232141746,
+                "cycles_per_cpu_second": 0.9997395207375421
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "start_margin_ns": 276521368,
+              "end_margin_ns": 399395295,
+              "host_interval_ns": 793952167,
+              "vcpu": {
+                "0": {
+                  "instructions": 7032256686,
+                  "cycles": 3382487144,
+                  "cpu_seconds": 0.7931381666666666,
+                  "instructions_per_cycle": 2.079019486733044,
+                  "cycles_per_cpu_second": 4264688406.328532
+                },
+                "1": {
+                  "instructions": 7117073185,
+                  "cycles": 3383141301,
+                  "cpu_seconds": 0.7931374583333333,
+                  "instructions_per_cycle": 2.103687830861901,
+                  "cycles_per_cpu_second": 4265516986.3105383
+                },
+                "2": {
+                  "instructions": 7223852422,
+                  "cycles": 3382436315,
+                  "cpu_seconds": 0.7931221666666666,
+                  "instructions_per_cycle": 2.1356950284517033,
+                  "cycles_per_cpu_second": 4264710352.5245066
+                },
+                "3": {
+                  "instructions": 7148650872,
+                  "cycles": 3381747708,
+                  "cpu_seconds": 0.7930479583333333,
+                  "instructions_per_cycle": 2.113892427601521,
+                  "cycles_per_cpu_second": 4264241112.36232
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0150032512276324,
+                "cycles": 0.9999849728918881,
+                "cpu_seconds": 0.999980720029667,
+                "instructions_per_cycle": 1.015214803793721,
+                "cycles_per_cpu_second": 1.0000051460256607
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "2",
+              "start_margin_ns": 275879711,
+              "end_margin_ns": 393099953,
+              "host_interval_ns": 800755625,
+              "vcpu": {
+                "0": {
+                  "instructions": 7329882632,
+                  "cycles": 3418353485,
+                  "cpu_seconds": 0.8004825,
+                  "instructions_per_cycle": 2.144272868257801,
+                  "cycles_per_cpu_second": 4270366291.5803905
+                },
+                "1": {
+                  "instructions": 7314605629,
+                  "cycles": 3418282522,
+                  "cpu_seconds": 0.8003372916666667,
+                  "instructions_per_cycle": 2.139848178704756,
+                  "cycles_per_cpu_second": 4271052414.515859
+                },
+                "2": {
+                  "instructions": 7515568292,
+                  "cycles": 3418344665,
+                  "cpu_seconds": 0.8004825416666667,
+                  "instructions_per_cycle": 2.1985987454544755,
+                  "cycles_per_cpu_second": 4270355050.945573
+                },
+                "3": {
+                  "instructions": 7154128602,
+                  "cycles": 3417736781,
+                  "cpu_seconds": 0.8003564166666667,
+                  "instructions_per_cycle": 2.093235687947497,
+                  "cycles_per_cpu_second": 4270268482.6770406
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.027474162407779,
+                "cycles": 1.0000181795973855,
+                "cpu_seconds": 1.0001575860421352,
+                "instructions_per_cycle": 1.027455483680754,
+                "cycles_per_cpu_second": 0.99999736775863
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "2",
+              "start_margin_ns": 275646540,
+              "end_margin_ns": 392039499,
+              "host_interval_ns": 800766917,
+              "vcpu": {
+                "0": {
+                  "instructions": 7195848935,
+                  "cycles": 3421743640,
+                  "cpu_seconds": 0.80040225,
+                  "instructions_per_cycle": 2.102977222162675,
+                  "cycles_per_cpu_second": 4275030011.472357
+                },
+                "1": {
+                  "instructions": 7205097623,
+                  "cycles": 3422925030,
+                  "cpu_seconds": 0.8006283333333333,
+                  "instructions_per_cycle": 2.104953383393267,
+                  "cycles_per_cpu_second": 4275298396.8841143
+                },
+                "2": {
+                  "instructions": 7454117828,
+                  "cycles": 3422700516,
+                  "cpu_seconds": 0.8006272916666666,
+                  "instructions_per_cycle": 2.17784693494346,
+                  "cycles_per_cpu_second": 4275023536.7007804
+                },
+                "3": {
+                  "instructions": 7138516667,
+                  "cycles": 3422339400,
+                  "cpu_seconds": 0.8005417916666666,
+                  "instructions_per_cycle": 2.085858774556375,
+                  "cycles_per_cpu_second": 4275029031.1202264
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0358913722804548,
+                "cycles": 1.0001055172961513,
+                "cpu_seconds": 1.000106802669005,
+                "instructions_per_cycle": 1.0356017706667264,
+                "cycles_per_cpu_second": 0.9999984854441819
+              }
+            }
+          ]
+        },
+        "B": {
+          "guest_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "host_offset_range_ns": [
+            -1783639,
+            24656361
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 1.0085024867318504,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1199195365.0,
+                "1": 11596722.5,
+                "2": 4684116.5,
+                "3": -11400518.5
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 1.0129914039867476,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": -8212001.5,
+                "1": 1204533070.0,
+                "2": -11905715.0,
+                "3": 5664472.0
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 0.9991170350836698,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": -589091.5,
+                "1": 8438761.5,
+                "2": 1188035263.5,
+                "3": 2453492.0
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 1.021151590599585,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": -1337347.0,
+                "1": 49859512.0,
+                "2": 228087140.0,
+                "3": 1214236227.0
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "1",
+              "start_margin_ns": 275547415,
+              "end_margin_ns": 388145490,
+              "host_interval_ns": 800729250,
+              "vcpu": {
+                "0": {
+                  "instructions": 7067154898,
+                  "cycles": 3340643420,
+                  "cpu_seconds": 0.781240125,
+                  "instructions_per_cycle": 2.115507107310483,
+                  "cycles_per_cpu_second": 4276077627.2212086
+                },
+                "1": {
+                  "instructions": 7358878431,
+                  "cycles": 3401299980,
+                  "cpu_seconds": 0.7952149166666667,
+                  "instructions_per_cycle": 2.163548782603997,
+                  "cycles_per_cpu_second": 4277208473.726023
+                },
+                "2": {
+                  "instructions": 7091787472,
+                  "cycles": 3346679949,
+                  "cpu_seconds": 0.7824856666666666,
+                  "instructions_per_cycle": 2.119051591449326,
+                  "cycles_per_cpu_second": 4276985626.1477847
+                },
+                "3": {
+                  "instructions": 7201793898,
+                  "cycles": 3365596275,
+                  "cpu_seconds": 0.7869202083333332,
+                  "instructions_per_cycle": 2.1398270349583153,
+                  "cycles_per_cpu_second": 4276921903.083673
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0376620083518486,
+                "cycles": 1.0163206616205773,
+                "cpu_seconds": 1.0162677101220599,
+                "instructions_per_cycle": 1.0209986351130966,
+                "cycles_per_cpu_second": 1.0000670039455581
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "0",
+              "start_margin_ns": 275645883,
+              "end_margin_ns": 388990601,
+              "host_interval_ns": 798615291,
+              "vcpu": {
+                "0": {
+                  "instructions": 7333398578,
+                  "cycles": 3412214970,
+                  "cpu_seconds": 0.798236125,
+                  "instructions_per_cycle": 2.1491607775227597,
+                  "cycles_per_cpu_second": 4274693744.2852516
+                },
+                "1": {
+                  "instructions": 7414691700,
+                  "cycles": 3411933915,
+                  "cpu_seconds": 0.79817475,
+                  "instructions_per_cycle": 2.173163925421457,
+                  "cycles_per_cpu_second": 4274670321.254838
+                },
+                "2": {
+                  "instructions": 7344938645,
+                  "cycles": 3412701807,
+                  "cpu_seconds": 0.79825175,
+                  "instructions_per_cycle": 2.152235694877985,
+                  "cycles_per_cpu_second": 4275219950.347744
+                },
+                "3": {
+                  "instructions": 7445960105,
+                  "cycles": 3412958629,
+                  "cpu_seconds": 0.7983463333333333,
+                  "instructions_per_cycle": 2.181673121300528,
+                  "cycles_per_cpu_second": 4275035140.1375933
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9890362100962337,
+                "cycles": 0.9998573455790947,
+                "cpu_seconds": 0.9999804259746377,
+                "instructions_per_cycle": 0.9889547458349042,
+                "cycles_per_cpu_second": 0.9999201419775159
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "3",
+              "start_margin_ns": 268664383,
+              "end_margin_ns": 389293126,
+              "host_interval_ns": 805507250,
+              "vcpu": {
+                "0": {
+                  "instructions": 7287354095,
+                  "cycles": 3368377276,
+                  "cpu_seconds": 0.7879647916666667,
+                  "instructions_per_cycle": 2.1634613637026567,
+                  "cycles_per_cpu_second": 4274781451.6881704
+                },
+                "1": {
+                  "instructions": 7233748174,
+                  "cycles": 3376195654,
+                  "cpu_seconds": 0.7895810833333332,
+                  "instructions_per_cycle": 2.142573747297407,
+                  "cycles_per_cpu_second": 4275932801.9193306
+                },
+                "2": {
+                  "instructions": 7243488551,
+                  "cycles": 3373559390,
+                  "cpu_seconds": 0.7890310416666666,
+                  "instructions_per_cycle": 2.1471353290744943,
+                  "cycles_per_cpu_second": 4275572457.6742206
+                },
+                "3": {
+                  "instructions": 7246570629,
+                  "cycles": 3353316305,
+                  "cpu_seconds": 0.784289875,
+                  "instructions_per_cycle": 2.1610161314621346,
+                  "cycles_per_cpu_second": 4275608307.451374
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0004254963583223,
+                "cycles": 0.9939994875857218,
+                "cpu_seconds": 0.9939911531786483,
+                "instructions_per_cycle": 1.0064648008906003,
+                "cycles_per_cpu_second": 1.000008384789992
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "3",
+              "start_margin_ns": 274618570,
+              "end_margin_ns": 388297631,
+              "host_interval_ns": 796396000,
+              "vcpu": {
+                "0": {
+                  "instructions": 6641348363,
+                  "cycles": 3353940170,
+                  "cpu_seconds": 0.7885228333333333,
+                  "instructions_per_cycle": 1.9801630399984147,
+                  "cycles_per_cpu_second": 4253447114.298318
+                },
+                "1": {
+                  "instructions": 6671852206,
+                  "cycles": 3359260376,
+                  "cpu_seconds": 0.790977875,
+                  "instructions_per_cycle": 1.9861074936812222,
+                  "cycles_per_cpu_second": 4246971353.02299
+                },
+                "2": {
+                  "instructions": 6658931303,
+                  "cycles": 3328920145,
+                  "cpu_seconds": 0.7826194166666667,
+                  "instructions_per_cycle": 2.0003277378106046,
+                  "cycles_per_cpu_second": 4253561915.41802
+                },
+                "3": {
+                  "instructions": 6651184525,
+                  "cycles": 3332272362,
+                  "cpu_seconds": 0.7834994583333332,
+                  "instructions_per_cycle": 1.9959906641628833,
+                  "cycles_per_cpu_second": 4253062751.426068
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9988366334404877,
+                "cycles": 0.9935395961461053,
+                "cpu_seconds": 0.9936293854944381,
+                "instructions_per_cycle": 1.0049761508443547,
+                "cycles_per_cpu_second": 0.999909634970902
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "archive": "20261125T042552Z-sibling-job-parent-arsc78zc",
+      "mode": "flat",
+      "seed": 250223,
+      "engines": {
+        "A": {
+          "guest_boot": "eca54e88-3424-4cb3-83ac-25836291fa17",
+          "host_offset_range_ns": [
+            -3468748,
+            18599798
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 1.0075078405820923,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1198012646.0,
+                "1": 102286610.0,
+                "2": 93006134.0,
+                "3": 95560676.0
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 1.0047016236306918,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 44722553.5,
+                "1": 1194675815.0,
+                "2": 50705189.5,
+                "3": 40422182.5
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 1.0208919111383024,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 80871403.0,
+                "1": 79052272.0,
+                "2": 1213927446.0,
+                "3": 68450944.0
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 0.9982267237634675,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 58714708.0,
+                "1": 62936588.0,
+                "2": 54833777.5,
+                "3": 1186976607.5
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "3",
+              "start_margin_ns": 272762998,
+              "end_margin_ns": 396085207,
+              "host_interval_ns": 802814042,
+              "vcpu": {
+                "0": {
+                  "instructions": 7015317287,
+                  "cycles": 3429578985,
+                  "cpu_seconds": 0.8024657916666667,
+                  "instructions_per_cycle": 2.0455330866217096,
+                  "cycles_per_cpu_second": 4273800853.0893245
+                },
+                "1": {
+                  "instructions": 7287748335,
+                  "cycles": 3428631719,
+                  "cpu_seconds": 0.8023542916666666,
+                  "instructions_per_cycle": 2.1255558870946794,
+                  "cycles_per_cpu_second": 4273214158.146991
+                },
+                "2": {
+                  "instructions": 7196687288,
+                  "cycles": 3429326611,
+                  "cpu_seconds": 0.8024031666666667,
+                  "instructions_per_cycle": 2.0985715577267308,
+                  "cycles_per_cpu_second": 4273819886.8856244
+                },
+                "3": {
+                  "instructions": 7250450438,
+                  "cycles": 3429232188,
+                  "cpu_seconds": 0.802512625,
+                  "instructions_per_cycle": 2.1143072386208455,
+                  "cycles_per_cpu_second": 4273119302.0172114
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0074705413544431,
+                "cycles": 0.9999724660230096,
+                "cpu_seconds": 1.000136413137286,
+                "instructions_per_cycle": 1.007498281788952,
+                "cycles_per_cpu_second": 0.9998405281164141
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "2",
+              "start_margin_ns": 278520160,
+              "end_margin_ns": 393207461,
+              "host_interval_ns": 800037417,
+              "vcpu": {
+                "0": {
+                  "instructions": 7008874831,
+                  "cycles": 3419393808,
+                  "cpu_seconds": 0.7997269166666666,
+                  "instructions_per_cycle": 2.0497419205129472,
+                  "cycles_per_cpu_second": 4275701788.6209702
+                },
+                "1": {
+                  "instructions": 7231486514,
+                  "cycles": 3419860285,
+                  "cpu_seconds": 0.79976,
+                  "instructions_per_cycle": 2.114556125499729,
+                  "cycles_per_cpu_second": 4276108188.7066116
+                },
+                "2": {
+                  "instructions": 7021279468,
+                  "cycles": 3419131976,
+                  "cpu_seconds": 0.799706875,
+                  "instructions_per_cycle": 2.053526894335944,
+                  "cycles_per_cpu_second": 4275481533.1555076
+                },
+                "3": {
+                  "instructions": 7030007156,
+                  "cycles": 3418772483,
+                  "cpu_seconds": 0.7996325833333332,
+                  "instructions_per_cycle": 2.056295699979167,
+                  "cycles_per_cpu_second": 4275429183.674044
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9987585093718502,
+                "cycles": 0.9999234273632398,
+                "cpu_seconds": 0.9999749393621136,
+                "instructions_per_cycle": 0.9986534983060797,
+                "cycles_per_cpu_second": 0.9999484867101702
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "1",
+              "start_margin_ns": 276844792,
+              "end_margin_ns": 400289245,
+              "host_interval_ns": 790875500,
+              "vcpu": {
+                "0": {
+                  "instructions": 6695587209,
+                  "cycles": 3329564334,
+                  "cpu_seconds": 0.7847820833333332,
+                  "instructions_per_cycle": 2.010949943398811,
+                  "cycles_per_cpu_second": 4242660994.320611
+                },
+                "1": {
+                  "instructions": 6694625248,
+                  "cycles": 3331270006,
+                  "cpu_seconds": 0.7848333333333333,
+                  "instructions_per_cycle": 2.0096315327014054,
+                  "cycles_per_cpu_second": 4244557238.4795074
+                },
+                "2": {
+                  "instructions": 6564154019,
+                  "cycles": 3329618807,
+                  "cpu_seconds": 0.78515175,
+                  "instructions_per_cycle": 1.9714430988916505,
+                  "cycles_per_cpu_second": 4240732835.4041114
+                },
+                "3": {
+                  "instructions": 6713385279,
+                  "cycles": 3330426627,
+                  "cpu_seconds": 0.784932875,
+                  "instructions_per_cycle": 2.0157733620594187,
+                  "cycles_per_cpu_second": 4242944502.7385306
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9998563291060257,
+                "cycles": 1.0004959123238157,
+                "cpu_seconds": 0.9998731844851488,
+                "instructions_per_cycle": 0.999344384129633,
+                "cycles_per_cpu_second": 1.0004469468952233
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "0",
+              "start_margin_ns": 283210705,
+              "end_margin_ns": 393502291,
+              "host_interval_ns": 790935583,
+              "vcpu": {
+                "0": {
+                  "instructions": 7010501454,
+                  "cycles": 3383058606,
+                  "cpu_seconds": 0.790614625,
+                  "instructions_per_cycle": 2.0722376613773625,
+                  "cycles_per_cpu_second": 4279023558.4119124
+                },
+                "1": {
+                  "instructions": 7066294517,
+                  "cycles": 3383328934,
+                  "cpu_seconds": 0.79066625,
+                  "instructions_per_cycle": 2.088562671512329,
+                  "cycles_per_cpu_second": 4279086066.9719996
+                },
+                "2": {
+                  "instructions": 7119972123,
+                  "cycles": 3382544282,
+                  "cpu_seconds": 0.7906212916666666,
+                  "instructions_per_cycle": 2.104916160562477,
+                  "cycles_per_cpu_second": 4278336945.453921
+                },
+                "3": {
+                  "instructions": 7041820590,
+                  "cycles": 3382660087,
+                  "cpu_seconds": 0.790587375,
+                  "instructions_per_cycle": 2.0817405263575335,
+                  "cycles_per_cpu_second": 4278666968.341102
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9921043394291345,
+                "cycles": 1.0001178123103565,
+                "cpu_seconds": 0.9999915678128873,
+                "instructions_per_cycle": 0.9921836149052949,
+                "cycles_per_cpu_second": 1.000083341394282
+              }
+            }
+          ]
+        },
+        "B": {
+          "guest_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "host_offset_range_ns": [
+            -1503283,
+            18881717
+          ],
+          "calibration": [
+            {
+              "cpu": 0,
+              "observed_over_expected": 1.0031614274154474,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": 1192844390.5,
+                "1": -2015005.0,
+                "2": 9627998.0,
+                "3": -8186790.0
+              }
+            },
+            {
+              "cpu": 1,
+              "observed_over_expected": 0.9801019104279749,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": -52369998.0,
+                "1": 1165424660.5,
+                "2": -64326630.5,
+                "3": -6714508.0
+              }
+            },
+            {
+              "cpu": 2,
+              "observed_over_expected": 1.0073397554838257,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": -516883.5,
+                "1": -16670425.0,
+                "2": 1197812778.5,
+                "3": 12950983.0
+              }
+            },
+            {
+              "cpu": 3,
+              "observed_over_expected": 0.9766926096860694,
+              "qualified": true,
+              "differential_instructions_by_vcpu": {
+                "0": -6864328.5,
+                "1": -3245142.0,
+                "2": 9767927.5,
+                "3": 1161370711.5
+              }
+            }
+          ],
+          "all_calibrations_passed": true,
+          "windows": [
+            {
+              "block": 0,
+              "last_build_cpu": "0",
+              "start_margin_ns": 273945407,
+              "end_margin_ns": 396659062,
+              "host_interval_ns": 801739667,
+              "vcpu": {
+                "0": {
+                  "instructions": 7265141985,
+                  "cycles": 3398734947,
+                  "cpu_seconds": 0.7958909583333332,
+                  "instructions_per_cycle": 2.137601813113672,
+                  "cycles_per_cpu_second": 4270352504.2139626
+                },
+                "1": {
+                  "instructions": 7194118982,
+                  "cycles": 3375628532,
+                  "cpu_seconds": 0.7904859583333332,
+                  "instructions_per_cycle": 2.131193913608027,
+                  "cycles_per_cpu_second": 4270320676.0524898
+                },
+                "2": {
+                  "instructions": 7156435639,
+                  "cycles": 3393784297,
+                  "cpu_seconds": 0.7946992916666666,
+                  "instructions_per_cycle": 2.108689006937202,
+                  "cycles_per_cpu_second": 4270526389.7775173
+                },
+                "3": {
+                  "instructions": 7248688881,
+                  "cycles": 3393610124,
+                  "cpu_seconds": 0.7948291666666666,
+                  "instructions_per_cycle": 2.13598162904349,
+                  "cycles_per_cpu_second": 4269609453.603762
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0098723698034051,
+                "cycles": 1.0015101390002807,
+                "cpu_seconds": 1.0014995189742366,
+                "instructions_per_cycle": 1.0030067181896163,
+                "cycles_per_cpu_second": 1.0000074533422398
+              }
+            },
+            {
+              "block": 1,
+              "last_build_cpu": "3",
+              "start_margin_ns": 280481888,
+              "end_margin_ns": 396377340,
+              "host_interval_ns": 793202750,
+              "vcpu": {
+                "0": {
+                  "instructions": 7107130478,
+                  "cycles": 3371058004,
+                  "cpu_seconds": 0.78980725,
+                  "instructions_per_cycle": 2.108278905188485,
+                  "cycles_per_cpu_second": 4268203417.985844
+                },
+                "1": {
+                  "instructions": 7122728637,
+                  "cycles": 3373540619,
+                  "cpu_seconds": 0.7903159583333332,
+                  "instructions_per_cycle": 2.11135108226779,
+                  "cycles_per_cpu_second": 4268597367.2027698
+                },
+                "2": {
+                  "instructions": 7071545932,
+                  "cycles": 3382792787,
+                  "cpu_seconds": 0.7924463333333333,
+                  "instructions_per_cycle": 2.0904460832409835,
+                  "cycles_per_cpu_second": 4268797323.814568
+                },
+                "3": {
+                  "instructions": 7015986345,
+                  "cycles": 3384272551,
+                  "cpu_seconds": 0.79290825,
+                  "instructions_per_cycle": 2.073115045928226,
+                  "cycles_per_cpu_second": 4268176741.7604747
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9871756775421339,
+                "cycles": 1.0031812072869546,
+                "cpu_seconds": 1.003280070001539,
+                "instructions_per_cycle": 0.9833210591000459,
+                "cycles_per_cpu_second": 0.9999014605018672
+              }
+            },
+            {
+              "block": 2,
+              "last_build_cpu": "0",
+              "start_margin_ns": 274757331,
+              "end_margin_ns": 403391221,
+              "host_interval_ns": 790963417,
+              "vcpu": {
+                "0": {
+                  "instructions": 6931406751,
+                  "cycles": 3319522970,
+                  "cpu_seconds": 0.777807,
+                  "instructions_per_cycle": 2.0880731399186554,
+                  "cycles_per_cpu_second": 4267797757.0271287
+                },
+                "1": {
+                  "instructions": 7018033744,
+                  "cycles": 3349132182,
+                  "cpu_seconds": 0.784735125,
+                  "instructions_per_cycle": 2.0954782799313234,
+                  "cycles_per_cpu_second": 4267850482.670825
+                },
+                "2": {
+                  "instructions": 6960407427,
+                  "cycles": 3327078693,
+                  "cpu_seconds": 0.77969925,
+                  "instructions_per_cycle": 2.09204772993327,
+                  "cycles_per_cpu_second": 4267130811.0146317
+                },
+                "3": {
+                  "instructions": 7021697717,
+                  "cycles": 3364075272,
+                  "cpu_seconds": 0.7881794166666666,
+                  "instructions_per_cycle": 2.0872593950091614,
+                  "cycles_per_cpu_second": 4268159255.194963
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 0.9876565151779071,
+                "cycles": 0.9911591390273768,
+                "cpu_seconds": 0.9911713841023747,
+                "instructions_per_cycle": 0.99810014372151,
+                "cycles_per_cpu_second": 0.9999876458550011
+              }
+            },
+            {
+              "block": 3,
+              "last_build_cpu": "3",
+              "start_margin_ns": 271782335,
+              "end_margin_ns": 395610808,
+              "host_interval_ns": 805442500,
+              "vcpu": {
+                "0": {
+                  "instructions": 7241236409,
+                  "cycles": 3412501012,
+                  "cpu_seconds": 0.7978816666666666,
+                  "instructions_per_cycle": 2.121973409981805,
+                  "cycles_per_cpu_second": 4276951275.56509
+                },
+                "1": {
+                  "instructions": 7215035103,
+                  "cycles": 3392031078,
+                  "cpu_seconds": 0.79323725,
+                  "instructions_per_cycle": 2.127054539622352,
+                  "cycles_per_cpu_second": 4276187329.8310184
+                },
+                "2": {
+                  "instructions": 7247858175,
+                  "cycles": 3374974491,
+                  "cpu_seconds": 0.7891844583333333,
+                  "instructions_per_cycle": 2.1475297648405247,
+                  "cycles_per_cpu_second": 4276534408.859948
+                },
+                "3": {
+                  "instructions": 7308166309,
+                  "cycles": 3383239708,
+                  "cpu_seconds": 0.79116375,
+                  "instructions_per_cycle": 2.1601089310104538,
+                  "cycles_per_cpu_second": 4276282511.6797876
+                }
+              },
+              "last_over_other_three_median": {
+                "instructions": 1.0092428828751971,
+                "cycles": 0.9974082283452474,
+                "cpu_seconds": 0.9973860279506541,
+                "instructions_per_cycle": 1.0155399830010803,
+                "cycles_per_cpu_second": 0.9999410978245286
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "utc": "2026-11-24T08:32:03.130115+00:00",
+  "binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+  "binary_sha256": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+  "source": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "virtualization_entitlement": true,
+  "command": [
+    "ci",
+    "serve"
+  ],
+  "workers": 2,
+  "vcpus": 4,
+  "ready": false,
+  "startup_exit": 1,
+  "created": [
+    "worker.lock"
+  ],
+  "stderr": "micropod ci: Apple Virtualization is unavailable on this Mac",
+  "private_scope_removed": true
+}

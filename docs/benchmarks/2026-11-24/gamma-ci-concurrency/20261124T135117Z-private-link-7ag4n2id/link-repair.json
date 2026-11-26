@@ -1,0 +1,16 @@
+{
+  "original": 9000,
+  "disturbed": 1500,
+  "end": 9000,
+  "worker_receipt": {
+    "timestamp": 817221102.242616,
+    "cause": "guest-link-restored",
+    "instance": "58BCCECA-498B-4323-AFE9-BE60DB22479F",
+    "gateway": "192.168.128.1",
+    "seconds": 0.016565958
+  },
+  "existing_mtu_before": 9000,
+  "existing_mtu_after": 1500,
+  "seconds": 12.219822958002624,
+  "existing_service": "mp-t-_lhdjoy7-a"
+}

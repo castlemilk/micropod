@@ -1,0 +1,727 @@
+{
+  "archive_commit": "7a4eb51a04b51f6332ed49561b3dd0bb42ffacd9",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "arms": {
+    "full-bbr": {
+      "fresh_p95_us": 17633.5,
+      "fresh_p99_us": 57279.0,
+      "mib_s": 3659.525104315958,
+      "p95_within_75_ms": 9,
+      "relay": {
+        "cpu_s_per_gib": 0.3521978653637171,
+        "runnable_s_per_s": 1.7395727444291746,
+        "wait_s_per_s": 0.4915774450020779
+      },
+      "vmm": {
+        "cpu_s_per_gib": 0.5633296052918174,
+        "runnable_s_per_s": 3.218467941883311,
+        "wait_s_per_s": 1.2951152936250514
+      }
+    },
+    "lazy-bbr": {
+      "fresh_p95_us": 14797.5,
+      "fresh_p99_us": 25310.5,
+      "mib_s": 3896.0149753845367,
+      "p95_within_75_ms": 10,
+      "relay": {
+        "cpu_s_per_gib": 0.3497552189509817,
+        "runnable_s_per_s": 1.7637948169548072,
+        "wait_s_per_s": 0.4491880618577288
+      },
+      "vmm": {
+        "cpu_s_per_gib": 0.5570442816771507,
+        "runnable_s_per_s": 3.261806635501226,
+        "wait_s_per_s": 1.2192804808700695
+      }
+    }
+  },
+  "candidate_wins": 6,
+  "image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "interval": [
+    0.9742869932793901,
+    1.560236920659368
+  ],
+  "kernel_changes": {
+    "CONFIG_LOCALVERSION": [
+      "\"-micropod\"",
+      "\"-micropod-lazy\""
+    ],
+    "CONFIG_PREEMPT": [
+      "y",
+      "n"
+    ],
+    "CONFIG_PREEMPT_LAZY": [
+      "n",
+      "y"
+    ],
+    "CONFIG_PREEMPT_RCU": [
+      "y",
+      null
+    ]
+  },
+  "median_ratio": 1.057455072398245,
+  "recording_base": "816121afd30fba52bda7828418cd963d4216166b",
+  "rows": [
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 22651741136,
+        "errors": null,
+        "fresh_p95_us": 18499,
+        "fresh_p99_us": 66872,
+        "mib_s": 3600.0429611192976,
+        "relay": {
+          "cpu_s": 7.415816958333332,
+          "cpu_s_per_gib": 0.3515258619407421,
+          "runnable_s": 10.705685333333331,
+          "runnable_s_per_s": 1.724282468726664,
+          "sample_seconds": 6.208777,
+          "wait_s": 3.2898683749999997,
+          "wait_s_per_s": 0.5298738181448617
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 11.929893416666665,
+          "cpu_s_per_gib": 0.5655029094862448,
+          "runnable_s": 20.739034999999998,
+          "runnable_s_per_s": 3.3402769981914306,
+          "sample_seconds": 6.208777,
+          "wait_s": 8.809141583333332,
+          "wait_s_per_s": 1.4188207409177898
+        },
+        "window_s": 6.000590542
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 31556040344,
+        "errors": null,
+        "fresh_p95_us": 13776,
+        "fresh_p99_us": 20215,
+        "mib_s": 5015.656990698033,
+        "relay": {
+          "cpu_s": 10.181216458333333,
+          "cpu_s_per_gib": 0.34643123190797415,
+          "runnable_s": 11.616803583333333,
+          "runnable_s_per_s": 1.8646494848063624,
+          "sample_seconds": 6.23002,
+          "wait_s": 1.4355871249999999,
+          "wait_s_per_s": 0.23043058047967743
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 16.047921166666665,
+          "cpu_s_per_gib": 0.5460547000530502,
+          "runnable_s": 20.439427249999998,
+          "runnable_s_per_s": 3.280796409963371,
+          "sample_seconds": 6.23002,
+          "wait_s": 4.391506083333333,
+          "wait_s_per_s": 0.7048943796863145
+        },
+        "window_s": 6.0000485
+      },
+      "order": [
+        "full-reno",
+        "full-bbr",
+        "orb",
+        "lazy-reno",
+        "lazy-bbr"
+      ],
+      "round": 1
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 27365132528,
+        "errors": null,
+        "fresh_p95_us": 13038,
+        "fresh_p99_us": 16200,
+        "mib_s": 4349.487280548517,
+        "relay": {
+          "cpu_s": 8.993158791666666,
+          "cpu_s_per_gib": 0.3528698687866922,
+          "runnable_s": 11.141555208333333,
+          "runnable_s_per_s": 1.7948691641399972,
+          "sample_seconds": 6.207447,
+          "wait_s": 2.1483964166666665,
+          "wait_s_per_s": 0.3460998405087738
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 14.301497999999999,
+          "cpu_s_per_gib": 0.56115630109739,
+          "runnable_s": 20.244747124999996,
+          "runnable_s_per_s": 3.2613644747993815,
+          "sample_seconds": 6.207447,
+          "wait_s": 5.9432491249999995,
+          "wait_s_per_s": 0.9574385612958112
+        },
+        "window_s": 6.000115042
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 28308531448,
+        "errors": null,
+        "fresh_p95_us": 8441,
+        "fresh_p99_us": 10021,
+        "mib_s": 4499.478026296598,
+        "relay": {
+          "cpu_s": 10.305787791666665,
+          "cpu_s_per_gib": 0.3908982492259553,
+          "runnable_s": 11.312996291666666,
+          "runnable_s_per_s": 1.8347495965214617,
+          "sample_seconds": 6.165962,
+          "wait_s": 1.0072085,
+          "wait_s_per_s": 0.16334977413094662
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 15.913407374999998,
+          "cpu_s_per_gib": 0.6035951067357378,
+          "runnable_s": 18.688137541666666,
+          "runnable_s_per_s": 3.0308551271750725,
+          "sample_seconds": 6.165962,
+          "wait_s": 2.7747301666666666,
+          "wait_s_per_s": 0.4500076657408311
+        },
+        "window_s": 6.000055833
+      },
+      "order": [
+        "full-bbr",
+        "lazy-reno",
+        "full-reno",
+        "lazy-bbr",
+        "orb"
+      ],
+      "round": 2
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 16917746360,
+        "errors": null,
+        "fresh_p95_us": 85130,
+        "fresh_p99_us": 166607,
+        "mib_s": 2688.8780529136297,
+        "relay": {
+          "cpu_s": 5.802330916666666,
+          "cpu_s_per_gib": 0.36826449867127914,
+          "runnable_s": 10.075075458333332,
+          "runnable_s_per_s": 1.6373879183183302,
+          "sample_seconds": 6.153139,
+          "wait_s": 4.2727445416666665,
+          "wait_s_per_s": 0.6944007833508501
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 9.432458583333332,
+          "cpu_s_per_gib": 0.5986627928185104,
+          "runnable_s": 19.644437083333333,
+          "runnable_s_per_s": 3.19258789429807,
+          "sample_seconds": 6.153139,
+          "wait_s": 10.211978499999999,
+          "wait_s_per_s": 1.659637219311964
+        },
+        "window_s": 6.000279625
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 24648422768,
+        "errors": null,
+        "fresh_p95_us": 13413,
+        "fresh_p99_us": 19153,
+        "mib_s": 3917.602571863112,
+        "relay": {
+          "cpu_s": 8.258678166666666,
+          "cpu_s_per_gib": 0.35976696123608304,
+          "runnable_s": 11.008220999999999,
+          "runnable_s_per_s": 1.77203118699399,
+          "sample_seconds": 6.212205,
+          "wait_s": 2.749542833333333,
+          "wait_s_per_s": 0.44260336439852405
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 13.090930499999999,
+          "cpu_s_per_gib": 0.5702709550720585,
+          "runnable_s": 20.344840708333333,
+          "runnable_s_per_s": 3.274978966137359,
+          "sample_seconds": 6.212205,
+          "wait_s": 7.253910208333332,
+          "wait_s_per_s": 1.1676868693697862
+        },
+        "window_s": 6.000243083
+      },
+      "order": [
+        "lazy-reno",
+        "lazy-bbr",
+        "full-bbr",
+        "orb",
+        "full-reno"
+      ],
+      "round": 3
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 22562312500,
+        "errors": null,
+        "fresh_p95_us": 50748,
+        "fresh_p99_us": 103465,
+        "mib_s": 3586.020102079508,
+        "relay": {
+          "cpu_s": 6.6436399999999995,
+          "cpu_s_per_gib": 0.31617123163236743,
+          "runnable_s": 10.826451749999999,
+          "runnable_s_per_s": 1.7344882247646578,
+          "sample_seconds": 6.241871,
+          "wait_s": 4.18281175,
+          "wait_s_per_s": 0.6701214667845586
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 10.440551,
+          "cpu_s_per_gib": 0.4968664570311675,
+          "runnable_s": 20.66553645833333,
+          "runnable_s_per_s": 3.310791981816563,
+          "sample_seconds": 6.241871,
+          "wait_s": 10.224985458333332,
+          "wait_s_per_s": 1.6381282885105015
+        },
+        "window_s": 6.000272541
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 24376354256,
+        "errors": null,
+        "fresh_p95_us": 16343,
+        "fresh_p99_us": 33154,
+        "mib_s": 3874.427378905961,
+        "relay": {
+          "cpu_s": 7.743811041666666,
+          "cpu_s_per_gib": 0.341103255444521,
+          "runnable_s": 10.875159666666665,
+          "runnable_s_per_s": 1.7555584469156242,
+          "sample_seconds": 6.194701,
+          "wait_s": 3.1313486249999998,
+          "wait_s_per_s": 0.5054882592396307
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 12.223752041666666,
+          "cpu_s_per_gib": 0.5384379335606456,
+          "runnable_s": 20.26984620833333,
+          "runnable_s_per_s": 3.2721266463600633,
+          "sample_seconds": 6.194701,
+          "wait_s": 8.046094166666666,
+          "wait_s_per_s": 1.298867236153394
+        },
+        "window_s": 6.000139042
+      },
+      "order": [
+        "lazy-bbr",
+        "orb",
+        "lazy-reno",
+        "full-reno",
+        "full-bbr"
+      ],
+      "round": 4
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 29936247872,
+        "errors": null,
+        "fresh_p95_us": 16768,
+        "fresh_p99_us": 47686,
+        "mib_s": 4758.113025565475,
+        "relay": {
+          "cpu_s": 8.706922791666665,
+          "cpu_s_per_gib": 0.3122965576623128,
+          "runnable_s": 11.006468875,
+          "runnable_s_per_s": 1.786448609166334,
+          "sample_seconds": 6.161089,
+          "wait_s": 2.299546083333333,
+          "wait_s_per_s": 0.37323695264478945
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 13.395674416666665,
+          "cpu_s_per_gib": 0.4804708974672469,
+          "runnable_s": 20.297171666666664,
+          "runnable_s_per_s": 3.294412995278378,
+          "sample_seconds": 6.161089,
+          "wait_s": 6.901497249999999,
+          "wait_s_per_s": 1.120174899275112
+        },
+        "window_s": 6.000158166
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 18391086408,
+        "errors": null,
+        "fresh_p95_us": 47139,
+        "fresh_p99_us": 100371,
+        "mib_s": 2923.174878006225,
+        "relay": {
+          "cpu_s": 6.047552625,
+          "cpu_s_per_gib": 0.35307920599398923,
+          "runnable_s": 10.376114541666666,
+          "runnable_s_per_s": 1.6820694513341092,
+          "sample_seconds": 6.16866,
+          "wait_s": 4.328561916666667,
+          "wait_s_per_s": 0.7017021389842635
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 9.729303291666666,
+          "cpu_s_per_gib": 0.5680338633012512,
+          "runnable_s": 19.924844541666666,
+          "runnable_s_per_s": 3.230011792134218,
+          "sample_seconds": 6.16866,
+          "wait_s": 10.19554125,
+          "wait_s_per_s": 1.652796758128994
+        },
+        "window_s": 6.000019667
+      },
+      "order": [
+        "orb",
+        "full-reno",
+        "lazy-bbr",
+        "full-bbr",
+        "lazy-reno"
+      ],
+      "round": 5
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 33038205848,
+        "errors": null,
+        "fresh_p95_us": 10021,
+        "fresh_p99_us": 19996,
+        "mib_s": 5251.223122531867,
+        "relay": {
+          "cpu_s": 10.437438124999998,
+          "cpu_s_per_gib": 0.33921678137685773,
+          "runnable_s": 11.500798041666666,
+          "runnable_s_per_s": 1.854947380676155,
+          "sample_seconds": 6.200067,
+          "wait_s": 1.0633599166666665,
+          "wait_s_per_s": 0.17150781058763825
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 15.635306374999999,
+          "cpu_s_per_gib": 0.5081475205745055,
+          "runnable_s": 18.8732345,
+          "runnable_s_per_s": 3.0440371854046093,
+          "sample_seconds": 6.200067,
+          "wait_s": 3.237928125,
+          "wait_s_per_s": 0.5222408282039532
+        },
+        "window_s": 6.000066583
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 32188357608,
+        "errors": null,
+        "fresh_p95_us": 11999,
+        "fresh_p99_us": 17909,
+        "mib_s": 5116.198387090783,
+        "relay": {
+          "cpu_s": 9.293262958333333,
+          "cpu_s_per_gib": 0.31000541379944235,
+          "runnable_s": 11.248339416666665,
+          "runnable_s_per_s": 1.8282378510965138,
+          "sample_seconds": 6.152558,
+          "wait_s": 1.955076458333333,
+          "wait_s_per_s": 0.31776644093941625
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 14.336268416666666,
+          "cpu_s_per_gib": 0.47823039580122645,
+          "runnable_s": 20.076208249999997,
+          "runnable_s_per_s": 3.263066882100095,
+          "sample_seconds": 6.152558,
+          "wait_s": 5.739939833333333,
+          "wait_s_per_s": 0.9329355096422224
+        },
+        "window_s": 6.000003834
+      },
+      "order": [
+        "lazy-bbr",
+        "lazy-reno",
+        "orb",
+        "full-bbr",
+        "full-reno"
+      ],
+      "round": 6
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 33167439016,
+        "errors": null,
+        "fresh_p95_us": 11493,
+        "fresh_p99_us": 16861,
+        "mib_s": 5271.814839951761,
+        "relay": {
+          "cpu_s": 9.888248208333332,
+          "cpu_s_per_gib": 0.3201159324438257,
+          "runnable_s": 11.316943541666665,
+          "runnable_s_per_s": 1.8367025112437796,
+          "sample_seconds": 6.161555,
+          "wait_s": 1.4286953333333332,
+          "wait_s_per_s": 0.23187252784943627
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 15.135336124999998,
+          "cpu_s_per_gib": 0.48998185871001015,
+          "runnable_s": 19.794022541666664,
+          "runnable_s_per_s": 3.212504398916615,
+          "sample_seconds": 6.161555,
+          "wait_s": 4.658686416666666,
+          "wait_s_per_s": 0.7560893989693618
+        },
+        "window_s": 6.000008667
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 33136539352,
+        "errors": null,
+        "fresh_p95_us": 10571,
+        "fresh_p99_us": 14720,
+        "mib_s": 5266.903478600309,
+        "relay": {
+          "cpu_s": 9.966805874999999,
+          "cpu_s_per_gib": 0.3229599870401221,
+          "runnable_s": 11.368789333333332,
+          "runnable_s_per_s": 1.8516302406078118,
+          "sample_seconds": 6.139881,
+          "wait_s": 1.4019834583333333,
+          "wait_s_per_s": 0.22834049362411638
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 15.194268416666665,
+          "cpu_s_per_gib": 0.49234838046153906,
+          "runnable_s": 19.657963416666664,
+          "runnable_s_per_s": 3.2016847584939616,
+          "sample_seconds": 6.139881,
+          "wait_s": 4.4636949999999995,
+          "wait_s_per_s": 0.727000246421714
+        },
+        "window_s": 6.000008666
+      },
+      "order": [
+        "orb",
+        "lazy-bbr",
+        "full-reno",
+        "lazy-reno",
+        "full-bbr"
+      ],
+      "round": 7
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 10081338168,
+        "errors": null,
+        "fresh_p95_us": 34741,
+        "fresh_p99_us": 82885,
+        "mib_s": 1602.352176517394,
+        "relay": {
+          "cpu_s": 3.884181375,
+          "cpu_s_per_gib": 0.413695872992099,
+          "runnable_s": 9.564574166666667,
+          "runnable_s_per_s": 1.5373058237901742,
+          "sample_seconds": 6.221647,
+          "wait_s": 5.680392791666666,
+          "wait_s_per_s": 0.9130046741106762
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 6.649817333333333,
+          "cpu_s_per_gib": 0.7082578595988775,
+          "runnable_s": 19.510120708333332,
+          "runnable_s_per_s": 3.135845011511153,
+          "sample_seconds": 6.221647,
+          "wait_s": 12.860303374999999,
+          "wait_s_per_s": 2.067025560112941
+        },
+        "window_s": 6.000124958
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 21635032224,
+        "errors": null,
+        "fresh_p95_us": 30314,
+        "fresh_p99_us": 69490,
+        "mib_s": 3438.012109223252,
+        "relay": {
+          "cpu_s": 6.718698833333333,
+          "cpu_s_per_gib": 0.33344752462200006,
+          "runnable_s": 11.038870541666666,
+          "runnable_s_per_s": 1.7376725244080868,
+          "sample_seconds": 6.352676,
+          "wait_s": 4.320171708333333,
+          "wait_s_per_s": 0.6800554141803128
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 10.785921875,
+          "cpu_s_per_gib": 0.5353028970641759,
+          "runnable_s": 20.713194791666666,
+          "runnable_s_per_s": 3.2605463889023567,
+          "sample_seconds": 6.352676,
+          "wait_s": 9.927272916666666,
+          "wait_s_per_s": 1.56269152033988
+        },
+        "window_s": 6.001367625
+      },
+      "order": [
+        "full-reno",
+        "orb",
+        "full-bbr",
+        "lazy-bbr",
+        "lazy-reno"
+      ],
+      "round": 8
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 11945178008,
+        "errors": null,
+        "fresh_p95_us": 45761,
+        "fresh_p99_us": 118038,
+        "mib_s": 1898.6298488421317,
+        "relay": {
+          "cpu_s": 4.390040125,
+          "cpu_s_per_gib": 0.3946169482023417,
+          "runnable_s": 10.101009,
+          "runnable_s_per_s": 1.5590106056151185,
+          "sample_seconds": 6.479115,
+          "wait_s": 5.710968875,
+          "wait_s_per_s": 0.88144273947908
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 7.376488499999999,
+          "cpu_s_per_gib": 0.6630662357145698,
+          "runnable_s": 20.246349166666665,
+          "runnable_s_per_s": 3.124863375116303,
+          "sample_seconds": 6.479115,
+          "wait_s": 12.869860666666666,
+          "wait_s_per_s": 1.9863608944534348
+        },
+        "window_s": 6.000016
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 20632311192,
+        "errors": null,
+        "fresh_p95_us": 15819,
+        "fresh_p99_us": 30406,
+        "mib_s": 3279.412990760528,
+        "relay": {
+          "cpu_s": 7.189832208333333,
+          "cpu_s_per_gib": 0.3741715350155805,
+          "runnable_s": 10.718528291666665,
+          "runnable_s_per_s": 1.7164563331949727,
+          "sample_seconds": 6.244568,
+          "wait_s": 3.528696083333333,
+          "wait_s_per_s": 0.5650824978338507
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 11.639228,
+          "cpu_s_per_gib": 0.6057259308650637,
+          "runnable_s": 20.488035541666665,
+          "runnable_s_per_s": 3.2809372148188096,
+          "sample_seconds": 6.244568,
+          "wait_s": 8.848807541666666,
+          "wait_s_per_s": 1.4170407851538596
+        },
+        "window_s": 6.000008333
+      },
+      "order": [
+        "full-bbr",
+        "full-reno",
+        "lazy-reno",
+        "orb",
+        "lazy-bbr"
+      ],
+      "round": 9
+    },
+    {
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 23398061616,
+        "errors": null,
+        "fresh_p95_us": 12957,
+        "fresh_p99_us": 23515,
+        "mib_s": 3719.007247512618,
+        "relay": {
+          "cpu_s": 8.096818958333332,
+          "cpu_s_per_gib": 0.3715646748692027,
+          "runnable_s": 10.938852749999999,
+          "runnable_s_per_s": 1.7446572640936917,
+          "sample_seconds": 6.269915,
+          "wait_s": 2.8420337916666663,
+          "wait_s_per_s": 0.4532810718592941
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 12.872271166666666,
+          "cpu_s_per_gib": 0.5907111515625677,
+          "runnable_s": 20.216911333333332,
+          "runnable_s_per_s": 3.224431484850007,
+          "sample_seconds": 6.269915,
+          "wait_s": 7.344640166666666,
+          "wait_s_per_s": 1.1714098463323133
+        },
+        "window_s": 6.000023375
+      },
+      "lazy-bbr": {
+        "arrivals": 240,
+        "bytes": 22733855904,
+        "errors": null,
+        "fresh_p95_us": 22738,
+        "fresh_p99_us": 196863,
+        "mib_s": 3613.231033165535,
+        "relay": {
+          "cpu_s": 7.686426208333333,
+          "cpu_s_per_gib": 0.3630372837687023,
+          "runnable_s": 10.556505666666666,
+          "runnable_s_per_s": 1.6763883322016084,
+          "sample_seconds": 6.297172,
+          "wait_s": 2.870079458333333,
+          "wait_s_per_s": 0.45577275931693356
+        },
+        "reopened": 0,
+        "vmm": {
+          "cpu_s": 12.243734208333333,
+          "cpu_s_per_gib": 0.5782833126479832,
+          "runnable_s": 20.246646958333333,
+          "runnable_s_per_s": 3.2151967515470967,
+          "sample_seconds": 6.297172,
+          "wait_s": 8.002912749999998,
+          "wait_s_per_s": 1.2708740923703528
+        },
+        "window_s": 6.000362083
+      },
+      "order": [
+        "lazy-reno",
+        "full-bbr",
+        "lazy-bbr",
+        "full-reno",
+        "orb"
+      ],
+      "round": 10
+    }
+  ],
+  "service_sha256": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba"
+}

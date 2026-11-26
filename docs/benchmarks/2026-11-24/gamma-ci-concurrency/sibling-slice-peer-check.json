@@ -1,0 +1,72 @@
+[
+  {
+    "requested_ns": 0,
+    "return_code": 0,
+    "error": "",
+    "threads": [
+      {
+        "tid": 1,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 2100000
+      },
+      {
+        "tid": 10,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 2100000
+      },
+      {
+        "tid": 11,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 2100000
+      },
+      {
+        "tid": 12,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 2100000
+      }
+    ]
+  },
+  {
+    "requested_ns": 250000,
+    "return_code": 0,
+    "error": "",
+    "threads": [
+      {
+        "tid": 1,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      {
+        "tid": 10,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      {
+        "tid": 11,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 250000
+      },
+      {
+        "tid": 12,
+        "policy": 0,
+        "nice": 0,
+        "priority": 0,
+        "slice_ns": 250000
+      }
+    ]
+  }
+]

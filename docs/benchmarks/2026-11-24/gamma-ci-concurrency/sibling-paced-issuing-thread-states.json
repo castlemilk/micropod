@@ -1,0 +1,1152 @@
+{
+  "diagnostic_only": true,
+  "runs": [
+    {
+      "run": "20261125T022107Z-dispatch-trace-2307mi1s",
+      "guest_boot": "ba1b5f43-668a-484d-92a1-ac50f70c5d57",
+      "base_slice_ns": 2100000,
+      "trace_clock_resolution_ns": 1000,
+      "trace_bounds_ns": {
+        "start": 40585304000,
+        "stop": 42340395000
+      },
+      "trace_event_counts": {
+        "marker": 2,
+        "wake": 4394,
+        "switch": 41474,
+        "nanosleep_enter": 1496,
+        "nanosleep_exit": 1496
+      },
+      "slots": [
+        {
+          "slot": 0,
+          "comm": "mpd73637eb300",
+          "container_issuer_tid": 1591,
+          "proc_issuer_tid": 7696,
+          "trace_issuer_tid": 7835,
+          "cpu": 2,
+          "gate_bounds_ns": [
+            40694216434,
+            40694216601
+          ],
+          "unbacklogged_nonstartup_calls": 85,
+          "calls_with_carried_backlog": 2914,
+          "startup_and_largest_unbacklogged_dispatches": [
+            {
+              "index": 0,
+              "due_offset_ns": 0,
+              "prior_completion_offset_ns": 0,
+              "dispatch_offset_ns": 1589500,
+              "fresh_ns": 1589500,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  934,
+                  3101
+                ],
+                "runnable": [
+                  1531000,
+                  1535000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53399,
+                  55566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 127,
+              "due_offset_ns": 63500000,
+              "prior_completion_offset_ns": 63091292,
+              "dispatch_offset_ns": 64018500,
+              "fresh_ns": 518500,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  934,
+                  3101
+                ],
+                "runnable": [
+                  461000,
+                  465000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  52399,
+                  54566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 74,
+              "due_offset_ns": 37000000,
+              "prior_completion_offset_ns": 36553333,
+              "dispatch_offset_ns": 37329042,
+              "fresh_ns": 329042,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  476,
+                  2643
+                ],
+                "runnable": [
+                  302000,
+                  306000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  22399,
+                  24566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 9,
+              "due_offset_ns": 4500000,
+              "prior_completion_offset_ns": 4099625,
+              "dispatch_offset_ns": 4650042,
+              "fresh_ns": 150042,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  476,
+                  2643
+                ],
+                "runnable": [
+                  123000,
+                  127000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  22399,
+                  24566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 4,
+              "due_offset_ns": 2000000,
+              "prior_completion_offset_ns": 1876875,
+              "dispatch_offset_ns": 2076708,
+              "fresh_ns": 76708,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  0,
+                  5309
+                ],
+                "runnable": [
+                  20000,
+                  26309
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  50399,
+                  52566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 83,
+              "due_offset_ns": 41500000,
+              "prior_completion_offset_ns": 41066708,
+              "dispatch_offset_ns": 41570583,
+              "fresh_ns": 70583,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  17,
+                  2184
+                ],
+                "runnable": [
+                  1000,
+                  5000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  65399,
+                  67566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 86,
+              "due_offset_ns": 43000000,
+              "prior_completion_offset_ns": 42600708,
+              "dispatch_offset_ns": 43068875,
+              "fresh_ns": 68875,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  309,
+                  2476
+                ],
+                "runnable": [
+                  12000,
+                  16000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  52399,
+                  54566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 94,
+              "due_offset_ns": 47000000,
+              "prior_completion_offset_ns": 46587167,
+              "dispatch_offset_ns": 47066792,
+              "fresh_ns": 66792,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  226,
+                  2393
+                ],
+                "runnable": [
+                  39000,
+                  43000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  23399,
+                  25566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 85,
+              "due_offset_ns": 42500000,
+              "prior_completion_offset_ns": 42088417,
+              "dispatch_offset_ns": 42566333,
+              "fresh_ns": 66333,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  0,
+                  5934
+                ],
+                "runnable": [
+                  6000,
+                  12934
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53399,
+                  55566
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slot": 8,
+          "comm": "mpd73637eb308",
+          "container_issuer_tid": 21,
+          "proc_issuer_tid": 7755,
+          "trace_issuer_tid": 7894,
+          "cpu": 0,
+          "gate_bounds_ns": [
+            40694216435,
+            40694216602
+          ],
+          "unbacklogged_nonstartup_calls": 1409,
+          "calls_with_carried_backlog": 1590,
+          "startup_and_largest_unbacklogged_dispatches": [
+            {
+              "index": 0,
+              "due_offset_ns": 125000,
+              "prior_completion_offset_ns": 0,
+              "dispatch_offset_ns": 187833,
+              "fresh_ns": 62833,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1000,
+                  6435
+                ],
+                "runnable": [
+                  1000,
+                  8435
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53398,
+                  55565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2373,
+              "due_offset_ns": 1186625000,
+              "prior_completion_offset_ns": 1186257709,
+              "dispatch_offset_ns": 1187270292,
+              "fresh_ns": 645292,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  727,
+                  2894
+                ],
+                "runnable": [
+                  586000,
+                  590000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  54398,
+                  56565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 10,
+              "due_offset_ns": 5125000,
+              "prior_completion_offset_ns": 4718041,
+              "dispatch_offset_ns": 5391375,
+              "fresh_ns": 266375,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  810,
+                  2977
+                ],
+                "runnable": [
+                  208000,
+                  212000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53398,
+                  55565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2340,
+              "due_offset_ns": 1170125000,
+              "prior_completion_offset_ns": 1169710542,
+              "dispatch_offset_ns": 1170231709,
+              "fresh_ns": 106709,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  22144,
+                  24311
+                ],
+                "runnable": [
+                  5000,
+                  9000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  75398,
+                  77565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 290,
+              "due_offset_ns": 145125000,
+              "prior_completion_offset_ns": 144690416,
+              "dispatch_offset_ns": 145213291,
+              "fresh_ns": 88291,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  726,
+                  2893
+                ],
+                "runnable": [
+                  1000,
+                  5000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  82398,
+                  84565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2188,
+              "due_offset_ns": 1094125000,
+              "prior_completion_offset_ns": 1093711250,
+              "dispatch_offset_ns": 1094208500,
+              "fresh_ns": 83500,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  6935,
+                  9102
+                ],
+                "runnable": [
+                  6000,
+                  10000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  66398,
+                  68565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2444,
+              "due_offset_ns": 1222125000,
+              "prior_completion_offset_ns": 1221724792,
+              "dispatch_offset_ns": 1222206792,
+              "fresh_ns": 81792,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1227,
+                  3394
+                ],
+                "runnable": [
+                  0,
+                  4000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  76398,
+                  78565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2307,
+              "due_offset_ns": 1153625000,
+              "prior_completion_offset_ns": 1153217959,
+              "dispatch_offset_ns": 1153705584,
+              "fresh_ns": 80584,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  3019,
+                  5186
+                ],
+                "runnable": [
+                  5000,
+                  9000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  68398,
+                  70565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2368,
+              "due_offset_ns": 1184125000,
+              "prior_completion_offset_ns": 1183708917,
+              "dispatch_offset_ns": 1184205542,
+              "fresh_ns": 80542,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  977,
+                  3144
+                ],
+                "runnable": [
+                  1000,
+                  5000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  74398,
+                  76565
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": "20261125T022200Z-dispatch-trace-m2igqyp0",
+      "guest_boot": "8b9b6d7b-ace2-4711-abab-de5692086a2f",
+      "base_slice_ns": 125000,
+      "trace_clock_resolution_ns": 1000,
+      "trace_bounds_ns": {
+        "start": 41827998000,
+        "stop": 43463038000
+      },
+      "trace_event_counts": {
+        "marker": 2,
+        "wake": 7393,
+        "switch": 50080,
+        "nanosleep_enter": 3842,
+        "nanosleep_exit": 3842
+      },
+      "slots": [
+        {
+          "slot": 0,
+          "comm": "mpd27bf65bb00",
+          "container_issuer_tid": 1609,
+          "proc_issuer_tid": 7690,
+          "trace_issuer_tid": 7833,
+          "cpu": 0,
+          "gate_bounds_ns": [
+            41940127604,
+            41940127770
+          ],
+          "unbacklogged_nonstartup_calls": 1781,
+          "calls_with_carried_backlog": 1218,
+          "startup_and_largest_unbacklogged_dispatches": [
+            {
+              "index": 0,
+              "due_offset_ns": 0,
+              "prior_completion_offset_ns": 0,
+              "dispatch_offset_ns": 39916,
+              "fresh_ns": 39916,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  520,
+                  2686
+                ],
+                "runnable": [
+                  37230,
+                  39396
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  0,
+                  0
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2043,
+              "due_offset_ns": 1021500000,
+              "prior_completion_offset_ns": 1021166083,
+              "dispatch_offset_ns": 1023021292,
+              "fresh_ns": 1521292,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  0,
+                  6062
+                ],
+                "runnable": [
+                  1144000,
+                  1150000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  4230,
+                  6396
+                ],
+                "sleeping_other": [
+                  365000,
+                  369000
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2445,
+              "due_offset_ns": 1222500000,
+              "prior_completion_offset_ns": 1222330167,
+              "dispatch_offset_ns": 1223470417,
+              "fresh_ns": 970417,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1021,
+                  3187
+                ],
+                "runnable": [
+                  912000,
+                  916000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53230,
+                  55396
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 911,
+              "due_offset_ns": 455500000,
+              "prior_completion_offset_ns": 455118791,
+              "dispatch_offset_ns": 456285500,
+              "fresh_ns": 785500,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  104,
+                  2270
+                ],
+                "runnable": [
+                  755000,
+                  759000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  26230,
+                  28396
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2442,
+              "due_offset_ns": 1221000000,
+              "prior_completion_offset_ns": 1220651542,
+              "dispatch_offset_ns": 1221766833,
+              "fresh_ns": 766833,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1437,
+                  3603
+                ],
+                "runnable": [
+                  707000,
+                  711000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  54230,
+                  56396
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 158,
+              "due_offset_ns": 79000000,
+              "prior_completion_offset_ns": 78749833,
+              "dispatch_offset_ns": 79630624,
+              "fresh_ns": 630624,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  228,
+                  2394
+                ],
+                "runnable": [
+                  608000,
+                  612000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  18230,
+                  20396
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 218,
+              "due_offset_ns": 109000000,
+              "prior_completion_offset_ns": 108649374,
+              "dispatch_offset_ns": 109575624,
+              "fresh_ns": 575624,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1000,
+                  6394
+                ],
+                "runnable": [
+                  515000,
+                  521394
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53230,
+                  55396
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 400,
+              "due_offset_ns": 200000000,
+              "prior_completion_offset_ns": 199548333,
+              "dispatch_offset_ns": 200572124,
+              "fresh_ns": 572124,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  0,
+                  5894
+                ],
+                "runnable": [
+                  7000,
+                  12894
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  54230,
+                  56396
+                ],
+                "sleeping_other": [
+                  503000,
+                  506894
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 917,
+              "due_offset_ns": 458500000,
+              "prior_completion_offset_ns": 458126416,
+              "dispatch_offset_ns": 459067958,
+              "fresh_ns": 567958,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  562,
+                  2728
+                ],
+                "runnable": [
+                  520000,
+                  524000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  43230,
+                  45396
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slot": 8,
+          "comm": "mpd27bf65bb08",
+          "container_issuer_tid": 22,
+          "proc_issuer_tid": 7752,
+          "trace_issuer_tid": 7895,
+          "cpu": 2,
+          "gate_bounds_ns": [
+            41940127561,
+            41940127728
+          ],
+          "unbacklogged_nonstartup_calls": 2060,
+          "calls_with_carried_backlog": 939,
+          "startup_and_largest_unbacklogged_dispatches": [
+            {
+              "index": 0,
+              "due_offset_ns": 125000,
+              "prior_completion_offset_ns": 0,
+              "dispatch_offset_ns": 200916,
+              "fresh_ns": 75916,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1000,
+                  6644
+                ],
+                "runnable": [
+                  15000,
+                  22644
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  52272,
+                  54439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 150,
+              "due_offset_ns": 75125000,
+              "prior_completion_offset_ns": 74831750,
+              "dispatch_offset_ns": 76525833,
+              "fresh_ns": 1400833,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  394,
+                  2561
+                ],
+                "runnable": [
+                  1387000,
+                  1391000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  9272,
+                  11439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 1673,
+              "due_offset_ns": 836625000,
+              "prior_completion_offset_ns": 836286208,
+              "dispatch_offset_ns": 837480667,
+              "fresh_ns": 855667,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  228,
+                  2395
+                ],
+                "runnable": [
+                  821000,
+                  825000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  30272,
+                  32439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2358,
+              "due_offset_ns": 1179125000,
+              "prior_completion_offset_ns": 1178725000,
+              "dispatch_offset_ns": 1179883500,
+              "fresh_ns": 758500,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1061,
+                  3228
+                ],
+                "runnable": [
+                  747000,
+                  751000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  6272,
+                  8439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 291,
+              "due_offset_ns": 145625000,
+              "prior_completion_offset_ns": 145268458,
+              "dispatch_offset_ns": 146362416,
+              "fresh_ns": 737416,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  0,
+                  6144
+                ],
+                "runnable": [
+                  241000,
+                  249000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53272,
+                  55439
+                ],
+                "sleeping_other": [
+                  433000,
+                  437000
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 272,
+              "due_offset_ns": 136125000,
+              "prior_completion_offset_ns": 135704291,
+              "dispatch_offset_ns": 136834416,
+              "fresh_ns": 709416,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  977,
+                  3144
+                ],
+                "runnable": [
+                  651000,
+                  655000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53272,
+                  55439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 985,
+              "due_offset_ns": 492625000,
+              "prior_completion_offset_ns": 492534958,
+              "dispatch_offset_ns": 493311625,
+              "fresh_ns": 686625,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  186,
+                  2353
+                ],
+                "runnable": [
+                  659000,
+                  663000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  23272,
+                  25439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2496,
+              "due_offset_ns": 1248125000,
+              "prior_completion_offset_ns": 1247939417,
+              "dispatch_offset_ns": 1248800334,
+              "fresh_ns": 675334,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  1000,
+                  7062
+                ],
+                "runnable": [
+                  654000,
+                  661000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  13272,
+                  15439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "index": 2574,
+              "due_offset_ns": 1287125000,
+              "prior_completion_offset_ns": 1286690292,
+              "dispatch_offset_ns": 1287791875,
+              "fresh_ns": 666875,
+              "observed_scheduler_state_bounds_ns": {
+                "on_cpu": [
+                  436,
+                  2603
+                ],
+                "runnable": [
+                  609000,
+                  613000
+                ],
+                "sleeping_in_clock_nanosleep": [
+                  53272,
+                  55439
+                ],
+                "sleeping_other": [
+                  0,
+                  0
+                ],
+                "unknown": [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "baseline_files": 24
+}

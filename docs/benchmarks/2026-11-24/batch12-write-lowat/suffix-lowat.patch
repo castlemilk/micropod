@@ -1,0 +1,39 @@
+--- a/PublishedTCP.c
++++ b/PublishedTCP.c
+@@ -634,6 +634,16 @@
+ 
+ // Read directly into the worker scratch and immediately write to the peer.
+ // On backpressure, keep just the unwritten suffix and pause that reader.
++// Request batched retries only for large suffixes on sockets with enough send space.
++static int pending_write_threshold(int fd, size_t remaining) {
++    const int bulk_threshold = 16 * 1024;
++    if (remaining < (size_t)bulk_threshold) return 0;
++    int buffer = 0;
++    socklen_t len = sizeof(buffer);
++    if (getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer, &len) < 0 || buffer < bulk_threshold) return 0;
++    return bulk_threshold;
++}
++
+ static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct kevent *read_event, enum bulk_poll poll) {
+     struct pair *p = src->pair;
+     mp_tcp_listener *l = p->listener;
+@@ -728,8 +738,19 @@
+             dst->length = remaining;
+             struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
+                                         filter_change(&dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) };
++            int threshold = pending_write_threshold(dst->watch.fd, remaining);
++            if (threshold) {
++                changes[1].fflags = NOTE_LOWAT;
++                changes[1].data = threshold;
++            }
+             if (update_stream_filters(r, changes, 2) < 0) retire(p);
+         } else {
++            // Restore ordinary readiness once only a short tail is left.
++            if (count >= 16 * 1024 && remaining < 16 * 1024 &&
++                watch_fd(r, &dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) < 0) {
++                retire(p);
++                return;
++            }
+             dst->offset += (size_t)sent;
+             dst->length = remaining;
+         }

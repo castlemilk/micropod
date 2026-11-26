@@ -1,0 +1,10 @@
+{
+  "engine": "OrbStack",
+  "image_id": "sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb",
+  "cpu_budget": "one guest vCPU",
+  "guest_cpus": "0-3",
+  "proof": "set -eu\nprintf 'container=%s\\n' \"$(cat /sys/fs/cgroup/cpuset.cpus.effective)\"\nprintf 'bandwidth=%s\\n' \"$(cat /sys/fs/cgroup/cpu.max)\"\nprintf 'uid=%s\\n' \"$(id -u)\"\nprintf 'go=%s\\n' \"$(go version)\"\nif command -v taskset >/dev/null; then\n  for mask in 0 3 0-3; do\n    taskset -c \"$mask\" sh -ec 'printf \"request=%s inherited=\" \"$1\"; awk \"/^Cpus_allowed_list/ {print \\$2}\" /proc/self/status' sh \"$mask\"\n  done\nelse\n  echo 'taskset=absent'\nfi",
+  "stdout": "container=0-3\nbandwidth=100000 100000\nuid=0\ngo=go version go1.26.11 linux/arm64\nrequest=0 inherited=0\nrequest=3 inherited=3\nrequest=0-3 inherited=0-3\n",
+  "cleaned": true,
+  "baseline_files": 24
+}

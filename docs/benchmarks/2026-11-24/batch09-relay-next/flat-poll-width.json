@@ -1,0 +1,217 @@
+{
+  "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "fixture_hashes": {
+    "fixtures/flat-screen.sh": "fcc060eef5640468d54d13e82751d2dfcde86364b036e1e1355f499591c04c5d",
+    "fixtures/flat.c": "56033c9d20af65c55f7539ef8ff088f1d959c72e95be371e2af0f877026712ef"
+  },
+  "interval": [
+    0.606383233367446,
+    1.0151813962822034
+  ],
+  "median_ratio": 0.8478473246184008,
+  "ratios": [
+    0.8868934527631913,
+    0.8073334145303994,
+    0.914270566184399,
+    0.40543305220449266,
+    1.116092226380008,
+    0.8088011964736105
+  ],
+  "rows": [
+    {
+      "24": {
+        "arrivals": 240,
+        "bytes": 27774653640,
+        "errors": null,
+        "fresh_p95_us": 37369,
+        "fresh_p99_us": 71994,
+        "mib_s": 4414.658655944958,
+        "reopened": 0,
+        "window_s": 6.000004958
+      },
+      "64": {
+        "arrivals": 240,
+        "bytes": 24633333464,
+        "errors": null,
+        "fresh_p95_us": 54917,
+        "fresh_p99_us": 164827,
+        "mib_s": 3915.331858141933,
+        "reopened": 0,
+        "window_s": 6.000047583
+      },
+      "order": [
+        "stock",
+        "8",
+        "orb",
+        "24",
+        "64"
+      ],
+      "round": 0
+    },
+    {
+      "24": {
+        "arrivals": 240,
+        "bytes": 41616153584,
+        "errors": null,
+        "fresh_p95_us": 22239,
+        "fresh_p99_us": 28247,
+        "mib_s": 6614.662800359731,
+        "reopened": 0,
+        "window_s": 6.000042333
+      },
+      "64": {
+        "arrivals": 240,
+        "bytes": 33597918420,
+        "errors": null,
+        "fresh_p95_us": 34707,
+        "fresh_p99_us": 41971,
+        "mib_s": 5340.238304581635,
+        "reopened": 0,
+        "window_s": 6.000007875
+      },
+      "order": [
+        "8",
+        "24",
+        "stock",
+        "64",
+        "orb"
+      ],
+      "round": 1
+    },
+    {
+      "24": {
+        "arrivals": 240,
+        "bytes": 30144909504,
+        "errors": null,
+        "fresh_p95_us": 32691,
+        "fresh_p99_us": 48756,
+        "mib_s": 4791.378939472705,
+        "reopened": 0,
+        "window_s": 6.000031792
+      },
+      "64": {
+        "arrivals": 240,
+        "bytes": 27561454216,
+        "errors": null,
+        "fresh_p95_us": 65615,
+        "fresh_p99_us": 133218,
+        "mib_s": 4380.616735795715,
+        "reopened": 0,
+        "window_s": 6.000217
+      },
+      "order": [
+        "24",
+        "64",
+        "8",
+        "orb",
+        "stock"
+      ],
+      "round": 2
+    },
+    {
+      "24": {
+        "arrivals": 240,
+        "bytes": 31012859392,
+        "errors": null,
+        "fresh_p95_us": 34972,
+        "fresh_p99_us": 54317,
+        "mib_s": 4929.350190212315,
+        "reopened": 0,
+        "window_s": 6.000013458
+      },
+      "64": {
+        "arrivals": 240,
+        "bytes": 12573948216,
+        "errors": null,
+        "fresh_p95_us": 118821,
+        "fresh_p99_us": 176954,
+        "mib_s": 1998.5214930025754,
+        "reopened": 0,
+        "window_s": 6.000161375
+      },
+      "order": [
+        "64",
+        "orb",
+        "24",
+        "stock",
+        "8"
+      ],
+      "round": 3
+    },
+    {
+      "24": {
+        "arrivals": 240,
+        "bytes": 25045255480,
+        "errors": null,
+        "fresh_p95_us": 62115,
+        "fresh_p99_us": 95418,
+        "mib_s": 3980.764358093204,
+        "reopened": 0,
+        "window_s": 6.000108208
+      },
+      "64": {
+        "arrivals": 240,
+        "bytes": 27952641216,
+        "errors": null,
+        "fresh_p95_us": 41148,
+        "fresh_p99_us": 76321,
+        "mib_s": 4442.900155118427,
+        "reopened": 0,
+        "window_s": 6.000070916
+      },
+      "order": [
+        "orb",
+        "stock",
+        "64",
+        "8",
+        "24"
+      ],
+      "round": 4
+    },
+    {
+      "24": {
+        "arrivals": 240,
+        "bytes": 27680860536,
+        "errors": null,
+        "fresh_p95_us": 46494,
+        "fresh_p99_us": 63932,
+        "mib_s": 4399.681880103481,
+        "reopened": 0,
+        "window_s": 6.00009875
+      },
+      "64": {
+        "arrivals": 240,
+        "bytes": 22388071208,
+        "errors": null,
+        "fresh_p95_us": 80530,
+        "fresh_p99_us": 100568,
+        "mib_s": 3558.467968730959,
+        "reopened": 0,
+        "window_s": 6.000033917
+      },
+      "order": [
+        "stock",
+        "8",
+        "orb",
+        "24",
+        "64"
+      ],
+      "round": 5
+    }
+  ],
+  "summary": {
+    "24": {
+      "fresh_p95_us": 36170.5,
+      "fresh_p99_us": 59124.5,
+      "mib_s": 4603.018797708832,
+      "p95_below_75ms": 6
+    },
+    "64": {
+      "fresh_p95_us": 60266.0,
+      "fresh_p99_us": 116893.0,
+      "mib_s": 4147.974296968824,
+      "p95_below_75ms": 4
+    }
+  },
+  "wider_wins": 1
+}

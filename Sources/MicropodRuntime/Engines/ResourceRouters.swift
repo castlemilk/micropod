@@ -506,21 +506,52 @@ public struct ImageRouter: ImageServing {
         try await save(reference, to: outputPath, runtime: nil)
     }
 
+    /// On the runtime that has `reference`: Apple's, or an engine's that
+    /// saves (the hvf machine's guest).
     public func save(_ reference: String, to outputPath: String, runtime: String?) async throws {
-        try await requireAppleOwner(reference, runtime: runtime, "image save")
-        try await apple.save(reference, to: outputPath)
+        switch try await owner(reference, runtime: runtime) {
+        case .apple: try await apple.save(reference, to: outputPath)
+        case .engine(let name, let store):
+            guard store.savesAndLoads else {
+                throw MicropodError.unsupported("runtime '\(name)' does not support image save")
+            }
+            try await store.save([reference], to: outputPath)
+        }
     }
 
+    /// One archive needs every image on one runtime.
     public func saveAll(_ references: [String], to outputPath: String) async throws {
-        for reference in references { try await requireAppleOwner(reference, runtime: nil, "image save") }
-        try await apple.saveAll(references, to: outputPath)
+        var owners: [ResourceTarget<any EngineImageServing>] = []
+        for reference in references { owners.append(try await owner(reference, runtime: nil)) }
+        let names = Set(owners.map(\.name))
+        guard names.count <= 1 else {
+            throw MicropodError.message(
+                "failedPrecondition: one archive cannot hold images from several runtimes "
+                    + "(\(names.sorted().joined(separator: ", "))); save each runtime's images separately")
+        }
+        switch owners.first {
+        case nil, .apple?: try await apple.saveAll(references, to: outputPath)
+        case .engine(let name, let store)?:
+            guard store.savesAndLoads else {
+                throw MicropodError.unsupported("runtime '\(name)' does not support image save")
+            }
+            try await store.save(references, to: outputPath)
+        }
     }
 
     public func load(from inputPath: String) async throws { try await load(from: inputPath, runtime: nil) }
 
-    /// Like build: unnamed loads stay Apple's.
+    /// Like build: unnamed loads stay Apple's; a named engine that loads
+    /// (the hvf machine's guest) takes the archive itself.
     public func load(from inputPath: String, runtime: String?) async throws {
-        try await requireApple(runtime, "image load")
-        try await apple.load(from: inputPath)
+        guard let runtime, !runtime.isEmpty, runtime != "apple" else { return try await apple.load(from: inputPath) }
+        switch try await routing.named(runtime) {
+        case .apple: try await apple.load(from: inputPath)
+        case .engine(let name, let store):
+            guard store.savesAndLoads else {
+                throw MicropodError.unsupported("runtime '\(name)' does not support image load")
+            }
+            _ = try await store.load(from: inputPath)
+        }
     }
 }

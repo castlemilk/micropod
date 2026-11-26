@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-5c8cb3ef88d3bedc/micropod",
+    "ci",
+    "run",
+    "--scratch-mib",
+    "128",
+    "--pull=never",
+    "--name",
+    "mp-t-j1xya7tp-scratch-cli",
+    "--label",
+    "io.micropod.bench.ci-concurrency=mp-t-j1xya7tp",
+    "--network",
+    "none",
+    "--memory",
+    "128m",
+    "--pids-limit",
+    "64",
+    "--entrypoint",
+    "/bin/sh",
+    "micropod-internal/go-cache-fanout:r7zsq0",
+    "-ec",
+    "test \"$(stat -f -c %T /tmp)\" = tmpfs\ntest \"$(stat -c %a /tmp)\" = 1777\nprintf '#!/bin/sh\\nexit 0\\n' >/tmp/cli-check\nchmod 0700 /tmp/cli-check\n/tmp/cli-check\nprintf 'native-cli %s %s\\n' \"$(cat /proc/sys/kernel/random/boot_id)\" \"$(df -Pk /tmp | awk 'NR==2 {print $2}')\" "
+  ],
+  "code": 0,
+  "stdout": "native-cli 639003cb-daf8-4022-8738-e34d1f42810b 131072",
+  "stderr": "",
+  "auto_removed": true
+}

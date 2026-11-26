@@ -1,0 +1,134 @@
+{
+  "direction": "231.08",
+  "micropod_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "linux_release": "v7.3.5",
+  "kernel_source_archive_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "excerpt_sha256": "48203cdb3f765ef4712939735249fb48005f1f4f8d39ab49611b2cc084962abd",
+  "archived_route": {
+    "AdvMSS": 0,
+    "Congctl": "reno",
+    "Cwnd": 0,
+    "Dst": {
+      "IP": "192.168.132.1",
+      "Mask": "/////w=="
+    },
+    "Encap": null,
+    "Family": 2,
+    "FastOpenNoCookie": 0,
+    "Features": 0,
+    "Flags": 0,
+    "Gw": "",
+    "Hoplimit": 0,
+    "ILinkIndex": 0,
+    "InitCwnd": 0,
+    "InitRwnd": 0,
+    "LinkIndex": 3,
+    "MPLSDst": null,
+    "MTU": 0,
+    "MTULock": false,
+    "MultiPath": null,
+    "NewDst": null,
+    "Priority": 0,
+    "Protocol": 3,
+    "QuickACK": 0,
+    "Realm": 0,
+    "Reordering": 0,
+    "RtoMin": 20,
+    "RtoMinLock": true,
+    "Rtt": 0,
+    "RttVar": 0,
+    "Scope": 253,
+    "Src": "10.88.0.2",
+    "Ssthresh": 0,
+    "Table": 254,
+    "Tos": 0,
+    "Type": 1,
+    "Via": null,
+    "Window": 0
+  },
+  "historical_files_sha256": {
+    "gamma-vm-scheduling.json.gz": "29f33979ca570117e54addabfe07aecb452ab23af7f0b9e039c996dbb9611e51",
+    "gamma-direct-macvlan.json.gz": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976"
+  },
+  "release_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+  "kernel_hz": 250,
+  "input_srtt_us": 1000,
+  "rto_remaining_us": 400000,
+  "tcp_early_retrans": 3,
+  "sack": true,
+  "arms": "Control initialized from stock netns TCP_RTO_MIN default. Candidate then sets TCP_RTO_MIN_US=8000. No route changes within any pair.",
+  "rows": [
+    {
+      "route_locked": 0,
+      "packets_out": 1,
+      "candidate": 0,
+      "set_status": 0,
+      "get_option_us": 200000,
+      "effective_floor_us": 200000,
+      "scheduled_probe_us": 204000
+    },
+    {
+      "route_locked": 0,
+      "packets_out": 1,
+      "candidate": 1,
+      "set_status": 0,
+      "get_option_us": 8000,
+      "effective_floor_us": 8000,
+      "scheduled_probe_us": 12000
+    },
+    {
+      "route_locked": 0,
+      "packets_out": 2,
+      "candidate": 0,
+      "set_status": 0,
+      "get_option_us": 200000,
+      "effective_floor_us": 200000,
+      "scheduled_probe_us": 4000
+    },
+    {
+      "route_locked": 0,
+      "packets_out": 2,
+      "candidate": 1,
+      "set_status": 0,
+      "get_option_us": 8000,
+      "effective_floor_us": 8000,
+      "scheduled_probe_us": 4000
+    },
+    {
+      "route_locked": 1,
+      "packets_out": 1,
+      "candidate": 0,
+      "set_status": 0,
+      "get_option_us": 200000,
+      "effective_floor_us": 20000,
+      "scheduled_probe_us": 24000
+    },
+    {
+      "route_locked": 1,
+      "packets_out": 1,
+      "candidate": 1,
+      "set_status": 0,
+      "get_option_us": 8000,
+      "effective_floor_us": 20000,
+      "scheduled_probe_us": 24000
+    },
+    {
+      "route_locked": 1,
+      "packets_out": 2,
+      "candidate": 0,
+      "set_status": 0,
+      "get_option_us": 200000,
+      "effective_floor_us": 20000,
+      "scheduled_probe_us": 4000
+    },
+    {
+      "route_locked": 1,
+      "packets_out": 2,
+      "candidate": 1,
+      "set_status": 0,
+      "get_option_us": 8000,
+      "effective_floor_us": 20000,
+      "scheduled_probe_us": 4000
+    }
+  ]
+}

@@ -1,0 +1,947 @@
+{
+  "common_run_preflight": "20261125T061542Z-local-mq8jvj20",
+  "host": "Gamma",
+  "recorded_utc": "2026-11-25T07:05:36.064949+00:00",
+  "all_retired_scopes_verified": 270,
+  "previous_audit_count": 239,
+  "new_scopes": [
+    {
+      "archive": "20261125T052327Z-sibling-go-test-actions-9agk8021",
+      "status": {
+        "complete": false,
+        "diagnostic_only": true,
+        "error": "failed action or malformed dependency"
+      },
+      "scope": "/private/tmp/mp-t-oxkh0xl3"
+    },
+    {
+      "archive": "20261125T052559Z-sibling-go-test-actions-vdg5crny",
+      "status": {
+        "complete": false,
+        "diagnostic_only": true,
+        "error": "unrelated OrbStack workload is active"
+      },
+      "scope": "/private/tmp/mp-t-mjqnbvfp"
+    },
+    {
+      "archive": "20261125T052931Z-sibling-file-fault-around-vzwu9f3e",
+      "status": {
+        "complete": false,
+        "error": "private worker ended with exit code 1 after 1 launchd run(s); see /Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/20261125T052931Z-sibling-file-fault-around-vzwu9f3e/a/launch-state.jsonl\nPreparing the CI disk at /tmp/mp-t-596qhiy5/a/worker.ext4\nWorker kernel: /Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T233020Z-ipvlan-my8pf7su/full-16k/Image\nusing ghcr.io/apple/containerization/vminit:0.47.0; micropod's sandbox is built for vminit 0.42.0\nCI fair scheduler enabled HRTICK with base slice 250000 ns\nCI fair scheduler enabled NEXT_BUDDY\nmicropod ci: Guest container engine did not become ready after boot"
+      },
+      "scope": "/private/tmp/mp-t-596qhiy5"
+    },
+    {
+      "archive": "20261125T053426Z-sibling-file-fault-around-bc4b371w",
+      "status": {
+        "complete": false,
+        "error": "Stopped activation-only diagnostic after capturing guest bootstrap stderr"
+      },
+      "scope": "/private/tmp/mp-t-8ud4js6y"
+    },
+    {
+      "archive": "20261125T053541Z-sibling-file-fault-around-amg82j1e",
+      "status": {
+        "complete": false,
+        "error": "Activation-only diagnostic reached native readiness"
+      },
+      "scope": "/private/tmp/mp-t-qft6c2kf"
+    },
+    {
+      "archive": "20261125T053801Z-sibling-file-fault-around-q75skxwh",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-7_z_ubga"
+    },
+    {
+      "archive": "20261125T053959Z-sibling-file-fault-around-zqfxf2_m",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-6__312u6"
+    },
+    {
+      "archive": "20261125T054154Z-sibling-file-fault-around-76n70mi9",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-he3m5n61"
+    },
+    {
+      "archive": "20261125T054349Z-sibling-file-fault-around-s6prb7w1",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-jn73y_cj"
+    },
+    {
+      "archive": "20261125T054552Z-sibling-go-test-actions-htr7sfgd",
+      "status": {
+        "complete": true,
+        "diagnostic_only": true
+      },
+      "scope": "/private/tmp/mp-t-axb7q3rb"
+    },
+    {
+      "archive": "20261125T054727Z-sibling-file-fault-around-holdout-tdkexzl8",
+      "status": {
+        "complete": false,
+        "error": "unrelated OrbStack workload is active"
+      },
+      "scope": "/private/tmp/mp-t-qwcplks4"
+    },
+    {
+      "archive": "20261125T054859Z-sibling-file-fault-around-holdout-s64ow5oy",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-riwvvcxw"
+    },
+    {
+      "archive": "20261125T055038Z-sibling-file-fault-around-holdout-7c9yrvtp",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-13vxb3w4"
+    },
+    {
+      "archive": "20261125T055215Z-sibling-file-fault-around-holdout-5b2bcyhi",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-fs_jxn0b"
+    },
+    {
+      "archive": "20261125T055352Z-sibling-file-fault-around-holdout-6gf360i_",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-4_6bb1yd"
+    },
+    {
+      "archive": "20261125T060757Z-sibling-ttwu-diagnostic-vqra08ch",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-01ind900"
+    },
+    {
+      "archive": "20261125T062017Z-sibling-ttwu-queue-ivnybfty",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-2yjr43ce"
+    },
+    {
+      "archive": "20261125T062153Z-sibling-ttwu-queue-jyyaks49",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-ztw6ixdg"
+    },
+    {
+      "archive": "20261125T062331Z-sibling-ttwu-queue-zfqzaslw",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-scbpp40g"
+    },
+    {
+      "archive": "20261125T062518Z-sibling-ttwu-queue-d2mmul1o",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-e70qdvc6"
+    },
+    {
+      "archive": "20261125T063845Z-sibling-follow-rpcs-9wyx1fi8",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-6un_a1tz"
+    },
+    {
+      "archive": "20261125T065111Z-sibling-output-polling-yrw3caet",
+      "status": {
+        "complete": false,
+        "error": "missing targeted CRI output or exit-wait tests"
+      },
+      "scope": "/private/tmp/mp-t-ccxprbay"
+    },
+    {
+      "archive": "20261125T065229Z-sibling-output-polling-h9cmmkdr",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-9t6h9mkr"
+    },
+    {
+      "archive": "20261125T065406Z-sibling-output-polling-k9gnbwzr",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-hjh6r1go"
+    },
+    {
+      "archive": "20261125T065652Z-sibling-output-polling-y8ixebu6",
+      "status": {
+        "complete": false,
+        "error": "unrelated OrbStack workload is active"
+      },
+      "scope": "/private/tmp/mp-t-0007fo7n"
+    },
+    {
+      "archive": "20261125T065832Z-sibling-output-polling-ahbid92j",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-ofcnjuzo"
+    },
+    {
+      "archive": "20261125T070017Z-sibling-output-polling-srb6jbpo",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-ng3ny0jy"
+    },
+    {
+      "archive": "20261125T070156Z-sibling-follow-rpcs-4c_5983t",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-s99m97hf"
+    },
+    {
+      "archive": "20261125T070343Z-sibling-follow-rpcs-16xuv88v",
+      "status": {
+        "complete": true
+      },
+      "scope": "/private/tmp/mp-t-eziypct4"
+    }
+  ],
+  "standalone_workers_preflight": "20261125T053628Z-local-mb0q6pgq",
+  "refused_before_allocation": [
+    {
+      "archive": "20261125T052747Z-sibling-go-test-actions-os1gggi8",
+      "reason": "local contention check: Micropod CI supervisor PID 10842: unrecognized Micropod CI supervisor or scope; see admission.jsonl"
+    },
+    {
+      "archive": "20261125T053338Z-sibling-file-fault-around-nkjehf9e",
+      "reason": "local contention check: Micropod CI supervisor PID 28464: unrecognized Micropod CI supervisor or scope; see admission.jsonl"
+    }
+  ],
+  "new_dedicated_volumes": [
+    {
+      "archive": "20261125T052327Z-sibling-go-test-actions-9agk8021",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-oxkh0xl3",
+      "image": "/private/tmp/mp-t-oxkh0xl3/a-worker.sparseimage",
+      "volume_uuid": "2099baba-7f02-443f-9d70-9fdf64e88fd6",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T052559Z-sibling-go-test-actions-vdg5crny",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-mjqnbvfp",
+      "image": "/private/tmp/mp-t-mjqnbvfp/a-worker.sparseimage",
+      "volume_uuid": "4642d069-caf1-4bd5-bf9e-65bed8c28413",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T052931Z-sibling-file-fault-around-vzwu9f3e",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-596qhiy5",
+      "image": "/private/tmp/mp-t-596qhiy5/a-worker.sparseimage",
+      "volume_uuid": "d0cef9eb-b2c7-4ba8-8ce9-749663ffe1b0",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": false,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T053426Z-sibling-file-fault-around-bc4b371w",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-8ud4js6y",
+      "image": "/private/tmp/mp-t-8ud4js6y/a-worker.sparseimage",
+      "volume_uuid": "f93794ea-0efd-4543-883c-3ff811724965",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": false,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T053541Z-sibling-file-fault-around-amg82j1e",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-qft6c2kf",
+      "image": "/private/tmp/mp-t-qft6c2kf/a-worker.sparseimage",
+      "volume_uuid": "04ff778f-cf3d-43fb-9d8f-fef3657696b8",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": false,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T053801Z-sibling-file-fault-around-q75skxwh",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-7_z_ubga",
+      "image": "/private/tmp/mp-t-7_z_ubga/a-worker.sparseimage",
+      "volume_uuid": "6cf1c981-7cf6-4d2d-ba67-0dc90bf180e3",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T053959Z-sibling-file-fault-around-zqfxf2_m",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-6__312u6",
+      "image": "/private/tmp/mp-t-6__312u6/a-worker.sparseimage",
+      "volume_uuid": "c377ce37-76de-4c70-8201-912b30e7b6fe",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T054154Z-sibling-file-fault-around-76n70mi9",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-he3m5n61",
+      "image": "/private/tmp/mp-t-he3m5n61/a-worker.sparseimage",
+      "volume_uuid": "ee65bbb4-389e-4917-b76c-5f2ef180ae7c",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T054349Z-sibling-file-fault-around-s6prb7w1",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-jn73y_cj",
+      "image": "/private/tmp/mp-t-jn73y_cj/a-worker.sparseimage",
+      "volume_uuid": "393d2fa7-606b-4e79-9208-33f65905bbf5",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T054552Z-sibling-go-test-actions-htr7sfgd",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-axb7q3rb",
+      "image": "/private/tmp/mp-t-axb7q3rb/a-worker.sparseimage",
+      "volume_uuid": "36652ddd-9146-4bab-b28a-88caf5177067",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T054727Z-sibling-file-fault-around-holdout-tdkexzl8",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-qwcplks4",
+      "image": "/private/tmp/mp-t-qwcplks4/a-worker.sparseimage",
+      "volume_uuid": "42fd4006-86f1-42fa-a3de-89d605e71897",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T054859Z-sibling-file-fault-around-holdout-s64ow5oy",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-riwvvcxw",
+      "image": "/private/tmp/mp-t-riwvvcxw/a-worker.sparseimage",
+      "volume_uuid": "c64e0fd0-5af4-4aaf-9ffc-d996d46a4264",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T055038Z-sibling-file-fault-around-holdout-7c9yrvtp",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-13vxb3w4",
+      "image": "/private/tmp/mp-t-13vxb3w4/a-worker.sparseimage",
+      "volume_uuid": "b3dff9f8-4381-4cb4-8598-73bc031eb7f4",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T055215Z-sibling-file-fault-around-holdout-5b2bcyhi",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-fs_jxn0b",
+      "image": "/private/tmp/mp-t-fs_jxn0b/a-worker.sparseimage",
+      "volume_uuid": "fb962d56-3da8-4dcd-b142-92ce1ee040b9",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T055352Z-sibling-file-fault-around-holdout-6gf360i_",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-4_6bb1yd",
+      "image": "/private/tmp/mp-t-4_6bb1yd/a-worker.sparseimage",
+      "volume_uuid": "75c71a10-ce2c-4fae-8a0e-8c0d1f2beb5f",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T060757Z-sibling-ttwu-diagnostic-vqra08ch",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-01ind900",
+      "image": "/private/tmp/mp-t-01ind900/a-worker.sparseimage",
+      "volume_uuid": "d4451126-b0df-451b-b9d3-145d51ce07a5",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T062017Z-sibling-ttwu-queue-ivnybfty",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-2yjr43ce",
+      "image": "/private/tmp/mp-t-2yjr43ce/a-worker.sparseimage",
+      "volume_uuid": "3ac7d875-c287-4c0b-b7e8-904e5b3369c8",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T062153Z-sibling-ttwu-queue-jyyaks49",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-ztw6ixdg",
+      "image": "/private/tmp/mp-t-ztw6ixdg/a-worker.sparseimage",
+      "volume_uuid": "fe64dddf-93e5-4134-a80b-9cba8edb747a",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T062331Z-sibling-ttwu-queue-zfqzaslw",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-scbpp40g",
+      "image": "/private/tmp/mp-t-scbpp40g/a-worker.sparseimage",
+      "volume_uuid": "44028bb5-e284-4c76-884e-fda1f05d9b8a",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T062518Z-sibling-ttwu-queue-d2mmul1o",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-e70qdvc6",
+      "image": "/private/tmp/mp-t-e70qdvc6/a-worker.sparseimage",
+      "volume_uuid": "2a4b7706-6d5a-40d0-9f5b-0a68ebfc5a55",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T063845Z-sibling-follow-rpcs-9wyx1fi8",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-6un_a1tz",
+      "image": "/private/tmp/mp-t-6un_a1tz/a-worker.sparseimage",
+      "volume_uuid": "d8d079c1-2342-4f38-8983-b739e618a3f0",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T065111Z-sibling-output-polling-yrw3caet",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-ccxprbay",
+      "image": "/private/tmp/mp-t-ccxprbay/a-worker.sparseimage",
+      "volume_uuid": "da11dee7-ed89-44f8-a720-4d73346c115a",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T065229Z-sibling-output-polling-h9cmmkdr",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-9t6h9mkr",
+      "image": "/private/tmp/mp-t-9t6h9mkr/a-worker.sparseimage",
+      "volume_uuid": "c44f7d86-ac59-4449-ba2b-3f38a4e79a76",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T065406Z-sibling-output-polling-k9gnbwzr",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-hjh6r1go",
+      "image": "/private/tmp/mp-t-hjh6r1go/a-worker.sparseimage",
+      "volume_uuid": "23397f3a-da1d-46e3-a727-5d52f7dab1f0",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T065652Z-sibling-output-polling-y8ixebu6",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-0007fo7n",
+      "image": "/private/tmp/mp-t-0007fo7n/a-worker.sparseimage",
+      "volume_uuid": "a932d370-b63e-4221-a626-bc025eba3870",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T065832Z-sibling-output-polling-ahbid92j",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-ofcnjuzo",
+      "image": "/private/tmp/mp-t-ofcnjuzo/a-worker.sparseimage",
+      "volume_uuid": "829934d9-4818-46e3-bd19-f6618950863f",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T070017Z-sibling-output-polling-srb6jbpo",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-ng3ny0jy",
+      "image": "/private/tmp/mp-t-ng3ny0jy/a-worker.sparseimage",
+      "volume_uuid": "ef94f9ed-f34f-4ccf-b0c2-61fc17ae87d5",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T070156Z-sibling-follow-rpcs-4c_5983t",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-s99m97hf",
+      "image": "/private/tmp/mp-t-s99m97hf/a-worker.sparseimage",
+      "volume_uuid": "fa6f9870-6cf9-46ec-96be-7feaabcdc47e",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T070343Z-sibling-follow-rpcs-16xuv88v",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-eziypct4",
+      "image": "/private/tmp/mp-t-eziypct4/a-worker.sparseimage",
+      "volume_uuid": "d45830a0-4511-4508-8f61-e0a5a8d8b8c4",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T053628Z-local-mb0q6pgq",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-esqg5rgu",
+      "image": "/private/tmp/mp-t-esqg5rgu/a-worker.sparseimage",
+      "volume_uuid": "1a7acc8f-9577-4b67-9938-326e14982f44",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T053628Z-local-mb0q6pgq",
+      "arm": "b",
+      "scope": "/private/tmp/mp-t-esqg5rgu",
+      "image": "/private/tmp/mp-t-esqg5rgu/b-worker.sparseimage",
+      "volume_uuid": "65b71af4-f6c3-4b90-a6ad-0c7691f3f6fb",
+      "configured_disk_gib": 6,
+      "raw_inode": 28,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk16s1",
+        "volume_st_dev": 16777264,
+        "raw_inode": 28,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    },
+    {
+      "archive": "20261125T061542Z-local-mq8jvj20",
+      "arm": "a",
+      "scope": "/private/tmp/mp-t-_yhq6ekk",
+      "image": "/private/tmp/mp-t-_yhq6ekk/a-worker.sparseimage",
+      "volume_uuid": "695cbc27-a485-4602-a0b8-b0da0d4097d0",
+      "configured_disk_gib": 6,
+      "raw_inode": 27,
+      "raw_bytes": 6576668672,
+      "observed_live": true,
+      "post_eject": {
+        "read_only": true,
+        "device": "disk14s1",
+        "volume_st_dev": 16777259,
+        "raw_inode": 27,
+        "raw_bytes": 6576668672,
+        "spotlight": "Indexing and searching disabled.",
+        "journal_files": 0,
+        "journal_bytes": 0
+      },
+      "image_removed": true
+    }
+  ],
+  "baseline_files_and_copies_verified": 24,
+  "baseline_manifest_sha256": "8e7826379b6ae9afd581d179a64b5a0aa11c1efa18f6ba30cd0ea13669f0163e",
+  "owned_launchd_jobs_remaining": 0,
+  "owned_docker_resources_remaining": 0,
+  "owned_scopes_remaining": 0,
+  "owned_go_graph_preflight_containers_remaining": 0,
+  "owned_new_worker_images_attached": 0
+}

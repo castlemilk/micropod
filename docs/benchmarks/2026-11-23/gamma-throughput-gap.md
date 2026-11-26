@@ -13,6 +13,12 @@ The last four-vCPU VM holdout delivered 2,709.8 MiB/s for Micropod and 3,010.4 M
 | Batching filter updates | The bulk profile recorded just 12 short or blocked writes out of 35,821. | Keep this build option off during the worker test. |
 | Register read filters after the guest connection completes | The opt-in relay used four kqueue submissions during asynchronous setup, down from six. In a local stream fixture, relay CPU across each fresh flow fell 2.52% over 16 paired blocks. | Reserve this candidate for a separate connection-churn screen after the fixed-worker comparison. |
 
+On 24 November, the host worker-count preflight exercised the same relay C revision and fixed-budget selector staged for the VM comparison. Both arms used 128 callback events with the real worker count passed to the drain. The ordinary four-worker build returned 24 and was rejected. All three local VM input checks passed. A matched VM trial remains outstanding. [Worker preflight and host observations](../2026-11-24/worker-build-preflight/README.md)
+
+A separate experimental patch lets a busy data owner finish its current set of socket events, then handle a newly queued connection. Across all 32 arrival positions within an eight-stream, 8 MiB burst, it reduced bulk bytes delivered ahead of the first readable reply at 16 positions and tied at 16. The worst case fell from 7.75 to 3.75 MiB. With no handoff, both arms completed the burst in four nonempty polls and one productive callback. MiB/s and elapsed fresh-request latency remain unmeasured for this patch. Keep it separate from the worker-count trial. [Fixed-work sweep](../2026-11-24/handoff-aware-yield/sweep.md) · [Native candidate and verification](../2026-11-24/handoff-aware-yield-native/receipt.md)
+
+The historical VM's 32 downloads received similar shares. Assigning every stream the fastest stream's observed rate for its own six-second window would add a median 48.2 MiB/s (+1.78%) across all 16 clean Micropod rounds. The median paired Micropod/OrbStack ratio would rise from 0.854 to 0.883, still winning the same seven of 15 common clean pairs. This calculation holds the fastest rate fixed. In the host-only test, the slowest four-worker stream exceeded the fastest two-worker stream in each pair, reaching 457 vs 295, 594 vs 333, and 504 vs 341 MiB/s. Improving the rate shared by all streams warrants the first VM worker test. New worker runs include each scored arm’s fastest and slowest stream and their cross-worker ratio in `complete.json`, derived from the raw byte counts and elapsed window. [Per-stream replay of both archives](relay-stream-balance.json)
+
 The deferred-registration result corresponds to a median paired saving of 0.49 µs of relay CPU per asynchronous fresh flow. At the holdout's 40 fresh requests per second, the same per-flow effect would save about 20 µs of CPU per second. This arithmetic only scales the direct cost observed in the local fixture. Bulk-stream delivery and scheduling in the VM still need measurement. [Confirmation samples](relay-handshake-reads-confirmation.json)
 
 Both one-port and 32-port fixtures can report a 16/16 flow split across two workers. The host scorer now checks the port count, client buffer size, profiling mode and minimum elapsed time in the raw output. The earlier scorer accepted the first clean 32-port candidate sample, 11,011.66 MiB/s, when asked to score one port. All 71 clean rates across the 72 original attempts reproduce at their recorded settings. [Scorer regression](../../../scripts/relaybench/test_compare.py)
@@ -58,6 +64,27 @@ An earlier socketpair check forwarded 786,449 bytes in four reads at 256 KiB and
 
 On saturated streams the larger cap halved total bulk writes, 32 to 16 across the batch, while doubling the bytes ahead of a mid-batch arrival. This fixture establishes service order. The elapsed fresh p95 and p99 under real TCP arrivals remain part of the VM decision.
 
+### How often the guest supplies a large read
+
+Two archived VM leases establish a lower bound. Both measured relay sources used a 256 KiB maximum and counted every read attempt, including uploads and EOF. Let `F` be download bytes successfully written and `R` be all read attempts. If `k` guest reads returned more than 128 KiB, then `F ≤ R × 128 KiB + k × 128 KiB`. Rounding up gives the following minimum counts. The source file hashes in the archives match revisions `56b59864` and `692ace08`, respectively.
+
+| Archived lease | Forwarded download bytes | All read attempts | Minimum guest reads above 128 KiB |
+| --- | ---: | ---: | ---: |
+| Bulk only | 8,590,086,899 | 35,875 | 29,663 (82.7%) |
+| Mixed service, 12 rounds | 324,712,275,904 | 1,482,813 | 994,546 (67.1%) |
+
+These leases establish that large guest reads occurred frequently. How much data remained available above 256 KiB is still unknown. The new opt-in `guest_read_supply` profile counts actual sizes and flags a full-cap read when its kqueue event indicated additional queued bytes. Use a separate diagnostic lease at the selected worker count. Both worker counts and read caps must be scored with profiling disabled. [Bulk archive](../2026-11-21/gamma-published-profile.json.gz) · [Mixed archive, record `uncapped-eof/relay`](../2026-11-21/gamma-mixed-path.json.gz) · [C-to-Swift profile checks at both caps](relay-guest-read-profile.json)
+
+A local 16-stream trial varied the amount available to read. With 512 KiB ready per stream, doubling the cap halved reads and writes per 64 MiB from 256 of each to 128. Across 12 paired blocks the verified throughput change was −0.08% (95% paired interval −17.38% to +6.10%). When each offer was only 128 KiB, both caps needed 512 reads and 512 writes. With a 128 KiB downstream buffer and 512 KiB offers, throughput changed +4.10% (−1.34% to +12.43%). These timings include local production, relay, consumption and byte verification on a single thread. [All six conditions, CPU and raw paired samples](relay-read-supply.json)
+
+### Fresh traffic while bulk streams remain ready
+
+At a fixed 512 KiB read cap, we injected one fresh byte before the first poll or immediately after any of the first 16 bulk writes. With 1 MiB waiting per bulk stream, narrowing a flat poll from 24 events to eight increased bulk bytes ahead of the reply after the first write from 7.5 to 11.5 MiB. In six older VM pairs at a fixed 256 KiB cap, width eight won three pairs with a median throughput change of −1.53%. [Position-by-position checks and archived VM replay](relay-ready-poll-width.json)
+
+A second experiment used the existing separate interactive and bulk kqueues on a dedicated data owner. With 512 KiB waiting per stream, the maximum bulk bytes ahead of the marker fell from 7.5 to 5.5 MiB. With 1 MiB waiting, 12 of 17 arrival positions improved, one tied and four got worse. A marker arriving after the sixteenth bulk write went from immediate service to waiting behind 4 MiB. The same 16 MiB took eight polls with separate queues and three with the flat queue. All payloads, forward and reverse FINs, and the pressured revocation checks passed. [Arrival positions and qualification](relay-queue-topology.json)
+
+A separate 12-pair run with 512 KiB offers using stock filter registration measured +17.75% verified throughput (95% interval −12.01% to +26.74%) and −9.00% owner CPU/GiB (−16.49% to +25.52%) for the split queue. At 4 KiB, the rate change was −1.36% (−34.20% to +38.03%). Keep the flat queue and poll width at 24 throughout the worker and read-size comparisons. [Paired throughput and CPU samples](relay-ready-queue-timing.json)
+
 After the stock baseline and worker comparison, the following command prints the four-pair read-size schedule offline. The released-window forms add the two already-serving scopes, current fleet and release evidence, pinned tools, a new output directory and either `--check` or `--run`. Keep guest-facing socket buffers at 512 KiB, both VMs at four vCPUs, one published port and 128 callback events throughout. Carry the selected read cap into the subsequent VM-size and peer comparisons.
 
 ```sh
@@ -65,6 +92,8 @@ python3 -B scripts/relaybench/gamma_pilot.py --mode read-size --relay-workers "$
 ```
 
 ## First released window
+
+At 20:53 AEDT on 23 November the isolated Linux runner held its only slot, and the Mac runner showed zero of six leased. The warm-CI handoff still lacked a released isolated slot for this test. The stock four-vCPU baseline remains first. [Fleet observation](gamma-fleet-2053-aedt.json)
 
 At 16:11 AEDT on 23 November the project volume showed 173 GiB available. Cuttlefish reported four of six slots leased on the Mac and one of one on the isolated Linux runner, whose displayed state was online. The four earlier scopes were retired. The storage update and request for an existing baseline or a released and provisioned scope were placed in the warm-CI handoff. [Fleet observation](gamma-fleet-1611-aedt.json)
 
@@ -111,6 +140,7 @@ python3 -B scripts/relaybench/gamma_pilot.py --mode peer --holdout --seed 34203 
 After a timed holdout, score the local receipts against the executable digest recorded when the candidate was selected. The scorer requires a complete schedule, at least 15 common clean pairs, every Micropod round clean with fresh p95 ≤75 ms, and a lower paired throughput bound above parity. Its exit status is 0 for a qualifying comparison, 1 for a completed comparison that missed the criteria, and 2 for incomplete or invalid evidence.
 
 ```sh
-python3 -B scripts/relaybench/peer_verdict.py --run-directory "$NEW_PEER_RUN" --candidate-sha256 "$SELECTED_CLI_SHA" --candidate-read-kib "$READ_KIB"
+python3 -B scripts/relaybench/peer_verdict.py --run-directory "$NEW_PEER_RUN" --candidate-sha256 "$SELECTED_CLI_SHA" \
+  --candidate-read-kib "$READ_KIB" --candidate-workers "$WORKERS" --candidate-vcpus "$VCPUS"
 python3 -B scripts/relaybench/peer_verdict.py --archive
 ```

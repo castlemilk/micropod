@@ -1,0 +1,59 @@
+{
+  "order": [
+    [
+      "A-steered",
+      "B-ref0",
+      "A-local",
+      "B-ref1"
+    ],
+    [
+      "B-ref0",
+      "B-ref1",
+      "A-steered",
+      "A-local"
+    ],
+    [
+      "B-ref1",
+      "A-local",
+      "B-ref0",
+      "A-steered"
+    ],
+    [
+      "A-local",
+      "A-steered",
+      "B-ref1",
+      "B-ref0"
+    ]
+  ],
+  "order_seed": 118327,
+  "build_slots": 8,
+  "initial": {
+    "boot": "e6911718-826a-4da9-9e15-51e6dca6eb84",
+    "virtio": "virtio1",
+    "driver": "virtio_net",
+    "ifindex": "3",
+    "irq": "14",
+    "effective": "3",
+    "irq_counts": "1,0,0,2136",
+    "NET_TX": "63,38,35,526",
+    "NET_RX": "165,121,169,1989",
+    "tx_bytes": "271966607",
+    "rx_bytes": "278053",
+    "tx_packets": "5193",
+    "tx_dropped": "0",
+    "rx_dropped": "0",
+    "tx_errors": "0",
+    "rx_errors": "0",
+    "tx_kicks": "1435",
+    "tx_tx_timeouts": "0",
+    "tx0_kicks": "1435",
+    "rps_cpus": "0",
+    "received_rps_00000000": "00000000",
+    "received_rps_00000001": "00000000",
+    "received_rps_00000002": "00000000",
+    "received_rps_00000003": "00000000"
+  },
+  "artifact": "memory",
+  "service_file_sha256": "dfb347656ada2a2acf7f034bc5ac70f11b5d79cc5ed731701e398be2d8e2a608",
+  "fixed_client_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53"
+}

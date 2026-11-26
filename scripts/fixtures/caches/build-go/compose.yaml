@@ -1,0 +1,12 @@
+# `docker compose build` of two services through the same build path.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: qual-compose-app:latest
+  nonroot:
+    build:
+      context: .
+      dockerfile: Dockerfile.nonroot
+    image: qual-compose-nonroot:latest

@@ -1,0 +1,43 @@
+{
+  "scope": "two historical matched 32-port CI pairs",
+  "pairs": [
+    {
+      "block": 0,
+      "micropod_min_max_mib_s": [
+        140.04159320012766,
+        186.93918851610437
+      ],
+      "orbstack_min_max_mib_s": [
+        198.2993328525377,
+        278.44055809007716
+      ],
+      "all_micropod_streams_below_every_orbstack_stream": true,
+      "lowest_eight_byte_share": {
+        "A": 0.22968901067721892,
+        "B": 0.2276155555856321
+      },
+      "aggregate_gap_mib_s": 2040.9130106507582,
+      "gain_at_observed_fastest_mib_s": 886.0284911329254,
+      "residual_at_observed_fastest_mib_s": 1154.8845195178328
+    },
+    {
+      "block": 1,
+      "micropod_min_max_mib_s": [
+        127.90037053906221,
+        188.4779426389311
+      ],
+      "orbstack_min_max_mib_s": [
+        188.79015241231917,
+        256.2167763081483
+      ],
+      "all_micropod_streams_below_every_orbstack_stream": true,
+      "lowest_eight_byte_share": {
+        "A": 0.2256908864814964,
+        "B": 0.22972275408548037
+      },
+      "aggregate_gap_mib_s": 2180.0312201049655,
+      "gain_at_observed_fastest_mib_s": 989.2563431790741,
+      "residual_at_observed_fastest_mib_s": 1190.7748769258915
+    }
+  ]
+}

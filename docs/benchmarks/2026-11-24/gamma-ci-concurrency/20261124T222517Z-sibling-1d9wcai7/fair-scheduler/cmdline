@@ -1,0 +1,1 @@
+console=hvc0 tsc=reliable panic=0 rcupdate.rcu_expedited=1 psi=1 micropod.ci_sched=hrtick micropod.ci_wakeup=next-buddy init=/sbin/vminitd ro rootfstype=ext4 root=/dev/vda

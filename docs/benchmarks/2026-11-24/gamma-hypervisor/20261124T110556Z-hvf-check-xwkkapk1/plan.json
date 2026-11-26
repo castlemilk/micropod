@@ -1,0 +1,58 @@
+{
+  "seed": 34225,
+  "order": [
+    [
+      {
+        "block": 0,
+        "transport": "mmio",
+        "batch": 1
+      },
+      {
+        "block": 0,
+        "transport": "hvc",
+        "batch": 1
+      },
+      {
+        "block": 0,
+        "transport": "mmio",
+        "batch": 8
+      },
+      {
+        "block": 0,
+        "transport": "hvc",
+        "batch": 8
+      }
+    ]
+  ],
+  "total": 65537,
+  "experiment": "notification",
+  "page_bytes": 16384,
+  "vcpus": 1,
+  "load": "functional",
+  "host": "Gamma-128GB.local",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+  "cpu": "Apple M5 Max",
+  "hv_support": "1",
+  "sources": {
+    "docs/benchmarks/2026-11-24/gamma-hypervisor/hardware.py": "64911ea0e576b9cecb9964e2b8880f145bcbf2c0cb1b7e0d3f23972678078b63",
+    "scripts/relaybench/hvf_notify/guest.S": "f4c6e0a866e61f060cc0f0bb7fda8b034c7f9a533eb38b7f37856035bbed02c0",
+    "scripts/relaybench/hvf_notify/notify.c": "98d23b989a2642f15a225a31462b5f5b5657edd44a13f47368cdd714e7e4bbe3",
+    "scripts/relaybench/hvf_notify/vm.c": "9a8b90964eb643609983e176f686002e693cd239e8257376a749492ae95dc731",
+    "scripts/relaybench/hvf_notify/vm.h": "323758b8d1fbb0e49f229262658443439f67402700221d66f5ed599b0e6c7483",
+    "scripts/relaybench/hvf_tx_probe/apple.c": "226f793ab483e734f9c306a5279932f96872056396879bec09e3c03908c5d37d"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "flags": [
+    "xcrun",
+    "clang",
+    "-arch",
+    "arm64",
+    "-O2",
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sdk": "26.5",
+  "binary_sha256": "8e503cb346cd4c38078de0cee08f7e5e6b44f2cbe3d26b0c3e43aba4cc747787"
+}

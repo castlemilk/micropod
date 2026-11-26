@@ -1,0 +1,45 @@
+{
+  "kernel_archive_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "kernel_source_sha256": {
+    "drivers/net/macvlan.c": "8acd99e9496a3d7cc9c7ad7557549c85f1ae991cb2e42edb6dfc3ddaf5f81f28",
+    "drivers/net/virtio_net.c": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+    "net/core/dev.c": "8b3c43e8becfd552ead597c2e009edf16b126924a7cbe4c5c961e74563b76274",
+    "net/sched/sch_fq.c": "29b796533fff2d9b2a71b3e6f4150580ccf7b07d7d87bca3d768079958331038"
+  },
+  "kernel_version": "7.3.5",
+  "micropod_direct_source_sha256": "65b5c179ab4a4ad4a9f50087275d13fa2447e2dd7efb8d208763bfd88bb61490",
+  "micropod_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "network_samples": 0,
+  "source_field_references": {
+    "include/linux/netdevice.h": [
+      "*\t@max_pacing_offload_horizon: max EDT offload horizon in nsec.",
+      "u64\t\t\tmax_pacing_offload_horizon;"
+    ],
+    "net/core/rtnetlink.c": [
+      "READ_ONCE(dev->max_pacing_offload_horizon)) ||"
+    ],
+    "net/sched/sch_fq.c": [
+      "if (offload_horizon <= qdisc_dev(sch)->max_pacing_offload_horizon) {"
+    ]
+  },
+  "stock_control_and_candidate": [
+    {
+      "device_cap_ns": 0,
+      "effective_ns": 0,
+      "request_us": 0,
+      "return_code": 0
+    },
+    {
+      "device_cap_ns": 0,
+      "effective_ns": 0,
+      "request_us": 20,
+      "return_code": -22
+    }
+  ],
+  "synthetic_capable_device_check": {
+    "device_cap_ns": 20000,
+    "effective_ns": 20000,
+    "request_us": 20,
+    "return_code": 0
+  }
+}

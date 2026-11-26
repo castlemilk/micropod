@@ -1,0 +1,598 @@
+{
+  "profiler": {
+    "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/host-vcpu-6ecb84a7e168119a/profile_vm_scheduler.c",
+    "source_sha256": "6ecb84a7e168119a604964c1336305068ef15eb90a61785345b0ad07d82fa0e5",
+    "binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/host-vcpu-6ecb84a7e168119a/profile-vcpu",
+    "binary_sha256": "607e03ec195598a5a32c0f56e7de420b9eda4c0d6eca4a63218fad3876e087ad",
+    "smoke_cpu_indices": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "level_names": [
+      "Super",
+      "Performance"
+    ]
+  },
+  "runs": [
+    {
+      "archive": "20261125T032030Z-sibling-compiler-affinity-ts1qfxzz",
+      "treatment": "home",
+      "seed": 250201,
+      "engines": {
+        "A": {
+          "calibration_fractions": [
+            0.9180511624427571,
+            0.8697712005550182,
+            0.9223461519876407,
+            0.8846405916262269
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.8390116666666665,
+                "1": 2.7793041666666665,
+                "2": 2.8082762916666666,
+                "3": 2.8950995
+              },
+              "super_fraction": 0.9985460395661795,
+              "elapsed_host_seconds": 2.941080458,
+              "max_over_min_vcpu_cpu_seconds": 1.041663425947442,
+              "last_builder_vcpu": "3",
+              "last_over_other_cpu_seconds": 1.0309169039353336,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.989278875,
+                "1": 2.778206708333333,
+                "2": 2.805757625,
+                "3": 2.805783583333333
+              },
+              "super_fraction": 0.997995632630314,
+              "elapsed_host_seconds": 3.032390875,
+              "max_over_min_vcpu_cpu_seconds": 1.0759742484364279,
+              "last_builder_vcpu": "0",
+              "last_over_other_cpu_seconds": 1.0654088037985818,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 2.7826059166666663,
+                "1": 2.793292958333333,
+                "2": 2.78426125,
+                "3": 2.9019009166666665
+              },
+              "super_fraction": 0.9925863333223143,
+              "elapsed_host_seconds": 2.949157375,
+              "max_over_min_vcpu_cpu_seconds": 1.042871683440861,
+              "last_builder_vcpu": "3",
+              "last_over_other_cpu_seconds": 1.0422516625071252,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.810372875,
+                "1": 2.823681333333333,
+                "2": 2.7903016666666667,
+                "3": 2.802378208333333
+              },
+              "super_fraction": 0.9984914208761915,
+              "elapsed_host_seconds": 2.861889208,
+              "max_over_min_vcpu_cpu_seconds": 1.0119627447689348,
+              "last_builder_vcpu": "1",
+              "last_over_other_cpu_seconds": 1.0076018022608981,
+              "last_has_least_host_cpu": false
+            }
+          ]
+        },
+        "B": {
+          "calibration_fractions": [
+            0.9460219733319489,
+            0.9826881251350589,
+            0.9745641985851969,
+            0.9267514551296842
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.83334875,
+                "1": 2.8265276666666663,
+                "2": 2.851018208333333,
+                "3": 2.82262875
+              },
+              "super_fraction": 0.9983665090086485,
+              "elapsed_host_seconds": 2.922348541,
+              "max_over_min_vcpu_cpu_seconds": 1.0100578081100227,
+              "last_builder_vcpu": "2",
+              "last_over_other_cpu_seconds": 1.0086645327960113,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.8252355416666664,
+                "1": 2.789124625,
+                "2": 2.803687458333333,
+                "3": 2.892282
+              },
+              "super_fraction": 0.9989459524704171,
+              "elapsed_host_seconds": 2.98329575,
+              "max_over_min_vcpu_cpu_seconds": 1.0369855739235747,
+              "last_builder_vcpu": "3",
+              "last_over_other_cpu_seconds": 1.0315992930678985,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 2.8081752916666667,
+                "1": 2.794537125,
+                "2": 2.794896,
+                "3": 2.79672375
+              },
+              "super_fraction": 0.9989985184913442,
+              "elapsed_host_seconds": 2.926145,
+              "max_over_min_vcpu_cpu_seconds": 1.0048802953965645,
+              "last_builder_vcpu": "0",
+              "last_over_other_cpu_seconds": 1.00475126504409,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.8182053333333332,
+                "1": 2.830245458333333,
+                "2": 2.8110947916666666,
+                "3": 2.821699458333333
+              },
+              "super_fraction": 0.9781357207687933,
+              "elapsed_host_seconds": 2.937078042,
+              "max_over_min_vcpu_cpu_seconds": 1.0068125296676005,
+              "last_builder_vcpu": "1",
+              "last_over_other_cpu_seconds": 1.0042722667711934,
+              "last_has_least_host_cpu": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "archive": "20261125T032201Z-sibling-compiler-affinity-obpeb5h0",
+      "treatment": "pool",
+      "seed": 250201,
+      "engines": {
+        "A": {
+          "calibration_fractions": [
+            0.8921502508383414,
+            0.8656798421884252,
+            0.9283504482361012,
+            0.8707240410603805
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.8474099166666664,
+                "1": 2.834999083333333,
+                "2": 2.8034491666666663,
+                "3": 2.844497625
+              },
+              "super_fraction": 0.9984588818755799,
+              "elapsed_host_seconds": 2.914030958,
+              "max_over_min_vcpu_cpu_seconds": 1.0156809513518912
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.826011625,
+                "1": 2.8747742916666663,
+                "2": 2.870870708333333,
+                "3": 2.883719458333333
+              },
+              "super_fraction": 0.9977717849260486,
+              "elapsed_host_seconds": 2.961178917,
+              "max_over_min_vcpu_cpu_seconds": 1.0204202391889783
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 2.8148236666666664,
+                "1": 2.969513375,
+                "2": 2.874905708333333,
+                "3": 2.817117125
+              },
+              "super_fraction": 0.9929263284800922,
+              "elapsed_host_seconds": 3.069213083,
+              "max_over_min_vcpu_cpu_seconds": 1.0549553814561032
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.8280742083333332,
+                "1": 2.8326105416666665,
+                "2": 2.809308958333333,
+                "3": 2.872570083333333
+              },
+              "super_fraction": 0.9978496227030624,
+              "elapsed_host_seconds": 2.949299458,
+              "max_over_min_vcpu_cpu_seconds": 1.0225183936470736
+            }
+          ]
+        },
+        "B": {
+          "calibration_fractions": [
+            0.9600676279457434,
+            0.9688310685475492,
+            0.9711781946469318,
+            0.8830775395706297
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.8732567916666665,
+                "1": 2.8142926666666663,
+                "2": 2.8036060416666664,
+                "3": 2.823632125
+              },
+              "super_fraction": 0.9979346717963696,
+              "elapsed_host_seconds": 2.934561917,
+              "max_over_min_vcpu_cpu_seconds": 1.0248432729009938
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.889742958333333,
+                "1": 2.8800545,
+                "2": 2.8822801666666664,
+                "3": 2.877868125
+              },
+              "super_fraction": 0.9949856189334918,
+              "elapsed_host_seconds": 2.972738375,
+              "max_over_min_vcpu_cpu_seconds": 1.0041262604183203
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 2.824227625,
+                "1": 2.85052125,
+                "2": 2.84174125,
+                "3": 2.824554083333333
+              },
+              "super_fraction": 0.9990225326877877,
+              "elapsed_host_seconds": 2.918841375,
+              "max_over_min_vcpu_cpu_seconds": 1.0093100233023888
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.8235779166666664,
+                "1": 2.895510125,
+                "2": 2.800127958333333,
+                "3": 2.83660125
+              },
+              "super_fraction": 0.9801033951710227,
+              "elapsed_host_seconds": 2.9754005,
+              "max_over_min_vcpu_cpu_seconds": 1.0340635028420058
+            }
+          ]
+        }
+      }
+    },
+    {
+      "archive": "20261125T032333Z-sibling-compiler-affinity-dq2d8m5a",
+      "treatment": "pool",
+      "seed": 250203,
+      "engines": {
+        "A": {
+          "calibration_fractions": [
+            0.8594219552183806,
+            0.9251692827322913,
+            0.8761526363510955,
+            0.9290935018864009
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.8950645416666667,
+                "1": 2.904014375,
+                "2": 2.915826125,
+                "3": 2.930181625
+              },
+              "super_fraction": 0.9966370724019229,
+              "elapsed_host_seconds": 3.039293334,
+              "max_over_min_vcpu_cpu_seconds": 1.0121299828822181
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.8822404166666664,
+                "1": 2.91871575,
+                "2": 2.90472925,
+                "3": 2.895628
+              },
+              "super_fraction": 0.9976672181535537,
+              "elapsed_host_seconds": 3.03195575,
+              "max_over_min_vcpu_cpu_seconds": 1.0126552015308694
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 2.8575304166666666,
+                "1": 2.8616631666666663,
+                "2": 2.848629833333333,
+                "3": 2.844537
+              },
+              "super_fraction": 0.998275557587141,
+              "elapsed_host_seconds": 2.94000575,
+              "max_over_min_vcpu_cpu_seconds": 1.0060207220600985
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.8548184166666664,
+                "1": 2.847930083333333,
+                "2": 2.8848356666666666,
+                "3": 2.8473489166666663
+              },
+              "super_fraction": 0.9964650463593662,
+              "elapsed_host_seconds": 2.967617375,
+              "max_over_min_vcpu_cpu_seconds": 1.0131654922164879
+            }
+          ]
+        },
+        "B": {
+          "calibration_fractions": [
+            0.9327052898652066,
+            0.9719245415763418,
+            0.886880834859571,
+            0.964674344709938
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.8441400416666665,
+                "1": 2.852394625,
+                "2": 2.8479299166666667,
+                "3": 2.8466885416666665
+              },
+              "super_fraction": 0.9990577190431134,
+              "elapsed_host_seconds": 2.9154275,
+              "max_over_min_vcpu_cpu_seconds": 1.0029023125487508
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.8686685,
+                "1": 2.822076083333333,
+                "2": 2.830573125,
+                "3": 2.8151886666666663
+              },
+              "super_fraction": 0.9988281846957753,
+              "elapsed_host_seconds": 2.944538666,
+              "max_over_min_vcpu_cpu_seconds": 1.0189968913865572
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 3.199379333333333,
+                "1": 3.1487061666666665,
+                "2": 3.1125486666666666,
+                "3": 3.155094625
+              },
+              "super_fraction": 0.9873563223363919,
+              "elapsed_host_seconds": 3.273637708,
+              "max_over_min_vcpu_cpu_seconds": 1.0278969667515774
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.83283625,
+                "1": 2.871619625,
+                "2": 2.853121708333333,
+                "3": 2.8521717916666667
+              },
+              "super_fraction": 0.9912829264052087,
+              "elapsed_host_seconds": 2.95108275,
+              "max_over_min_vcpu_cpu_seconds": 1.0136906519040767
+            }
+          ]
+        }
+      }
+    },
+    {
+      "archive": "20261125T032505Z-sibling-compiler-affinity-re3173od",
+      "treatment": "home",
+      "seed": 250203,
+      "engines": {
+        "A": {
+          "calibration_fractions": [
+            0.8978918525933584,
+            0.8839275115392768,
+            0.9291691605759382,
+            0.8891484449919445
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.95820075,
+                "1": 2.919999,
+                "2": 2.929530458333333,
+                "3": 3.073745125
+              },
+              "super_fraction": 0.9732623377074441,
+              "elapsed_host_seconds": 3.11947025,
+              "max_over_min_vcpu_cpu_seconds": 1.0526528005660276,
+              "last_builder_vcpu": "3",
+              "last_over_other_cpu_seconds": 1.0492279116799876,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.858528875,
+                "1": 2.976036625,
+                "2": 2.82708225,
+                "3": 2.8564020416666667
+              },
+              "super_fraction": 0.977915362154679,
+              "elapsed_host_seconds": 3.028894083,
+              "max_over_min_vcpu_cpu_seconds": 1.052688376859216,
+              "last_builder_vcpu": "1",
+              "last_over_other_cpu_seconds": 1.0418829638083889,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 2.935046958333333,
+                "1": 2.762296208333333,
+                "2": 2.7695676666666666,
+                "3": 2.782645
+              },
+              "super_fraction": 0.9988230942747591,
+              "elapsed_host_seconds": 2.979142208,
+              "max_over_min_vcpu_cpu_seconds": 1.0625388216798919,
+              "last_builder_vcpu": "0",
+              "last_over_other_cpu_seconds": 1.0597491419539247,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.8710560416666664,
+                "1": 2.853800625,
+                "2": 2.943956833333333,
+                "3": 2.877189875
+              },
+              "super_fraction": 0.9854665835830834,
+              "elapsed_host_seconds": 2.994915208,
+              "max_over_min_vcpu_cpu_seconds": 1.031591628211005,
+              "last_builder_vcpu": "2",
+              "last_over_other_cpu_seconds": 1.025391629633376,
+              "last_has_least_host_cpu": false
+            }
+          ]
+        },
+        "B": {
+          "calibration_fractions": [
+            0.9431725451449376,
+            0.9185532251950419,
+            0.963655321815648,
+            0.9632149919006172
+          ],
+          "windows": [
+            {
+              "block": 0,
+              "vcpu_cpu_seconds": {
+                "0": 2.8536979166666665,
+                "1": 2.857491708333333,
+                "2": 2.881410625,
+                "3": 2.857542833333333
+              },
+              "super_fraction": 0.9954623420026112,
+              "elapsed_host_seconds": 2.965022792,
+              "max_over_min_vcpu_cpu_seconds": 1.0097111569418336,
+              "last_builder_vcpu": "0",
+              "last_over_other_cpu_seconds": 0.9986544675299998,
+              "last_has_least_host_cpu": true
+            },
+            {
+              "block": 1,
+              "vcpu_cpu_seconds": {
+                "0": 2.799607833333333,
+                "1": 2.834316375,
+                "2": 2.8145821666666664,
+                "3": 2.7956835
+              },
+              "super_fraction": 0.9983268766468899,
+              "elapsed_host_seconds": 2.90987875,
+              "max_over_min_vcpu_cpu_seconds": 1.013818758453881,
+              "last_builder_vcpu": "1",
+              "last_over_other_cpu_seconds": 1.012397644146231,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 2,
+              "vcpu_cpu_seconds": {
+                "0": 2.822564833333333,
+                "1": 2.85121325,
+                "2": 2.82146325,
+                "3": 2.8339486666666667
+              },
+              "super_fraction": 0.9983408971279795,
+              "elapsed_host_seconds": 2.960070875,
+              "max_over_min_vcpu_cpu_seconds": 1.0105441741975552,
+              "last_builder_vcpu": "1",
+              "last_over_other_cpu_seconds": 1.010149781620015,
+              "last_has_least_host_cpu": false
+            },
+            {
+              "block": 3,
+              "vcpu_cpu_seconds": {
+                "0": 2.907801958333333,
+                "1": 2.8632402916666666,
+                "2": 2.872125,
+                "3": 2.896724875
+              },
+              "super_fraction": 0.9978924449145721,
+              "elapsed_host_seconds": 2.985883667,
+              "max_over_min_vcpu_cpu_seconds": 1.0155633695140298,
+              "last_builder_vcpu": "0",
+              "last_over_other_cpu_seconds": 1.0124217986102044,
+              "last_has_least_host_cpu": false
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "summary": {
+    "home": {
+      "A": {
+        "windows": 8,
+        "minimum_calibration_fraction": 0.8697712005550182,
+        "median_super_fraction": 0.9952909829763141,
+        "minimum_super_fraction": 0.9732623377074441,
+        "median_max_over_min_vcpu_cpu_seconds": 1.0477622420034443,
+        "last_has_least_host_cpu_count": 0,
+        "median_last_over_other_cpu_seconds": 1.042067313157757
+      },
+      "B": {
+        "windows": 8,
+        "minimum_calibration_fraction": 0.9185532251950419,
+        "median_super_fraction": 0.9983338868874347,
+        "minimum_super_fraction": 0.9781357207687933,
+        "median_max_over_min_vcpu_cpu_seconds": 1.0103009911537888,
+        "last_has_least_host_cpu_count": 1,
+        "median_last_over_other_cpu_seconds": 1.0094071572080132
+      }
+    },
+    "pool": {
+      "A": {
+        "windows": 8,
+        "minimum_calibration_fraction": 0.8594219552183806,
+        "median_super_fraction": 0.9977195015398012,
+        "minimum_super_fraction": 0.9929263284800922,
+        "median_max_over_min_vcpu_cpu_seconds": 1.0144232217841895
+      },
+      "B": {
+        "windows": 8,
+        "minimum_calibration_fraction": 0.8830775395706297,
+        "median_super_fraction": 0.9964601453649307,
+        "minimum_super_fraction": 0.9801033951710227,
+        "median_max_over_min_vcpu_cpu_seconds": 1.016343771645317
+      }
+    }
+  }
+}

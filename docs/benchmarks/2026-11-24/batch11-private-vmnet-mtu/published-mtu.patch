@@ -1,0 +1,43 @@
+--- a/Sources/MicropodRuntime/SandboxNetwork.swift
++++ b/Sources/MicropodRuntime/SandboxNetwork.swift
+@@ -29,12 +29,13 @@
+     private let reference: vmnet_network_ref
+     private let anchor: Mutex<SandboxNetworkAnchor?>
+ 
+-    init(mode: vmnet.operating_modes_t, pinBridge: Bool = false) throws {
++    init(mode: vmnet.operating_modes_t, pinBridge: Bool = false, benchmarkPublicationMTU: String? = nil) throws {
+         var status: vmnet_return_t = .VMNET_FAILURE
+         guard let config = vmnet_network_configuration_create(mode, &status) else {
+             throw MicropodError.message("vmnet network configuration failed (status \(status.rawValue))")
+         }
+         defer { Self.release(config) }
++        try PublishedMTUBenchmark.apply(benchmarkPublicationMTU, to: config, mode: mode)
+         vmnet_network_configuration_disable_dhcp(config)
+         guard let reference = vmnet_network_create(config, &status), status == .VMNET_SUCCESS else {
+             throw MicropodError.message("vmnet network creation failed (status \(status.rawValue))")
+@@ -81,11 +82,11 @@
+         }
+     }
+ 
+-    static func workerNetwork(mode: vmnet.operating_modes_t) async throws -> SandboxNetwork {
++    static func workerNetwork(mode: vmnet.operating_modes_t, benchmarkPublicationMTU: String? = nil) async throws -> SandboxNetwork {
+         // Internet Sharing can reject the first attachment while retiring an old bridge.
+         // Release each confirmed attempt before requesting the next reservation.
+         for attempt in 1...3 {
+-            let network = try SandboxNetwork(mode: mode, pinBridge: true)
++            let network = try SandboxNetwork(mode: mode, pinBridge: true, benchmarkPublicationMTU: benchmarkPublicationMTU)
+             do {
+                 try network.waitUntilReady()
+                 return network
+--- a/Sources/MicropodRuntime/SandboxVM.swift
++++ b/Sources/MicropodRuntime/SandboxVM.swift
+@@ -248,7 +248,8 @@
+         if ciWorker?.isNativeRunner == true, let tools = options.ciOCITools,
+             FileManager.default.fileExists(atPath: tools.appendingPathComponent("runner/published-ports.sh").path)
+         {
+-            publishedNetwork = try await SandboxNetwork.workerNetwork(mode: .VMNET_HOST_MODE)
++            publishedNetwork = try await SandboxNetwork.workerNetwork(
++                mode: .VMNET_HOST_MODE, benchmarkPublicationMTU: ProcessInfo.processInfo.environment["MICROPOD_BENCH_PRIVATE_PUBLICATION_MTU"])
+         } else {
+             publishedNetwork = nil
+         }

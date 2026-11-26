@@ -1,0 +1,150 @@
+{
+  "main": "5cf7c2d41c8a57ae3de53efcfa4d807109b6578212e54ef8e1d84ae9570bf717",
+  "frames": 128,
+  "frame_bytes": 65536,
+  "max_pending_bytes_per_flow": 524288,
+  "order": [
+    [
+      "staged",
+      512
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "mapped",
+      64
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "staged",
+      512
+    ],
+    [
+      "mapped",
+      64
+    ],
+    [
+      "mapped",
+      64
+    ],
+    [
+      "staged",
+      512
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "mapped",
+      64
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "staged",
+      512
+    ],
+    [
+      "staged",
+      512
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "mapped",
+      64
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "mapped",
+      64
+    ],
+    [
+      "staged",
+      512
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "mapped",
+      64
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "staged",
+      512
+    ],
+    [
+      "mapped",
+      512
+    ],
+    [
+      "staged",
+      64
+    ],
+    [
+      "staged",
+      512
+    ],
+    [
+      "mapped",
+      64
+    ]
+  ],
+  "fault": {
+    "held": 0,
+    "reset_after_first_verified_frame": 1
+  },
+  "count": 32,
+  "ci_limit": 4,
+  "sources": {
+    "scripts/relaybench/hvf_notify/flows.c": "60e846ba24ece7ad1fcd13bbeb75c0a7467668361a828c99221cfc37418d8333",
+    "scripts/relaybench/hvf_notify/flows.S": "a7b6c3af4c8cfb30f9c0911e47cc7872c03b3ebf1ed6dc572c5957668dbace30",
+    "scripts/relaybench/hvf_notify/vm.c": "9a8b90964eb643609983e176f686002e693cd239e8257376a749492ae95dc731",
+    "scripts/relaybench/hvf_tx_probe/apple.c": "226f793ab483e734f9c306a5279932f96872056396879bec09e3c03908c5d37d",
+    "scripts/relaybench/hvf_notify/vm.h": "323758b8d1fbb0e49f229262658443439f67402700221d66f5ed599b0e6c7483",
+    "docs/benchmarks/2026-11-24/gamma-ci-concurrency/bridge.py": "4489b77d209a088c2db43211c06b6807f8c7fa827292388f088b1674feeaa89d"
+  }
+}

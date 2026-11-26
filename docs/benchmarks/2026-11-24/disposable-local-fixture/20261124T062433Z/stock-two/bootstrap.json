@@ -1,0 +1,12 @@
+{
+  "utc": "2026-11-24T06:29:37.217057+00:00",
+  "command": [
+    "launchctl",
+    "bootstrap",
+    "gui/501",
+    "/private/tmp/mp-local-bv229a26/data/stock-two/job.plist"
+  ],
+  "code": 5,
+  "out": "",
+  "err": "Bootstrap failed: 5: Input/output error\nTry re-running the command as root for richer errors.\n"
+}

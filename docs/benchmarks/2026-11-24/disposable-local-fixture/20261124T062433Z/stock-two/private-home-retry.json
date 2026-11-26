@@ -1,0 +1,31 @@
+{
+  "start": "2026-11-24T06:33:49.745121+00:00",
+  "argv": [
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/micropod-authorized-runtime-8YYEiYai/micropod",
+    "ci",
+    "serve"
+  ],
+  "launch_mode": "foreground direct ci serve, independent local fixture",
+  "ci_home": "/private/tmp/mp-local-bv229a26/a",
+  "mode_before": "0o755",
+  "mode_after": "0o700",
+  "samples": [
+    {
+      "time": "2026-11-24T06:33:49.747438+00:00",
+      "rc": null,
+      "free_bytes": 310312607744,
+      "docker_socket": false,
+      "oci_socket": false,
+      "session_started": false
+    },
+    {
+      "time": "2026-11-24T06:33:50.751912+00:00",
+      "rc": 1,
+      "free_bytes": 310351163392,
+      "docker_socket": false,
+      "oci_socket": false,
+      "session_started": false
+    }
+  ],
+  "pid": 57551
+}

@@ -1,0 +1,5678 @@
+{
+  "engines": {
+    "A": "Micropod",
+    "B": "OrbStack"
+  },
+  "gap_direction": "Micropod minus OrbStack",
+  "cpu_scope": "CPU IDs are job homes in the guest. Pooled compilers can execute on any allowed vCPU.",
+  "cpu_accounting": "Revision counters include the entire builder cgroup and its concurrent HTTP client.",
+  "settings": {
+    "worker_scheduler": "hrtick-250us",
+    "offered_rps": 64000,
+    "build_nice": 0,
+    "network_topology": "per-job",
+    "build_scratch": "tmpfs",
+    "mac_process_type": "Standard",
+    "compiler_affinity": "pool",
+    "effective_native_base_slice_ns": 250000
+  },
+  "summary": {
+    "windows": 8,
+    "engine_medians": {
+      "A": {
+        "makespan_ns": 2901726293.0,
+        "median_job_elapsed_ns": 2791059511.75,
+        "slowest_job_elapsed_ns": 2895113335.0,
+        "launch_skew_ns": 5880749.5,
+        "finish_spread_ns": 270415541.5,
+        "last_finisher_excess_ns": 94952437.25,
+        "last_finisher_start_offset_ns": 4940854.0,
+        "last_vs_penultimate_finish_ns": 33302042.0,
+        "penultimate_finish_above_median_ns": 56125701.0,
+        "median_within_vcpu_finish_spread_ns": 98986969.0,
+        "between_vcpu_mean_finish_spread_ns": 139716947.75,
+        "median_two_revision_cgroup_cpu_ns": 961748500.0
+      },
+      "B": {
+        "makespan_ns": 2876408752.5,
+        "median_job_elapsed_ns": 2793937246.25,
+        "slowest_job_elapsed_ns": 2873538603.5,
+        "launch_skew_ns": 11376889.0,
+        "finish_spread_ns": 219711892.5,
+        "last_finisher_excess_ns": 74408736.5,
+        "last_finisher_start_offset_ns": 5390777.5,
+        "last_vs_penultimate_finish_ns": 18839606.0,
+        "penultimate_finish_above_median_ns": 46429869.25,
+        "median_within_vcpu_finish_spread_ns": 70245814.5,
+        "between_vcpu_mean_finish_spread_ns": 110822822.0,
+        "median_two_revision_cgroup_cpu_ns": 999732500.0
+      }
+    },
+    "median_paired_gaps_ns": {
+      "makespan_ns": 14871661.0,
+      "median_job_elapsed_ns": -2584957.0,
+      "slowest_job_elapsed_ns": 17489755.5,
+      "launch_skew_ns": -5625701.0,
+      "finish_spread_ns": 71723058.0,
+      "last_finisher_excess_ns": 20444325.0,
+      "last_finisher_start_offset_ns": -494111.0,
+      "last_vs_penultimate_finish_ns": 10886599.5,
+      "penultimate_finish_above_median_ns": 13409535.25,
+      "median_within_vcpu_finish_spread_ns": 47125239.25,
+      "between_vcpu_mean_finish_spread_ns": 20947858.25,
+      "median_two_revision_cgroup_cpu_ns": -38057500.0
+    },
+    "native_lower_windows": {
+      "makespan_ns": 4,
+      "median_job_elapsed_ns": 4,
+      "slowest_job_elapsed_ns": 3,
+      "launch_skew_ns": 8,
+      "finish_spread_ns": 2,
+      "last_finisher_excess_ns": 3,
+      "last_finisher_start_offset_ns": 5,
+      "last_vs_penultimate_finish_ns": 3,
+      "penultimate_finish_above_median_ns": 2,
+      "median_within_vcpu_finish_spread_ns": 1,
+      "between_vcpu_mean_finish_spread_ns": 3,
+      "median_two_revision_cgroup_cpu_ns": 8
+    },
+    "late_vcpu": {
+      "A": {
+        "last_finisher_vcpu_counts": {
+          "0": 3,
+          "1": 2,
+          "2": 1,
+          "3": 2
+        },
+        "last_two_same_vcpu_windows": 0
+      },
+      "B": {
+        "last_finisher_vcpu_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 2,
+          "3": 4
+        },
+        "last_two_same_vcpu_windows": 2
+      }
+    },
+    "matched_jobs": {
+      "count": 64,
+      "native_faster": 35,
+      "native_slower": 29,
+      "median_gap_ns": -8867632.0
+    },
+    "additive_gap_sum_ns": {
+      "makespan_ns": 10929827,
+      "median_job_elapsed_ns": -244167677.0,
+      "last_finisher_excess_ns": 268320567.0,
+      "last_finisher_start_offset_ns": -13223063
+    }
+  },
+  "runs": [
+    {
+      "run": "20261125T032201Z-sibling-compiler-affinity-obpeb5h0",
+      "seed": 250201,
+      "boots": {
+        "A": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+        "B": "3a9eb266-88f6-448f-8350-ce42b06c23fc"
+      },
+      "scope": "/private/tmp/mp-t-d4jwwmcn",
+      "compiler_executables": {
+        "taskset": {
+          "path": "/usr/bin/taskset",
+          "sha256": "73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5"
+        },
+        "go": {
+          "path": "/usr/local/go/bin/go",
+          "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb"
+        },
+        "compile": {
+          "path": "/usr/local/go/pkg/tool/linux_arm64/compile",
+          "sha256": "fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68"
+        }
+      },
+      "windows": [
+        {
+          "round": 0,
+          "order": "BA",
+          "engines": {
+            "A": {
+              "makespan_ns": 2856380085,
+              "median_job_elapsed_ns": 2788544334.5,
+              "slowest_job_elapsed_ns": 2851272335,
+              "launch_skew_ns": 8950750,
+              "finish_spread_ns": 151773334,
+              "last_finisher_slot": 5,
+              "last_finisher_vcpu": "1",
+              "penultimate_finisher_slot": 4,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 62728000.5,
+              "last_finisher_start_offset_ns": 5107750,
+              "last_vs_penultimate_finish_ns": 25302959,
+              "penultimate_finish_above_median_ns": 37754479.0,
+              "median_within_vcpu_finish_spread_ns": 49816083.5,
+              "between_vcpu_mean_finish_spread_ns": 101957250.5,
+              "median_two_revision_cgroup_cpu_ns": 951081500.0
+            },
+            "B": {
+              "makespan_ns": 2866854163,
+              "median_job_elapsed_ns": 2775974407.0,
+              "slowest_job_elapsed_ns": 2861373240,
+              "launch_skew_ns": 11664306,
+              "finish_spread_ns": 278874045,
+              "last_finisher_slot": 2,
+              "last_finisher_vcpu": "2",
+              "penultimate_finisher_slot": 1,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 85398833.0,
+              "last_finisher_start_offset_ns": 5480923,
+              "last_vs_penultimate_finish_ns": 11849806,
+              "penultimate_finish_above_median_ns": 76706863.5,
+              "median_within_vcpu_finish_spread_ns": 68463686.5,
+              "between_vcpu_mean_finish_spread_ns": 164332302.5,
+              "median_two_revision_cgroup_cpu_ns": 987083000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": -10474078,
+            "median_job_elapsed_ns": 12569927.5,
+            "slowest_job_elapsed_ns": -10100905,
+            "launch_skew_ns": -2713556,
+            "finish_spread_ns": -127100711,
+            "last_finisher_excess_ns": -22670832.5,
+            "last_finisher_start_offset_ns": -373173,
+            "last_vs_penultimate_finish_ns": 13453153,
+            "penultimate_finish_above_median_ns": -38952384.5,
+            "median_within_vcpu_finish_spread_ns": -18647603.0,
+            "between_vcpu_mean_finish_spread_ns": -62375052.0,
+            "median_two_revision_cgroup_cpu_ns": -36001500.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2799499251,
+                "B": 2576448229
+              },
+              "start_offset_ns": {
+                "A": 605875,
+                "B": 11531889
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2820598960,
+                "B": 2843340051
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 11664306
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2712656002,
+                "B": 2861373240
+              },
+              "start_offset_ns": {
+                "A": 235083,
+                "B": 5480923
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2764110751,
+                "B": 2761732619
+              },
+              "start_offset_ns": {
+                "A": 4347042,
+                "B": 0
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2825497834,
+                "B": 2772652674
+              },
+              "start_offset_ns": {
+                "A": 5579292,
+                "B": 15542
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2851272335,
+                "B": 2831971412
+              },
+              "start_offset_ns": {
+                "A": 5107750,
+                "B": 2337170
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2777589418,
+                "B": 2779296140
+              },
+              "start_offset_ns": {
+                "A": 8950750,
+                "B": 4630631
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2696242376,
+                "B": 2705347510
+              },
+              "start_offset_ns": {
+                "A": 8364375,
+                "B": 2385128
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 36254,
+                    "user_usec": 16240,
+                    "system_usec": 20014,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1219946,
+                      "full": 1193056
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1028542,
+                    "user_usec": 845062,
+                    "system_usec": 183479,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1200587,
+                      "full": 1136729
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 34193,
+                    "user_usec": 12098,
+                    "system_usec": 22095,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1054033,
+                      "full": 1028618
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1009695,
+                    "user_usec": 808431,
+                    "system_usec": 201264,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1230211,
+                      "full": 1117622
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 35038,
+                    "user_usec": 15890,
+                    "system_usec": 19147,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1162696,
+                      "full": 1135860
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1015625,
+                    "user_usec": 833082,
+                    "system_usec": 182544,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1390000,
+                      "full": 1150655
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 34509,
+                    "user_usec": 14446,
+                    "system_usec": 20063,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1193156,
+                      "full": 1165878
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1032410,
+                    "user_usec": 876201,
+                    "system_usec": 156209,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1130950,
+                      "full": 984493
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 35393,
+                    "user_usec": 22969,
+                    "system_usec": 12424,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1224082,
+                      "full": 1196408
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1030182,
+                    "user_usec": 884383,
+                    "system_usec": 145799,
+                    "nr_periods": 32,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1306083,
+                      "full": 1166986
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 34228,
+                    "user_usec": 9474,
+                    "system_usec": 24754,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1071325,
+                      "full": 1045140
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1015805,
+                    "user_usec": 832975,
+                    "system_usec": 182830,
+                    "nr_periods": 32,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1059263,
+                      "full": 1003478
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 34723,
+                    "user_usec": 9075,
+                    "system_usec": 25649,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1131922,
+                      "full": 1104741
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1021722,
+                    "user_usec": 802563,
+                    "system_usec": 219159,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1210243,
+                      "full": 1138461
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 35183,
+                    "user_usec": 11001,
+                    "system_usec": 24181,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1224564,
+                      "full": 1197057
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1019531,
+                    "user_usec": 852795,
+                    "system_usec": 166737,
+                    "nr_periods": 32,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1184922,
+                      "full": 1095704
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 225,
+                  "nice": 0,
+                  "system": 78,
+                  "idle": 74,
+                  "iowait": 2,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 208,
+                  "nice": 0,
+                  "system": 90,
+                  "idle": 77,
+                  "iowait": 2,
+                  "irq": 0,
+                  "softirq": 6,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 226,
+                  "nice": 0,
+                  "system": 62,
+                  "idle": 87,
+                  "iowait": 3,
+                  "irq": 0,
+                  "softirq": 5,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 234,
+                  "nice": 0,
+                  "system": 66,
+                  "idle": 77,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3883479292
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 46210,
+                    "user_usec": 29058,
+                    "system_usec": 17152,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1091192,
+                    "user_usec": 883718,
+                    "system_usec": 207474,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 38304,
+                    "user_usec": 24127,
+                    "system_usec": 14177,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1049520,
+                    "user_usec": 850424,
+                    "system_usec": 199097,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 36478,
+                    "user_usec": 20576,
+                    "system_usec": 15902,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1072831,
+                    "user_usec": 891327,
+                    "system_usec": 181504,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37939,
+                    "user_usec": 22019,
+                    "system_usec": 15920,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1086434,
+                    "user_usec": 870241,
+                    "system_usec": 216192,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 38674,
+                    "user_usec": 28004,
+                    "system_usec": 10669,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1050273,
+                    "user_usec": 853755,
+                    "system_usec": 196519,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 37380,
+                    "user_usec": 21928,
+                    "system_usec": 15452,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1061796,
+                    "user_usec": 878928,
+                    "system_usec": 182869,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 36664,
+                    "user_usec": 21226,
+                    "system_usec": 15438,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1086932,
+                    "user_usec": 860021,
+                    "system_usec": 226911,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36938,
+                    "user_usec": 17796,
+                    "system_usec": 19141,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1062499,
+                    "user_usec": 861336,
+                    "system_usec": 201164,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 218,
+                  "nice": 0,
+                  "system": 82,
+                  "idle": 68,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 11,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 196,
+                  "nice": 0,
+                  "system": 86,
+                  "idle": 73,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 21,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 235,
+                  "nice": 0,
+                  "system": 67,
+                  "idle": 72,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 237,
+                  "nice": 0,
+                  "system": 64,
+                  "idle": 77,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3975267708
+            }
+          }
+        },
+        {
+          "round": 1,
+          "order": "AB",
+          "engines": {
+            "A": {
+              "makespan_ns": 2897614126,
+              "median_job_elapsed_ns": 2836217917.5,
+              "slowest_job_elapsed_ns": 2892547668,
+              "launch_skew_ns": 5660083,
+              "finish_spread_ns": 270804541,
+              "last_finisher_slot": 4,
+              "last_finisher_vcpu": "0",
+              "penultimate_finisher_slot": 2,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 56329750.5,
+              "last_finisher_start_offset_ns": 5066458,
+              "last_vs_penultimate_finish_ns": 15949208,
+              "penultimate_finish_above_median_ns": 42570208.5,
+              "median_within_vcpu_finish_spread_ns": 83380708.5,
+              "between_vcpu_mean_finish_spread_ns": 120984833.0,
+              "median_two_revision_cgroup_cpu_ns": 950776000.0
+            },
+            "B": {
+              "makespan_ns": 2903677332,
+              "median_job_elapsed_ns": 2852856167.0,
+              "slowest_job_elapsed_ns": 2890444483,
+              "launch_skew_ns": 13232849,
+              "finish_spread_ns": 227087190,
+              "last_finisher_slot": 7,
+              "last_finisher_vcpu": "3",
+              "penultimate_finisher_slot": 5,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 37588316.0,
+              "last_finisher_start_offset_ns": 13232849,
+              "last_vs_penultimate_finish_ns": 20443941,
+              "penultimate_finish_above_median_ns": 24958238.5,
+              "median_within_vcpu_finish_spread_ns": 50419519.0,
+              "between_vcpu_mean_finish_spread_ns": 104895459.5,
+              "median_two_revision_cgroup_cpu_ns": 1014054000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": -6063206,
+            "median_job_elapsed_ns": -16638249.5,
+            "slowest_job_elapsed_ns": 2103185,
+            "launch_skew_ns": -7572766,
+            "finish_spread_ns": 43717351,
+            "last_finisher_excess_ns": 18741434.5,
+            "last_finisher_start_offset_ns": -8166391,
+            "last_vs_penultimate_finish_ns": -4494733,
+            "penultimate_finish_above_median_ns": 17611970.0,
+            "median_within_vcpu_finish_spread_ns": 32961189.5,
+            "between_vcpu_mean_finish_spread_ns": 16089373.5,
+            "median_two_revision_cgroup_cpu_ns": -63278000.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2775862376,
+                "B": 2806669340
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 7355217
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2841290751,
+                "B": 2676422059
+              },
+              "start_offset_ns": {
+                "A": 243417,
+                "B": 168083
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2877339293,
+                "B": 2866222037
+              },
+              "start_offset_ns": {
+                "A": 4325625,
+                "B": 67583
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2622723627,
+                "B": 2865937120
+              },
+              "start_offset_ns": {
+                "A": 4085958,
+                "B": 0
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2892547668,
+                "B": 2741554178
+              },
+              "start_offset_ns": {
+                "A": 5066458,
+                "B": 9371553
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2818598251,
+                "B": 2873618588
+              },
+              "start_offset_ns": {
+                "A": 4970250,
+                "B": 9614803
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2831145084,
+                "B": 2839775214
+              },
+              "start_offset_ns": {
+                "A": 5510167,
+                "B": 10837971
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2843880835,
+                "B": 2890444483
+              },
+              "start_offset_ns": {
+                "A": 5660083,
+                "B": 13232849
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 39678,
+                    "user_usec": 5395,
+                    "system_usec": 34283,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 788797,
+                      "full": 763249
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1022670,
+                    "user_usec": 854338,
+                    "system_usec": 168332,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1017775,
+                      "full": 965328
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 35770,
+                    "user_usec": 21831,
+                    "system_usec": 13939,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1014120,
+                      "full": 987798
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1020158,
+                    "user_usec": 849402,
+                    "system_usec": 170755,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1142680,
+                      "full": 1089438
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 35151,
+                    "user_usec": 13182,
+                    "system_usec": 21970,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1010947,
+                      "full": 985014
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1017204,
+                    "user_usec": 861654,
+                    "system_usec": 155550,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1144900,
+                      "full": 1089142
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 35360,
+                    "user_usec": 7166,
+                    "system_usec": 28194,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1118275,
+                      "full": 1090630
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1065794,
+                    "user_usec": 889366,
+                    "system_usec": 176428,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1115631,
+                      "full": 1042681
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 40027,
+                    "user_usec": 17315,
+                    "system_usec": 22713,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 693190,
+                      "full": 666867
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1019437,
+                    "user_usec": 844943,
+                    "system_usec": 174494,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 981259,
+                      "full": 932992
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 34867,
+                    "user_usec": 11110,
+                    "system_usec": 23757,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 990274,
+                      "full": 963850
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1000846,
+                    "user_usec": 860677,
+                    "system_usec": 140170,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 921710,
+                      "full": 861228
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 35647,
+                    "user_usec": 20691,
+                    "system_usec": 14955,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1013889,
+                      "full": 987302
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1025396,
+                    "user_usec": 857839,
+                    "system_usec": 167558,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 965065,
+                      "full": 917385
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 33748,
+                    "user_usec": 10765,
+                    "system_usec": 22983,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1134607,
+                      "full": 1108213
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1033499,
+                    "user_usec": 864648,
+                    "system_usec": 168852,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1214633,
+                      "full": 1074825
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 190,
+                  "nice": 0,
+                  "system": 107,
+                  "idle": 77,
+                  "iowait": 2,
+                  "irq": 0,
+                  "softirq": 6,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 234,
+                  "nice": 0,
+                  "system": 65,
+                  "idle": 78,
+                  "iowait": 1,
+                  "irq": 0,
+                  "softirq": 5,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 235,
+                  "nice": 0,
+                  "system": 66,
+                  "idle": 79,
+                  "iowait": 2,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 222,
+                  "nice": 0,
+                  "system": 82,
+                  "idle": 74,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3904841291
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 49653,
+                    "user_usec": 30758,
+                    "system_usec": 18894,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1092344,
+                    "user_usec": 896113,
+                    "system_usec": 196232,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 39276,
+                    "user_usec": 23059,
+                    "system_usec": 16217,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1115981,
+                    "user_usec": 902256,
+                    "system_usec": 213725,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37865,
+                    "user_usec": 23821,
+                    "system_usec": 14043,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1104443,
+                    "user_usec": 906215,
+                    "system_usec": 198229,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 38059,
+                    "user_usec": 21505,
+                    "system_usec": 16553,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1099980,
+                    "user_usec": 878478,
+                    "system_usec": 221503,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 38753,
+                    "user_usec": 26389,
+                    "system_usec": 12364,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1097474,
+                    "user_usec": 920997,
+                    "system_usec": 176477,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 38155,
+                    "user_usec": 23814,
+                    "system_usec": 14341,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1081298,
+                    "user_usec": 862564,
+                    "system_usec": 218734,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37939,
+                    "user_usec": 26823,
+                    "system_usec": 11116,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1103125,
+                    "user_usec": 908377,
+                    "system_usec": 194749,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37803,
+                    "user_usec": 25437,
+                    "system_usec": 12367,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1094721,
+                    "user_usec": 889356,
+                    "system_usec": 205365,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 206,
+                  "nice": 0,
+                  "system": 91,
+                  "idle": 70,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 20,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 246,
+                  "nice": 0,
+                  "system": 63,
+                  "idle": 72,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 244,
+                  "nice": 0,
+                  "system": 64,
+                  "idle": 70,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 228,
+                  "nice": 0,
+                  "system": 80,
+                  "idle": 73,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 4011271083
+            }
+          }
+        },
+        {
+          "round": 2,
+          "order": "AB",
+          "engines": {
+            "A": {
+              "makespan_ns": 3001719946,
+              "median_job_elapsed_ns": 2765525903.5,
+              "slowest_job_elapsed_ns": 2996721363,
+              "launch_skew_ns": 5250292,
+              "finish_spread_ns": 350201292,
+              "last_finisher_slot": 7,
+              "last_finisher_vcpu": "3",
+              "penultimate_finisher_slot": 5,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 231195459.5,
+              "last_finisher_start_offset_ns": 4998583,
+              "last_vs_penultimate_finish_ns": 100234625,
+              "penultimate_finish_above_median_ns": 133076000.5,
+              "median_within_vcpu_finish_spread_ns": 82866313.0,
+              "between_vcpu_mean_finish_spread_ns": 215335125.0,
+              "median_two_revision_cgroup_cpu_ns": 963758000.0
+            },
+            "B": {
+              "makespan_ns": 2856954792,
+              "median_job_elapsed_ns": 2789205835.0,
+              "slowest_job_elapsed_ns": 2856954792,
+              "launch_skew_ns": 10801888,
+              "finish_spread_ns": 250856387,
+              "last_finisher_slot": 0,
+              "last_finisher_vcpu": "0",
+              "penultimate_finisher_slot": 3,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 67748957.0,
+              "last_finisher_start_offset_ns": 0,
+              "last_vs_penultimate_finish_ns": 37487296,
+              "penultimate_finish_above_median_ns": 25106488.5,
+              "median_within_vcpu_finish_spread_ns": 82550037.5,
+              "between_vcpu_mean_finish_spread_ns": 88169231.5,
+              "median_two_revision_cgroup_cpu_ns": 996131000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": 144765154,
+            "median_job_elapsed_ns": -23679931.5,
+            "slowest_job_elapsed_ns": 139766571,
+            "launch_skew_ns": -5551596,
+            "finish_spread_ns": 99344905,
+            "last_finisher_excess_ns": 163446502.5,
+            "last_finisher_start_offset_ns": 4998583,
+            "last_vs_penultimate_finish_ns": 62747329,
+            "penultimate_finish_above_median_ns": 107969512.0,
+            "median_within_vcpu_finish_spread_ns": 316275.5,
+            "between_vcpu_mean_finish_spread_ns": 127165893.5,
+            "median_two_revision_cgroup_cpu_ns": -32373000.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2689306487,
+                "B": 2856954792
+              },
+              "start_offset_ns": {
+                "A": 499750,
+                "B": 0
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2793790778,
+                "B": 2682254830
+              },
+              "start_offset_ns": {
+                "A": 266542,
+                "B": 44375
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2651518654,
+                "B": 2807862691
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 1067459
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2789647695,
+                "B": 2818168703
+              },
+              "start_offset_ns": {
+                "A": 644542,
+                "B": 1298793
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2741404112,
+                "B": 2600392565
+              },
+              "start_offset_ns": {
+                "A": 5122292,
+                "B": 5705840
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2897104279,
+                "B": 2770548979
+              },
+              "start_offset_ns": {
+                "A": 4381042,
+                "B": 9242886
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2704572987,
+                "B": 2730520847
+              },
+              "start_offset_ns": {
+                "A": 5250292,
+                "B": 10801888
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2996721363,
+                "B": 2808603400
+              },
+              "start_offset_ns": {
+                "A": 4998583,
+                "B": 10358637
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 39342,
+                    "user_usec": 7581,
+                    "system_usec": 31761,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 884147,
+                      "full": 857551
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1027871,
+                    "user_usec": 824632,
+                    "system_usec": 203239,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1180934,
+                      "full": 1085965
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 38546,
+                    "user_usec": 19273,
+                    "system_usec": 19273,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 757916,
+                      "full": 732386
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1038565,
+                    "user_usec": 874260,
+                    "system_usec": 164304,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1112219,
+                      "full": 1033985
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 38901,
+                    "user_usec": 15322,
+                    "system_usec": 23578,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 710480,
+                      "full": 684741
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1071344,
+                    "user_usec": 895520,
+                    "system_usec": 175823,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1082096,
+                      "full": 981631
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 34967,
+                    "user_usec": 18433,
+                    "system_usec": 16534,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1064558,
+                      "full": 1037696
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1033359,
+                    "user_usec": 806854,
+                    "system_usec": 226504,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1301968,
+                      "full": 1111201
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 38587,
+                    "user_usec": 22899,
+                    "system_usec": 15688,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 881962,
+                      "full": 854704
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1016184,
+                    "user_usec": 834981,
+                    "system_usec": 181203,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1101102,
+                      "full": 990622
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 37969,
+                    "user_usec": 23172,
+                    "system_usec": 14797,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 798480,
+                      "full": 772025
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1028130,
+                    "user_usec": 860168,
+                    "system_usec": 167962,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1243306,
+                      "full": 1169884
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 38606,
+                    "user_usec": 19543,
+                    "system_usec": 19063,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 744112,
+                      "full": 717691
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1041482,
+                    "user_usec": 860309,
+                    "system_usec": 181173,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1174106,
+                      "full": 1069907
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 34155,
+                    "user_usec": 15347,
+                    "system_usec": 18808,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 979448,
+                      "full": 953250
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 998937,
+                    "user_usec": 816802,
+                    "system_usec": 182135,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1132852,
+                      "full": 1088005
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 228,
+                  "nice": 0,
+                  "system": 68,
+                  "idle": 92,
+                  "iowait": 1,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 226,
+                  "nice": 0,
+                  "system": 83,
+                  "idle": 77,
+                  "iowait": 6,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 205,
+                  "nice": 0,
+                  "system": 91,
+                  "idle": 84,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 8,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 224,
+                  "nice": 0,
+                  "system": 67,
+                  "idle": 95,
+                  "iowait": 3,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 4017148875
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 44260,
+                    "user_usec": 25918,
+                    "system_usec": 18341,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1073415,
+                    "user_usec": 875548,
+                    "system_usec": 197868,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 40651,
+                    "user_usec": 20626,
+                    "system_usec": 20026,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1084701,
+                    "user_usec": 893074,
+                    "system_usec": 191627,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 36456,
+                    "user_usec": 25420,
+                    "system_usec": 11035,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1081486,
+                    "user_usec": 869887,
+                    "system_usec": 211598,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37328,
+                    "user_usec": 27225,
+                    "system_usec": 10103,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1074127,
+                    "user_usec": 881021,
+                    "system_usec": 193106,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 36754,
+                    "user_usec": 17674,
+                    "system_usec": 19081,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1091407,
+                    "user_usec": 883742,
+                    "system_usec": 207665,
+                    "nr_periods": 32,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 37355,
+                    "user_usec": 22214,
+                    "system_usec": 15141,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1085747,
+                    "user_usec": 876919,
+                    "system_usec": 208828,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 36863,
+                    "user_usec": 26531,
+                    "system_usec": 10332,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1073203,
+                    "user_usec": 877773,
+                    "system_usec": 195431,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36440,
+                    "user_usec": 26669,
+                    "system_usec": 9771,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1064788,
+                    "user_usec": 858563,
+                    "system_usec": 206224,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 237,
+                  "nice": 0,
+                  "system": 65,
+                  "idle": 73,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 9,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 227,
+                  "nice": 0,
+                  "system": 72,
+                  "idle": 74,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 10,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 212,
+                  "nice": 0,
+                  "system": 93,
+                  "idle": 72,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 243,
+                  "nice": 0,
+                  "system": 62,
+                  "idle": 73,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 4003852375
+            }
+          }
+        },
+        {
+          "round": 3,
+          "order": "BA",
+          "engines": {
+            "A": {
+              "makespan_ns": 2884765334,
+              "median_job_elapsed_ns": 2789878293.5,
+              "slowest_job_elapsed_ns": 2879882209,
+              "launch_skew_ns": 5389666,
+              "finish_spread_ns": 185395417,
+              "last_finisher_slot": 6,
+              "last_finisher_vcpu": "2",
+              "penultimate_finisher_slot": 4,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 90003915.5,
+              "last_finisher_start_offset_ns": 4883125,
+              "last_vs_penultimate_finish_ns": 41301125,
+              "penultimate_finish_above_median_ns": 49460499.5,
+              "median_within_vcpu_finish_spread_ns": 99401438.0,
+              "between_vcpu_mean_finish_spread_ns": 69363458.5,
+              "median_two_revision_cgroup_cpu_ns": 958668500.0
+            },
+            "B": {
+              "makespan_ns": 2909808107,
+              "median_job_elapsed_ns": 2778518947.0,
+              "slowest_job_elapsed_ns": 2898760218,
+              "launch_skew_ns": 11089472,
+              "finish_spread_ns": 213431050,
+              "last_finisher_slot": 6,
+              "last_finisher_vcpu": "2",
+              "penultimate_finisher_slot": 2,
+              "last_two_same_vcpu": true,
+              "last_finisher_excess_ns": 120241271.0,
+              "last_finisher_start_offset_ns": 11047889,
+              "last_vs_penultimate_finish_ns": 81879141,
+              "penultimate_finish_above_median_ns": 44089658.0,
+              "median_within_vcpu_finish_spread_ns": 43945053.5,
+              "between_vcpu_mean_finish_spread_ns": 120021958.0,
+              "median_two_revision_cgroup_cpu_ns": 998782000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": -25042773,
+            "median_job_elapsed_ns": 11359346.5,
+            "slowest_job_elapsed_ns": -18878009,
+            "launch_skew_ns": -5699806,
+            "finish_spread_ns": -28035633,
+            "last_finisher_excess_ns": -30237355.5,
+            "last_finisher_start_offset_ns": -6164764,
+            "last_vs_penultimate_finish_ns": -40578016,
+            "penultimate_finish_above_median_ns": 5370841.5,
+            "median_within_vcpu_finish_spread_ns": 55456384.5,
+            "between_vcpu_mean_finish_spread_ns": -50658499.5,
+            "median_two_revision_cgroup_cpu_ns": -40113500.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2739277917,
+                "B": 2759944841
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 509668
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2795605084,
+                "B": 2801316100
+              },
+              "start_offset_ns": {
+                "A": 388250,
+                "B": 0
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2742222960,
+                "B": 2825968005
+              },
+              "start_offset_ns": {
+                "A": 5095041,
+                "B": 1960961
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2789798335,
+                "B": 2785262330
+              },
+              "start_offset_ns": {
+                "A": 4188166,
+                "B": 1582461
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2838913251,
+                "B": 2756715962
+              },
+              "start_offset_ns": {
+                "A": 4550958,
+                "B": 9302887
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2789958252,
+                "B": 2685287585
+              },
+              "start_offset_ns": {
+                "A": 4062666,
+                "B": 11089472
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2879882209,
+                "B": 2898760218
+              },
+              "start_offset_ns": {
+                "A": 4883125,
+                "B": 11047889
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2693980251,
+                "B": 2771775564
+              },
+              "start_offset_ns": {
+                "A": 5389666,
+                "B": 9058261
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 39439,
+                    "user_usec": 21498,
+                    "system_usec": 17941,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 837206,
+                      "full": 811222
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1040581,
+                    "user_usec": 821605,
+                    "system_usec": 218975,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 946950,
+                      "full": 889663
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 33617,
+                    "user_usec": 13358,
+                    "system_usec": 20258,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1125937,
+                      "full": 1099873
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1026701,
+                    "user_usec": 849240,
+                    "system_usec": 177461,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1295291,
+                      "full": 1155657
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37059,
+                    "user_usec": 13394,
+                    "system_usec": 23666,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 744828,
+                      "full": 719552
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1013352,
+                    "user_usec": 826187,
+                    "system_usec": 187166,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 924567,
+                      "full": 880352
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36922,
+                    "user_usec": 12137,
+                    "system_usec": 24786,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 898781,
+                      "full": 872251
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1038869,
+                    "user_usec": 848821,
+                    "system_usec": 190049,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 928458,
+                      "full": 878608
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 38736,
+                    "user_usec": 12855,
+                    "system_usec": 25881,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 879942,
+                      "full": 852934
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1038925,
+                    "user_usec": 853331,
+                    "system_usec": 185594,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1123121,
+                      "full": 1040102
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 33785,
+                    "user_usec": 19810,
+                    "system_usec": 13975,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1095048,
+                      "full": 1068799
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1015499,
+                    "user_usec": 856304,
+                    "system_usec": 159196,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1039571,
+                      "full": 978974
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 36701,
+                    "user_usec": 13634,
+                    "system_usec": 23067,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 767531,
+                      "full": 741621
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1026022,
+                    "user_usec": 870552,
+                    "system_usec": 155471,
+                    "nr_periods": 32,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 990025,
+                      "full": 935541
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36258,
+                    "user_usec": 13409,
+                    "system_usec": 22849,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 905586,
+                      "full": 879062
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1008906,
+                    "user_usec": 842492,
+                    "system_usec": 166415,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 965494,
+                      "full": 896004
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 235,
+                  "nice": 0,
+                  "system": 71,
+                  "idle": 73,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 205,
+                  "nice": 0,
+                  "system": 84,
+                  "idle": 79,
+                  "iowait": 3,
+                  "irq": 0,
+                  "softirq": 10,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 186,
+                  "nice": 0,
+                  "system": 112,
+                  "idle": 79,
+                  "iowait": 2,
+                  "irq": 0,
+                  "softirq": 4,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 243,
+                  "nice": 0,
+                  "system": 59,
+                  "idle": 75,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 0,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3883591958
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 49001,
+                    "user_usec": 26298,
+                    "system_usec": 22704,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1065990,
+                    "user_usec": 875434,
+                    "system_usec": 190556,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 38580,
+                    "user_usec": 19027,
+                    "system_usec": 19553,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1057344,
+                    "user_usec": 875395,
+                    "system_usec": 181949,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 36874,
+                    "user_usec": 24481,
+                    "system_usec": 12392,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1067083,
+                    "user_usec": 870879,
+                    "system_usec": 196205,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37417,
+                    "user_usec": 26668,
+                    "system_usec": 10750,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1085392,
+                    "user_usec": 901313,
+                    "system_usec": 184079,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 39558,
+                    "user_usec": 20024,
+                    "system_usec": 19533,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1087903,
+                    "user_usec": 908101,
+                    "system_usec": 179802,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 38312,
+                    "user_usec": 20845,
+                    "system_usec": 17468,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1081889,
+                    "user_usec": 888242,
+                    "system_usec": 193647,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37375,
+                    "user_usec": 23859,
+                    "system_usec": 13516,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1077501,
+                    "user_usec": 886225,
+                    "system_usec": 191277,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 38142,
+                    "user_usec": 24377,
+                    "system_usec": 13764,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1084372,
+                    "user_usec": 870591,
+                    "system_usec": 213781,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 236,
+                  "nice": 0,
+                  "system": 63,
+                  "idle": 74,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 8,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 230,
+                  "nice": 0,
+                  "system": 72,
+                  "idle": 72,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 9,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 212,
+                  "nice": 0,
+                  "system": 79,
+                  "idle": 77,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 11,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 240,
+                  "nice": 0,
+                  "system": 64,
+                  "idle": 76,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 4029613375
+            }
+          }
+        }
+      ],
+      "summary": {
+        "windows": 4,
+        "engine_medians": {
+          "A": {
+            "makespan_ns": 2891189730.0,
+            "median_job_elapsed_ns": 2789211314.0,
+            "slowest_job_elapsed_ns": 2886214938.5,
+            "launch_skew_ns": 5524874.5,
+            "finish_spread_ns": 228099979.0,
+            "last_finisher_excess_ns": 76365958.0,
+            "last_finisher_start_offset_ns": 5032520.5,
+            "last_vs_penultimate_finish_ns": 33302042.0,
+            "penultimate_finish_above_median_ns": 46015354.0,
+            "median_within_vcpu_finish_spread_ns": 83123510.75,
+            "between_vcpu_mean_finish_spread_ns": 111471041.75,
+            "median_two_revision_cgroup_cpu_ns": 954875000.0
+          },
+          "B": {
+            "makespan_ns": 2885265747.5,
+            "median_job_elapsed_ns": 2783862391.0,
+            "slowest_job_elapsed_ns": 2875908861.5,
+            "launch_skew_ns": 11376889.0,
+            "finish_spread_ns": 238971788.5,
+            "last_finisher_excess_ns": 76573895.0,
+            "last_finisher_start_offset_ns": 8264406.0,
+            "last_vs_penultimate_finish_ns": 28965618.5,
+            "penultimate_finish_above_median_ns": 34598073.25,
+            "median_within_vcpu_finish_spread_ns": 59441602.75,
+            "between_vcpu_mean_finish_spread_ns": 112458708.75,
+            "median_two_revision_cgroup_cpu_ns": 997456500.0
+          }
+        },
+        "median_paired_gaps_ns": {
+          "makespan_ns": -8268642.0,
+          "median_job_elapsed_ns": -2639451.5,
+          "slowest_job_elapsed_ns": -3998860.0,
+          "launch_skew_ns": -5625701.0,
+          "finish_spread_ns": 7840859.0,
+          "last_finisher_excess_ns": -1964699.0,
+          "last_finisher_start_offset_ns": -3268968.5,
+          "last_vs_penultimate_finish_ns": 4479210.0,
+          "penultimate_finish_above_median_ns": 11491405.75,
+          "median_within_vcpu_finish_spread_ns": 16638732.5,
+          "between_vcpu_mean_finish_spread_ns": -17284563.0,
+          "median_two_revision_cgroup_cpu_ns": -38057500.0
+        },
+        "native_lower_windows": {
+          "makespan_ns": 3,
+          "median_job_elapsed_ns": 2,
+          "slowest_job_elapsed_ns": 2,
+          "launch_skew_ns": 4,
+          "finish_spread_ns": 2,
+          "last_finisher_excess_ns": 2,
+          "last_finisher_start_offset_ns": 3,
+          "last_vs_penultimate_finish_ns": 2,
+          "penultimate_finish_above_median_ns": 1,
+          "median_within_vcpu_finish_spread_ns": 1,
+          "between_vcpu_mean_finish_spread_ns": 2,
+          "median_two_revision_cgroup_cpu_ns": 4
+        },
+        "late_vcpu": {
+          "A": {
+            "last_finisher_vcpu_counts": {
+              "0": 1,
+              "1": 1,
+              "2": 1,
+              "3": 1
+            },
+            "last_two_same_vcpu_windows": 0
+          },
+          "B": {
+            "last_finisher_vcpu_counts": {
+              "0": 1,
+              "1": 0,
+              "2": 2,
+              "3": 1
+            },
+            "last_two_same_vcpu_windows": 1
+          }
+        },
+        "matched_jobs": {
+          "count": 32,
+          "native_faster": 18,
+          "native_slower": 14,
+          "median_gap_ns": -7170573.0
+        },
+        "additive_gap_sum_ns": {
+          "makespan_ns": 103185097,
+          "median_job_elapsed_ns": -16388907.0,
+          "last_finisher_excess_ns": 129279749.0,
+          "last_finisher_start_offset_ns": -9705745
+        }
+      }
+    },
+    {
+      "run": "20261125T032333Z-sibling-compiler-affinity-dq2d8m5a",
+      "seed": 250203,
+      "boots": {
+        "A": "b4e49f2d-31ec-4ed9-be6e-d636c0f0f597",
+        "B": "3a9eb266-88f6-448f-8350-ce42b06c23fc"
+      },
+      "scope": "/private/tmp/mp-t-05n9rvee",
+      "compiler_executables": {
+        "taskset": {
+          "path": "/usr/bin/taskset",
+          "sha256": "73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5"
+        },
+        "go": {
+          "path": "/usr/local/go/bin/go",
+          "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb"
+        },
+        "compile": {
+          "path": "/usr/local/go/pkg/tool/linux_arm64/compile",
+          "sha256": "fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68"
+        }
+      },
+      "windows": [
+        {
+          "round": 0,
+          "order": "BA",
+          "engines": {
+            "A": {
+              "makespan_ns": 2972329127,
+              "median_job_elapsed_ns": 2867742585.0,
+              "slowest_job_elapsed_ns": 2967643544,
+              "launch_skew_ns": 4970333,
+              "finish_spread_ns": 350176001,
+              "last_finisher_slot": 3,
+              "last_finisher_vcpu": "3",
+              "penultimate_finisher_slot": 2,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 99900959.0,
+              "last_finisher_start_offset_ns": 4685583,
+              "last_vs_penultimate_finish_ns": 62832834,
+              "penultimate_finish_above_median_ns": 37158770.5,
+              "median_within_vcpu_finish_spread_ns": 148432688.0,
+              "between_vcpu_mean_finish_spread_ns": 158825063,
+              "median_two_revision_cgroup_cpu_ns": 982581000.0
+            },
+            "B": {
+              "makespan_ns": 2853333829,
+              "median_job_elapsed_ns": 2816268346.0,
+              "slowest_job_elapsed_ns": 2848033197,
+              "launch_skew_ns": 12809682,
+              "finish_spread_ns": 225992735,
+              "last_finisher_slot": 3,
+              "last_finisher_vcpu": "3",
+              "penultimate_finisher_slot": 7,
+              "last_two_same_vcpu": true,
+              "last_finisher_excess_ns": 31764851.0,
+              "last_finisher_start_offset_ns": 5300632,
+              "last_vs_penultimate_finish_ns": 6479425,
+              "penultimate_finish_above_median_ns": 24554113.0,
+              "median_within_vcpu_finish_spread_ns": 82505955.5,
+              "between_vcpu_mean_finish_spread_ns": 116750184.5,
+              "median_two_revision_cgroup_cpu_ns": 1000683000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": 118995298,
+            "median_job_elapsed_ns": 51474239.0,
+            "slowest_job_elapsed_ns": 119610347,
+            "launch_skew_ns": -7839349,
+            "finish_spread_ns": 124183266,
+            "last_finisher_excess_ns": 68136108.0,
+            "last_finisher_start_offset_ns": -615049,
+            "last_vs_penultimate_finish_ns": 56353409,
+            "penultimate_finish_above_median_ns": 12604657.5,
+            "median_within_vcpu_finish_spread_ns": 65926732.5,
+            "between_vcpu_mean_finish_spread_ns": 42074878.5,
+            "median_two_revision_cgroup_cpu_ns": -18102000.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2899038960,
+                "B": 2827397297
+              },
+              "start_offset_ns": {
+                "A": 679917,
+                "B": 4677756
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2622153126,
+                "B": 2743186277
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 0
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2909391626,
+                "B": 2622726338
+              },
+              "start_offset_ns": {
+                "A": 104667,
+                "B": 4614756
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2967643544,
+                "B": 2848033197
+              },
+              "start_offset_ns": {
+                "A": 4685583,
+                "B": 5300632
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2714883460,
+                "B": 2731952055
+              },
+              "start_offset_ns": {
+                "A": 4224583,
+                "B": 4450339
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2884380918,
+                "B": 2805999604
+              },
+              "start_offset_ns": {
+                "A": 4219542,
+                "B": 6525925
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2828682710,
+                "B": 2826537088
+              },
+              "start_offset_ns": {
+                "A": 4231083,
+                "B": 12809682
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2851104252,
+                "B": 2837365934
+              },
+              "start_offset_ns": {
+                "A": 4970333,
+                "B": 9488470
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 37838,
+                    "user_usec": 4577,
+                    "system_usec": 33261,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1067888,
+                      "full": 1040975
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1047562,
+                    "user_usec": 867557,
+                    "system_usec": 180005,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1053194,
+                      "full": 954280
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 36198,
+                    "user_usec": 22057,
+                    "system_usec": 14140,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1167937,
+                      "full": 1140698
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1062367,
+                    "user_usec": 855891,
+                    "system_usec": 206476,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1146468,
+                      "full": 1089825
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 35909,
+                    "user_usec": 19770,
+                    "system_usec": 16139,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1163532,
+                      "full": 1136692
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1070841,
+                    "user_usec": 879554,
+                    "system_usec": 191287,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1019442,
+                      "full": 974869
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37328,
+                    "user_usec": 23393,
+                    "system_usec": 13934,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1055249,
+                      "full": 1027388
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1044247,
+                    "user_usec": 864274,
+                    "system_usec": 179973,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1084269,
+                      "full": 1015466
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 35656,
+                    "user_usec": 8706,
+                    "system_usec": 26949,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1126715,
+                      "full": 1099009
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1062802,
+                    "user_usec": 822391,
+                    "system_usec": 240411,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 993532,
+                      "full": 887894
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 34968,
+                    "user_usec": 19024,
+                    "system_usec": 15945,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1155008,
+                      "full": 1127770
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1075765,
+                    "user_usec": 859946,
+                    "system_usec": 215818,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1403554,
+                      "full": 1172005
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 34427,
+                    "user_usec": 23786,
+                    "system_usec": 10640,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1160434,
+                      "full": 1132643
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1035557,
+                    "user_usec": 798506,
+                    "system_usec": 237052,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1067598,
+                      "full": 993322
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 35618,
+                    "user_usec": 17293,
+                    "system_usec": 18326,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1105680,
+                      "full": 1077962
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1050173,
+                    "user_usec": 853604,
+                    "system_usec": 196569,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1306045,
+                      "full": 1224309
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 233,
+                  "nice": 0,
+                  "system": 78,
+                  "idle": 80,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 239,
+                  "nice": 0,
+                  "system": 70,
+                  "idle": 81,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 4,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 215,
+                  "nice": 0,
+                  "system": 88,
+                  "idle": 85,
+                  "iowait": 3,
+                  "irq": 0,
+                  "softirq": 6,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 237,
+                  "nice": 0,
+                  "system": 70,
+                  "idle": 83,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3996807750
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 42305,
+                    "user_usec": 23104,
+                    "system_usec": 19201,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1095131,
+                    "user_usec": 884845,
+                    "system_usec": 210286,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 37868,
+                    "user_usec": 23625,
+                    "system_usec": 14244,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1095099,
+                    "user_usec": 866912,
+                    "system_usec": 228188,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37549,
+                    "user_usec": 19709,
+                    "system_usec": 17841,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1081299,
+                    "user_usec": 878543,
+                    "system_usec": 202756,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37243,
+                    "user_usec": 21188,
+                    "system_usec": 16054,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1067829,
+                    "user_usec": 888287,
+                    "system_usec": 179541,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 37971,
+                    "user_usec": 19990,
+                    "system_usec": 17981,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1104038,
+                    "user_usec": 888471,
+                    "system_usec": 215567,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 36575,
+                    "user_usec": 24247,
+                    "system_usec": 12327,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1082552,
+                    "user_usec": 871563,
+                    "system_usec": 210988,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37296,
+                    "user_usec": 20928,
+                    "system_usec": 16367,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1079910,
+                    "user_usec": 858623,
+                    "system_usec": 221287,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36838,
+                    "user_usec": 19129,
+                    "system_usec": 17709,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1071084,
+                    "user_usec": 832867,
+                    "system_usec": 238218,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 224,
+                  "nice": 0,
+                  "system": 76,
+                  "idle": 67,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 11,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 243,
+                  "nice": 0,
+                  "system": 63,
+                  "idle": 67,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 4,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 239,
+                  "nice": 0,
+                  "system": 66,
+                  "idle": 69,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 226,
+                  "nice": 0,
+                  "system": 82,
+                  "idle": 67,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3974034667
+            }
+          }
+        },
+        {
+          "round": 1,
+          "order": "AB",
+          "engines": {
+            "A": {
+              "makespan_ns": 2966479418,
+              "median_job_elapsed_ns": 2847376543.0,
+              "slowest_job_elapsed_ns": 2965961377,
+              "launch_skew_ns": 6101416,
+              "finish_spread_ns": 334986250,
+              "last_finisher_slot": 4,
+              "last_finisher_vcpu": "0",
+              "penultimate_finisher_slot": 2,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 118584834.0,
+              "last_finisher_start_offset_ns": 518041,
+              "last_vs_penultimate_finish_ns": 47738875,
+              "penultimate_finish_above_median_ns": 68370792.0,
+              "median_within_vcpu_finish_spread_ns": 128337625.0,
+              "between_vcpu_mean_finish_spread_ns": 158449062.5,
+              "median_two_revision_cgroup_cpu_ns": 971090500.0
+            },
+            "B": {
+              "makespan_ns": 2882785573,
+              "median_job_elapsed_ns": 2785836912.5,
+              "slowest_job_elapsed_ns": 2882274531,
+              "launch_skew_ns": 17293021,
+              "finish_spread_ns": 168369539,
+              "last_finisher_slot": 1,
+              "last_finisher_vcpu": "1",
+              "penultimate_finisher_slot": 4,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 96437618.5,
+              "last_finisher_start_offset_ns": 511042,
+              "last_vs_penultimate_finish_ns": 35743127,
+              "penultimate_finish_above_median_ns": 54156379.0,
+              "median_within_vcpu_finish_spread_ns": 72027942.5,
+              "between_vcpu_mean_finish_spread_ns": 73425298,
+              "median_two_revision_cgroup_cpu_ns": 997460000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": 83693845,
+            "median_job_elapsed_ns": 61539630.5,
+            "slowest_job_elapsed_ns": 83686846,
+            "launch_skew_ns": -11191605,
+            "finish_spread_ns": 166616711,
+            "last_finisher_excess_ns": 22147215.5,
+            "last_finisher_start_offset_ns": 6999,
+            "last_vs_penultimate_finish_ns": 11995748,
+            "penultimate_finish_above_median_ns": 14214413.0,
+            "median_within_vcpu_finish_spread_ns": 56309682.5,
+            "between_vcpu_mean_finish_spread_ns": 85023764.5,
+            "median_two_revision_cgroup_cpu_ns": -26369500.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2819871460,
+                "B": 2795874883
+              },
+              "start_offset_ns": {
+                "A": 1053833,
+                "B": 0
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2861098668,
+                "B": 2882274531
+              },
+              "start_offset_ns": {
+                "A": 627416,
+                "B": 511042
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2918295668,
+                "B": 2756080751
+              },
+              "start_offset_ns": {
+                "A": 444875,
+                "B": 5350590
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2631493168,
+                "B": 2796903218
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 14512976
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2965961377,
+                "B": 2837332851
+              },
+              "start_offset_ns": {
+                "A": 518041,
+                "B": 9709595
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2878151585,
+                "B": 2775798942
+              },
+              "start_offset_ns": {
+                "A": 6101416,
+                "B": 14098309
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2801902460,
+                "B": 2769271684
+              },
+              "start_offset_ns": {
+                "A": 5716958,
+                "B": 14743977
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2833654418,
+                "B": 2697123013
+              },
+              "start_offset_ns": {
+                "A": 5359000,
+                "B": 17293021
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 36309,
+                    "user_usec": 12679,
+                    "system_usec": 23630,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1102391,
+                      "full": 1075278
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1023595,
+                    "user_usec": 855038,
+                    "system_usec": 168557,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1211547,
+                      "full": 1089549
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 37485,
+                    "user_usec": 19803,
+                    "system_usec": 17683,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 768422,
+                      "full": 741981
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1043330,
+                    "user_usec": 860080,
+                    "system_usec": 183250,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1128008,
+                      "full": 994535
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 35187,
+                    "user_usec": 23035,
+                    "system_usec": 12152,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1141259,
+                      "full": 1113735
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1038028,
+                    "user_usec": 849820,
+                    "system_usec": 188207,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1327218,
+                      "full": 1226641
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 35539,
+                    "user_usec": 16186,
+                    "system_usec": 19354,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1135804,
+                      "full": 1107772
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1052320,
+                    "user_usec": 877901,
+                    "system_usec": 174419,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 988889,
+                      "full": 926295
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 36130,
+                    "user_usec": 16218,
+                    "system_usec": 19912,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1084333,
+                      "full": 1056621
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1029098,
+                    "user_usec": 822630,
+                    "system_usec": 206469,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1109113,
+                      "full": 1065945
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 38342,
+                    "user_usec": 22392,
+                    "system_usec": 15950,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 858780,
+                      "full": 831323
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1041068,
+                    "user_usec": 824506,
+                    "system_usec": 216561,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1009907,
+                      "full": 900566
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 34948,
+                    "user_usec": 17770,
+                    "system_usec": 17177,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1146964,
+                      "full": 1119609
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1040797,
+                    "user_usec": 851818,
+                    "system_usec": 188978,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1132898,
+                      "full": 1074946
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 35078,
+                    "user_usec": 18589,
+                    "system_usec": 16488,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1144266,
+                      "full": 1116656
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1057498,
+                    "user_usec": 893926,
+                    "system_usec": 163573,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1591483,
+                      "full": 1309729
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 222,
+                  "nice": 0,
+                  "system": 87,
+                  "idle": 75,
+                  "iowait": 1,
+                  "irq": 0,
+                  "softirq": 4,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 205,
+                  "nice": 0,
+                  "system": 91,
+                  "idle": 76,
+                  "iowait": 5,
+                  "irq": 0,
+                  "softirq": 11,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 230,
+                  "nice": 0,
+                  "system": 76,
+                  "idle": 76,
+                  "iowait": 3,
+                  "irq": 0,
+                  "softirq": 5,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 232,
+                  "nice": 0,
+                  "system": 73,
+                  "idle": 79,
+                  "iowait": 3,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3979232708
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 43274,
+                    "user_usec": 26375,
+                    "system_usec": 16900,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1093636,
+                    "user_usec": 896177,
+                    "system_usec": 197460,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 36771,
+                    "user_usec": 22329,
+                    "system_usec": 14442,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1071040,
+                    "user_usec": 851773,
+                    "system_usec": 219267,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37271,
+                    "user_usec": 22455,
+                    "system_usec": 14816,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1083158,
+                    "user_usec": 875947,
+                    "system_usec": 207210,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37158,
+                    "user_usec": 27323,
+                    "system_usec": 9835,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1087055,
+                    "user_usec": 875281,
+                    "system_usec": 211774,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 38232,
+                    "user_usec": 23494,
+                    "system_usec": 14738,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1082612,
+                    "user_usec": 888953,
+                    "system_usec": 193658,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 36528,
+                    "user_usec": 18243,
+                    "system_usec": 18284,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1066999,
+                    "user_usec": 871504,
+                    "system_usec": 195495,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37069,
+                    "user_usec": 21555,
+                    "system_usec": 15515,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1066100,
+                    "user_usec": 866535,
+                    "system_usec": 199565,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36836,
+                    "user_usec": 26501,
+                    "system_usec": 10335,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1075120,
+                    "user_usec": 863884,
+                    "system_usec": 211235,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 207,
+                  "nice": 0,
+                  "system": 81,
+                  "idle": 71,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 25,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 230,
+                  "nice": 0,
+                  "system": 72,
+                  "idle": 75,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 238,
+                  "nice": 0,
+                  "system": 66,
+                  "idle": 79,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 226,
+                  "nice": 0,
+                  "system": 74,
+                  "idle": 68,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3970508792
+            }
+          }
+        },
+        {
+          "round": 2,
+          "order": "AB",
+          "engines": {
+            "A": {
+              "makespan_ns": 2876426862,
+              "median_job_elapsed_ns": 2792240730.0,
+              "slowest_job_elapsed_ns": 2872661154,
+              "launch_skew_ns": 7118542,
+              "finish_spread_ns": 244098069,
+              "last_finisher_slot": 4,
+              "last_finisher_vcpu": "0",
+              "penultimate_finisher_slot": 3,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 80420424.0,
+              "last_finisher_start_offset_ns": 3765708,
+              "last_vs_penultimate_finish_ns": 15910000,
+              "penultimate_finish_above_median_ns": 62790902.5,
+              "median_within_vcpu_finish_spread_ns": 160418805.5,
+              "between_vcpu_mean_finish_spread_ns": 52295423.5,
+              "median_two_revision_cgroup_cpu_ns": 968165500.0
+            },
+            "B": {
+              "makespan_ns": 3207177803,
+              "median_job_elapsed_ns": 3116504109.0,
+              "slowest_job_elapsed_ns": 3197572625,
+              "launch_skew_ns": 9605178,
+              "finish_spread_ns": 190080691,
+              "last_finisher_slot": 7,
+              "last_finisher_vcpu": "3",
+              "penultimate_finisher_slot": 4,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 81068516.0,
+              "last_finisher_start_offset_ns": 9605178,
+              "last_vs_penultimate_finish_ns": 6132549,
+              "penultimate_finish_above_median_ns": 82058038.0,
+              "median_within_vcpu_finish_spread_ns": 118046853.0,
+              "between_vcpu_mean_finish_spread_ns": 71766838.0,
+              "median_two_revision_cgroup_cpu_ns": 1030383000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": -330750941,
+            "median_job_elapsed_ns": -324263379.0,
+            "slowest_job_elapsed_ns": -324911471,
+            "launch_skew_ns": -2486636,
+            "finish_spread_ns": 54017378,
+            "last_finisher_excess_ns": -648092.0,
+            "last_finisher_start_offset_ns": -5839470,
+            "last_vs_penultimate_finish_ns": 9777451,
+            "penultimate_finish_above_median_ns": -19267135.5,
+            "median_within_vcpu_finish_spread_ns": 42371952.5,
+            "between_vcpu_mean_finish_spread_ns": -19471414.5,
+            "median_two_revision_cgroup_cpu_ns": -62217500.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2676294334,
+                "B": 3052298447
+              },
+              "start_offset_ns": {
+                "A": 134542,
+                "B": 0
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2841137001,
+                "B": 3111932437
+              },
+              "start_offset_ns": {
+                "A": 3851917,
+                "B": 1059251
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2842804376,
+                "B": 3121075781
+              },
+              "start_offset_ns": {
+                "A": 4169125,
+                "B": 3906963
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2860516862,
+                "B": 3011779231
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 5317881
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2872661154,
+                "B": 3197080125
+              },
+              "start_offset_ns": {
+                "A": 3765708,
+                "B": 3965129
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2717361210,
+                "B": 3017160904
+              },
+              "start_offset_ns": {
+                "A": 6788083,
+                "B": 8483885
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2743344459,
+                "B": 3151148319
+              },
+              "start_offset_ns": {
+                "A": 7118542,
+                "B": 6039090
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2626251210,
+                "B": 3197572625
+              },
+              "start_offset_ns": {
+                "A": 6077583,
+                "B": 9605178
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 36210,
+                    "user_usec": 36209,
+                    "system_usec": 0,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1202470,
+                      "full": 1175350
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1056515,
+                    "user_usec": 595905,
+                    "system_usec": 460611,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1127324,
+                      "full": 993941
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 36039,
+                    "user_usec": 23617,
+                    "system_usec": 12422,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1086260,
+                      "full": 1059709
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1027052,
+                    "user_usec": 840736,
+                    "system_usec": 186316,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 975012,
+                      "full": 913488
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 36194,
+                    "user_usec": 8446,
+                    "system_usec": 27748,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1062587,
+                      "full": 1036152
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1041783,
+                    "user_usec": 810204,
+                    "system_usec": 231580,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1025138,
+                      "full": 967970
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37369,
+                    "user_usec": 10880,
+                    "system_usec": 26489,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 946233,
+                      "full": 919491
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1033816,
+                    "user_usec": 788363,
+                    "system_usec": 245453,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 986332,
+                      "full": 922795
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 35165,
+                    "user_usec": 7941,
+                    "system_usec": 27223,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1218386,
+                      "full": 1190926
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1045392,
+                    "user_usec": 756678,
+                    "system_usec": 288713,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1426383,
+                      "full": 1235625
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 34571,
+                    "user_usec": 14057,
+                    "system_usec": 20514,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1106587,
+                      "full": 1079910
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1030612,
+                    "user_usec": 807949,
+                    "system_usec": 222663,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1091624,
+                      "full": 1032317
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 34792,
+                    "user_usec": 16929,
+                    "system_usec": 17862,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1015046,
+                      "full": 988622
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1011414,
+                    "user_usec": 795501,
+                    "system_usec": 215912,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 911345,
+                      "full": 866003
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36099,
+                    "user_usec": 19000,
+                    "system_usec": 17100,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 942491,
+                      "full": 916081
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1040989,
+                    "user_usec": 857993,
+                    "system_usec": 182997,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1173319,
+                      "full": 999386
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 172,
+                  "nice": 0,
+                  "system": 132,
+                  "idle": 73,
+                  "iowait": 2,
+                  "irq": 0,
+                  "softirq": 6,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 234,
+                  "nice": 0,
+                  "system": 71,
+                  "idle": 77,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 228,
+                  "nice": 0,
+                  "system": 75,
+                  "idle": 80,
+                  "iowait": 1,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 220,
+                  "nice": 0,
+                  "system": 80,
+                  "idle": 78,
+                  "iowait": 2,
+                  "irq": 0,
+                  "softirq": 5,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3943542917
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 39052,
+                    "user_usec": 24323,
+                    "system_usec": 14729,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1122364,
+                    "user_usec": 916263,
+                    "system_usec": 206101,
+                    "nr_periods": 36,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 39770,
+                    "user_usec": 22237,
+                    "system_usec": 17533,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1131052,
+                    "user_usec": 931322,
+                    "system_usec": 199731,
+                    "nr_periods": 36,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37493,
+                    "user_usec": 23901,
+                    "system_usec": 13592,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1113799,
+                    "user_usec": 905803,
+                    "system_usec": 207995,
+                    "nr_periods": 37,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 38295,
+                    "user_usec": 19455,
+                    "system_usec": 18840,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1129191,
+                    "user_usec": 943068,
+                    "system_usec": 186124,
+                    "nr_periods": 37,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 39536,
+                    "user_usec": 22120,
+                    "system_usec": 17415,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1095078,
+                    "user_usec": 881331,
+                    "system_usec": 213748,
+                    "nr_periods": 37,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 38727,
+                    "user_usec": 24404,
+                    "system_usec": 14323,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1113837,
+                    "user_usec": 925535,
+                    "system_usec": 188302,
+                    "nr_periods": 36,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37374,
+                    "user_usec": 24540,
+                    "system_usec": 12834,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1101568,
+                    "user_usec": 886663,
+                    "system_usec": 214905,
+                    "nr_periods": 36,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37077,
+                    "user_usec": 26280,
+                    "system_usec": 10797,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1105085,
+                    "user_usec": 897175,
+                    "system_usec": 207911,
+                    "nr_periods": 36,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 261,
+                  "nice": 0,
+                  "system": 78,
+                  "idle": 68,
+                  "iowait": 1,
+                  "irq": 0,
+                  "softirq": 9,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 264,
+                  "nice": 0,
+                  "system": 70,
+                  "idle": 73,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 241,
+                  "nice": 0,
+                  "system": 91,
+                  "idle": 69,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 5,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 234,
+                  "nice": 0,
+                  "system": 90,
+                  "idle": 77,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 15,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 4322112042
+            }
+          }
+        },
+        {
+          "round": 3,
+          "order": "BA",
+          "engines": {
+            "A": {
+              "makespan_ns": 2905838460,
+              "median_job_elapsed_ns": 2782139397.0,
+              "slowest_job_elapsed_ns": 2897679002,
+              "launch_skew_ns": 8462833,
+              "finish_spread_ns": 270026542,
+              "last_finisher_slot": 5,
+              "last_finisher_vcpu": "1",
+              "penultimate_finisher_slot": 6,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 115539605.0,
+              "last_finisher_start_offset_ns": 8159458,
+              "last_vs_penultimate_finish_ns": 6020042,
+              "penultimate_finish_above_median_ns": 115620833.5,
+              "median_within_vcpu_finish_spread_ns": 98572500.0,
+              "between_vcpu_mean_finish_spread_ns": 171454042.0,
+              "median_two_revision_cgroup_cpu_ns": 959739000.0
+            },
+            "B": {
+              "makespan_ns": 2870031932,
+              "median_job_elapsed_ns": 2798668657.5,
+              "slowest_job_elapsed_ns": 2864802676,
+              "launch_skew_ns": 10187971,
+              "finish_spread_ns": 180597804,
+              "last_finisher_slot": 7,
+              "last_finisher_vcpu": "3",
+              "penultimate_finisher_slot": 1,
+              "last_two_same_vcpu": false,
+              "last_finisher_excess_ns": 66134018.5,
+              "last_finisher_start_offset_ns": 5229256,
+              "last_vs_penultimate_finish_ns": 17235271,
+              "penultimate_finish_above_median_ns": 48770080.5,
+              "median_within_vcpu_finish_spread_ns": 46693974.0,
+              "between_vcpu_mean_finish_spread_ns": 145647699,
+              "median_two_revision_cgroup_cpu_ns": 1002227000.0
+            }
+          },
+          "gap_ns": {
+            "makespan_ns": 35806528,
+            "median_job_elapsed_ns": -16529260.5,
+            "slowest_job_elapsed_ns": 32876326,
+            "launch_skew_ns": -1725138,
+            "finish_spread_ns": 89428738,
+            "last_finisher_excess_ns": 49405586.5,
+            "last_finisher_start_offset_ns": 2930202,
+            "last_vs_penultimate_finish_ns": -11215229,
+            "penultimate_finish_above_median_ns": 66850753.0,
+            "median_within_vcpu_finish_spread_ns": 51878526.0,
+            "between_vcpu_mean_finish_spread_ns": 25806343.0,
+            "median_two_revision_cgroup_cpu_ns": -42488000.0
+          },
+          "slots": [
+            {
+              "slot": 0,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2706318751,
+                "B": 2679246157
+              },
+              "start_offset_ns": {
+                "A": 0,
+                "B": 10187971
+              }
+            },
+            {
+              "slot": 1,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2778462585,
+                "B": 2850184450
+              },
+              "start_offset_ns": {
+                "A": 737708,
+                "B": 2612211
+              }
+            },
+            {
+              "slot": 2,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2737083293,
+                "B": 2824607502
+              },
+              "start_offset_ns": {
+                "A": 67750,
+                "B": 6801675
+              }
+            },
+            {
+              "slot": 3,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2785816209,
+                "B": 2807134522
+              },
+              "start_offset_ns": {
+                "A": 3378667,
+                "B": 8069260
+              }
+            },
+            {
+              "slot": 4,
+              "cpu": "0",
+              "elapsed_ns": {
+                "A": 2627349085,
+                "B": 2704506188
+              },
+              "start_offset_ns": {
+                "A": 8462833,
+                "B": 0
+              }
+            },
+            {
+              "slot": 5,
+              "cpu": "1",
+              "elapsed_ns": {
+                "A": 2897679002,
+                "B": 2785882496
+              },
+              "start_offset_ns": {
+                "A": 8159458,
+                "B": 2101127
+              }
+            },
+            {
+              "slot": 6,
+              "cpu": "2",
+              "elapsed_ns": {
+                "A": 2891533001,
+                "B": 2790202793
+              },
+              "start_offset_ns": {
+                "A": 8285417,
+                "B": 2646586
+              }
+            },
+            {
+              "slot": 7,
+              "cpu": "3",
+              "elapsed_ns": {
+                "A": 2831876835,
+                "B": 2864802676
+              },
+              "start_offset_ns": {
+                "A": 8320000,
+                "B": 5229256
+              }
+            }
+          ],
+          "compiler_cpu": {
+            "A": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 36077,
+                    "user_usec": 27136,
+                    "system_usec": 8941,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1106832,
+                      "full": 1080374
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1052851,
+                    "user_usec": 835862,
+                    "system_usec": 216989,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1174782,
+                      "full": 954571
+                    }
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 35657,
+                    "user_usec": 12963,
+                    "system_usec": 22694,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 932843,
+                      "full": 906868
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1037623,
+                    "user_usec": 840013,
+                    "system_usec": 197610,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 970684,
+                      "full": 933591
+                    }
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 35367,
+                    "user_usec": 29376,
+                    "system_usec": 5990,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1223641,
+                      "full": 1194962
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1025373,
+                    "user_usec": 734547,
+                    "system_usec": 290826,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1167022,
+                      "full": 1066879
+                    }
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 37912,
+                    "user_usec": 34161,
+                    "system_usec": 3752,
+                    "nr_periods": 20,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 868655,
+                      "full": 841389
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1024016,
+                    "user_usec": 887155,
+                    "system_usec": 136862,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1102795,
+                      "full": 1036286
+                    }
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 37055,
+                    "user_usec": 12437,
+                    "system_usec": 24617,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1055740,
+                      "full": 1028345
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1050936,
+                    "user_usec": 891069,
+                    "system_usec": 159866,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1076593,
+                      "full": 983480
+                    }
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 37849,
+                    "user_usec": 12524,
+                    "system_usec": 25324,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 946283,
+                      "full": 919175
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1010966,
+                    "user_usec": 822036,
+                    "system_usec": 188931,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1038228,
+                      "full": 972915
+                    }
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 34254,
+                    "user_usec": 17258,
+                    "system_usec": 16996,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1187319,
+                      "full": 1159992
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1030030,
+                    "user_usec": 872867,
+                    "system_usec": 157163,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 1158590,
+                      "full": 1056794
+                    }
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 36420,
+                    "user_usec": 19919,
+                    "system_usec": 16500,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 841082,
+                      "full": 814603
+                    }
+                  },
+                  "builder": {
+                    "usage_usec": 1017876,
+                    "user_usec": 862804,
+                    "system_usec": 155073,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {
+                      "some": 973332,
+                      "full": 902461
+                    }
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 234,
+                  "nice": 0,
+                  "system": 71,
+                  "idle": 75,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 3,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 231,
+                  "nice": 0,
+                  "system": 70,
+                  "idle": 77,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 218,
+                  "nice": 0,
+                  "system": 80,
+                  "idle": 74,
+                  "iowait": 4,
+                  "irq": 0,
+                  "softirq": 9,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 239,
+                  "nice": 0,
+                  "system": 60,
+                  "idle": 78,
+                  "iowait": 3,
+                  "irq": 0,
+                  "softirq": 5,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3909376000
+            },
+            "B": {
+              "groups": [
+                {
+                  "slot": 0,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 46144,
+                    "user_usec": 25647,
+                    "system_usec": 20497,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1080424,
+                    "user_usec": 862499,
+                    "system_usec": 217925,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 1,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 39121,
+                    "user_usec": 23930,
+                    "system_usec": 15191,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1088705,
+                    "user_usec": 862190,
+                    "system_usec": 226515,
+                    "nr_periods": 34,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 2,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37575,
+                    "user_usec": 23822,
+                    "system_usec": 13752,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1072308,
+                    "user_usec": 849798,
+                    "system_usec": 222509,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 3,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 38809,
+                    "user_usec": 15993,
+                    "system_usec": 22816,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1094469,
+                    "user_usec": 811328,
+                    "system_usec": 283141,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 4,
+                  "home_cpu": "0",
+                  "dependency": {
+                    "usage_usec": 39234,
+                    "user_usec": 24650,
+                    "system_usec": 14583,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1095986,
+                    "user_usec": 641772,
+                    "system_usec": 454215,
+                    "nr_periods": 35,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 5,
+                  "home_cpu": "1",
+                  "dependency": {
+                    "usage_usec": 36520,
+                    "user_usec": 28365,
+                    "system_usec": 8156,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1109404,
+                    "user_usec": 879564,
+                    "system_usec": 229840,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 6,
+                  "home_cpu": "2",
+                  "dependency": {
+                    "usage_usec": 37512,
+                    "user_usec": 22772,
+                    "system_usec": 14740,
+                    "nr_periods": 18,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1084762,
+                    "user_usec": 895799,
+                    "system_usec": 188964,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                },
+                {
+                  "slot": 7,
+                  "home_cpu": "3",
+                  "dependency": {
+                    "usage_usec": 38112,
+                    "user_usec": 25174,
+                    "system_usec": 12938,
+                    "nr_periods": 19,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  },
+                  "builder": {
+                    "usage_usec": 1072464,
+                    "user_usec": 879907,
+                    "system_usec": 192556,
+                    "nr_periods": 33,
+                    "nr_throttled": 0,
+                    "throttled_usec": 0,
+                    "psi_usec": {}
+                  }
+                }
+              ],
+              "guest_vcpu_delta_ticks": {
+                "0": {
+                  "user": 207,
+                  "nice": 0,
+                  "system": 86,
+                  "idle": 68,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 20,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "1": {
+                  "user": 241,
+                  "nice": 0,
+                  "system": 67,
+                  "idle": 70,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 2,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "2": {
+                  "user": 243,
+                  "nice": 0,
+                  "system": 66,
+                  "idle": 70,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 1,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                },
+                "3": {
+                  "user": 227,
+                  "nice": 0,
+                  "system": 78,
+                  "idle": 68,
+                  "iowait": 0,
+                  "irq": 0,
+                  "softirq": 4,
+                  "steal": 0,
+                  "guest": 0,
+                  "guest_nice": 0
+                }
+              },
+              "host_bracket_ns": 3995782667
+            }
+          }
+        }
+      ],
+      "summary": {
+        "windows": 4,
+        "engine_medians": {
+          "A": {
+            "makespan_ns": 2936158939.0,
+            "median_job_elapsed_ns": 2819808636.5,
+            "slowest_job_elapsed_ns": 2931820189.5,
+            "launch_skew_ns": 6609979.0,
+            "finish_spread_ns": 302506396.0,
+            "last_finisher_excess_ns": 107720282.0,
+            "last_finisher_start_offset_ns": 4225645.5,
+            "last_vs_penultimate_finish_ns": 31824437.5,
+            "penultimate_finish_above_median_ns": 65580847.25,
+            "median_within_vcpu_finish_spread_ns": 138385156.5,
+            "between_vcpu_mean_finish_spread_ns": 158637062.75,
+            "median_two_revision_cgroup_cpu_ns": 969628000.0
+          },
+          "B": {
+            "makespan_ns": 2876408752.5,
+            "median_job_elapsed_ns": 2807468501.75,
+            "slowest_job_elapsed_ns": 2873538603.5,
+            "launch_skew_ns": 11498826.5,
+            "finish_spread_ns": 185339247.5,
+            "last_finisher_excess_ns": 73601267.25,
+            "last_finisher_start_offset_ns": 5264944.0,
+            "last_vs_penultimate_finish_ns": 11857348.0,
+            "penultimate_finish_above_median_ns": 51463229.75,
+            "median_within_vcpu_finish_spread_ns": 77266949.0,
+            "between_vcpu_mean_finish_spread_ns": 95087741.25,
+            "median_two_revision_cgroup_cpu_ns": 1001455000.0
+          }
+        },
+        "median_paired_gaps_ns": {
+          "makespan_ns": 59750186.5,
+          "median_job_elapsed_ns": 17472489.25,
+          "slowest_job_elapsed_ns": 58281586.0,
+          "launch_skew_ns": -5162992.5,
+          "finish_spread_ns": 106806002.0,
+          "last_finisher_excess_ns": 35776401.0,
+          "last_finisher_start_offset_ns": -304025.0,
+          "last_vs_penultimate_finish_ns": 10886599.5,
+          "penultimate_finish_above_median_ns": 13409535.25,
+          "median_within_vcpu_finish_spread_ns": 54094104.25,
+          "between_vcpu_mean_finish_spread_ns": 33940610.75,
+          "median_two_revision_cgroup_cpu_ns": -34428750.0
+        },
+        "native_lower_windows": {
+          "makespan_ns": 1,
+          "median_job_elapsed_ns": 2,
+          "slowest_job_elapsed_ns": 1,
+          "launch_skew_ns": 4,
+          "finish_spread_ns": 0,
+          "last_finisher_excess_ns": 1,
+          "last_finisher_start_offset_ns": 2,
+          "last_vs_penultimate_finish_ns": 1,
+          "penultimate_finish_above_median_ns": 1,
+          "median_within_vcpu_finish_spread_ns": 0,
+          "between_vcpu_mean_finish_spread_ns": 1,
+          "median_two_revision_cgroup_cpu_ns": 4
+        },
+        "late_vcpu": {
+          "A": {
+            "last_finisher_vcpu_counts": {
+              "0": 2,
+              "1": 1,
+              "2": 0,
+              "3": 1
+            },
+            "last_two_same_vcpu_windows": 0
+          },
+          "B": {
+            "last_finisher_vcpu_counts": {
+              "0": 0,
+              "1": 1,
+              "2": 0,
+              "3": 3
+            },
+            "last_two_same_vcpu_windows": 1
+          }
+        },
+        "matched_jobs": {
+          "count": 32,
+          "native_faster": 17,
+          "native_slower": 15,
+          "median_gap_ns": -19122229.0
+        },
+        "additive_gap_sum_ns": {
+          "makespan_ns": -92255270,
+          "median_job_elapsed_ns": -227778770.0,
+          "last_finisher_excess_ns": 139040818.0,
+          "last_finisher_start_offset_ns": -3517318
+        }
+      }
+    }
+  ]
+}

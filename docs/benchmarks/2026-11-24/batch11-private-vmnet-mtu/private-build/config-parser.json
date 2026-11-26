@@ -1,0 +1,75 @@
+{
+  "binary_sha256": "ea735da27a7cbef8db1a9201192af431511454ff6f41bc271fdd3ce0d4661af9",
+  "revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "command": "ci cpu-plan",
+  "cases": [
+    {
+      "existing": null,
+      "override": null,
+      "expected": "ok",
+      "exit": 0,
+      "stdout": "{\"count\":4,\"source\":\"fixed\"}",
+      "stderr": ""
+    },
+    {
+      "existing": "1500",
+      "override": "1500",
+      "expected": "ok",
+      "exit": 0,
+      "stdout": "{\"count\":4,\"source\":\"fixed\"}",
+      "stderr": ""
+    },
+    {
+      "existing": "9000",
+      "override": "9000",
+      "expected": "ok",
+      "exit": 0,
+      "stdout": "{\"count\":4,\"source\":\"fixed\"}",
+      "stderr": ""
+    },
+    {
+      "existing": "9000",
+      "override": null,
+      "expected": "ok",
+      "exit": 0,
+      "stdout": "{\"count\":4,\"source\":\"fixed\"}",
+      "stderr": ""
+    },
+    {
+      "existing": "1500",
+      "override": "9000",
+      "expected": "mismatch",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "micropod ci: CI resources differ from /tmp/mp-mtu-manifest-f62z8c7i/worker.json; select a separate worker directory for this configuration"
+    },
+    {
+      "existing": "9000",
+      "override": "1500",
+      "expected": "mismatch",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "micropod ci: CI resources differ from /tmp/mp-mtu-manifest-f62z8c7i/worker.json; select a separate worker directory for this configuration"
+    },
+    {
+      "existing": null,
+      "override": "9000",
+      "expected": "mismatch",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "micropod ci: CI resources differ from /tmp/mp-mtu-manifest-f62z8c7i/worker.json; select a separate worker directory for this configuration"
+    },
+    {
+      "existing": "9000",
+      "override": "9001",
+      "expected": "invalid",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "micropod ci: Benchmark publication MTU requires a native macvlan worker and 1500 or 9000"
+    }
+  ],
+  "fresh_private_manifest_per_case": true,
+  "host_networks_created": 0,
+  "vm_boots": 0,
+  "timed_attempts": 0
+}

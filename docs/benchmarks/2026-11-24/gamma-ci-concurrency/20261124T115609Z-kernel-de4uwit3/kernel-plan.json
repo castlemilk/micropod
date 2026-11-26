@@ -1,0 +1,80 @@
+{
+  "order": [
+    [
+      "file",
+      "file-spare",
+      "file-copy",
+      "memory"
+    ],
+    [
+      "file-spare",
+      "memory",
+      "file",
+      "file-copy"
+    ],
+    [
+      "memory",
+      "file-copy",
+      "file-spare",
+      "file"
+    ],
+    [
+      "file-copy",
+      "file",
+      "memory",
+      "file-spare"
+    ]
+  ],
+  "irq_cpu": 3,
+  "other_cpus": "0-2",
+  "preflight_irqs": [
+    0,
+    0,
+    0,
+    2467
+  ],
+  "service_file_sha256": "dfb347656ada2a2acf7f034bc5ac70f11b5d79cc5ed731701e398be2d8e2a608",
+  "guest_start": {
+    "boot": "726650d3-6300-4dfd-a264-7bc3c5743afa",
+    "virtio": "virtio1",
+    "driver": "virtio_net",
+    "ifindex": "3",
+    "irq": "14",
+    "effective": "3",
+    "irq_counts": "1,0,0,350",
+    "NET_TX": "7,15,6,29",
+    "NET_RX": "145,81,30,384",
+    "tx_bytes": "3144228",
+    "rx_bytes": "45423",
+    "tx_packets": "244",
+    "tx_dropped": "0",
+    "rx_dropped": "0",
+    "tx_errors": "0",
+    "rx_errors": "0",
+    "tx_kicks": "165",
+    "tx_tx_timeouts": "0",
+    "tx0_kicks": "165"
+  },
+  "guest_after_preflight": {
+    "boot": "726650d3-6300-4dfd-a264-7bc3c5743afa",
+    "virtio": "virtio1",
+    "driver": "virtio_net",
+    "ifindex": "3",
+    "irq": "14",
+    "effective": "3",
+    "irq_counts": "1,0,0,2817",
+    "NET_TX": "65,91,112,927",
+    "NET_RX": "270,218,174,1736",
+    "tx_bytes": "841075074",
+    "rx_bytes": "964673",
+    "tx_packets": "17166",
+    "tx_dropped": "0",
+    "rx_dropped": "0",
+    "tx_errors": "0",
+    "rx_errors": "0",
+    "tx_kicks": "2511",
+    "tx_tx_timeouts": "0",
+    "tx0_kicks": "2511"
+  },
+  "build_slots": 4
+}

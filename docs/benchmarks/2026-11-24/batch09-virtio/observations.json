@@ -1,0 +1,23 @@
+{
+  "driver": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+  "observations": [
+    {
+      "acknowledged": 1,
+      "calls": 1,
+      "ethtool_combined": 4,
+      "linux_rx": 4,
+      "linux_tx": 4,
+      "mock_device_pairs": 4,
+      "requested": 4
+    },
+    {
+      "acknowledged": 0,
+      "calls": 1,
+      "ethtool_combined": 4,
+      "linux_rx": 4,
+      "linux_tx": 4,
+      "mock_device_pairs": 1,
+      "requested": 4
+    }
+  ]
+}

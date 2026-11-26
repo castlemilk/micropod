@@ -55,7 +55,8 @@ struct HVFWorkerTests {
             try JSONEncoder().encode(active).write(to: file, options: .atomic)
             let wrong = expected == .vz ? "hvf" : "vz"
             let client = CIWorker(environment: base.merging(["MICROPOD_CI_VMM": wrong]) { _, new in new })
-            let error = "Requested VMM \(wrong), but the active worker uses \(expected.rawValue) at \(worker.directory.path)"
+            let error =
+                "Requested VMM \(wrong), but the active worker uses \(expected.rawValue) at \(worker.directory.path)"
             await #expect(throws: MicropodError.message(error)) { _ = try await client.start(executable: unused) }
             await #expect(throws: MicropodError.message(error)) { _ = try await client.runEndpoint(executable: unused) }
             await #expect(throws: MicropodError.message(error)) { try await client.stop() }
@@ -249,7 +250,9 @@ struct HVFWorkerTests {
         #expect(try HVFKernelArguments.attestWorkspace(workspace, labels: [label]) == digest)
         #expect(try HVFKernelArguments.attestWorkspace("/Users/dev/repo", labels: []) == nil)
         for labels in [[], [label, label], ["io.micropod.workspace-sha256=wrong"]] {
-            #expect(throws: MicropodError.self) { _ = try HVFKernelArguments.attestWorkspace(workspace, labels: labels) }
+            #expect(throws: MicropodError.self) {
+                _ = try HVFKernelArguments.attestWorkspace(workspace, labels: labels)
+            }
         }
     }
 
@@ -274,9 +277,11 @@ struct HVFWorkerTests {
         #expect(decoded == Data(physical.utf8))
     }
 
-    @Test("Ambiguous workspace share specifications fail before launch", arguments: [
-        "/", "relative", "/private/tmp/../first", "/private/tmp/a:b", "/private/tmp/zero\0suffix",
-    ])
+    @Test(
+        "Ambiguous workspace share specifications fail before launch",
+        arguments: [
+            "/", "relative", "/private/tmp/../first", "/private/tmp/a:b", "/private/tmp/zero\0suffix",
+        ])
     func rejectsInvalidWorkspacePaths(path: String) {
         let spec = launchSpec(workspace: path)
         #expect(throws: MicropodError.self) { _ = try spec.validatedArguments() }
@@ -560,7 +565,8 @@ struct HVFWorkerTests {
         #expect(!fm.fileExists(atPath: recorded.path))
     }
 
-    @Test("Managed HVF rejects HTTPS OTLP endpoints before launching the VMM", arguments: ["metrics", "traces", "legacy"])
+    @Test(
+        "Managed HVF rejects HTTPS OTLP endpoints before launching the VMM", arguments: ["metrics", "traces", "legacy"])
     func managedLaunchRejectsHTTPS(_ exporter: String) throws {
         let fm = FileManager.default
         let home = fm.temporaryDirectory.appendingPathComponent("hvf-otlp-" + UUID().uuidString)
@@ -875,30 +881,30 @@ struct HVFWorkerTests {
 
         // Verify raw snake_case /micropod/metrics JSON decodes verbatim (including digit keys and route names)
         let rawEngineJSON = """
-        {
-          "containers_created": 9, "runs_finished": 8, "runtime_failures": 0,
-          "image_cache_hits": 8, "prepared_pods_used": 0, "shared_cache_attachments": 0,
-          "pod_ms_total": 12, "create_ms_total": 34, "start_ms_total": 56,
-          "start_parallelism_limit": 8, "setup_slots_in_use": 0, "setup_wait_usec_total": 0,
-          "api": {
-            "requests_total": 42, "errors_4xx": 2, "errors_5xx": 0, "conflicts_409": 1,
-            "not_implemented_501": 0, "slow_requests_total": 1, "duration_usec_total": 80000,
-            "max_duration_usec": 55000,
-            "routes": { "GET /_ping": { "count": 5, "errors": 0, "duration_usec_total": 500, "max_duration_usec": 200 } }
-          },
-          "reaper": {
-            "active_sessions": 0, "sessions_started": 1, "sessions_closed": 1, "requests_total": 10,
-            "containers_reaped": 8, "networks_reaped": 1, "volumes_reaped": 1,
-            "reap_errors": 0, "reap_denied": 0, "reap_duration_usec_total": 12000,
-            "max_reap_duration_usec": 4000, "last_reap_unix_secs": 1800000000
-          },
-          "recent_issues": [
-            { "ts_unix_ns": 1800000000000000000, "kind": "conflict", "source": "docker_api",
-              "method": "POST", "route": "/containers/create", "status": 409, "duration_ms": 2.5,
-              "message": "Conflict" }
-          ]
-        }
-        """
+            {
+              "containers_created": 9, "runs_finished": 8, "runtime_failures": 0,
+              "image_cache_hits": 8, "prepared_pods_used": 0, "shared_cache_attachments": 0,
+              "pod_ms_total": 12, "create_ms_total": 34, "start_ms_total": 56,
+              "start_parallelism_limit": 8, "setup_slots_in_use": 0, "setup_wait_usec_total": 0,
+              "api": {
+                "requests_total": 42, "errors_4xx": 2, "errors_5xx": 0, "conflicts_409": 1,
+                "not_implemented_501": 0, "slow_requests_total": 1, "duration_usec_total": 80000,
+                "max_duration_usec": 55000,
+                "routes": { "GET /_ping": { "count": 5, "errors": 0, "duration_usec_total": 500, "max_duration_usec": 200 } }
+              },
+              "reaper": {
+                "active_sessions": 0, "sessions_started": 1, "sessions_closed": 1, "requests_total": 10,
+                "containers_reaped": 8, "networks_reaped": 1, "volumes_reaped": 1,
+                "reap_errors": 0, "reap_denied": 0, "reap_duration_usec_total": 12000,
+                "max_reap_duration_usec": 4000, "last_reap_unix_secs": 1800000000
+              },
+              "recent_issues": [
+                { "ts_unix_ns": 1800000000000000000, "kind": "conflict", "source": "docker_api",
+                  "method": "POST", "route": "/containers/create", "status": 409, "duration_ms": 2.5,
+                  "message": "Conflict" }
+              ]
+            }
+            """
         let decodedEngine = try CIWorker.makeRuntimeMetricsDecoder().decode(
             CIWorker.RuntimeEngineMetrics.self, from: Data(rawEngineJSON.utf8))
         #expect(decodedEngine.api?.errors4xx == 2)

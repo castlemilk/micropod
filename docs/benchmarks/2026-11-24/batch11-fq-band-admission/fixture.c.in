@@ -1,0 +1,46 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef unsigned char u8;
+#define TC_PRIO_MAX 15
+#define FQ_PRIO2BAND_CRUMB_SIZE ((TC_PRIO_MAX + 1) >> 2)
+#define READ_ONCE(x) (x)
+#define WRITE_ONCE(x, value) ((x) = (value))
+#define unlikely(x) (x)
+
+/* @MAPPING */
+
+struct Scheduler { unsigned int limit; };
+struct Queue {
+    u8 prio2band[FQ_PRIO2BAND_CRUMB_SIZE];
+    unsigned int band_pkt_count[3], stat_band_drops[3], flow_plimit, stat_flows_plimit;
+};
+struct Flow { unsigned int qlen; };
+struct Packet { unsigned int priority; };
+enum { ADMIT, QDISC_DROP_BAND_LIMIT, QDISC_DROP_FLOW_LIMIT };
+#define qdisc_drop_reason(skb, sch, to_free, reason) (reason)
+
+static int check(struct Queue *q, struct Scheduler *sch, struct Flow *f, struct Packet *skb)
+{
+    u8 band;
+    /* @BAND */
+    /* @FLOW */
+    return ADMIT;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 6) return 2;
+    struct Scheduler sch = { .limit = (unsigned int)atoi(argv[1]) };
+    struct Queue q = { .flow_plimit = (unsigned int)atoi(argv[2]) };
+    unsigned int flows = (unsigned int)atoi(argv[3]);
+    struct Flow f = { .qlen = (unsigned int)atoi(argv[4]) };
+    struct Packet skb = { .priority = (unsigned int)atoi(argv[5]) };
+    fq_prio2band_compress_crumb(sch_default_prio2band, q.prio2band);
+    q.band_pkt_count[fq_prio2band(q.prio2band, 0)] = flows * q.flow_plimit;
+    const char *reasons[] = {"admit", "band_limit", "flow_limit"};
+    int result = check(&q, &sch, &f, &skb);
+    printf("%u %s\n", fq_prio2band(q.prio2band, skb.priority), reasons[result]);
+    return 0;
+}

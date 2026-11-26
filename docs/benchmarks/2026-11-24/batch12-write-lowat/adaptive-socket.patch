@@ -1,0 +1,62 @@
+--- a/PublishedTCP.c
++++ b/PublishedTCP.c
+@@ -82,6 +82,7 @@
+     uint16_t close_flags;
+     uint32_t close_fflags;
+     int64_t close_data;
++    int saved_send_lowat;
+     char *pending;
+     size_t offset, length;
+ };
+@@ -634,6 +635,28 @@
+ 
+ // Read directly into the worker scratch and immediately write to the peer.
+ // On backpressure, keep just the unwritten suffix and pause that reader.
++enum { RETRY_BATCH_BYTES = 16 * 1024 };
++
++static void batch_large_retry(struct endpoint *dst, size_t remaining) {
++    if (remaining < RETRY_BATCH_BYTES) return;
++    int fd = dst->watch.fd, space, previous, threshold = RETRY_BATCH_BYTES;
++    socklen_t size = sizeof(int);
++    if (getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &space, &size) == 0 && space >= threshold &&
++        getsockopt(fd, SOL_SOCKET, SO_SNDLOWAT, &previous, &size) == 0 &&
++        previous > 0 && previous < threshold &&
++        setsockopt(fd, SOL_SOCKET, SO_SNDLOWAT, &threshold, sizeof(threshold)) == 0) {
++        dst->saved_send_lowat = previous;
++    }
++}
++
++static int restore_retry_threshold(struct endpoint *dst) {
++    if (!dst->saved_send_lowat) return 0;
++    int rc = setsockopt(dst->watch.fd, SOL_SOCKET, SO_SNDLOWAT,
++                        &dst->saved_send_lowat, sizeof(dst->saved_send_lowat));
++    if (!rc) dst->saved_send_lowat = 0;
++    return rc;
++}
++
+ static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct kevent *read_event, enum bulk_poll poll) {
+     struct pair *p = src->pair;
+     mp_tcp_listener *l = p->listener;
+@@ -726,16 +749,22 @@
+                 l->stats.pending_copy_bytes += remaining;
+             }
+             dst->length = remaining;
++            batch_large_retry(dst, remaining);
+             struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
+                                         filter_change(&dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) };
+             if (update_stream_filters(r, changes, 2) < 0) retire(p);
+         } else {
++            if (remaining < RETRY_BATCH_BYTES && restore_retry_threshold(dst) < 0) {
++                retire(p);
++                return;
++            }
+             dst->offset += (size_t)sent;
+             dst->length = remaining;
+         }
+         return;
+     }
+     if (dst->pending) {
++        if (restore_retry_threshold(dst) < 0) { retire(p); return; }
+         free(dst->pending);
+         dst->pending = NULL;
+         dst->offset = dst->length = 0;

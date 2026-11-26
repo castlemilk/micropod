@@ -1,0 +1,77 @@
+{
+  "observed_at": "2026-11-24T08:03:31.741321+00:00",
+  "launchd": {
+    "com.skunkworq.micropod.ci-worker": {
+      "print_rc": 0,
+      "state": "not running",
+      "pid": null
+    },
+    "dev.cuttlefish.worker.linux": {
+      "print_rc": 0,
+      "state": "not running",
+      "pid": null
+    },
+    "dev.cuttlefish.linux-runner-watchdog": {
+      "print_rc": 0,
+      "state": "not running",
+      "pid": null
+    },
+    "dev.cuttlefish.machine-runner": {
+      "print_rc": 0,
+      "state": "running",
+      "pid": 3379
+    },
+    "dev.cuttlefish.agent.desktop": {
+      "print_rc": 0,
+      "state": "not running",
+      "pid": null
+    }
+  },
+  "operator_work_paused_in_local_desktop_state": false,
+  "idle_sample": {
+    "eligible": false,
+    "idle_fraction": 0.6631165919282511,
+    "idle_observation_s": 2,
+    "floor_idle": 0.9,
+    "filesystem_free_GiB": 464.55505752563477,
+    "min_free_GiB": 60,
+    "timestamp": "2026-11-24T08:03:33.743370+00:00"
+  },
+  "remote_fleet": [
+    {
+      "name": "Gamma-128GB.local",
+      "at": "2026-11-24T07:57:03.513255148Z",
+      "state": "offline",
+      "slots": {
+        "activeLeases": 0,
+        "capacity": 6,
+        "free": null
+      },
+      "connection": {
+        "secondsSinceSeen": 7726,
+        "state": "offline"
+      },
+      "freshness": "stale",
+      "pause": true
+    },
+    {
+      "name": "Gamma-128GB Linux CI (isolated VM)",
+      "at": "2026-11-24T07:57:05.558829275Z",
+      "state": "offline",
+      "slots": {
+        "activeLeases": 1,
+        "capacity": 1,
+        "free": null
+      },
+      "connection": {
+        "secondsSinceSeen": 7640,
+        "state": "offline"
+      },
+      "freshness": "stale",
+      "pause": true
+    }
+  ],
+  "host_worker_timed_windows": 0,
+  "vm_timed_windows": 0,
+  "assessment": "Independent host component preflight only. Shared Gamma timing had no current owner handoff; fleet snapshots were stale. The local state cannot establish what work the machine runner owns."
+}

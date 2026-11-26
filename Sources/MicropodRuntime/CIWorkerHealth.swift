@@ -379,7 +379,8 @@ extension CIWorker {
         let crlf = Data("\r\n".utf8)
         while idx < data.endIndex {
             guard let lineEnd = data.range(of: crlf, in: idx..<data.endIndex) else { break }
-            let sizeText = String(decoding: data[idx..<lineEnd.lowerBound], as: UTF8.self)
+            let sizeText =
+                String(decoding: data[idx..<lineEnd.lowerBound], as: UTF8.self)
                 .split(separator: ";", maxSplits: 1).first?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard let chunkSize = Int(sizeText, radix: 16) else { return nil }
@@ -399,9 +400,10 @@ extension CIWorker {
 
     public func tracingStatus() throws -> Data {
         let obs = (try? ObservabilityConfig.load(environment: resourceEnvironment)) ?? ObservabilityConfig()
-        guard let body = Self.queryUnixHTTP(
-            socketPath: telemetrySocket.path, method: "GET", path: "/v1/tracing/status",
-            timeoutMs: obs.health.vmmTimeoutMs)
+        guard
+            let body = Self.queryUnixHTTP(
+                socketPath: telemetrySocket.path, method: "GET", path: "/v1/tracing/status",
+                timeoutMs: obs.health.vmmTimeoutMs)
         else {
             throw MicropodError.message("HVF telemetry socket is unreachable at \(telemetrySocket.path)")
         }
@@ -411,9 +413,10 @@ extension CIWorker {
     public func setLiveTracing(enabled: Bool) throws -> Data {
         let obs = (try? ObservabilityConfig.load(environment: resourceEnvironment)) ?? ObservabilityConfig()
         let path = enabled ? "/v1/tracing/enable" : "/v1/tracing/disable"
-        guard let body = Self.queryUnixHTTP(
-            socketPath: telemetrySocket.path, method: "POST", path: path,
-            timeoutMs: obs.health.vmmTimeoutMs)
+        guard
+            let body = Self.queryUnixHTTP(
+                socketPath: telemetrySocket.path, method: "POST", path: path,
+                timeoutMs: obs.health.vmmTimeoutMs)
         else {
             throw MicropodError.message("HVF telemetry socket is unreachable at \(telemetrySocket.path)")
         }
@@ -426,9 +429,10 @@ extension CIWorker {
         _ = Self.queryUnixHTTP(
             socketPath: dockerSocket.path, method: "POST", path: "/\(Self.apiVersion)/micropod/traces/clear",
             timeoutMs: obs.health.vmmTimeoutMs)
-        guard let body = Self.queryUnixHTTP(
-            socketPath: telemetrySocket.path, method: "POST", path: "/v1/tracing/clear",
-            timeoutMs: obs.health.vmmTimeoutMs)
+        guard
+            let body = Self.queryUnixHTTP(
+                socketPath: telemetrySocket.path, method: "POST", path: "/v1/tracing/clear",
+                timeoutMs: obs.health.vmmTimeoutMs)
         else {
             throw MicropodError.message("HVF telemetry socket is unreachable at \(telemetrySocket.path)")
         }
@@ -690,9 +694,10 @@ extension CIWorker {
                 for id in runningIds {
                     group.addTask {
                         let c = DockerClient(endpoint: .unix(sockPath), apiVersion: ver)
-                        guard let resp = try? await c.request(
-                            "GET", "/containers/\(id)/stats", query: ["stream": "false"], timeout: .seconds(2)
-                        ), resp.status == 200,
+                        guard
+                            let resp = try? await c.request(
+                                "GET", "/containers/\(id)/stats", query: ["stream": "false"], timeout: .seconds(2)
+                            ), resp.status == 200,
                             let parsed = try? JSONDecoder().decode(RawStats.self, from: resp.body)
                         else { return (id, nil) }
                         return (id, parsed)
@@ -746,10 +751,13 @@ extension CIWorker {
                 }
             let blkBytes = st?.blkio_stats?.io_service_bytes_recursive ?? []
             let blkOps = st?.blkio_stats?.io_serviced_recursive ?? []
-            let blkReadB: UInt64? = blkBytes.isEmpty ? nil : blkBytes.filter { $0.op == "Read" }.reduce(0) { $0 + $1.value }
-            let blkWriteB: UInt64? = blkBytes.isEmpty ? nil : blkBytes.filter { $0.op == "Write" }.reduce(0) { $0 + $1.value }
+            let blkReadB: UInt64? =
+                blkBytes.isEmpty ? nil : blkBytes.filter { $0.op == "Read" }.reduce(0) { $0 + $1.value }
+            let blkWriteB: UInt64? =
+                blkBytes.isEmpty ? nil : blkBytes.filter { $0.op == "Write" }.reduce(0) { $0 + $1.value }
             let blkReadO: UInt64? = blkOps.isEmpty ? nil : blkOps.filter { $0.op == "Read" }.reduce(0) { $0 + $1.value }
-            let blkWriteO: UInt64? = blkOps.isEmpty ? nil : blkOps.filter { $0.op == "Write" }.reduce(0) { $0 + $1.value }
+            let blkWriteO: UInt64? =
+                blkOps.isEmpty ? nil : blkOps.filter { $0.op == "Write" }.reduce(0) { $0 + $1.value }
             let nets = st?.networks ?? [:]
             let netRx: UInt64? = nets.isEmpty ? nil : nets.values.reduce(0) { $0 + ($1.rx_bytes ?? 0) }
             let netTx: UInt64? = nets.isEmpty ? nil : nets.values.reduce(0) { $0 + ($1.tx_bytes ?? 0) }
@@ -789,8 +797,8 @@ extension CIWorker {
 
         let stores =
             (volumesResp.status == 200
-                ? (try? decoder.decode(RawVolumeList.self, from: volumesResp.body).Volumes) ?? []
-                : [])
+            ? (try? decoder.decode(RawVolumeList.self, from: volumesResp.body).Volumes) ?? []
+            : [])
             .compactMap { v in Self.cacheStore(v.Name, activeContainers: attachments[v.Name, default: 0]) }
             .sorted { $0.volume < $1.volume }
 
@@ -875,11 +883,14 @@ extension CIWorker {
         lines.append("# TYPE micropod_engine_health_status gauge")
         for v in [HealthVerdict.healthy, .degraded, .unhealthy] {
             let val = report.verdict == v ? 1 : 0
-            lines.append("micropod_engine_health_status{vmm=\"\(vmmLabel)\",worker=\"\(workerLabel)\",verdict=\"\(v.rawValue)\"} \(val)")
+            lines.append(
+                "micropod_engine_health_status{vmm=\"\(vmmLabel)\",worker=\"\(workerLabel)\",verdict=\"\(v.rawValue)\"} \(val)"
+            )
         }
         lines.append("# HELP micropod_buildkit_available 1 when BuildKit gRPC is available on the worker.")
         lines.append("# TYPE micropod_buildkit_available gauge")
-        lines.append("micropod_buildkit_available{worker=\"\(workerLabel)\"} \(report.engine.buildkitAvailable ? 1 : 0)")
+        lines.append(
+            "micropod_buildkit_available{worker=\"\(workerLabel)\"} \(report.engine.buildkitAvailable ? 1 : 0)")
 
         if let k = report.kernel {
             if let up = k.uptimeSeconds {
@@ -904,9 +915,18 @@ extension CIWorker {
             }
             lines.append("# HELP micropod_guest_psi_some_microseconds_total Guest PSI 'some' stall microseconds.")
             lines.append("# TYPE micropod_guest_psi_some_microseconds_total counter")
-            if let c = k.cpuPressureSomeUsec { lines.append("micropod_guest_psi_some_microseconds_total{worker=\"\(workerLabel)\",resource=\"cpu\"} \(c)") }
-            if let m = k.memoryPressureSomeUsec { lines.append("micropod_guest_psi_some_microseconds_total{worker=\"\(workerLabel)\",resource=\"memory\"} \(m)") }
-            if let io = k.ioPressureSomeUsec { lines.append("micropod_guest_psi_some_microseconds_total{worker=\"\(workerLabel)\",resource=\"io\"} \(io)") }
+            if let c = k.cpuPressureSomeUsec {
+                lines.append(
+                    "micropod_guest_psi_some_microseconds_total{worker=\"\(workerLabel)\",resource=\"cpu\"} \(c)")
+            }
+            if let m = k.memoryPressureSomeUsec {
+                lines.append(
+                    "micropod_guest_psi_some_microseconds_total{worker=\"\(workerLabel)\",resource=\"memory\"} \(m)")
+            }
+            if let io = k.ioPressureSomeUsec {
+                lines.append(
+                    "micropod_guest_psi_some_microseconds_total{worker=\"\(workerLabel)\",resource=\"io\"} \(io)")
+            }
         }
 
         lines.append("# HELP micropod_workloads_running Number of currently running containers.")
@@ -918,155 +938,254 @@ extension CIWorker {
 
         let runningItems = report.workloads.items.filter { $0.state.lowercased() == "running" }
         if !runningItems.isEmpty {
-            lines.append("# HELP micropod_container_cpu_usage_seconds_total Cumulative container CPU time consumed in seconds (cgroup v2).")
+            lines.append(
+                "# HELP micropod_container_cpu_usage_seconds_total Cumulative container CPU time consumed in seconds (cgroup v2)."
+            )
             lines.append("# TYPE micropod_container_cpu_usage_seconds_total counter")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
                 if let ns = w.cpuUsageNs {
-                    lines.append("micropod_container_cpu_usage_seconds_total{\(lbl)} \(String(format: "%.6f", Double(ns) / 1_000_000_000.0))")
+                    lines.append(
+                        "micropod_container_cpu_usage_seconds_total{\(lbl)} \(String(format: "%.6f", Double(ns) / 1_000_000_000.0))"
+                    )
                 }
             }
-            lines.append("# HELP micropod_container_cpu_throttled_seconds_total Cumulative container CPU throttled duration in seconds (cgroup v2).")
+            lines.append(
+                "# HELP micropod_container_cpu_throttled_seconds_total Cumulative container CPU throttled duration in seconds (cgroup v2)."
+            )
             lines.append("# TYPE micropod_container_cpu_throttled_seconds_total counter")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
                 if let ns = w.cpuThrottledNs {
-                    lines.append("micropod_container_cpu_throttled_seconds_total{\(lbl)} \(String(format: "%.6f", Double(ns) / 1_000_000_000.0))")
+                    lines.append(
+                        "micropod_container_cpu_throttled_seconds_total{\(lbl)} \(String(format: "%.6f", Double(ns) / 1_000_000_000.0))"
+                    )
                 }
             }
-            lines.append("# HELP micropod_container_memory_usage_bytes Live container memory usage in bytes (cgroup v2).")
+            lines.append(
+                "# HELP micropod_container_memory_usage_bytes Live container memory usage in bytes (cgroup v2).")
             lines.append("# TYPE micropod_container_memory_usage_bytes gauge")
             lines.append("# HELP micropod_workload_memory_usage_bytes Live container memory usage in bytes.")
             lines.append("# TYPE micropod_workload_memory_usage_bytes gauge")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
                 if let mem = w.memoryUsageBytes {
                     lines.append("micropod_container_memory_usage_bytes{\(lbl)} \(mem)")
-                    lines.append("micropod_workload_memory_usage_bytes{worker=\"\(workerLabel)\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\"} \(mem)")
+                    lines.append(
+                        "micropod_workload_memory_usage_bytes{worker=\"\(workerLabel)\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\"} \(mem)"
+                    )
                 }
             }
-            lines.append("# HELP micropod_container_memory_working_set_bytes Live container non-reclaimable working set memory in bytes.")
+            lines.append(
+                "# HELP micropod_container_memory_working_set_bytes Live container non-reclaimable working set memory in bytes."
+            )
             lines.append("# TYPE micropod_container_memory_working_set_bytes gauge")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
                 if let ws = w.memoryWorkingSetBytes {
                     lines.append("micropod_container_memory_working_set_bytes{\(lbl)} \(ws)")
                 }
             }
-            lines.append("# HELP micropod_container_memory_peak_bytes Peak container memory footprint in bytes (cgroup v2 memory.peak).")
+            lines.append(
+                "# HELP micropod_container_memory_peak_bytes Peak container memory footprint in bytes (cgroup v2 memory.peak)."
+            )
             lines.append("# TYPE micropod_container_memory_peak_bytes gauge")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
                 if let peak = w.memoryPeakBytes {
                     lines.append("micropod_container_memory_peak_bytes{\(lbl)} \(peak)")
                 }
             }
-            lines.append("# HELP micropod_container_memory_oom_kills_total Per-container cgroup v2 OOM kills (memory.events oom_kill).")
+            lines.append(
+                "# HELP micropod_container_memory_oom_kills_total Per-container cgroup v2 OOM kills (memory.events oom_kill)."
+            )
             lines.append("# TYPE micropod_container_memory_oom_kills_total counter")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
                 if let oom = w.memoryOomKills {
                     lines.append("micropod_container_memory_oom_kills_total{\(lbl)} \(oom)")
                 }
             }
-            lines.append("# HELP micropod_container_pids_current Live container process count (cgroup v2 pids.current).")
+            lines.append(
+                "# HELP micropod_container_pids_current Live container process count (cgroup v2 pids.current).")
             lines.append("# TYPE micropod_container_pids_current gauge")
             lines.append("# HELP micropod_workload_pids Live container process count.")
             lines.append("# TYPE micropod_workload_pids gauge")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
                 if let pids = w.pids {
                     lines.append("micropod_container_pids_current{\(lbl)} \(pids)")
-                    lines.append("micropod_workload_pids{worker=\"\(workerLabel)\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\"} \(pids)")
+                    lines.append(
+                        "micropod_workload_pids{worker=\"\(workerLabel)\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\"} \(pids)"
+                    )
                 }
             }
-            lines.append("# HELP micropod_container_blkio_bytes_total Per-container block I/O bytes (cgroup v2 io.stat).")
+            lines.append(
+                "# HELP micropod_container_blkio_bytes_total Per-container block I/O bytes (cgroup v2 io.stat).")
             lines.append("# TYPE micropod_container_blkio_bytes_total counter")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
-                if let rb = w.blkReadBytes { lines.append("micropod_container_blkio_bytes_total{\(lbl),op=\"read\"} \(rb)") }
-                if let wb = w.blkWriteBytes { lines.append("micropod_container_blkio_bytes_total{\(lbl),op=\"write\"} \(wb)") }
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                if let rb = w.blkReadBytes {
+                    lines.append("micropod_container_blkio_bytes_total{\(lbl),op=\"read\"} \(rb)")
+                }
+                if let wb = w.blkWriteBytes {
+                    lines.append("micropod_container_blkio_bytes_total{\(lbl),op=\"write\"} \(wb)")
+                }
             }
-            lines.append("# HELP micropod_container_network_bytes_total Per-container network bytes transferred (/proc/<pid>/net/dev).")
+            lines.append(
+                "# HELP micropod_container_network_bytes_total Per-container network bytes transferred (/proc/<pid>/net/dev)."
+            )
             lines.append("# TYPE micropod_container_network_bytes_total counter")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
-                if let rx = w.netRxBytes { lines.append("micropod_container_network_bytes_total{\(lbl),dir=\"rx\"} \(rx)") }
-                if let tx = w.netTxBytes { lines.append("micropod_container_network_bytes_total{\(lbl),dir=\"tx\"} \(tx)") }
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                if let rx = w.netRxBytes {
+                    lines.append("micropod_container_network_bytes_total{\(lbl),dir=\"rx\"} \(rx)")
+                }
+                if let tx = w.netTxBytes {
+                    lines.append("micropod_container_network_bytes_total{\(lbl),dir=\"tx\"} \(tx)")
+                }
             }
-            lines.append("# HELP micropod_container_psi_some_microseconds_total Per-container cgroup v2 PSI 'some' stall microseconds.")
+            lines.append(
+                "# HELP micropod_container_psi_some_microseconds_total Per-container cgroup v2 PSI 'some' stall microseconds."
+            )
             lines.append("# TYPE micropod_container_psi_some_microseconds_total counter")
             for w in runningItems {
-                let lbl = "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
-                if let c = w.psiCpuSomeUsec { lines.append("micropod_container_psi_some_microseconds_total{\(lbl),resource=\"cpu\"} \(c)") }
-                if let m = w.psiMemorySomeUsec { lines.append("micropod_container_psi_some_microseconds_total{\(lbl),resource=\"memory\"} \(m)") }
-                if let io = w.psiIoSomeUsec { lines.append("micropod_container_psi_some_microseconds_total{\(lbl),resource=\"io\"} \(io)") }
+                let lbl =
+                    "worker=\"\(workerLabel)\",container_id=\"\(Self.promEscape(w.id))\",name=\"\(Self.promEscape(w.name))\",image=\"\(Self.promEscape(w.image))\""
+                if let c = w.psiCpuSomeUsec {
+                    lines.append("micropod_container_psi_some_microseconds_total{\(lbl),resource=\"cpu\"} \(c)")
+                }
+                if let m = w.psiMemorySomeUsec {
+                    lines.append("micropod_container_psi_some_microseconds_total{\(lbl),resource=\"memory\"} \(m)")
+                }
+                if let io = w.psiIoSomeUsec {
+                    lines.append("micropod_container_psi_some_microseconds_total{\(lbl),resource=\"io\"} \(io)")
+                }
             }
         }
 
         if let re = report.runtimeEngine {
-            lines.append("# HELP micropod_runtime_containers_created_total Total containers created by the guest runtime engine since boot.")
+            lines.append(
+                "# HELP micropod_runtime_containers_created_total Total containers created by the guest runtime engine since boot."
+            )
             lines.append("# TYPE micropod_runtime_containers_created_total counter")
             lines.append("micropod_runtime_containers_created_total{worker=\"\(workerLabel)\"} \(re.containersCreated)")
             lines.append("# HELP micropod_runtime_runs_finished_total Total container runs completed since boot.")
             lines.append("# TYPE micropod_runtime_runs_finished_total counter")
             lines.append("micropod_runtime_runs_finished_total{worker=\"\(workerLabel)\"} \(re.runsFinished)")
-            lines.append("# HELP micropod_runtime_failures_total Total container runtime start/execution failures since boot.")
+            lines.append(
+                "# HELP micropod_runtime_failures_total Total container runtime start/execution failures since boot.")
             lines.append("# TYPE micropod_runtime_failures_total counter")
             lines.append("micropod_runtime_failures_total{worker=\"\(workerLabel)\"} \(re.runtimeFailures)")
-            lines.append("# HELP micropod_runtime_image_cache_hits_total Total container runs served from warm local image cache.")
+            lines.append(
+                "# HELP micropod_runtime_image_cache_hits_total Total container runs served from warm local image cache."
+            )
             lines.append("# TYPE micropod_runtime_image_cache_hits_total counter")
             lines.append("micropod_runtime_image_cache_hits_total{worker=\"\(workerLabel)\"} \(re.imageCacheHits)")
-            lines.append("# HELP micropod_runtime_phase_duration_milliseconds_total Cumulative guest container lifecycle phase duration in ms.")
+            lines.append(
+                "# HELP micropod_runtime_phase_duration_milliseconds_total Cumulative guest container lifecycle phase duration in ms."
+            )
             lines.append("# TYPE micropod_runtime_phase_duration_milliseconds_total counter")
-            lines.append("micropod_runtime_phase_duration_milliseconds_total{worker=\"\(workerLabel)\",phase=\"pod\"} \(re.podMsTotal)")
-            lines.append("micropod_runtime_phase_duration_milliseconds_total{worker=\"\(workerLabel)\",phase=\"create\"} \(re.createMsTotal)")
-            lines.append("micropod_runtime_phase_duration_milliseconds_total{worker=\"\(workerLabel)\",phase=\"start\"} \(re.startMsTotal)")
+            lines.append(
+                "micropod_runtime_phase_duration_milliseconds_total{worker=\"\(workerLabel)\",phase=\"pod\"} \(re.podMsTotal)"
+            )
+            lines.append(
+                "micropod_runtime_phase_duration_milliseconds_total{worker=\"\(workerLabel)\",phase=\"create\"} \(re.createMsTotal)"
+            )
+            lines.append(
+                "micropod_runtime_phase_duration_milliseconds_total{worker=\"\(workerLabel)\",phase=\"start\"} \(re.startMsTotal)"
+            )
             lines.append("# HELP micropod_runtime_setup_slots_in_use Active concurrent container setup slots.")
             lines.append("# TYPE micropod_runtime_setup_slots_in_use gauge")
             lines.append("micropod_runtime_setup_slots_in_use{worker=\"\(workerLabel)\"} \(re.setupSlotsInUse)")
-            lines.append("# HELP micropod_runtime_setup_wait_microseconds_total Cumulative container start admission wait microseconds.")
+            lines.append(
+                "# HELP micropod_runtime_setup_wait_microseconds_total Cumulative container start admission wait microseconds."
+            )
             lines.append("# TYPE micropod_runtime_setup_wait_microseconds_total counter")
-            lines.append("micropod_runtime_setup_wait_microseconds_total{worker=\"\(workerLabel)\"} \(re.setupWaitUsecTotal)")
+            lines.append(
+                "micropod_runtime_setup_wait_microseconds_total{worker=\"\(workerLabel)\"} \(re.setupWaitUsecTotal)")
             if let net = re.network {
                 lines.append("# HELP micropod_runtime_dns_queries_total Guest embedded DNS queries by outcome.")
                 lines.append("# TYPE micropod_runtime_dns_queries_total counter")
-                lines.append("micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"local\"} \(net.dnsLocalAnswers)")
-                lines.append("micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"forwarded\"} \(net.dnsForwarded)")
-                lines.append("micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"miss\"} \(net.dnsNameMisses)")
-                lines.append("micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"error\"} \(net.dnsUpstreamFailures)")
+                lines.append(
+                    "micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"local\"} \(net.dnsLocalAnswers)"
+                )
+                lines.append(
+                    "micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"forwarded\"} \(net.dnsForwarded)"
+                )
+                lines.append(
+                    "micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"miss\"} \(net.dnsNameMisses)"
+                )
+                lines.append(
+                    "micropod_runtime_dns_queries_total{worker=\"\(workerLabel)\",outcome=\"error\"} \(net.dnsUpstreamFailures)"
+                )
                 if let link = net.publishedLink {
-                    lines.append("# HELP micropod_runtime_published_link_bytes_total Guest published-port link interface bytes.")
+                    lines.append(
+                        "# HELP micropod_runtime_published_link_bytes_total Guest published-port link interface bytes.")
                     lines.append("# TYPE micropod_runtime_published_link_bytes_total counter")
-                    lines.append("micropod_runtime_published_link_bytes_total{worker=\"\(workerLabel)\",dir=\"rx\"} \(link.rxBytes)")
-                    lines.append("micropod_runtime_published_link_bytes_total{worker=\"\(workerLabel)\",dir=\"tx\"} \(link.txBytes)")
+                    lines.append(
+                        "micropod_runtime_published_link_bytes_total{worker=\"\(workerLabel)\",dir=\"rx\"} \(link.rxBytes)"
+                    )
+                    lines.append(
+                        "micropod_runtime_published_link_bytes_total{worker=\"\(workerLabel)\",dir=\"tx\"} \(link.txBytes)"
+                    )
                 }
             }
             if let api = re.api {
-                lines.append("# HELP micropod_docker_api_requests_total Total Docker Engine API requests handled by the guest runner.")
+                lines.append(
+                    "# HELP micropod_docker_api_requests_total Total Docker Engine API requests handled by the guest runner."
+                )
                 lines.append("# TYPE micropod_docker_api_requests_total counter")
                 lines.append("micropod_docker_api_requests_total{worker=\"\(workerLabel)\"} \(api.requestsTotal)")
-                lines.append("# HELP micropod_docker_api_errors_total Docker Engine API error responses by status class.")
+                lines.append(
+                    "# HELP micropod_docker_api_errors_total Docker Engine API error responses by status class.")
                 lines.append("# TYPE micropod_docker_api_errors_total counter")
-                lines.append("micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"4xx\"} \(api.errors4xx)")
-                lines.append("micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"5xx\"} \(api.errors5xx)")
-                lines.append("micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"409\"} \(api.conflicts409)")
-                lines.append("micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"501\"} \(api.notImplemented501)")
-                lines.append("# HELP micropod_docker_api_slow_requests_total Non-streaming Docker API requests exceeding 50 ms.")
+                lines.append(
+                    "micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"4xx\"} \(api.errors4xx)")
+                lines.append(
+                    "micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"5xx\"} \(api.errors5xx)")
+                lines.append(
+                    "micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"409\"} \(api.conflicts409)")
+                lines.append(
+                    "micropod_docker_api_errors_total{worker=\"\(workerLabel)\",class=\"501\"} \(api.notImplemented501)"
+                )
+                lines.append(
+                    "# HELP micropod_docker_api_slow_requests_total Non-streaming Docker API requests exceeding 50 ms.")
                 lines.append("# TYPE micropod_docker_api_slow_requests_total counter")
-                lines.append("micropod_docker_api_slow_requests_total{worker=\"\(workerLabel)\"} \(api.slowRequestsTotal)")
-                lines.append("# HELP micropod_docker_api_duration_microseconds_total Cumulative non-streaming Docker API request duration in microseconds.")
+                lines.append(
+                    "micropod_docker_api_slow_requests_total{worker=\"\(workerLabel)\"} \(api.slowRequestsTotal)")
+                lines.append(
+                    "# HELP micropod_docker_api_duration_microseconds_total Cumulative non-streaming Docker API request duration in microseconds."
+                )
                 lines.append("# TYPE micropod_docker_api_duration_microseconds_total counter")
-                lines.append("micropod_docker_api_duration_microseconds_total{worker=\"\(workerLabel)\"} \(api.durationUsecTotal)")
+                lines.append(
+                    "micropod_docker_api_duration_microseconds_total{worker=\"\(workerLabel)\"} \(api.durationUsecTotal)"
+                )
                 if let routes = api.routes, !routes.isEmpty {
-                    lines.append("# HELP micropod_docker_api_route_requests_total Docker API requests by normalized route.")
+                    lines.append(
+                        "# HELP micropod_docker_api_route_requests_total Docker API requests by normalized route.")
                     lines.append("# TYPE micropod_docker_api_route_requests_total counter")
-                    lines.append("# HELP micropod_docker_api_route_duration_microseconds_total Cumulative Docker API latency by normalized route.")
+                    lines.append(
+                        "# HELP micropod_docker_api_route_duration_microseconds_total Cumulative Docker API latency by normalized route."
+                    )
                     lines.append("# TYPE micropod_docker_api_route_duration_microseconds_total counter")
                     for (route, rs) in routes.sorted(by: { $0.key < $1.key }) {
                         let rEsc = Self.promEscape(route)
-                        lines.append("micropod_docker_api_route_requests_total{worker=\"\(workerLabel)\",route=\"\(rEsc)\"} \(rs.count)")
-                        lines.append("micropod_docker_api_route_duration_microseconds_total{worker=\"\(workerLabel)\",route=\"\(rEsc)\"} \(rs.durationUsecTotal)")
+                        lines.append(
+                            "micropod_docker_api_route_requests_total{worker=\"\(workerLabel)\",route=\"\(rEsc)\"} \(rs.count)"
+                        )
+                        lines.append(
+                            "micropod_docker_api_route_duration_microseconds_total{worker=\"\(workerLabel)\",route=\"\(rEsc)\"} \(rs.durationUsecTotal)"
+                        )
                     }
                 }
             }
@@ -1076,19 +1195,30 @@ extension CIWorker {
                 lines.append("micropod_reaper_active_sessions{worker=\"\(workerLabel)\"} \(reaper.activeSessions)")
                 lines.append("# HELP micropod_reaper_sessions_started_total Total Ryuk cleanup sessions started.")
                 lines.append("# TYPE micropod_reaper_sessions_started_total counter")
-                lines.append("micropod_reaper_sessions_started_total{worker=\"\(workerLabel)\"} \(reaper.sessionsStarted)")
+                lines.append(
+                    "micropod_reaper_sessions_started_total{worker=\"\(workerLabel)\"} \(reaper.sessionsStarted)")
                 lines.append("# HELP micropod_reaper_reaped_total Resources automatically reaped by Ryuk by kind.")
                 lines.append("# TYPE micropod_reaper_reaped_total counter")
-                lines.append("micropod_reaper_reaped_total{worker=\"\(workerLabel)\",kind=\"container\"} \(reaper.containersReaped)")
-                lines.append("micropod_reaper_reaped_total{worker=\"\(workerLabel)\",kind=\"network\"} \(reaper.networksReaped)")
-                lines.append("micropod_reaper_reaped_total{worker=\"\(workerLabel)\",kind=\"volume\"} \(reaper.volumesReaped)")
+                lines.append(
+                    "micropod_reaper_reaped_total{worker=\"\(workerLabel)\",kind=\"container\"} \(reaper.containersReaped)"
+                )
+                lines.append(
+                    "micropod_reaper_reaped_total{worker=\"\(workerLabel)\",kind=\"network\"} \(reaper.networksReaped)")
+                lines.append(
+                    "micropod_reaper_reaped_total{worker=\"\(workerLabel)\",kind=\"volume\"} \(reaper.volumesReaped)")
                 lines.append("# HELP micropod_reaper_errors_total Failed or denied Ryuk cleanup operations.")
                 lines.append("# TYPE micropod_reaper_errors_total counter")
-                lines.append("micropod_reaper_errors_total{worker=\"\(workerLabel)\",kind=\"error\"} \(reaper.reapErrors)")
-                lines.append("micropod_reaper_errors_total{worker=\"\(workerLabel)\",kind=\"denied\"} \(reaper.reapDenied)")
-                lines.append("# HELP micropod_reaper_duration_microseconds_total Cumulative Ryuk resource delete duration in microseconds.")
+                lines.append(
+                    "micropod_reaper_errors_total{worker=\"\(workerLabel)\",kind=\"error\"} \(reaper.reapErrors)")
+                lines.append(
+                    "micropod_reaper_errors_total{worker=\"\(workerLabel)\",kind=\"denied\"} \(reaper.reapDenied)")
+                lines.append(
+                    "# HELP micropod_reaper_duration_microseconds_total Cumulative Ryuk resource delete duration in microseconds."
+                )
                 lines.append("# TYPE micropod_reaper_duration_microseconds_total counter")
-                lines.append("micropod_reaper_duration_microseconds_total{worker=\"\(workerLabel)\"} \(reaper.reapDurationUsecTotal)")
+                lines.append(
+                    "micropod_reaper_duration_microseconds_total{worker=\"\(workerLabel)\"} \(reaper.reapDurationUsecTotal)"
+                )
             }
         }
 
@@ -1101,11 +1231,13 @@ extension CIWorker {
         }
 
         if !report.cacheStores.isEmpty {
-            lines.append("# HELP micropod_cache_store_active_containers Active containers attached to each cache volume.")
+            lines.append(
+                "# HELP micropod_cache_store_active_containers Active containers attached to each cache volume.")
             lines.append("# TYPE micropod_cache_store_active_containers gauge")
             for s in report.cacheStores {
                 lines.append(
-                    "micropod_cache_store_active_containers{worker=\"\(workerLabel)\",store=\"\(Self.promEscape(s.store))\",scope=\"\(Self.promEscape(s.scope ?? "shared"))\"} \(s.activeContainers)")
+                    "micropod_cache_store_active_containers{worker=\"\(workerLabel)\",store=\"\(Self.promEscape(s.store))\",scope=\"\(Self.promEscape(s.scope ?? "shared"))\"} \(s.activeContainers)"
+                )
             }
         }
 
@@ -1148,8 +1280,9 @@ extension CIWorker {
         }
 
         var metrics: [[String: Any]] = [
-            gaugeInt("micropod.engine.healthy", "1", report.verdict == .healthy ? 1 : 0,
-                     attrs: [attr("verdict", report.verdict.rawValue)]),
+            gaugeInt(
+                "micropod.engine.healthy", "1", report.verdict == .healthy ? 1 : 0,
+                attrs: [attr("verdict", report.verdict.rawValue)]),
             gaugeInt("micropod.buildkit.available", "1", report.engine.buildkitAvailable ? 1 : 0),
             gaugeInt("micropod.workloads.running", "{container}", Int64(report.workloads.runningCount)),
             gaugeInt("micropod.workloads.total", "{container}", Int64(report.workloads.totalCount)),
@@ -1158,7 +1291,8 @@ extension CIWorker {
         if let hv = report.hypervisor {
             metrics.append(gaugeInt("micropod.vmm.vcpus.online", "{cpu}", Int64(hv.vcpusOnline)))
             metrics.append(gaugeInt("micropod.vmm.guest_ctrl.connected", "1", hv.guestCtrlConnected ? 1 : 0))
-            metrics.append(gaugeInt("micropod.vmm.host.phys_footprint_bytes", "By", Int64(hv.hostPhysFootprintMib * 1024 * 1024)))
+            metrics.append(
+                gaugeInt("micropod.vmm.host.phys_footprint_bytes", "By", Int64(hv.hostPhysFootprintMib * 1024 * 1024)))
             metrics.append(sumInt("micropod.vmm.blk.write_ops", "{op}", hv.blkWriteOps))
             metrics.append(sumInt("micropod.vmm.virtiofs.requests", "{request}", hv.fsRequests))
             if let kch = hv.fsKeepCacheHits {
@@ -1206,7 +1340,9 @@ extension CIWorker {
             metrics.append(gaugeInt("micropod.storage.available", "By", Int64(st.availableBytes)))
         }
         for w in report.workloads.items where w.state.lowercased() == "running" {
-            let wattrs = [attr("container.id", w.id), attr("container.name", w.name), attr("container.image.name", w.image)]
+            let wattrs = [
+                attr("container.id", w.id), attr("container.name", w.name), attr("container.image.name", w.image),
+            ]
             if let cpuNs = w.cpuUsageNs {
                 metrics.append(sumInt("micropod.container.cpu.usage_ns", "ns", cpuNs, attrs: wattrs))
             }

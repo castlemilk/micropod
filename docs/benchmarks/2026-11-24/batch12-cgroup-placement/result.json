@@ -1,0 +1,317 @@
+{
+  "issue": "231.10",
+  "tier": "Linux 7.3.5 scheduler source, synthetic steady-state runqueues",
+  "fair_c_sha256": "d23f85896da9c68cae4f6969c55d8915db51f77b15a3521a4eb8c26c60ce1460",
+  "kernel_excerpt_sha256": "7382a90ef8e9e174f16b96f6c730c910db714da9940e26fb137fa431e3f9befd",
+  "nice_weights_sha256": "f1dc9a97f4e456c91766fd30fb346b5c43f37972b61aae9e7902e62003fd6c87",
+  "scale_definitions_source_sha256": "d49335218693e85a8af463b5d1ef967c2cb6eb3faf90b0d8dc11fe94b65ac9a2",
+  "budget_archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "historical_budget": {
+    "cpu.max": "400000 100000",
+    "cpuset.cpus.effective": "0-3"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "driver_sha256": "a821db3d6bab7f1f0957ce4b1bfaa11c86a0d98077f3df14fb4b4828683254ea",
+  "probe_sha256": "0b776ce185c4c1f9626e73e2e443d6598947c73dded143c748cddf1a3ea10bf9",
+  "cases": [
+    {
+      "case": "spread service, sparse sibling",
+      "service_runnable": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "sibling_runnable": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "contested": [
+        {
+          "vcpu": 0,
+          "concur": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          },
+          "max": {
+            "service": 1048576,
+            "sibling": 4194304,
+            "ratio": "1/4"
+          }
+        }
+      ]
+    },
+    {
+      "case": "packed service, sparse sibling",
+      "service_runnable": [
+        4,
+        0,
+        0,
+        0
+      ],
+      "sibling_runnable": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "contested": [
+        {
+          "vcpu": 0,
+          "concur": {
+            "service": 4194304,
+            "sibling": 1048576,
+            "ratio": "4"
+          },
+          "max": {
+            "service": 4194304,
+            "sibling": 4194304,
+            "ratio": "1"
+          }
+        }
+      ]
+    },
+    {
+      "case": "sparse service, spread sibling",
+      "service_runnable": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "sibling_runnable": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "contested": [
+        {
+          "vcpu": 0,
+          "concur": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          },
+          "max": {
+            "service": 4194304,
+            "sibling": 1048576,
+            "ratio": "4"
+          }
+        }
+      ]
+    },
+    {
+      "case": "sparse service, packed sibling",
+      "service_runnable": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "sibling_runnable": [
+        4,
+        0,
+        0,
+        0
+      ],
+      "contested": [
+        {
+          "vcpu": 0,
+          "concur": {
+            "service": 1048576,
+            "sibling": 4194304,
+            "ratio": "1/4"
+          },
+          "max": {
+            "service": 4194304,
+            "sibling": 4194304,
+            "ratio": "1"
+          }
+        }
+      ]
+    },
+    {
+      "case": "equal sparse groups",
+      "service_runnable": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "sibling_runnable": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "contested": [
+        {
+          "vcpu": 0,
+          "concur": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          },
+          "max": {
+            "service": 4194304,
+            "sibling": 4194304,
+            "ratio": "1"
+          }
+        }
+      ]
+    },
+    {
+      "case": "equally runnable, different placement",
+      "service_runnable": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "sibling_runnable": [
+        4,
+        0,
+        0,
+        0
+      ],
+      "contested": [
+        {
+          "vcpu": 0,
+          "concur": {
+            "service": 1048576,
+            "sibling": 4194304,
+            "ratio": "1/4"
+          },
+          "max": {
+            "service": 1048576,
+            "sibling": 4194304,
+            "ratio": "1/4"
+          }
+        }
+      ]
+    },
+    {
+      "case": "disjoint runnable placement",
+      "service_runnable": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "sibling_runnable": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "contested": []
+    },
+    {
+      "case": "symmetric spread",
+      "service_runnable": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "sibling_runnable": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "contested": [
+        {
+          "vcpu": 0,
+          "concur": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          },
+          "max": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          }
+        },
+        {
+          "vcpu": 1,
+          "concur": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          },
+          "max": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          }
+        },
+        {
+          "vcpu": 2,
+          "concur": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          },
+          "max": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          }
+        },
+        {
+          "vcpu": 3,
+          "concur": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          },
+          "max": {
+            "service": 1048576,
+            "sibling": 1048576,
+            "ratio": "1"
+          }
+        }
+      ]
+    }
+  ],
+  "boundary_checks": [
+    {
+      "mode": 3,
+      "cpuset_width": 4,
+      "base_unscaled": 32768,
+      "total_tasks": 1,
+      "local_tasks": 1,
+      "observed_weight": 90891264
+    },
+    {
+      "mode": 2,
+      "cpuset_width": 4,
+      "base_unscaled": 32768,
+      "total_tasks": 1,
+      "local_tasks": 1,
+      "observed_weight": 33554432
+    },
+    {
+      "mode": 2,
+      "cpuset_width": 1,
+      "base_unscaled": 1024,
+      "total_tasks": 1,
+      "local_tasks": 1,
+      "observed_weight": 1048576
+    },
+    {
+      "mode": 3,
+      "cpuset_width": 1,
+      "base_unscaled": 1024,
+      "total_tasks": 1,
+      "local_tasks": 1,
+      "observed_weight": 1048576
+    }
+  ]
+}

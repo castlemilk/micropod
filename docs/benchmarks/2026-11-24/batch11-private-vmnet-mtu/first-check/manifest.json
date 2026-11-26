@@ -1,0 +1,33 @@
+{
+  "direction": "229.01",
+  "classification": "operator preparation, no experiment count",
+  "tier": "source/fixture",
+  "stock_runtime_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "fixture_checkout": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "macOS": "26.5.1",
+  "SDK": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+  "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "framework_header_sha256": "f23e88c6638cf5e41811ad54e2071d3cf72ec426772264cb34f932ef260d420d",
+  "framework_abi_stub_sha256": "15040a0739be22ddee46666bf17b02b25d74ff8751c65e6b526ae4f18ba6ea2e",
+  "unmodified_stock_files": {
+    "Sources/MicropodRuntime/SandboxVM.swift": "ac2178531586e8b8231d23279467a47a6ea439661af1cae0d199f2ba7637c939",
+    "Sources/MicropodRuntime/SandboxNetwork.swift": "45c9a38c93a0f4b3b8ae9a64c5223eda35095e9fc8281483dfa2e62f81c8eb88"
+  },
+  "private_patched_files": {
+    "Sources/MicropodRuntime/SandboxVM.swift": "95a04641c0cc4f3b8615bde0f39a4436b3d3b5b248ed3d6dd1c141e1e840bb5e",
+    "Sources/MicropodRuntime/SandboxNetwork.swift": "b569926fe62aaf72f7dda0507c362d35ad9fa7aefa6e32afb5a6c9158de77951"
+  },
+  "inputs": {
+    "check.py": "ee417118c6054bee8a4039ed4d794ba12ae5b3cd4b352f19b79c7c778d3a3dfc",
+    "published-mtu.patch": "777d7f7039d5559e88a2af03c687d676ed436ce6635d56796b0b2370bc65ce81",
+    "PublishedMTUBenchmark.swift": "43f3339a632413a283c8d0c86b10b9c1d19e966116816dd50b9d46cefb398888",
+    "control.swift": "ec8b330d9488f103c85a3b8d35fe80cbc54e7a70cf1a340e4c09ece54fd06064"
+  },
+  "raw_sha256": "4e0c35edf47697fa1bbab5d86c87f69c5992a5235af9bdf433b8a37ce410a182",
+  "executable_sha256": "709c16cf7435d7a85bd32dd5574179676bacb44562cf988ebb205efa064f59f0",
+  "configuration_only": true,
+  "networks_or_VMs_created": 0,
+  "throughput_MiB_s": null,
+  "DF_or_MSS_verified": false,
+  "executed_pid": 87157
+}

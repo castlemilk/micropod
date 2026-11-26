@@ -1,0 +1,22 @@
+{
+  "scope": "/private/tmp/mp-t-5uzc28lx",
+  "host": "Gamma-128GB.local",
+  "pages": {
+    "kernel_page_kib": 16,
+    "kernel_image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+    "kernel_config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98"
+  },
+  "baseline_files": 24,
+  "healthy_pairs": 32,
+  "requests_per_client": 200,
+  "seed": 211009,
+  "quiet_sha256": "1dedbd1322a7b6150b0712022d9582e8cd3137a4e7294bed3a808b31dff145d8",
+  "quiet_source_sha256": "80eb2589246d53a0d7eb52dcb9d384ac47649140bb6aee17a2572bf253153caf",
+  "harness_sha256": "ab579935ea350b0057e600c7882616cad61d3e4cc33f6cfc465ae63fe65433cb",
+  "rounds": 4,
+  "layouts": [
+    "shared",
+    "same",
+    "split"
+  ]
+}

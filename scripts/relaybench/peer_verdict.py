@@ -1,10 +1,14 @@
 """Assess one completed, matched Gamma published-TCP holdout from local files.
 
-Use --archive to replay the pinned study. For a new study, pass --run-directory and the
---candidate-sha256 selected before the holdout. The directory must contain the peer driver's
+Use --archive to replay the historical study. To qualify a new holdout, pass --run-directory
+with the --candidate-sha256, --candidate-workers and --candidate-vcpus selected before timing.
+Omitting both resource selections replays the results without qualifying a candidate.
+For a plan that selected a launchd role, pass the same --candidate-process-type to qualify it.
+The directory must contain the peer driver's
 plan.json, handoff.json, fixtures.json (including scope and service_limits), complete.json
 and the original per-arm JSON receipts for three warmup and 16 scored pairs. Both admission
-observations must bracket the host counters for each attempt. All inputs are read-only.
+observations must bracket the host counters for each attempt. New plans also require the host counters
+to bracket the client process from launch through exit. All inputs are read-only.
 New holdouts use the checksum-pinned client that records scheduled-arrival p50, p95 and p99.
 Each row retains the invoked URL and service marker in client_arguments and the raw
 client output must identify one published port for both products. Supply --candidate-read-kib
@@ -22,8 +26,8 @@ from pathlib import Path, PurePosixPath
 from statistics import median
 
 from gamma_contrasts import GIB, IMAGE, VM, clean_client, host_units, invocation_bulk_bytes, paired_median_interval, process_delta, read_receipt
-from gamma_pilot import DIRECT_ROUTE, HASHES, STOCK_KERNEL, arm_settings, plan, require, single_port_client
-from host_role import CLIENT_SHA256, LEGACY_P50_CLIENT_SHA256, timestamp
+from gamma_pilot import DIRECT_ROUTE, HASHES, STOCK_KERNEL, arm_settings, check_peer_role, check_peer_stock_controls, plan, require, single_port_client
+from host_role import CLIENT_SHA256, LEGACY_P50_CLIENT_SHA256, SPAWN_TYPES, timestamp
 
 ARCHIVE_SHA = "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4"
 LIMITS = {"cpu.max": "400000 100000", "memory.max": "1073741824", "pids.max": "512"}
@@ -149,7 +153,7 @@ def archived():
         # The archived recorder stored client data and a clean flag, without a separate process status.
         return dict(r, exit_code=None)
 
-    return dict(source=VM.name, source_sha256=ARCHIVE_SHA, vcpus=4, image_config=IMAGE,
+    return dict(source=VM.name, source_sha256=ARCHIVE_SHA, evidence="historical archive", vcpus=4, image_config=IMAGE,
                 installed_package_sha256=receipt["installation"]["host_sha256"], **assess(orders, pids, get_record))
 
 
@@ -171,7 +175,8 @@ def admission(observation, handoff, scopes):
     return checked, start, valid_until
 
 
-def directory(root, candidate_sha, candidate_read_kib=None):
+def directory(root, candidate_sha, candidate_read_kib=None, *, candidate_workers=None, candidate_vcpus=None,
+              candidate_process_type=None):
     def load(name):
         path = root / name
         require(path.is_file(), f"missing regular receipt file: {name}")
@@ -186,10 +191,33 @@ def directory(root, candidate_sha, candidate_read_kib=None):
     order = plan(schedule["seed"], 16)
     require(order == schedule["order"], "holdout order differs from the seeded schedule")
     a, b = fixtures["A"], fixtures["B"]
+    # The same executable can run with different worker counts and VM sizes.
+    # Check both the plan and the booted fixtures against the external selection.
+    selected = candidate_workers is not None or candidate_vcpus is not None
+    planned = schedule["arms"]
+    planned_role = planned["A"].get("process_type")
+    if candidate_process_type is not None:
+        require(candidate_process_type in SPAWN_TYPES and planned_role == candidate_process_type,
+                "planned launch role differs from the independently selected process type")
+    if planned_role is not None:
+        check_peer_role(a, planned_role)
+    check_peer_stock_controls(a, planned_role or "Interactive")
+    if selected:
+        require(type(candidate_workers) is int and candidate_workers in (2, 4)
+                and type(candidate_vcpus) is int and candidate_vcpus in (4, 6),
+                "supply both --candidate-workers (2 or 4) and --candidate-vcpus (4 or 6)")
+    workers = candidate_workers if selected else a["relay_workers"]
+    vcpus = candidate_vcpus if selected else a["cpus"]
+    worker_counts = (a["relay_workers"], planned["A"]["relay_workers"])
+    cpu_counts = (a["cpus"], b["cpus"], planned["A"]["vcpus"], planned["B"]["vcpus"])
+    require(all(type(n) is int and n == workers for n in worker_counts),
+            "holdout worker count differs from the plan or the selected candidate")
+    require(all(type(n) is int and n == vcpus for n in cpu_counts),
+            "holdout vCPU count differs from the plan or the selected candidate")
     # One benchmark binary can serve at either read size. Bind a selected cap to
     # the plan and the booted relay. A legacy receipt has neither field.
     selected_read = (candidate_read_kib or 256) * 1024
-    expected_arms = arm_settings("peer", a["relay_workers"], a["cpus"], candidate_read_kib)
+    expected_arms = arm_settings("peer", workers, vcpus, candidate_read_kib, peer_process_type=planned_role)
     if "read_bytes" not in schedule["arms"]["A"] and a.get("read_bytes") is None and candidate_read_kib is None:
         del expected_arms["A"]["read_bytes"]  # Old receipt, unknown size, no cap-specific conclusion.
     else:
@@ -197,8 +225,8 @@ def directory(root, candidate_sha, candidate_read_kib=None):
         require(type(a.get("read_bytes")) is int and type(planned_read) is int
                 and a["read_bytes"] == planned_read == selected_read,
                 "holdout read size differs from the selected or planned relay cap")
-    require(schedule["arms"] == expected_arms
-            and a["cpus"] == b["cpus"] and a["callback_events"] == 128 and a["cli_sha256"] == candidate_sha
+    require(planned == expected_arms
+            and a["callback_events"] == 128 and a["cli_sha256"] == candidate_sha
             and a["kernel_image_sha256"] == STOCK_KERNEL and a["route"] == DIRECT_ROUTE,
             "candidate hash, path or matched resources differ")
     for f in (a, b):
@@ -213,6 +241,10 @@ def directory(root, candidate_sha, candidate_read_kib=None):
     require(scopes[0] != scopes[1], "fixtures share a scope")
     handoff = load("handoff.json")
     first_check, _, _ = admission(handoff, handoff, scopes)
+    timed_clients = "client_timing" in schedule
+    if timed_clients:
+        require(schedule["client_timing"] == "spawn-to-reap", "unknown peer client timing protocol")
+
     def get_record(phase, n, arm):
         r = load(f"{phase}-{n}-{arm}.json")
         require((r["phase"], r["pair"], r["arm"]) == (phase, n, arm) and type(r["exit_code"]) is int,
@@ -225,6 +257,13 @@ def directory(root, candidate_sha, candidate_read_kib=None):
                 and last_start <= first_expiry,
                 "admission observations do not provide continuous coverage around the measured window")
         client = single_port_client(fixtures[arm], r)
+        if timed_clients or "client_spawn_start_ns" in r or "client_reaped_ns" in r:
+            start, end = r.get("client_spawn_start_ns"), r.get("client_reaped_ns")
+            require(type(start) is int and type(end) is int and
+                    r["before"]["epoch_ns"] <= start < end <= r["after"]["epoch_ns"],
+                    "host counters do not bracket the peer client invocation")
+            require(0 < client["window_s"] <= (end - start) / 1e9,
+                    "bulk window exceeds peer client lifetime")
         pin = schedule["tools"]["fixed"]
         if pin == CLIENT_SHA256 or "fixed_sha256" in r:
             require(r.get("fixed_sha256") == pin, "attempt load-client hash differs from the peer plan")
@@ -234,10 +273,19 @@ def directory(root, candidate_sha, candidate_read_kib=None):
             value = client.get(f"fresh_p{q}_us")
             require(type(value) is int and value > 0, f"missing or invalid fresh p{q} from selected load client")
         return dict(r, client=client)
+    result = assess(order, {arm: f["pids"] for arm, f in fixtures.items()}, get_record,
+                    full_body_counts=schedule["tools"]["fixed"] == CLIENT_SHA256)
+    if not selected:
+        result["reasons"].append("qualification requires independently selected --candidate-workers and --candidate-vcpus")
+        result["verdict"] = "did not qualify"
+    if planned_role is not None and candidate_process_type is None:
+        result["reasons"].append("qualification of the planned launch role requires --candidate-process-type")
+        result["verdict"] = "did not qualify"
     return dict(source=str(root), reservation=handoff["reservation"], candidate_sha256=candidate_sha,
-                vcpus=a["cpus"], image_config=IMAGE, relay_read_bytes=a.get("read_bytes"),
-                **assess(order, {arm: f["pids"] for arm, f in fixtures.items()}, get_record,
-                         full_body_counts=schedule["tools"]["fixed"] == CLIENT_SHA256))
+                candidate_resources_verified=selected, client_timing=schedule.get("client_timing", "legacy"),
+                relay_workers=workers, vcpus=vcpus, candidate_process_type_verified=candidate_process_type is not None,
+                process_type=planned_role,
+                image_config=IMAGE, relay_read_bytes=a.get("read_bytes"), **result)
 
 
 if __name__ == "__main__":
@@ -246,21 +294,33 @@ if __name__ == "__main__":
     source.add_argument("--archive", action="store_true", help="replay the pinned November four-vCPU holdout")
     source.add_argument("--run-directory", type=Path, help="completed gamma_pilot.py --mode peer --holdout output")
     parser.add_argument("--candidate-sha256", help="previously selected Micropod executable, required for a run directory")
+    parser.add_argument("--candidate-workers", type=int, choices=(2, 4), help="independently selected Micropod relay workers")
+    parser.add_argument("--candidate-vcpus", type=int, choices=(4, 6), help="independently selected VM vCPUs for both peers")
+    parser.add_argument("--candidate-process-type", choices=tuple(SPAWN_TYPES),
+                        help="independently selected Micropod launchd role from --peer-process-type")
     parser.add_argument("--candidate-read-kib", type=int, choices=(256, 512),
                         help="previously selected Micropod read cap, to match --relay-read-kib in the peer pilot")
     parser.add_argument("--json", action="store_true", help="include complete per-attempt results in JSON")
     args = parser.parse_args()
-    if args.archive and (args.candidate_sha256 or args.candidate_read_kib):
-        parser.error("--candidate-sha256 and --candidate-read-kib apply to a new run directory")
+    if args.archive and any(v is not None for v in (args.candidate_sha256, args.candidate_read_kib,
+                                                     args.candidate_workers, args.candidate_vcpus, args.candidate_process_type)):
+        parser.error("candidate selection applies to a new run directory")
     try:
-        result = archived() if args.archive else directory(args.run_directory, args.candidate_sha256, args.candidate_read_kib)
+        result = archived() if args.archive else directory(args.run_directory, args.candidate_sha256, args.candidate_read_kib,
+                                                           candidate_workers=args.candidate_workers,
+                                                           candidate_vcpus=args.candidate_vcpus,
+                                                           candidate_process_type=args.candidate_process_type)
         if args.json:
             print(json.dumps(result, indent=2, allow_nan=False))
         else:
             def fmt(value):
                 return "unknown" if value is None else f"{value:.3f}"
-            print(f'Matched published TCP {result["verdict"]} ({result["common_clean_pairs"]}/16 common clean pairs)')
+            title = "Historical matched published TCP" if args.archive else "Matched published TCP"
+            print(f'{title} {result["verdict"]} ({result["common_clean_pairs"]}/16 common clean pairs)')
             if args.run_directory:
+                print(f'{result["relay_workers"]} Micropod relay workers, {result["vcpus"]} vCPUs per VM')
+                if result["process_type"] is not None:
+                    print(f'Micropod launchd role: {result["process_type"]} (independently selected: {result["candidate_process_type_verified"]})')
                 cap = result["relay_read_bytes"]
                 print(f'Micropod relay read cap: {str(cap // 1024) + " KiB" if cap else "unknown in this receipt"}')
             for name, arm in result["arm_clean_medians_and_all_attempt_counts"].items():

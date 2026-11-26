@@ -1,0 +1,988 @@
+{
+  "engine": "OrbStack",
+  "image": "sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb",
+  "guest": {
+    "elf": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/vcpu-calibration-d23f4aa15c54e23d/vcpu-instructions",
+    "binary_sha256": "00d8a319fb0b6d3a58996e20f323aa57430dcdd1fc0dc1f8e3fbcb66fe528a39",
+    "sources": {
+      "main.go": "019bb4230923546f264df761df13d7def6e07afc6996b0f29896845a58a535f6",
+      "work_arm64.s": "8cc3592cb44703b4d5d9cf5dc2ed40d9a3d859d4ff7a082de4ef3c04f4d13cad"
+    },
+    "disassembly_sha256": "3586e6a531e1ea51b10215e13cf738b492b201b2e2e4ff219cd8cd2b766569b3",
+    "instructions_per_iteration": 18
+  },
+  "profiler": {
+    "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/host-vcpu-187fc39c128f254a/profile_vm_scheduler.c",
+    "source_sha256": "187fc39c128f254a0370015d20b8ff71ee65748f82f2deb239a628e8d6e3664d",
+    "binary": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-fair-scheduler/host-vcpu-187fc39c128f254a/profile-vcpu",
+    "binary_sha256": "002e1183e9dd80f5f32d76ddffa3df7eacc9b86cf65b5f0d6d15595af7ced1b7",
+    "smoke_cpu_indices": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "level_names": [
+      "Super",
+      "Performance"
+    ]
+  },
+  "measured": {
+    "runs": [
+      {
+        "iterations": 1048576,
+        "guest_mask": "0",
+        "guest_result": 16777216,
+        "before": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536395811000,
+          "monotonic_ns": 75133248379791,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 129,
+              "level_cpu_ticks": [
+                319493573840,
+                54846278298
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140145240353915,
+                8969005457305
+              ],
+              "level_cycles": [
+                55872512076927,
+                8850225731716
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 60,
+              "level_cpu_ticks": [
+                274431401721,
+                51880278230
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727212423663,
+                12056080519793
+              ],
+              "level_cycles": [
+                47918216235171,
+                8569675941712
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 109,
+              "level_cpu_ticks": [
+                271158346781,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272635219856,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333246921079,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 102,
+              "level_cpu_ticks": [
+                269137027111,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831692159474,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970699899218,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "after": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536426109000,
+          "monotonic_ns": 75133278678333,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 129,
+              "level_cpu_ticks": [
+                319493886269,
+                54846278298
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140145327093270,
+                8969005457305
+              ],
+              "level_cycles": [
+                55872568773526,
+                8850225731716
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 60,
+              "level_cpu_ticks": [
+                274431461490,
+                51880278230
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727221245190,
+                12056080519793
+              ],
+              "level_cycles": [
+                47918226767210,
+                8569675941712
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 109,
+              "level_cpu_ticks": [
+                271158417286,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272655681163,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333259413147,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 102,
+              "level_cpu_ticks": [
+                269137099029,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831703543583,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970712495272,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "level_instructions": [
+          86739355,
+          0
+        ],
+        "level_cycles": [
+          56696599,
+          0
+        ]
+      },
+      {
+        "iterations": 16777216,
+        "guest_mask": "0",
+        "guest_result": 268435456,
+        "before": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536428772000,
+          "monotonic_ns": 75133281341333,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 129,
+              "level_cpu_ticks": [
+                319493886705,
+                54846278298
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140145327145370,
+                8969005457305
+              ],
+              "level_cycles": [
+                55872568847404,
+                8850225731716
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 60,
+              "level_cpu_ticks": [
+                274431461490,
+                51880278230
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727221245190,
+                12056080519793
+              ],
+              "level_cycles": [
+                47918226767210,
+                8569675941712
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 109,
+              "level_cpu_ticks": [
+                271158417286,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272655681163,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333259413147,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 102,
+              "level_cpu_ticks": [
+                269137099361,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831703590277,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970712542996,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "after": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536516418000,
+          "monotonic_ns": 75133368986750,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 188,
+              "level_cpu_ticks": [
+                319495512743,
+                54846278470
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140145686696700,
+                8969005467893
+              ],
+              "level_cycles": [
+                55872872859900,
+                8850225741348
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 67,
+              "level_cpu_ticks": [
+                274431507669,
+                51880278230
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727229377697,
+                12056080519793
+              ],
+              "level_cycles": [
+                47918234505918,
+                8569675941712
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 119,
+              "level_cpu_ticks": [
+                271158488508,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272674183992,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333272079984,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 143,
+              "level_cpu_ticks": [
+                269137162762,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831712781448,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970723240741,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "level_instructions": [
+          359551330,
+          10588
+        ],
+        "level_cycles": [
+          304012496,
+          9632
+        ]
+      },
+      {
+        "iterations": 16777216,
+        "guest_mask": "0",
+        "guest_result": 268435456,
+        "before": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536519550000,
+          "monotonic_ns": 75133372118583,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 188,
+              "level_cpu_ticks": [
+                319495513128,
+                54846278470
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140145686729789,
+                8969005467893
+              ],
+              "level_cycles": [
+                55872872898116,
+                8850225741348
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 67,
+              "level_cpu_ticks": [
+                274431507669,
+                51880278230
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727229377697,
+                12056080519793
+              ],
+              "level_cycles": [
+                47918234505918,
+                8569675941712
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 119,
+              "level_cpu_ticks": [
+                271158488734,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272674216546,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333272115179,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 143,
+              "level_cpu_ticks": [
+                269137163213,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831712815494,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970723287297,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "after": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536607460000,
+          "monotonic_ns": 75133460028250,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 418,
+              "level_cpu_ticks": [
+                319497155017,
+                54846279684
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140146043437879,
+                8969005531453
+              ],
+              "level_cycles": [
+                55873174761758,
+                8850225808408
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 57,
+              "level_cpu_ticks": [
+                274431598216,
+                51880278230
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727253545582,
+                12056080519793
+              ],
+              "level_cycles": [
+                47918250484055,
+                8569675941712
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 88,
+              "level_cpu_ticks": [
+                271158538960,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272683080183,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333280904775,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 103,
+              "level_cpu_ticks": [
+                269137235639,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831725767136,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970735925145,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "level_instructions": [
+          356708090,
+          63560
+        ],
+        "level_cycles": [
+          301863642,
+          67060
+        ]
+      },
+      {
+        "iterations": 1048576,
+        "guest_mask": "0",
+        "guest_result": 16777216,
+        "before": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536609968000,
+          "monotonic_ns": 75133462536125,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 418,
+              "level_cpu_ticks": [
+                319497155017,
+                54846279684
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140146043437879,
+                8969005531453
+              ],
+              "level_cycles": [
+                55873174761758,
+                8850225808408
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 57,
+              "level_cpu_ticks": [
+                274431598216,
+                51880278230
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727253545582,
+                12056080519793
+              ],
+              "level_cycles": [
+                47918250484055,
+                8569675941712
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 88,
+              "level_cpu_ticks": [
+                271158539218,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272683106681,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333280941668,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 103,
+              "level_cpu_ticks": [
+                269137236005,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831725801697,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970735975500,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "after": {
+          "header": {
+            "pid": 3279,
+            "levels": 2,
+            "tick_numer": 125,
+            "tick_denom": 3,
+            "level_names": [
+              "Super",
+              "Performance"
+            ],
+            "resource_coalition": 796,
+            "jetsam_coalition": 797
+          },
+          "birth_ticks": 1711333009,
+          "epoch_ns": 1795577536640474000,
+          "monotonic_ns": 75133493042458,
+          "threads": [
+            {
+              "id": 17325,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 418,
+              "level_cpu_ticks": [
+                319497425180,
+                54846279684
+              ],
+              "vcpu_index": 0,
+              "level_instructions": [
+                140146117845379,
+                8969005531453
+              ],
+              "level_cycles": [
+                55873223568976,
+                8850225808408
+              ]
+            },
+            {
+              "id": 17326,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 57,
+              "level_cpu_ticks": [
+                274431697702,
+                51880279011
+              ],
+              "vcpu_index": 1,
+              "level_instructions": [
+                122727278708821,
+                12056080544653
+              ],
+              "level_cycles": [
+                47918268164319,
+                8569675982786
+              ]
+            },
+            {
+              "id": 17328,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 88,
+              "level_cpu_ticks": [
+                271158554810,
+                51707630647
+              ],
+              "vcpu_index": 2,
+              "level_instructions": [
+                121272685364081,
+                12341263352688
+              ],
+              "level_cycles": [
+                47333283655182,
+                8547359581201
+              ]
+            },
+            {
+              "id": 17329,
+              "group": "vcpu",
+              "state": 3,
+              "priority": 31,
+              "base_priority": 31,
+              "policy": 1,
+              "max_priority": 63,
+              "cpu_usage": 103,
+              "level_cpu_ticks": [
+                269137267059,
+                51498352815
+              ],
+              "vcpu_index": 3,
+              "level_instructions": [
+                119831730124741,
+                12060905973030
+              ],
+              "level_cycles": [
+                46970741476743,
+                8524479526525
+              ]
+            }
+          ],
+          "other_threads_skipped": 0
+        },
+        "level_instructions": [
+          74407500,
+          0
+        ],
+        "level_cycles": [
+          48807218,
+          0
+        ]
+      }
+    ],
+    "expected_added_guest_instructions": 283115520,
+    "observed_added_host_instructions": 277593356.5,
+    "observed_over_expected": 0.9804950166631627,
+    "within_ten_percent": true
+  },
+  "cleaned": true,
+  "original_and_preserved_files": 24
+}

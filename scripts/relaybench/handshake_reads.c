@@ -152,37 +152,48 @@ static void interrupted(mp_tcp_relay *r, bool revoke) {
     close(guest[0]); close(client[0]);
 }
 
-static void server_first(mp_tcp_listener *l) {
+static void pressured_first_payload(mp_tcp_listener *l, bool upload) {
     int guest[2], client[2];
     sockets(guest); sockets(client);
     guest_fd = guest[1]; connect_result = EINPROGRESS;
     mp_tcp_adopt(l, client[1], clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
+    // For an upload, consume the handshake event before filling that same
+    // guest socket. The stream must register a new writable watch to resume.
+    if (upload) {
+        settle(l->relay);
+        struct kevent event;
+        struct timespec now = {0};
+        check(kevent(l->relay->kq, NULL, 0, &event, 1, &now) == 0, "no idle handshake wakeup");
+    }
+    int *src = upload ? client : guest, *dst = upload ? guest : client;
     unsigned char pad[4096] = {0};
     size_t filled = 0;
     ssize_t n;
-    while ((n = send(client[1], pad, sizeof(pad), MSG_DONTWAIT)) > 0) {
+    while ((n = send(dst[1], pad, sizeof(pad), MSG_DONTWAIT)) > 0) {
         filled += (size_t)n;
         check(filled < (1U << 22), "bounded pressured socket capacity");
     }
     check(filled > 0 && n < 0 && errno == EAGAIN, "full outgoing buffer");
-    static const unsigned char marker[] = "server-first-after-connect";
-    check(write(guest[0], marker, sizeof(marker)) == sizeof(marker) && shutdown(guest[0], SHUT_WR) == 0,
-          "eager backend reply and FIN");
+    static const unsigned char marker[] = "first-payload-after-connect";
+    check(write(src[0], marker, sizeof(marker)) == sizeof(marker) && shutdown(src[0], SHUT_WR) == 0,
+          "pressured payload and FIN");
     settle(l->relay);
-    check(l->head && l->head->client.pending && l->head->client.length == sizeof(marker), "pause pressured read");
+    check(l->head != NULL, "pressured flow retained");
+    struct endpoint *to = upload ? &l->head->guest : &l->head->client;
+    check(to->pending && to->length == sizeof(marker), "pause pressured read");
     while (filled) {
         size_t step = filled < sizeof(pad) ? filled : sizeof(pad);
-        expect_bytes(client[0], pad, step);
+        expect_bytes(dst[0], pad, step);
         filled -= step;
     }
     settle(l->relay);
-    expect_bytes(client[0], marker, sizeof(marker));
-    expect_eof(client[0]);
-    check(write(client[0], marker, 1) == 1 && shutdown(client[0], SHUT_WR) == 0, "reply to server-first half close");
+    expect_bytes(dst[0], marker, sizeof(marker));
+    expect_eof(dst[0]);
+    check(write(dst[0], marker, 1) == 1 && shutdown(dst[0], SHUT_WR) == 0, "reply after pressured half close");
     settle(l->relay);
-    expect_bytes(guest[0], marker, 1);
-    expect_eof(guest[0]);
-    check(!l->active && !l->head, "server-first flow retired");
+    expect_bytes(src[0], marker, 1);
+    expect_eof(src[0]);
+    check(!l->active && !l->head, "pressured flow retired");
     close(guest[0]); close(client[0]);
 }
 
@@ -225,7 +236,8 @@ int main(int argc, char **argv) {
         interrupted(r, true);
         interrupted(r, false);
         retry(l);
-        server_first(l);
+        pressured_first_payload(l, false);
+        pressured_first_payload(l, true);
     }
     unsigned rounds = qualify ? 1 : ROUNDS;
     for (unsigned mode = 0; mode < 2; ++mode) {

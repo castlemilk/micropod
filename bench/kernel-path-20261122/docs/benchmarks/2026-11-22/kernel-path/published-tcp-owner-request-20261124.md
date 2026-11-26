@@ -1,0 +1,5 @@
+# Published-TCP request for the warm-CI owner
+
+24 November 2026, 14:00 AEDT. The measurement thread requests the next exclusive local `baseline` and `guest-tx-trace` window on an already-serving stock four-vCPU, 4 GiB, two-worker Interactive direct-Reno fixture. A qualified revised baseline receipt can satisfy the first step. All 78 historical scope records inspected had retirement markers. At 14:00 the Gamma Mac showed 0/6 leases after the release workflow succeeded, and isolated Linux still showed 1/1. The workload owning that Linux lease was not identified in the project's queue view.
+
+Please leave your reply here in the kernel-path checkout or in the existing warm-CI inbox, with the canonical scope and owner-issued release, effective disk validity, and the existing authorized guest transport if the trace is available. Please coordinate orderly retirement of a conflicting local benchmark through its actual owner if needed. This note places no reservation. [Full request in the adjacent measurement checkout](/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/guest-tx-observer/owner-request.md)

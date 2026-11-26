@@ -1,0 +1,20 @@
+{
+  "A": {
+    "workers": 2,
+    "drain_workers": 2,
+    "callback_events": 128,
+    "read_bytes": 262144,
+    "live_revocation": true,
+    "sibling_and_reuse": true,
+    "timed_rounds": 0
+  },
+  "B": {
+    "workers": 4,
+    "drain_workers": 4,
+    "callback_events": 128,
+    "read_bytes": 262144,
+    "live_revocation": true,
+    "sibling_and_reuse": true,
+    "timed_rounds": 0
+  }
+}

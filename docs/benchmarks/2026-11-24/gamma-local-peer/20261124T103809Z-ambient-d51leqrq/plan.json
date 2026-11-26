@@ -1,0 +1,55 @@
+{
+  "study": "Gamma disposable peer comparison",
+  "host": "Gamma-128GB.local",
+  "load_policy": "ambient",
+  "seed": 34205,
+  "order": {
+    "warmup": [
+      "AB"
+    ],
+    "scored": [
+      "BA",
+      "AB",
+      "AB",
+      "BA"
+    ]
+  },
+  "candidate": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+  "process_type": "Standard",
+  "relay_workers": 2,
+  "vcpus": 4,
+  "vm_memory_mib": 4096,
+  "callback_events": 128,
+  "read_bytes": 262144,
+  "tools": {
+    "fixed": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+    "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+  },
+  "min_free_gib": 12,
+  "idle_wait_seconds": 0,
+  "idle_floor_pct": null,
+  "paired_idle_gap_pp_max": null,
+  "consecutive_idle_samples": 1,
+  "socket_evidence": "route",
+  "selected_from": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T100757Z-local-zw8k9wvr/receiver/fixtures.json",
+  "selected_from_sha256": "736768e6875a295b7277a91539a75f3b1e55e0a7b7658ad9099da39c0821e6e2",
+  "image": {
+    "manifest": "43c8761c8d7d97587c47c1b2a8f87941c24d919cb89b1d9268592dbc4025e93f",
+    "config": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "compressed_layer": "7d4ee779f04af2802fa3613187490f443211d116770559941ad4094137353af4",
+    "diff_id": "10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7",
+    "netbench": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+    "archive": "36703da965e7e5fb09d6e31c533deae862cedb8596e6716aa76c9e67df49f6fa"
+  },
+  "orbstack_version": "Version: 2.2.5 (2020500)\nCommit: bf842321f95fc3ca7cda3227bf0cd41cb188c471 (v2.2.5)",
+  "started": "2026-11-24T10:38:09.960540+00:00",
+  "driver_sha256": {
+    "run.py": "9426d9cc02c950a138cfc2c8f1c9f489fe7bc1a1ceb36da2085d9b5491aa1292",
+    "receiver.py": "940d03667fde8485e0f77d6b9d14df73ea353ad30c9c8778b4ceb9b9bf8b714c",
+    "gamma_pilot.py": "ae4a5e6b89dbcf74fe074d6ed8ab3a4540833ee8d2a21353673361a644ad1f11",
+    "local_terminal.py": "254d159d9a92f106f6cfebf34659fad2fbfa3eacfa232777fb242052ed5b9581",
+    "local_admission.py": "2f58f356fd694e56877243440aef5ae8d50241582e59d8e765e399796409371d",
+    "score.py": "f6824c7621018836114570b1878583122c91f9e47145137d40144cf1db4f09b0",
+    "ambient.py": "522650f5de129d0774862dc6331e0ddaaa0caffb492131ebfefed8272ee86f34"
+  }
+}

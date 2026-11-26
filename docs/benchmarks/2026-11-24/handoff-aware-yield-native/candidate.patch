@@ -1,0 +1,81 @@
+--- a/Sources/CPublishedTCP/include/PublishedTCP.h
++++ b/Sources/CPublishedTCP/include/PublishedTCP.h
+@@ -49,6 +49,10 @@
+ typedef void (*mp_tcp_handoff)(void *owner, int client, uint64_t accepted_at);
+ mp_tcp_listener *mp_tcp_target(mp_tcp_relay *relay, mp_tcp_listener *parent);
+ void mp_tcp_set_handoff(mp_tcp_listener *listener, mp_tcp_handoff handler, void *owner);
++// Benchmark candidate. Publish before queue submission, then consume once at owner entry.
++// These calls may run on different threads. Other relay state remains serially owned.
++void mp_tcp_handoff_enqueued(mp_tcp_relay *owner);
++void mp_tcp_handoff_started(mp_tcp_relay *owner);
+ // Call on the accept owner. The worker count is fixed for the relay's lifetime.
+ unsigned mp_tcp_next_worker(mp_tcp_listener *listener, unsigned workers);
+ // Takes ownership of the client descriptor, including on failure.
+--- a/Sources/CPublishedTCP/PublishedTCP.c
++++ b/Sources/CPublishedTCP/PublishedTCP.c
+@@ -51,6 +51,7 @@
+     unsigned next_first_worker;
+     int guest_receive_buffer;
+     atomic_bool path_failure, guest_data;
++    atomic_uint pending_handoffs;
+     uint64_t interface_checked;
+     struct pair *retired;
+ #if MICROPOD_BENCH_512K_READS
+@@ -169,6 +170,7 @@
+     r->guest = address;
+     atomic_init(&r->path_failure, false);
+     atomic_init(&r->guest_data, false);
++    atomic_init(&r->pending_handoffs, 0);
+     r->kq = kqueue();
+     r->bulk = (struct watch){ BULK_READY, data_only ? -1 : kqueue() };
+     if (r->kq < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 ||
+@@ -244,6 +246,14 @@
+ 
+ int mp_tcp_take_guest_data(mp_tcp_relay *r) {
+     return atomic_exchange_explicit(&r->guest_data, false, memory_order_relaxed);
++}
++
++void mp_tcp_handoff_enqueued(mp_tcp_relay *owner) {
++    atomic_fetch_add_explicit(&owner->pending_handoffs, 1, memory_order_relaxed);
++}
++
++void mp_tcp_handoff_started(mp_tcp_relay *owner) {
++    atomic_fetch_sub_explicit(&owner->pending_handoffs, 1, memory_order_relaxed);
+ }
+ 
+ int mp_tcp_relay_descriptor(const mp_tcp_relay *r) { return r->kq; }
+@@ -862,6 +872,9 @@
+         enum bulk_poll poll = n <= 2 && capacity > 2 ? SPARSE_FLAT_BULK : FLAT_BULK;
+         for (int i = 0; i < n; ++i) if (bulk[i]) service_polled_event(&events[i], poll);
+         serviced += n;
++        // Finish this entire kevent set. Any remaining readiness can rearm the
++        // dispatch source while already-enqueued adoptions run on this owner.
++        if (atomic_load_explicit(&r->pending_handoffs, memory_order_relaxed) != 0) break;
+     }
+ }
+ 
+--- a/Sources/MicropodRuntime/NativeLoopbackRelay.swift
++++ b/Sources/MicropodRuntime/NativeLoopbackRelay.swift
+@@ -56,12 +56,20 @@
+         }
+ 
+         func adopt(_ fd: Int32, accepted: UInt64) {
+-            owner.queue.async { mp_tcp_adopt(self.handle, fd, accepted) }
++            mp_tcp_handoff_enqueued(owner.backend.handle)
++            owner.queue.async {
++                mp_tcp_handoff_started(self.owner.backend.handle)
++                mp_tcp_adopt(self.handle, fd, accepted)
++            }
+         }
+ 
+         func adoptProfiled(_ fd: Int32, accepted: UInt64) {
++            mp_tcp_handoff_enqueued(owner.backend.handle)
+             let enqueued = clock_gettime_nsec_np(CLOCK_UPTIME_RAW)
+-            owner.queue.async { mp_tcp_adopt_profiled(self.handle, fd, accepted, enqueued) }
++            owner.queue.async {
++                mp_tcp_handoff_started(self.owner.backend.handle)
++                mp_tcp_adopt_profiled(self.handle, fd, accepted, enqueued)
++            }
+         }
+ 
+         func release(profile: Bool) -> mp_tcp_handoff_stats? {

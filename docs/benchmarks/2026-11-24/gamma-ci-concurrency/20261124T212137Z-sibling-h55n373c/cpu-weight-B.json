@@ -1,0 +1,88 @@
+[
+  {
+    "case": "solo",
+    "ids": [
+      "869ad7aeff21a2dc48a6e98c553a99ce1760e54638f3230422324b7031a4db99"
+    ],
+    "raw": [
+      {
+        "weight": 59,
+        "scheduled_ns": 1795555317122602486,
+        "started_ns": 1795555317123223949,
+        "finished_ns": 1795555318322606657,
+        "cpu_ns": 1198786000,
+        "rounds": 154163,
+        "digest": 13529316049180663809
+      }
+    ],
+    "summary": {
+      "cpu_utilization": 0.9995024874078808,
+      "first_cpu_fraction": 1.0,
+      "expected_fraction": 1.0
+    }
+  },
+  {
+    "case": "paired",
+    "ids": [
+      "869ad7aeff21a2dc48a6e98c553a99ce1760e54638f3230422324b7031a4db99",
+      "fe63da0add517965f1d802b9679bde1f3cd65d38b58876ce7642e83dfa80096a"
+    ],
+    "raw": [
+      {
+        "weight": 59,
+        "scheduled_ns": 1795555318553887281,
+        "started_ns": 1795555318561145790,
+        "finished_ns": 1795555319754441655,
+        "cpu_ns": 443743000,
+        "rounds": 57120,
+        "digest": 3541557109598191617
+      },
+      {
+        "weight": 100,
+        "scheduled_ns": 1795555318553887281,
+        "started_ns": 1795555318558226700,
+        "finished_ns": 1795555319753888953,
+        "cpu_ns": 751834000,
+        "rounds": 97135,
+        "digest": 14771718484510908417
+      }
+    ],
+    "summary": {
+      "cpu_utilization": 0.999466688660484,
+      "first_cpu_fraction": 0.37115384454535344,
+      "expected_fraction": 0.3710691823899371
+    }
+  },
+  {
+    "case": "reversed",
+    "ids": [
+      "fe63da0add517965f1d802b9679bde1f3cd65d38b58876ce7642e83dfa80096a",
+      "869ad7aeff21a2dc48a6e98c553a99ce1760e54638f3230422324b7031a4db99"
+    ],
+    "raw": [
+      {
+        "weight": 100,
+        "scheduled_ns": 1795555319993398978,
+        "started_ns": 1795555319997038614,
+        "finished_ns": 1795555321193405691,
+        "cpu_ns": 751546000,
+        "rounds": 98886,
+        "digest": 5402299628816384001
+      },
+      {
+        "weight": 59,
+        "scheduled_ns": 1795555319993398978,
+        "started_ns": 1795555319999133922,
+        "finished_ns": 1795555321193887269,
+        "cpu_ns": 444568000,
+        "rounds": 58332,
+        "digest": 11422009333993209857
+      }
+    ],
+    "summary": {
+      "cpu_utilization": 0.9993861755227523,
+      "first_cpu_fraction": 0.6283230528193801,
+      "expected_fraction": 0.6289308176100629
+    }
+  }
+]

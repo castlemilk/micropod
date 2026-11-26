@@ -1,0 +1,146 @@
+{
+  "created_utc": "2026-11-24T23:30:53.655323+00:00",
+  "replay_sha256": "14eebb542e4f4489adca298bafb82e394efaedbdbf473da8b18e1c50f01ec734",
+  "baseline_manifest_sha256": "8e7826379b6ae9afd581d179a64b5a0aa11c1efa18f6ba30cd0ea13669f0163e",
+  "post_first_byte_threshold_ns": 49000000,
+  "observed_seed_runs": [
+    {
+      "run": "20261124T232256Z-sibling-bbux0aq9",
+      "seed": 231803,
+      "state": "complete"
+    },
+    {
+      "run": "20261124T232640Z-sibling-i70qsw9t",
+      "seed": 231803,
+      "state": "complete"
+    }
+  ],
+  "rejections": [
+    {
+      "run": "20261124T231501Z-sibling-upgseme8",
+      "seed": 231801,
+      "arm": "A",
+      "wave": "shared-2-all-A.json.gz",
+      "eligible_for_scoring": false,
+      "saved_paired_windows_before_rejection": 13,
+      "raw_clients": 32,
+      "raw_samples": 268623,
+      "warm_socket_assertion_failures": 6940,
+      "samples_passed_status_and_body_checks": 268623,
+      "warmup_errors": {},
+      "other_sample_errors": {},
+      "post_first_byte_waits_at_least_threshold": 1,
+      "failed_clients": [
+        {
+          "client_index": 21,
+          "exit_code": 1,
+          "stderr": "",
+          "samples": 9083,
+          "warm_socket_assertion_failures": 6940,
+          "redials": 1,
+          "replacement_reuses": 6939,
+          "first_redial": {
+            "sample_index": 2143,
+            "total_ns": 171000,
+            "first_response_byte_ns": 167250,
+            "post_first_byte_ns": 3750,
+            "got_conn_count": 1,
+            "dial_starts": 1,
+            "reused": false,
+            "same_as_warmup": false,
+            "error": "request did not stay on the warmed connection"
+          },
+          "preceding_request": {
+            "sample_index": 2142,
+            "total_ns": 51174042,
+            "first_response_byte_ns": 986750,
+            "post_first_byte_ns": 50187292,
+            "got_conn_count": 1,
+            "dial_starts": 0,
+            "reused": true,
+            "same_as_warmup": true,
+            "error": null
+          }
+        }
+      ],
+      "scope": {
+        "scope": "/private/tmp/mp-t-ac1z70jb",
+        "retained": false,
+        "errors": []
+      },
+      "baseline_files": 24,
+      "input_sha256": {
+        "plan.json": "076d494c02fc955e759af3f01011607d660b4ff9fd9f0e345676b82ade63a4fb",
+        "status.json": "ce26fc8dd14eddfca54dd560fa0e1ecfd234552564e9fb2ec540f86c4781bc21",
+        "cleanup.json": "a0f2b0d7b297e2e7c6ad633a3ea436e3ba81a27f22c7b86cffa6ad0614c583e2",
+        "verification.json": "f98c474955788ec85f240ecdcce6c0fc89452620d7062b4132c1b5865a7e20d4",
+        "windows.json": "4b073bd2c400a424f5d67aed54dca8ee765ec63f2d824e38a12e09f479b4fdea",
+        "quiet-http.go": "568ec87401b60bda95ae8c51871feddb801ef4d4244d4b3d16be0b5f47a88fbf",
+        "shared-2-all-A.json.gz": "3a81851271e3a595e3fd3c20c542f39d18ce9864e43b5112f346e5538c7e0eea"
+      }
+    },
+    {
+      "run": "20261124T231818Z-sibling-l9_8acdi",
+      "seed": 231801,
+      "arm": "A",
+      "wave": "shared-1-all-A.json.gz",
+      "eligible_for_scoring": false,
+      "saved_paired_windows_before_rejection": 11,
+      "raw_clients": 32,
+      "raw_samples": 255484,
+      "warm_socket_assertion_failures": 1656,
+      "samples_passed_status_and_body_checks": 255484,
+      "warmup_errors": {},
+      "other_sample_errors": {},
+      "post_first_byte_waits_at_least_threshold": 1,
+      "failed_clients": [
+        {
+          "client_index": 16,
+          "exit_code": 1,
+          "stderr": "",
+          "samples": 6265,
+          "warm_socket_assertion_failures": 1656,
+          "redials": 1,
+          "replacement_reuses": 1655,
+          "first_redial": {
+            "sample_index": 4609,
+            "total_ns": 7309459,
+            "first_response_byte_ns": 7293375,
+            "post_first_byte_ns": 16084,
+            "got_conn_count": 1,
+            "dial_starts": 1,
+            "reused": false,
+            "same_as_warmup": false,
+            "error": "request did not stay on the warmed connection"
+          },
+          "preceding_request": {
+            "sample_index": 4608,
+            "total_ns": 70881333,
+            "first_response_byte_ns": 19890791,
+            "post_first_byte_ns": 50990542,
+            "got_conn_count": 1,
+            "dial_starts": 0,
+            "reused": true,
+            "same_as_warmup": true,
+            "error": null
+          }
+        }
+      ],
+      "scope": {
+        "scope": "/private/tmp/mp-t-yx9qagdr",
+        "retained": false,
+        "errors": []
+      },
+      "baseline_files": 24,
+      "input_sha256": {
+        "plan.json": "6e782f15aa983217d4b39ce9ec13aea15f078bedb64bf980ddb3a272a80caca1",
+        "status.json": "e4a21cbbe4160f0ceab05f72f1fc568481d21f51db08a38f400a500aede4906a",
+        "cleanup.json": "e625f39dfe29451deaa8fdefa41f2649f4b755498d2a3962db5469fcb8f6bd52",
+        "verification.json": "f98c474955788ec85f240ecdcce6c0fc89452620d7062b4132c1b5865a7e20d4",
+        "windows.json": "7c1a63e624c333924e3dff4ff22a7bb117ad29f522bca0308d0887b066c4162e",
+        "quiet-http.go": "568ec87401b60bda95ae8c51871feddb801ef4d4244d4b3d16be0b5f47a88fbf",
+        "shared-1-all-A.json.gz": "0ea75d0b252bb8d93adc170e461929d6c509cffe5eab48cb38d63eaef93d08ca"
+      }
+    }
+  ]
+}

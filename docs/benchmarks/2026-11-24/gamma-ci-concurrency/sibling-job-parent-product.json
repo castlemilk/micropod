@@ -1,0 +1,24 @@
+{
+  "current_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-1ca6188077ab406f/product.json",
+  "previous_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-30d62e4d9553c9cb/product.json",
+  "host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "old_guest_sha256": "d584a6099ec4130cba3fa73d8b12193c2ea60aa5f8a83e28d5dab4714048e0ff",
+  "new_guest_sha256": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895",
+  "bootstrap_sha256": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+  "base_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "patch_sha256": "add9e8315bfe9b30206840cb21d0525f7a62e80622477781201cd79f450911a7",
+  "changed_packaged_inputs": [
+    "guest/runner/docker_engine_linux.go",
+    "guest/runner/docker_engine_linux_test.go",
+    "guest/runner/docker_job_parent_linux.go"
+  ],
+  "sha256_by_changed_input": {
+    "guest/runner/docker_engine_linux.go": "86b2224cca4599bfa793b3a82f145e4bf81e60b9e8d8d9a3a817addaf165d0ff",
+    "guest/runner/docker_engine_linux_test.go": "ac1ec3b5383dd274d9b713641cd253a744595b88386344e155efdc1ad8ddc091",
+    "guest/runner/docker_job_parent_linux.go": "dcd1c4052ec8fb2eeccafd6e6a01833d80e8e617a94aa2e9339491f6f1308701"
+  },
+  "entitlements": {
+    "com.apple.security.virtualization": true
+  },
+  "baseline_files": 24
+}

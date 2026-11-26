@@ -1,0 +1,14 @@
+{
+  "evidence": "local VM with stock idle gate",
+  "schedule_complete": false,
+  "results": {
+    "A": {
+      "admission_attempts": 0,
+      "first_attempts": 0,
+      "clean": 0,
+      "clean_median_MiB_s": null
+    }
+  },
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false
+}

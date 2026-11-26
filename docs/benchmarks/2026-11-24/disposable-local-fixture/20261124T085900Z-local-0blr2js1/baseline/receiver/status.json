@@ -1,0 +1,14 @@
+{
+  "completed_schedule": false,
+  "timed": true,
+  "started": 0,
+  "scored": 0,
+  "scored_clean": 0,
+  "error": "host idle below 90 percent",
+  "legacy_stock_qualification": false,
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "ambient_diagnostic": false,
+  "abbreviated_inventory": false,
+  "local_vm_idle_and_delivery_qualified": false
+}

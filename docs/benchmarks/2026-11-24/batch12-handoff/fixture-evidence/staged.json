@@ -1,0 +1,29 @@
+{
+  "stable_id": "230.08",
+  "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "target": "One native loopback listener, two data-owner queues, 128-event callback, 256 KiB reads, 32 receiver streams + 240 fresh scheduled at 40/s. Control dispatches every accepted fd. Candidate combines at most 2 pending fds per owner.",
+  "state": "Paused before any timed attempts pending owner handoff. Initial untimed markers and burst preflight completed. Final post-initial admission counters require relink and repeat fixture preflight under admitted window.",
+  "experiment_count": 0,
+  "timed_attempts": 0,
+  "throughput_mib_s": null,
+  "floor_GiB": 60,
+  "order_seed": 202611242308,
+  "fixture_inputs": {
+    "build.py": "c90d53beb542abee362d00fc8233dc782e12aa869b8adff596e5f1cf1cb2f441",
+    "burst_smoke.py": "aed776bbd2d176009c7ab432b98c77862a6677003469630352c2eb46f925e0c1",
+    "fixture-evidence/initial-burst.json": "da0effc32fb8ed7885247b259da6078b95111ea1a2f6eb6bf46c5f4aad683fad",
+    "fixture-evidence/initial-marker-and-body.json": "054ece1698667c2d44a5d7e33d652e6798342beeb31a20c557b104a822df7cc4",
+    "half_close.py": "de00f005accdc529e1047b02588e0695f31757b9c1896bb4d9eb9b07fe4d3d81",
+    "handoff.swiftfrag": "5e5b20dd22f791b3a89e1029fbd0d536281f19288309a0e271a56ad7be9c540d",
+    "relay-main.swift": "90e03257e5af95a236255d9d64d1ae3b2b6dc787f8725f3e9e442495f476197c",
+    "study.py": "8d6b7b39b80596248b574d9cffaf0cb0960ada0358394d8b6890183ec1e01e47",
+    "summarize.py": "fabcb4e0252223fcc2b4cc9c5b4d78bc42dca20c26e11d0718c78c3e7484fdf7"
+  },
+  "issue_evidence_checked": {
+    "issue": 230,
+    "prior_direction": "230.08",
+    "previous_fixture_comment": 7119755293
+  },
+  "staging_verdict": "The real unscored 32-connection burst completed all replies. With two sequential preflight admissions counted, 34 admissions took 34 stock blocks and 22 candidate blocks. This only qualifies the code path and adds no throughput experiment.",
+  "timing_authorization": "Shared Gamma requires a current handoff for the exact mode and served scopes, current verified effective free disk through the run, idle eligible runners, fixture preflight. Do not execute the timed command until explicitly admitted."
+}

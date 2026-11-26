@@ -1,0 +1,230 @@
+{
+  "started": "2026-11-24T07:28:38.344697+00:00",
+  "status": "complete",
+  "action": "smoke",
+  "direction": "228.03",
+  "tier": "local/host-only",
+  "host": "Gamma-128GB.local",
+  "macos": "26.5.1",
+  "mode": "ambient host-load diagnostic",
+  "build_sha256": "2b9438207a64748405e4b54a7f49b10fa4816ffde75a7f126a561e5ac97b0a05",
+  "driver_sha256": "7f49b1b2857dd5cf769361caba1d379a05acd80974e95e30988e9ac731dbe2b3",
+  "relay_sha256": "cc55881b1a25ac11e9b802393fda9f97202c76a9a95a3c268dcb5c6c832fb366",
+  "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "changed": "one Foundation listener-scoped activity on or off",
+  "order": [
+    [
+      0,
+      1
+    ]
+  ],
+  "seed": 2026112422803,
+  "minimum_disk_GiB": 60,
+  "raw": [
+    {
+      "block": 1,
+      "arm": 0,
+      "started": "2026-11-24T07:28:38.387056+00:00",
+      "client_attempted": false,
+      "marker": "activity-a717c170bc504727b88e87f8bd3d64d5",
+      "address": "127.0.0.1:64089",
+      "relay_pid": 62194,
+      "service_pid": 62193,
+      "marker_and_8MiB_verified": true,
+      "lifecycle_and_qos": [
+        {
+          "event": "first_listener",
+          "held": false,
+          "options": 1095232389119,
+          "pid": 62194,
+          "token": "none",
+          "uptime_ns": 2915358623458
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.accept",
+          "phase": "held_before",
+          "pid": 62194,
+          "qos_class": 25,
+          "tid": 1896947,
+          "uptime_ns": 2915362075625
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.0",
+          "phase": "held_before",
+          "pid": 62194,
+          "qos_class": 25,
+          "tid": 1896947,
+          "uptime_ns": 2915362138791
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.1",
+          "phase": "held_before",
+          "pid": 62194,
+          "qos_class": 25,
+          "tid": 1896947,
+          "uptime_ns": 2915362161416
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.accept",
+          "phase": "held_after",
+          "pid": 62194,
+          "qos_class": 25,
+          "tid": 1896947,
+          "uptime_ns": 2915371627083
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.0",
+          "phase": "held_after",
+          "pid": 62194,
+          "qos_class": 25,
+          "tid": 1896947,
+          "uptime_ns": 2915371702750
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.1",
+          "phase": "held_after",
+          "pid": 62194,
+          "qos_class": 25,
+          "tid": 1896947,
+          "uptime_ns": 2915371728750
+        },
+        {
+          "ended": false,
+          "event": "last_listener",
+          "held": false,
+          "pid": 62194,
+          "token": "none",
+          "uptime_ns": 2915371777458
+        },
+        {
+          "event": "lease_released",
+          "pid": 62194,
+          "port": 64089,
+          "uptime_ns": 2915371801416
+        }
+      ],
+      "finished": "2026-11-24T07:28:38.407156+00:00"
+    },
+    {
+      "block": 1,
+      "arm": 1,
+      "started": "2026-11-24T07:28:38.407420+00:00",
+      "client_attempted": false,
+      "marker": "activity-a717c170bc504727b88e87f8bd3d64d5",
+      "address": "127.0.0.1:64094",
+      "relay_pid": 62196,
+      "service_pid": 62193,
+      "marker_and_8MiB_verified": true,
+      "lifecycle_and_qos": [
+        {
+          "event": "first_listener",
+          "held": true,
+          "options": 1095232389119,
+          "pid": 62196,
+          "token": "ObjectIdentifier(0x0000000103167ce0)",
+          "uptime_ns": 2915378892583
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.accept",
+          "phase": "held_before",
+          "pid": 62196,
+          "qos_class": 25,
+          "tid": 1896975,
+          "uptime_ns": 2915381245666
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.0",
+          "phase": "held_before",
+          "pid": 62196,
+          "qos_class": 25,
+          "tid": 1896975,
+          "uptime_ns": 2915381371458
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.1",
+          "phase": "held_before",
+          "pid": 62196,
+          "qos_class": 25,
+          "tid": 1896975,
+          "uptime_ns": 2915381410750
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.accept",
+          "phase": "held_after",
+          "pid": 62196,
+          "qos_class": 25,
+          "tid": 1896975,
+          "uptime_ns": 2915388684166
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.0",
+          "phase": "held_after",
+          "pid": 62196,
+          "qos_class": 25,
+          "tid": 1896975,
+          "uptime_ns": 2915388774916
+        },
+        {
+          "base_priority": 31,
+          "current_priority": 31,
+          "event": "owner_sample",
+          "owner": "dev.micropod.published-tcp.io.1",
+          "phase": "held_after",
+          "pid": 62196,
+          "qos_class": 25,
+          "tid": 1896975,
+          "uptime_ns": 2915388801125
+        },
+        {
+          "ended": true,
+          "event": "last_listener",
+          "held": false,
+          "pid": 62196,
+          "token": "ObjectIdentifier(0x0000000103167ce0)",
+          "uptime_ns": 2915388869166
+        },
+        {
+          "event": "lease_released",
+          "pid": 62196,
+          "port": 64094,
+          "uptime_ns": 2915388890375
+        }
+      ],
+      "finished": "2026-11-24T07:28:38.424172+00:00"
+    }
+  ],
+  "finished": "2026-11-24T07:28:38.425689+00:00"
+}

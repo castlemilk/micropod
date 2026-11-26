@@ -150,7 +150,7 @@ enum ContainerCommands {
             "--tmpfs", "--label", "--network", "--memory", "--cpus",
             "--entrypoint", "--workdir", "--user", "--platform",
             "--shm-size", "--dns", "--dns-search", "--cap-add", "--cap-drop", "--ulimit",
-            "--runtime",
+            "--runtime", "--cache", "--cache-scope",
         ]
         let aliases = [
             "-a": "--attach", "-t": "--tty", "-i": "--interactive",
@@ -163,6 +163,7 @@ enum ContainerCommands {
             throw UsageError(message: "run [flags] <image> [args…]")
         }
         let request = buildRunRequest(parsed, image: image)
+        try validateCacheFlags(request)
         // Sandbox sessions are owned by the process that boots them, so a
         // detached CLI run would die with this process: run it to
         // completion in the foreground instead. Long-lived sandbox
@@ -230,7 +231,20 @@ enum ContainerCommands {
             workdir: parsed.value("--workdir"),
             entrypoint: parsed.value("--entrypoint"),
             arguments: Array(parsed.positionals.dropFirst()),
-            runtime: parsed.value("--runtime"))
+            runtime: parsed.value("--runtime"),
+            cache: parsed.value("--cache"),
+            cacheScope: parsed.value("--cache-scope"))
+    }
+
+    /// `--cache` and `--cache-scope` as usage errors, before anything boots;
+    /// the engine maps them onto labels (`ContainerCacheOptions`).
+    static func validateCacheFlags(_ request: ContainerRunRequest, defaultRuntime: String? = nil) throws {
+        let runtime = request.runtime ?? defaultRuntime ?? EngineRegistry.shared.defaultName
+        do {
+            _ = try ContainerCacheOptions.applying(to: request, runtime: runtime)
+        } catch let invalid as ContainerCacheOptions.Invalid {
+            throw UsageError(message: "run: \(invalid.message)")
+        }
     }
 
     static func parsePorts(_ spec: String) -> [PortSpec] {

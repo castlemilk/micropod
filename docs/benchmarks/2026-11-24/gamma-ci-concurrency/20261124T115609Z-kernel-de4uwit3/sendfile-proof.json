@@ -1,0 +1,14 @@
+{
+  "memory": {
+    "return_events": 0,
+    "positive_bytes": 0
+  },
+  "file-copy": {
+    "return_events": 0,
+    "positive_bytes": 0
+  },
+  "file": {
+    "return_events": 16,
+    "positive_bytes": 8388096
+  }
+}

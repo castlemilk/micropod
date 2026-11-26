@@ -1,0 +1,207 @@
+{
+  "scope": "Offline contract checks, local process doubles and archival replay. No Gamma Docker endpoint or timed fixture was opened.",
+  "timed_new_attempts": 0,
+  "successful_local_checks": 25,
+  "counts": {
+    "new_study": 11,
+    "owner_relay": 7,
+    "worker_quota_and_compatibility": 3,
+    "unchanged_stock_docker": 4
+  },
+  "runs": {
+    "study": {
+      "command": "MICROPOD_RELAY_SOURCE=/Users/benebsworth/projects/micropod/bench/worker-performance python3 -B scripts/test_gamma_path.py -v",
+      "tree": "study",
+      "exit_code": 0,
+      "output": "test_accepted_socket_proof_rejects_a_second_connection_or_wrong_controller (__main__.GammaPathTests.test_accepted_socket_proof_rejects_a_second_connection_or_wrong_controller) ... ok\ntest_client_boundaries_capture_real_subprocess_output_without_network (__main__.GammaPathTests.test_client_boundaries_capture_real_subprocess_output_without_network) ... ok\ntest_dry_plans_and_interface_counters (__main__.GammaPathTests.test_dry_plans_and_interface_counters) ... ok\ntest_fleet_and_owner_are_independent (__main__.GammaPathTests.test_fleet_and_owner_are_independent) ... ok\ntest_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm (__main__.GammaPathTests.test_full_dry_crossover_writes_each_attempt_and_stops_on_first_dirty_arm) ... ok\ntest_guest_inventory_requires_booted_config_and_effective_offloads (__main__.GammaPathTests.test_guest_inventory_requires_booted_config_and_effective_offloads) ... ok\ntest_mismatched_counters_and_bytes_cannot_score (__main__.GammaPathTests.test_mismatched_counters_and_bytes_cannot_score) ... ok\ntest_occupied_lane_never_opens_an_endpoint (__main__.GammaPathTests.test_occupied_lane_never_opens_an_endpoint) ... ok\ntest_quota_gate_recomputes_throttling_and_checks_fallback_on_the_same_boot (__main__.GammaPathTests.test_quota_gate_recomputes_throttling_and_checks_fallback_on_the_same_boot) ... ok\ntest_readback_on_archived_bridge_and_direct (__main__.GammaPathTests.test_readback_on_archived_bridge_and_direct) ... ok\ntest_replay_all_six_series_preserves_pair_direction_and_peer_eof (__main__.GammaPathTests.test_replay_all_six_series_preserves_pair_direction_and_peer_eof) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 0.224s\n\nOK\n"
+    },
+    "relay": {
+      "command": "python3 -B scripts/relaybench/test_gamma_pilots.py -v",
+      "tree": "relay",
+      "exit_code": 0,
+      "output": "test_a_retired_scope_does_not_open_a_socket (__main__.GammaPilots.test_a_retired_scope_does_not_open_a_socket) ... ok\ntest_manifest_reporting_engine_hashes_the_containers_config (__main__.GammaPilots.test_manifest_reporting_engine_hashes_the_containers_config) ... ok\ntest_offline_plan_balances_the_scored_orders (__main__.GammaPilots.test_offline_plan_balances_the_scored_orders) ... ok\ntest_peer_preflight_checks_orbstack_first_and_timing_preserves_ratio_direction (__main__.GammaPilots.test_peer_preflight_checks_orbstack_first_and_timing_preserves_ratio_direction) ... ok\ntest_pinned_client_and_counters_replay (__main__.GammaPilots.test_pinned_client_and_counters_replay) ... ok\ntest_relay_timeout_retains_its_pair_and_partial_counts (__main__.GammaPilots.test_relay_timeout_retains_its_pair_and_partial_counts) ... ok\ntest_replay_preserves_dirty_rounds_and_separates_callback_change (__main__.GammaPilots.test_replay_preserves_dirty_rounds_and_separates_callback_change) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.125s\n\nOK\n"
+    },
+    "quota_and_compatibility": {
+      "command": "python3 -B scripts/test_worker_performance.py -v",
+      "tree": "relay",
+      "exit_code": 0,
+      "output": "test_postgres_bridge_scopes_traffic_and_cleans_up_after_sql_failure (__main__.WorkerPerformanceTests.test_postgres_bridge_scopes_traffic_and_cleans_up_after_sql_failure) ... ok\ntest_quota_check_requires_cpu_time_and_active_scheduler_evidence (__main__.WorkerPerformanceTests.test_quota_check_requires_cpu_time_and_active_scheduler_evidence) ... ok\ntest_replays_the_gamma_holdout_including_the_failed_peer_round (__main__.WorkerPerformanceTests.test_replays_the_gamma_holdout_including_the_failed_peer_round) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.345s\n\nOK\n"
+    },
+    "alpine": {
+      "command": "python3 -B scripts/test_bench_docker_launch.py -v",
+      "tree": "study",
+      "exit_code": 0,
+      "output": "test_complete_and_failed_first_attempts (__main__.LaunchControlTests.test_complete_and_failed_first_attempts) ... ok\ntest_paired_spread_uses_within_block_differences (__main__.LaunchControlTests.test_paired_spread_uses_within_block_differences) ... ok\ntest_same_stock_binary_and_guest_arguments (__main__.LaunchControlTests.test_same_stock_binary_and_guest_arguments) ... ok\ntest_shell_checks_limits_network_boot_and_both_streams (__main__.LaunchControlTests.test_shell_checks_limits_network_boot_and_both_streams) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.173s\n\nOK\n"
+    },
+    "lint": {
+      "command": "/Users/benebsworth/.cache/uv/archive-v0/DoAY2WXAb7UFmo6R/bin/ruff check --isolated --select E4,E7,E9,F,I scripts/gamma_path_pilot.py scripts/gamma_path_study.py scripts/kernel_path/verify_quota.py scripts/test_gamma_path.py",
+      "tree": "study",
+      "exit_code": 0,
+      "output": "All checks passed!\n"
+    },
+    "guest_syntax": {
+      "command": "sh -n scripts/kernel_path/guest-facts.sh",
+      "tree": "study",
+      "exit_code": 0,
+      "output": ""
+    },
+    "relay_source": {
+      "command": "git diff --exit-code 2ee6f14375781702107dafc43322334fabf49e73 86ca2713a0791d26c137e9a8c6385e1b6bd04ebb -- Sources guest Package.swift",
+      "tree": "relay",
+      "exit_code": 0,
+      "output": ""
+    },
+    "alpine_hash": {
+      "command": "shasum -a 256 scripts/bench_docker_launch.py",
+      "tree": "study",
+      "exit_code": 0,
+      "output": "77c3b71e40d2667866c8fd81368d56d39c0fa40109c32ba3f067ff3b1e538791  scripts/bench_docker_launch.py\n"
+    },
+    "artifacts": {
+      "command": "Extract to an empty directory and compare index.json, rounds.jsonl and replayed summary.json byte for byte",
+      "tree": "study",
+      "exit_code": 0,
+      "output": "140 selected arm records in six comparison series, byte-identical extract and replay\n"
+    },
+    "dry_baseline": {
+      "tree": "study",
+      "command": "python3 -B scripts/gamma_path_pilot.py baseline --relay-checkout \"$RELAY\"",
+      "exit_code": 0,
+      "plan": {
+        "mode": "baseline",
+        "paths": {
+          "A": "macvlan"
+        },
+        "seed": 34199,
+        "order": {
+          "warmup": [
+            "A"
+          ],
+          "scored": [
+            "A"
+          ]
+        },
+        "offered_seconds": 12,
+        "vcpus": 4,
+        "memory_mib": 4096,
+        "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+        "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+        "source": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+        "pilot_sha256": "25210c563448ae02ac2869afc61970c2528c8eaef188025f403823e9bf10407c",
+        "path_extension_sha256": "3f61e98546feeca68d2e7178feae9b1423ff6866ea5aca82ccaa325a43aa6f43",
+        "tools_sha256": {
+          "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+          "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+        }
+      }
+    },
+    "dry_path": {
+      "tree": "study",
+      "command": "python3 -B scripts/gamma_path_pilot.py path --relay-checkout \"$RELAY\"",
+      "exit_code": 0,
+      "plan": {
+        "mode": "path",
+        "paths": {
+          "A": "bridge",
+          "B": "macvlan"
+        },
+        "seed": 34199,
+        "order": {
+          "warmup": [
+            "AB",
+            "BA",
+            "BA"
+          ],
+          "scored": [
+            "BA",
+            "AB"
+          ]
+        },
+        "offered_seconds": 60,
+        "vcpus": 4,
+        "memory_mib": 4096,
+        "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+        "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+        "source": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+        "pilot_sha256": "25210c563448ae02ac2869afc61970c2528c8eaef188025f403823e9bf10407c",
+        "path_extension_sha256": "3f61e98546feeca68d2e7178feae9b1423ff6866ea5aca82ccaa325a43aa6f43",
+        "tools_sha256": {
+          "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+          "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+        }
+      }
+    },
+    "dry_kernel": {
+      "tree": "study",
+      "command": "python3 -B scripts/gamma_path_pilot.py kernel --relay-checkout \"$RELAY\"",
+      "exit_code": 0,
+      "plan": {
+        "mode": "kernel",
+        "paths": {
+          "A": "macvlan",
+          "B": "macvlan"
+        },
+        "seed": 34199,
+        "order": {
+          "warmup": [
+            "AB",
+            "BA",
+            "BA"
+          ],
+          "scored": [
+            "BA",
+            "AB"
+          ]
+        },
+        "offered_seconds": 60,
+        "vcpus": 4,
+        "memory_mib": 4096,
+        "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+        "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+        "source": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+        "pilot_sha256": "25210c563448ae02ac2869afc61970c2528c8eaef188025f403823e9bf10407c",
+        "path_extension_sha256": "3f61e98546feeca68d2e7178feae9b1423ff6866ea5aca82ccaa325a43aa6f43",
+        "tools_sha256": {
+          "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+          "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+        }
+      }
+    },
+    "dry_policy": {
+      "tree": "study",
+      "command": "python3 -B scripts/gamma_path_pilot.py policy --relay-checkout \"$RELAY\"",
+      "exit_code": 0,
+      "plan": {
+        "mode": "policy",
+        "paths": {
+          "A": "macvlan",
+          "B": "macvlan"
+        },
+        "seed": 34199,
+        "order": {
+          "warmup": [
+            "AB",
+            "BA",
+            "BA"
+          ],
+          "scored": [
+            "BA",
+            "AB"
+          ]
+        },
+        "offered_seconds": 60,
+        "vcpus": 4,
+        "memory_mib": 4096,
+        "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+        "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+        "source": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+        "pilot_sha256": "25210c563448ae02ac2869afc61970c2528c8eaef188025f403823e9bf10407c",
+        "path_extension_sha256": "3f61e98546feeca68d2e7178feae9b1423ff6866ea5aca82ccaa325a43aa6f43",
+        "tools_sha256": {
+          "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+          "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+        }
+      }
+    }
+  }
+}

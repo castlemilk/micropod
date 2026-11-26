@@ -1,0 +1,9 @@
+{
+  "eligible": false,
+  "idle_fraction": 0.7745969983324069,
+  "idle_observation_s": 2,
+  "floor_idle": 0.9,
+  "filesystem_free_GiB": 289.01427459716797,
+  "min_free_GiB": 12,
+  "timestamp": "2026-11-24T06:34:28.613146+00:00"
+}

@@ -1,0 +1,9 @@
+parent_mac=46:fa:8b:8d:9d:eb
+table netdev mp_publication {
+	chain send {
+		type filter hook egress device "eth1" priority 500; policy drop;
+		ether saddr 46:fa:8b:8d:9d:eb accept
+		ip saddr 192.168.128.2 ip daddr 192.168.128.1 ip protocol tcp ether saddr . tcp sport @replies ether saddr set 46:fa:8b:8d:9d:eb counter packets 2061282 bytes 122868840647 accept
+		arp operation request arp daddr ip 192.168.128.1 ether saddr . arp saddr ip @neighbors accept
+	}
+}

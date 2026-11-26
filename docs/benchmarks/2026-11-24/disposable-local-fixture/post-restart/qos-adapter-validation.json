@@ -1,0 +1,45 @@
+{
+  "evidence_tier": "source/fixture only",
+  "signed_stock": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+  "stock_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "render": "actual signed ci launch-agent",
+  "live_readback": "synthetic for validation",
+  "accepted": [
+    "Standard",
+    "Interactive"
+  ],
+  "rejected_controls": [
+    "relay_workers",
+    "callback_events",
+    "read_bytes",
+    "spawn_type",
+    "job_controls_sha256",
+    "guest_boot",
+    "pids",
+    "mapped_relay_build"
+  ],
+  "VMs_started": 0,
+  "clients_started": 0,
+  "adapter_sha256": "810d73cae13a7d6aba3eb2b63edb286686dac992ec6d885bd1f08fe2c39d9d70",
+  "when_utc": "2026-11-24T07:03:42.817661+00:00",
+  "fixture_cache": {
+    "docker.io/library/alpine@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+    "ghcr.io/apple/containerization/vminit:0.47.0": "sha256:4c1836052eafcbc944c403fb23ded06562962d2402c9dcc651495a32300614df"
+  },
+  "verified_input_count": 18,
+  "tool_sha256": {
+    "fixed": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+    "role_probe": "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605",
+    "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c"
+  },
+  "fixture_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "verdict": "offline-only checks passed; live services, loaded roles and timed data require Terminal run",
+  "reason_no_timing": "source and packaging validation only",
+  "source_sha256": {
+    "local_qos.py": "810d73cae13a7d6aba3eb2b63edb286686dac992ec6d885bd1f08fe2c39d9d70",
+    "receiver.py": "e2f1ec2074f8161451adb709df77b80a92ab1722f88859ce6ec60cb870459be1",
+    "local_terminal.py": "bc4c84a1eaa1dd2dc91a35c860eb676ad81ed7dcfdddf985ee6e5fd67064f591",
+    "check_qos_controls.py": "c54b3ce67fab892f31292a4238f2b0f8b41cbe199fdfd746c8192d767ca91443"
+  },
+  "instructions": "python3 -B bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_terminal.py --mode host-role --run"
+}

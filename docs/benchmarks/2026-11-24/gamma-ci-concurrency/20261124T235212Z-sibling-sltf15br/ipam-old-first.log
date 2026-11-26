@@ -1,0 +1,6 @@
+goos: linux
+goarch: arm64
+pkg: github.com/castlemilk/micropod/guest/runner
+BenchmarkDockerAutoIPAM/per-candidate-4         	     338	    879109 ns/op	        33.00 route-dumps/op	 2579105 B/op	    8188 allocs/op
+BenchmarkDockerAutoIPAM/snapshot-4              	    9362	     31451 ns/op	         1.000 route-dumps/op	   80520 B/op	     317 allocs/op
+PASS

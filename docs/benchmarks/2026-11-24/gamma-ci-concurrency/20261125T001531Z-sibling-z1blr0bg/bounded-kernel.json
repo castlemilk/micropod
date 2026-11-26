@@ -1,0 +1,31 @@
+{
+  "parent": {
+    "image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "candidate": {
+    "image_sha256": "eb2468a1ae2be6a08288776ae6e125bacddbc4c5188412c3355336e971783bd9",
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "patch_sha256": "8c66ba3dbb32b40dd5e545c8badb0295223f1254db43743d138ca5e6bccd44dc",
+  "builder_sha256": "2c2533a966922d66be9d6e3f642da09be3a48afc786384228c1ff05502327d7f",
+  "parent_builder_sha256": "3b9d07cc789d4f12ed552c504122c4b93652bf8f9015268aa0deb96f23eded47",
+  "toolchain_sha256": "bc5cfcf6986939bcd43d96d310c8c794b39f1bceac0456d751c978d4a92732df",
+  "packages_sha256": "3a979f34df86c37a9c1aa49101e9b1e76176d79cad2b985580bf4b6ce28aa7ce",
+  "compiler_image": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+  "build_environment": {
+    "KBUILD_BUILD_HOST": "gamma",
+    "KBUILD_BUILD_TIMESTAMP": "Tue Nov 17 10:35:00 UTC 2026",
+    "KBUILD_BUILD_VERSION": "1",
+    "JOBS": "4",
+    "KBUILD_BUILD_USER": "micropod"
+  }
+}

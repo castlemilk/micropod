@@ -1,0 +1,259 @@
+{
+  "archive_commit": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "boot": "7849FF02-93BF-4681-B964-BC7B7227FA91",
+  "bootstrap_resamples": 46656,
+  "candidate": "untracked",
+  "candidate_first": 3,
+  "candidate_wins": 3,
+  "control": "routed",
+  "fixed_client": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "interval_pct": [
+    -13.34137581431077,
+    16.389270116984612
+  ],
+  "median_paired_pct": -1.5615078523346928,
+  "paired_pct": [
+    -6.8916252056611675,
+    3.768609500991782,
+    -15.560417209361411,
+    15.712288453762756,
+    -11.122334419260127,
+    17.066251780206464
+  ],
+  "policy_fixture_sha256": "280865645ba6b08a6a2a11e26ddc4cb87e62ac32a20940628406ed0fba84a177",
+  "raw_sha256": "09ebe5510401244cd6d299c1d0cf6dd8f88b256bf14b8c2c14f6db3eff61b74a",
+  "recorded_parent": "4f887ba5d28f47fa37d4bd0a2d89cd0914d74754",
+  "relay_fixture_sha256": "b854b468afda0fa1150b0fa62a55a2cf3d3925111e66d0aca655844428f62899",
+  "rows": [
+    {
+      "arms": {
+        "routed": {
+          "MiB_s": 3880.001413769206,
+          "arrivals": 240,
+          "delivered_bytes": 24410973280,
+          "errors": null,
+          "fresh_p95_ms": 100.54,
+          "fresh_p99_ms": 225.496,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000028292
+        },
+        "untracked": {
+          "MiB_s": 3612.606258357878,
+          "arrivals": 240,
+          "delivered_bytes": 22729318200,
+          "errors": null,
+          "fresh_p95_ms": 122.092,
+          "fresh_p99_ms": 299.062,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000201917
+        }
+      },
+      "block": 0,
+      "order": [
+        "stock",
+        "dnat",
+        "routed",
+        "untracked",
+        "orb"
+      ]
+    },
+    {
+      "arms": {
+        "routed": {
+          "MiB_s": 2611.7667867242717,
+          "arrivals": 240,
+          "delivered_bytes": 16432169220,
+          "errors": null,
+          "fresh_p95_ms": 105.114,
+          "fresh_p99_ms": 149.791,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000129042
+        },
+        "untracked": {
+          "MiB_s": 2710.1940779925103,
+          "arrivals": 240,
+          "delivered_bytes": 17052013008,
+          "errors": null,
+          "fresh_p95_ms": 152.384,
+          "fresh_p99_ms": 275.633,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000332958
+        }
+      },
+      "block": 1,
+      "order": [
+        "untracked",
+        "routed",
+        "dnat",
+        "stock",
+        "orb"
+      ]
+    },
+    {
+      "arms": {
+        "routed": {
+          "MiB_s": 2483.8438458557016,
+          "arrivals": 240,
+          "delivered_bytes": 15627266656,
+          "errors": null,
+          "fresh_p95_ms": 102.944,
+          "fresh_p99_ms": 146.262,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000104584
+        },
+        "untracked": {
+          "MiB_s": 2097.3473806115067,
+          "arrivals": 240,
+          "delivered_bytes": 13205249344,
+          "errors": null,
+          "fresh_p95_ms": 185.181,
+          "fresh_p99_ms": 283.894,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.00449275
+        }
+      },
+      "block": 2,
+      "order": [
+        "routed",
+        "untracked",
+        "orb",
+        "stock",
+        "dnat"
+      ]
+    },
+    {
+      "arms": {
+        "routed": {
+          "MiB_s": 2586.8360985329623,
+          "arrivals": 240,
+          "delivered_bytes": 16275316536,
+          "errors": null,
+          "fresh_p95_ms": 85.989,
+          "fresh_p99_ms": 122.837,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000129417
+        },
+        "untracked": {
+          "MiB_s": 2993.2872481605236,
+          "arrivals": 240,
+          "delivered_bytes": 18837735352,
+          "errors": null,
+          "fresh_p95_ms": 107.647,
+          "fresh_p99_ms": 217.101,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.001784291
+        }
+      },
+      "block": 3,
+      "order": [
+        "dnat",
+        "stock",
+        "orb",
+        "untracked",
+        "routed"
+      ]
+    },
+    {
+      "arms": {
+        "routed": {
+          "MiB_s": 4384.032262512392,
+          "arrivals": 240,
+          "delivered_bytes": 27582100656,
+          "errors": null,
+          "fresh_p95_ms": 44.104,
+          "fresh_p99_ms": 98.068,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000033625
+        },
+        "untracked": {
+          "MiB_s": 3896.4255332275075,
+          "arrivals": 240,
+          "delivered_bytes": 24514468816,
+          "errors": null,
+          "fresh_p95_ms": 48.936,
+          "fresh_p99_ms": 86.248,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000068291
+        }
+      },
+      "block": 4,
+      "order": [
+        "orb",
+        "stock",
+        "dnat",
+        "routed",
+        "untracked"
+      ]
+    },
+    {
+      "arms": {
+        "routed": {
+          "MiB_s": 3442.7926197903253,
+          "arrivals": 240,
+          "delivered_bytes": 21660674512,
+          "errors": null,
+          "fresh_p95_ms": 110.9,
+          "fresh_p99_ms": 202.233,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000137458
+        },
+        "untracked": {
+          "MiB_s": 4030.3482765541085,
+          "arrivals": 240,
+          "delivered_bytes": 25358433800,
+          "errors": null,
+          "fresh_p95_ms": 60.507,
+          "fresh_p99_ms": 82.728,
+          "positive_streams": 32,
+          "reopened": 0,
+          "window_s": 6.000396333
+        }
+      },
+      "block": 5,
+      "order": [
+        "orb",
+        "untracked",
+        "routed",
+        "dnat",
+        "stock"
+      ]
+    }
+  ],
+  "separate_verification_packets": {
+    "eth1": 48,
+    "mpci0": 32
+  },
+  "summary": {
+    "routed": {
+      "MiB_s": 3027.2797032572985,
+      "clean": 6,
+      "first_attempts": 6,
+      "fresh_arrivals": 1440,
+      "fresh_p95_ms": 101.742,
+      "fresh_p99_ms": 148.0265,
+      "p95_pass": 1
+    },
+    "untracked": {
+      "MiB_s": 3302.9467532592007,
+      "clean": 6,
+      "first_attempts": 6,
+      "fresh_arrivals": 1440,
+      "fresh_p95_ms": 114.8695,
+      "fresh_p99_ms": 246.367,
+      "p95_pass": 2
+    }
+  },
+  "worker": "888876C1-5671-45AA-ACC3-C9F29D035E73"
+}

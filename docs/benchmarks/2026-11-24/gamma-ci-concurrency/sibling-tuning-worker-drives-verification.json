@@ -1,0 +1,46 @@
+{
+  "DEFAULT_HVF_BIN": {
+    "source": "/Users/benebsworth/projects/micropod/vmm/target/release/micropod-vmm",
+    "sha256": "8b9851724d5a290cbcfcf97be88604032d5e4953a6eed1f542a8bf16c81ec83c"
+  },
+  "DEFAULT_HVF_INITRD": {
+    "source": "/Users/benebsworth/projects/micropod/vmm/target/mp-hvf-init.cpio",
+    "sha256": "6a3341adaa94c526910ec33bc2d982b5921267a22f96fd87bb23450825320082"
+  },
+  "tuning_driver_sha256": "96b2b8b5c1d8afb488513260f180eaa42f7fe6e7cee520db1a22ccd74b47d30f",
+  "drive_helper_sha256": "66101419a923bbc2adbbdc9f0f10628eda888bf37db9cf28a2219b6b328d6b55",
+  "checked_utc": "2026-11-25T08:26:03.210953+00:00",
+  "args": [
+    "--driver",
+    "ipvlan",
+    "--skip-published",
+    "--skip-control",
+    "--use-auth-binary",
+    "--rebuild-runner",
+    "--include-hvf",
+    "--rounds",
+    "1",
+    "--label",
+    "protected-worker-drive-qualification",
+    "--out",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/sibling-tuning-worker-drives.json"
+  ],
+  "result_sha256": "68add8e7ba7792088e9043e5fb1bdf863d17ce4dd7658d936339082adc63a0a7",
+  "drives": {
+    "micropod-vz-tuned": {
+      "uuid": "270FB634-A70F-49F1-9C52-2E0BA8640C8A",
+      "raw_bytes": 17314086912,
+      "raw_allocated_before": 150716416,
+      "provision_to_ready_s": 3.9501,
+      "scope_removed": true
+    },
+    "micropod-hvf": {
+      "uuid": "BC80CE8B-7231-4BE7-A7E7-C2F5A41BC711",
+      "raw_bytes": 4294967296,
+      "raw_allocated_before": 25149440,
+      "provision_to_ready_s": 3.44,
+      "scope_removed": true
+    }
+  },
+  "baseline_files_and_copies": 24
+}

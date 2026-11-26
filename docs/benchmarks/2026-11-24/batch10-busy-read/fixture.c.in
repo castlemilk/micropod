@@ -1,0 +1,67 @@
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define CONFIG_NET_RX_BUSY_POLL 1
+#define MIN_NAPI_ID 256U
+#define READ_ONCE(x) (x)
+#define BUSY_POLL_BUDGET 8
+#define signal_pending(task) false
+#define skb_queue_empty_lockless(q) (*(q) == 0)
+enum { TCP_ESTABLISHED = 1, MSG_DONTWAIT = 64, O_NONBLOCK = 2048, IOCB_NOWAIT = 128 };
+struct sock {
+    unsigned int sk_ll_usec, sk_napi_id, sk_busy_poll_budget;
+    int sk_prefer_busy_poll, sk_receive_queue, sk_state;
+};
+static unsigned int sysctl_net_busy_read, calls, timed;
+static bool sk_busy_loop_end(void *s, unsigned long t) { abort(); }
+static void napi_busy_loop(unsigned int id, bool (*stop)(void *, unsigned long), void *socket,
+                           bool prefer, unsigned short budget)
+{
+    assert(id == MIN_NAPI_ID && !prefer && budget == BUSY_POLL_BUDGET);
+    calls++;
+    timed += (stop != NULL);
+}
+@VALID@
+@CAN@
+@LOOP@
+static void init_default(struct sock *sk)
+{
+    @DEFAULT@
+}
+static void run_case(const char *name, unsigned int setting, bool preexisting_listener,
+                     bool empty, bool valid, bool blocking)
+{
+    struct sock listener = {0};
+    sysctl_net_busy_read = preexisting_listener ? 0 : setting;
+    init_default(&listener);
+    sysctl_net_busy_read = setting;
+    // Model the copied socket fields. The replay checks the actual TCP clone path.
+    struct sock child = listener;
+    struct sock *sk = &child;
+    child.sk_receive_queue = empty ? 0 : 1;
+    child.sk_napi_id = valid ? MIN_NAPI_ID : 0;
+    child.sk_state = TCP_ESTABLISHED;
+    struct file { int f_flags; } storage = {blocking ? 0 : O_NONBLOCK}, *file = &storage;
+    struct iocb { int ki_flags; } io = {0}, *iocb = &io;
+    struct message { int msg_flags; } msg = {0};
+    @READ_FLAGS@
+    int flags = msg.msg_flags;
+    calls = timed = 0;
+    @RECV@
+    printf("{\"case\":\"%s\",\"busy_read_us\":%u,\"effective_socket_us\":%u,"
+           "\"dontwait\":%s,\"napi_id\":%u,\"napi_calls\":%u,\"calls_with_timeout\":%u}\n",
+           name,setting,child.sk_ll_usec,flags ? "true" : "false",child.sk_napi_id,calls,timed);
+}
+int main(int argc,char **argv)
+{
+    assert(argc == 2);
+    unsigned int setting = atoi(argv[1]);
+    run_case("older-listener-new-child", setting, true, true, true, false);
+    run_case("new-empty-valid", setting, false, true, true, false);
+    run_case("new-queued-valid", setting, false, false, true, false);
+    run_case("new-empty-unknown-napi", setting, false, true, false, false);
+    run_case("blocking-positive", setting, false, true, true, true);
+}

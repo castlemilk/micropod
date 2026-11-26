@@ -1,0 +1,50 @@
+{
+  "stock": {
+    "relay_configuration": {
+      "callback_events": 128,
+      "guest_port": 64933,
+      "port": 64936,
+      "read_bytes": 262144,
+      "workers": 2
+    },
+    "owner_accounting": [
+      [
+        17,
+        17,
+        17,
+        17
+      ],
+      [
+        17,
+        17,
+        17,
+        17
+      ]
+    ],
+    "marker_replies": 32
+  },
+  "batch2": {
+    "relay_configuration": {
+      "callback_events": 128,
+      "guest_port": 64933,
+      "port": 65005,
+      "read_bytes": 262144,
+      "workers": 2
+    },
+    "owner_accounting": [
+      [
+        17,
+        11,
+        17,
+        11
+      ],
+      [
+        17,
+        11,
+        17,
+        11
+      ]
+    ],
+    "marker_replies": 32
+  }
+}

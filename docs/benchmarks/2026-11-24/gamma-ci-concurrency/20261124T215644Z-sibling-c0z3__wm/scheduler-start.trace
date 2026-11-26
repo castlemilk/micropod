@@ -1,0 +1,17 @@
++ set -eu
++ configure_scheduler
++ tr+ sed ' ' '\n' -n '/^micropod\.ci_sched=/p'
+
++ selection='micropod.ci_sched=hrtick'
++ slice=
++ debug=/sys/kernel/debug
++ '[' '!' -d /sys/kernel/debug/sched ]
++ mktemp -d
++ debug=/tmp/tmp.KFebgJ
++ trap 'rmdir "$debug"' EXIT
++ mount -t debugfs -o nosuid,nodev,noexec debugfs /tmp/tmp.KFebgJ
++ trap 'umount "$debug" && rmdir "$debug"' EXIT
++ printf '%s\n' HRTICK
++ umount /tmp/tmp.KFebgJ
++ rmdir /tmp/tmp.KFebgJ
+1

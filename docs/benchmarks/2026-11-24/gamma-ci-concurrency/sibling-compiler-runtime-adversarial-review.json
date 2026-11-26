@@ -1,0 +1,13 @@
+{
+  "archive": "20261125T033948Z-sibling-compiler-runtime-_upj8ow5",
+  "engine_windows_replayed_with_unmodified_input": 1,
+  "verified_offers_in_that_window": 96000,
+  "in_memory_rejections": {
+    "native long dispatcher with short child": "build slot 3 dispatcher or child did not inherit normal scheduling, nice 0, CPUs 3: {'dispatcher': {'tid': 194, 'cpus_allowed_list': '3', 'policy': 0, 'nice': 0, 'priority': 0, 'slice_ns': 2100000}, 'child': {'tid': 200, 'cpus_allowed_list': '3', 'policy': 0, 'nice': 0, 'priority': 0, 'slice_ns': 250000}, 'child_parent_pid': 194, 'slice': {'request",
+    "explicit 2100us request replacing same-valued peer inheritance": "wrong compiler runtime exec for grouped-0-all-B slot 2",
+    "one nanosecond shift to one scheduled offer": "invalid paced timing for client 0, offer 32",
+    "missing response to final offer of one client": "incomplete offers for client 0",
+    "ordinary resident service inheriting the compiler-only slice": "non-compiler process did not keep inherited scheduler runtime on A"
+  },
+  "baseline_files": 24
+}

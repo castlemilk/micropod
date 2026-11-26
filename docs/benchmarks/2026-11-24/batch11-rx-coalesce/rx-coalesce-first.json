@@ -1,0 +1,251 @@
+{
+  "date": "2026-11-24",
+  "id": "231.03",
+  "tier": "source/fixture",
+  "micropod_base": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "kernel": "7.3.5",
+  "kernel_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "driver_path": "drivers/net/virtio_net.c",
+  "driver_sha256": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+  "functions_sha256": "cd74b0a11438e2c3a859a1beacde3b315267c09df83c9a063b547eee60912e20",
+  "functions": [
+    "txq2vq",
+    "rxq2vq",
+    "virtnet_send_ctrl_coal_vq_cmd",
+    "virtnet_send_rx_ctrl_coal_vq_cmd",
+    "virtnet_send_tx_ctrl_coal_vq_cmd",
+    "virtnet_send_tx_notf_coal_cmds",
+    "virtnet_send_rx_notf_coal_cmds",
+    "virtnet_send_notf_coal_cmds",
+    "virtnet_send_rx_notf_coal_vq_cmds",
+    "virtnet_send_notf_coal_vq_cmds",
+    "virtnet_coal_params_supported",
+    "virtnet_should_update_vq_weight",
+    "virtnet_set_coalesce",
+    "virtnet_set_per_queue_coalesce"
+  ],
+  "fixture_sha256": "3e2838d9d3057d3750d81f9cf138dfb13981019ee339fe8d489a12124fe3d04a",
+  "reproducer_sha256": "676201d8138914729f4336569f8ddfbc94eb74d679f2c03ee3fb2c0f854ada18",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "fixed": "Two modeled queue pairs. Driver marked up, TX NAPI weight 64, adaptive RX off; all frames-one, RX timer request 20 us; target queue 0. TX timer parameter unchanged.",
+  "trace_legend": "R/T = global RX/TX, r/t = individual RX/TX, -=no command. Includes refused commands.",
+  "limits": "Mock control-VQ acknowledgments, captured driver cache; no NIC interrupt/packet/time measurements.",
+  "rows": [
+    {
+      "context": "both, device accepts",
+      "arm": "global",
+      "global_feature": 1,
+      "vq_feature": 1,
+      "initial_rx_us": [
+        10,
+        80
+      ],
+      "initial_tx_us": [
+        8,
+        16
+      ],
+      "device_refuses_tx": false,
+      "status": 0,
+      "commands_sent": "TR",
+      "final_rx_us": [
+        20,
+        20
+      ],
+      "final_tx_us": [
+        8,
+        8
+      ],
+      "final_global_rx_us": 20,
+      "final_global_tx_us": 8
+    },
+    {
+      "context": "both, device accepts",
+      "arm": "queue0",
+      "global_feature": 1,
+      "vq_feature": 1,
+      "initial_rx_us": [
+        10,
+        80
+      ],
+      "initial_tx_us": [
+        8,
+        16
+      ],
+      "device_refuses_tx": false,
+      "status": 0,
+      "commands_sent": "rt",
+      "final_rx_us": [
+        20,
+        80
+      ],
+      "final_tx_us": [
+        8,
+        16
+      ],
+      "final_global_rx_us": 10,
+      "final_global_tx_us": 8
+    },
+    {
+      "context": "both, device refuses TX commands",
+      "arm": "queue0",
+      "global_feature": 1,
+      "vq_feature": 1,
+      "initial_rx_us": [
+        10,
+        80
+      ],
+      "initial_tx_us": [
+        8,
+        16
+      ],
+      "device_refuses_tx": true,
+      "status": -22,
+      "commands_sent": "rt",
+      "final_rx_us": [
+        20,
+        80
+      ],
+      "final_tx_us": [
+        8,
+        16
+      ],
+      "final_global_rx_us": 10,
+      "final_global_tx_us": 8
+    },
+    {
+      "context": "both, device refuses TX commands",
+      "arm": "global",
+      "global_feature": 1,
+      "vq_feature": 1,
+      "initial_rx_us": [
+        10,
+        80
+      ],
+      "initial_tx_us": [
+        8,
+        16
+      ],
+      "device_refuses_tx": true,
+      "status": -22,
+      "commands_sent": "T",
+      "final_rx_us": [
+        10,
+        80
+      ],
+      "final_tx_us": [
+        8,
+        16
+      ],
+      "final_global_rx_us": 10,
+      "final_global_tx_us": 8
+    },
+    {
+      "context": "global feature alone",
+      "arm": "queue0",
+      "global_feature": 1,
+      "vq_feature": 0,
+      "initial_rx_us": [
+        10,
+        10
+      ],
+      "initial_tx_us": [
+        8,
+        8
+      ],
+      "device_refuses_tx": false,
+      "status": -95,
+      "commands_sent": "-",
+      "final_rx_us": [
+        10,
+        10
+      ],
+      "final_tx_us": [
+        8,
+        8
+      ],
+      "final_global_rx_us": 10,
+      "final_global_tx_us": 8
+    },
+    {
+      "context": "global feature alone",
+      "arm": "global",
+      "global_feature": 1,
+      "vq_feature": 0,
+      "initial_rx_us": [
+        10,
+        10
+      ],
+      "initial_tx_us": [
+        8,
+        8
+      ],
+      "device_refuses_tx": false,
+      "status": 0,
+      "commands_sent": "TR",
+      "final_rx_us": [
+        20,
+        20
+      ],
+      "final_tx_us": [
+        8,
+        8
+      ],
+      "final_global_rx_us": 20,
+      "final_global_tx_us": 8
+    },
+    {
+      "context": "neither notification feature",
+      "arm": "global",
+      "global_feature": 0,
+      "vq_feature": 0,
+      "initial_rx_us": [
+        0,
+        0
+      ],
+      "initial_tx_us": [
+        0,
+        0
+      ],
+      "device_refuses_tx": false,
+      "status": -95,
+      "commands_sent": "-",
+      "final_rx_us": [
+        0,
+        0
+      ],
+      "final_tx_us": [
+        0,
+        0
+      ],
+      "final_global_rx_us": 0,
+      "final_global_tx_us": 0
+    },
+    {
+      "context": "neither notification feature",
+      "arm": "queue0",
+      "global_feature": 0,
+      "vq_feature": 0,
+      "initial_rx_us": [
+        0,
+        0
+      ],
+      "initial_tx_us": [
+        0,
+        0
+      ],
+      "device_refuses_tx": false,
+      "status": -95,
+      "commands_sent": "-",
+      "final_rx_us": [
+        0,
+        0
+      ],
+      "final_tx_us": [
+        0,
+        0
+      ],
+      "final_global_rx_us": 0,
+      "final_global_tx_us": 0
+    }
+  ]
+}

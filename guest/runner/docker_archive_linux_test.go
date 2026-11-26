@@ -189,6 +189,57 @@ func TestDockerArchivePinsRunningMount(t *testing.T) {
 	}
 }
 
+func TestDockerArchiveUsesPinnedAutoCacheMounts(t *testing.T) {
+	root := t.TempDir()
+	scope, err := openMount(root, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer scope.Close()
+	lock, err := os.Create(filepath.Join(root, "lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	storePath := t.TempDir()
+	store, err := openMount(storePath, storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	const cache = "/micropod/cache"
+	s := &dockerEngine{}
+	c := &dockerContainer{dockerRecord: dockerRecord{Phase: "running"}}
+	c.Config.HostConfig.ReadonlyRootfs = true
+	c.archive = newDockerLiveArchive([]*os.File{scope, lock, store}, []*cri.Mount{
+		{HostPath: dockerMountFDPath(scope), ContainerPath: cache},
+		{HostPath: dockerMountFDPath(store), ContainerPath: cache + "/pip"},
+		{HostPath: dockerMountFDPath(store), ContainerPath: "/readonly-pip", Readonly: true},
+	})
+	defer s.retireDockerArchive(c)
+	view, release, err := s.openArchive(t.Context(), c, cache, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if view.root != scope || view.includes(cache+"/pip/wheel") {
+		t.Fatal("parent archive did not respect the mounted cache boundary")
+	}
+	view, release, err = s.openArchive(t.Context(), c, cache+"/pip/wheel", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if view.root != store || view.relative(cache+"/pip/wheel") != "wheel" {
+		t.Fatal("write missed the pinned writable cache on a read-only root filesystem")
+	}
+	_, _, err = s.openArchive(t.Context(), c, "/readonly-pip/wheel", true)
+	var problem apiError
+	if !errors.As(err, &problem) || problem.code != http.StatusForbidden {
+		t.Fatalf("read-only mounted cache allowed a write: %v", err)
+	}
+}
+
 func TestDockerArchiveStopUnblocksSlowUpload(t *testing.T) {
 	workspace := t.TempDir()
 	root, err := openMount(workspace, workspace)

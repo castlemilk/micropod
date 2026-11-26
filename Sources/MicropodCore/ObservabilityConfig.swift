@@ -269,7 +269,8 @@ public struct ObservabilityConfig: Codable, Sendable, Equatable {
                 copy.prometheus.enabled = try Self.parseBool(value, key: key)
             case "prometheus.listen":
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                copy.prometheus.listen = (trimmed.isEmpty || trimmed == "none" || trimmed == "null" || trimmed == "unset") ? nil : trimmed
+                copy.prometheus.listen =
+                    (trimmed.isEmpty || trimmed == "none" || trimmed == "null" || trimmed == "unset") ? nil : trimmed
             case "prometheus.path":
                 copy.prometheus.path = value
             case "otlp.enabled":
@@ -309,7 +310,8 @@ public struct ObservabilityConfig: Codable, Sendable, Equatable {
                 throw MicropodError.message(
                     "Unknown configuration key '\(key)'. Supported keys: service_name, "
                         + "prometheus.{enabled,listen,path}, otlp.{enabled,endpoint,export_interval_secs,resource_attributes.<k>,headers.<k>}, "
-                        + "tracing.{enabled,endpoint,sample_rate,slow_op_threshold_ms}, health.{memory_warn_pct,vmm_timeout_ms}")
+                        + "tracing.{enabled,endpoint,sample_rate,slow_op_threshold_ms}, health.{memory_warn_pct,vmm_timeout_ms}"
+                )
             }
         }
         try copy.validate()
@@ -328,7 +330,8 @@ public struct ObservabilityConfig: Codable, Sendable, Equatable {
         }
         if let listen = prometheus.listen, !listen.isEmpty {
             guard listen.contains(":") else {
-                throw MicropodError.message("observability.yaml prometheus.listen must be host:port (e.g. 127.0.0.1:9464)")
+                throw MicropodError.message(
+                    "observability.yaml prometheus.listen must be host:port (e.g. 127.0.0.1:9464)")
             }
         }
         if otlp.enabled {

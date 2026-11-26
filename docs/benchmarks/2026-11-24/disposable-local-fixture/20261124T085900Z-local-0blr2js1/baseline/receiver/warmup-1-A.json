@@ -1,0 +1,37 @@
+{
+  "phase": "warmup",
+  "pair": 1,
+  "arm": "A",
+  "clean": false,
+  "started": false,
+  "link_before": {
+    "eth0": {
+      "addr": "[10.88.0.2/16 fe80::94ef:55ff:fecb:bf21/64]",
+      "mac": "96:ef:55:cb:bf:21",
+      "rx_bytes": 680,
+      "rx_dropped": 0,
+      "tx_bytes": 472,
+      "tx_dropped": 0
+    },
+    "lo": {
+      "addr": "[127.0.0.1/8 ::1/128]",
+      "mac": "",
+      "rx_bytes": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_dropped": 0
+    },
+    "mppub0": {
+      "addr": "[]",
+      "mac": "7e:87:49:fa:42:dd",
+      "rx_bytes": 2898,
+      "rx_dropped": 0,
+      "tx_bytes": 2458,
+      "tx_dropped": 0
+    }
+  },
+  "idle_pct": 56.77,
+  "paired_idle_gap_pp": null,
+  "idle_gate_passed": false,
+  "error": "host idle below 90 percent"
+}

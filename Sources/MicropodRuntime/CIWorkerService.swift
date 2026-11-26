@@ -136,7 +136,8 @@ extension CIWorker {
         let registered = CIWorker(environment: environment)
         guard registered.isNativeRunner == isNativeRunner else {
             throw MicropodError.message(
-                "The loaded CI service uses another container engine. Select its MICROPOD_CI_ENGINE or reinstall the service.")
+                "The loaded CI service uses another container engine. Select its MICROPOD_CI_ENGINE or reinstall the service."
+            )
         }
         let activeVMM = try registered.selectedVMM()
         if let requested = resourceEnvironment["MICROPOD_CI_VMM"], !requested.isEmpty {

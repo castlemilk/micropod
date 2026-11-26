@@ -1,0 +1,3226 @@
+{
+  "product_manifest_sha256": "cce41bbb97e4cf81c9ccbbfaa5af6650488307da345a49191bd2b88b6614e7d4",
+  "products": {
+    "optimized": {
+      "build_manifest": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-4c4106ce58d8120e/output-polling-arm.json",
+      "build_manifest_sha256": "3bf5af982ec59ed0b23b5f1d89d75574e37182b8b26e43e142db98c6373dd01a",
+      "product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-4c4106ce58d8120e/product.json",
+      "product_sha256": "28d82911155732e3208a64c99430740b85af6370666f1d061d15db416d0845b5",
+      "runner_sha256": "3e8abc928350bd4d384044dd87b8cc3ba67ba787581a922dd105b1e5c879ad0c"
+    },
+    "stock": {
+      "build_manifest": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-37a59cce7cd9565f/output-polling-arm.json",
+      "build_manifest_sha256": "cdbd1a0c8eadca11a1c3f0f7899dfb8d545371f59eec643d69fa66ef7e57b418",
+      "product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-37a59cce7cd9565f/product.json",
+      "product_sha256": "517a405c17df8942803aa0d93d4710b4c53da6319e90bdc0e92ef5e6c0a81a72",
+      "runner_sha256": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895"
+    }
+  },
+  "kernel": {
+    "allowed_windows_bytes": [
+      65536,
+      1048576
+    ],
+    "config_sha256": "790fe9a014f3501117af37df8163a39da1617e37a84996f0e605325c3b07a24c",
+    "debugfs_file": "fault_around_bytes",
+    "default_window_bytes": 65536,
+    "embedded_config_verified": true,
+    "image_sha256": "488a83549377f9abcabfc44a9021f1451c9ed903f85f66f910e296c7ab2327ab",
+    "kconfig": {
+      "CONFIG_ARM64_16K_PAGES": "y",
+      "CONFIG_DEBUG_FS": "y",
+      "CONFIG_DEBUG_FS_ALLOW_ALL": "y",
+      "CONFIG_IKCONFIG": "y",
+      "CONFIG_IPVLAN": "y",
+      "CONFIG_PAGE_SHIFT": "14",
+      "CONFIG_PROC_PAGE_MONITOR": "y",
+      "CONFIG_TRANSPARENT_HUGEPAGE": "n"
+    },
+    "maximum_effective_window_bytes": 33554432,
+    "page_size_bytes": 16384,
+    "ptes_per_page_table": 2048,
+    "release": "7.3.5-micropod",
+    "source_files_sha256": {
+      "arch/arm64/include/asm/pgtable-hwdef.h": "b6bc393bc34fe5237efb464d7426094523619f39241fac87588adfa1edf81140",
+      "mm/filemap.c": "5e78edb19bf7a2b3713f7d8c648617d8b20e614f8b9a9dda7b1b7b86b0e4d7df",
+      "mm/memory.c": "77daf1ece7086d469ed6806f6503927c945054e2ca58484ceaabd43c56f219c7"
+    },
+    "source_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990"
+  },
+  "placements": {
+    "grouped": {
+      "groups": {
+        "job-00": "0",
+        "job-01": "1",
+        "job-02": "2",
+        "job-03": "3",
+        "job-04": "0",
+        "job-05": "1",
+        "job-06": "2",
+        "job-07": "3",
+        "job-08": "0",
+        "job-09": "1",
+        "job-10": "2",
+        "job-11": "3",
+        "job-12": "0",
+        "job-13": "1",
+        "job-14": "2",
+        "job-15": "3",
+        "job-16": "0",
+        "job-17": "1",
+        "job-18": "2",
+        "job-19": "3",
+        "job-20": "0",
+        "job-21": "1",
+        "job-22": "2",
+        "job-23": "3",
+        "job-24": "0",
+        "job-25": "1",
+        "job-26": "2",
+        "job-27": "3",
+        "job-28": "0",
+        "job-29": "1",
+        "job-30": "2",
+        "job-31": "3"
+      },
+      "groups_per_cpu": {
+        "0": 8,
+        "1": 8,
+        "2": 8,
+        "3": 8
+      },
+      "builders_per_cpu": {
+        "0": 2,
+        "1": 2,
+        "2": 2,
+        "3": 2
+      }
+    }
+  },
+  "protocol_sha256": "4841b5114540bfe896e0f7e7ead6a34ec0247f4d3483617602740fe9c77056e2",
+  "signed_settings_sha256": "470894196d7591129bbe409681667d1e7627fa83d28b91014a002c1eb92f6942",
+  "changed_sources": [
+    "guest/runner/cri_output_linux_test.go",
+    "guest/runner/go.mod",
+    "guest/runner/go.sum",
+    "guest/runner/main_linux.go",
+    "guest/runner/output_linux.go"
+  ],
+  "worker_invariants": {
+    "worker": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+    "guest_start": "7bc36703e98c2e02026da6e5a58a87ea77caa6e040fa127ea10be43e761c2a9f",
+    "scheduler": {
+      "setting": "inherit",
+      "before": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NEXT_BUDDY",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "after": [
+        "ATTACH_AGE_LOAD",
+        "CACHE_HOT_BUDDY",
+        "DELAY_DEQUEUE",
+        "DELAY_ZERO",
+        "HRTICK",
+        "NEXT_BUDDY",
+        "NI_RANDOM",
+        "NI_RATE",
+        "NONTASK_CAPACITY",
+        "NO_HRTICK_DL",
+        "NO_LATENCY_WARN",
+        "NO_LB_MIN",
+        "NO_PARANOID_AVG",
+        "NO_RT_PUSH_IPI",
+        "NO_RT_RUNTIME_SHARE",
+        "NO_WARN_DOUBLE_CLOCK",
+        "PICK_BUDDY",
+        "PLACE_DEADLINE_INITIAL",
+        "PLACE_LAG",
+        "PLACE_REL_DEADLINE",
+        "PREEMPT_SHORT",
+        "RUN_TO_PARITY",
+        "SIS_UTIL",
+        "TTWU_QUEUE",
+        "UTIL_EST",
+        "WAKEUP_PREEMPTION",
+        "WA_BIAS",
+        "WA_IDLE",
+        "WA_WEIGHT"
+      ],
+      "base_slice_ns": 250000,
+      "clocksource": "arch_sys_counter"
+    }
+  },
+  "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+  "images": {
+    "service": {
+      "A": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+      "B": "sha256:43c8761c8d7d97587c47c1b2a8f87941c24d919cb89b1d9268592dbc4025e93f"
+    },
+    "build": {
+      "A": "sha256:cb8603c28332918143157ab6706d633d898a30ab79a66ccd1e5a536f8046104a",
+      "B": "sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb"
+    }
+  },
+  "compiler_executables": {
+    "taskset": {
+      "path": "/usr/bin/taskset",
+      "sha256": "73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5"
+    },
+    "go": {
+      "path": "/usr/local/go/bin/go",
+      "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb"
+    },
+    "compile": {
+      "path": "/usr/local/go/pkg/tool/linux_arm64/compile",
+      "sha256": "fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68"
+    }
+  },
+  "issuing_timer_slack_ns": {
+    "micropod": 50000,
+    "orbstack": 50000
+  },
+  "matched_boot_pairs": 2,
+  "native_boots": 4,
+  "rounds_per_boot": 4,
+  "paired_engine_windows": 16,
+  "engine_windows": 32,
+  "offered_rps": 64000,
+  "offer_duration_ns": 1500000000,
+  "offered_requests": 3072000,
+  "completed_requests": 3072000,
+  "build_jobs": 256,
+  "build_revisions": 512,
+  "test_passes": 4096,
+  "minimum_first_build_end_margin_ns": 1152114362,
+  "native_beats_peer_on_both_medians_each_seed": {
+    "stock": false,
+    "optimized": false
+  },
+  "by_seed": [
+    {
+      "seed": 250271,
+      "boot_order": [
+        "stock",
+        "optimized"
+      ],
+      "boots": {
+        "stock": {
+          "archive": "20261125T065229Z-sibling-output-polling-h9cmmkdr",
+          "native_boot": "ca8d64b7-e613-4aaf-8f6c-67cc4089c5d3",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "native_volume": {
+            "host_worker_volume": "apfs-no-index",
+            "scope": "/private/tmp/mp-t-9t6h9mkr",
+            "mount": "/private/tmp/mp-t-9t6h9mkr/a",
+            "image": "/private/tmp/mp-t-9t6h9mkr/a-worker.sparseimage",
+            "volume_uuid": "c44f7d86-ac59-4449-ba2b-3f38a4e79a76",
+            "container_uuid": "9366023e-0bf0-448c-9211-157eb2152506",
+            "partition_uuid": "dca2e781-79d6-4fc6-82e6-c805a54d55ad",
+            "device": "disk14s1",
+            "container_device": "disk14",
+            "image_device": "disk13",
+            "partition_device": "disk13s2",
+            "volume_st_dev": 16777259,
+            "image_st_dev": 16777232,
+            "image_inode": 1226532635,
+            "volume_name": "MicropodCI-34f384430e6d",
+            "mountpoint_inode": 1226532630,
+            "raw_disk": {
+              "path": "/private/tmp/mp-t-9t6h9mkr/a/worker.ext4",
+              "raw_st_dev": 16777259,
+              "parent_st_dev": 16777232,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "configured_disk_gib": 6
+            },
+            "spotlight": {
+              "live": "Indexing and searching disabled.",
+              "post": "Indexing and searching disabled."
+            },
+            "journal_files": 0,
+            "journal_bytes": 0,
+            "journal_observed_through": "read_only_remount",
+            "live_observed_unix_ns": 1795589556195186000,
+            "post_observed_unix_ns": 1795589640760090000,
+            "detached": true,
+            "persisted_policy": {
+              "read_only": true,
+              "device": "disk14s1",
+              "volume_st_dev": 16777259,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "spotlight": "Indexing and searching disabled.",
+              "journal_files": 0,
+              "journal_bytes": 0
+            }
+          },
+          "native_cri": {
+            "boot": "ca8d64b7-e613-4aaf-8f6c-67cc4089c5d3",
+            "service_log_sha256": "1f5579b40beaf6356198b8bb86ebf9d001c5e42fc7900884516a8f4ee27e8df5",
+            "verified_starts": 64,
+            "verified_sandbox_removals": 64
+          },
+          "admission": {
+            "first_utc": "2026-11-25T06:52:30.317538+00:00",
+            "last_utc": "2026-11-25T06:53:59.324843+00:00",
+            "samples": 44,
+            "full_peer_cohort_samples": 30
+          },
+          "fault_around_readback": {
+            "before": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "ca8d64b7-e613-4aaf-8f6c-67cc4089c5d3",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536",
+              "before_bytes": "65536"
+            },
+            "after": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "ca8d64b7-e613-4aaf-8f6c-67cc4089c5d3",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536"
+            }
+          },
+          "startup": {
+            "micropod": {
+              "containers": 64,
+              "created_to_started_span_s": 3.505945168,
+              "median_container_created_to_started_s": 0.1081823125
+            },
+            "orbstack": {
+              "containers": 64,
+              "created_to_started_span_s": 2.62216839,
+              "median_container_created_to_started_s": 0.2050370765
+            }
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 2029.918,
+                "build_makespan_s": 3.102494419,
+                "p99_us": 5073.875,
+                "service_p95_us": 784.0,
+                "service_p99_us": 1932.667,
+                "slowest_build_s": 3.09564146,
+                "dispatch_lateness_p95_us": 1537.418,
+                "dispatch_lateness_p99_us": 4580.959,
+                "starts_after_next_due_fraction": 0.12871875,
+                "completed_after_window_fraction": 0.0001875,
+                "drain_after_window_ns": 1021251,
+                "first_build_end_margin_ns": 1393087751,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 7353.826,
+                "build_makespan_s": 3.190357679,
+                "p99_us": 21860.729,
+                "service_p95_us": 486.25,
+                "service_p99_us": 1656.416,
+                "slowest_build_s": 3.173710678,
+                "dispatch_lateness_p95_us": 6903.644,
+                "dispatch_lateness_p99_us": 21360.771,
+                "starts_after_next_due_fraction": 0.2640208333333333,
+                "completed_after_window_fraction": 0.00153125,
+                "drain_after_window_ns": 11401065,
+                "first_build_end_margin_ns": 1551919733,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 208,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1582.958,
+                "build_makespan_s": 2.84630196,
+                "p99_us": 5021.875,
+                "service_p95_us": 588.584,
+                "service_p99_us": 1658.958,
+                "slowest_build_s": 2.835674918,
+                "dispatch_lateness_p95_us": 1092.25,
+                "dispatch_lateness_p99_us": 4521.959,
+                "starts_after_next_due_fraction": 0.09036458333333333,
+                "completed_after_window_fraction": 0.0003333333333333333,
+                "drain_after_window_ns": 3595417,
+                "first_build_end_margin_ns": 1190012959,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 208,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 4523.408,
+                "build_makespan_s": 2.910482326,
+                "p99_us": 27216.023,
+                "service_p95_us": 387.25,
+                "service_p99_us": 1350.667,
+                "slowest_build_s": 2.900864617,
+                "dispatch_lateness_p95_us": 4078.409,
+                "dispatch_lateness_p99_us": 26742.401,
+                "starts_after_next_due_fraction": 0.20941666666666667,
+                "completed_after_window_fraction": 0.00034375,
+                "drain_after_window_ns": 7877856,
+                "first_build_end_margin_ns": 1294575465,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1637.96,
+                "build_makespan_s": 2.850583487,
+                "p99_us": 4427.792,
+                "service_p95_us": 576.666,
+                "service_p99_us": 1725.541,
+                "slowest_build_s": 2.832745196,
+                "dispatch_lateness_p95_us": 1150.542,
+                "dispatch_lateness_p99_us": 3927.876,
+                "starts_after_next_due_fraction": 0.09151041666666666,
+                "completed_after_window_fraction": 0.00030208333333333335,
+                "drain_after_window_ns": 2141709,
+                "first_build_end_margin_ns": 1152114362,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3338.405,
+                "build_makespan_s": 2.936587661,
+                "p99_us": 7817.607,
+                "service_p95_us": 250.042,
+                "service_p99_us": 933.375,
+                "slowest_build_s": 2.932118452,
+                "dispatch_lateness_p95_us": 3022.981,
+                "dispatch_lateness_p99_us": 7410.911,
+                "starts_after_next_due_fraction": 0.1790625,
+                "completed_after_window_fraction": 0.00121875,
+                "drain_after_window_ns": 16239774,
+                "first_build_end_margin_ns": 1337826009,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1856.917,
+                "build_makespan_s": 2.903913334,
+                "p99_us": 5155.667,
+                "service_p95_us": 664.334,
+                "service_p99_us": 1819.834,
+                "slowest_build_s": 2.903103459,
+                "dispatch_lateness_p95_us": 1365.042,
+                "dispatch_lateness_p99_us": 4660.25,
+                "starts_after_next_due_fraction": 0.10922916666666667,
+                "completed_after_window_fraction": 0.00017708333333333335,
+                "drain_after_window_ns": 1917375,
+                "first_build_end_margin_ns": 1235019876,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2839.335,
+                "build_makespan_s": 2.853916988,
+                "p99_us": 5297.994,
+                "service_p95_us": 241.792,
+                "service_p99_us": 874.458,
+                "slowest_build_s": 2.847572488,
+                "dispatch_lateness_p95_us": 2546.148,
+                "dispatch_lateness_p99_us": 4905.577,
+                "starts_after_next_due_fraction": 0.17027083333333334,
+                "completed_after_window_fraction": 0.001,
+                "drain_after_window_ns": 7906690,
+                "first_build_end_margin_ns": 1270936630,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ],
+          "stock_builds": {
+            "script_sha256": {
+              "job.sh": "a9d3447427636fb10c6a0005c44a3936c2b3a9b61cb4983f39c0308d917a3704",
+              "go-dispatch.sh": "b2b23088007a7ffd68372e1ae385e445554f7bd2b10d07741bdbdd3a07701762"
+            },
+            "verified_builders_per_engine_per_phase": 8,
+            "phase_bounds": {
+              "before": {
+                "started_unix_ns": 1795589589540138000,
+                "finished_unix_ns": 1795589589629038000
+              },
+              "after": {
+                "started_unix_ns": 1795589630988395000,
+                "finished_unix_ns": 1795589631083830000
+              }
+            }
+          },
+          "off_timing_go_mapping": {
+            "tool": {
+              "path": "/usr/local/go/bin/go",
+              "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb",
+              "inode": 7636,
+              "device": 2097197,
+              "device_major": 0,
+              "device_minor": 557,
+              "size_bytes": 14378387,
+              "segment_offset": 0,
+              "segment_size_bytes": 5945428,
+              "window_offset": 0
+            },
+            "touched_run_bytes": 1048576,
+            "page_bytes": 16384,
+            "sample_orders": [
+              "forward",
+              "reverse",
+              "reverse",
+              "forward"
+            ],
+            "ptes_after_first_read": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "sample_minor_faults": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "sample_major_faults": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "native_engine": {
+            "boot_id": "ca8d64b7-e613-4aaf-8f6c-67cc4089c5d3",
+            "pid": "238",
+            "birth_ticks": "137",
+            "exe": "/opt/micropod-oci/runner/bin/job",
+            "argv": "/opt/micropod-oci/runner/bin/job engine ",
+            "runner_sha256": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895"
+          },
+          "linux_tests": [
+            "TestCRIOutputRecordBoundaries",
+            "TestCRIOutputErrorsAndLimit",
+            "TestCRIFollowStreamsWhileWaitingForTask",
+            "TestCRIFollowWaitRechecksUncommittedExit",
+            "TestCRIFollowWaitRechecksUncommittedExit/OK",
+            "TestCRIFollowWaitRechecksUncommittedExit/NotFound",
+            "TestCRIFollowWaitRechecksUncommittedExit/Unavailable",
+            "TestCRIFollowCancelsTaskWait"
+          ],
+          "mode": "stock"
+        },
+        "optimized": {
+          "archive": "20261125T065406Z-sibling-output-polling-k9gnbwzr",
+          "native_boot": "295bd752-961d-4d70-a361-425b7a711eab",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "native_volume": {
+            "host_worker_volume": "apfs-no-index",
+            "scope": "/private/tmp/mp-t-hjh6r1go",
+            "mount": "/private/tmp/mp-t-hjh6r1go/a",
+            "image": "/private/tmp/mp-t-hjh6r1go/a-worker.sparseimage",
+            "volume_uuid": "23397f3a-da1d-46e3-a727-5d52f7dab1f0",
+            "container_uuid": "d0682a13-2180-4c72-af59-9683f8b66c04",
+            "partition_uuid": "45d5862b-dc86-40b5-bb24-5b002d39bb97",
+            "device": "disk14s1",
+            "container_device": "disk14",
+            "image_device": "disk13",
+            "partition_device": "disk13s2",
+            "volume_st_dev": 16777259,
+            "image_st_dev": 16777232,
+            "image_inode": 1226535646,
+            "volume_name": "MicropodCI-8c9b860f32e4",
+            "mountpoint_inode": 1226535641,
+            "raw_disk": {
+              "path": "/private/tmp/mp-t-hjh6r1go/a/worker.ext4",
+              "raw_st_dev": 16777259,
+              "parent_st_dev": 16777232,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "configured_disk_gib": 6
+            },
+            "spotlight": {
+              "live": "Indexing and searching disabled.",
+              "post": "Indexing and searching disabled."
+            },
+            "journal_files": 0,
+            "journal_bytes": 0,
+            "journal_observed_through": "read_only_remount",
+            "live_observed_unix_ns": 1795589653178729000,
+            "post_observed_unix_ns": 1795589745436889000,
+            "detached": true,
+            "persisted_policy": {
+              "read_only": true,
+              "device": "disk14s1",
+              "volume_st_dev": 16777259,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "spotlight": "Indexing and searching disabled.",
+              "journal_files": 0,
+              "journal_bytes": 0
+            }
+          },
+          "native_cri": {
+            "boot": "295bd752-961d-4d70-a361-425b7a711eab",
+            "service_log_sha256": "2c69b526ff0d3a834ecea2cfe4244551f116846f892ae9eafd97c801d14d9cd3",
+            "verified_starts": 64,
+            "verified_sandbox_removals": 64
+          },
+          "admission": {
+            "first_utc": "2026-11-25T06:54:07.334476+00:00",
+            "last_utc": "2026-11-25T06:55:40.552475+00:00",
+            "samples": 45,
+            "full_peer_cohort_samples": 32,
+            "post_work_host_sample": {
+              "utc": "2026-11-25T06:55:40.552475+00:00",
+              "observed": [],
+              "blockers": []
+            },
+            "last_paired_peer_sample": {
+              "time": "2026-11-25T06:55:38.538100+00:00",
+              "running": []
+            },
+            "last_scored_host_finish_unix_ns": 1795589733226226000,
+            "post_work_capture_finished_unix_ns": 1795589734733362000
+          },
+          "fault_around_readback": {
+            "before": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "295bd752-961d-4d70-a361-425b7a711eab",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536",
+              "before_bytes": "65536"
+            },
+            "after": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "295bd752-961d-4d70-a361-425b7a711eab",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536"
+            }
+          },
+          "startup": {
+            "micropod": {
+              "containers": 64,
+              "created_to_started_span_s": 3.82116146,
+              "median_container_created_to_started_s": 0.112439479
+            },
+            "orbstack": {
+              "containers": 64,
+              "created_to_started_span_s": 3.194032804,
+              "median_container_created_to_started_s": 0.231064141
+            }
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1272.542,
+                "build_makespan_s": 2.85325446,
+                "p99_us": 2603.209,
+                "service_p95_us": 586.708,
+                "service_p99_us": 1597.417,
+                "slowest_build_s": 2.846374627,
+                "dispatch_lateness_p95_us": 777.0,
+                "dispatch_lateness_p99_us": 2105.083,
+                "starts_after_next_due_fraction": 0.07346875,
+                "completed_after_window_fraction": 0.00019791666666666666,
+                "drain_after_window_ns": 755834,
+                "first_build_end_margin_ns": 1226123917,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 208,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3901.09,
+                "build_makespan_s": 2.932641453,
+                "p99_us": 9495.092,
+                "service_p95_us": 295.125,
+                "service_p99_us": 1076.584,
+                "slowest_build_s": 2.931711203,
+                "dispatch_lateness_p95_us": 3545.006,
+                "dispatch_lateness_p99_us": 9031.333,
+                "starts_after_next_due_fraction": 0.19801041666666666,
+                "completed_after_window_fraction": 0.0006145833333333333,
+                "drain_after_window_ns": 3614314,
+                "first_build_end_margin_ns": 1326496259,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1168.417,
+                "build_makespan_s": 2.819254945,
+                "p99_us": 3192.085,
+                "service_p95_us": 441.792,
+                "service_p99_us": 1483.625,
+                "slowest_build_s": 2.816935195,
+                "dispatch_lateness_p95_us": 683.583,
+                "dispatch_lateness_p99_us": 2692.376,
+                "starts_after_next_due_fraction": 0.062375,
+                "completed_after_window_fraction": 0.0005520833333333334,
+                "drain_after_window_ns": 1773792,
+                "first_build_end_margin_ns": 1203178987,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2920.181,
+                "build_makespan_s": 2.853753031,
+                "p99_us": 5289.131,
+                "service_p95_us": 245.125,
+                "service_p99_us": 767.792,
+                "slowest_build_s": 2.848601989,
+                "dispatch_lateness_p95_us": 2624.807,
+                "dispatch_lateness_p99_us": 4911.39,
+                "starts_after_next_due_fraction": 0.17345833333333333,
+                "completed_after_window_fraction": 0.00025,
+                "drain_after_window_ns": 831773,
+                "first_build_end_margin_ns": 1284266006,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 998.459,
+                "build_makespan_s": 2.90804846,
+                "p99_us": 2848.125,
+                "service_p95_us": 380.667,
+                "service_p99_us": 1323.708,
+                "slowest_build_s": 2.902404377,
+                "dispatch_lateness_p95_us": 525.584,
+                "dispatch_lateness_p99_us": 2349.958,
+                "starts_after_next_due_fraction": 0.051208333333333335,
+                "completed_after_window_fraction": 0.0007291666666666667,
+                "drain_after_window_ns": 4995709,
+                "first_build_end_margin_ns": 1252916334,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2967.719,
+                "build_makespan_s": 2.902423242,
+                "p99_us": 5602.1,
+                "service_p95_us": 196.458,
+                "service_p99_us": 824.25,
+                "slowest_build_s": 2.88185199,
+                "dispatch_lateness_p95_us": 2654.754,
+                "dispatch_lateness_p99_us": 5146.946,
+                "starts_after_next_due_fraction": 0.15776041666666665,
+                "completed_after_window_fraction": 0.00026041666666666666,
+                "drain_after_window_ns": 4627189,
+                "first_build_end_margin_ns": 1278473005,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1574.708,
+                "build_makespan_s": 3.05073371,
+                "p99_us": 3220.708,
+                "service_p95_us": 732.833,
+                "service_p99_us": 1784.5,
+                "slowest_build_s": 3.050579377,
+                "dispatch_lateness_p95_us": 1079.583,
+                "dispatch_lateness_p99_us": 2721.667,
+                "starts_after_next_due_fraction": 0.10335416666666666,
+                "completed_after_window_fraction": 0.00026041666666666666,
+                "drain_after_window_ns": 1452543,
+                "first_build_end_margin_ns": 1398910792,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 208,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 6993.397,
+                "build_makespan_s": 3.527406577,
+                "p99_us": 21667.439,
+                "service_p95_us": 492.209,
+                "service_p99_us": 1908.125,
+                "slowest_build_s": 3.518781701,
+                "dispatch_lateness_p95_us": 6531.448,
+                "dispatch_lateness_p99_us": 21167.523,
+                "starts_after_next_due_fraction": 0.30113541666666666,
+                "completed_after_window_fraction": 0.00059375,
+                "drain_after_window_ns": 1378690,
+                "first_build_end_margin_ns": 1917258299,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ],
+          "stock_builds": {
+            "script_sha256": {
+              "job.sh": "a9d3447427636fb10c6a0005c44a3936c2b3a9b61cb4983f39c0308d917a3704",
+              "go-dispatch.sh": "b2b23088007a7ffd68372e1ae385e445554f7bd2b10d07741bdbdd3a07701762"
+            },
+            "verified_builders_per_engine_per_phase": 8,
+            "phase_bounds": {
+              "before": {
+                "started_unix_ns": 1795589691850462000,
+                "finished_unix_ns": 1795589691937920000
+              },
+              "after": {
+                "started_unix_ns": 1795589733664827000,
+                "finished_unix_ns": 1795589733749002000
+              }
+            }
+          },
+          "off_timing_go_mapping": {
+            "tool": {
+              "path": "/usr/local/go/bin/go",
+              "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb",
+              "inode": 7636,
+              "device": 2097160,
+              "device_major": 0,
+              "device_minor": 520,
+              "size_bytes": 14378387,
+              "segment_offset": 0,
+              "segment_size_bytes": 5945428,
+              "window_offset": 0
+            },
+            "touched_run_bytes": 1048576,
+            "page_bytes": 16384,
+            "sample_orders": [
+              "forward",
+              "reverse",
+              "reverse",
+              "forward"
+            ],
+            "ptes_after_first_read": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "sample_minor_faults": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "sample_major_faults": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "native_engine": {
+            "boot_id": "295bd752-961d-4d70-a361-425b7a711eab",
+            "pid": "238",
+            "birth_ticks": "148",
+            "exe": "/opt/micropod-oci/runner/bin/job",
+            "argv": "/opt/micropod-oci/runner/bin/job engine ",
+            "runner_sha256": "3e8abc928350bd4d384044dd87b8cc3ba67ba787581a922dd105b1e5c879ad0c"
+          },
+          "linux_tests": [
+            "TestCRIOutputRecordBoundaries",
+            "TestCRIOutputErrorsAndLimit",
+            "TestCRIFollowStreamsWhileWaitingForTask",
+            "TestCRIFollowWaitRechecksUncommittedExit",
+            "TestCRIFollowWaitRechecksUncommittedExit/OK",
+            "TestCRIFollowWaitRechecksUncommittedExit/NotFound",
+            "TestCRIFollowWaitRechecksUncommittedExit/Unavailable",
+            "TestCRIFollowCancelsTaskWait"
+          ],
+          "mode": "optimized"
+        }
+      },
+      "native_beats_peer_on_both_medians": {
+        "stock": true,
+        "optimized": true
+      },
+      "within_mode": {
+        "stock": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1747.4385,
+              "orbstack": 3930.9065,
+              "paired_ratio": 0.4202947906047033,
+              "paired_difference": -2320.4475,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.8772484105,
+              "orbstack": 2.9235349934999997,
+              "paired_ratio": 0.9752041463242169,
+              "paired_difference": -0.07509226999999985,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 5047.875,
+              "orbstack": 14839.168,
+              "paired_ratio": 0.39924356090400986,
+              "paired_difference": -10088.334499999999,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 626.459,
+              "orbstack": 318.646,
+              "paired_ratio": 1.9593079385799435,
+              "paired_difference": 312.187,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1772.6875,
+              "orbstack": 1142.021,
+              "paired_ratio": 1.5384811638245184,
+              "paired_difference": 550.2285,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.8693891885,
+              "orbstack": 2.9164915345,
+              "paired_ratio": 0.9764643871102456,
+              "paired_difference": -0.07162945849999991,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 1257.792,
+              "orbstack": 3550.695,
+              "paired_ratio": 0.3242056279473873,
+              "paired_difference": -2429.299,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 4551.459,
+              "orbstack": 14385.841,
+              "paired_ratio": 0.37223460187112556,
+              "paired_difference": -10131.4235,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.10036979166666667,
+              "orbstack": 0.19423958333333335,
+              "paired_ratio": 0.4992927436346123,
+              "paired_difference": -0.10330208333333335,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.0002447916666666667,
+              "orbstack": 0.0011093750000000001,
+              "paired_ratio": 0.21247329059829062,
+              "paired_difference": -0.0008697916666666667,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 2029542.0,
+              "orbstack": 9653877.5,
+              "paired_ratio": 0.1871904033041988,
+              "paired_difference": -8184564.5,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1212516417.5,
+              "orbstack": 1316200737.0,
+              "paired_ratio": null,
+              "paired_difference": -131697244.0,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 3,
+            "split_or_tied": 1
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              0,
+              1,
+              2
+            ]
+          }
+        },
+        "optimized": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1220.4795,
+              "orbstack": 3434.4045,
+              "paired_ratio": 0.3313207615837861,
+              "paired_difference": -2298.9040000000005,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.88065146,
+              "orbstack": 2.9175323475,
+              "paired_ratio": 0.9804205974129578,
+              "paired_difference": -0.056942539500000056,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 3020.105,
+              "orbstack": 7548.5960000000005,
+              "paired_ratio": 0.3912833702164915,
+              "paired_difference": -4822.929,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 514.25,
+              "orbstack": 270.125,
+              "paired_ratio": 1.8699819505741426,
+              "paired_difference": 218.64549999999997,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1540.521,
+              "orbstack": 950.417,
+              "paired_ratio": 1.5448687347370083,
+              "paired_difference": 510.14549999999997,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.8743895019999997,
+              "orbstack": 2.9067815965,
+              "paired_ratio": 0.9798876399386082,
+              "paired_difference": -0.05850168499999997,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 730.2915,
+              "orbstack": 3099.88,
+              "paired_ratio": 0.20857999726292525,
+              "paired_difference": -2448.5879999999997,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 2521.1670000000004,
+              "orbstack": 7089.1395,
+              "paired_ratio": 0.3448299548027069,
+              "paired_difference": -4861.619,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.06792187499999999,
+              "orbstack": 0.185734375,
+              "paired_ratio": 0.35140568032083114,
+              "paired_difference": -0.11781249999999999,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.00040625000000000004,
+              "orbstack": 0.00042708333333333335,
+              "paired_ratio": 1.3234649122807018,
+              "paired_difference": -1.5624999999999987e-05,
+              "micropod_higher": 2,
+              "micropod_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1613167.5,
+              "orbstack": 2496502.0,
+              "paired_ratio": 1.0666049112514084,
+              "paired_difference": 221186.5,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1239520125.5,
+              "orbstack": 1305381132.5,
+              "paired_ratio": null,
+              "paired_difference": -90729680.5,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 3,
+            "split_or_tied": 1
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              0,
+              1,
+              3
+            ]
+          }
+        }
+      },
+      "within_engine": {
+        "micropod": {
+          "metrics": {
+            "p95_us": {
+              "optimized": 1220.4795,
+              "stock": 1747.4385,
+              "paired_ratio": 0.6825079279600923,
+              "paired_difference": -527.0210000000002,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "optimized": 2.88065146,
+              "stock": 2.8772484105,
+              "paired_ratio": 1.0053282552295257,
+              "paired_difference": 0.015208978999999845,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "p99_us": {
+              "optimized": 3020.105,
+              "stock": 5047.875,
+              "paired_ratio": 0.6301644408021165,
+              "paired_difference": -1882.3745000000001,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "optimized": 514.25,
+              "stock": 626.459,
+              "paired_ratio": 0.7494767421403203,
+              "paired_difference": -171.39550000000003,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "optimized": 1540.521,
+              "stock": 1772.6875,
+              "paired_ratio": 0.8604232054674174,
+              "paired_difference": -255.29150000000004,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "optimized": 2.8743895019999997,
+              "stock": 2.8693891885,
+              "paired_ratio": 1.0089910697422684,
+              "paired_difference": 0.025459729000000042,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "optimized": 730.2915,
+              "stock": 1257.792,
+              "paired_ratio": 0.5656206429270964,
+              "paired_difference": -516.8125,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "optimized": 2521.1670000000004,
+              "stock": 4551.459,
+              "paired_ratio": 0.5897088686958849,
+              "paired_difference": -1884.0829999999999,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "optimized": 0.06792187499999999,
+              "stock": 0.10036979166666667,
+              "paired_ratio": 0.6305144851335591,
+              "paired_difference": -0.034145833333333334,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "optimized": 0.00040625000000000004,
+              "stock": 0.0002447916666666667,
+              "paired_ratio": 1.5634191176470589,
+              "paired_difference": 0.00015104166666666667,
+              "optimized_higher": 4,
+              "optimized_lower": 0,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "optimized": 1613167.5,
+              "stock": 2029542.0,
+              "paired_ratio": 0.7488372789965612,
+              "paired_difference": -365124.5,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "optimized": 1239520125.5,
+              "stock": 1212516417.5,
+              "paired_ratio": null,
+              "paired_difference": 56984000.0,
+              "optimized_higher": 3,
+              "optimized_lower": 1,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "stock": 0,
+            "optimized": 2,
+            "split_or_tied": 2
+          },
+          "joint_win_positions": {
+            "stock": [],
+            "optimized": [
+              0,
+              1
+            ]
+          }
+        },
+        "orbstack": {
+          "metrics": {
+            "p95_us": {
+              "optimized": 3434.4045,
+              "stock": 3930.9065,
+              "paired_ratio": 0.7672670684188811,
+              "paired_difference": -986.9565000000002,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "optimized": 2.9175323475,
+              "stock": 2.9235349934999997,
+              "paired_ratio": 0.9844372868514906,
+              "paired_difference": -0.04544685699999995,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "optimized": 7548.5960000000005,
+              "stock": 14839.168,
+              "paired_ratio": 0.5754725356533171,
+              "paired_difference": -7290.571999999999,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "optimized": 270.125,
+              "stock": 318.646,
+              "paired_ratio": 0.7093445137885653,
+              "paired_difference": -97.8545,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "optimized": 950.417,
+              "stock": 1142.021,
+              "paired_ratio": 0.7665167078634585,
+              "paired_difference": -344.47849999999994,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "optimized": 2.9067815965,
+              "stock": 2.9164915345,
+              "paired_ratio": 0.9824201907607886,
+              "paired_difference": -0.051264544999999995,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "optimized": 3099.88,
+              "stock": 3550.695,
+              "paired_ratio": 0.7608883910098443,
+              "paired_difference": -910.9145000000003,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "optimized": 7089.1395,
+              "stock": 14385.841,
+              "paired_ratio": 0.5586545858677087,
+              "paired_difference": -7296.7015,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "optimized": 0.185734375,
+              "stock": 0.19423958333333335,
+              "paired_ratio": 0.8546641813934612,
+              "paired_difference": -0.02863020833333335,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "optimized": 0.00042708333333333335,
+              "stock": 0.0011093750000000001,
+              "paired_ratio": 0.49755527210884354,
+              "paired_difference": -0.0006614583333333333,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "optimized": 2496502.0,
+              "stock": 9653877.5,
+              "paired_ratio": 0.22964972747898033,
+              "paired_difference": -7416417.0,
+              "optimized_higher": 0,
+              "optimized_lower": 4,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "optimized": 1305381132.5,
+              "stock": 1316200737.0,
+              "paired_ratio": null,
+              "paired_difference": -34831231.5,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "stock": 1,
+            "optimized": 3,
+            "split_or_tied": 0
+          },
+          "joint_win_positions": {
+            "stock": [
+              3
+            ],
+            "optimized": [
+              0,
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "median_paired_native_to_peer_ratio_change": {
+        "p95_us": 0.9145390733415236,
+        "p99_us": 1.0394277329513382,
+        "service_p95_us": 1.0129844731552433,
+        "service_p99_us": 1.0701915082555944,
+        "dispatch_lateness_p95_us": 0.7463080496329773,
+        "dispatch_lateness_p99_us": 0.9741546474289335,
+        "build_makespan_s": 1.005335431856035,
+        "slowest_build_s": 1.0034969225810877
+      }
+    },
+    {
+      "seed": 250273,
+      "boot_order": [
+        "optimized",
+        "stock"
+      ],
+      "boots": {
+        "stock": {
+          "archive": "20261125T070017Z-sibling-output-polling-srb6jbpo",
+          "native_boot": "7bda2537-dde9-40d5-a3f8-a40666e0f4c4",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "native_volume": {
+            "host_worker_volume": "apfs-no-index",
+            "scope": "/private/tmp/mp-t-ng3ny0jy",
+            "mount": "/private/tmp/mp-t-ng3ny0jy/a",
+            "image": "/private/tmp/mp-t-ng3ny0jy/a-worker.sparseimage",
+            "volume_uuid": "ef94f9ed-f34f-4ccf-b0c2-61fc17ae87d5",
+            "container_uuid": "9350c7e3-9986-4908-b558-2d911fa60030",
+            "partition_uuid": "10d7631e-f7a0-4f76-82cb-105b9f93c3a0",
+            "device": "disk14s1",
+            "container_device": "disk14",
+            "image_device": "disk13",
+            "partition_device": "disk13s2",
+            "volume_st_dev": 16777259,
+            "image_st_dev": 16777232,
+            "image_inode": 1226551102,
+            "volume_name": "MicropodCI-5e56496b8f3c",
+            "mountpoint_inode": 1226551097,
+            "raw_disk": {
+              "path": "/private/tmp/mp-t-ng3ny0jy/a/worker.ext4",
+              "raw_st_dev": 16777259,
+              "parent_st_dev": 16777232,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "configured_disk_gib": 6
+            },
+            "spotlight": {
+              "live": "Indexing and searching disabled.",
+              "post": "Indexing and searching disabled."
+            },
+            "journal_files": 0,
+            "journal_bytes": 0,
+            "journal_observed_through": "read_only_remount",
+            "live_observed_unix_ns": 1795590024438553000,
+            "post_observed_unix_ns": 1795590108892063000,
+            "detached": true,
+            "persisted_policy": {
+              "read_only": true,
+              "device": "disk14s1",
+              "volume_st_dev": 16777259,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "spotlight": "Indexing and searching disabled.",
+              "journal_files": 0,
+              "journal_bytes": 0
+            }
+          },
+          "native_cri": {
+            "boot": "7bda2537-dde9-40d5-a3f8-a40666e0f4c4",
+            "service_log_sha256": "e85d37a25c747c63ea458f2b65388e28f798f60f277326433f86b01fef1e63c8",
+            "verified_starts": 64,
+            "verified_sandbox_removals": 64
+          },
+          "admission": {
+            "first_utc": "2026-11-25T07:00:17.825160+00:00",
+            "last_utc": "2026-11-25T07:01:46.769329+00:00",
+            "samples": 44,
+            "full_peer_cohort_samples": 30
+          },
+          "fault_around_readback": {
+            "before": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "7bda2537-dde9-40d5-a3f8-a40666e0f4c4",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536",
+              "before_bytes": "65536"
+            },
+            "after": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "7bda2537-dde9-40d5-a3f8-a40666e0f4c4",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536"
+            }
+          },
+          "startup": {
+            "micropod": {
+              "containers": 64,
+              "created_to_started_span_s": 3.541866044,
+              "median_container_created_to_started_s": 0.111184396
+            },
+            "orbstack": {
+              "containers": 64,
+              "created_to_started_span_s": 2.932412899,
+              "median_container_created_to_started_s": 0.225054789
+            }
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1671.0,
+                "build_makespan_s": 2.93894171,
+                "p99_us": 4218.458,
+                "service_p95_us": 690.333,
+                "service_p99_us": 1779.25,
+                "slowest_build_s": 2.935905751,
+                "dispatch_lateness_p95_us": 1179.75,
+                "dispatch_lateness_p99_us": 3718.667,
+                "starts_after_next_due_fraction": 0.10304166666666667,
+                "completed_after_window_fraction": 0.00013541666666666666,
+                "drain_after_window_ns": 457542,
+                "first_build_end_margin_ns": 1250997876,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3136.154,
+                "build_makespan_s": 2.898657855,
+                "p99_us": 6325.573,
+                "service_p95_us": 273.917,
+                "service_p99_us": 1027.791,
+                "slowest_build_s": 2.892166771,
+                "dispatch_lateness_p95_us": 2833.172,
+                "dispatch_lateness_p99_us": 5902.176,
+                "starts_after_next_due_fraction": 0.18026041666666667,
+                "completed_after_window_fraction": 0.0003333333333333333,
+                "drain_after_window_ns": 4051872,
+                "first_build_end_margin_ns": 1296931352,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1449.667,
+                "build_makespan_s": 2.929138084,
+                "p99_us": 4327.834,
+                "service_p95_us": 504.833,
+                "service_p99_us": 1591.25,
+                "slowest_build_s": 2.918960043,
+                "dispatch_lateness_p95_us": 963.251,
+                "dispatch_lateness_p99_us": 3829.167,
+                "starts_after_next_due_fraction": 0.07914583333333333,
+                "completed_after_window_fraction": 0.00011458333333333333,
+                "drain_after_window_ns": 368376,
+                "first_build_end_margin_ns": 1192821042,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2744.022,
+                "build_makespan_s": 2.810392848,
+                "p99_us": 5099.65,
+                "service_p95_us": 244.792,
+                "service_p99_us": 865.834,
+                "slowest_build_s": 2.803493805,
+                "dispatch_lateness_p95_us": 2472.284,
+                "dispatch_lateness_p99_us": 4683.012,
+                "starts_after_next_due_fraction": 0.16954166666666667,
+                "completed_after_window_fraction": 0.00096875,
+                "drain_after_window_ns": 11097539,
+                "first_build_end_margin_ns": 1233023015,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1383.0,
+                "build_makespan_s": 2.91308371,
+                "p99_us": 4914.041,
+                "service_p95_us": 468.041,
+                "service_p99_us": 1546.458,
+                "slowest_build_s": 2.91308371,
+                "dispatch_lateness_p95_us": 895.416,
+                "dispatch_lateness_p99_us": 4415.543,
+                "starts_after_next_due_fraction": 0.07335416666666666,
+                "completed_after_window_fraction": 0.00014583333333333335,
+                "drain_after_window_ns": 891583,
+                "first_build_end_margin_ns": 1171307585,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2902.846,
+                "build_makespan_s": 2.874286232,
+                "p99_us": 5512.11,
+                "service_p95_us": 230.458,
+                "service_p99_us": 821.625,
+                "slowest_build_s": 2.870792982,
+                "dispatch_lateness_p95_us": 2606.536,
+                "dispatch_lateness_p99_us": 5092.002,
+                "starts_after_next_due_fraction": 0.17065625,
+                "completed_after_window_fraction": 0.0007291666666666667,
+                "drain_after_window_ns": 8950060,
+                "first_build_end_margin_ns": 1272096626,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1500.709,
+                "build_makespan_s": 2.838763376,
+                "p99_us": 4834.25,
+                "service_p95_us": 488.709,
+                "service_p99_us": 1596.542,
+                "slowest_build_s": 2.829223334,
+                "dispatch_lateness_p95_us": 1015.167,
+                "dispatch_lateness_p99_us": 4338.126,
+                "starts_after_next_due_fraction": 0.08036458333333334,
+                "completed_after_window_fraction": 0.00038541666666666667,
+                "drain_after_window_ns": 2144001,
+                "first_build_end_margin_ns": 1180247250,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3333.824,
+                "build_makespan_s": 2.867769773,
+                "p99_us": 7349.543,
+                "service_p95_us": 270.375,
+                "service_p99_us": 1065.25,
+                "slowest_build_s": 2.862607814,
+                "dispatch_lateness_p95_us": 3017.347,
+                "dispatch_lateness_p99_us": 6958.295,
+                "starts_after_next_due_fraction": 0.19138541666666667,
+                "completed_after_window_fraction": 0.00034375,
+                "drain_after_window_ns": 11780019,
+                "first_build_end_margin_ns": 1262417375,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ],
+          "stock_builds": {
+            "script_sha256": {
+              "job.sh": "a9d3447427636fb10c6a0005c44a3936c2b3a9b61cb4983f39c0308d917a3704",
+              "go-dispatch.sh": "b2b23088007a7ffd68372e1ae385e445554f7bd2b10d07741bdbdd3a07701762"
+            },
+            "verified_builders_per_engine_per_phase": 8,
+            "phase_bounds": {
+              "before": {
+                "started_unix_ns": 1795590058495785000,
+                "finished_unix_ns": 1795590058584845000
+              },
+              "after": {
+                "started_unix_ns": 1795590099313531000,
+                "finished_unix_ns": 1795590099402430000
+              }
+            }
+          },
+          "off_timing_go_mapping": {
+            "tool": {
+              "path": "/usr/local/go/bin/go",
+              "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb",
+              "inode": 7637,
+              "device": 2097213,
+              "device_major": 0,
+              "device_minor": 573,
+              "size_bytes": 14378387,
+              "segment_offset": 0,
+              "segment_size_bytes": 5945428,
+              "window_offset": 0
+            },
+            "touched_run_bytes": 1048576,
+            "page_bytes": 16384,
+            "sample_orders": [
+              "forward",
+              "reverse",
+              "reverse",
+              "forward"
+            ],
+            "ptes_after_first_read": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "sample_minor_faults": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "sample_major_faults": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "native_engine": {
+            "boot_id": "7bda2537-dde9-40d5-a3f8-a40666e0f4c4",
+            "pid": "237",
+            "birth_ticks": "151",
+            "exe": "/opt/micropod-oci/runner/bin/job",
+            "argv": "/opt/micropod-oci/runner/bin/job engine ",
+            "runner_sha256": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895"
+          },
+          "linux_tests": [
+            "TestCRIOutputRecordBoundaries",
+            "TestCRIOutputErrorsAndLimit",
+            "TestCRIFollowStreamsWhileWaitingForTask",
+            "TestCRIFollowWaitRechecksUncommittedExit",
+            "TestCRIFollowWaitRechecksUncommittedExit/OK",
+            "TestCRIFollowWaitRechecksUncommittedExit/NotFound",
+            "TestCRIFollowWaitRechecksUncommittedExit/Unavailable",
+            "TestCRIFollowCancelsTaskWait"
+          ],
+          "mode": "stock"
+        },
+        "optimized": {
+          "archive": "20261125T065832Z-sibling-output-polling-ahbid92j",
+          "native_boot": "0fef2bea-9a53-4058-9581-cbaaff8d214e",
+          "peer_boot": "3a9eb266-88f6-448f-8350-ce42b06c23fc",
+          "native_volume": {
+            "host_worker_volume": "apfs-no-index",
+            "scope": "/private/tmp/mp-t-ofcnjuzo",
+            "mount": "/private/tmp/mp-t-ofcnjuzo/a",
+            "image": "/private/tmp/mp-t-ofcnjuzo/a-worker.sparseimage",
+            "volume_uuid": "829934d9-4818-46e3-bd19-f6618950863f",
+            "container_uuid": "155856ac-0e2d-45da-a616-eb6aaa0f0b6d",
+            "partition_uuid": "6ec0d5f8-7749-4d46-a120-6684b3ee3791",
+            "device": "disk14s1",
+            "container_device": "disk14",
+            "image_device": "disk13",
+            "partition_device": "disk13s2",
+            "volume_st_dev": 16777259,
+            "image_st_dev": 16777232,
+            "image_inode": 1226549165,
+            "volume_name": "MicropodCI-dcb668a8bbe1",
+            "mountpoint_inode": 1226549160,
+            "raw_disk": {
+              "path": "/private/tmp/mp-t-ofcnjuzo/a/worker.ext4",
+              "raw_st_dev": 16777259,
+              "parent_st_dev": 16777232,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "configured_disk_gib": 6
+            },
+            "spotlight": {
+              "live": "Indexing and searching disabled.",
+              "post": "Indexing and searching disabled."
+            },
+            "journal_files": 0,
+            "journal_bytes": 0,
+            "journal_observed_through": "read_only_remount",
+            "live_observed_unix_ns": 1795589919801890000,
+            "post_observed_unix_ns": 1795590011047973000,
+            "detached": true,
+            "persisted_policy": {
+              "read_only": true,
+              "device": "disk14s1",
+              "volume_st_dev": 16777259,
+              "raw_inode": 27,
+              "raw_bytes": 6576668672,
+              "spotlight": "Indexing and searching disabled.",
+              "journal_files": 0,
+              "journal_bytes": 0
+            }
+          },
+          "native_cri": {
+            "boot": "0fef2bea-9a53-4058-9581-cbaaff8d214e",
+            "service_log_sha256": "533ea9e7654b4bf19d339a7ce0bb655922da7c4a15cdd215c82118598e46fd17",
+            "verified_starts": 64,
+            "verified_sandbox_removals": 64
+          },
+          "admission": {
+            "first_utc": "2026-11-25T06:58:32.850063+00:00",
+            "last_utc": "2026-11-25T07:00:08.146432+00:00",
+            "samples": 47,
+            "full_peer_cohort_samples": 30
+          },
+          "fault_around_readback": {
+            "before": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "0fef2bea-9a53-4058-9581-cbaaff8d214e",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536",
+              "before_bytes": "65536"
+            },
+            "after": {
+              "schema": "micropod-file-fault-around-v1",
+              "boot_id": "0fef2bea-9a53-4058-9581-cbaaff8d214e",
+              "page_size_bytes": "16384",
+              "effective_bytes": "65536"
+            }
+          },
+          "startup": {
+            "micropod": {
+              "containers": 64,
+              "created_to_started_span_s": 3.709622835,
+              "median_container_created_to_started_s": 0.1076317715
+            },
+            "orbstack": {
+              "containers": 64,
+              "created_to_started_span_s": 4.60903704,
+              "median_container_created_to_started_s": 0.3748218815
+            }
+          },
+          "windows": [
+            {
+              "round": 0,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1075.084,
+                "build_makespan_s": 2.839914126,
+                "p99_us": 3055.834,
+                "service_p95_us": 413.0,
+                "service_p99_us": 1403.167,
+                "slowest_build_s": 2.835428459,
+                "dispatch_lateness_p95_us": 590.292,
+                "dispatch_lateness_p99_us": 2559.376,
+                "starts_after_next_due_fraction": 0.056625,
+                "completed_after_window_fraction": 0.00025,
+                "drain_after_window_ns": 1242293,
+                "first_build_end_margin_ns": 1215859917,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 3465.174,
+                "build_makespan_s": 2.846424975,
+                "p99_us": 7908.673,
+                "service_p95_us": 237.75,
+                "service_p99_us": 1017.959,
+                "slowest_build_s": 2.846297392,
+                "dispatch_lateness_p95_us": 3109.965,
+                "dispatch_lateness_p99_us": 7484.367,
+                "starts_after_next_due_fraction": 0.17259375,
+                "completed_after_window_fraction": 0.0003333333333333333,
+                "drain_after_window_ns": 12469664,
+                "first_build_end_margin_ns": 1254883849,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 1,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 1749.583,
+                "build_makespan_s": 2.871704376,
+                "p99_us": 4538.667,
+                "service_p95_us": 679.666,
+                "service_p99_us": 1755.333,
+                "slowest_build_s": 2.871704376,
+                "dispatch_lateness_p95_us": 1255.458,
+                "dispatch_lateness_p99_us": 4038.792,
+                "starts_after_next_due_fraction": 0.10498958333333333,
+                "completed_after_window_fraction": 0.00026041666666666666,
+                "drain_after_window_ns": 1273333,
+                "first_build_end_margin_ns": 1247039335,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2829.659,
+                "build_makespan_s": 2.795140097,
+                "p99_us": 5357.038,
+                "service_p95_us": 233.5,
+                "service_p99_us": 793.542,
+                "slowest_build_s": 2.793374013,
+                "dispatch_lateness_p95_us": 2554.163,
+                "dispatch_lateness_p99_us": 4978.97,
+                "starts_after_next_due_fraction": 0.16286458333333334,
+                "completed_after_window_fraction": 0.0006145833333333333,
+                "drain_after_window_ns": 2852871,
+                "first_build_end_margin_ns": 1241781390,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 2,
+              "engine_order": "AB",
+              "micropod": {
+                "p95_us": 1052.917,
+                "build_makespan_s": 2.804095834,
+                "p99_us": 3704.209,
+                "service_p95_us": 363.334,
+                "service_p99_us": 1322.833,
+                "slowest_build_s": 2.795121209,
+                "dispatch_lateness_p95_us": 564.25,
+                "dispatch_lateness_p99_us": 3207.75,
+                "starts_after_next_due_fraction": 0.05425,
+                "completed_after_window_fraction": 0.00016666666666666666,
+                "drain_after_window_ns": 758250,
+                "first_build_end_margin_ns": 1158542126,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 2854.469,
+                "build_makespan_s": 2.82390289,
+                "p99_us": 5454.849,
+                "service_p95_us": 237.833,
+                "service_p99_us": 802.292,
+                "slowest_build_s": 2.81994089,
+                "dispatch_lateness_p95_us": 2552.488,
+                "dispatch_lateness_p99_us": 5019.701,
+                "starts_after_next_due_fraction": 0.15711458333333334,
+                "completed_after_window_fraction": 0.00025,
+                "drain_after_window_ns": 1181579,
+                "first_build_end_margin_ns": 1257811433,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            },
+            {
+              "round": 3,
+              "engine_order": "BA",
+              "micropod": {
+                "p95_us": 2125.668,
+                "build_makespan_s": 3.027868376,
+                "p99_us": 4657.292,
+                "service_p95_us": 885.209,
+                "service_p99_us": 2002.541,
+                "slowest_build_s": 3.009733376,
+                "dispatch_lateness_p95_us": 1629.585,
+                "dispatch_lateness_p99_us": 4157.5,
+                "starts_after_next_due_fraction": 0.14426041666666667,
+                "completed_after_window_fraction": 0.00025,
+                "drain_after_window_ns": 2783001,
+                "first_build_end_margin_ns": 1391862917,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              },
+              "orbstack": {
+                "p95_us": 10559.266,
+                "build_makespan_s": 3.137067623,
+                "p99_us": 49449.941,
+                "service_p95_us": 466.625,
+                "service_p99_us": 1631.792,
+                "slowest_build_s": 3.129487081,
+                "dispatch_lateness_p95_us": 10061.851,
+                "dispatch_lateness_p99_us": 48949.983,
+                "starts_after_next_due_fraction": 0.2639375,
+                "completed_after_window_fraction": 0.0007916666666666666,
+                "drain_after_window_ns": 12254497,
+                "first_build_end_margin_ns": 1489957576,
+                "offered_requests": 96000,
+                "requests": 96000,
+                "completed_after_first_build": 0,
+                "max_clock_calibration_ns": 167,
+                "jobs": 8,
+                "revisions": 16,
+                "test_passes": 128
+              }
+            }
+          ],
+          "stock_builds": {
+            "script_sha256": {
+              "job.sh": "a9d3447427636fb10c6a0005c44a3936c2b3a9b61cb4983f39c0308d917a3704",
+              "go-dispatch.sh": "b2b23088007a7ffd68372e1ae385e445554f7bd2b10d07741bdbdd3a07701762"
+            },
+            "verified_builders_per_engine_per_phase": 8,
+            "phase_bounds": {
+              "before": {
+                "started_unix_ns": 1795589959653103000,
+                "finished_unix_ns": 1795589959737621000
+              },
+              "after": {
+                "started_unix_ns": 1795590000499040000,
+                "finished_unix_ns": 1795590000588199000
+              }
+            }
+          },
+          "off_timing_go_mapping": {
+            "tool": {
+              "path": "/usr/local/go/bin/go",
+              "sha256": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb",
+              "inode": 7636,
+              "device": 2097211,
+              "device_major": 0,
+              "device_minor": 571,
+              "size_bytes": 14378387,
+              "segment_offset": 0,
+              "segment_size_bytes": 5945428,
+              "window_offset": 0
+            },
+            "touched_run_bytes": 1048576,
+            "page_bytes": 16384,
+            "sample_orders": [
+              "forward",
+              "reverse",
+              "reverse",
+              "forward"
+            ],
+            "ptes_after_first_read": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "sample_minor_faults": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "sample_major_faults": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "native_engine": {
+            "boot_id": "0fef2bea-9a53-4058-9581-cbaaff8d214e",
+            "pid": "237",
+            "birth_ticks": "166",
+            "exe": "/opt/micropod-oci/runner/bin/job",
+            "argv": "/opt/micropod-oci/runner/bin/job engine ",
+            "runner_sha256": "3e8abc928350bd4d384044dd87b8cc3ba67ba787581a922dd105b1e5c879ad0c"
+          },
+          "linux_tests": [
+            "TestCRIOutputRecordBoundaries",
+            "TestCRIOutputErrorsAndLimit",
+            "TestCRIFollowStreamsWhileWaitingForTask",
+            "TestCRIFollowWaitRechecksUncommittedExit",
+            "TestCRIFollowWaitRechecksUncommittedExit/OK",
+            "TestCRIFollowWaitRechecksUncommittedExit/NotFound",
+            "TestCRIFollowWaitRechecksUncommittedExit/Unavailable",
+            "TestCRIFollowCancelsTaskWait"
+          ],
+          "mode": "optimized"
+        }
+      },
+      "native_beats_peer_on_both_medians": {
+        "stock": false,
+        "optimized": false
+      },
+      "within_mode": {
+        "stock": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1475.188,
+              "orbstack": 3019.5,
+              "paired_ratio": 0.502364529408021,
+              "paired_difference": -1492.5,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.921110897,
+              "orbstack": 2.8710280025,
+              "paired_ratio": 1.013697771212197,
+              "paired_difference": 0.039540666499999766,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 4581.0419999999995,
+              "orbstack": 5918.8415,
+              "paired_ratio": 0.7577713044223602,
+              "paired_difference": -1439.4655000000002,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 496.771,
+              "orbstack": 257.5835,
+              "paired_ratio": 2.0466051993631718,
+              "paired_difference": 248.812,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1593.896,
+              "orbstack": 946.8125,
+              "paired_ratio": 1.7844816538896247,
+              "paired_difference": 725.1245000000001,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.9160218765,
+              "orbstack": 2.866700398,
+              "paired_ratio": 1.0149273157701302,
+              "paired_difference": 0.043014853999999936,
+              "micropod_higher": 3,
+              "micropod_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 989.2090000000001,
+              "orbstack": 2719.8540000000003,
+              "paired_ratio": 0.366573538285915,
+              "paired_difference": -1682.271,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 4083.6465,
+              "orbstack": 5497.089,
+              "paired_ratio": 0.7238610015226017,
+              "paired_difference": -1518.6770000000001,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.07975520833333333,
+              "orbstack": 0.17545833333333333,
+              "paired_ratio": 0.4483290602365857,
+              "paired_difference": -0.09384895833333334,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.00014062500000000002,
+              "orbstack": 0.0005364583333333333,
+              "paired_ratio": 0.303125,
+              "paired_difference": -0.000390625,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 674562.5,
+              "orbstack": 10023799.5,
+              "paired_ratio": 0.1062693415685344,
+              "paired_difference": -8847247.5,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1186534146.0,
+              "orbstack": 1267257000.5,
+              "paired_ratio": null,
+              "paired_difference": -64051800.5,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 1,
+            "split_or_tied": 3
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              3
+            ]
+          }
+        },
+        "optimized": {
+          "metrics": {
+            "p95_us": {
+              "micropod": 1412.3335000000002,
+              "orbstack": 3159.8215,
+              "paired_ratio": 0.339560063103011,
+              "paired_difference": -2095.821,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "micropod": 2.855809251,
+              "orbstack": 2.8351639325,
+              "paired_ratio": 0.9953492755402236,
+              "paired_difference": -0.013158952499999987,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "micropod": 4121.438,
+              "orbstack": 6681.761,
+              "paired_ratio": 0.5327287129202861,
+              "paired_difference": -3301.7395,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "micropod": 546.3330000000001,
+              "orbstack": 237.79149999999998,
+              "paired_ratio": 1.8170823149768611,
+              "paired_difference": 296.917,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "micropod": 1579.25,
+              "orbstack": 910.1255,
+              "paired_ratio": 1.5136147426650934,
+              "paired_difference": 452.8745,
+              "micropod_higher": 4,
+              "micropod_lower": 0,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "micropod": 2.8535664174999997,
+              "orbstack": 2.833119141,
+              "paired_ratio": 0.9936899442439386,
+              "paired_difference": -0.017844306999999837,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "micropod": 922.875,
+              "orbstack": 2832.0640000000003,
+              "paired_ratio": 0.2054327317185328,
+              "paired_difference": -2253.9555,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "micropod": 3623.2709999999997,
+              "orbstack": 6252.034,
+              "paired_ratio": 0.49049750331058534,
+              "paired_difference": -3368.471,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "micropod": 0.08080729166666667,
+              "orbstack": 0.16772916666666665,
+              "paired_ratio": 0.4459298836385257,
+              "paired_difference": -0.10941666666666666,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "micropod": 0.00025,
+              "orbstack": 0.0004739583333333333,
+              "paired_ratio": 0.5451977401129944,
+              "paired_difference": -0.00021874999999999998,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "micropod": 1257813.0,
+              "orbstack": 7553684.0,
+              "paired_ratio": 0.33671713609832765,
+              "paired_difference": -5525517.0,
+              "micropod_higher": 0,
+              "micropod_lower": 4,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "micropod": 1231449626.0,
+              "orbstack": 1256347641.0,
+              "paired_ratio": null,
+              "paired_difference": -68559295.5,
+              "micropod_higher": 1,
+              "micropod_lower": 3,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "orbstack": 0,
+            "micropod": 3,
+            "split_or_tied": 1
+          },
+          "joint_win_positions": {
+            "orbstack": [],
+            "micropod": [
+              0,
+              2,
+              3
+            ]
+          }
+        }
+      },
+      "within_engine": {
+        "micropod": {
+          "metrics": {
+            "p95_us": {
+              "optimized": 1412.3335000000002,
+              "stock": 1475.188,
+              "paired_ratio": 0.9841072025164883,
+              "paired_difference": -15.083499999999958,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "optimized": 2.855809251,
+              "stock": 2.921110897,
+              "paired_ratio": 0.9733486516281633,
+              "paired_difference": -0.07823064599999996,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "optimized": 4121.438,
+              "stock": 4581.0419999999995,
+              "paired_ratio": 0.8585979691504542,
+              "paired_difference": -669.7909999999997,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "optimized": 546.3330000000001,
+              "stock": 496.771,
+              "paired_ratio": 1.0613025891757195,
+              "paired_difference": 35.06300000000002,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "optimized": 1579.25,
+              "stock": 1593.896,
+              "paired_ratio": 0.9792555755015315,
+              "paired_difference": -29.770999999999958,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "optimized": 2.8535664174999997,
+              "stock": 2.9160218765,
+              "paired_ratio": 0.9747935885488885,
+              "paired_difference": -0.07386647949999992,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "optimized": 922.875,
+              "stock": 989.2090000000001,
+              "paired_ratio": 0.9667545107946225,
+              "paired_difference": -19.479499999999973,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "optimized": 3623.2709999999997,
+              "stock": 4083.6465,
+              "paired_ratio": 0.8424154852785394,
+              "paired_difference": -669.9585,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "optimized": 0.08080729166666667,
+              "stock": 0.07975520833333333,
+              "paired_ratio": 1.0330479612454255,
+              "paired_difference": 0.0033697916666666668,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "optimized": 0.00025,
+              "stock": 0.00014062500000000002,
+              "paired_ratio": 1.4945054945054945,
+              "paired_difference": 6.770833333333333e-05,
+              "optimized_higher": 3,
+              "optimized_lower": 1,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "optimized": 1257813.0,
+              "stock": 674562.5,
+              "paired_ratio": 2.006593091022575,
+              "paired_difference": 711875.5,
+              "optimized_higher": 3,
+              "optimized_lower": 1,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "optimized": 1231449626.0,
+              "stock": 1186534146.0,
+              "paired_ratio": null,
+              "paired_difference": 20726417.0,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "stock": 1,
+            "optimized": 2,
+            "split_or_tied": 1
+          },
+          "joint_win_positions": {
+            "stock": [
+              3
+            ],
+            "optimized": [
+              0,
+              2
+            ]
+          }
+        },
+        "orbstack": {
+          "metrics": {
+            "p95_us": {
+              "optimized": 3159.8215,
+              "stock": 3019.5,
+              "paired_ratio": 1.068060254469311,
+              "paired_difference": 207.32850000000008,
+              "optimized_higher": 3,
+              "optimized_lower": 1,
+              "pairs": 4
+            },
+            "build_makespan_s": {
+              "optimized": 2.8351639325,
+              "stock": 2.8710280025,
+              "paired_ratio": 0.9885218704579661,
+              "paired_difference": -0.03281804650000031,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "p99_us": {
+              "optimized": 6681.761,
+              "stock": 5918.8415,
+              "paired_ratio": 1.1503707582459304,
+              "paired_difference": 920.2439999999997,
+              "optimized_higher": 3,
+              "optimized_lower": 1,
+              "pairs": 4
+            },
+            "service_p95_us": {
+              "optimized": 237.79149999999998,
+              "stock": 257.5835,
+              "paired_ratio": 0.9929362671085498,
+              "paired_difference": -1.9585000000000008,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "service_p99_us": {
+              "optimized": 910.1255,
+              "stock": 946.8125,
+              "paired_ratio": 0.9834518267483767,
+              "paired_difference": -14.582499999999982,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "slowest_build_s": {
+              "optimized": 2.833119141,
+              "stock": 2.866700398,
+              "paired_ratio": 0.9902652130894368,
+              "paired_difference": -0.02799458549999989,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "dispatch_lateness_p95_us": {
+              "optimized": 2832.0640000000003,
+              "stock": 2719.8540000000003,
+              "paired_ratio": 1.0654079889807215,
+              "paired_difference": 179.336,
+              "optimized_higher": 3,
+              "optimized_lower": 1,
+              "pairs": 4
+            },
+            "dispatch_lateness_p99_us": {
+              "optimized": 6252.034,
+              "stock": 5497.089,
+              "paired_ratio": 1.1656336568745487,
+              "paired_difference": 939.0745000000002,
+              "optimized_higher": 3,
+              "optimized_lower": 1,
+              "pairs": 4
+            },
+            "starts_after_next_due_fraction": {
+              "optimized": 0.16772916666666665,
+              "stock": 0.17545833333333333,
+              "paired_ratio": 0.9590428993959941,
+              "paired_difference": -0.007171875000000008,
+              "optimized_higher": 1,
+              "optimized_lower": 3,
+              "pairs": 4
+            },
+            "completed_after_window_fraction": {
+              "optimized": 0.0004739583333333333,
+              "stock": 0.0005364583333333333,
+              "paired_ratio": 0.8172043010752688,
+              "paired_difference": -0.00017708333333333335,
+              "optimized_higher": 1,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "drain_after_window_ns": {
+              "optimized": 7553684.0,
+              "stock": 10023799.5,
+              "paired_ratio": 0.6486753023269879,
+              "paired_difference": -3647001.5,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            },
+            "first_build_end_margin_ns": {
+              "optimized": 1256347641.0,
+              "stock": 1267257000.5,
+              "paired_ratio": null,
+              "paired_difference": -2763409.0,
+              "optimized_higher": 2,
+              "optimized_lower": 2,
+              "pairs": 4
+            }
+          },
+          "joint_wins": {
+            "stock": 1,
+            "optimized": 1,
+            "split_or_tied": 2
+          },
+          "joint_win_positions": {
+            "stock": [
+              3
+            ],
+            "optimized": [
+              2
+            ]
+          }
+        }
+      },
+      "median_paired_native_to_peer_ratio_change": {
+        "p95_us": 0.6782598558067857,
+        "p99_us": 0.6705527810879515,
+        "service_p95_us": 0.9008713302673738,
+        "service_p99_us": 0.8474134082788396,
+        "dispatch_lateness_p95_us": 0.5624380232099485,
+        "dispatch_lateness_p99_us": 0.6398432741883864,
+        "build_makespan_s": 0.9818990205560838,
+        "slowest_build_s": 0.979074545385477
+      }
+    }
+  ],
+  "within_mode": {
+    "stock": {
+      "metrics": {
+        "p95_us": {
+          "micropod": 1610.459,
+          "orbstack": 3234.989,
+          "paired_ratio": 0.4835352415704699,
+          "paired_difference": -1610.1455,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "micropod": 2.908498522,
+          "orbstack": 2.8864720435000004,
+          "paired_ratio": 1.0016917538335997,
+          "paired_difference": 0.004895540499999962,
+          "micropod_higher": 4,
+          "micropod_lower": 4,
+          "pairs": 8
+        },
+        "p99_us": {
+          "micropod": 4874.1455000000005,
+          "orbstack": 6837.558,
+          "paired_ratio": 0.6623257259996684,
+          "paired_difference": -2311.204,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "micropod": 582.625,
+          "orbstack": 260.2085,
+          "paired_ratio": 2.0466051993631718,
+          "paired_difference": 278.8955,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "micropod": 1692.2495,
+          "orbstack": 980.583,
+          "paired_ratio": 1.7844816538896247,
+          "paired_difference": 725.1245000000001,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "micropod": 2.9080935845,
+          "orbstack": 2.8814798765000003,
+          "paired_ratio": 1.001534556913051,
+          "paired_difference": 0.004453123999999864,
+          "micropod_higher": 4,
+          "micropod_lower": 4,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "micropod": 1121.396,
+          "orbstack": 2925.2595,
+          "paired_ratio": 0.36206284171195646,
+          "paired_difference": -1791.7795,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "micropod": 4376.8345,
+          "orbstack": 6430.235500000001,
+          "paired_ratio": 0.6267484316841498,
+          "paired_difference": -2401.839,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "micropod": 0.0909375,
+          "orbstack": 0.17966145833333336,
+          "paired_ratio": 0.47717743228992143,
+          "paired_difference": -0.09384895833333334,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "micropod": 0.00018229166666666667,
+          "orbstack": 0.0008489583333333333,
+          "paired_ratio": 0.22393162393162394,
+          "paired_difference": -0.000703125,
+          "micropod_higher": 1,
+          "micropod_lower": 7,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "micropod": 1469313.0,
+          "orbstack": 10023799.5,
+          "paired_ratio": 0.12240080348049236,
+          "paired_difference": -8847247.5,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "micropod": 1191417000.5,
+          "orbstack": 1283336045.5,
+          "paired_ratio": null,
+          "paired_difference": -91479583.0,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "orbstack": 0,
+        "micropod": 4,
+        "split_or_tied": 4
+      },
+      "joint_win_positions": {
+        "orbstack": [],
+        "micropod": [
+          0,
+          1,
+          2,
+          7
+        ]
+      }
+    },
+    "optimized": {
+      "metrics": {
+        "p95_us": {
+          "micropod": 1220.4795,
+          "orbstack": 3216.4465,
+          "paired_ratio": 0.3313207615837861,
+          "paired_difference": -2179.675,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "micropod": 2.862479418,
+          "orbstack": 2.8780881364999997,
+          "paired_ratio": 0.9904486281008142,
+          "paired_difference": -0.027152571000000014,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "p99_us": {
+          "micropod": 3206.3965,
+          "orbstack": 6755.3865000000005,
+          "paired_ratio": 0.4473966657172394,
+          "paired_difference": -3803.407,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "micropod": 514.25,
+          "orbstack": 241.47899999999998,
+          "paired_ratio": 1.8496794566098935,
+          "paired_difference": 218.64549999999997,
+          "micropod_higher": 8,
+          "micropod_lower": 0,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "micropod": 1540.521,
+          "orbstack": 921.1044999999999,
+          "paired_ratio": 1.5448687347370083,
+          "paired_difference": 509.99950000000007,
+          "micropod_higher": 7,
+          "micropod_lower": 1,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "micropod": 2.8590395015,
+          "orbstack": 2.8652269895,
+          "paired_ratio": 0.9900409506856682,
+          "paired_difference": -0.028243237499999907,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "micropod": 730.2915,
+          "orbstack": 2882.3595,
+          "paired_ratio": 0.20857999726292525,
+          "paired_difference": -2324.4215000000004,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "micropod": 2707.0215,
+          "orbstack": 6315.6565,
+          "paired_ratio": 0.39926809875159835,
+          "paired_difference": -3860.9894999999997,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "micropod": 0.06792187499999999,
+          "orbstack": 0.17302604166666666,
+          "paired_ratio": 0.35244292176611536,
+          "paired_difference": -0.11352604166666666,
+          "micropod_higher": 0,
+          "micropod_lower": 8,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "micropod": 0.0002552083333333333,
+          "orbstack": 0.0004635416666666667,
+          "paired_ratio": 0.5526315789473684,
+          "paired_difference": -0.00020833333333333332,
+          "micropod_higher": 2,
+          "micropod_lower": 6,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "micropod": 1362938.0,
+          "orbstack": 3233592.5,
+          "paired_ratio": 0.5440299577157988,
+          "paired_difference": -1001433.5,
+          "micropod_higher": 3,
+          "micropod_lower": 5,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "micropod": 1236581626.0,
+          "orbstack": 1281369505.5,
+          "paired_ratio": null,
+          "paired_difference": -89590839.0,
+          "micropod_higher": 1,
+          "micropod_lower": 7,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "orbstack": 0,
+        "micropod": 6,
+        "split_or_tied": 2
+      },
+      "joint_win_positions": {
+        "orbstack": [],
+        "micropod": [
+          0,
+          1,
+          3,
+          4,
+          6,
+          7
+        ]
+      }
+    }
+  },
+  "within_engine": {
+    "micropod": {
+      "metrics": {
+        "p95_us": {
+          "optimized": 1220.4795,
+          "stock": 1610.459,
+          "paired_ratio": 0.7497254123568438,
+          "paired_difference": -372.3120000000001,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "optimized": 2.862479418,
+          "stock": 2.908498522,
+          "paired_ratio": 0.985444886564864,
+          "paired_difference": -0.04224036149999999,
+          "optimized_higher": 3,
+          "optimized_lower": 5,
+          "pairs": 8
+        },
+        "p99_us": {
+          "optimized": 3206.3965,
+          "stock": 4874.1455000000005,
+          "paired_ratio": 0.6838170929476566,
+          "paired_difference": -1394.7495000000004,
+          "optimized_higher": 1,
+          "optimized_lower": 7,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "optimized": 514.25,
+          "stock": 582.625,
+          "paired_ratio": 0.7634440681483899,
+          "paired_difference": -125.74949999999998,
+          "optimized_higher": 3,
+          "optimized_lower": 5,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "optimized": 1540.521,
+          "stock": 1692.2495,
+          "paired_ratio": 0.8748533652365085,
+          "paired_difference": -199.47900000000004,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "optimized": 2.8590395015,
+          "stock": 2.9080935845,
+          "paired_ratio": 0.988601114159953,
+          "paired_difference": -0.03299769499999994,
+          "optimized_higher": 3,
+          "optimized_lower": 5,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "optimized": 730.2915,
+          "stock": 1121.396,
+          "paired_ratio": 0.6280012534389368,
+          "paired_difference": -369.91650000000004,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "optimized": 2707.0215,
+          "stock": 4376.8345,
+          "paired_ratio": 0.6432639787542583,
+          "paired_difference": -1392.8555,
+          "optimized_higher": 1,
+          "optimized_lower": 7,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "optimized": 0.06792187499999999,
+          "stock": 0.0909375,
+          "paired_ratio": 0.7149109951243547,
+          "paired_difference": -0.023546875,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "optimized": 0.0002552083333333333,
+          "stock": 0.00018229166666666667,
+          "paired_ratio": 1.5634191176470589,
+          "paired_difference": 9.895833333333333e-05,
+          "optimized_higher": 7,
+          "optimized_lower": 1,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "optimized": 1362938.0,
+          "stock": 1469313.0,
+          "paired_ratio": 1.0742472685572924,
+          "paired_difference": 252833.5,
+          "optimized_higher": 4,
+          "optimized_lower": 4,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "optimized": 1236581626.0,
+          "stock": 1191417000.5,
+          "paired_ratio": null,
+          "paired_difference": 33692160.5,
+          "optimized_higher": 5,
+          "optimized_lower": 3,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "stock": 1,
+        "optimized": 4,
+        "split_or_tied": 3
+      },
+      "joint_win_positions": {
+        "stock": [
+          7
+        ],
+        "optimized": [
+          0,
+          1,
+          4,
+          6
+        ]
+      }
+    },
+    "orbstack": {
+      "metrics": {
+        "p95_us": {
+          "optimized": 3216.4465,
+          "stock": 3234.989,
+          "paired_ratio": 1.0072715999690003,
+          "paired_difference": 18.63000000000011,
+          "optimized_higher": 4,
+          "optimized_lower": 4,
+          "pairs": 8
+        },
+        "build_makespan_s": {
+          "optimized": 2.8780881364999997,
+          "stock": 2.8864720435000004,
+          "paired_ratio": 0.9854184767879915,
+          "paired_difference": -0.04227388050000025,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "p99_us": {
+          "optimized": 6755.3865000000005,
+          "stock": 6837.558,
+          "paired_ratio": 1.02004174054811,
+          "paired_difference": 100.0635000000002,
+          "optimized_higher": 4,
+          "optimized_lower": 4,
+          "pairs": 8
+        },
+        "service_p95_us": {
+          "optimized": 241.47899999999998,
+          "stock": 260.2085,
+          "paired_ratio": 0.9109173473803635,
+          "paired_difference": -23.729499999999987,
+          "optimized_higher": 3,
+          "optimized_lower": 5,
+          "pairs": 8
+        },
+        "service_p99_us": {
+          "optimized": 921.1044999999999,
+          "stock": 980.583,
+          "paired_ratio": 0.9464878680088441,
+          "paired_difference": -45.81249999999994,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "slowest_build_s": {
+          "optimized": 2.8652269895,
+          "stock": 2.8814798765000003,
+          "paired_ratio": 0.9834983697089882,
+          "paired_difference": -0.04806792050000008,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "dispatch_lateness_p95_us": {
+          "optimized": 2882.3595,
+          "stock": 2925.2595,
+          "paired_ratio": 1.0061916008122,
+          "paired_difference": 13.915499999999838,
+          "optimized_higher": 4,
+          "optimized_lower": 4,
+          "pairs": 8
+        },
+        "dispatch_lateness_p99_us": {
+          "optimized": 6315.6565,
+          "stock": 6430.235500000001,
+          "paired_ratio": 1.0244996406148954,
+          "paired_difference": 111.82850000000008,
+          "optimized_higher": 4,
+          "optimized_lower": 4,
+          "pairs": 8
+        },
+        "starts_after_next_due_fraction": {
+          "optimized": 0.17302604166666666,
+          "stock": 0.17966145833333336,
+          "paired_ratio": 0.9390591966574183,
+          "paired_difference": -0.010604166666666678,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "completed_after_window_fraction": {
+          "optimized": 0.0004635416666666667,
+          "stock": 0.0008489583333333333,
+          "paired_ratio": 0.6140793010752688,
+          "paired_difference": -0.00038020833333333336,
+          "optimized_higher": 1,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "drain_after_window_ns": {
+          "optimized": 3233592.5,
+          "stock": 10023799.5,
+          "paired_ratio": 0.27100089877624667,
+          "paired_difference": -7407282.0,
+          "optimized_higher": 2,
+          "optimized_lower": 6,
+          "pairs": 8
+        },
+        "first_build_end_margin_ns": {
+          "optimized": 1281369505.5,
+          "stock": 1283336045.5,
+          "paired_ratio": null,
+          "paired_difference": -12297326.0,
+          "optimized_higher": 3,
+          "optimized_lower": 5,
+          "pairs": 8
+        }
+      },
+      "joint_wins": {
+        "stock": 2,
+        "optimized": 4,
+        "split_or_tied": 2
+      },
+      "joint_win_positions": {
+        "stock": [
+          3,
+          7
+        ],
+        "optimized": [
+          0,
+          1,
+          2,
+          6
+        ]
+      }
+    }
+  },
+  "median_paired_native_to_peer_ratio_change": {
+    "p95_us": 0.729972696034557,
+    "p99_us": 0.8296692906124157,
+    "service_p95_us": 0.944846038551567,
+    "service_p99_us": 0.8723482992546399,
+    "dispatch_lateness_p95_us": 0.5818369435777091,
+    "dispatch_lateness_p99_us": 0.7991850316510891,
+    "build_makespan_s": 0.984889609550665,
+    "slowest_build_s": 0.9843576189982555
+  }
+}

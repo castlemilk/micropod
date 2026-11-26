@@ -348,12 +348,14 @@ final class APIHandlers: Sendable {
                     return .json(503, ["error": error.localizedDescription])
                 }
 
-            case ("ci", .post) where segments == ["v1", "ci", "tracing", "enable"] || segments == ["v1", "ci", "tracing", "disable"]:
+            case ("ci", .post)
+            where segments == ["v1", "ci", "tracing", "enable"] || segments == ["v1", "ci", "tracing", "disable"]:
                 var env = ProcessInfo.processInfo.environment
                 env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
                 let enable = segments.last == "enable"
                 do {
-                    return .data(200, "application/json", try CIWorker(environment: env).setLiveTracing(enabled: enable))
+                    return .data(
+                        200, "application/json", try CIWorker(environment: env).setLiveTracing(enabled: enable))
                 } catch {
                     return .json(503, ["error": error.localizedDescription])
                 }

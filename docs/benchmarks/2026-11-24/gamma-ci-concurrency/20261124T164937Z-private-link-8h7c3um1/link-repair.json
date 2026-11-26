@@ -1,0 +1,23 @@
+{
+  "original": 9000,
+  "disturbed": 1500,
+  "end": 9000,
+  "worker_receipt": {
+    "gateway": "192.168.128.1",
+    "timestamp": 817231800.055597,
+    "seconds": 0.061866833,
+    "instance": "DEEA99A4-A499-4626-939B-9CA1AC402494",
+    "cause": "guest-link-restored"
+  },
+  "existing_mtu_before": 9000,
+  "existing_mtu_after": 9000,
+  "publication_queue_before": [
+    "3",
+    "7"
+  ],
+  "publication_queue_after": [
+    "3",
+    "7"
+  ],
+  "seconds": 15.266921707996516
+}

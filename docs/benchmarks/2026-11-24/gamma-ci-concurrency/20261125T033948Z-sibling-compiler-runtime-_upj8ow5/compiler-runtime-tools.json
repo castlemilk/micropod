@@ -1,0 +1,470 @@
+{
+  "A": [
+    {
+      "slot": 0,
+      "container": {
+        "id": "1630609bfd827ca93a77ec7392ff94e6ec4c8f590196ef7e5697443d9ced14b4",
+        "name": "/mp-t-i8j520h6-a-grouped-c0",
+        "started_at": "2026-11-25T03:40:01.634459838Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-00",
+        "network_id": "4de7416a863246795b78fcda8974ce73c1ff741296dd43909c8878af8f11aaf5",
+        "ip": "10.231.192.3"
+      },
+      "launcher": [
+        "exec",
+        "1630609bfd827ca93a77ec7392ff94e6ec4c8f590196ef7e5697443d9ced14b4",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "0",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:7546\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.3\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 1777 0 /usr/bin/dash 0::/ net:[4026534609] cgroup:[4026534809]\nthreads dispatcher [{\"tid\":1777,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 1805 1777 /usr/local/go/bin/go 0::/ net:[4026534609] cgroup:[4026534809]\nthreads go [{\"tid\":1805,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1806,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1808,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1809,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1815,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1817,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1818,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 1814 1805 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026534609] cgroup:[4026534809]\nthreads compile [{\"tid\":1814,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1819,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1820,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 1,
+      "container": {
+        "id": "3768188065b9c93c8989b987c7f916b762eb4d75d0c6e51a7679990fb209ee8c",
+        "name": "/mp-t-i8j520h6-a-grouped-c1",
+        "started_at": "2026-11-25T03:40:01.673970921Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-01",
+        "network_id": "a98ae13ef48fa95b9250dd0cc15e3b32e8c2997cc11bc33c673090f7a0392b42",
+        "ip": "10.231.192.19"
+      },
+      "launcher": [
+        "exec",
+        "3768188065b9c93c8989b987c7f916b762eb4d75d0c6e51a7679990fb209ee8c",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "1",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:7698\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.19\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 101 0 /usr/bin/dash 0::/ net:[4026534675] cgroup:[4026535251]\nthreads dispatcher [{\"tid\":101,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 129 101 /usr/local/go/bin/go 0::/ net:[4026534675] cgroup:[4026535251]\nthreads go [{\"tid\":129,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":131,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":132,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":139,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":140,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":141,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":144,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 138 129 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026534675] cgroup:[4026535251]\nthreads compile [{\"tid\":138,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":142,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":143,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 2,
+      "container": {
+        "id": "43a04d2454a6b9eda86abad31b1254da56b17c6475972ca719d31525dca04cb6",
+        "name": "/mp-t-i8j520h6-a-grouped-c2",
+        "started_at": "2026-11-25T03:40:01.666845171Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-02",
+        "network_id": "68ba61aebf7055b450d1af25928b45f36ef99a9a3f1d562cfcb67953d53f6bff",
+        "ip": "10.231.192.35"
+      },
+      "launcher": [
+        "exec",
+        "43a04d2454a6b9eda86abad31b1254da56b17c6475972ca719d31525dca04cb6",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "2",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:7622\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.35\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 105 0 /usr/bin/dash 0::/ net:[4026534741] cgroup:[4026535246]\nthreads dispatcher [{\"tid\":105,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 133 105 /usr/local/go/bin/go 0::/ net:[4026534741] cgroup:[4026535246]\nthreads go [{\"tid\":133,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":135,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":136,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":141,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":147,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":148,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":149,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 140 133 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026534741] cgroup:[4026535246]\nthreads compile [{\"tid\":140,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":143,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":144,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":146,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 3,
+      "container": {
+        "id": "9430cfadb3c3c661ba9369dcfced93210dd6749c0d28bb754fce361cce0add37",
+        "name": "/mp-t-i8j520h6-a-grouped-c3",
+        "started_at": "2026-11-25T03:40:01.67382388Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-03",
+        "network_id": "60afb62f8650e8c6f6bbcdd1d7b4b987c6b41a98fcbe0cc8061468a37add2af3",
+        "ip": "10.231.192.51"
+      },
+      "launcher": [
+        "exec",
+        "9430cfadb3c3c661ba9369dcfced93210dd6749c0d28bb754fce361cce0add37",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "3",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:7774\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.51\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 104 0 /usr/bin/dash 0::/ net:[4026534811] cgroup:[4026535248]\nthreads dispatcher [{\"tid\":104,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 131 104 /usr/local/go/bin/go 0::/ net:[4026534811] cgroup:[4026535248]\nthreads go [{\"tid\":131,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":133,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":134,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":136,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":144,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":146,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":147,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 141 131 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026534811] cgroup:[4026535248]\nthreads compile [{\"tid\":141,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":142,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":143,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":145,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 4,
+      "container": {
+        "id": "0c8544bc37838742fc550ab09e8350e08c3b34c90b4b643fc2106e9dc391d590",
+        "name": "/mp-t-i8j520h6-a-grouped-c4",
+        "started_at": "2026-11-25T03:40:01.675213713Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-04",
+        "network_id": "cd9be3ff2f96d40f8b0c12f5ed0c14c7f37e52d61fc46c163f1414f145882de9",
+        "ip": "10.231.192.67"
+      },
+      "launcher": [
+        "exec",
+        "0c8544bc37838742fc550ab09e8350e08c3b34c90b4b643fc2106e9dc391d590",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "0",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:7850\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.67\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 102 0 /usr/bin/dash 0::/ net:[4026534945] cgroup:[4026535249]\nthreads dispatcher [{\"tid\":102,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 131 102 /usr/local/go/bin/go 0::/ net:[4026534945] cgroup:[4026535249]\nthreads go [{\"tid\":131,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":133,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":134,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":140,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":142,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":146,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":147,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 139 131 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026534945] cgroup:[4026535249]\nthreads compile [{\"tid\":139,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":143,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":144,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":145,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 5,
+      "container": {
+        "id": "91fdb4a968500abf9c074c8d5c5e18389b9f62baca63a8d8f90608e32d89c0db",
+        "name": "/mp-t-i8j520h6-a-grouped-c5",
+        "started_at": "2026-11-25T03:40:01.675650171Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-05",
+        "network_id": "65135df8ebc561b398fa9a53170230bfbfa719882329208b3dcd4de11d1566a6",
+        "ip": "10.231.192.83"
+      },
+      "launcher": [
+        "exec",
+        "91fdb4a968500abf9c074c8d5c5e18389b9f62baca63a8d8f90608e32d89c0db",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "1",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:7926\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.83\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 103 0 /usr/bin/dash 0::/ net:[4026534879] cgroup:[4026535245]\nthreads dispatcher [{\"tid\":103,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 131 103 /usr/local/go/bin/go 0::/ net:[4026534879] cgroup:[4026535245]\nthreads go [{\"tid\":131,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":133,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":134,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":140,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":144,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":145,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":146,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 139 131 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026534879] cgroup:[4026535245]\nthreads compile [{\"tid\":139,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":142,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":143,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 6,
+      "container": {
+        "id": "8384c90e7f3a37be6220056a0a4ac55d0297d693443ab4b2002b4c9cea78e177",
+        "name": "/mp-t-i8j520h6-a-grouped-c6",
+        "started_at": "2026-11-25T03:40:01.673997213Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-06",
+        "network_id": "b4c586cda2fa208d29588f25a4ad5a4fdb51100a3c0f45ccd5a968d2b2e70ac8",
+        "ip": "10.231.192.99"
+      },
+      "launcher": [
+        "exec",
+        "8384c90e7f3a37be6220056a0a4ac55d0297d693443ab4b2002b4c9cea78e177",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "2",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:8002\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.99\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 106 0 /usr/bin/dash 0::/ net:[4026535077] cgroup:[4026535250]\nthreads dispatcher [{\"tid\":106,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 135 106 /usr/local/go/bin/go 0::/ net:[4026535077] cgroup:[4026535250]\nthreads go [{\"tid\":135,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":140,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":141,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":143,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":146,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":149,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":150,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 145 135 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026535077] cgroup:[4026535250]\nthreads compile [{\"tid\":145,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":147,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":148,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 7,
+      "container": {
+        "id": "f10149789f35d6d65bdb75f468995398004ce630cbb2adf6e9b074dd52b6de01",
+        "name": "/mp-t-i8j520h6-a-grouped-c7",
+        "started_at": "2026-11-25T03:40:01.68869438Z",
+        "network": "mp-t-i8j520h6-a-grouped-job-07",
+        "network_id": "57238d8dc2b1985e460f4061cc61a41f5fa51c58a933059c7c7c9a2f5fc43b64",
+        "ip": "10.231.192.115"
+      },
+      "launcher": [
+        "exec",
+        "f10149789f35d6d65bdb75f468995398004ce630cbb2adf6e9b074dd52b6de01",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "3",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        2100,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 00b1f9c4-5281-499c-8b9d-730a3a8c8174\nlimits 0-3 100000 100000\ncgroup_inode 28:8078\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.115\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 102 0 /usr/bin/dash 0::/ net:[4026535011] cgroup:[4026535259]\nthreads dispatcher [{\"tid\":102,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 131 102 /usr/local/go/bin/go 0::/ net:[4026535011] cgroup:[4026535259]\nthreads go [{\"tid\":131,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":137,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":138,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":141,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":145,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":146,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":147,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 140 131 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026535011] cgroup:[4026535259]\nthreads compile [{\"tid\":140,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":142,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":143,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":144,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    }
+  ],
+  "B": [
+    {
+      "slot": 0,
+      "container": {
+        "id": "78d1c4c271897d6c9ded74a2981ed07099017df13391e2eb281e9beacd94708d",
+        "name": "/mp-t-i8j520h6-b-grouped-c0",
+        "started_at": "2026-11-25T03:40:04.986643159Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-00",
+        "network_id": "46e3e3e17a4f1ae0bce81687bfc50863cb7fd3724a690db3716b8445ab8479c4",
+        "ip": "10.231.192.2"
+      },
+      "launcher": [
+        "exec",
+        "78d1c4c271897d6c9ded74a2981ed07099017df13391e2eb281e9beacd94708d",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "0",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703467\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.2\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 1503 0 /usr/bin/dash 0::/ net:[4026535889] cgroup:[4026535888]\nthreads dispatcher [{\"tid\":1503,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 1534 1503 /usr/local/go/bin/go 0::/ net:[4026535889] cgroup:[4026535888]\nthreads go [{\"tid\":1534,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1536,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1537,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1543,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1544,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1545,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 1542 1534 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026535889] cgroup:[4026535888]\nthreads compile [{\"tid\":1542,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1546,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":1547,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 1,
+      "container": {
+        "id": "7dd5637103274b2b2d5ad3e0e7d8b2444d2203ce4d55a781f48ed75be37feada",
+        "name": "/mp-t-i8j520h6-b-grouped-c1",
+        "started_at": "2026-11-25T03:40:05.05711813Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-01",
+        "network_id": "70439bc3ed3e4ab758512525ea479ea263398bcf000e404d40bc885ab9d92047",
+        "ip": "10.231.192.18"
+      },
+      "launcher": [
+        "exec",
+        "7dd5637103274b2b2d5ad3e0e7d8b2444d2203ce4d55a781f48ed75be37feada",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "1",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703517\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.18\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 123 0 /usr/bin/dash 0::/ net:[4026535994] cgroup:[4026535993]\nthreads dispatcher [{\"tid\":123,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 154 123 /usr/local/go/bin/go 0::/ net:[4026535994] cgroup:[4026535993]\nthreads go [{\"tid\":154,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":157,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":158,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":164,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":165,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":166,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":167,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 162 154 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026535994] cgroup:[4026535993]\nthreads compile [{\"tid\":162,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":168,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":169,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 2,
+      "container": {
+        "id": "26ae2d36ad3b0dbb016c5ee480e1ea783c7f2502a5b160874ac3879ad31887f7",
+        "name": "/mp-t-i8j520h6-b-grouped-c2",
+        "started_at": "2026-11-25T03:40:05.088927711Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-02",
+        "network_id": "9dffc8cfd5f233f3642b75d87f154618715c3ac0459d528e38a29eb2e94e213d",
+        "ip": "10.231.192.34"
+      },
+      "launcher": [
+        "exec",
+        "26ae2d36ad3b0dbb016c5ee480e1ea783c7f2502a5b160874ac3879ad31887f7",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "2",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703567\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.34\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 124 0 /usr/bin/dash 0::/ net:[4026536099] cgroup:[4026536098]\nthreads dispatcher [{\"tid\":124,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 155 124 /usr/local/go/bin/go 0::/ net:[4026536099] cgroup:[4026536098]\nthreads go [{\"tid\":155,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":157,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":158,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":164,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":166,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":169,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 163 155 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026536099] cgroup:[4026536098]\nthreads compile [{\"tid\":163,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":167,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":168,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 3,
+      "container": {
+        "id": "97941b96e44efd52a89a2b572384a4715096f3322dec288c67ec1244b451cc47",
+        "name": "/mp-t-i8j520h6-b-grouped-c3",
+        "started_at": "2026-11-25T03:40:05.090566173Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-03",
+        "network_id": "66568fe6d3c53bafdd65762d63ccc77a107e43982af60e941a958d60da173353",
+        "ip": "10.231.192.50"
+      },
+      "launcher": [
+        "exec",
+        "97941b96e44efd52a89a2b572384a4715096f3322dec288c67ec1244b451cc47",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "3",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703617\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.50\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 127 0 /usr/bin/dash 0::/ net:[4026536203] cgroup:[4026536202]\nthreads dispatcher [{\"tid\":127,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 158 127 /usr/local/go/bin/go 0::/ net:[4026536203] cgroup:[4026536202]\nthreads go [{\"tid\":158,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":160,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":161,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":166,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":171,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":172,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":173,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 165 158 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026536203] cgroup:[4026536202]\nthreads compile [{\"tid\":165,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":167,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":168,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 4,
+      "container": {
+        "id": "03ef8ca3f27c10fe80492a5edd3cbcafb182ef5fc0345b74b2bc2e0a5326420d",
+        "name": "/mp-t-i8j520h6-b-grouped-c4",
+        "started_at": "2026-11-25T03:40:05.201672706Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-04",
+        "network_id": "47b129a6193996eb18f8c843dc5eaa4858799fb3dd125bdd356ba879d4b96a99",
+        "ip": "10.231.192.66"
+      },
+      "launcher": [
+        "exec",
+        "03ef8ca3f27c10fe80492a5edd3cbcafb182ef5fc0345b74b2bc2e0a5326420d",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "0",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703717\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.66\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 123 0 /usr/bin/dash 0::/ net:[4026536413] cgroup:[4026536412]\nthreads dispatcher [{\"tid\":123,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 154 123 /usr/local/go/bin/go 0::/ net:[4026536413] cgroup:[4026536412]\nthreads go [{\"tid\":154,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":156,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":157,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":166,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":167,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":168,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":169,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 162 154 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026536413] cgroup:[4026536412]\nthreads compile [{\"tid\":162,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":164,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":165,\"cpus_allowed_list\":\"0\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 5,
+      "container": {
+        "id": "4f5b2c9325f85e73633310474c0e5de152ad592e341bb93449a37b16290b2f21",
+        "name": "/mp-t-i8j520h6-b-grouped-c5",
+        "started_at": "2026-11-25T03:40:05.199666367Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-05",
+        "network_id": "76b9794233a158f1a04864263f2e9c1bcb72f89a4a89cf9260aedfa3fcfde29d",
+        "ip": "10.231.192.82"
+      },
+      "launcher": [
+        "exec",
+        "4f5b2c9325f85e73633310474c0e5de152ad592e341bb93449a37b16290b2f21",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "1",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703667\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.82\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 124 0 /usr/bin/dash 0::/ net:[4026536309] cgroup:[4026536308]\nthreads dispatcher [{\"tid\":124,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 155 124 /usr/local/go/bin/go 0::/ net:[4026536309] cgroup:[4026536308]\nthreads go [{\"tid\":155,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":157,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":158,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":165,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":168,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":169,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 163 155 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026536309] cgroup:[4026536308]\nthreads compile [{\"tid\":163,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":166,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":167,\"cpus_allowed_list\":\"1\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 6,
+      "container": {
+        "id": "8fedc18827b0211935853394c01a530cef932205b8633704c1945ee981e8a25f",
+        "name": "/mp-t-i8j520h6-b-grouped-c6",
+        "started_at": "2026-11-25T03:40:05.258002099Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-06",
+        "network_id": "2ac147151a7943e2b80cefac73d8634d6f59fde6689e6b300ff96c896204f9e4",
+        "ip": "10.231.192.98"
+      },
+      "launcher": [
+        "exec",
+        "8fedc18827b0211935853394c01a530cef932205b8633704c1945ee981e8a25f",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "2",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703817\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.98\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 123 0 /usr/bin/dash 0::/ net:[4026536622] cgroup:[4026536621]\nthreads dispatcher [{\"tid\":123,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 154 123 /usr/local/go/bin/go 0::/ net:[4026536622] cgroup:[4026536621]\nthreads go [{\"tid\":154,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":156,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":157,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":163,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":165,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":166,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 162 154 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026536622] cgroup:[4026536621]\nthreads compile [{\"tid\":162,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":167,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":168,\"cpus_allowed_list\":\"2\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    },
+    {
+      "slot": 7,
+      "container": {
+        "id": "60cd4b28810f0b3d87248241cd62e8b958071a983da9e5a096fb390d93ef2b37",
+        "name": "/mp-t-i8j520h6-b-grouped-c7",
+        "started_at": "2026-11-25T03:40:05.231695324Z",
+        "network": "mp-t-i8j520h6-b-grouped-job-07",
+        "network_id": "2ee392affb0756af62d564cae6da87f82902c2b8a136c780db6555c56ef0520b",
+        "ip": "10.231.192.114"
+      },
+      "launcher": [
+        "exec",
+        "60cd4b28810f0b3d87248241cd62e8b958071a983da9e5a096fb390d93ef2b37",
+        "nice",
+        "-n",
+        0,
+        "taskset",
+        "-c",
+        "3",
+        "/mpcheck/compiler-runtime",
+        "-policy",
+        "normal",
+        "-build-slice-us",
+        0,
+        "/bin/sh",
+        "-ec"
+      ],
+      "raw": "boot 3a9eb266-88f6-448f-8350-ce42b06c23fc\nlimits 0-3 100000 100000\ncgroup_inode 32:1703767\nlink {\"kind\":\"ipvlan\",\"mode\":\"l2\",\"mtu\":1500,\"ipv4\":[\"10.231.192.114\"],\"default_route\":false}\nfile taskset /usr/bin/taskset 73fd987f9cdb44d56025aec83b53f9c5f4e9a1dbc9f06679a9f2b59ea75c63a5\nfile compiler-runtime /mpcheck/compiler-runtime d6831d27afcb8d60c605fc2b03912a06d6219926db2b0a9254365cce4d09a5a8\nfile dispatcher /usr/bin/dash 15fc4c72f49c86639a383121eec6fbdbcd32ec9d03db915cb3096928295e1a17\nfile go /usr/local/go/bin/go 2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb\nfile compile /usr/local/go/pkg/tool/linux_arm64/compile fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68\nprocess dispatcher 124 0 /usr/bin/dash 0::/ net:[4026536519] cgroup:[4026536518]\nthreads dispatcher [{\"tid\":124,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess go 155 124 /usr/local/go/bin/go 0::/ net:[4026536519] cgroup:[4026536518]\nthreads go [{\"tid\":155,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":157,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":158,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":164,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":166,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":167,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nprocess compile 162 155 /usr/local/go/pkg/tool/linux_arm64/compile 0::/ net:[4026536519] cgroup:[4026536518]\nthreads compile [{\"tid\":162,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":168,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000},{\"tid\":169,\"cpus_allowed_list\":\"3\",\"policy\":0,\"nice\":0,\"priority\":0,\"slice_ns\":2100000}]\nobject 1866 85e22b37fd7f1988d305c55c94aa3494d194fa0403a1d8ef6fe26c6fc26e8535"
+    }
+  ]
+}

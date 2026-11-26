@@ -1,0 +1,11 @@
+{
+  "job": "gui/501/dev.micropod.benchmark.mp-t-d94sllp8.b",
+  "prior_service": "absent",
+  "bootstrap_exit": 5,
+  "bootstrap_stderr": "Bootstrap failed: 5: Input/output error\nTry re-running the command as root for richer errors.",
+  "kern.hv_support": {
+    "exit": 1,
+    "stdout": "",
+    "stderr": "sysctl: sysctl fmt -1 1024 1: Operation not permitted"
+  }
+}

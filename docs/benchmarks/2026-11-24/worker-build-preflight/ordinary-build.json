@@ -1,0 +1,38 @@
+{
+  "revision": "5b8ea1a6a79d1741e521c080f968fcf04c591e68",
+  "build": {
+    "binary": "494d1ed3d2442ae3178f05949d91403d67a4238d040429004d2f8a41dd458c9b",
+    "flags": [
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fblocks",
+      "-DRELAYBENCH_NATIVE_WORKERS",
+      "-DMICROPOD_BENCH_FIXED_RELAY_BUDGET=0"
+    ],
+    "c": "c877f1efe9b46a9e80385bf6f8b1a00add0b1671cf8d0d8d8ec02d2d0842990f",
+    "header": "039b653ac1ae9472a1ce71251b82e485b06d198b8745437326f7933942f545db"
+  },
+  "checks": {
+    "2": {
+      "workers": 2,
+      "drain_workers": 2,
+      "callback_events": 128,
+      "read_bytes": 262144,
+      "live_revocation": true,
+      "sibling_and_reuse": true,
+      "timed_rounds": 0
+    },
+    "4": {
+      "workers": 4,
+      "drain_workers": 4,
+      "callback_events": 24,
+      "read_bytes": 262144,
+      "live_revocation": true,
+      "sibling_and_reuse": true,
+      "timed_rounds": 0,
+      "rejection_reason": "worker comparison changed callback_events"
+    }
+  }
+}

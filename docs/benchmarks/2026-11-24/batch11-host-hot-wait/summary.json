@@ -1,0 +1,216 @@
+{
+  "receipt_sha256": "60fa56a8036b9ffe8a1d72f5c53e470721baa3764a1853281438caa544ea50d2",
+  "scope": "observed-load diagnostic, ineligible for stock or peer verdict",
+  "attempts": 12,
+  "joint_clean_pairs": 6,
+  "arm": {
+    "0": {
+      "delivery_clean": 6,
+      "latency_guard_count": 5,
+      "fresh_arrivals": 1440,
+      "client_errors": 0,
+      "reopens": 0,
+      "body_bytes": 168668373096,
+      "lo0_delta": {
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 3282
+      },
+      "idle_fraction": [
+        0.5650349650349651,
+        0.6111888111888112,
+        0.4004224502112251,
+        0.6360553828765187,
+        0.2566694748666105,
+        0.559573871600785
+      ],
+      "min_free_GiB": 288.71915435791016,
+      "greater_eq_90pct_idle": 0
+    },
+    "50000": {
+      "delivery_clean": 6,
+      "latency_guard_count": 6,
+      "fresh_arrivals": 1440,
+      "client_errors": 0,
+      "reopens": 0,
+      "body_bytes": 175412391776,
+      "lo0_delta": {
+        "in_errors": 0,
+        "out_errors": 0,
+        "in_queue_drops": 3299
+      },
+      "idle_fraction": [
+        0.7200335289186923,
+        0.43335208098987626,
+        0.3168678080269436,
+        0.19064848316170332,
+        0.5900812552535725,
+        0.04584606835232009
+      ],
+      "min_free_GiB": 288.21532440185547,
+      "greater_eq_90pct_idle": 0
+    }
+  },
+  "effects": {
+    "mib_s": {
+      "control": 4492.554785852266,
+      "candidate": 4712.0542793638415,
+      "paired_pct": 2.187531600694115,
+      "ci95_pct": [
+        -3.4301009881449405,
+        15.422095236842392
+      ],
+      "greater": 4
+    },
+    "fresh_p95_us": {
+      "control": 55046.5,
+      "candidate": 55618.5,
+      "paired_pct": 1.0436554113679275,
+      "ci95_pct": [
+        -14.047341737976136,
+        25.628402196992774
+      ],
+      "greater": 4
+    },
+    "fresh_p99_us": {
+      "control": 60090.5,
+      "candidate": 57730.5,
+      "paired_pct": -4.411781723958991,
+      "ci95_pct": [
+        -9.633257122229477,
+        9.312980210003108
+      ],
+      "greater": 1
+    },
+    "dispatch_p95_us": {
+      "control": 658.0,
+      "candidate": 360.5,
+      "paired_pct": -35.40427654536658,
+      "ci95_pct": [
+        -57.79451697127936,
+        -4.586836102965137
+      ],
+      "greater": 0
+    },
+    "relay_cpu_s_per_scored_GiB": {
+      "control": 0.20898451247725697,
+      "candidate": 0.19457976572508207,
+      "paired_pct": -2.465103116280648,
+      "ci95_pct": [
+        -10.572120076591691,
+        4.382568917016771
+      ],
+      "greater": 3
+    },
+    "relay_runnable_thread_s_per_wall_s": {
+      "control": 0.9592836303853797,
+      "candidate": 0.9254923975490834,
+      "paired_pct": -1.7088789886713474,
+      "ci95_pct": [
+        -5.588198054885757,
+        -0.21688934442902208
+      ],
+      "greater": 1
+    },
+    "relay_runnable_s": {
+      "control": 5.993350062499999,
+      "candidate": 5.783950729166666,
+      "paired_pct": -2.909318650816223,
+      "ci95_pct": [
+        -5.387926715913222,
+        0.2805194412849654
+      ],
+      "greater": 1
+    },
+    "relay_runnable_minus_cpu_s": {
+      "control": 0.534683208333333,
+      "candidate": 0.2632376875000002,
+      "paired_pct": -40.89506071187893,
+      "ci95_pct": [
+        -56.054254426206015,
+        -4.347683218539256
+      ],
+      "greater": 1
+    },
+    "server_cpu_s_per_scored_GiB": {
+      "control": 0.34261507634377564,
+      "candidate": 0.2966432430763766,
+      "paired_pct": -9.219391502456775,
+      "ci95_pct": [
+        -23.675120068879558,
+        5.067752105429635
+      ],
+      "greater": 2
+    },
+    "server_runnable_thread_s_per_wall_s": {
+      "control": 2.2566322899138482,
+      "candidate": 1.7622834359333328,
+      "paired_pct": -15.121309453490579,
+      "ci95_pct": [
+        -36.33179599981557,
+        0.8435331633695252
+      ],
+      "greater": 2
+    },
+    "server_runnable_s": {
+      "control": 14.194714458333332,
+      "candidate": 10.992708520833332,
+      "paired_pct": -16.28301696420769,
+      "ci95_pct": [
+        -35.75687125352715,
+        0.6560495594790107
+      ],
+      "greater": 2
+    },
+    "server_runnable_minus_cpu_s": {
+      "control": 6.013131916666666,
+      "candidate": 2.959588895833333,
+      "paired_pct": -38.690540539800494,
+      "ci95_pct": [
+        -61.13740696871006,
+        -0.36043953646461846
+      ],
+      "greater": 1
+    },
+    "client_cpu_s_per_scored_GiB": {
+      "control": 0.17960235685154693,
+      "candidate": 0.1758391304293152,
+      "paired_pct": -0.2763411203854982,
+      "ci95_pct": [
+        -6.910195747028347,
+        10.687282509256992
+      ],
+      "greater": 3
+    },
+    "client_runnable_thread_s_per_wall_s": {
+      "control": 1.7119478832616393,
+      "candidate": 1.3935818420274937,
+      "paired_pct": -15.367513253579538,
+      "ci95_pct": [
+        -23.418053542305355,
+        0.24665523175005366
+      ],
+      "greater": 1
+    },
+    "client_runnable_s": {
+      "control": 10.754906124999998,
+      "candidate": 8.690423645833333,
+      "paired_pct": -15.635807374318206,
+      "ci95_pct": [
+        -22.72239096055521,
+        -0.8158865493781088
+      ],
+      "greater": 1
+    },
+    "client_runnable_minus_cpu_s": {
+      "control": 6.027664854166666,
+      "candidate": 3.6396134374999995,
+      "paired_pct": -32.82896527977712,
+      "ci95_pct": [
+        -46.52158554670748,
+        -1.3435876381279521
+      ],
+      "greater": 1
+    }
+  }
+}

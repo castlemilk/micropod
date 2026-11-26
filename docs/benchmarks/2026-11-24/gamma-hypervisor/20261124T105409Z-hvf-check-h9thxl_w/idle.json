@@ -1,0 +1,271 @@
+{
+  "idle_observations": [
+    {
+      "elapsed_seconds": 1.0069791249989066,
+      "idle_pct": 76.26,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 3.0464114999995218,
+      "idle_pct": 77.53,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 5.079775666999922,
+      "idle_pct": 76.75,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 7.118767250000019,
+      "idle_pct": 77.48,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 9.15153037500022,
+      "idle_pct": 76.66,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 11.183163166999293,
+      "idle_pct": 72.88,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 13.21796812499997,
+      "idle_pct": 79.76,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 15.252401042000201,
+      "idle_pct": 81.38,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 17.286076917000173,
+      "idle_pct": 73.69,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 19.313109457998507,
+      "idle_pct": 77.66,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 21.34208983299868,
+      "idle_pct": 79.27,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 23.372582207999585,
+      "idle_pct": 77.23,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 25.404971624999234,
+      "idle_pct": 78.7,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 27.434676791999664,
+      "idle_pct": 74.23,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 29.462500499999805,
+      "idle_pct": 82.8,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 31.490775832999134,
+      "idle_pct": 73.88,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 33.525238917000024,
+      "idle_pct": 82.38,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 35.5591244999996,
+      "idle_pct": 81.08,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 37.59823049999977,
+      "idle_pct": 79.55,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 39.628310000000056,
+      "idle_pct": 76.36,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 41.6561237499991,
+      "idle_pct": 77.78,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 43.69457341699854,
+      "idle_pct": 76.68,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 45.71794370799944,
+      "idle_pct": 74.88,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 47.75200691699865,
+      "idle_pct": 76.28,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 49.78687295799864,
+      "idle_pct": 78.66,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 51.823415749999185,
+      "idle_pct": 76.59,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 53.86105504199986,
+      "idle_pct": 78.26,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 55.87721549999878,
+      "idle_pct": 77.24,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 57.9129340419986,
+      "idle_pct": 78.08,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 59.94638195799962,
+      "idle_pct": 76.3,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 61.974849666999944,
+      "idle_pct": 70.15,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 64.00452454199876,
+      "idle_pct": 70.91,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 66.03352774999985,
+      "idle_pct": 73.62,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 68.07097387499925,
+      "idle_pct": 76.57,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 70.1019702499998,
+      "idle_pct": 77.88,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 72.1314946249986,
+      "idle_pct": 78.49,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 74.15805324999928,
+      "idle_pct": 79.14,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 76.18425791699883,
+      "idle_pct": 76.79,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 78.21420179199959,
+      "idle_pct": 76.07,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 80.25191520799854,
+      "idle_pct": 78.45,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 82.287545666999,
+      "idle_pct": 77.78,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 84.32092858299984,
+      "idle_pct": 77.43,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 86.35517270799937,
+      "idle_pct": 73.98,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 88.39023304199873,
+      "idle_pct": 70.31,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    }
+  ],
+  "idle_pct": 70.31,
+  "paired_idle_gap_pp": null,
+  "idle_gate_passed": false
+}

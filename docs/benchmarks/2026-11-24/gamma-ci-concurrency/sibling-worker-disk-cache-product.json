@@ -1,0 +1,19 @@
+{
+  "base_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "changed_packaged_inputs": [
+    "Sources/MicropodRuntime/SandboxVM.swift"
+  ],
+  "current_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-79cf766b2fde0258/product.json",
+  "entitlements": {
+    "com.apple.security.virtualization": true
+  },
+  "host_sha256": "5812efdede43c173c91fd1f43985a3620de99bede5d51ef9c6d7d495e9bba55d",
+  "new_bootstrap_sha256": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+  "new_guest_sha256": "5e6ef9b4a2c7092688c9ad5f426a3e6ca531756068392ec87fed6233f62fb895",
+  "old_host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "previous_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-1ca6188077ab406f/product.json",
+  "sha256_by_changed_input": {
+    "Sources/MicropodRuntime/SandboxVM.swift": "b9d7abb9ab4916d9b499b1c2bf5448c6f8189b55a6569d3f1984547f4d601918"
+  },
+  "worker_disk_cache_patch_sha256": "8f2af3d8aa76a26939b057c49280292025f1ceffe30132e8cb081f4314cea58b"
+}

@@ -1,0 +1,33 @@
+[
+  {
+    "configCreated" : true,
+    "mode" : "host",
+    "outcome" : "stock configuration, no setter"
+  },
+  {
+    "acceptedRequest" : 1500,
+    "configCreated" : true,
+    "mode" : "host",
+    "outcome" : "vmnet setter returned VMNET_SUCCESS",
+    "request" : "1500"
+  },
+  {
+    "acceptedRequest" : 9000,
+    "configCreated" : true,
+    "mode" : "host",
+    "outcome" : "vmnet setter returned VMNET_SUCCESS",
+    "request" : "9000"
+  },
+  {
+    "configCreated" : true,
+    "mode" : "host",
+    "outcome" : "rejected: Expected 1500 or 9000 on a host-only publication network",
+    "request" : "9001"
+  },
+  {
+    "configCreated" : true,
+    "mode" : "shared",
+    "outcome" : "rejected: Expected 1500 or 9000 on a host-only publication network",
+    "request" : "9000"
+  }
+]

@@ -12,6 +12,9 @@
 #define RELAY_SOURCE "../../Sources/CPublishedTCP/PublishedTCP.c"
 #endif
 #include RELAY_SOURCE
+#ifndef CONNECT_WRITE_FLAGS
+#define CONNECT_WRITE_FLAGS EV_ADD  // Older relay revisions.
+#endif
 
 #define STREAMS 32
 #define MAX_OWNERS 8
@@ -27,6 +30,13 @@ static unsigned char payload[STREAMS][BLOCK];
 struct progress { _Atomic uint32_t submitted, completed; };
 _Static_assert(sizeof(struct progress) == 8, "pilot progress file layout");
 static struct progress *progress;
+
+#ifdef RELAYBENCH_NATIVE_WORKERS
+static void print_worker_controls(unsigned read_bytes) {
+    printf("\"workers\":%d,\"drain_workers\":%d,\"callback_events\":%d,\"read_bytes\":%u,",
+           owner_count, drain_owners, mp_tcp_data_callback_events(drain_owners), read_bytes);
+}
+#endif
 
 struct owner {
     mp_tcp_relay *relay;
@@ -167,7 +177,7 @@ static unsigned attach(struct lease *lease, int *client_fd, int *guest_fd) {
         p->guest.connecting = true;
         check(watch_fd(o->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) == 0 &&
               watch_fd(o->relay, &p->guest.watch, EVFILT_READ, EV_ADD | EV_DISABLE) == 0 &&
-              watch_fd(o->relay, &p->guest.watch, EVFILT_WRITE, EV_ADD) == 0, "register connecting stream");
+              watch_fd(o->relay, &p->guest.watch, EVFILT_WRITE, CONNECT_WRITE_FLAGS) == 0, "register connecting stream");
 #else
         connected(p);
         check(watch_fd(o->relay, &p->client.watch, EVFILT_READ, EV_ADD) == 0 &&
@@ -322,9 +332,10 @@ int main(int argc, char **argv) {
         close(fd);
         atomic_init(&progress->submitted, 0);
         atomic_init(&progress->completed, 0);
-        // The production drain selects the 128-event branch for two owners.
-        // Actual handoff and queue counts continue to use owner_count.
+#ifndef RELAYBENCH_NATIVE_WORKERS
+        // Legacy relay revisions predate the fixed-budget build option.
         drain_owners = 2;
+#endif
     }
     client_capacity = kib * 1024;
     signal(SIGPIPE, SIG_IGN);
@@ -333,6 +344,15 @@ int main(int argc, char **argv) {
     struct flow flows[STREAMS] = {0};
     unsigned distribution[MAX_OWNERS] = {0};
     for (int i = 0; i < owner_count; ++i) start_owner(&owners[i]);
+#ifdef RELAYBENCH_NATIVE_WORKERS
+#ifdef MICROPOD_BENCH_512K_READS
+    unsigned read_bytes = mp_tcp_relay_read_bytes(owners[0].relay);
+    for (int i = 1; i < owner_count; ++i)
+        check(mp_tcp_relay_read_bytes(owners[i].relay) == read_bytes, "inconsistent owner read limits");
+#else
+    unsigned read_bytes = CHUNK;  // Older revisions read directly up to this compile-time limit.
+#endif
+#endif
     mp_tcp_relay *accept_relay = mp_tcp_relay_create("127.0.0.1");
     check(accept_relay != NULL, "accept relay");
     accept_queue = dispatch_queue_create("dev.micropod.bench.accept",
@@ -340,7 +360,11 @@ int main(int argc, char **argv) {
     if (check_only) {
         check_revocation(accept_relay);
         stop_relays(accept_relay);
-        puts("{\"live_revocation\":true,\"sibling_and_reuse\":true,\"timed_rounds\":0}");
+        putchar('{');
+#ifdef RELAYBENCH_NATIVE_WORKERS
+        print_worker_controls(read_bytes);
+#endif
+        puts("\"live_revocation\":true,\"sibling_and_reuse\":true,\"timed_rounds\":0}");
         return 0;
     }
     for (int i = 0; i < port_count; ++i) open_lease(&leases[i], accept_relay, (uint16_t)(8080 + i));
@@ -423,7 +447,12 @@ int main(int argc, char **argv) {
     if (progress) {
         mach_timebase_info_data_t tb;
         check(mach_timebase_info(&tb) == KERN_SUCCESS, "Mach timebase");
-        printf("\"callback_events\":128,\"runnable_ticks\":%llu,\"cpu_ticks\":%llu,\"tick_numer\":%u,\"tick_denom\":%u,",
+#ifdef RELAYBENCH_NATIVE_WORKERS
+        print_worker_controls(read_bytes);
+#else
+        printf("\"callback_events\":128,");
+#endif
+        printf("\"runnable_ticks\":%llu,\"cpu_ticks\":%llu,\"tick_numer\":%u,\"tick_denom\":%u,",
                host_end.ri_runnable_time - host_start.ri_runnable_time,
                host_end.ri_user_time - host_start.ri_user_time + host_end.ri_system_time - host_start.ri_system_time,
                tb.numer, tb.denom);

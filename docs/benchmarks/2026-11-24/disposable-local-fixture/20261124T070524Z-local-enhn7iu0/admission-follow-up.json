@@ -1,0 +1,26 @@
+{
+  "original_result": "admission stopped before any VM launch or timed attempt; original check omitted matching PID",
+  "follow_up_date": "2026-11-24",
+  "follow_up_observation": "authorized local read-only launchd, libproc and owner session checks after the blocker",
+  "persistent_label": "com.skunkworq.micropod.ci-worker",
+  "executable_name": "micropod",
+  "argv_role": "ci serve",
+  "observed_owner_pid": 3358,
+  "worker": "95886A92-A4DA-4B6B-9D7F-2B5F1B0940E7",
+  "scope": "rig-native",
+  "instance": "9BA95BAD-1A83-45EB-88BD-CDDA805357D2",
+  "started": true,
+  "docker_socket_present": true,
+  "active_jobs_at_prior_observation": "unverified; read-only local socket request received EPERM in this process context",
+  "previous_regex_exact_match": "not captured in the original receipt; the observed named supervisor matched it",
+  "other_observed_roles": {
+    "cuttle agent github-runner listeners": [
+      3346,
+      3347,
+      3366
+    ]
+  },
+  "later_state": "scope stopped independently; admission at 07:10:08 UTC found zero blockers",
+  "measured_mib_s": null,
+  "scored_attempts": 0
+}

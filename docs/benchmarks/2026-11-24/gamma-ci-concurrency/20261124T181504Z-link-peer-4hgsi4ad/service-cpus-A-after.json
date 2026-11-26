@@ -1,0 +1,194 @@
+[
+  {
+    "id": "2fc903dd4b7bc650ac10ad3b82b46ec36a1e659a0c88b74abfda080edd26b940",
+    "name": "mci-637e8e0c3a-a-0",
+    "mask": "0",
+    "threads": 5
+  },
+  {
+    "id": "c74c3f0c8a17b7707403bb2816c2f9566d4379c8fd0202576a1e151b9baeda00",
+    "name": "mci-637e8e0c3a-a-1",
+    "mask": "0",
+    "threads": 5
+  },
+  {
+    "id": "3d809f71499f3708bf005d3ba279d02c4d3a6de92129a734a3a177ac5292f9ad",
+    "name": "mci-637e8e0c3a-a-2",
+    "mask": "1",
+    "threads": 5
+  },
+  {
+    "id": "dd52fb15221aa38d1191ecc592e1641e28da1fab7db780197e9335aea131bb2b",
+    "name": "mci-637e8e0c3a-a-3",
+    "mask": "1",
+    "threads": 4
+  },
+  {
+    "id": "eb4e61416b00e6694b280a139be1eee44967e6a8eec688e6b7be59f3e1ef8951",
+    "name": "mci-637e8e0c3a-a-4",
+    "mask": "2",
+    "threads": 4
+  },
+  {
+    "id": "be237db37c1e2fedea4f446e41105fcabd57b55841385efec7448778b100fa49",
+    "name": "mci-637e8e0c3a-a-5",
+    "mask": "2",
+    "threads": 5
+  },
+  {
+    "id": "89c45fc4743529c03b12623a2ab379af9b57bafb9c66dfe6b991de6b5a0f5dfc",
+    "name": "mci-637e8e0c3a-a-6",
+    "mask": "3",
+    "threads": 5
+  },
+  {
+    "id": "2296d2ab697b094fead59d6fb2312eff71c10f715bd67b0196ff79c0210fae05",
+    "name": "mci-637e8e0c3a-a-7",
+    "mask": "3",
+    "threads": 5
+  },
+  {
+    "id": "73f0121b6a352f1d6a5f3a3d6af7576b3789b6b6381112a80f11125adbbd96c4",
+    "name": "mci-637e8e0c3a-a-8",
+    "mask": "0",
+    "threads": 5
+  },
+  {
+    "id": "3fcd743b49ad4d83caac8435dfa9267b4ae07b2ecf9bd607d104de6e30f700da",
+    "name": "mci-637e8e0c3a-a-9",
+    "mask": "0",
+    "threads": 5
+  },
+  {
+    "id": "4cc0539110d62d67d6ce9dcf7c0d89ae057c835682558ad77c7022b6e6d53396",
+    "name": "mci-637e8e0c3a-a-10",
+    "mask": "1",
+    "threads": 5
+  },
+  {
+    "id": "f222542f7f73ed5a98cf54778ab1653da7c422273d4e10f4171587c68b3d543b",
+    "name": "mci-637e8e0c3a-a-11",
+    "mask": "1",
+    "threads": 5
+  },
+  {
+    "id": "c48d485f8b1b95b40cfe9b5eb5bbd94cca1198976c282ca4021090b37f57140d",
+    "name": "mci-637e8e0c3a-a-12",
+    "mask": "2",
+    "threads": 4
+  },
+  {
+    "id": "ee9182041da434a0d814878d0d06dd65786346183b6a99ba86f6aad7cfa6d27e",
+    "name": "mci-637e8e0c3a-a-13",
+    "mask": "2",
+    "threads": 4
+  },
+  {
+    "id": "7cae9845cdce80466f5617bfec0ea861d006f02a69ceadf1584cb49bde42d480",
+    "name": "mci-637e8e0c3a-a-14",
+    "mask": "3",
+    "threads": 5
+  },
+  {
+    "id": "7718e133723a128517920eb3fa48879efb890db0b6111d54851396b2a74f6507",
+    "name": "mci-637e8e0c3a-a-15",
+    "mask": "3",
+    "threads": 5
+  },
+  {
+    "id": "cb9123231857d93a2bf599569af3be4ab7bab7e4306d76e2fd1ab6381dae4555",
+    "name": "mci-637e8e0c3a-a-16",
+    "mask": "0",
+    "threads": 5
+  },
+  {
+    "id": "39db61d44b06376f88d91d11f3195490d2ef6b7851850a5a97ddbd612ff39625",
+    "name": "mci-637e8e0c3a-a-17",
+    "mask": "0",
+    "threads": 5
+  },
+  {
+    "id": "3f85f97858de3c63abf3d7d0711bd40c8d67088ebdce4847efb56b66fc7c2c54",
+    "name": "mci-637e8e0c3a-a-18",
+    "mask": "1",
+    "threads": 4
+  },
+  {
+    "id": "b7b73a5eb553582555557bba33c43d6a762c07a2cc799332db9d450016a9f3c8",
+    "name": "mci-637e8e0c3a-a-19",
+    "mask": "1",
+    "threads": 5
+  },
+  {
+    "id": "ff6c3f6b9339bfb73b69bc5f5397653b4837369c29ce2f9974e62e2f47bb32e5",
+    "name": "mci-637e8e0c3a-a-20",
+    "mask": "2",
+    "threads": 4
+  },
+  {
+    "id": "83ae5648f3969ca5030a7ffec1f4aa539d1a0550036e13aa5b09a28e478c43ef",
+    "name": "mci-637e8e0c3a-a-21",
+    "mask": "2",
+    "threads": 5
+  },
+  {
+    "id": "18653ee2f3ab4156deb24ba3389f39c877f281da5b44d7e3433e7bed7947fad1",
+    "name": "mci-637e8e0c3a-a-22",
+    "mask": "3",
+    "threads": 5
+  },
+  {
+    "id": "882a0c1a23da56539caf7900ee724f6599923a387db743adaebfcac3e13115c6",
+    "name": "mci-637e8e0c3a-a-23",
+    "mask": "3",
+    "threads": 5
+  },
+  {
+    "id": "3fe3956b77b76d38afbf2836c89fb407b3b83ffb55d68951c2e6f808be4aca51",
+    "name": "mci-637e8e0c3a-a-24",
+    "mask": "0",
+    "threads": 4
+  },
+  {
+    "id": "d6e3070e13856dd4bb4e683ae221bb7bfb7ffdd2a8fb35db299eeee88c570e9d",
+    "name": "mci-637e8e0c3a-a-25",
+    "mask": "0",
+    "threads": 5
+  },
+  {
+    "id": "238fe26b5ab5425c42343b5c1a026467d7184436ae6806046b5ec53c2b0e0ac2",
+    "name": "mci-637e8e0c3a-a-26",
+    "mask": "1",
+    "threads": 4
+  },
+  {
+    "id": "2db1e4ffdc60f584885a96f020ff5c4183a47a8dc089a9ce09ac9abaf14403eb",
+    "name": "mci-637e8e0c3a-a-27",
+    "mask": "1",
+    "threads": 5
+  },
+  {
+    "id": "a2ae5b6b980bc383f3c98ba7cdb4c684f41d2d3130bf986de5bb598fa77ea7d7",
+    "name": "mci-637e8e0c3a-a-28",
+    "mask": "2",
+    "threads": 5
+  },
+  {
+    "id": "8fa5138bface319ad4efc273b4e5594ff0b8ebb5214e0f246d87f04ae25ee583",
+    "name": "mci-637e8e0c3a-a-29",
+    "mask": "2",
+    "threads": 5
+  },
+  {
+    "id": "9b6ce0af54e286e0c27746db4b284380a30633b87d292cd12f27ffc359a890df",
+    "name": "mci-637e8e0c3a-a-30",
+    "mask": "3",
+    "threads": 5
+  },
+  {
+    "id": "073d07a193ac84ac6670aeaf911e455efe42c941560fe9c1c8e2ac2f5ccf122b",
+    "name": "mci-637e8e0c3a-a-31",
+    "mask": "3",
+    "threads": 5
+  }
+]

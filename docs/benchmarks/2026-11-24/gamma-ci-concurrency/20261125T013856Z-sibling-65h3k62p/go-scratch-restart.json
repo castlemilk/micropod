@@ -1,0 +1,192 @@
+{
+  "starts": [
+    {
+      "Config": {
+        "ExposedPorts": null,
+        "Image": "micropod-internal/go-cache-fanout:r7zsq0",
+        "WorkingDir": "",
+        "User": "",
+        "Hostname": "",
+        "Entrypoint": [
+          "/bin/sh"
+        ],
+        "Cmd": [
+          "-ec",
+          "exec 2>&1\nset -x\ntest ! -e /tmp/previous-start\ntest \"$(stat -c %a /tmp)\" = 1777\nprintf '#!/bin/sh\\nexit 0\\n' > /tmp/previous-start\nchmod 0700 /tmp/previous-start\n/tmp/previous-start\nif touch /scratch-ro/write-test 2>/dev/null; then exit 31; fi\ncp /tmp/previous-start /scratch-noexec/exec-test\nchmod 0700 /scratch-noexec/exec-test\nif /scratch-noexec/exec-test 2>/dev/null; then exit 32; fi\nram_kib=$(awk '$1==\"MemTotal:\" {print $2}' /proc/meminfo)\ndefault_kib=$(df -Pk /scratch-default | awk 'NR==2 {print $2}')\npage_kib=$(( $(getconf PAGESIZE) / 1024 ))\ntest \"$default_kib\" -ge \"$((ram_kib / 2 - page_kib))\"\ntest \"$default_kib\" -le \"$((ram_kib / 2 + page_kib))\"\nstat_shmem() { awk '$1==\"shmem\" {print $2}' /sys/fs/cgroup/memory.stat; }\nbefore=$(stat_shmem)\ndd if=/dev/zero of=/tmp/memory-check bs=1048576 count=4 2>/dev/null\nfor try in 1 2 3 4 5; do\n    after=$(stat_shmem)\n    [ \"$after\" -ge \"$((before + 4194304))\" ] && break\n    sleep 0.5\ndone\ntest \"$after\" -ge \"$((before + 4194304))\"\nprintf 'scratch %s %s %s %s\\n' \"$ram_kib\" \"$default_kib\" \"$before\" \"$after\"\n"
+        ],
+        "Env": null,
+        "Labels": {
+          "io.micropod.bench.ci-concurrency": "mp-t-j1xya7tp"
+        },
+        "HostConfig": {
+          "PortBindings": {},
+          "PublishAllPorts": false,
+          "Binds": null,
+          "Mounts": null,
+          "Tmpfs": {
+            "/scratch-default": "",
+            "/scratch-noexec": "rw,noexec,nosuid,nodev,size=1m,mode=1777",
+            "/scratch-ro": "ro,noexec,nosuid,nodev,size=1m,mode=0555",
+            "/tmp": "rw,exec,nosuid,nodev,size=128m,mode=1777"
+          },
+          "AutoRemove": false,
+          "ReadonlyRootfs": false,
+          "Memory": 134217728,
+          "NanoCpus": 0,
+          "CpuQuota": 0,
+          "CpuPeriod": 0,
+          "PidsLimit": 64,
+          "NetworkMode": "none",
+          "CapDrop": null
+        },
+        "AttachStdout": true,
+        "AttachStderr": true
+      },
+      "Created": "2026-11-25T01:39:05.162054961Z",
+      "Driver": "overlayfs",
+      "HostConfig": {
+        "PortBindings": {},
+        "PublishAllPorts": false,
+        "Binds": null,
+        "Mounts": null,
+        "Tmpfs": {
+          "/scratch-default": "",
+          "/scratch-noexec": "rw,noexec,nosuid,nodev,size=1m,mode=1777",
+          "/scratch-ro": "ro,noexec,nosuid,nodev,size=1m,mode=0555",
+          "/tmp": "rw,exec,nosuid,nodev,size=128m,mode=1777"
+        },
+        "AutoRemove": false,
+        "ReadonlyRootfs": false,
+        "Memory": 134217728,
+        "NanoCpus": 0,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "PidsLimit": 64,
+        "NetworkMode": "none",
+        "CapDrop": null
+      },
+      "Id": "193af5c942d9ca064ad34aa1612fb0ef2fd6a33bdfcacf42e6d20a081c799f80",
+      "Image": "sha256:cb8603c28332918143157ab6706d633d898a30ab79a66ccd1e5a536f8046104a",
+      "Name": "/mp-t-j1xya7tp-scratch-restart",
+      "NetworkSettings": {
+        "IPAddress": "",
+        "Networks": {
+          "none": {
+            "Aliases": null,
+            "IPAddress": "",
+            "NetworkID": ""
+          }
+        },
+        "Ports": null
+      },
+      "Platform": "linux",
+      "State": {
+        "Dead": false,
+        "Error": "",
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-25T01:39:05.316665462Z",
+        "OOMKilled": false,
+        "Running": false,
+        "StartedAt": "2026-11-25T01:39:05.245183545Z",
+        "Status": "exited"
+      }
+    },
+    {
+      "Config": {
+        "ExposedPorts": null,
+        "Image": "micropod-internal/go-cache-fanout:r7zsq0",
+        "WorkingDir": "",
+        "User": "",
+        "Hostname": "",
+        "Entrypoint": [
+          "/bin/sh"
+        ],
+        "Cmd": [
+          "-ec",
+          "exec 2>&1\nset -x\ntest ! -e /tmp/previous-start\ntest \"$(stat -c %a /tmp)\" = 1777\nprintf '#!/bin/sh\\nexit 0\\n' > /tmp/previous-start\nchmod 0700 /tmp/previous-start\n/tmp/previous-start\nif touch /scratch-ro/write-test 2>/dev/null; then exit 31; fi\ncp /tmp/previous-start /scratch-noexec/exec-test\nchmod 0700 /scratch-noexec/exec-test\nif /scratch-noexec/exec-test 2>/dev/null; then exit 32; fi\nram_kib=$(awk '$1==\"MemTotal:\" {print $2}' /proc/meminfo)\ndefault_kib=$(df -Pk /scratch-default | awk 'NR==2 {print $2}')\npage_kib=$(( $(getconf PAGESIZE) / 1024 ))\ntest \"$default_kib\" -ge \"$((ram_kib / 2 - page_kib))\"\ntest \"$default_kib\" -le \"$((ram_kib / 2 + page_kib))\"\nstat_shmem() { awk '$1==\"shmem\" {print $2}' /sys/fs/cgroup/memory.stat; }\nbefore=$(stat_shmem)\ndd if=/dev/zero of=/tmp/memory-check bs=1048576 count=4 2>/dev/null\nfor try in 1 2 3 4 5; do\n    after=$(stat_shmem)\n    [ \"$after\" -ge \"$((before + 4194304))\" ] && break\n    sleep 0.5\ndone\ntest \"$after\" -ge \"$((before + 4194304))\"\nprintf 'scratch %s %s %s %s\\n' \"$ram_kib\" \"$default_kib\" \"$before\" \"$after\"\n"
+        ],
+        "Env": null,
+        "Labels": {
+          "io.micropod.bench.ci-concurrency": "mp-t-j1xya7tp"
+        },
+        "HostConfig": {
+          "PortBindings": {},
+          "PublishAllPorts": false,
+          "Binds": null,
+          "Mounts": null,
+          "Tmpfs": {
+            "/scratch-default": "",
+            "/scratch-noexec": "rw,noexec,nosuid,nodev,size=1m,mode=1777",
+            "/scratch-ro": "ro,noexec,nosuid,nodev,size=1m,mode=0555",
+            "/tmp": "rw,exec,nosuid,nodev,size=128m,mode=1777"
+          },
+          "AutoRemove": false,
+          "ReadonlyRootfs": false,
+          "Memory": 134217728,
+          "NanoCpus": 0,
+          "CpuQuota": 0,
+          "CpuPeriod": 0,
+          "PidsLimit": 64,
+          "NetworkMode": "none",
+          "CapDrop": null
+        },
+        "AttachStdout": true,
+        "AttachStderr": true
+      },
+      "Created": "2026-11-25T01:39:05.162054961Z",
+      "Driver": "overlayfs",
+      "HostConfig": {
+        "PortBindings": {},
+        "PublishAllPorts": false,
+        "Binds": null,
+        "Mounts": null,
+        "Tmpfs": {
+          "/scratch-default": "",
+          "/scratch-noexec": "rw,noexec,nosuid,nodev,size=1m,mode=1777",
+          "/scratch-ro": "ro,noexec,nosuid,nodev,size=1m,mode=0555",
+          "/tmp": "rw,exec,nosuid,nodev,size=128m,mode=1777"
+        },
+        "AutoRemove": false,
+        "ReadonlyRootfs": false,
+        "Memory": 134217728,
+        "NanoCpus": 0,
+        "CpuQuota": 0,
+        "CpuPeriod": 0,
+        "PidsLimit": 64,
+        "NetworkMode": "none",
+        "CapDrop": null
+      },
+      "Id": "193af5c942d9ca064ad34aa1612fb0ef2fd6a33bdfcacf42e6d20a081c799f80",
+      "Image": "sha256:cb8603c28332918143157ab6706d633d898a30ab79a66ccd1e5a536f8046104a",
+      "Name": "/mp-t-j1xya7tp-scratch-restart",
+      "NetworkSettings": {
+        "IPAddress": "",
+        "Networks": {
+          "none": {
+            "Aliases": null,
+            "IPAddress": "",
+            "NetworkID": ""
+          }
+        },
+        "Ports": null
+      },
+      "Platform": "linux",
+      "State": {
+        "Dead": false,
+        "Error": "",
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-25T01:39:05.491020878Z",
+        "OOMKilled": false,
+        "Running": false,
+        "StartedAt": "2026-11-25T01:39:05.420335753Z",
+        "Status": "exited"
+      }
+    }
+  ],
+  "logs": [
+    "+ test ! -e /tmp/previous-start\n+ stat -c %a /tmp\n+ test 1777 = 1777\n+ printf #!/bin/sh\\nexit 0\\n\n+ chmod 0700 /tmp/previous-start\n+ /tmp/previous-start\n+ touch /scratch-ro/write-test\n+ cp /tmp/previous-start /scratch-noexec/exec-test\n+ chmod 0700 /scratch-noexec/exec-test\n+ /scratch-noexec/exec-test\n+ awk $1==\"MemTotal:\" {print $2} /proc/meminfo\n+ ram_kib=4074928\n+ df -Pk /scratch-default\n+ awk NR==2 {print $2}\n+ default_kib=2037456\n+ getconf PAGESIZE\n+ page_kib=16\n+ test 2037456 -ge 2037448\n+ test 2037456 -le 2037480\n+ stat_shmem\n+ awk $1==\"shmem\" {print $2} /sys/fs/cgroup/memory.stat\n+ before=32768\n+ dd if=/dev/zero of=/tmp/memory-check bs=1048576 count=4\n+ stat_shmem\n+ awk $1==\"shmem\" {print $2} /sys/fs/cgroup/memory.stat\n+ after=4227072\n+ [ 4227072 -ge 4227072 ]\n+ break\n+ test 4227072 -ge 4227072\n+ printf scratch %s %s %s %s\\n 4074928 2037456 32768 4227072\nscratch 4074928 2037456 32768 4227072",
+    "+ test ! -e /tmp/previous-start\n+ stat -c %a /tmp\n+ test 1777 = 1777\n+ printf #!/bin/sh\\nexit 0\\n\n+ chmod 0700 /tmp/previous-start\n+ /tmp/previous-start\n+ touch /scratch-ro/write-test\n+ cp /tmp/previous-start /scratch-noexec/exec-test\n+ chmod 0700 /scratch-noexec/exec-test\n+ /scratch-noexec/exec-test\n+ awk $1==\"MemTotal:\" {print $2} /proc/meminfo\n+ ram_kib=4074928\n+ df -Pk /scratch-default\n+ awk NR==2 {print $2}\n+ default_kib=2037456\n+ getconf PAGESIZE\n+ page_kib=16\n+ test 2037456 -ge 2037448\n+ test 2037456 -le 2037480\n+ stat_shmem\n+ awk $1==\"shmem\" {print $2} /sys/fs/cgroup/memory.stat\n+ before=32768\n+ dd if=/dev/zero of=/tmp/memory-check bs=1048576 count=4\n+ stat_shmem\n+ awk $1==\"shmem\" {print $2} /sys/fs/cgroup/memory.stat\n+ after=4227072\n+ [ 4227072 -ge 4227072 ]\n+ break\n+ test 4227072 -ge 4227072\n+ printf scratch %s %s %s %s\\n 4074928 2037456 32768 4227072\nscratch 4074928 2037456 32768 4227072\n+ test ! -e /tmp/previous-start\n+ stat -c %a /tmp\n+ test 1777 = 1777\n+ printf #!/bin/sh\\nexit 0\\n\n+ chmod 0700 /tmp/previous-start\n+ /tmp/previous-start\n+ touch /scratch-ro/write-test\n+ cp /tmp/previous-start /scratch-noexec/exec-test\n+ chmod 0700 /scratch-noexec/exec-test\n+ /scratch-noexec/exec-test\n+ awk $1==\"MemTotal:\" {print $2} /proc/meminfo\n+ ram_kib=4074928\n+ df -Pk /scratch-default\n+ awk NR==2 {print $2}\n+ default_kib=2037456\n+ getconf PAGESIZE\n+ page_kib=16\n+ test 2037456 -ge 2037448\n+ test 2037456 -le 2037480\n+ stat_shmem\n+ awk $1==\"shmem\" {print $2} /sys/fs/cgroup/memory.stat\n+ before=32768\n+ dd if=/dev/zero of=/tmp/memory-check bs=1048576 count=4\n+ stat_shmem\n+ awk $1==\"shmem\" {print $2} /sys/fs/cgroup/memory.stat\n+ after=4227072\n+ [ 4227072 -ge 4227072 ]\n+ break\n+ test 4227072 -ge 4227072\n+ printf scratch %s %s %s %s\\n 4074928 2037456 32768 4227072\nscratch 4074928 2037456 32768 4227072"
+  ],
+  "removed": true,
+  "id": "193af5c942d9ca064ad34aa1612fb0ef2fd6a33bdfcacf42e6d20a081c799f80"
+}

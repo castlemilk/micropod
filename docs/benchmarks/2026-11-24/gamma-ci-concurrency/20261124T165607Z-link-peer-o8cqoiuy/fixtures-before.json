@@ -1,0 +1,97 @@
+{
+  "A": {
+    "scope": "/private/tmp/mp-t-glj0kb5w/data/a",
+    "engine": "EE1BE6F4-8389-4FF9-8265-C1241876F6FE",
+    "engine_version": "micropod",
+    "id": "f7976c7ede1ef3ac97812388cdc77617e606afb8eb454702c0360d691b145b0f",
+    "name": "mp-t-glj0kb5w-a",
+    "address": "127.0.0.1:56390",
+    "cpus": 4,
+    "memory_bytes": 4116488192,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.3.5-micropod",
+    "pids": {
+      "vmm": 5061,
+      "relay": 5054
+    },
+    "vmm_executable": "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+    "process_type": "Standard",
+    "spawn_type": "daemon (3)",
+    "job_controls_sha256": "69a7fcc804d96fbca968e56b6ea277edff31d0c45abd394614d13d036611a2f6",
+    "docker_socket": "/private/tmp/mp-t-glj0kb5w/a/docker.sock",
+    "guest_probe_mount": {
+      "source": "HostConfig.Mounts",
+      "target": "/mpcheck",
+      "bind_source": "/private/tmp/mp-t-glj0kb5w/workspace/probe",
+      "readonly": true
+    },
+    "guest_probe_sha256": "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605",
+    "guest_boot": "65897873-c7e0-4243-a66e-a5f2366b95fe",
+    "kernel_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "instance": "2FB4AE5C-3A7F-440C-850D-06B72E45D902",
+    "worker": "EE1BE6F4-8389-4FF9-8265-C1241876F6FE",
+    "kernel": "/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image",
+    "cli_sha256": "d4c72b3b0e69b7094f4d5a6cdff3a72fd20826f0e0b41f0c41514e76b21b7133",
+    "relay_workers": 4,
+    "callback_events": 24,
+    "read_bytes": 262144,
+    "route": {
+      "RtoMin": 20,
+      "RtoMinLock": true,
+      "QuickACK": 0,
+      "Congctl": "reno",
+      "MTU": 0
+    },
+    "service_env_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "relay_mode": "kqueue-throughput",
+    "relay_controls_origin": "live worker session",
+    "boot": "65897873-c7e0-4243-a66e-a5f2366b95fe",
+    "mapped_relay_build": {
+      "mapped_inode": 1225149918,
+      "worker_executable_sha256": "d4c72b3b0e69b7094f4d5a6cdff3a72fd20826f0e0b41f0c41514e76b21b7133",
+      "source_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd"
+    },
+    "publication": {
+      "relay_pid": 5054,
+      "container": "f7976c7ede1ef3ac97812388cdc77617e606afb8eb454702c0360d691b145b0f",
+      "name": "mp-t-glj0kb5w-a",
+      "endpoint": "127.0.0.1:56390",
+      "worker": "EE1BE6F4-8389-4FF9-8265-C1241876F6FE",
+      "instance": "2FB4AE5C-3A7F-440C-850D-06B72E45D902",
+      "worker_ipv4": "192.168.128.2",
+      "mtu": 9000,
+      "candidate_sha256": "d4c72b3b0e69b7094f4d5a6cdff3a72fd20826f0e0b41f0c41514e76b21b7133"
+    },
+    "births": {
+      "5061": 887252551611,
+      "5054": 887246411453
+    }
+  },
+  "B": {
+    "scope": "/private/tmp/mp-t-glj0kb5w/data/orb",
+    "engine": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+    "engine_version": "29.8.2",
+    "id": "4921d0f9b3077ec3b9f0e36dc990c5993e6055b794d6de768390cb28d2264bf6",
+    "name": "mp-t-glj0kb5w-orb",
+    "address": "127.0.0.1:34323",
+    "cpus": 4,
+    "memory_bytes": 4180480000,
+    "image_config": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_limits": {
+      "cpu.max": "400000 100000",
+      "memory.max": "1073741824",
+      "pids.max": "512"
+    },
+    "cpuset": "0-3",
+    "release": "7.2.12-orbstack-00394-gbecdd6130068",
+    "pids": {
+      "vmm": 3279
+    }
+  }
+}

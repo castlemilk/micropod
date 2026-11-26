@@ -1,0 +1,94 @@
+{
+  "ci_config_sha256": "cb8603c28332918143157ab6706d633d898a30ab79a66ccd1e5a536f8046104a",
+  "manifest_id": "sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb",
+  "layer_ids": [
+    "sha256:c96c411090da09187c55ab267826b3903b542b5c03f1cafa912d60e060e7850c",
+    "sha256:183cb703a548314d043970a5d5c0309ddc6e47dbd0b83b826ba9dec907e309b4",
+    "sha256:e43c242ead218c0f42cc15815b5708d5bce187f7fdc2ccfaa72a560af64dbdf6",
+    "sha256:1c158960725adf417240b354f0ea18f1335cebd334490b34bfa58bfafba46520",
+    "sha256:218b5d63d46f21743aa6b3282976a8bba2ab0c78b9ba1550a18465c8b1062091",
+    "sha256:f67cf90593a6c151daf76852227035089d1cdf4c47047095b2c3f527d9624007",
+    "sha256:5bd9cd00feae2cd1ed9c8d3f9c11c6e04c627d5447899b93ccb1996d2624a6e4",
+    "sha256:5e545e2787d6c36e8df4075c7800ddae21c60fa3f1f6fc245450b094636feb9b",
+    "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+    "sha256:1eada7bf010aaee534024846620f02d4a0b173efeb964b147cfa16d80922313a"
+  ],
+  "tenant_binary_sha256": "4787d404e00ac433d466b93215678965fbdaee38bb7bd65c9fbc7c5d42b72673",
+  "job_sha256": "a9d3447427636fb10c6a0005c44a3936c2b3a9b61cb4983f39c0308d917a3704",
+  "sources": {
+    "docs/benchmarks/2026-11-24/gamma-ci-concurrency/bridge.py": "040ef85a1a68b3edcce7ef9881b11683ef348a59e433b74322e9cbead1d8d0df",
+    "docs/benchmarks/2026-11-24/gamma-ci-concurrency/churn.py": "8fd9d83e929b52ef60274b4b78b7bf90409fbb89c4b4d06b85420d995489463d",
+    "docs/benchmarks/2026-11-24/gamma-ci-concurrency/replay.py": "22ecd3c53add8f8e721628e7a2408f275ca2eefc30933b835baee1ae9d588499",
+    "docs/benchmarks/2026-11-24/gamma-ci-concurrency/qualify.py": "c00c33e1ab4dac789a1230755a43c70101a8d7db20aaf28ea94dd2d74f174b90",
+    "docs/benchmarks/2026-11-24/gamma-ci-concurrency/tenant.go": "49a56ee34c5eeeb934e51c5ae703ae209524a574e82259ed93f1e1c838b3c88d",
+    "scripts/bench_go_fanout.py": "5ca02522c84c5fd963f82ece914138ea458d2e8c1cd1938325b3377ec3cc2a19",
+    "docs/benchmarks/2026-11-24/gamma-local-peer/run.py": "c40c9a0b35e3344cbc389c766ca2825986e9126bbb3cbf746fe0084e32962f71",
+    "docs/benchmarks/2026-11-24/disposable-local-fixture/local_terminal.py": "254d159d9a92f106f6cfebf34659fad2fbfa3eacfa232777fb242052ed5b9581",
+    "docs/benchmarks/2026-11-24/disposable-local-fixture/local_admission.py": "0b61b0e68d46d9735226af033a9fe70cfa4d688f0b932afe31d65436a08815d5",
+    "docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py": "940d03667fde8485e0f77d6b9d14df73ea353ad30c9c8778b4ceb9b9bf8b714c",
+    "scripts/relaybench/gamma_pilot.py": "ae4a5e6b89dbcf74fe074d6ed8ab3a4540833ee8d2a21353673361a644ad1f11",
+    "scripts/relaybench/hvf_notify/flows.c": "60e846ba24ece7ad1fcd13bbeb75c0a7467668361a828c99221cfc37418d8333",
+    "scripts/relaybench/hvf_notify/flows.S": "a7b6c3af4c8cfb30f9c0911e47cc7872c03b3ebf1ed6dc572c5957668dbace30",
+    "scripts/relaybench/hvf_notify/vm.c": "9a8b90964eb643609983e176f686002e693cd239e8257376a749492ae95dc731",
+    "scripts/relaybench/hvf_notify/vm.h": "323758b8d1fbb0e49f229262658443439f67402700221d66f5ed599b0e6c7483",
+    "scripts/relaybench/hvf_tx_probe/apple.c": "226f793ab483e734f9c306a5279932f96872056396879bec09e3c03908c5d37d"
+  },
+  "host": "Gamma-128GB.local",
+  "scope": "/private/tmp/mp-t-csdv2vrq",
+  "profile": "ci",
+  "initial_baseline_files": 24,
+  "worker": "a13c1ef78ba4eae11172972a6d7b73662aeafccb266472d5b22c59d67bc986e8",
+  "started": "2026-11-24T11:40:20.485471+00:00",
+  "schedules": [
+    [
+      16,
+      [
+        [
+          16,
+          "AB"
+        ],
+        [
+          4,
+          "BA"
+        ],
+        [
+          4,
+          "AB"
+        ],
+        [
+          16,
+          "BA"
+        ]
+      ]
+    ],
+    [
+      32,
+      [
+        [
+          4,
+          "BA"
+        ],
+        [
+          32,
+          "AB"
+        ],
+        [
+          32,
+          "BA"
+        ],
+        [
+          4,
+          "AB"
+        ]
+      ]
+    ]
+  ],
+  "host_load": "natural, sampled before each wave",
+  "cpus": 4,
+  "vm_mib": 4096,
+  "job_cpus": 1,
+  "job_mib": 512,
+  "pids": 192,
+  "fresh_per_second": 40,
+  "cache": "one new shared Linux volume per engine"
+}

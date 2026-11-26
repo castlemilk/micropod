@@ -1,0 +1,44 @@
+{
+  "blocks": 16,
+  "scored_bytes_per_arm": 4296015872,
+  "mapped_throughput_wins": 16,
+  "send_calls_range": [
+    4097,
+    4097
+  ],
+  "arm_medians": {
+    "staged": {
+      "mib_s": 8401.618576892506,
+      "sender_cpu_s_per_gib": 0.12180909545130583,
+      "combined_cpu_s_per_gib": 0.2163248523153527
+    },
+    "mapped": {
+      "mib_s": 10892.320059427904,
+      "sender_cpu_s_per_gib": 0.09386875082450574,
+      "combined_cpu_s_per_gib": 0.1738757998535514
+    }
+  },
+  "mapped_over_staged": {
+    "mib_s": {
+      "median": 1.2976184979446104,
+      "ci95": [
+        1.2538867658524604,
+        1.3067934044521254
+      ]
+    },
+    "sender_cpu_s_per_gib": {
+      "median": 0.7704519204887375,
+      "ci95": [
+        0.7651131253782498,
+        0.7980266604948705
+      ]
+    },
+    "combined_cpu_s_per_gib": {
+      "median": 0.8032372972854072,
+      "ci95": [
+        0.79743836740637,
+        0.8318064318797133
+      ]
+    }
+  }
+}

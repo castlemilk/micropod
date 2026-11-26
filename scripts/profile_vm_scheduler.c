@@ -45,6 +45,19 @@ static const char *thread_group(const char *name) {
     return "other";
 }
 
+// The VZ helper names threads "...thread.cpu-N"; OrbStack uses "vcpuN".
+// Only a complete numeric suffix identifies a numbered virtual CPU.
+static int vcpu_index(const char *name) {
+    const char *suffix = strstr(name, ".thread.cpu-");
+    if (suffix) suffix += strlen(".thread.cpu-");
+    else if (!strncmp(name, "vcpu", 4)) suffix = name + 4;
+    else return -1;
+    if (!*suffix || strspn(suffix, "0123456789") != strlen(suffix)) return -1;
+    errno = 0;
+    unsigned long index = strtoul(suffix, NULL, 10);
+    return !errno && index <= INT_MAX ? (int)index : -1;
+}
+
 // A saturated list may have raced with thread creation. Retry with more space.
 static int read_ids(pid_t pid, uint64_t **ids, int *capacity) {
     for (;;) {
@@ -119,11 +132,14 @@ static int trace(pid_t pid, int samples, int interval_ms) {
         printf("{\"epoch_ns\":%" PRIu64 ",\"monotonic_ns\":%" PRIu64 ",\"birth_ticks\":%llu,"
                "\"cpu_ticks\":%llu,\"runnable_ticks\":%llu,\"legacy_ticks\":%llu,"
                "\"background_ticks\":%llu,\"default_ticks\":%llu,\"utility_ticks\":%llu,"
-               "\"initiated_ticks\":%llu,\"interactive_ticks\":%llu,\"threads\":[",
+               "\"initiated_ticks\":%llu,\"interactive_ticks\":%llu,"
+               "\"diskio_bytes_read\":%llu,\"diskio_bytes_written\":%llu,"
+               "\"logical_writes\":%llu,\"pageins\":%llu,\"threads\":[",
                at, monotonic, usage.ri_proc_start_abstime, usage.ri_user_time + usage.ri_system_time,
                usage.ri_runnable_time, usage.ri_cpu_time_qos_legacy, usage.ri_cpu_time_qos_background,
                usage.ri_cpu_time_qos_default, usage.ri_cpu_time_qos_utility, usage.ri_cpu_time_qos_user_initiated,
-               usage.ri_cpu_time_qos_user_interactive);
+               usage.ri_cpu_time_qos_user_interactive, usage.ri_diskio_bytesread, usage.ri_diskio_byteswritten,
+               usage.ri_logical_writes, usage.ri_pageins);
         for (int t = 0; t < n; t++) {
             struct proc_threadinfo info = {0};
             if (proc_pidinfo(pid, PROC_PIDTHREADID64INFO, ids[t], &info, sizeof(info)) != sizeof(info) ||
@@ -138,7 +154,18 @@ static int trace(pid_t pid, int samples, int interval_ms) {
                 const struct level_counts *c = &counts->levels[level];
                 printf("%s%" PRIu64, level ? "," : "", c->user_ticks + c->system_ticks);
             }
-            fputs("]}", stdout);
+            putchar(']');
+            int index = vcpu_index(info.pth_name);
+            if (index >= 0) {
+                printf(",\"vcpu_index\":%d,\"level_instructions\":[", index);
+                for (uint32_t level = 0; level < levels; level++)
+                    printf("%s%" PRIu64, level ? "," : "", counts->levels[level].instructions);
+                fputs("],\"level_cycles\":[", stdout);
+                for (uint32_t level = 0; level < levels; level++)
+                    printf("%s%" PRIu64, level ? "," : "", counts->levels[level].cycles);
+                putchar(']');
+            }
+            putchar('}');
         }
         printf("],\"skipped_threads\":%d}\n", n - seen);
         if (!seen || fflush(stdout)) {

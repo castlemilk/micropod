@@ -1,0 +1,12 @@
+{
+  "issue": 228,
+  "direction": "228.03",
+  "status": "prepared, timed run withheld",
+  "workspace_host": "Gamma-128GB.local",
+  "gate": "Gamma timing requires a current applicable warm-CI owner handoff, or a separate authorized Darwin host for this local-only relay test.",
+  "validation": "Same sealed relay binary in both arms, both listener smoke checks passed, candidate token began/ended, three owners observed at user-initiated QoS.",
+  "first_attempts_started": 0,
+  "benchmark_experiment_count": 0,
+  "smoke_sha256": "1c87014ae934a9a1b929c0e70e546dc838b676a00178fe344aab2ffd960f8243",
+  "driver_sha256": "17a4c00e20797b6b824483def25fa0cb7f391e5e4a325498ca23479c58799f0e"
+}

@@ -1,0 +1,120 @@
+{
+  "mode": "smoke",
+  "tier": "Darwin host-only loopback, no VM",
+  "seed": 202611242303,
+  "first_attempt_order": [
+    [
+      0,
+      50000
+    ],
+    [
+      50000,
+      0
+    ],
+    [
+      50000,
+      0
+    ],
+    [
+      50000,
+      0
+    ],
+    [
+      0,
+      50000
+    ],
+    [
+      0,
+      50000
+    ]
+  ],
+  "started": "2026-11-24T06:32:38.455691+00:00",
+  "attempts": [],
+  "smokes": [
+    {
+      "arm": 0,
+      "service_hash": "dfb347656ada2a2acf7f034bc5ac70f11b5d79cc5ed731701e398be2d8e2a608",
+      "payload_B": 8388608,
+      "marker_match": true,
+      "relay_observer": {
+        "birth": 16616525654345,
+        "cpu_ticks": 87868,
+        "runnable_ticks": 88522,
+        "numer": 125,
+        "denom": 3,
+        "pid": 43140,
+        "clock": 692355245989833
+      },
+      "server_observer": {
+        "birth": 16616524752845,
+        "cpu_ticks": 210493,
+        "runnable_ticks": 231077,
+        "numer": 125,
+        "denom": 3,
+        "pid": 43139,
+        "clock": 692355246005250
+      },
+      "lo0": [
+        980616033,
+        980616037,
+        0,
+        0,
+        1640
+      ]
+    },
+    {
+      "arm": 50000,
+      "service_hash": "dfb347656ada2a2acf7f034bc5ac70f11b5d79cc5ed731701e398be2d8e2a608",
+      "payload_B": 8388608,
+      "marker_match": true,
+      "relay_observer": {
+        "birth": 16616525952310,
+        "cpu_ticks": 90854,
+        "runnable_ticks": 90766,
+        "numer": 125,
+        "denom": 3,
+        "pid": 43141,
+        "clock": 692355258036750
+      },
+      "server_observer": {
+        "birth": 16616524752845,
+        "cpu_ticks": 252686,
+        "runnable_ticks": 287202,
+        "numer": 125,
+        "denom": 3,
+        "pid": 43139,
+        "clock": 692355258047291
+      },
+      "lo0": [
+        980617360,
+        980617364,
+        0,
+        0,
+        1640
+      ]
+    }
+  ],
+  "throughput_unit": "MiB/s",
+  "file_sha256": {
+    "hot.c": "c119a1b78e469767a5b39c2bd865be190770a094a4d8a53956e00c9be25fd60b",
+    "PublishedTCP.h": "ef9fbb189a0adf18a0ce3da1788e6d30ce7c30b89920331733e59d100aad886b",
+    "dispatch-probe.c": "238fda8259f5b2a7d7fbb918e0fcc0f19ebf57f076938072fd415164eef31873",
+    "fixed.go": "ed5150165e2fbc8dbba78404db0d5e0acafab47419fa354850ce119ffa2fc9f5",
+    "server.go": "07781b9808f3233416922e2d38191bf0e2925779151158a6566433d11714d1d1",
+    "relay-0": "931897754c3ca6330d5617f9fa9d5e009eab50035bc9c5444ae4ef3830c07ba8",
+    "relay-50000": "42024be799268f9bc05608daa8a03ad3e291db9845ed041e2fed9f317e73791d",
+    "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "server": "f44e1bd7fe526dbcab18ed20b029923b7070aae2c3542d32e1d045eef1977ae6",
+    "meter.c": "d1c6361d79e35024f7a493764e294781d1dd5421708f404795000d48e6d99837",
+    "meter.dylib": "0a647ab4b304104c53fc05c17e1b64cfaf8d198b38b099f30bf1d7ddfff1a364",
+    "suite.py": "380213ce62141de69bdad2c56807bf3ccada298da251c7025f531521fa216a65"
+  },
+  "status": "smoke completed",
+  "joint_clean_pairs": 0,
+  "clean_pair_summary": {
+    "mib_s": null,
+    "fresh_p95_us": null,
+    "fresh_p99_us": null
+  },
+  "finished": "2026-11-24T06:32:38.527397+00:00"
+}

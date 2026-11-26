@@ -517,6 +517,12 @@ public struct ContainerRunRequest: Sendable, Equatable {
     /// engine honours it, behind ``InitImageSelection``'s guard. Not a CLI
     /// flag: the CLI backend drops it and records the fallback in labels.
     public var initImage: String?
+    /// `--cache auto|off|<tools>`: the container's dependency caches. The
+    /// engine turns it into labels (`ContainerCacheOptions`) before the
+    /// create; never part of the `container` argv.
+    public var cache: String?
+    /// `--cache-scope <scope>`: which shared cache scope it uses.
+    public var cacheScope: String?
 
     public init(
         image: String,
@@ -551,7 +557,9 @@ public struct ContainerRunRequest: Sendable, Equatable {
         privileged: Bool = false,
         runtime: String? = nil,
         sandbox: SandboxRunOptions? = nil,
-        initImage: String? = nil
+        initImage: String? = nil,
+        cache: String? = nil,
+        cacheScope: String? = nil
     ) {
         self.image = image
         self.name = name
@@ -586,6 +594,8 @@ public struct ContainerRunRequest: Sendable, Equatable {
         self.privileged = privileged
         self.sandbox = sandbox
         self.initImage = initImage
+        self.cache = cache
+        self.cacheScope = cacheScope
     }
 }
 

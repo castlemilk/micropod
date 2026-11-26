@@ -1,0 +1,592 @@
+{
+  "evidence": "Historical CPU budget sensitivity. No VM worker-count intervention.",
+  "inputs": {
+    "gamma-relay-workers.json.gz": "82ceb6976075b8054e61524777d2da8302f19cce2552a1c07515668686c6c969",
+    "gamma-vcpu-priority.json.gz": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4"
+  },
+  "assumptions": [
+    "One uniform rate multiplier for each eligible historical Micropod round.",
+    "Unchanged score and counter-bracket durations within that round.",
+    "Whole-invocation CPU divided by scored payload approximates proportional work. Setup and drain are included.",
+    "Fixed total CPU case assumes the VMM retains its measured CPU-s/scored-GiB and the two processes can redistribute CPU.",
+    "Fixed per-GiB cost case assumes both processes retain their respective CPU-s/scored-GiB."
+  ],
+  "host_worker_screen": {
+    "left": "balanced2",
+    "right": "balanced4",
+    "ports": 1,
+    "arms": {
+      "balanced2": {
+        "mib_s": 10640.656854441315,
+        "p95_ms": 17.151292,
+        "p99_ms": 19.515667,
+        "cpu_s_per_gib": null,
+        "runnable_s_per_s": null,
+        "wait_s_per_s": null,
+        "clean": 3,
+        "attempts": 3,
+        "planned_fresh": 240,
+        "verified_fresh_in_clean": 240,
+        "known_failed_requests": 0,
+        "rounds_missing_request_count": []
+      },
+      "balanced4": {
+        "mib_s": 16205.36095680269,
+        "p95_ms": 17.432166,
+        "p99_ms": 18.445333,
+        "cpu_s_per_gib": null,
+        "runnable_s_per_s": null,
+        "wait_s_per_s": null,
+        "clean": 3,
+        "attempts": 3,
+        "planned_fresh": 240,
+        "verified_fresh_in_clean": 240,
+        "known_failed_requests": 0,
+        "rounds_missing_request_count": []
+      }
+    },
+    "paired_rounds": [
+      1,
+      2,
+      3
+    ],
+    "paired_ratios": [
+      1.639166090554309,
+      1.8082980671980682,
+      1.4920999225361244
+    ],
+    "median_ratio": 1.639166090554309,
+    "bootstrap_ci95": null,
+    "wins": 3
+  },
+  "historical_vm": {
+    "clean_arm_medians_and_all_attempt_counts": {
+      "Micropod": {
+        "mib_s": 2709.8300097735155,
+        "p50_ms": null,
+        "p95_ms": 35.208,
+        "p99_ms": 58.147,
+        "cpu_s_per_gib": 0.9559387517431498,
+        "invocation_cpu_s_per_bulk_gib": null,
+        "wait_s_per_s": 2.216796908908357,
+        "runnable_s_per_s": 4.6802944275905,
+        "clean": 16,
+        "offered": 3840,
+        "known_fresh_failures": 0,
+        "unknown_fresh_failure_counts": 0,
+        "bulk_reopens": 0
+      },
+      "OrbStack": {
+        "mib_s": 3010.383519887246,
+        "p50_ms": null,
+        "p95_ms": 220.325,
+        "p99_ms": 1027.418,
+        "cpu_s_per_gib": 1.073912669733817,
+        "invocation_cpu_s_per_bulk_gib": null,
+        "wait_s_per_s": 6.284536455313783,
+        "runnable_s_per_s": 8.845424208154038,
+        "clean": 15,
+        "offered": 3840,
+        "known_fresh_failures": 1,
+        "unknown_fresh_failure_counts": 0,
+        "bulk_reopens": 0
+      }
+    },
+    "median_gap_mib_s": 300.5535101137307,
+    "paired_median_micropod_over_orbstack": 0.8540445809525004,
+    "paired_ci95": [
+      0.7090052427711508,
+      1.2586594205448958
+    ],
+    "omitted_from_paired_estimate": [
+      12
+    ]
+  },
+  "match_clean_arm_medians": {
+    "uniform_vm_rate_multiplier": 1.1109123114843837,
+    "metrics": {
+      "observed_relay_cpu_s_per_scored_gib": {
+        "min": 0.32000303320164597,
+        "median": 0.3480786537894611,
+        "max": 0.38208446219965986
+      },
+      "observed_vmm_cpu_s_per_scored_gib": {
+        "min": 0.5431256200260539,
+        "median": 0.6053304914790439,
+        "max": 0.6892967246570912
+      },
+      "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": {
+        "min": 0.2338291803707485,
+        "median": 0.25305506037031406,
+        "max": 0.2751188964329192
+      },
+      "at_fixed_total_cpu_relay_cost_reduction": {
+        "min": 0.26922865283127595,
+        "median": 0.2722985735204601,
+        "max": 0.2799526710689568
+      },
+      "at_fixed_cost_extra_mean_cores_relay": {
+        "min": 0.06223343758317249,
+        "median": 0.09934031446593397,
+        "max": 0.14698800267356726
+      },
+      "at_fixed_cost_extra_mean_cores_vmm": {
+        "min": 0.11227178525730301,
+        "median": 0.17136408495003208,
+        "max": 0.25445945369874756
+      },
+      "at_fixed_cost_extra_mean_cores_total": {
+        "min": 0.1745052228404755,
+        "median": 0.270704399415966,
+        "max": 0.4014474563723148
+      }
+    },
+    "rows": [
+      {
+        "pair": 1,
+        "order": "AB",
+        "micropod_mib_s": 4069.293054335416,
+        "bracket_seconds": 6.148727,
+        "observed_relay_cpu_s_per_scored_gib": 0.34174480512849614,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5916142463035187,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.24855922354026672,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.27267592715327926,
+        "at_fixed_cost_extra_mean_cores_relay": 0.14698800267356726,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.25445945369874756,
+        "at_fixed_cost_extra_mean_cores_total": 0.4014474563723148
+      },
+      {
+        "pair": 2,
+        "order": "BA",
+        "micropod_mib_s": 3433.9523440331063,
+        "bracket_seconds": 6.154845,
+        "observed_relay_cpu_s_per_scored_gib": 0.3538358540507915,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6136155203584571,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.25724653095552563,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2729777720078105,
+        "at_fixed_cost_extra_mean_cores_relay": 0.12829634398137563,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.22248912022612288,
+        "at_fixed_cost_extra_mean_cores_total": 0.3507854642074985
+      },
+      {
+        "pair": 3,
+        "order": "AB",
+        "micropod_mib_s": 3811.0250961640354,
+        "bracket_seconds": 6.161323,
+        "observed_relay_cpu_s_per_scored_gib": 0.34690421621877665,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6042555112111093,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2519414339455801,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2737435229478671,
+        "at_fixed_cost_extra_mean_cores_relay": 0.1394504124149409,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.24290186253962648,
+        "at_fixed_cost_extra_mean_cores_total": 0.38235227495456736
+      },
+      {
+        "pair": 4,
+        "order": "BA",
+        "micropod_mib_s": 2556.217408074395,
+        "bracket_seconds": 6.186181,
+        "observed_relay_cpu_s_per_scored_gib": 0.36924432811863467,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6373827385037246,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.26874374530247236,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2721790835034098,
+        "at_fixed_cost_extra_mean_cores_relay": 0.09916835735214172,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.17118258661976218,
+        "at_fixed_cost_extra_mean_cores_total": 0.2703509439719039
+      },
+      {
+        "pair": 5,
+        "order": "AB",
+        "micropod_mib_s": 2500.378450314961,
+        "bracket_seconds": 6.188097,
+        "observed_relay_cpu_s_per_scored_gib": 0.35613647586052205,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6124383198432846,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.25943499157011773,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2715292895981727,
+        "at_fixed_cost_extra_mean_cores_relay": 0.0935222607491415,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.16082771668572837,
+        "at_fixed_cost_extra_mean_cores_total": 0.25434997743486987
+      },
+      {
+        "pair": 6,
+        "order": "BA",
+        "micropod_mib_s": 2455.041846296845,
+        "bracket_seconds": 6.18057,
+        "observed_relay_cpu_s_per_scored_gib": 0.34679504636813224,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5994613108928104,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2523218113921245,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2724180635375104,
+        "at_fixed_cost_extra_mean_cores_relay": 0.08952770188965697,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.15475536371711626,
+        "at_fixed_cost_extra_mean_cores_total": 0.24428306560677324
+      },
+      {
+        "pair": 7,
+        "order": "AB",
+        "micropod_mib_s": 3118.8546527245658,
+        "bracket_seconds": 6.213376,
+        "observed_relay_cpu_s_per_scored_gib": 0.3479952765357902,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5955941075038476,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2537883093485036,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.27071335026467724,
+        "at_fixed_cost_extra_mean_cores_relay": 0.11355479849791733,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.1943491001872565,
+        "at_fixed_cost_extra_mean_cores_total": 0.30790389868517387
+      },
+      {
+        "pair": 8,
+        "order": "BA",
+        "micropod_mib_s": 1561.921229438398,
+        "bracket_seconds": 6.232955,
+        "observed_relay_cpu_s_per_scored_gib": 0.38208446219965986,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6892967246570912,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2751188964329192,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2799526710689568,
+        "at_fixed_cost_extra_mean_cores_relay": 0.06223343758317249,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.11227178525730301,
+        "at_fixed_cost_extra_mean_cores_total": 0.1745052228404755
+      },
+      {
+        "pair": 9,
+        "order": "AB",
+        "micropod_mib_s": 1759.3318610989334,
+        "bracket_seconds": 6.221806,
+        "observed_relay_cpu_s_per_scored_gib": 0.35745897480400685,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6267905083631159,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.259192546277789,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.27490267541917757,
+        "at_fixed_cost_extra_mean_cores_relay": 0.06572827161320391,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.11525198605198718,
+        "at_fixed_cost_extra_mean_cores_total": 0.1809802576651911
+      },
+      {
+        "pair": 10,
+        "order": "BA",
+        "micropod_mib_s": 2854.0611513491435,
+        "bracket_seconds": 6.234193,
+        "observed_relay_cpu_s_per_scored_gib": 0.3344417441905567,
+        "observed_vmm_cpu_s_per_scored_gib": 0.576531950981401,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.243491092920893,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2719476645769503,
+        "at_fixed_cost_extra_mean_cores_relay": 0.09951227157972624,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.17154558328030195,
+        "at_fixed_cost_extra_mean_cores_total": 0.2710578548600282
+      },
+      {
+        "pair": 11,
+        "order": "AB",
+        "micropod_mib_s": 2352.5679547807304,
+        "bracket_seconds": 6.190314,
+        "observed_relay_cpu_s_per_scored_gib": 0.3547197636503279,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6064054717469786,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.25876203559036115,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2705170049519965,
+        "at_fixed_cost_extra_mean_cores_relay": 0.08764037928082243,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.14982420205450012,
+        "at_fixed_cost_extra_mean_cores_total": 0.23746458133532256
+      },
+      {
+        "pair": 12,
+        "order": "BA",
+        "micropod_mib_s": 2428.0905633132024,
+        "bracket_seconds": 6.253108,
+        "observed_relay_cpu_s_per_scored_gib": 0.34816203104313204,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6125557450132816,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2522449832932735,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2754954279835754,
+        "at_fixed_cost_extra_mean_cores_relay": 0.0878583708554076,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.15457788333133923,
+        "at_fixed_cost_extra_mean_cores_total": 0.24243625418674683
+      },
+      {
+        "pair": 13,
+        "order": "AB",
+        "micropod_mib_s": 3789.0475767591847,
+        "bracket_seconds": 6.19612,
+        "observed_relay_cpu_s_per_scored_gib": 0.329875392946226,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5596763645540888,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.24106348530112576,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.26922865283127595,
+        "at_fixed_cost_extra_mean_cores_relay": 0.13120094306138358,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.22259940695435024,
+        "at_fixed_cost_extra_mean_cores_total": 0.35380035001573384
+      },
+      {
+        "pair": 14,
+        "order": "BA",
+        "micropod_mib_s": 3593.862795953447,
+        "bracket_seconds": 6.144274,
+        "observed_relay_cpu_s_per_scored_gib": 0.32000303320164597,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5431256200260539,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2338291803707485,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.26929073755559085,
+        "at_fixed_cost_extra_mean_cores_relay": 0.12166309938143405,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.20649287484782786,
+        "at_fixed_cost_extra_mean_cores_total": 0.3281559742292619
+      },
+      {
+        "pair": 15,
+        "order": "AB",
+        "micropod_mib_s": 3193.1309856249977,
+        "bracket_seconds": 6.15429,
+        "observed_relay_cpu_s_per_scored_gib": 0.3249027666535677,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5519386688392249,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.23735984412906763,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.26944345050112795,
+        "at_fixed_cost_extra_mean_cores_relay": 0.10958645984363063,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.18616340326024275,
+        "at_fixed_cost_extra_mean_cores_total": 0.2957498631038734
+      },
+      {
+        "pair": 16,
+        "order": "BA",
+        "micropod_mib_s": 2565.5988681978874,
+        "bracket_seconds": 6.196321,
+        "observed_relay_cpu_s_per_scored_gib": 0.3625539708646347,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6322208844702849,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.26323670030138524,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.2739378921333926,
+        "at_fixed_cost_extra_mean_cores_relay": 0.09756882875585016,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.17014032715086286,
+        "at_fixed_cost_extra_mean_cores_total": 0.267709155906713
+      }
+    ]
+  },
+  "match_paired_point_estimate": {
+    "uniform_vm_rate_multiplier": 1.1708990634712748,
+    "metrics": {
+      "observed_relay_cpu_s_per_scored_gib": {
+        "min": 0.32000303320164597,
+        "median": 0.3479952765357902,
+        "max": 0.38208446219965986
+      },
+      "observed_vmm_cpu_s_per_scored_gib": {
+        "min": 0.5431256200260539,
+        "median": 0.6042555112111093,
+        "max": 0.6892967246570912
+      },
+      "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": {
+        "min": 0.19402472892789302,
+        "median": 0.21027329257951277,
+        "max": 0.22571057211237522
+      },
+      "at_fixed_total_cpu_relay_cost_reduction": {
+        "min": 0.3935877070756928,
+        "median": 0.3979009673134829,
+        "max": 0.4092652425252792
+      },
+      "at_fixed_cost_extra_mean_cores_relay": {
+        "min": 0.0958922959698635,
+        "median": 0.15333332963012736,
+        "max": 0.22648623639912824
+      },
+      "at_fixed_cost_extra_mean_cores_vmm": {
+        "min": 0.17299380652996918,
+        "median": 0.26432574646471924,
+        "max": 0.39208345535789374
+      },
+      "at_fixed_cost_extra_mean_cores_total": {
+        "min": 0.2688861024998327,
+        "median": 0.4176590760948466,
+        "max": 0.618569691757022
+      }
+    },
+    "rows": [
+      {
+        "pair": 1,
+        "order": "AB",
+        "micropod_mib_s": 4069.293054335416,
+        "bracket_seconds": 6.148727,
+        "observed_relay_cpu_s_per_scored_gib": 0.34174480512849614,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5916142463035187,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.20551599365495965,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.3986273073626223,
+        "at_fixed_cost_extra_mean_cores_relay": 0.22648623639912824,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.39208345535789374,
+        "at_fixed_cost_extra_mean_cores_total": 0.618569691757022
+      },
+      {
+        "pair": 2,
+        "order": "BA",
+        "micropod_mib_s": 3433.9523440331063,
+        "bracket_seconds": 6.154845,
+        "observed_relay_cpu_s_per_scored_gib": 0.3538358540507915,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6136155203584571,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.21263108329081004,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.3990685769783866,
+        "at_fixed_cost_extra_mean_cores_relay": 0.19768522303579183,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.3428220165129807,
+        "at_fixed_cost_extra_mean_cores_total": 0.5405072395487726
+      },
+      {
+        "pair": 3,
+        "order": "AB",
+        "micropod_mib_s": 3811.0250961640354,
+        "bracket_seconds": 6.161323,
+        "observed_relay_cpu_s_per_scored_gib": 0.34690421621877665,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6042555112111093,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.20807729962064214,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.4001880349317597,
+        "at_fixed_cost_extra_mean_cores_relay": 0.2148719521164423,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.37427495891017715,
+        "at_fixed_cost_extra_mean_cores_total": 0.5891469110266194
+      },
+      {
+        "pair": 4,
+        "order": "BA",
+        "micropod_mib_s": 2556.217408074395,
+        "bracket_seconds": 6.186181,
+        "observed_relay_cpu_s_per_scored_gib": 0.36924432811863467,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6373827385037246,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.22232165278521288,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.3979009673134829,
+        "at_fixed_cost_extra_mean_cores_relay": 0.15280340992489322,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.26376642362220337,
+        "at_fixed_cost_extra_mean_cores_total": 0.4165698335470966
+      },
+      {
+        "pair": 5,
+        "order": "AB",
+        "micropod_mib_s": 2500.378450314961,
+        "bracket_seconds": 6.188097,
+        "observed_relay_cpu_s_per_scored_gib": 0.35613647586052205,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6124383198432846,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.21476773567472662,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.39695102795693793,
+        "at_fixed_cost_extra_mean_cores_relay": 0.14410363071366522,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.24781113831248913,
+        "at_fixed_cost_extra_mean_cores_total": 0.39191476902615435
+      },
+      {
+        "pair": 6,
+        "order": "BA",
+        "micropod_mib_s": 2455.041846296845,
+        "bracket_seconds": 6.18057,
+        "observed_relay_cpu_s_per_scored_gib": 0.34679504636813224,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5994613108928104,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.20868380321775082,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.3982503343019861,
+        "at_fixed_cost_extra_mean_cores_relay": 0.13794862087814388,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.2384545626401037,
+        "at_fixed_cost_extra_mean_cores_total": 0.3764031835182476
+      },
+      {
+        "pair": 7,
+        "order": "AB",
+        "micropod_mib_s": 3118.8546527245658,
+        "bracket_seconds": 6.213376,
+        "observed_relay_cpu_s_per_scored_gib": 0.3479952765357902,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5955941075038476,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.21027329257951277,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.39575819915507726,
+        "at_fixed_cost_extra_mean_cores_relay": 0.17497073549581357,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.2994625101935918,
+        "at_fixed_cost_extra_mean_cores_total": 0.47443324568940537
+      },
+      {
+        "pair": 8,
+        "order": "BA",
+        "micropod_mib_s": 1561.921229438398,
+        "bracket_seconds": 6.232955,
+        "observed_relay_cpu_s_per_scored_gib": 0.38208446219965986,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6892967246570912,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.22571057211237522,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.4092652425252792,
+        "at_fixed_cost_extra_mean_cores_relay": 0.0958922959698635,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.17299380652996918,
+        "at_fixed_cost_extra_mean_cores_total": 0.2688861024998327
+      },
+      {
+        "pair": 9,
+        "order": "AB",
+        "micropod_mib_s": 1759.3318610989334,
+        "bracket_seconds": 6.221806,
+        "observed_relay_cpu_s_per_scored_gib": 0.35745897480400685,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6267905083631159,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2138024290410644,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.40188261000219305,
+        "at_fixed_cost_extra_mean_cores_relay": 0.10127730557543828,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.17758584431145197,
+        "at_fixed_cost_extra_mean_cores_total": 0.27886314988689026
+      },
+      {
+        "pair": 10,
+        "order": "BA",
+        "micropod_mib_s": 2854.0611513491435,
+        "bracket_seconds": 6.234193,
+        "observed_relay_cpu_s_per_scored_gib": 0.3344417441905567,
+        "observed_vmm_cpu_s_per_scored_gib": 0.576531950981401,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.20148019677048445,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.39756265397394297,
+        "at_fixed_cost_extra_mean_cores_relay": 0.15333332963012736,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.26432574646471924,
+        "at_fixed_cost_extra_mean_cores_total": 0.4176590760948466
+      },
+      {
+        "pair": 11,
+        "order": "AB",
+        "micropod_mib_s": 2352.5679547807304,
+        "bracket_seconds": 6.190314,
+        "observed_relay_cpu_s_per_scored_gib": 0.3547197636503279,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6064054717469786,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.21443832716078737,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.3954711602362979,
+        "at_fixed_cost_extra_mean_cores_relay": 0.13504054275767843,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.23085638982512982,
+        "at_fixed_cost_extra_mean_cores_total": 0.36589693258280825
+      },
+      {
+        "pair": 13,
+        "order": "AB",
+        "micropod_mib_s": 3789.0475767591847,
+        "bracket_seconds": 6.19612,
+        "observed_relay_cpu_s_per_scored_gib": 0.329875392946226,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5596763645540888,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.20004049341582775,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.3935877070756928,
+        "at_fixed_cost_extra_mean_cores_relay": 0.2021607700322385,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.34299195164745877,
+        "at_fixed_cost_extra_mean_cores_total": 0.5451527216796973
+      },
+      {
+        "pair": 14,
+        "order": "BA",
+        "micropod_mib_s": 3593.862795953447,
+        "bracket_seconds": 6.144274,
+        "observed_relay_cpu_s_per_scored_gib": 0.32000303320164597,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5431256200260539,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.19402472892789302,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.39367846927366235,
+        "at_fixed_cost_extra_mean_cores_relay": 0.18746439836146778,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.3181742265821737,
+        "at_fixed_cost_extra_mean_cores_total": 0.5056386249436415
+      },
+      {
+        "pair": 15,
+        "order": "AB",
+        "micropod_mib_s": 3193.1309856249977,
+        "bracket_seconds": 6.15429,
+        "observed_relay_cpu_s_per_scored_gib": 0.3249027666535677,
+        "observed_vmm_cpu_s_per_scored_gib": 0.5519386688392249,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.19692300749800606,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.3939017216557652,
+        "at_fixed_cost_extra_mean_cores_relay": 0.16885612702288547,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.28684959175411534,
+        "at_fixed_cost_extra_mean_cores_total": 0.45570571877700083
+      },
+      {
+        "pair": 16,
+        "order": "BA",
+        "micropod_mib_s": 2565.5988681978874,
+        "bracket_seconds": 6.196321,
+        "observed_relay_cpu_s_per_scored_gib": 0.3625539708646347,
+        "observed_vmm_cpu_s_per_scored_gib": 0.6322208844702849,
+        "at_fixed_total_cpu_target_relay_cpu_s_per_scored_gib": 0.2173611899963107,
+        "at_fixed_total_cpu_relay_cost_reduction": 0.4004721849330787,
+        "at_fixed_cost_extra_mean_cores_relay": 0.15033877876318275,
+        "at_fixed_cost_extra_mean_cores_vmm": 0.2621604597328471,
+        "at_fixed_cost_extra_mean_cores_total": 0.4124992384960298
+      }
+    ]
+  }
+}

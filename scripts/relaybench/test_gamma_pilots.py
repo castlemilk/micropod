@@ -102,7 +102,8 @@ class GammaPilots(unittest.TestCase):
 
     def test_peer_preflight_checks_orbstack_first_and_timing_preserves_ratio_direction(self):
         cap = {"read_bytes": 256 * 1024}
-        def inspect(scope, cpus, orb):
+        def inspect(scope, cpus, orb, *, peer_arm=False):
+            self.assertEqual(peer_arm, not orb)
             key = scope.name
             return dict(engine=key, id=key, address=key, name=key, cpus=cpus, cpuset="0-3", relay_workers=2,
                         pids={"vmm": 2 if orb else 1}, callback_events=128, route=vm.DIRECT_ROUTE, **cap)
@@ -199,26 +200,66 @@ class GammaPilots(unittest.TestCase):
                     self.assertFalse((root / "cli").exists())
 
     def test_relay_timeout_retains_its_pair_and_partial_counts(self):
-        def measure(exe, seconds, ports, workers, kib, profile, legacy, progress):
+        def measure(exe, seconds, ports, workers, kib, profile, legacy, progress, *, env=None):
             if progress.stem == "scored-1-B":
                 progress.write_bytes(struct.pack("=II", 240, 237))
                 raise RuntimeError("watchdog waiting for final probes")
             progress.write_bytes(struct.pack("=II", 240, 240))
             return dict(mib_s=100 * workers, p95_ms=1, cpu_seconds_per_gib=.5,
-                        sample=dict(fresh_ns=[1_000_000] * 240, callback_events=128, tick_numer=1,
+                        sample=dict(fresh_ns=[1_000_000] * 240, callback_events=128, workers=workers, drain_workers=workers,
+                                    read_bytes=262144, tick_numer=1,
                                     tick_denom=1, elapsed_ns=6_000_000_000, cpu_ticks=9_000_000_000,
                                     runnable_ticks=12_000_000_000))
 
         with tempfile.TemporaryDirectory() as temp, patch.object(relay.platform, "node", return_value="Gamma-128GB"), \
              patch.object(relay, "build", return_value=(Path("/unused"), {})) as build, \
+             patch.object(relay.subprocess, "check_output", side_effect=[
+                 json.dumps(dict(workers=w, drain_workers=w, callback_events=128, read_bytes=262144,
+                                 live_revocation=True, sibling_and_reuse=True, timed_rounds=0)) for w in (2, 4)]), \
              patch.object(relay, "measure", side_effect=measure) as measured:
             args = Namespace(out=Path(temp) / "new", factor="workers", ports=32, seed=34199)
             relay.run(args, vm.plan(args.seed))
             self.assertEqual((build.call_count, measured.call_count), (1, 10))
+            self.assertEqual(build.call_args.args[1], relay.WORKER_REVISION)
+            self.assertTrue(build.call_args.kwargs["fixed_worker_budget"])
             row = json.loads((args.out / "scored-1-B.json").read_text())
             self.assertFalse(row["clean"])
             self.assertEqual((row["submitted_without_reply"], row["never_submitted"]), (3, 0))
             self.assertEqual(json.loads((args.out / "complete.json").read_text())["candidate_over_control"], {"2": 2.0})
+
+    def test_four_worker_stock_budget_fails_before_host_timing(self):
+        probes = [dict(workers=w, drain_workers=w, callback_events=budget, read_bytes=262144, timed_rounds=0,
+                       live_revocation=True, sibling_and_reuse=True) for w, budget in ((2, 128), (4, 24))]
+        with tempfile.TemporaryDirectory() as temp, patch.object(relay.platform, "node", return_value="Gamma-128GB"), \
+             patch.object(relay, "build", return_value=(Path("/unused"), {})), \
+             patch.object(relay.subprocess, "check_output", side_effect=[json.dumps(p) for p in probes]), \
+             patch.object(relay, "measure") as measured:
+            args = Namespace(out=Path(temp) / "new", factor="workers", ports=1, seed=34200)
+            with self.assertRaisesRegex(ValueError, "callback_events"):
+                relay.run(args, vm.plan(args.seed))
+            measured.assert_not_called()
+            self.assertEqual(json.loads((args.out / "worker-controls.json").read_text())["B"], probes[1])
+
+    def test_four_worker_receipt_cannot_substitute_two_in_drain(self):
+        with self.assertRaisesRegex(ValueError, "drain_workers"):
+            relay.verify_worker_controls(dict(workers=4, drain_workers=2, callback_events=128, read_bytes=262144), 4)
+
+    def test_read_size_preflight_cannot_time_an_ignored_selector(self):
+        probe = dict(workers=2, drain_workers=2, callback_events=128, read_bytes=262144,
+                     live_revocation=True, sibling_and_reuse=True, timed_rounds=0)
+        with tempfile.TemporaryDirectory() as temp, patch.object(relay.platform, "node", return_value="Gamma-128GB"), \
+             patch.object(relay, "git", return_value=b"a"*40), \
+             patch.object(relay, "build", return_value=(Path("/unused"), {})) as build, \
+             patch.object(relay.subprocess, "check_output", return_value=json.dumps(probe)) as checked, \
+             patch.object(relay, "measure") as measured:
+            args = Namespace(out=Path(temp) / "new", factor="read-size", ports=1, seed=241126)
+            with self.assertRaisesRegex(ValueError, "read_bytes"):
+                relay.run(args, vm.plan(args.seed, 8))
+            build.assert_called_once()
+            self.assertTrue(build.call_args.kwargs["selectable_reads"])
+            self.assertEqual([c.kwargs["env"]["MICROPOD_BENCH_RELAY_READ_KIB"] for c in checked.call_args_list],
+                             ["256", "512"])
+            measured.assert_not_called()
 
     def test_size_rejects_a_six_cpu_service_cpuset_before_timing(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -327,9 +368,15 @@ class GammaPilots(unittest.TestCase):
             self.assertEqual(set(holdout["scored"][i:i+2]), {"AB", "BA"})
         with self.assertRaisesRegex(ValueError, "only to the OrbStack"):
             vm.arm_settings("workers", peer_vcpus=6)
+        standard = vm.arm_settings("peer", peer_process_type="Standard")
+        self.assertEqual(standard["A"]["process_type"], "Standard")
+        self.assertNotIn("process_type", standard["B"])
+        with self.assertRaisesRegex(ValueError, "peer comparison"):
+            vm.arm_settings("workers", peer_process_type="Standard")
 
     def test_six_vcpu_holdout_reports_dirty_candidate_round(self):
-        def inspect(scope, cpus, orb):
+        def inspect(scope, cpus, orb, *, peer_arm=False):
+            self.assertEqual(peer_arm, not orb)
             self.assertEqual(cpus, 6)
             return dict(engine=scope.name, id=scope.name, address="127.0.0.1:9002" if orb else "127.0.0.1:9001",
                         name=scope.name, cpuset="0-3",
@@ -394,11 +441,14 @@ class GammaPilots(unittest.TestCase):
                     vm.mapped_digest(path, 77)
 
     def test_filter_pilot_changes_only_the_build_flag(self):
-        def fake_build(directory, revision, legacy, sanitize, *, batch_filters, stage_connect):
+        def fake_build(directory, revision, legacy, sanitize, *, batch_filters, stage_connect, fixed_worker_budget, selectable_reads):
             self.assertTrue(stage_connect)
+            self.assertIsNone(fixed_worker_budget)
+            self.assertFalse(selectable_reads)
             return directory / "relay", {"batched": batch_filters}
 
-        def measure(exe, seconds, ports, workers, kib, profile, legacy, progress):
+        def measure(exe, seconds, ports, workers, kib, profile, legacy, progress, *, env=None):
+            self.assertIsNone(env)
             self.assertEqual((seconds, ports, workers, kib, profile, legacy), (6, 1, 2, 512, False, False))
             self.assertEqual(exe.parent.name, progress.stem.rsplit("-", 1)[1])
             progress.write_bytes(struct.pack("=II", 240, 240))
@@ -412,7 +462,8 @@ class GammaPilots(unittest.TestCase):
             args = Namespace(out=Path(temp) / "out", factor="filters", ports=1, seed=34201)
             relay.run(args, vm.plan(args.seed))
             self.assertEqual([(call.args[1:], call.kwargs) for call in build.call_args_list],
-                             [(("same-commit", False, False), {"batch_filters": b, "stage_connect": True})
+                             [(("same-commit", False, False), {"batch_filters": b, "stage_connect": True,
+                                                               "fixed_worker_budget": None, "selectable_reads": False})
                               for b in (False, True)])
             receipt = json.loads((args.out / "plan.json").read_text())
             self.assertEqual(receipt["arm_binaries"], {"A": "False", "B": "batched"})

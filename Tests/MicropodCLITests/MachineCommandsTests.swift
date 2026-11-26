@@ -1,3 +1,5 @@
+import MicropodCore
+import MicropodRuntime
 import XCTest
 
 @testable import MicropodCLI
@@ -20,6 +22,82 @@ final class MachineCommandsTests: XCTestCase {
         XCTAssertNil(route(["machines", "logs", "web"]))
         XCTAssertNil(route(["ps", "--no-color"]))
         XCTAssertNil(route(["--cli"]))
+        XCTAssertEqual(route(["machine", "cache", "policy", "--mode", "off"]), ["cache", "policy", "--mode", "off"])
+        XCTAssertEqual(route(["--json", "machine", "builder", "status"]), ["builder", "status"])
+    }
+
+    func testANewDiskDefaultsTo64GiB() throws {
+        XCTAssertEqual(MachineCommands.defaultDiskSize, "64g")
+        XCTAssertEqual(try MachineCommands.diskBytes(MachineCommands.defaultDiskSize), 64 << 30)
+        XCTAssertEqual(HVFInstallRequest().diskBytes, 64 << 30)
+        XCTAssertTrue(MachineCommands.helpText.contains("--disk-size 64g"))
+    }
+
+    private func policy(_ args: [String], from original: HVFMachineCachePolicy = HVFMachineCachePolicy()) throws
+        -> HVFMachineCachePolicy
+    {
+        let parsed = try parseArgs(
+            args, boolFlags: [], valueFlags: MachineCommands.policyValueFlags, commandName: "machine cache policy")
+        return try MachineCommands.applyPolicyFlags(parsed, to: original)
+    }
+
+    func testCachePolicyFlagsEditThePolicy() throws {
+        XCTAssertEqual(try policy([]), HVFMachineCachePolicy(), "no flags, no change")
+        XCTAssertEqual(try policy(["--mode", "off"]).mode, .off)
+        XCTAssertEqual(try policy(["--mode=AUTO"], from: HVFMachineCachePolicy(mode: .off)).mode, .auto)
+        XCTAssertEqual(try policy(["--default-scope", "none"]).defaultScope, "")
+        XCTAssertEqual(try policy(["--default-scope", "proj-a"]).defaultScope, "proj-a")
+        XCTAssertEqual(
+            try policy(["--allow-scopes", "ci-*, main", "--default-scope", "main"]).allowedScopes, ["ci-*", "main"])
+        XCTAssertEqual(try policy(["--tools", "go,npm"]).tools, ["gomod", "gobuild", "npm"])
+        XCTAssertEqual(
+            try policy(["--tools", "all"], from: HVFMachineCachePolicy(tools: ["npm"])).tools,
+            HVFMachineCachePolicy.toolKinds)
+        let toggled = try policy(["--go-trimpath", "off", "--pnpm-legacy-env", "false", "--register-buildx", "on"])
+        XCTAssertFalse(toggled.goTrimpath)
+        XCTAssertFalse(toggled.pnpmLegacyEnv)
+        XCTAssertTrue(toggled.buildkit.registerBuildx)
+        let extra = HVFMachineCachePolicy(extra: ["later": .bool(true)])
+        XCTAssertEqual(
+            try policy(["--mode", "off"], from: extra).extra, ["later": .bool(true)], "unknown keys survive")
+
+        for (bad, message) in [
+            (["--mode", "sometimes"], "--mode wants auto or off"),
+            (["--default-scope", "Proj"], "--default-scope 'Proj' must match"),
+            (["--allow-scopes", "a*b"], "--allow-scopes entry 'a*b'"),
+            (["--allow-scopes", "ci-*"], "default scope 'default' is not in the allowed scopes"),
+            (["--tools", "go,maven"], "unknown tool 'maven'"),
+            (["--go-trimpath", "maybe"], "--go-trimpath wants on or off"),
+        ] {
+            XCTAssertThrowsError(try policy(bad), "\(bad)") { error in
+                XCTAssertTrue(error is UsageError, "\(bad): \(error)")
+                XCTAssertTrue("\(error)".contains(message), "\(message): \(error)")
+                XCTAssertFalse("\(error)".contains("invalidArgument"), "no error-code prefix in a usage line: \(error)")
+            }
+        }
+    }
+
+    func testRunCacheFlagsReachTheRequestAndAreCheckedUpFront() throws {
+        let parsed = try parseArgs(
+            ["--runtime", "hvf", "--cache", "go", "--cache-scope", "proja", "golang:alpine", "go", "version"],
+            boolFlags: [], valueFlags: ["--runtime", "--cache", "--cache-scope"], commandName: "run")
+        let request = ContainerCommands.buildRunRequest(parsed, image: "golang:alpine")
+        XCTAssertEqual(request.cache, "go")
+        XCTAssertEqual(request.cacheScope, "proja")
+        XCTAssertEqual(request.arguments, ["go", "version"])
+        XCTAssertNoThrow(try ContainerCommands.validateCacheFlags(request))
+        for (cache, scope, runtime) in [("maven", nil, "hvf"), (nil, "Bad", "hvf"), ("go", nil, "apple")]
+            as [(String?, String?, String)]
+        {
+            let bad = ContainerRunRequest(image: "x", runtime: runtime, cache: cache, cacheScope: scope)
+            XCTAssertThrowsError(try ContainerCommands.validateCacheFlags(bad)) { error in
+                XCTAssertTrue(error is UsageError, "\(error)")
+            }
+        }
+        let viaDefault = ContainerRunRequest(image: "x", cache: "go")
+        XCTAssertNoThrow(try ContainerCommands.validateCacheFlags(viaDefault, defaultRuntime: "hvf"))
+        XCTAssertThrowsError(try ContainerCommands.validateCacheFlags(viaDefault, defaultRuntime: "apple"))
+        XCTAssertNoThrow(try ContainerCommands.validateCacheFlags(ContainerRunRequest(image: "x", cache: "off")))
     }
 
     func testDiskSizeOverflowIsAUsageError() throws {

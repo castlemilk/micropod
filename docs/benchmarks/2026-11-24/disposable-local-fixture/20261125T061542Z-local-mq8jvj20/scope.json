@@ -1,0 +1,11 @@
+{
+  "scope": "/private/tmp/mp-t-_yhq6ekk",
+  "timestamp": "2026-11-25T06:15:42.189755+00:00",
+  "host_worker_volume": "apfs-no-index",
+  "host_worker_volume_gib": 16,
+  "host_worker_volume_final_history": true,
+  "host_volume_sources": {
+    "local_worker_drive.py": "e68731ce5ff24b1989fdd8d42553d0c5fab412bc8c196f7aa5a79b3a82db15df",
+    "worker_apfs_drive.py": "80cf6b81585627b12523a9db0c5163b13e149b15bab1cc78342ee9b7a33cd54d"
+  }
+}

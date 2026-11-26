@@ -1,0 +1,9 @@
+=== RUN   TestDockerStopKeepsOriginalGeneration
+--- PASS: TestDockerStopKeepsOriginalGeneration (0.00s)
+=== RUN   TestDockerTmpfsConfig
+--- PASS: TestDockerTmpfsConfig (0.00s)
+=== RUN   TestDockerTmpfsValidation
+--- PASS: TestDockerTmpfsValidation (0.00s)
+=== RUN   TestDockerTmpfsOCISpec
+--- PASS: TestDockerTmpfsOCISpec (0.00s)
+PASS

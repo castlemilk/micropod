@@ -1,0 +1,278 @@
+{
+  "round": 0,
+  "arm": "A",
+  "before": {
+    "host_start_ns": 74563491083958,
+    "host_end_ns": 74563578937250,
+    "groups": [
+      {
+        "slot": 0,
+        "home_cpu": "0",
+        "dependency": {
+          "id": "712fcb73b40ca6f04447066e6acfae84a0681a07856cb8a8445df91da052be78",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 20587\nuser_usec 0\nsystem_usec 20587\nnice_usec 0\nnr_periods 10\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=30815\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=24331"
+        },
+        "builder": {
+          "id": "460e84cdf98e44bd287e0f9c2b9932ac3a89cd21f7b0dbcc991e84acb080fb1b",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 8550047\nuser_usec 8151072\nsystem_usec 398975\nnice_usec 0\nnr_periods 101\nnr_throttled 10\nthrottled_usec 20961\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.24 avg60=0.23 avg300=0.06 total=293411\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=45841"
+        }
+      },
+      {
+        "slot": 1,
+        "home_cpu": "1",
+        "dependency": {
+          "id": "3d7682de731b8ddc18243ae1795713d49c8708d855c7ae7ede8742366d8abffa",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 11556\nuser_usec 3852\nsystem_usec 7704\nnice_usec 0\nnr_periods 6\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=14728\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=13574"
+        },
+        "builder": {
+          "id": "eb1846f3de08455d9d8148a9f7939a1ed5f2d8c5ee15f97638d7997b8798d39c",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 114319\nuser_usec 89219\nsystem_usec 25099\nnice_usec 0\nnr_periods 9\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=17341\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=15867"
+        }
+      },
+      {
+        "slot": 2,
+        "home_cpu": "2",
+        "dependency": {
+          "id": "8e364afd9eda8d2646a9d0615683288ac8479366c49502da90d147f5d9ef3d74",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 11545\nuser_usec 0\nsystem_usec 11545\nnice_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=13109\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=11685"
+        },
+        "builder": {
+          "id": "d0ba15cfdbc3894cb03bb776a06ef616793b71598909ca98b3b606b331c02cd0",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 112776\nuser_usec 94528\nsystem_usec 18247\nnice_usec 0\nnr_periods 10\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=12339\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=11333"
+        }
+      },
+      {
+        "slot": 3,
+        "home_cpu": "3",
+        "dependency": {
+          "id": "1549999ffb0ae67a3d5f394fdbf1b0108f9876eae3840781a1b54e00419a0b07",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 11718\nuser_usec 0\nsystem_usec 11718\nnice_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=9482\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=8184"
+        },
+        "builder": {
+          "id": "ad93e805d24579145dcea4ce7c8e1ffbfcc2c4545207d9ce6801caef1f1241bf",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 110396\nuser_usec 82797\nsystem_usec 27599\nnice_usec 0\nnr_periods 10\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=11263\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=10302"
+        }
+      },
+      {
+        "slot": 4,
+        "home_cpu": "0",
+        "dependency": {
+          "id": "36f982a8e9d5d9652eb1d097b684a3837e19273af4819343f13d6c8ff40a95e1",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 11677\nuser_usec 2919\nsystem_usec 8757\nnice_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=11489\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=9318"
+        },
+        "builder": {
+          "id": "6861192116422b139b05cf03b6e76e33c143ed79230a177941cf5528c9727015",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 98508\nuser_usec 77093\nsystem_usec 21414\nnice_usec 0\nnr_periods 10\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=12195\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=9895"
+        }
+      },
+      {
+        "slot": 5,
+        "home_cpu": "1",
+        "dependency": {
+          "id": "3e53a22f8e68c9ca144bb0e3ad5a8e926dfb08e28927852eba710d15e45b4fa1",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 10863\nuser_usec 0\nsystem_usec 10863\nnice_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=9330\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=8293"
+        },
+        "builder": {
+          "id": "822e5d0bda0fc6dcbf97b773b72ae151c365033ad93d8170e63d0f7df03eab8c",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 96320\nuser_usec 71348\nsystem_usec 24971\nnice_usec 0\nnr_periods 11\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=15598\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=14833"
+        }
+      },
+      {
+        "slot": 6,
+        "home_cpu": "2",
+        "dependency": {
+          "id": "bae62b57c8e3971297259e72e94aee5f814df823854bd717d86af8bbb22e3d03",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 9494\nuser_usec 1979\nsystem_usec 7514\nnice_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=11563\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=10694"
+        },
+        "builder": {
+          "id": "34876ca33b6e8577f9f82e89caf021133f02932e77180ad127a31c1bd144eaa3",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 97078\nuser_usec 70555\nsystem_usec 26523\nnice_usec 0\nnr_periods 10\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=16310\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=14486"
+        }
+      },
+      {
+        "slot": 7,
+        "home_cpu": "3",
+        "dependency": {
+          "id": "c61a672fa3ec964d7e1729c119297d574127e6bf832be838b51e67b426a785e6",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 10024\nuser_usec 10024\nsystem_usec 0\nnice_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=8243\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=7484"
+        },
+        "builder": {
+          "id": "2db73c80811284b247a40dca00337db7ecb0e0df0d5204e6e697808196199789",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 97511\nuser_usec 67122\nsystem_usec 30388\nnice_usec 0\nnr_periods 11\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=10451\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=9662"
+        }
+      }
+    ],
+    "vcpu_stat": "cpu0 1011 0 247 3130 25 0 43 0 0 0\ncpu1 240 0 175 3948 52 0 70 0 0 0\ncpu2 234 0 144 4012 44 0 32 0 0 0\ncpu3 234 0 167 3993 61 0 12 0 0 0"
+  },
+  "after": {
+    "host_start_ns": 74567280996791,
+    "host_end_ns": 74567374563250,
+    "groups": [
+      {
+        "slot": 0,
+        "home_cpu": "0",
+        "dependency": {
+          "id": "712fcb73b40ca6f04447066e6acfae84a0681a07856cb8a8445df91da052be78",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 56841\nuser_usec 16240\nsystem_usec 40601\nnice_usec 0\nnr_periods 29\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=10.18 avg60=1.99 avg300=0.42 total=1250761\nfull avg10=10.03 avg60=1.96 avg300=0.41 total=1217387"
+        },
+        "builder": {
+          "id": "460e84cdf98e44bd287e0f9c2b9932ac3a89cd21f7b0dbcc991e84acb080fb1b",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 9578589\nuser_usec 8996134\nsystem_usec 582454\nnice_usec 0\nnr_periods 134\nnr_throttled 10\nthrottled_usec 20961\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=10.18 avg60=2.25 avg300=0.49 total=1493998\nfull avg10=9.39 avg60=1.91 avg300=0.40 total=1182570"
+        }
+      },
+      {
+        "slot": 1,
+        "home_cpu": "1",
+        "dependency": {
+          "id": "3d7682de731b8ddc18243ae1795713d49c8708d855c7ae7ede8742366d8abffa",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 45749\nuser_usec 15950\nsystem_usec 29799\nnice_usec 0\nnr_periods 25\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=8.18 avg60=1.63 avg300=0.34 total=1068761\nfull avg10=8.04 avg60=1.60 avg300=0.34 total=1042192"
+        },
+        "builder": {
+          "id": "eb1846f3de08455d9d8148a9f7939a1ed5f2d8c5ee15f97638d7997b8798d39c",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 1124014\nuser_usec 897650\nsystem_usec 226363\nnice_usec 0\nnr_periods 42\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=10.20 avg60=2.07 avg300=0.44 total=1247552\nfull avg10=9.27 avg60=1.88 avg300=0.40 total=1133489"
+        }
+      },
+      {
+        "slot": 2,
+        "home_cpu": "2",
+        "dependency": {
+          "id": "8e364afd9eda8d2646a9d0615683288ac8479366c49502da90d147f5d9ef3d74",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 46583\nuser_usec 15890\nsystem_usec 30692\nnice_usec 0\nnr_periods 23\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=9.30 avg60=1.83 avg300=0.38 total=1175805\nfull avg10=9.16 avg60=1.80 avg300=0.38 total=1147545"
+        },
+        "builder": {
+          "id": "d0ba15cfdbc3894cb03bb776a06ef616793b71598909ca98b3b606b331c02cd0",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 1128401\nuser_usec 927610\nsystem_usec 200791\nnice_usec 0\nnr_periods 43\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=10.92 avg60=2.25 avg300=0.48 total=1402339\nfull avg10=9.11 avg60=1.87 avg300=0.40 total=1161988"
+        }
+      },
+      {
+        "slot": 3,
+        "home_cpu": "3",
+        "dependency": {
+          "id": "1549999ffb0ae67a3d5f394fdbf1b0108f9876eae3840781a1b54e00419a0b07",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 46227\nuser_usec 14446\nsystem_usec 31781\nnice_usec 0\nnr_periods 23\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=8.60 avg60=1.83 avg300=0.39 total=1202638\nfull avg10=8.45 avg60=1.80 avg300=0.38 total=1174062"
+        },
+        "builder": {
+          "id": "ad93e805d24579145dcea4ce7c8e1ffbfcc2c4545207d9ce6801caef1f1241bf",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 1142806\nuser_usec 958998\nsystem_usec 183808\nnice_usec 0\nnr_periods 43\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=9.14 avg60=1.87 avg300=0.40 total=1142213\nfull avg10=7.92 avg60=1.62 avg300=0.34 total=994795"
+        }
+      },
+      {
+        "slot": 4,
+        "home_cpu": "0",
+        "dependency": {
+          "id": "36f982a8e9d5d9652eb1d097b684a3837e19273af4819343f13d6c8ff40a95e1",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 47070\nuser_usec 25888\nsystem_usec 21181\nnice_usec 0\nnr_periods 24\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=9.04 avg60=1.93 avg300=0.41 total=1235571\nfull avg10=8.89 avg60=1.89 avg300=0.40 total=1205726"
+        },
+        "builder": {
+          "id": "6861192116422b139b05cf03b6e76e33c143ed79230a177941cf5528c9727015",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 1128690\nuser_usec 961476\nsystem_usec 167213\nnice_usec 0\nnr_periods 42\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=10.72 avg60=2.19 avg300=0.46 total=1318278\nfull avg10=9.50 avg60=1.94 avg300=0.41 total=1176881"
+        }
+      },
+      {
+        "slot": 5,
+        "home_cpu": "1",
+        "dependency": {
+          "id": "3e53a22f8e68c9ca144bb0e3ad5a8e926dfb08e28927852eba710d15e45b4fa1",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 45091\nuser_usec 9474\nsystem_usec 35617\nnice_usec 0\nnr_periods 25\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=7.86 avg60=1.67 avg300=0.35 total=1080655\nfull avg10=7.71 avg60=1.64 avg300=0.35 total=1053433"
+        },
+        "builder": {
+          "id": "822e5d0bda0fc6dcbf97b773b72ae151c365033ad93d8170e63d0f7df03eab8c",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 1112125\nuser_usec 904323\nsystem_usec 207801\nnice_usec 0\nnr_periods 43\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=8.70 avg60=1.78 avg300=0.38 total=1074861\nfull avg10=8.07 avg60=1.65 avg300=0.35 total=1018311"
+        }
+      },
+      {
+        "slot": 6,
+        "home_cpu": "2",
+        "dependency": {
+          "id": "bae62b57c8e3971297259e72e94aee5f814df823854bd717d86af8bbb22e3d03",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 44217\nuser_usec 11054\nsystem_usec 33163\nnice_usec 0\nnr_periods 23\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=8.15 avg60=1.74 avg300=0.37 total=1143485\nfull avg10=8.00 avg60=1.70 avg300=0.36 total=1115435"
+        },
+        "builder": {
+          "id": "34876ca33b6e8577f9f82e89caf021133f02932e77180ad127a31c1bd144eaa3",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 1118800\nuser_usec 873118\nsystem_usec 245682\nnice_usec 0\nnr_periods 43\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=9.73 avg60=2.00 avg300=0.42 total=1226553\nfull avg10=9.11 avg60=1.87 avg300=0.40 total=1152947"
+        }
+      },
+      {
+        "slot": 7,
+        "home_cpu": "3",
+        "dependency": {
+          "id": "c61a672fa3ec964d7e1729c119297d574127e6bf832be838b51e67b426a785e6",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 45207\nuser_usec 21025\nsystem_usec 24181\nnice_usec 0\nnr_periods 23\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=8.89 avg60=1.89 avg300=0.40 total=1232807\nfull avg10=8.60 avg60=1.83 avg300=0.39 total=1204541"
+        },
+        "builder": {
+          "id": "2db73c80811284b247a40dca00337db7ecb0e0df0d5204e6e697808196199789",
+          "boot": "7c92a98f-7234-458f-ac93-bce12a8485cf",
+          "cpu.stat": "usage_usec 1117042\nuser_usec 919917\nsystem_usec 197125\nnice_usec 0\nnr_periods 43\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "cpu.pressure": "some avg10=9.01 avg60=1.87 avg300=0.40 total=1195373\nfull avg10=8.42 avg60=1.74 avg300=0.37 total=1105366"
+        }
+      }
+    ],
+    "vcpu_stat": "cpu0 1236 0 325 3204 27 0 44 0 0 0\ncpu1 448 0 265 4025 54 0 76 0 0 0\ncpu2 460 0 206 4099 47 0 37 0 0 0\ncpu3 468 0 233 4070 65 0 15 0 0 0"
+  },
+  "run_wave_host_ns": [
+    74563578970125,
+    74567280996083
+  ]
+}

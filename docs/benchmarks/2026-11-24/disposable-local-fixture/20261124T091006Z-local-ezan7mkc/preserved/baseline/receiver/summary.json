@@ -1,0 +1,16 @@
+{
+  "evidence": "local VM with stock idle gate",
+  "schedule_complete": true,
+  "results": {
+    "A": {
+      "admission_attempts": 1,
+      "first_attempts": 1,
+      "clean": 1,
+      "clean_median_MiB_s": 6573.335798495191
+    }
+  },
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "idle_wait_seconds": 60,
+  "idle_policy": "two consecutive qualifying samples"
+}

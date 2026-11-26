@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 import subprocess
 import sys
 import tempfile
@@ -130,8 +131,40 @@ class PeerVerdictTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "attempt load-client hash"):
                 peer.directory(root, CLI_SHA)
 
+    def test_derived_stock_controls_need_the_scoped_mapped_build_and_matching_session(self):
+        from gamma_pilot import STOCK_RELAY_REV, STOCK_RELAY_SHA
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            completed_run(root)
+            plan = json.loads((root / "plan.json").read_bytes())
+            plan["arms"] = peer.arm_settings("peer", 2, 6)
+            write(root, "plan.json", plan)
+            fixtures = json.loads((root / "fixtures.json").read_bytes())
+            fixture = fixtures["A"]
+            mapping = dict(pid=fixture["pids"]["relay"], sha256=STOCK_RELAY_SHA, device=3, inode=5)
+            proof = dict(revision=STOCK_RELAY_REV, mapped_executable=mapping, profiling=False,
+                         session_controls=dict(callback_events=None, read_bytes=None))
+            fixture.update(cli_sha256=STOCK_RELAY_SHA, relay_workers=2, process_type="Interactive",
+                           spawn_type="interactive (4)", job_controls_sha256="e"*64, stock_build_controls=proof)
+            write(root, "fixtures.json", fixtures)
+            self.assertEqual(peer.directory(root, STOCK_RELAY_SHA)["relay_read_bytes"], 262144)
+            bad_proofs = [None, dict(proof, revision="retired"), dict(proof, profiling=True),
+                          dict(proof, mapped_executable=dict(mapping, sha256=CLI_SHA)),
+                          dict(proof, mapped_executable=dict(mapping, pid=999)),
+                          dict(proof, mapped_executable=dict(mapping, inode=False)),
+                          dict(proof, session_controls=dict(callback_events=24, read_bytes=None))]
+            for change in [dict(stock_build_controls=p) for p in bad_proofs] + [
+                    dict(cli_sha256=CLI_SHA), dict(read_bytes=524288), dict(relay_workers=4), dict(process_type="Standard")]:
+                with self.subTest(change=change):
+                    other = deepcopy(fixtures)
+                    other["A"].update(change)
+                    write(root, "fixtures.json", other)
+                    with self.assertRaises(ValueError):
+                        peer.directory(root, other["A"]["cli_sha256"])
+
     def test_historical_archive_replays_including_failed_peer_and_unknown_p50(self):
         r = peer.archived()
+        self.assertEqual(r["evidence"], "historical archive")
         self.assertEqual((r["verdict"], r["common_clean_pairs"], r["micropod_pair_wins"]), ("did not qualify", 15, 7))
         self.assertAlmostEqual(r["median_ratio"], .8540445809525004)
         self.assertEqual(r["bootstrap_ci95"], [.7090052427711508, 1.2586594205448958])
@@ -146,7 +179,7 @@ class PeerVerdictTests(unittest.TestCase):
             root = Path(d)
             completed_run(root)
             change_client(root, 1, "B", is_clean=False, reopened=1)
-            r = peer.directory(root, CLI_SHA)
+            r = peer.directory(root, CLI_SHA, candidate_workers=4, candidate_vcpus=6)
             self.assertEqual(r["verdict"], "qualified on this workload")
             self.assertEqual(r["common_clean_pairs"], 15)
             self.assertEqual(r["bootstrap_ci95"], [2, 2])
@@ -163,6 +196,47 @@ class PeerVerdictTests(unittest.TestCase):
             self.assertEqual(r["bootstrap_ci95"], [2, 2])
             self.assertEqual(r["pairs"][0]["A"]["fresh_failed"], 1)
             self.assertIn("Micropod round 2 exceeded 75 ms fresh p95", r["reasons"])
+
+    def test_clean_holdout_can_only_qualify_the_selected_worker_count_and_vm_size(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixtures = completed_run(root)
+            matched = peer.directory(root, CLI_SHA, candidate_workers=4, candidate_vcpus=6)
+            self.assertEqual(matched["verdict"], "qualified on this workload")
+            self.assertTrue(matched["candidate_resources_verified"])
+            self.assertEqual((matched["relay_workers"], matched["vcpus"]), (4, 6))
+            replay = peer.directory(root, CLI_SHA)
+            self.assertEqual(replay["pairs"], matched["pairs"])
+            self.assertFalse(replay["candidate_resources_verified"])
+            self.assertEqual(replay["verdict"], "did not qualify")
+            self.assertIn("independently selected", replay["reasons"][0])
+            for workers, vcpus, error in ((2, 6, "worker count"), (4, 4, "vCPU count"),
+                                          (None, 6, "supply both"), (4, None, "supply both")):
+                with self.subTest(workers=workers, vcpus=vcpus), self.assertRaisesRegex(ValueError, error):
+                    peer.directory(root, CLI_SHA, candidate_workers=workers, candidate_vcpus=vcpus)
+
+            # Change the plan and every fixture together, retaining the selected
+            # executable, cap, eligible peers and a nominal twofold throughput win.
+            schedule = json.loads((root / "plan.json").read_text())
+            schedule["arms"] = peer.arm_settings("peer", 2, 4)
+            fixtures["A"].update(relay_workers=2, cpus=4)
+            fixtures["B"]["cpus"] = 4
+            write(root, "plan.json", schedule)
+            write(root, "fixtures.json", fixtures)
+            with self.assertRaisesRegex(ValueError, "worker count"):
+                peer.directory(root, CLI_SHA, candidate_workers=4, candidate_vcpus=4)
+            with self.assertRaisesRegex(ValueError, "vCPU count"):
+                peer.directory(root, CLI_SHA, candidate_workers=2, candidate_vcpus=6)
+            cli = [sys.executable, "-B", peer.__file__, "--run-directory", tmp, "--candidate-sha256", CLI_SHA,
+                   "--candidate-workers", "2", "--candidate-vcpus", "4", "--json"]
+            result = subprocess.run(cli, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(json.loads(result.stdout)["candidate_resources_verified"])
+            fixtures["B"]["cpus"] = 6
+            write(root, "fixtures.json", fixtures)
+            result = subprocess.run(cli, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("vCPU count", result.stderr)
 
     def test_new_holdout_requires_one_port_and_the_exact_arm_endpoint_on_every_attempt(self):
         with tempfile.TemporaryDirectory() as d:
@@ -239,6 +313,40 @@ class PeerVerdictTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "read size"):
                 peer.directory(root, CLI_SHA, 256)
             self.assertEqual(peer.directory(root, CLI_SHA, 512)["relay_read_bytes"], 524288)
+
+    def test_same_build_and_throughput_cannot_qualify_another_launch_role(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            fixtures = completed_run(root)
+            schedule = json.loads((root / "plan.json").read_text())
+            selected = dict(candidate_workers=4, candidate_vcpus=6, candidate_process_type="Standard")
+            with self.assertRaisesRegex(ValueError, "planned launch role"):
+                peer.directory(root, CLI_SHA, **selected)
+            schedule["arms"] = peer.arm_settings("peer", 4, 6, peer_process_type="Standard")
+            write(root, "plan.json", schedule)
+            a = fixtures["A"]
+            a.update(process_type="Standard", spawn_type="daemon (3)", job_controls_sha256="e"*64)
+            write(root, "fixtures.json", fixtures)
+            result = peer.directory(root, CLI_SHA, **selected)
+            self.assertTrue(result["candidate_process_type_verified"])
+            self.assertEqual((result["process_type"], result["median_ratio"], result["verdict"]),
+                             ("Standard", 2, "qualified on this workload"))
+            replay = peer.directory(root, CLI_SHA, candidate_workers=4, candidate_vcpus=6)
+            self.assertEqual(replay["verdict"], "did not qualify")
+            self.assertFalse(replay["candidate_process_type_verified"])
+            for change in (dict(process_type="Interactive"), dict(spawn_type="interactive (4)"),
+                           dict(job_controls_sha256=None)):
+                write(root, "fixtures.json", dict(fixtures, A=dict(a, **change)))
+                with self.subTest(change=change), self.assertRaisesRegex(ValueError, "live relay launch role"):
+                    peer.directory(root, CLI_SHA, **selected)
+            a.update(process_type="Interactive", spawn_type="interactive (4)")
+            write(root, "fixtures.json", fixtures)
+            schedule["arms"]["A"]["process_type"] = "Interactive"
+            write(root, "plan.json", schedule)
+            with self.assertRaisesRegex(ValueError, "planned launch role"):
+                peer.directory(root, CLI_SHA, **selected)
+            selected["candidate_process_type"] = "Interactive"
+            self.assertEqual(peer.directory(root, CLI_SHA, **selected)["process_type"], "Interactive")
 
     def test_wrong_build_missing_quota_overlapping_round_and_missing_attempt_are_invalid(self):
         with tempfile.TemporaryDirectory() as d:

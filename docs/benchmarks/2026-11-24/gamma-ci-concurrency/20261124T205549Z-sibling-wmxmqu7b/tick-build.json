@@ -1,0 +1,85 @@
+{
+  "control": {
+    "image_sha256": "3c447c100cc30f23d81e0618bd3afef67ee0ab2d93c625ac1ee138d09dc9eb61",
+    "config_sha256": "727b1c5539c09cbd1a4ac4a04e3beeb4343b3019e489a537c2b7e6c8bdbafa98",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "candidate": {
+    "image_sha256": "65c4a8c14250dbd3e90e6f53e3d497775520008a19e82960bdc7744879cea77e",
+    "config_sha256": "ebbc7bfe3ed79c8cd7c7174e8d4090779bb1b164083a604c187957bab7f10b55",
+    "image_bytes": 29942272,
+    "image_memory_bytes": 30801920,
+    "page_kib": 16,
+    "embedded_config_verified": true
+  },
+  "config_changes": {
+    "CONFIG_HZ_1000": [
+      "n",
+      "y"
+    ],
+    "CONFIG_HZ_250": [
+      "y",
+      "n"
+    ],
+    "CONFIG_HZ": [
+      "250",
+      "1000"
+    ]
+  },
+  "source_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "seed_sha256": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21",
+  "selected_seed_sha256": "27d9f0fb103f2ef0ce3c27041b2d9f8f7e7a7e67dec54dcb5a0615aa80d19d39",
+  "builder_sha256": "8428aa21d3c3f496482a47453542450025d625b763a4aef759f0b4f37d1697ad",
+  "compiler_image": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+  "environment": {
+    "KBUILD_BUILD_HOST": "gamma",
+    "KBUILD_BUILD_TIMESTAMP": "Tue Nov 17 10:35:00 UTC 2026",
+    "KBUILD_BUILD_VERSION": "1",
+    "JOBS": "4",
+    "KBUILD_BUILD_USER": "micropod"
+  },
+  "command": [
+    "docker",
+    "--context",
+    "orbstack",
+    "run",
+    "--rm",
+    "--pull=never",
+    "--cpus",
+    "4",
+    "--pids-limit",
+    "1024",
+    "--name",
+    "mp-tick-20261124t205050z-hz1000-dacy5379",
+    "--label",
+    "io.micropod.bench.kernel-build=mp-tick-20261124t205050z-hz1000-dacy5379",
+    "-e",
+    "KBUILD_BUILD_HOST=gamma",
+    "-e",
+    "KBUILD_BUILD_TIMESTAMP=Tue Nov 17 10:35:00 UTC 2026",
+    "-e",
+    "KBUILD_BUILD_VERSION=1",
+    "-e",
+    "JOBS=4",
+    "-e",
+    "KBUILD_BUILD_USER=micropod",
+    "--mount",
+    "type=bind,src=/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T192542Z-cny_trn8/linux-7.3.5.tar.xz,dst=/inputs/linux.tar.xz,readonly",
+    "--mount",
+    "type=bind,src=/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T205050Z-hz1000-dacy5379/build-worker-kernel.sh,dst=/inputs/build-worker-kernel.sh,readonly",
+    "--mount",
+    "type=bind,src=/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T205050Z-hz1000-dacy5379/apple-tick.config,dst=/inputs/apple.config,readonly",
+    "--mount",
+    "type=bind,src=/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T205050Z-hz1000-dacy5379,dst=/out",
+    "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2",
+    "/bin/sh",
+    "-ec",
+    "set -eu\napk add --no-cache build-base bc bison flex perl openssl-dev elfutils-dev linux-headers xz zstd bash coreutils pahole gmp-dev mpc1-dev mpfr-dev cpio python3 gawk perl-utils diffutils findutils file rsync\n{ gcc --version; ld --version; pahole --version; uname -a; df -h /tmp; apk info -vv; } > /out/toolchain.txt\nfor mode in full-16k; do\n  echo \"Starting $mode\"\n  sh /inputs/build-worker-kernel.sh /inputs/linux.tar.xz /inputs/apple.config /out/$mode $mode > \"/out/$mode.log\" 2>&1 || { tail -42 \"/out/$mode.log\"; exit 1; }\n  cat /out/$mode/SHA256SUMS\ndone\n"
+  ],
+  "control_directory": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261124T192542Z-cny_trn8",
+  "package_count": 97,
+  "builder_retired": true
+}

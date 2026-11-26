@@ -1,0 +1,91 @@
+{
+  "post_restart_sha256": "1af1c22303a18f71fd213a0b6e0b036b3991b2a16dc260dadda58790dd9d3f1d",
+  "pre_restart_sha256": "b997e6039d04a4e9c1a0ec23a4919f8f9f254b7a027810b71f38183097490d6c",
+  "arms": {
+    "0": {
+      "completed": 6,
+      "clean": 6,
+      "started_including_interruptions": 6,
+      "fresh_scheduled": 1440,
+      "p95_at_most_75ms": 0,
+      "errors": 0,
+      "reopens": 0,
+      "loopback_host_wide_input_queue_drops": 0,
+      "process_cost": {
+        "client": {
+          "cpu_s_per_scored_GiB": 0.18904016149007669,
+          "runnable_thread_s_per_wall_s": 4.977699747773582
+        },
+        "relay": {
+          "cpu_s_per_scored_GiB": 0.2717211292632311,
+          "runnable_thread_s_per_wall_s": 2.0802309756219532
+        },
+        "server": {
+          "cpu_s_per_scored_GiB": 0.3359751090738099,
+          "runnable_thread_s_per_wall_s": 3.8702289879474536
+        }
+      }
+    },
+    "1": {
+      "completed": 6,
+      "clean": 6,
+      "started_including_interruptions": 7,
+      "fresh_scheduled": 1440,
+      "p95_at_most_75ms": 0,
+      "errors": 0,
+      "reopens": 0,
+      "loopback_host_wide_input_queue_drops": 0,
+      "process_cost": {
+        "client": {
+          "cpu_s_per_scored_GiB": 0.1888153864921837,
+          "runnable_thread_s_per_wall_s": 5.045143040912816
+        },
+        "relay": {
+          "cpu_s_per_scored_GiB": 0.2645851717995501,
+          "runnable_thread_s_per_wall_s": 2.0794756773834537
+        },
+        "server": {
+          "cpu_s_per_scored_GiB": 0.3453805613086816,
+          "runnable_thread_s_per_wall_s": 3.675203718438521
+        }
+      }
+    }
+  },
+  "paired": {
+    "mib_s": {
+      "control_median": 2416.756010978838,
+      "candidate_median": 1982.0357752713535,
+      "paired_median_pct": 4.033181227808036,
+      "descriptive_paired_bootstrap_95_pct": [
+        -46.963161400705786,
+        128.5021525457211
+      ],
+      "larger_pairs": 4
+    },
+    "fresh_p95_us": {
+      "control_median": 161154.5,
+      "candidate_median": 172253.0,
+      "paired_median_pct": -16.532647289580222,
+      "descriptive_paired_bootstrap_95_pct": [
+        -40.19161902257228,
+        109.31028128212006
+      ],
+      "larger_pairs": 2
+    },
+    "fresh_p99_us": {
+      "control_median": 215491.5,
+      "candidate_median": 232074.5,
+      "paired_median_pct": -21.145543524523625,
+      "descriptive_paired_bootstrap_95_pct": [
+        -48.0776790213885,
+        120.50105202263376
+      ],
+      "larger_pairs": 2
+    }
+  },
+  "idle_pct_range": [
+    0.0,
+    0.0
+  ],
+  "minimum_disk_GiB": 396.30389404296875
+}

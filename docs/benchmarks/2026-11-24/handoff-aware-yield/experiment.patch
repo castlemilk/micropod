@@ -1,0 +1,159 @@
+--- a/Sources/CPublishedTCP/PublishedTCP.c
++++ b/Sources/CPublishedTCP/PublishedTCP.c
+@@ -848,6 +848,7 @@
+         int capacity = limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH;
+         int n = kevent(r->kq, NULL, 0, events, capacity, &now);
+         if (n <= 0) break;
++        if (counting) ++nonempty_polls;
+         bool bulk[DATA_READY_BATCH] = {0};
+         for (int i = 0; i < n; ++i) {
+             struct watch *w = events[i].udata;
+@@ -862,6 +863,11 @@
+         enum bulk_poll poll = n <= 2 && capacity > 2 ? SPARSE_FLAT_BULK : FLAT_BULK;
+         for (int i = 0; i < n; ++i) if (bulk[i]) service_polled_event(&events[i], poll);
+         serviced += n;
++        // Benchmark-only. Never discard the rest of a returned kevent set.
++        if (yield_on_handoff && atomic_load_explicit(&handoff_queued, memory_order_acquire)) {
++            ++handoff_yields;
++            break;
++        }
+     }
+ }
+ 
+--- a/scripts/relaybench/callback_handoff_work.c
++++ b/scripts/relaybench/callback_handoff_work.c
+@@ -2,6 +2,9 @@
+ #include <dispatch/dispatch.h>
+ #include <stdbool.h>
+ #include <stdint.h>
++#include <stdatomic.h>
++#include <sys/ioctl.h>
++#include <sys/socket.h>
+ #include <unistd.h>
+ 
+ enum { FLOWS = 8, OFFER = 1024 * 1024 };
+@@ -10,6 +13,9 @@
+ static int position, writes_done, writes_at_entry, writes_at_reply;
+ static uint64_t bytes_done, bytes_at_entry, bytes_at_reply;
+ static bool counting;
++static bool yield_on_handoff;
++static atomic_bool handoff_queued;
++static int nonempty_polls, nonempty_callbacks, handoff_yields;
+ static int clients[FLOWS + 1][2], guests[FLOWS + 1][2];
+ 
+ static ssize_t relay_write(int fd, const void *data, size_t size) {
+@@ -19,13 +25,25 @@
+         if (clients[i][1] != fd) continue;
+         ++writes_done;
+         bytes_done += (size_t)n;
+-        if (writes_done == position) dispatch_async_f(queue, NULL, enter_handoff);
++        if (writes_done == position) {
++            atomic_store_explicit(&handoff_queued, true, memory_order_release);
++            dispatch_async_f(queue, NULL, enter_handoff);
++        }
+         return n;
+     }
+     if (fd == clients[FLOWS][1]) {
+         if (n != 1 || writes_at_reply >= 0) _exit(2);
+         writes_at_reply = writes_done;
+-        bytes_at_reply = bytes_done;
++        // No consumer reads bulk during scoring. At first fresh-byte readability,
++        // measure actual bulk bytes visible in the receiving sockets.
++        unsigned char byte;
++        if (recv(clients[FLOWS][0], &byte, 1, MSG_PEEK) != 1 || byte != 91) _exit(3);
++        for (int i = 0; i < FLOWS; ++i) {
++            int available;
++            if (ioctl(clients[i][0], FIONREAD, &available) != 0 || available < 0) _exit(3);
++            bytes_at_reply += (unsigned)available;
++        }
++        if (bytes_at_reply != bytes_done) _exit(3);
+     }
+     return n;
+ }
+@@ -43,11 +61,14 @@
+ 
+ static void drain_owner(void *context) {
+     (void)context;
++    int prior = nonempty_polls;
+     mp_tcp_relay_drain(owner, 4);
++    if (nonempty_polls > prior) ++nonempty_callbacks;
+ }
+ 
+ static void enter_handoff(void *context) {
+     (void)context;
++    check(atomic_exchange_explicit(&handoff_queued, false, memory_order_acq_rel), "handoff was queued");
+     check(writes_at_entry < 0, "one handoff only");
+     writes_at_entry = writes_done;
+     bytes_at_entry = bytes_done;
+@@ -65,6 +86,8 @@
+ 
+ static void trial(int after) {
+     position = after;
++    int streams = FLOWS + (after != 0);
++    nonempty_polls = nonempty_callbacks = handoff_yields = 0;
+     writes_done = 0;
+     bytes_done = bytes_at_entry = bytes_at_reply = 0;
+     writes_at_entry = writes_at_reply = -1;
+@@ -94,20 +117,20 @@
+     // the following synchronously submitted drain. No assumptions about elapsed time.
+     for (int i = 0; i < 5; ++i) dispatch_sync_f(queue, NULL, drain_owner);
+     counting = false;
+-    check(writes_at_entry >= position && writes_at_reply >= writes_at_entry &&
+-          bytes_done == (uint64_t)FLOWS * OFFER && writes_done == FLOWS * OFFER / CHUNK,
+-          "handoff, reply, or bulk delivery count");
++    check(bytes_done == (uint64_t)FLOWS * OFFER && writes_done == FLOWS * OFFER / CHUNK, "bulk delivery count");
++    if (after) check(writes_at_entry >= position && writes_at_reply >= writes_at_entry, "handoff or reply missing");
++    else check(writes_at_entry == -1 && writes_at_reply == -1 && !handoff_yields, "unexpected handoff");
+     for (int i = 0; i < FLOWS; ++i) expect_bytes(clients[i][0], offered[i], OFFER);
+-    expect_bytes(clients[FLOWS][0], &marker, 1);
+-    for (int i = 0; i <= FLOWS; ++i) check(shutdown(guests[i][0], SHUT_WR) == 0, "guest FIN");
++    if (after) expect_bytes(clients[FLOWS][0], &marker, 1);
++    for (int i = 0; i < streams; ++i) check(shutdown(guests[i][0], SHUT_WR) == 0, "guest FIN");
+     for (int i = 0; i < 3; ++i) dispatch_sync_f(queue, NULL, drain_owner);
+-    for (int i = 0; i <= FLOWS; ++i) {
++    for (int i = 0; i < streams; ++i) {
+         unsigned char byte;
+         check(read(clients[i][0], &byte, 1) == 0 && write(clients[i][0], &marker, 1) == 1 &&
+               shutdown(clients[i][0], SHUT_WR) == 0, "forward FIN and reverse marker");
+     }
+     for (int i = 0; i < 3; ++i) dispatch_sync_f(queue, NULL, drain_owner);
+-    for (int i = 0; i <= FLOWS; ++i) {
++    for (int i = 0; i < streams; ++i) {
+         unsigned char byte;
+         expect_bytes(guests[i][0], &marker, 1);
+         check(read(guests[i][0], &byte, 1) == 0, "reverse FIN");
+@@ -115,21 +138,27 @@
+         close(guests[i][0]);
+     }
+     check(lease->active == 0, "retire all flows");
+-    printf("{\"budget\":%d,\"enqueue_after_write\":%d,\"bulk_writes\":%d,\"bulk_bytes\":%llu,"
+-           "\"bulk_bytes_after_enqueue_before_entry\":%llu,\"bulk_bytes_after_enqueue_before_reply\":%llu}\n",
+-           mp_tcp_data_callback_events(4), position, writes_done, (unsigned long long)bytes_done,
+-           (unsigned long long)(bytes_at_entry - (uint64_t)position * CHUNK),
+-           (unsigned long long)(bytes_at_reply - (uint64_t)position * CHUNK));
++    printf("{\"yield_on_handoff\":%d,\"budget\":%d,\"read_cap\":%u,\"enqueue_after_write\":%d,"
++           "\"bulk_writes\":%d,\"bulk_bytes\":%llu,\"nonempty_polls\":%d,\"nonempty_callbacks\":%d,"
++           "\"handoff_yields\":%d,\"verified_half_closes\":%d", yield_on_handoff, mp_tcp_data_callback_events(4),
++           mp_tcp_relay_read_bytes(owner), position, writes_done, (unsigned long long)bytes_done,
++           nonempty_polls, nonempty_callbacks, handoff_yields, 2 * streams);
++    if (after) printf(",\"bytes_ahead_of_entry\":%llu,\"bytes_ahead_of_readable_reply\":%llu",
++                      (unsigned long long)(bytes_at_entry - (uint64_t)position * CHUNK),
++                      (unsigned long long)(bytes_at_reply - (uint64_t)position * CHUNK));
++    puts("}");
+     mp_tcp_release(lease, NULL);
+     mp_tcp_relay_destroy(owner);
+     dispatch_release(queue);
+ }
+ 
+-int main(void) {
++int main(int argc, char **argv) {
++    check(argc == 2 && (strcmp(argv[1], "control") == 0 || strcmp(argv[1], "candidate") == 0), "choose arm");
++    yield_on_handoff = strcmp(argv[1], "candidate") == 0;
+     alarm(20);
+     for (int i = 0; i < FLOWS; ++i)
+         for (int j = 0; j < OFFER; ++j) offered[i][j] = (unsigned char)(i * 61 + j * 17 + j / 251);
+-    const int positions[] = {1, 16, 24, 25, 31};
++    const int positions[] = {0, 1, 16, 25};
+     for (size_t i = 0; i < sizeof(positions) / sizeof(positions[0]); ++i) trial(positions[i]);
+     return 0;
+ }

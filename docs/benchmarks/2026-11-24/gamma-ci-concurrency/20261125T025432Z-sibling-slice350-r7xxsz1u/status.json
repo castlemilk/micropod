@@ -1,0 +1,4 @@
+{
+  "complete": false,
+  "error": "docker exited 1: Error response from daemon: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"8d566e348ca2878ba80a2219c292286259bdbdbeba189a7881721d8e7bfec765\": OCI runtime exec failed: executable file `cat` not found in $PATH: No such file or directory"
+}

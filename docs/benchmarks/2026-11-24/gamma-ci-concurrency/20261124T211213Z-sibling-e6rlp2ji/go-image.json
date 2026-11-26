@@ -1,0 +1,127 @@
+{
+  "expected": {
+    "ci_config_sha256": "cb8603c28332918143157ab6706d633d898a30ab79a66ccd1e5a536f8046104a",
+    "manifest_id": "sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb",
+    "layer_ids": [
+      "sha256:c96c411090da09187c55ab267826b3903b542b5c03f1cafa912d60e060e7850c",
+      "sha256:183cb703a548314d043970a5d5c0309ddc6e47dbd0b83b826ba9dec907e309b4",
+      "sha256:e43c242ead218c0f42cc15815b5708d5bce187f7fdc2ccfaa72a560af64dbdf6",
+      "sha256:1c158960725adf417240b354f0ea18f1335cebd334490b34bfa58bfafba46520",
+      "sha256:218b5d63d46f21743aa6b3282976a8bba2ab0c78b9ba1550a18465c8b1062091",
+      "sha256:f67cf90593a6c151daf76852227035089d1cdf4c47047095b2c3f527d9624007",
+      "sha256:5bd9cd00feae2cd1ed9c8d3f9c11c6e04c627d5447899b93ccb1996d2624a6e4",
+      "sha256:5e545e2787d6c36e8df4075c7800ddae21c60fa3f1f6fc245450b094636feb9b",
+      "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+      "sha256:1eada7bf010aaee534024846620f02d4a0b173efeb964b147cfa16d80922313a"
+    ]
+  },
+  "inspected": {
+    "A": {
+      "Architecture": "arm64",
+      "Config": {
+        "Env": [
+          "PATH=/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "LANG=C.UTF-8",
+          "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+          "PYTHON_VERSION=3.12.16",
+          "PYTHON_SHA256=b5796915dc45ff745cfb4e990a7e7c93d6f546328a102ce31448d69ebc37575c",
+          "GOTOOLCHAIN=local",
+          "GOENV=off",
+          "GOWORK=off",
+          "CGO_ENABLED=0",
+          "GOMAXPROCS=2",
+          "GOFLAGS=-trimpath -p=2",
+          "GOTELEMETRY=off",
+          "GOPROXY=file:///workspace/proxy",
+          "GOSUMDB=off"
+        ],
+        "Cmd": [
+          "/bin/sh"
+        ],
+        "WorkingDir": "/workspace",
+        "ArgsEscaped": true
+      },
+      "Created": "2026-11-20T18:50:54.108125051+11:00",
+      "Id": "sha256:cb8603c28332918143157ab6706d633d898a30ab79a66ccd1e5a536f8046104a",
+      "Os": "linux",
+      "RepoDigests": [
+        "docker.io/library/import-2026-11-24@sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb"
+      ],
+      "RepoTags": [
+        "docker.io/micropod-internal/go-cache-fanout:r7zsq0"
+      ],
+      "Size": 531933606
+    },
+    "B": {
+      "Id": "sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb",
+      "RepoTags": [
+        "micropod-internal/go-cache-fanout:r7zsq0"
+      ],
+      "RepoDigests": [
+        "micropod-internal/go-cache-fanout@sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb"
+      ],
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-11-20T18:50:54.108125051+11:00",
+      "Config": {
+        "Env": [
+          "PATH=/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "LANG=C.UTF-8",
+          "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+          "PYTHON_VERSION=3.12.16",
+          "PYTHON_SHA256=b5796915dc45ff745cfb4e990a7e7c93d6f546328a102ce31448d69ebc37575c",
+          "GOTOOLCHAIN=local",
+          "GOENV=off",
+          "GOWORK=off",
+          "CGO_ENABLED=0",
+          "GOMAXPROCS=2",
+          "GOFLAGS=-trimpath -p=2",
+          "GOTELEMETRY=off",
+          "GOPROXY=file:///workspace/proxy",
+          "GOSUMDB=off"
+        ],
+        "Cmd": [
+          "/bin/sh"
+        ],
+        "WorkingDir": "/workspace",
+        "ArgsEscaped": true
+      },
+      "Architecture": "arm64",
+      "Os": "linux",
+      "Size": 1108969894,
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:c96c411090da09187c55ab267826b3903b542b5c03f1cafa912d60e060e7850c",
+          "sha256:183cb703a548314d043970a5d5c0309ddc6e47dbd0b83b826ba9dec907e309b4",
+          "sha256:e43c242ead218c0f42cc15815b5708d5bce187f7fdc2ccfaa72a560af64dbdf6",
+          "sha256:1c158960725adf417240b354f0ea18f1335cebd334490b34bfa58bfafba46520",
+          "sha256:218b5d63d46f21743aa6b3282976a8bba2ab0c78b9ba1550a18465c8b1062091",
+          "sha256:f67cf90593a6c151daf76852227035089d1cdf4c47047095b2c3f527d9624007",
+          "sha256:5bd9cd00feae2cd1ed9c8d3f9c11c6e04c627d5447899b93ccb1996d2624a6e4",
+          "sha256:5e545e2787d6c36e8df4075c7800ddae21c60fa3f1f6fc245450b094636feb9b",
+          "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+          "sha256:1eada7bf010aaee534024846620f02d4a0b173efeb964b147cfa16d80922313a"
+        ]
+      },
+      "Metadata": {
+        "LastTagTime": "2026-11-20T07:50:54.558392842Z"
+      },
+      "Descriptor": {
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "digest": "sha256:64c4abc797ab7fd1079ca039bf287dafa7ad338987d7d95d0271058d4bf5dadb",
+        "size": 2168,
+        "annotations": {
+          "config.digest": "sha256:cb8603c28332918143157ab6706d633d898a30ab79a66ccd1e5a536f8046104a"
+        }
+      },
+      "Identity": {
+        "Build": [
+          {
+            "Ref": "laupt9kpgwxldlvb3ljt53z3x",
+            "CreatedAt": "2026-11-20T18:50:54.64580835+11:00"
+          }
+        ]
+      }
+    }
+  }
+}

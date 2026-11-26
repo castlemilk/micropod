@@ -126,7 +126,8 @@ enum TelemetryCommands {
                 throw UsageError(message: "usage: micropod telemetry init [--force] [PATH]")
             }
         }
-        let target = explicitPath.map { URL(fileURLWithPath: $0).standardizedFileURL }
+        let target =
+            explicitPath.map { URL(fileURLWithPath: $0).standardizedFileURL }
             ?? ObservabilityConfig.resolveConfigPath(environment: environment)
         let fm = FileManager.default
         if fm.fileExists(atPath: target.path), !force {
@@ -163,7 +164,8 @@ enum TelemetryCommands {
         guard args.count <= 1 else {
             throw UsageError(message: "usage: micropod telemetry validate [PATH]")
         }
-        let target = args.first.map { URL(fileURLWithPath: $0).standardizedFileURL }
+        let target =
+            args.first.map { URL(fileURLWithPath: $0).standardizedFileURL }
             ?? ObservabilityConfig.resolveConfigPath(environment: environment)
         guard FileManager.default.fileExists(atPath: target.path) else {
             throw MicropodError.message("Observability YAML config not found: \(target.path)")
@@ -201,7 +203,8 @@ enum TelemetryCommands {
         _ enable: Bool, _ args: [String], environment: [String: String], worker: CIWorker
     ) throws -> Int32 {
         guard args.count == 1 else {
-            throw UsageError(message: "usage: micropod telemetry \(enable ? "enable" : "disable") prometheus|otlp|tracing")
+            throw UsageError(
+                message: "usage: micropod telemetry \(enable ? "enable" : "disable") prometheus|otlp|tracing")
         }
         let target = args[0].lowercased()
         let key: String
@@ -390,7 +393,9 @@ enum TelemetryCommands {
             return report.verdict == .unhealthy ? ExitCode.failure : ExitCode.ok
         }
 
-        print("VERDICT: \(report.verdict.rawValue.uppercased()) (warnings=\(report.warnings.count), recent_issues=\(issues.count))")
+        print(
+            "VERDICT: \(report.verdict.rawValue.uppercased()) (warnings=\(report.warnings.count), recent_issues=\(issues.count))"
+        )
         for w in report.warnings {
             print("  [WARN] \(w)")
         }
@@ -406,7 +411,8 @@ enum TelemetryCommands {
             let maxMs = Double(r.maxReapDurationUsec) / 1000.0
             print(
                 String(
-                    format: "RYUK REAPER: active=%lld started=%llu closed=%llu reaped(c=%llu n=%llu v=%llu) errors=%llu denied=%llu max=%.1fms",
+                    format:
+                        "RYUK REAPER: active=%lld started=%llu closed=%llu reaped(c=%llu n=%llu v=%llu) errors=%llu denied=%llu max=%.1fms",
                     r.activeSessions, r.sessionsStarted, r.sessionsClosed,
                     r.containersReaped, r.networksReaped, r.volumesReaped,
                     r.reapErrors, r.reapDenied, maxMs))

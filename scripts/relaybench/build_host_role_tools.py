@@ -27,7 +27,7 @@ def build(destination, *, paired_fresh=False):
         # The relative C input and output names reproduce the original Mach-O UUID and signing identity.
         subprocess.run(["xcrun", "clang", "-O2", "host-rusage.c", "-o", "host-rusage"], cwd=work, check=True)
         (work / "host-rusage").rename(tools / "rusage")
-        env = dict(os.environ, CGO_ENABLED="0", GOARM64="v8.0", GOARCH="arm64", GOFLAGS="", GOENV="off",
+        env = dict(os.environ, CGO_ENABLED="0", GOARM64="v8.0", GOARCH="arm64", GOFLAGS="-trimpath", GOENV="off",
                    GOTOOLCHAIN="local", GOPROXY="off", GOWORK="off")
         for name, target, source in (("fixed", "darwin", "offered/main.go"), ("netbench", "linux", "main.go")):
             overlay = []

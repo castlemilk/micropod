@@ -1,0 +1,29 @@
+{
+  "source": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T090510Z-local-d0y_1j57",
+  "sha256": {
+    "status.json": "89b8a453efb537e277a9a23e31d77e90a8b9b429f1b3b74713f9d3e74cb1ca49",
+    "inputs/baseline/status.json": "a1c379908d51559eaaa76a159be53fcd5a631d985ce6340e8bbb01a5695b417e",
+    "inputs/host-role/status.json": "59f36fa843df2c76996e0db1a6561ed931d16bdbcacc78b18926b6bde1ab5cc0",
+    "inputs/workers/status.json": "a349c43cc263aa0cb76578c43b5551ea0a6ccf13d0ac138ee70247f21d4db8f2",
+    "baseline/status.json": "4c34bac8c881a1386bb7e88c64fbd2cf6d9f2b06d2a41cbb369040b5a969b5c0",
+    "baseline/scope.json": "214a2c879d8f125681e737a55e5d0662eacb3f21be907c3403736bf4c55888b7",
+    "baseline/cleanup.json": "e98ffd45c10d499a0a4b904d1771faab8b1e067137ee33a1e646ab34b7685a47",
+    "host-role/status.json": "609117799a23d4e8e2d9a0ceeae2402937fb443bae4ccef1911a3e1249b312e8",
+    "host-role/scope.json": "c0b86c675c6746c15ec18b3aa748eaad561c53f4b6c3198d766fbd0db32645db",
+    "host-role/cleanup.json": "1634ebd4ed96b239c5d9278bcc0ad5b3ac515995134a857e1b3da51b79836a7a",
+    "host-role/receiver/status.json": "04d66a3904d20ca0be08c405a231a73f67c37765867c2f1f18b46c47fa695588",
+    "baseline/receiver/disk.json": "0c2ede56e2e8c1e11c8dc0dc061f3bedf15837e9046542b7f06dfaad7f79a714",
+    "baseline/receiver/fixtures.json": "a1179b22de0ce593838884d2d4e35d849572b49be88f580760714ed489b13c6b",
+    "baseline/receiver/guest-A.txt": "88f1a8d6e141858e113b9d7625f9e9c85df8c31ef3169cc513f87f098a229341",
+    "baseline/receiver/plan.json": "bbc37629eb9e3f690523653169c3e9bb4a4b3f150c8d9d9c3c0f68853e2cad13",
+    "baseline/receiver/scored-1-A.json": "926c67e7ef43b03f4b0a27af61d81c2780043697f062b2de1e635671c34b6b79",
+    "baseline/receiver/socket-A-1795511114444662000.json": "f33b56c51c1e6622db47f52ff04d37b4fcb7b8bd4c4f9b11a13ce95aae55f338",
+    "baseline/receiver/socket-A-1795511114783110000.json": "f5fbc479a37a4fe5e9d63fabe16993e2f997612d7c9cdd94709ab6d67b12e5ca",
+    "baseline/receiver/socket-A-1795511126308604000.json": "66d2ec856475aa896847acd0281e003ffc97319b9c76dc4c72b024032b1b9878",
+    "baseline/receiver/socket-A-1795511126640135000.json": "738b6353faac3faff0860baee764b6fb738be07556586ebf9bc8ba00721e7de8",
+    "baseline/receiver/socket-A-1795511146224549000.json": "92179084198999684c727c88f496269d7632f323a5f1aa88d39f39455e94d9ed",
+    "baseline/receiver/status.json": "f076f421fe07b2f580cb69345b7ac528c1f4744af0d05e703eaf39f07849e98e",
+    "baseline/receiver/summary.json": "ff7ca5144ddff34607d92db6958d8dc527a6004a9355c74e6d2690218bd0d282",
+    "baseline/receiver/warmup-1-A.json": "81340e4edd9c803c89c1644d26d388449817514936e74dc2bf4c7c3f046db19f"
+  }
+}

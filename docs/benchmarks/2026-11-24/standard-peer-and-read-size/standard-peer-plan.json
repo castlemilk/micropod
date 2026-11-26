@@ -1,0 +1,45 @@
+{
+  "mode": "peer",
+  "seed": 34203,
+  "arms": {
+    "A": {
+      "engine": "Micropod",
+      "vcpus": 4,
+      "relay_workers": 2,
+      "callback_events": 128,
+      "process_type": "Standard",
+      "read_bytes": 262144
+    },
+    "B": {
+      "engine": "OrbStack",
+      "vcpus": 4,
+      "relay_workers": null,
+      "callback_events": null
+    }
+  },
+  "order": {
+    "warmup": [
+      "AB",
+      "BA",
+      "AB"
+    ],
+    "scored": [
+      "BA",
+      "AB",
+      "BA",
+      "AB",
+      "BA",
+      "AB",
+      "BA",
+      "AB",
+      "AB",
+      "BA",
+      "BA",
+      "AB",
+      "AB",
+      "BA",
+      "BA",
+      "AB"
+    ]
+  }
+}

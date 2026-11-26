@@ -1,0 +1,80 @@
+{
+  "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "commands": [
+    [
+      "xcrun",
+      "clang",
+      "-O3",
+      "-std=gnu11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I.",
+      "-c",
+      "-DMICROPOD_BENCH_DEFER_HANDSHAKE_READS=0",
+      "PublishedTCP.c",
+      "-o",
+      "relay-0.o"
+    ],
+    [
+      "xcrun",
+      "swiftc",
+      "-O",
+      "-swift-version",
+      "6",
+      "-module-cache-path",
+      "/private/tmp/mp-local-bv229a26/handshake-build/modules",
+      "-I.",
+      "NativeLoopbackRelay.swift",
+      "TCPRelayProbe.swift",
+      "relay-0.o",
+      "-o",
+      "relay-0"
+    ],
+    [
+      "xcrun",
+      "clang",
+      "-O3",
+      "-std=gnu11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I.",
+      "-c",
+      "-DMICROPOD_BENCH_DEFER_HANDSHAKE_READS=1",
+      "PublishedTCP.c",
+      "-o",
+      "relay-1.o"
+    ],
+    [
+      "xcrun",
+      "swiftc",
+      "-O",
+      "-swift-version",
+      "6",
+      "-module-cache-path",
+      "/private/tmp/mp-local-bv229a26/handshake-build/modules",
+      "-I.",
+      "NativeLoopbackRelay.swift",
+      "TCPRelayProbe.swift",
+      "relay-1.o",
+      "-o",
+      "relay-1"
+    ]
+  ],
+  "files": {
+    "TCPRelayProbe.swift": "5fdab2c509c5fe09338f4648ae43eaf59471757f0246e2c287748ac89920781e",
+    "PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "meter.dylib": "0a647ab4b304104c53fc05c17e1b64cfaf8d198b38b099f30bf1d7ddfff1a364",
+    "suite.py": "3f21396ff081b87deb6259904409f524fc0cca7b85e80ee0473531362a5cd15a",
+    "NativeLoopbackRelay.swift": "549259065039321394cb9b41c7f0011206f589ccca6b19e95af044ef6bf5db1e",
+    "relay-0.o": "76e93aee7c1afae22e8e14a18aaf6e05263cb9e4186a7b67da4d7d8684faeb44",
+    "relay-0": "b280239029e49e739e3443aa1a8d7b0796c4aeabe97bfb4dfc90852e771e1efd",
+    "server": "f44e1bd7fe526dbcab18ed20b029923b7070aae2c3542d32e1d045eef1977ae6",
+    "relay-1": "32364fab1b62a42a5a1beae06f97a528c3b04fac6f3648e159df52a4d27f22b6",
+    "PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "fixed": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "relay-1.o": "f6a3d2ead6c27743d156d5153af986d68df3d91802344944688e698d53700cb9",
+    "module.modulemap": "096d8fcbc21cb0b5205a747bc78d94368b8fee97a14c759191516ab0257c4aad"
+  }
+}

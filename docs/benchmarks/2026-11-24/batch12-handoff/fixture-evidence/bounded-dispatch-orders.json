@@ -1,0 +1,474 @@
+{
+  "experiment": "230.08 bounded-two dispatch accounting",
+  "evidence": "host-only socketpair fixture",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "fixture_sha256": {
+    "dispatch_orders.py": "c1c076057ff60fa5ae51d617e4e95c73f560bf2774f4b28b4f85f011d70c446a",
+    "handoff.swift.in": "af1509aeb614208bf3d5a62c672fc6d6eb420c872d3fa9602961a376df00d763",
+    "handoff.swiftfrag": "5e5b20dd22f791b3a89e1029fbd0d536281f19288309a0e271a56ad7be9c540d"
+  },
+  "admissions": "two preflight, 32 bulk, 240 fresh; group sizes model owner readiness, without timing",
+  "trial_order": [
+    "stock",
+    "batch2",
+    "batch2",
+    "stock"
+  ],
+  "raw_semantic_sha256": [
+    "70362f653d351c022bdd52fbec2e2b0397107ea3b487321332231bcbe9aa3655",
+    "b5f731005213bd3fc52dd6304662358d3440a287a9a7114d18ff4e1212db9237",
+    "b5f731005213bd3fc52dd6304662358d3440a287a9a7114d18ff4e1212db9237",
+    "70362f653d351c022bdd52fbec2e2b0397107ea3b487321332231bcbe9aa3655"
+  ],
+  "results": {
+    "stock": {
+      "callback_ahead_per_owner_by_cutoff": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          7,
+          7
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          11,
+          10
+        ],
+        [
+          11,
+          11
+        ],
+        [
+          12,
+          11
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          13,
+          12
+        ],
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          14,
+          14
+        ],
+        [
+          15,
+          14
+        ],
+        [
+          15,
+          15
+        ],
+        [
+          16,
+          15
+        ],
+        [
+          16,
+          16
+        ]
+      ],
+      "burst_submissions_per_owner": [
+        16,
+        16
+      ],
+      "workloads": [
+        {
+          "fresh_group_per_owner": 1,
+          "counts": [
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ],
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ]
+          ],
+          "verified_handoffs": 274
+        },
+        {
+          "fresh_group_per_owner": 2,
+          "counts": [
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ],
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ]
+          ],
+          "verified_handoffs": 274
+        },
+        {
+          "counts": [
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ],
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ]
+          ],
+          "fresh_group_per_owner": 3,
+          "verified_handoffs": 274
+        },
+        {
+          "verified_handoffs": 274,
+          "counts": [
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ],
+            [
+              137,
+              137,
+              137,
+              137,
+              120
+            ]
+          ],
+          "fresh_group_per_owner": 8
+        }
+      ]
+    },
+    "batch2": {
+      "callback_ahead_per_owner_by_cutoff": [
+        [
+          0,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          12,
+          10
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          14,
+          12
+        ],
+        [
+          14,
+          14
+        ],
+        [
+          14,
+          14
+        ],
+        [
+          14,
+          14
+        ],
+        [
+          16,
+          14
+        ],
+        [
+          16,
+          16
+        ],
+        [
+          16,
+          16
+        ],
+        [
+          16,
+          16
+        ]
+      ],
+      "burst_submissions_per_owner": [
+        8,
+        8
+      ],
+      "workloads": [
+        {
+          "verified_handoffs": 274,
+          "fresh_group_per_owner": 1,
+          "counts": [
+            [
+              137,
+              129,
+              137,
+              129,
+              120
+            ],
+            [
+              137,
+              129,
+              137,
+              129,
+              120
+            ]
+          ]
+        },
+        {
+          "verified_handoffs": 274,
+          "fresh_group_per_owner": 2,
+          "counts": [
+            [
+              137,
+              69,
+              137,
+              69,
+              60
+            ],
+            [
+              137,
+              69,
+              137,
+              69,
+              60
+            ]
+          ]
+        },
+        {
+          "verified_handoffs": 274,
+          "fresh_group_per_owner": 3,
+          "counts": [
+            [
+              137,
+              89,
+              137,
+              89,
+              80
+            ],
+            [
+              137,
+              89,
+              137,
+              89,
+              80
+            ]
+          ]
+        },
+        {
+          "counts": [
+            [
+              137,
+              69,
+              137,
+              69,
+              60
+            ],
+            [
+              137,
+              69,
+              137,
+              69,
+              60
+            ]
+          ],
+          "verified_handoffs": 274,
+          "fresh_group_per_owner": 8
+        }
+      ]
+    }
+  },
+  "fresh_latency_measured": false,
+  "throughput_mib_s": null,
+  "production_defaults_changed": false
+}

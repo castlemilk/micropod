@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 416, in <module>
+    run(p.parse_args())
+    ~~~^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 322, in run
+    record_idle(row, idles.get((phase, i)), path_pilot.cpu_idle(), ambient_idle)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 236, in record_idle
+    relay.require(idle >= 90, "host idle below 90 percent")
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/scripts/relaybench/gamma_pilot.py", line 31, in require
+    raise ValueError(message)
+ValueError: host idle below 90 percent

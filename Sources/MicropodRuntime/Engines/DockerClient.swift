@@ -176,6 +176,104 @@ public struct DockerClient: Sendable {
         }
     }
 
+    /// The status `method path` gets when it asks to upgrade the connection
+    /// to `protocol` (`Connection: Upgrade`), read from the status line; the
+    /// connection is closed without speaking the new protocol. buildx probes
+    /// an engine's `/grpc` this way before choosing its docker driver.
+    func upgradeStatus(_ method: String, _ path: String, protocol name: String, timeout: Duration) async throws
+        -> Int
+    {
+        try await withRequestSocket(method, path, length: nil, timeout: timeout) { socket, head in
+            try socket.write(Self.upgrading(head, to: name))
+            var reader = HTTPReader(socket: socket)
+            return try reader.readHead().0
+        }
+    }
+
+    /// `head` (from `head(…)`, `Connection: close`) asking for `protocol` instead.
+    static func upgrading(_ head: Data, to name: String) -> Data {
+        let text = String(decoding: head, as: UTF8.self)
+        return Data(
+            text.replacingOccurrences(of: "Connection: close\r\n", with: "Connection: Upgrade\r\nUpgrade: \(name)\r\n")
+                .utf8)
+    }
+
+    /// Streams the response body of `method path` into a new file at
+    /// `destination` (created exclusively, mode 0644). Non-2xx statuses
+    /// throw with Docker's message and create nothing; a failure part way
+    /// removes the partial file.
+    func download(_ method: String, _ path: String, query: [String: String] = [:], to destination: URL) async throws {
+        try await withRequestSocket(method, path, query: query, length: nil, timeout: nil) { socket, head in
+            try socket.write(head)
+            var reader = HTTPReader(socket: socket)
+            let (status, headers) = try reader.readHead()
+            guard (200..<300).contains(status) else {
+                let body = try reader.readBody(headers: headers, limit: 1 << 20)
+                throw DockerClient.error(status: status, Response(status: status, body: body).message)
+            }
+            let fd = open(destination.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
+            guard fd >= 0 else { throw Socket.posix("create \(destination.path)") }
+            var complete = false
+            defer {
+                close(fd)
+                if !complete { unlink(destination.path) }
+            }
+            try reader.readBody(headers: headers) { chunk in
+                try chunk.withUnsafeBytes { raw in
+                    var offset = 0
+                    while offset < raw.count {
+                        let n = Darwin.write(fd, raw.baseAddress! + offset, raw.count - offset)
+                        if n < 0, errno == EINTR { continue }
+                        guard n > 0 else { throw Socket.posix("write \(destination.path)") }
+                        offset += n
+                    }
+                }
+            }
+            guard fsync(fd) == 0 else { throw Socket.posix("fsync \(destination.path)") }
+            complete = true
+        }
+    }
+
+    /// Sends the file at `source` as the request body of `method path`
+    /// (`Content-Type: contentType`, its length up front) and returns the
+    /// response.
+    func upload(
+        _ method: String, _ path: String, query: [String: String] = [:], from source: URL, contentType: String
+    ) async throws -> Response {
+        let fd = open(source.path, O_RDONLY | O_CLOEXEC)
+        guard fd >= 0 else { throw Socket.posix("open \(source.path)") }
+        defer { close(fd) }
+        var info = stat()
+        guard fstat(fd, &info) == 0 else { throw Socket.posix("stat \(source.path)") }
+        guard (info.st_mode & S_IFMT) == S_IFREG else {
+            throw MicropodError.message("invalidArgument: \(source.path) is not a regular file")
+        }
+        let length = Int(info.st_size)
+        return try await withRequestSocket(method, path, query: query, length: length, timeout: nil) { socket, head in
+            let text = String(decoding: head, as: UTF8.self)
+                .replacingOccurrences(
+                    of: "Content-Type: application/json\r\n", with: "Content-Type: \(contentType)\r\n")
+            try socket.write(Data(text.utf8))
+            var buffer = [UInt8](repeating: 0, count: 1 << 20)
+            var sent = 0
+            while sent < length {
+                let n = Darwin.read(fd, &buffer, min(buffer.count, length - sent))
+                if n < 0, errno == EINTR { continue }
+                guard n > 0 else {
+                    throw MicropodError.message(
+                        "internal: docker: \(source.path) ended after \(sent) of \(length) bytes")
+                }
+                try socket.write(Data(buffer[0..<n]))
+                sent += n
+            }
+            var reader = HTTPReader(socket: socket)
+            let (status, headers) = try reader.readHead()
+            let body = status == 204 ? Data() : try reader.readBody(headers: headers, limit: 64 << 20)
+            if status == 400 { negotiation?.invalidate() }
+            return Response(status: status, body: body)
+        }
+    }
+
     /// Streaming body (logs follow, pull progress): yields raw body chunks as
     /// they arrive. Non-2xx statuses throw with Docker's message.
     public func stream(_ method: String, _ path: String, query: [String: String] = [:])

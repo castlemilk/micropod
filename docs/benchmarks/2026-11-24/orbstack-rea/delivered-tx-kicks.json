@@ -1,0 +1,221 @@
+{
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "driver_snapshots_sha256": "1ade90ef711545a7ad913c8bd8725cd7fe999dd3da985944f978cd72d0265fc0",
+  "boot": "F9796107-C413-486E-88AA-864386E5B923",
+  "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "client": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "workload": "32 bulk streams, 240 fixed arrivals in six seconds, all first attempts. Host process counters span setup and drain. Interface byte and packet counters are driver-reported. No on-wire capture.",
+  "order": "Guest TCP segmentation on, then off, then restored; GSO/GRO both on. Two attempts per sequential phase on one boot; no paired interval.",
+  "counter_scope": "On each clean attempt the driver and host boundaries match to the guest clock's one-second resolution. Counts include work outside the six-second bulk window. Withhold the normalized result if the boundary seconds differ. A driver kick does not identify a host VM exit or its cost.",
+  "summary": {
+    "original": {
+      "attempts": 2,
+      "clean": 2,
+      "clean_medians": {
+        "kicks_per_delivered_gib": 73.51649658005027,
+        "kicks_per_interface_gib": 72.39476696823056,
+        "receiver_mib_s": 6025.529304003982,
+        "p95_ms": 27.838,
+        "p99_ms": 40.324
+      }
+    },
+    "software-tso": {
+      "attempts": 2,
+      "clean": 2,
+      "clean_medians": {
+        "kicks_per_delivered_gib": 4920.335460598577,
+        "kicks_per_interface_gib": 4064.4597536838965,
+        "receiver_mib_s": 516.3988227946651,
+        "p95_ms": 10.3895,
+        "p99_ms": 16.680500000000002
+      }
+    },
+    "original-repeat": {
+      "attempts": 2,
+      "clean": 1,
+      "clean_medians": {
+        "kicks_per_delivered_gib": 74.8027131392812,
+        "kicks_per_interface_gib": 73.67420444296893,
+        "receiver_mib_s": 6314.8824252476015,
+        "p95_ms": 24.424,
+        "p99_ms": 34.876
+      }
+    }
+  },
+  "rows": [
+    {
+      "arm": "original",
+      "attempt": 1,
+      "clean": true,
+      "receiver_bytes": 35131888552,
+      "bulk_window_s": 6.000220542,
+      "receiver_mib_s": 5583.858053944371,
+      "interface_bytes": 35731125064,
+      "interface_packets": 559692,
+      "tx_kicks": 2388,
+      "kicks_per_delivered_gib": 72.98484600156885,
+      "kicks_per_interface_gib": 71.7608379562442,
+      "boundary_seconds": {
+        "driver_pre": 1795258831,
+        "host_pre": 1795258831,
+        "driver_post": 1795258837,
+        "host_post": 1795258837
+      },
+      "same_boundary_seconds": true,
+      "p95_ms": 33.609,
+      "p99_ms": 52.535,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "host_cpu_s_per_delivered_gib": {
+        "vmm": 0.40788176533026754,
+        "relay": 0.2504865447754063
+      }
+    },
+    {
+      "arm": "original",
+      "attempt": 2,
+      "clean": true,
+      "receiver_bytes": 40688655608,
+      "bulk_window_s": 6.000080792,
+      "receiver_mib_s": 6467.200554063594,
+      "interface_bytes": 41256652850,
+      "interface_packets": 646489,
+      "tx_kicks": 2806,
+      "kicks_per_delivered_gib": 74.04814715853169,
+      "kicks_per_interface_gib": 73.02869598021692,
+      "boundary_seconds": {
+        "driver_pre": 1795258837,
+        "host_pre": 1795258837,
+        "driver_post": 1795258843,
+        "host_post": 1795258843
+      },
+      "same_boundary_seconds": true,
+      "p95_ms": 22.067,
+      "p99_ms": 28.113,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "host_cpu_s_per_delivered_gib": {
+        "vmm": 0.41526468777072517,
+        "relay": 0.25373828131139314
+      }
+    },
+    {
+      "arm": "software-tso",
+      "attempt": 1,
+      "clean": true,
+      "receiver_bytes": 3538702928,
+      "bulk_window_s": 6.001048083,
+      "receiver_mib_s": 562.3634487091304,
+      "interface_bytes": 4210319972,
+      "interface_packets": 2782930,
+      "tx_kicks": 16493,
+      "kicks_per_delivered_gib": 5004.439271549952,
+      "kicks_per_interface_gib": 4206.14680618198,
+      "boundary_seconds": {
+        "driver_pre": 1795258844,
+        "host_pre": 1795258844,
+        "driver_post": 1795258851,
+        "host_post": 1795258851
+      },
+      "same_boundary_seconds": true,
+      "p95_ms": 10.041,
+      "p99_ms": 14.072,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "host_cpu_s_per_delivered_gib": {
+        "vmm": 2.981394455811989,
+        "relay": 1.171649046619424
+      }
+    },
+    {
+      "arm": "software-tso",
+      "attempt": 2,
+      "clean": true,
+      "receiver_bytes": 2959753232,
+      "bulk_window_s": 6.000075375,
+      "receiver_mib_s": 470.43419688019986,
+      "interface_bytes": 3648962952,
+      "interface_packets": 2412068,
+      "tx_kicks": 13331,
+      "kicks_per_delivered_gib": 4836.231649647203,
+      "kicks_per_interface_gib": 3922.7727011858137,
+      "boundary_seconds": {
+        "driver_pre": 1795258851,
+        "host_pre": 1795258851,
+        "driver_post": 1795258858,
+        "host_post": 1795258858
+      },
+      "same_boundary_seconds": true,
+      "p95_ms": 10.738,
+      "p99_ms": 19.289,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "host_cpu_s_per_delivered_gib": {
+        "vmm": 3.143587288716925,
+        "relay": 1.2996102069622089
+      }
+    },
+    {
+      "arm": "original-repeat",
+      "attempt": 1,
+      "clean": true,
+      "receiver_bytes": 39732748240,
+      "bulk_window_s": 6.0004445,
+      "receiver_mib_s": 6314.8824252476015,
+      "interface_bytes": 40341356806,
+      "interface_packets": 632427,
+      "tx_kicks": 2768,
+      "kicks_per_delivered_gib": 74.8027131392812,
+      "kicks_per_interface_gib": 73.67420444296893,
+      "boundary_seconds": {
+        "driver_pre": 1795258859,
+        "host_pre": 1795258859,
+        "driver_post": 1795258865,
+        "host_post": 1795258865
+      },
+      "same_boundary_seconds": true,
+      "p95_ms": 24.424,
+      "p99_ms": 34.876,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "host_cpu_s_per_delivered_gib": {
+        "vmm": 0.41947782082372687,
+        "relay": 0.2630855459134033
+      }
+    },
+    {
+      "arm": "original-repeat",
+      "attempt": 2,
+      "clean": false,
+      "receiver_bytes": 15202424776,
+      "bulk_window_s": 6.004632959,
+      "receiver_mib_s": 2414.495965858958,
+      "interface_bytes": 15537670182,
+      "interface_packets": 246212,
+      "tx_kicks": 1333,
+      "kicks_per_delivered_gib": null,
+      "kicks_per_interface_gib": 92.11791952245984,
+      "boundary_seconds": {
+        "driver_pre": 1795258865,
+        "host_pre": 1795258865,
+        "driver_post": 1795258872,
+        "host_post": 1795258898
+      },
+      "same_boundary_seconds": false,
+      "p95_ms": 40.864,
+      "p99_ms": 68.719,
+      "fresh_errors": 145,
+      "bulk_errors": 32,
+      "bulk_reopens": 25,
+      "host_cpu_s_per_delivered_gib": {
+        "vmm": null,
+        "relay": null
+      }
+    }
+  ]
+}

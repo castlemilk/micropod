@@ -1,0 +1,62 @@
+[
+  {
+    "bytes": 256,
+    "attempt": 0,
+    "result": "verified"
+  },
+  {
+    "bytes": 256,
+    "attempt": 1,
+    "result": "verified"
+  },
+  {
+    "bytes": 256,
+    "attempt": 2,
+    "result": "verified"
+  },
+  {
+    "bytes": 1472,
+    "attempt": 0,
+    "result": "verified"
+  },
+  {
+    "bytes": 1472,
+    "attempt": 1,
+    "result": "verified"
+  },
+  {
+    "bytes": 1472,
+    "attempt": 2,
+    "result": "verified"
+  },
+  {
+    "bytes": 2000,
+    "attempt": 0,
+    "result": "verified"
+  },
+  {
+    "bytes": 2000,
+    "attempt": 1,
+    "result": "verified"
+  },
+  {
+    "bytes": 2000,
+    "attempt": 2,
+    "result": "verified"
+  },
+  {
+    "bytes": 8972,
+    "attempt": 0,
+    "result": "verified"
+  },
+  {
+    "bytes": 8972,
+    "attempt": 1,
+    "result": "verified"
+  },
+  {
+    "bytes": 8972,
+    "attempt": 2,
+    "result": "verified"
+  }
+]

@@ -15,6 +15,48 @@ root = "/var/lib/micropod/buildkit"
   cniConfigPath = "/etc/cni/net.d/10-micropod.conflist"
   cniBinaryPath = "/opt/micropod-oci/runner/cni"
   cniPoolSize = 0
+  # Build cache garbage collection (BuildKit v0.34). Without these rules the
+  # upstream default deletes RUN --mount=type=cache contents unused for 48 h
+  # once private build cache passes 512 MB, which drops warm Go/npm caches.
+  #
+  # - Sizes are binary: "2GB" = 2,147,483,648 bytes, "8GB" = 8,589,934,592,
+  #   "16GB" = 17,179,869,184.
+  # - Every threshold is compared with private (unshared) build-cache bytes
+  #   only, which are mostly cache mounts. Layers of images built with
+  #   unpack=true (every `docker build` through the Docker socket) or pulled
+  #   are shared with containerd images; only the all = true rule removes them.
+  # - A rule deletes nothing while that private total is under its keep size;
+  #   above it, records used within keepDuration are still kept.
+  # - Inside one filters string a comma means AND; separate strings mean OR.
+  # - BuildKit ignores unknown or misspelt keys without an error: check the
+  #   effective rules with `docker buildx inspect` or `buildctl debug workers -v`.
+  # - A manual prune (`docker builder prune`, `buildctl prune`) ignores these
+  #   rules and evicts cache mounts like any other record.
+  # The configured sweep runs about 1 s after buildkitd starts and after each
+  # build, at most once a minute.
+  gc = true
+
+  # (a) Build contexts and git checkouts: cheap to re-send, kept 72 h.
+  [[worker.containerd.gcpolicy]]
+    filters = ["type==source.local", "type==source.git.checkout"]
+    keepDuration = "72h"
+    maxUsedSpace = "2GB"
+
+  # (b) Anything unused for 30 days, once private build cache passes 16 GB
+  #     or the disk has under 8 GB free (never below 2 GB of build cache).
+  [[worker.containerd.gcpolicy]]
+    keepDuration = "720h"
+    reservedSpace = "2GB"
+    maxUsedSpace = "16GB"
+    minFreeSpace = "8GB"
+
+  # (c) Last resort at the same sizes, least recently used first, shared
+  #     image layers and cache mounts included.
+  [[worker.containerd.gcpolicy]]
+    all = true
+    reservedSpace = "2GB"
+    maxUsedSpace = "16GB"
+    minFreeSpace = "8GB"
 
 [worker.containerd.runtime]
   name = "io.containerd.runc.v2"

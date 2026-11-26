@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-11-22T07:21:16.863528482Z",
+  "runners": [
+    {
+      "connection": "online",
+      "cpuPercent": 43.02061290048502,
+      "runner": {
+        "displayName": "Gamma-128GB.local",
+        "lastSeenAt": "2026-11-22T07:21:15.775746Z",
+        "active": true,
+        "activeLeases": 0,
+        "capacity": 6
+      }
+    },
+    {
+      "connection": "online",
+      "cpuPercent": 0.6562955762663549,
+      "runner": {
+        "displayName": "Gamma-128GB Linux CI (isolated VM)",
+        "lastSeenAt": "2026-11-22T07:21:03.342767Z",
+        "active": true,
+        "activeLeases": 1,
+        "capacity": 1
+      }
+    }
+  ]
+}

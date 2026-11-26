@@ -1,0 +1,17 @@
+{
+  "previous_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-5c8cb3ef88d3bedc/product.json",
+  "current_product": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/ci-published-link-30d62e4d9553c9cb/product.json",
+  "base_revision": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "host_sha256": "fb9a3603625d41cadc9d41373b4c87f63797a07d17e5bbcf0a5a99c890ba65f5",
+  "old_guest_sha256": "aca8baeaf0d8692f14235a25ada3ebc064eac3003db3a774f269376cc178718c",
+  "new_guest_sha256": "d584a6099ec4130cba3fa73d8b12193c2ea60aa5f8a83e28d5dab4714048e0ff",
+  "new_bootstrap_sha256": "4e7c8b464c8a4b6ab497f0b7709b749226664945fe78f625a499236f90a1d98e",
+  "changed_packaged_inputs": [
+    "guest/runner/docker_engine_linux.go",
+    "guest/runner/docker_engine_linux_test.go"
+  ],
+  "entitlements": {
+    "com.apple.security.virtualization": true
+  },
+  "baseline_files": 24
+}

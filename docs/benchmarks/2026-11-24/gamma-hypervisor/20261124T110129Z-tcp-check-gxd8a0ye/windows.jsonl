@@ -1,0 +1,2 @@
+{"block":0,"path":"staged","frames":4097,"bytes":268500992,"data_exits":513,"completion_exits":1,"sends":4097,"wall_ns":51719166,"vcpu_ns":6058375,"sender_cpu_ns":47650250,"receiver_cpu_ns":37844209,"verified":true}
+{"block":0,"path":"mapped","frames":4097,"bytes":268500992,"data_exits":513,"completion_exits":1,"sends":4097,"wall_ns":25988083,"vcpu_ns":4652625,"sender_cpu_ns":25962000,"receiver_cpu_ns":22173667,"verified":true}

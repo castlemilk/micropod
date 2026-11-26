@@ -1,0 +1,16 @@
+{
+  "order": [
+    "AB",
+    "BA"
+  ],
+  "cpu_steps": 4,
+  "one_shot_jobs": 32,
+  "sidecars": 32,
+  "per_job_revisions": 2,
+  "client_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+  "driver_sha256": "5f688fe81ade21175d5c112e7dd61b37ca4b195122c47cf29b109d6d2d2c2088",
+  "intentional_exits": [
+    1,
+    137
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "study": "Offline checks for the four-vCPU stock baseline and one-port worker and VM-size screens",
+  "live_timed_attempts": 0,
+  "admission": {
+    "source": "Cuttlefish runners-list, cuttlefish project",
+    "observed_at": "2026-11-23T11:38:47.928719718Z",
+    "rigs": [
+      {
+        "name": "Gamma-128GB.local",
+        "state": "online",
+        "leased_slots": 0,
+        "capacity": 6,
+        "heartbeat": "2026-11-23T11:38:46.784197Z"
+      },
+      {
+        "name": "Gamma-128GB Linux CI (isolated VM)",
+        "state": "online",
+        "leased_slots": 1,
+        "capacity": 1,
+        "heartbeat": "2026-11-23T11:38:41.139913Z"
+      }
+    ],
+    "owner_release_available": false
+  },
+  "sources": {
+    "bench/kernel-path-20261122": {
+      "base": "863161fff78072e3eff097d06c316a31e4d70f89",
+      "sha256": {
+        "scripts/gamma_path_study.py": "c2fa1b4434404b43676148f6aec54b8576a1e606e6237cddb97650224ae95980",
+        "scripts/test_gamma_path.py": "a3202a7841442027ece8b82fcdd57f4d3014f3629b08a578b59b5db7ef62ad27"
+      }
+    },
+    "bench/phase0-host-scheduling": {
+      "base": "1b53040a2e5c60ce5bf4d5e976058e4534688a59",
+      "commit": "04d4899a20c352f4022185f1cf616ab4fa1401e1",
+      "sha256": {
+        "scripts/relaybench/gamma_pilot.py": "2fdb6ede29ca9df2efe888e429e4a18e5300428716ed90cc3670a73133046a53",
+        "scripts/relaybench/peer_verdict.py": "01130c3e9c0c2b55441814ce26517f7425b76af6231e784579238c30223464c2",
+        "scripts/relaybench/test_pilot_pair_counts.py": "9833581a3e1ac096569d0a7ee3fff7d21852ce1e15ce05663af3a79282a83ba7"
+      }
+    }
+  },
+  "regressions": [
+    {
+      "case": "Scored process output claims 29,934,658,184 downloaded bytes while the service interface transmits one byte",
+      "before": "The simulated stock baseline could complete.",
+      "after": "Capture stops on the scored attempt and retains the failure. Offline replay also rejects a resealed receipt one byte short even when the reported delta covers the payload."
+    },
+    {
+      "case": "Percentile one microsecond beyond the bound for the fixed 25 ms schedule",
+      "invocation_us": 6259187,
+      "p95_max_us": 5959187,
+      "p99_max_us": 6209187,
+      "before": "Sealed receipts with p95=5959188 or p99=6209188 passed.",
+      "after": "Both capture verification and replay reject each receipt. The exact bounds pass, including p99 in the drain period."
+    },
+    {
+      "case": "Four-pair worker and VM-size screens receive 32 ports, a mismatched service marker, or fractional stream counts that preserve the total",
+      "before": "The modern worker pilot accepted the 32-port specimen as a clean one-port attempt.",
+      "after": "Each mode rejects each substitution and keeps the raw failed attempt."
+    }
+  ],
+  "archived_service_tx": {
+    "archive": "bench/worker-performance/docs/benchmarks/2026-11-21/gamma-direct-macvlan.json.gz",
+    "sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+    "scope": "Each pair of service counter samples covers all listed rounds together.",
+    "windows": [
+      {
+        "fixture": "workers/direct",
+        "arm": "direct",
+        "series": [
+          "matched",
+          "repeat"
+        ],
+        "first": "start-scoring",
+        "last": "end-scoring",
+        "valid_rounds": 22,
+        "client_bulk_bytes": 465185846560,
+        "mppub0_tx_delta": 478377036186,
+        "eth0_tx_delta": 70,
+        "excess_bytes": 13191189626
+      },
+      {
+        "fixture": "workers/screen-state-full-reno",
+        "arm": "full-reno",
+        "series": [
+          "tuning"
+        ],
+        "first": "state",
+        "last": "tuning-end",
+        "valid_rounds": 10,
+        "client_bulk_bytes": 350838467132,
+        "mppub0_tx_delta": 356839067957,
+        "eth0_tx_delta": 490,
+        "excess_bytes": 6000600825
+      },
+      {
+        "fixture": "workers/full-reno",
+        "arm": "full-reno",
+        "series": [
+          "confirmation"
+        ],
+        "first": "state",
+        "last": "end-scoring",
+        "valid_rounds": 12,
+        "client_bulk_bytes": 236882926500,
+        "mppub0_tx_delta": 244082976085,
+        "eth0_tx_delta": 350,
+        "excess_bytes": 7200049585
+      },
+      {
+        "fixture": "holdout_workers/full-reno",
+        "arm": "full-reno",
+        "series": [
+          "kernel-holdout"
+        ],
+        "first": "state",
+        "last": "end-scoring",
+        "valid_rounds": 12,
+        "client_bulk_bytes": 262874121284,
+        "mppub0_tx_delta": 269174782145,
+        "eth0_tx_delta": 420,
+        "excess_bytes": 6300660861
+      }
+    ]
+  },
+  "python": "3.14.7",
+  "tests": [
+    {
+      "working_directory": "bench/kernel-path-20261122",
+      "command": "MICROPOD_RELAY_SOURCE=../worker-performance python3 -B scripts/test_gamma_path.py -v",
+      "exit_code": 0,
+      "summary": [
+        "Ran 21 tests in 0.274s",
+        "OK"
+      ],
+      "passing_tests": 21
+    },
+    {
+      "working_directory": "bench/phase0-host-scheduling",
+      "command": "python3 -B -m unittest discover -s scripts/relaybench -p 'test_*.py' -v",
+      "exit_code": 0,
+      "summary": [
+        "Ran 94 tests in 7.614s",
+        "OK"
+      ],
+      "passing_tests": 94
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+[{"bytes":273679365,"drops":0,"gso_ipv4_bytes":65536,"handle":"8001:0","ifindex":3,"kind":"fq","overlimits":0,"packets":31145,"requeues":0,"root":true}]
