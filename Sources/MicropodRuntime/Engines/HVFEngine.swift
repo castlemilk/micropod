@@ -172,6 +172,7 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
         return listed.map { container in
             var container = container
             container.runtime = name
+            if container.state == "exited" || container.state == "dead" { container.state = "stopped" }
             if container.publishedPorts.isEmpty, let mapped = ports[container.id] { container.publishedPorts = mapped }
             return container
         }
@@ -251,6 +252,58 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
     public func inspect(_ id: String) async throws -> Data {
         try requireServing(id)
         return try await forgettingMissing(id) { try await docker.inspect(id) }
+    }
+
+    /// Reads the container's lifecycle state directly from the guest Docker API
+    /// inspect JSON (`State.Status`), normalizing Docker's `"exited"`/`"dead"`
+    /// to Micropod's `"stopped"` so `WaitContainer` sees transitions immediately.
+    public func state(of id: String) async -> String {
+        guard let info = await inspectState(id) else { return "unknown" }
+        return info.normalizedState
+    }
+
+    /// Returns the recorded exit code for an exited HVF container so
+    /// `WaitContainer` returns `known: true` with the exact process status.
+    public func exitCode(_ id: String) async -> Int32? {
+        guard let info = await inspectState(id), !info.running,
+            info.status == "exited" || info.status == "dead"
+        else { return nil }
+        return info.exitCode
+    }
+
+    private struct DockerInspectState {
+        let status: String
+        let running: Bool
+        let exitCode: Int32
+
+        var normalizedState: String {
+            switch status.lowercased() {
+            case "exited", "dead": return "stopped"
+            case "removing": return "stopping"
+            case "running": return "running"
+            case "created": return "created"
+            case "": return "unknown"
+            default: return status.lowercased()
+            }
+        }
+    }
+
+    private func inspectState(_ id: String) async -> DockerInspectState? {
+        guard machine.isServing, let data = try? await docker.inspect(id),
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let state = json["State"] as? [String: Any]
+        else { return nil }
+        let status = state["Status"] as? String ?? ""
+        let running = state["Running"] as? Bool ?? (status == "running")
+        let code: Int32
+        if let n = state["ExitCode"] as? Int {
+            code = Int32(clamping: n)
+        } else if let n = state["ExitCode"] as? Int32 {
+            code = n
+        } else {
+            code = 0
+        }
+        return DockerInspectState(status: status, running: running, exitCode: code)
     }
 
     /// Refuses what the guest cannot do, resolves host bind sources (the

@@ -573,9 +573,12 @@ func stage2Supervise() {
 	}
 	_ = os.MkdirAll("/sys/fs/cgroup/worker", 0755)
 
-	// Minimal /etc/resolv.conf & /etc/hosts for job engine DNS startup
+	// Minimal /etc/resolv.conf & /etc/hosts for job engine DNS startup.
+	// Point host.docker.internal / host.micropod.internal at the eth0 egress
+	// gateway (10.42.0.1) so allowlisted host loopback services (--allow-host-port)
+	// are reachable directly by hostname or IP from inside containers.
 	_ = os.WriteFile("/etc/resolv.conf", []byte("nameserver 10.42.0.1\n"), 0644)
-	_ = os.WriteFile("/etc/hosts", []byte("127.0.0.1 localhost micropod-hvf\n10.43.0.1 host.docker.internal host.micropod.internal\n"), 0644)
+	_ = os.WriteFile("/etc/hosts", []byte("127.0.0.1 localhost micropod-hvf\n10.42.0.1 host.docker.internal host.micropod.internal\n"), 0644)
 
 	// Start AF_VSOCK <-> Unix bridges and host control channel BEFORE start.sh launches job engine!
 	poweroffCh := make(chan struct{}, 1)

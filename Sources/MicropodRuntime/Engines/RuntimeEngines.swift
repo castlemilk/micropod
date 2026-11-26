@@ -31,10 +31,14 @@ public protocol RuntimeEngine: Sendable {
     /// `timeout` passes; false when the engine has no such signal and the
     /// caller should poll instead.
     func awaitStateChange(_ id: String, timeout: Duration) async -> Bool
+    /// Exit code of an exited container when this engine tracks it natively
+    /// (e.g. `hvf` or `sandbox`), or nil when unknown / still running.
+    func exitCode(_ id: String) async -> Int32?
 }
 
 extension RuntimeEngine {
     public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool { false }
+    public func exitCode(_ id: String) async -> Int32? { nil }
     public var volumeStore: (any EngineVolumeServing)? { nil }
     public var imageStore: (any EngineImageServing)? { nil }
 }
@@ -415,6 +419,15 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     /// `RuntimeEngine.awaitStateChange` on the engine that owns `id`.
     public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool {
         await owner(id).awaitStateChange(id, timeout: timeout)
+    }
+
+    /// Exit code reported by the engine that owns `id`, if available.
+    public func exitCode(_ id: String) async -> Int32? {
+        await owner(id).exitCode(id)
+    }
+
+    public func state(of id: String) async -> String {
+        await owner(id).containers.state(of: id)
     }
 
     /// Engine that owns an existing container id.

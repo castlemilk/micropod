@@ -16,6 +16,7 @@ const USAGE: &str = "\
 Usage: micropod-vmm (--kernel <Image> | --restore-from <dir>) [--initrd <cpio>]
   [--disk <raw> [--disk-ro]] [--cache-disk <raw>] [--share tag:path[:ro]] [--workspace <dir>]
   [--vsock-expose unix_sock:guest_port] [--published-net] [--published-mtu 9000]
+  [--allow-host-port PORT]
   [--cpus N] [--memory-mib N] [--cmdline STR] [--cmdline-append STR]
   [--snapshot-trigger <path> --snapshot-out <dir> [--snapshot-and-exit]]
   [--quiet] [--console-log <path>] [--json-summary] [--timeout S]
@@ -210,6 +211,7 @@ fn main() {
     let mut enable_net = true;
     let mut enable_published_net = false;
     let mut published_mtu: u16 = 9000;
+    let mut allow_host_ports: Vec<u16> = Vec::new();
     let mut enable_vsock = false;
     let mut vsock_exposes = Vec::new();
     let mut shares = Vec::new();
@@ -277,6 +279,16 @@ fn main() {
             "--published-mtu" => {
                 i += 1;
                 published_mtu = parse_flag(&args, i, "--published-mtu");
+            }
+            "--allow-host-port" => {
+                i += 1;
+                let port: u16 = parse_flag(&args, i, "--allow-host-port");
+                if port == 0 {
+                    usage_error("Invalid --allow-host-port (expected 1-65535)");
+                }
+                if !allow_host_ports.contains(&port) {
+                    allow_host_ports.push(port);
+                }
             }
             "--no-balloon" => enable_balloon = false,
             "--no-net" => enable_net = false,
@@ -437,6 +449,7 @@ fn main() {
         enable_net,
         enable_published_net,
         published_mtu,
+        allow_host_ports,
         enable_vsock,
         vsock_exposes,
         shares,

@@ -529,6 +529,8 @@ pub struct VmConfig {
     pub enable_net: bool,
     pub enable_published_net: bool,
     pub published_mtu: u16,
+    /// Opt-in host loopback TCP ports reachable from the guest at `10.42.0.1:<port>`.
+    pub allow_host_ports: Vec<u16>,
     pub enable_vsock: bool,
     pub vsock_exposes: Vec<VsockExposeSpec>,
     pub shares: Vec<ShareSpec>,
@@ -997,9 +999,10 @@ pub fn run_vm_with_parent(
         // Linux probes virtio-mmio DT nodes in order:
         // eth0 = primary egress (10.42.0.2/24), eth1 = dedicated published-port link (10.43.0.2/24)
         if cfg.enable_net {
-            let net0 =
-                vmm_net::VirtioNetEgress::new(NetConfig::primary_egress(), net_metrics.clone())
-                    .map_err(|e| format!("init eth0 virtio-net egress: {e}"))?;
+            let egress_cfg = NetConfig::primary_egress()
+                .with_host_loopback_ports(cfg.allow_host_ports.clone());
+            let net0 = vmm_net::VirtioNetEgress::new(egress_cfg, net_metrics.clone())
+                .map_err(|e| format!("init eth0 virtio-net egress: {e}"))?;
             push_dev(Box::new(net0));
         }
         if cfg.enable_published_net {
@@ -2028,6 +2031,7 @@ mod vcpu_lifecycle_tests {
                 enable_net: false,
                 enable_published_net: false,
                 published_mtu: 1500,
+                allow_host_ports: Vec::new(),
                 enable_vsock: false,
                 vsock_exposes: Vec::new(),
                 shares: Vec::new(),

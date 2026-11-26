@@ -268,6 +268,24 @@ extension APIHandlers {
 
             case "ListNetworks":
                 var resp = Micropod_V1_ListNetworksResponse()
+                if engineRegistry.defaultName == "hvf",
+                    let hvfEngine = engineRegistry.engine("hvf") as? HVFEngine
+                {
+                    let hvfStatus = hvfEngine.machine.status()
+                    if hvfStatus.installed && hvfStatus.problem == nil {
+                        resp.networks = [
+                            Micropod_V1_Network.with {
+                                $0.id = "default"
+                                $0.plugin = "hvf-nat"
+                                $0.mode = "nat"
+                                $0.ipv4Gateway = "10.42.0.1"
+                                $0.ipv4Subnet = "10.42.0.0/24"
+                                $0.builtin = true
+                            }
+                        ]
+                        return reply(resp)
+                    }
+                }
                 resp.networks = try await networks.list()
                 return reply(resp)
 
@@ -968,10 +986,16 @@ extension APIHandlers {
             })
         var known = outcome.known
         var exitCode = outcome.exitCode
-        // The sandbox engine records its sessions' exit codes itself.
-        if outcome.exited, !known, let code = await sandboxEngine.exitCode(id) {
-            known = true
-            exitCode = code
+        // Non-Apple engines (HVF guest engine, SandboxVM) record their own
+        // container exit codes outside Apple's ExitCodeRegistry.
+        if outcome.exited, !known {
+            if let router = services.containers as? RuntimeRouter, let code = await router.exitCode(id) {
+                known = true
+                exitCode = code
+            } else if let code = await sandboxEngine.exitCode(id) {
+                known = true
+                exitCode = code
+            }
         }
         return .with {
             $0.exited = outcome.exited
