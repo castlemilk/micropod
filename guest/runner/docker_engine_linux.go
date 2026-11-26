@@ -1516,8 +1516,9 @@ func (s *dockerEngine) removeLocked(c *dockerContainer) (err error) {
 		}
 	}
 	if c.ownsFamily() {
-		// What its socket created goes with it (docker_family_linux.go);
-		// remove waits for it, a removal on exit does not.
+		// What its socket created goes with it (docker_family_linux.go). A
+		// removal on exit does not wait for it; every answer that c is
+		// removed (remove, a wait for removal) does (awaitFamily).
 		c.reaped = make(chan struct{})
 		go func() {
 			defer close(c.reaped)
@@ -1601,16 +1602,41 @@ func (s *dockerEngine) requestContainerStop(ctx context.Context, c *dockerContai
 	}
 	return err
 }
+
+// awaitFamily waits, once c is removed, until what its delegated socket
+// created is gone too (c.reaped), so that the next job of the same compose
+// project finds the names free when it learns c is gone; false when ctx ends
+// first. It returns at once for a container that owns no family.
+func (s *dockerEngine) awaitFamily(ctx context.Context, c *dockerContainer) bool {
+	s.mu.Lock()
+	reaped := c.reaped
+	if !c.removed {
+		reaped = nil
+	}
+	s.mu.Unlock()
+	if reaped == nil {
+		return true
+	}
+	select {
+	case <-reaped:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
 func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force bool) error {
 	for {
 		s.mu.Lock()
 		if c.removed {
+			// Removed meanwhile: on its exit (AutoRemove) or by another
+			// request. This answer, too, waits for its family.
 			s.mu.Unlock()
+			s.awaitFamily(ctx, c)
 			return nil
 		}
 		if !c.busy() {
 			err := s.removeLocked(c)
-			reaped := c.reaped
 			s.mu.Unlock()
 			if err == nil && c.RootFS != nil {
 				if err := s.reclaimDockerRootFS(context.WithoutCancel(ctx), c, filepath.Join(engineRoot, "retired", c.ID)); err != nil {
@@ -1620,13 +1646,8 @@ func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force boo
 				s.containerEvent(c, "destroy", nil)
 				s.mu.Unlock()
 			}
-			if err == nil && reaped != nil {
-				// The next job of the same project may reuse the names
-				// once this answers.
-				select {
-				case <-reaped:
-				case <-ctx.Done():
-				}
+			if err == nil {
+				s.awaitFamily(ctx, c)
 			}
 			return err
 		}

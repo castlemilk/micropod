@@ -443,6 +443,11 @@ func (s *dockerEngine) wait(w http.ResponseWriter, r *http.Request, c *dockerCon
 			return nil
 		}
 	}
+	// Removed means the names its delegated socket's family held are free
+	// too: `docker run --rm` of a job's container answers once they are.
+	if condition == "removed" && !s.awaitFamily(r.Context(), c) {
+		return nil
+	}
 	// The CLI can close its attached stream when a wait finishes. Deliver
 	// the final frames before acknowledging exit to foreground clients.
 	if result.readersDone != nil && (condition == "removed" || condition == "next-exit") {

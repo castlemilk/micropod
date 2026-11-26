@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -102,6 +103,77 @@ func TestRemovingAnOwnerReapsItsFamily(t *testing.T) {
 	err = s.createNetwork(httptest.NewRecorder(), httptest.NewRequest("POST", "/networks/create", strings.NewReader(`{"Name":"late"}`)).WithContext(gone))
 	if !errors.As(err, &api) || api.code != http.StatusForbidden || s.hasNetworkNamed("late") {
 		t.Errorf("a network created through a removed owner's socket: %v", err)
+	}
+}
+
+// Every answer that a job's container is removed waits for its family, not
+// only a remove that removes it itself: `docker run --rm` (a wait for
+// removal, answered by the removal on its exit) and a `docker rm -f` or a
+// second remove that finds it already removed answer once its children,
+// networks and volumes are gone, so the next job of the project finds the
+// names free.
+func TestEveryAnswerThatAnOwnerIsRemovedWaitsForItsFamily(t *testing.T) {
+	s, owner, child, _, _ := familyFixture(t)
+	owner.Config.HostConfig.AutoRemove = true
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	// A host's docker cp of the child holds its lifecycle, so the reaping
+	// waits for it.
+	held, err := s.lockContainerLifecycle(ctx, child)
+	if err != nil || held == nil {
+		t.Fatalf("hold the child's lifecycle: %v", err)
+	}
+	var once sync.Once
+	release := func() { once.Do(held) }
+	t.Cleanup(release)
+
+	waited := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/containers/"+owner.ID+"/wait?condition=removed", nil).WithContext(ctx)
+		if err := s.wait(rec, req, owner); err != nil {
+			t.Error(err)
+		}
+		waited <- rec
+	}()
+	// The container exits and is removed on exit, as AutoRemove does.
+	s.mu.Lock()
+	err = s.removeLocked(owner)
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	removed := make(chan error, 1)
+	go func() { removed <- s.remove(ctx, owner, true) }()
+	select {
+	case <-waited:
+		t.Fatal("the wait for removal answered while the family was still there")
+	case err := <-removed:
+		t.Fatalf("a remove of the removed owner answered (%v) while the family was still there", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	release()
+	var rec *httptest.ResponseRecorder
+	for range 2 {
+		select {
+		case rec = <-waited:
+		case err := <-removed:
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-ctx.Done():
+			t.Fatal("the reaping did not finish")
+		}
+		s.mu.Lock()
+		_, childLeft := s.containers[child.ID]
+		s.mu.Unlock()
+		if childLeft || s.hasNetworkNamed("app_default") || hasVolume("app_pgdata") {
+			t.Fatal("an answer that the owner is removed came before its family was gone")
+		}
+	}
+	if !strings.Contains(rec.Body.String(), `"StatusCode"`) {
+		t.Errorf("the wait answered %q", rec.Body)
 	}
 }
 
