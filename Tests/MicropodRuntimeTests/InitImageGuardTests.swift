@@ -193,6 +193,39 @@ final class InitImageGuardTests: XCTestCase {
         let after = await reads.value
         XCTAssertEqual(after, 2, "an empty answer is kept like a failure")
     }
+
+    /// GetSystem says it reads vminit.image: within the 30 s a failure is
+    /// kept for Ping (the runtime was stopped then), it asks again, and a
+    /// runtime that came up since answers. Its value is then kept for Ping.
+    func testGetSystemReadsAgainWithinAKeptFailure() async {
+        let reads = DefaultReads()
+        let up = UpFlag()
+        let image = RuntimeDefaultInitImage(ttl: .seconds(300), failureTTL: .seconds(30)) {
+            await reads.count()
+            guard up.value else { throw MicropodError.runtimeNotRunning }
+            return "ghcr.io/apple/containerization/vminit:0.42.0"
+        }
+        let stopped = await image.value(retryingFailure: true)
+        XCTAssertNil(stopped)
+        up.value = true
+        let ping = await image.value()
+        XCTAssertNil(ping, "Ping keeps the failure")
+        let system = await image.value(retryingFailure: true)
+        XCTAssertEqual(system, "ghcr.io/apple/containerization/vminit:0.42.0", "the runtime that came up answers")
+        let kept = await image.peek()
+        XCTAssertEqual(kept, system, "and Ping finds it kept")
+        let count = await reads.value
+        XCTAssertEqual(count, 2)
+    }
+}
+
+private final class UpFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var flag = false
+    var value: Bool {
+        get { lock.withLock { flag } }
+        set { lock.withLock { flag = newValue } }
+    }
 }
 
 private actor DefaultReads {

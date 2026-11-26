@@ -431,12 +431,15 @@ extension APIHandlers {
     }
 
     /// The `vminit.image` property. Ping uses the kept value and refreshes it
-    /// in the background; GetSystem reads it. A runtime known to be down is
-    /// not asked (its answer would be the CLI's runtime-down error).
+    /// in the background; GetSystem reads it, also within the 30 s a failed
+    /// read is kept for Ping (the runtime may have come up since). A runtime
+    /// known to be down is not asked by Ping (its answer would be the CLI's
+    /// runtime-down error).
     private func vminitComponent(fresh: Bool) async -> Micropod_V1_ComponentVersion {
         if fresh {
             return ComponentProbe.vminit(
-                reference: await initImage.value(), unavailable: "The runtime did not report vminit.image")
+                reference: await initImage.value(retryingFailure: true),
+                unavailable: "The runtime did not report vminit.image")
         }
         if let kept = await initImage.peek() {
             return ComponentProbe.vminit(reference: kept, unavailable: "")
