@@ -159,6 +159,26 @@ final class HTTPChunkedStreamTests: XCTestCase {
         }
     }
 
+    /// Chunked transfer coding is HTTP/1.1's: an HTTP/1.0 client that asks
+    /// to keep its connection, and for chunks, gets a stream delimited by
+    /// the close, which is how it reads one.
+    func testAnHTTP10ClientGetsACloseDelimitedStreamEvenWithKeepAlive() async throws {
+        let (owner, path) = try await ownerSocket()
+        try await blocking {
+            let client = try RawConnection.unix(path)
+            try client.write(
+                "POST /stream HTTP/1.0\r\nHost: localhost\r\nContent-Type: application/connect+proto\r\n"
+                    + "Connection: keep-alive\r\nX-Micropod-Stream-Framing: chunked\r\nContent-Length: 0\r\n\r\n")
+            let stream = try client.reply()
+            XCTAssertEqual(stream.status, 200)
+            XCTAssertNil(stream.headers["transfer-encoding"], "no chunks to an HTTP/1.0 client")
+            XCTAssertEqual(stream.headers["connection"], "close")
+            XCTAssertEqual(Self.payloads(stream.body), ["one", "two", "{}"])
+            XCTAssertTrue(try client.closed(within: 2), "the stream ends with the close")
+        }
+        XCTAssertEqual(owner.keptConnections, 0)
+    }
+
     func testAClientThatClosesDuringAChunkedStreamEndsItsSource() async throws {
         let (owner, path) = try await ownerSocket()
         Self.ended.reset()

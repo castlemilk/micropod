@@ -667,8 +667,11 @@ final class HTTPServer: @unchecked Sendable {
                             withExtendedLifetime(claim) {}
                         }
                     })
+            // Chunked framing is HTTP/1.1's (RFC 9112 §6.1): an HTTP/1.0
+            // client, even one asking to keep the connection, reads a
+            // stream to its close.
             case .stream(let status, let contentType, let events)
-            where peer.keepAlive && persistence != .close && leftover.isEmpty
+            where peer.keepAlive && persistence == .persistent && leftover.isEmpty
                 && HTTPStreamFraming.wantsChunks(request.headers) && kept.reserve(connection):
                 streamChunked(
                     status: status, contentType: contentType, events: events, cors: cors, peer: peer
