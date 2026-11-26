@@ -400,16 +400,30 @@ func (s *dockerEngine) openChildBind(ctx context.Context, c *dockerContainer, m 
 // not part of the view; and every descriptor the view opens is checked by
 // identity (machineGuard), because the host's file system ignores case and a
 // rename can move the directory where no spelling of the mask is.
+//
+// A running container's file bind is the very file its start checked, held
+// open since (dockerLiveArchive): the container reads it, whatever its host
+// path now names (a save that renames a new file over it, an unlink), so a
+// copy of it is decided by that start, not by a walk up from a path that may
+// no longer lead to it.
 func (s *dockerEngine) guardMachineDir(view *dockerArchiveView, mount dockerMount) error {
 	if s.machineDir == nil || mount.Type != "bind" {
 		return nil
 	}
-	mask, err := s.machineDir.check(view.root, mount.Source, mount.Target)
-	if err != nil {
-		var api apiError
-		if errors.As(err, &api) {
-			return fail(http.StatusForbidden, "the archive path is inside the machine's own directory, which no container reaches")
+	if view.running {
+		var st unix.Stat_t
+		if err := unix.Fstat(int(view.root.Fd()), &st); err != nil {
+			return err
 		}
+		if st.Mode&unix.S_IFMT != unix.S_IFDIR {
+			return nil
+		}
+	}
+	mask, err := s.machineDir.check(view.root, mount.Source, mount.Target)
+	if inside := (insideMachineDir{}); errors.As(err, &inside) {
+		return fail(http.StatusForbidden, "the archive path is inside the machine's own directory, which no container reaches")
+	}
+	if err != nil {
 		return err
 	}
 	if mask != "" {

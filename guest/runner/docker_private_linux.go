@@ -97,6 +97,13 @@ func makeMaskDir(maskDir string) error {
 // machine's directory.
 var errInsideMachine = errors.New("is inside the machine's own directory, which no container may bind")
 
+// insideMachineDir is check's error for a source inside the machine's
+// directory: a 400 (the apiError it unwraps to), told apart from a source
+// check could not decide (one that moved while it was found).
+type insideMachineDir struct{ apiError }
+
+func (e insideMachineDir) Unwrap() error { return e.apiError }
+
 // check decides a bind of the opened source f at the container path target:
 // an error for a source inside the machine directory (the directory itself
 // included), the container path to mask for a directory source that covers
@@ -126,7 +133,7 @@ func (r *privateRoot) check(f *os.File, source, target string) (string, error) {
 		return "", err
 	}
 	if inside {
-		return "", fail(400, fmt.Sprintf("bind source %s %v", source, errInsideMachine))
+		return "", insideMachineDir{apiError{400, fmt.Sprintf("bind source %s %v", source, errInsideMachine)}}
 	}
 	return "", nil
 }
