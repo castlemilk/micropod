@@ -1126,8 +1126,9 @@ PY
     got=$(cdiff e2 e3 "$SB" strict)
     checkp "early kill: every store of $SB identical to the byte, inode, mtime and ctime" "$got" "equal" "$(ok is_equal "$got")"
 
-    # The swept kills. attach puts the unit's mark on disk (synced, renamed,
-    # its directory synced) before the writer can write a byte, so a kill at
+    # The swept kills. A start puts its units' marks on disk (each renamed into
+    # place, then one sync of the scope's mark directory; the mark's content is
+    # not synced) before the writer can write a byte, so a kill at
     # any moment after the writer started must discard the unit whole. Two
     # writers: new entries only, never synced; and one that first overwrites
     # a committed seed entry in place and fdatasyncs it (as SQLite does), whose
