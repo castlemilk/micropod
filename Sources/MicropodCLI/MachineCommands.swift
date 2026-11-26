@@ -223,7 +223,7 @@ enum MachineCommands {
         ) {
             print($0)
         }
-        if let note = try HVFMachineCachePolicy.applyRigDefaultTrust(layout: layout) { print(note) }
+        if let hint = HVFMachineCachePolicy.rigDefaultTrustHint(layout: layout) { print("note: \(hint)") }
         print("hvf machine installed under \(layout.root.path)")
     }
 

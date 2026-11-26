@@ -5,7 +5,7 @@ import XCTest
 @testable import MicropodRuntime
 
 /// The cache policy's trust tier for containers that name none
-/// (`defaultTrust`) and its rig auto-configuration.
+/// (`defaultTrust`), and what a rig gets told about it.
 final class HVFCacheTrustTests: XCTestCase {
     private var home: URL!
 
@@ -66,37 +66,40 @@ final class HVFCacheTrustTests: XCTestCase {
         try HVFMachineConfig.load(from: layout.config).effectiveCachePolicy.defaultTrust
     }
 
-    func testTheRigsStandardMachineBecomesUntrustedByDefaultOnce() throws {
+    /// A rig is often its owner's development machine too, and Cuttlefish
+    /// names the tier of every container it creates: nothing changes the
+    /// standard machine's default by itself. `machine install` only hints.
+    func testARigsStandardMachineKeepsTheShippedDefaultAndGetsAHint() throws {
         let layout = HVFMachineLayout(root: HVFMachineLayout.standardRoot(home: home))
         try install(layout)
-        let note = try HVFMachineCachePolicy.applyRigDefaultTrust(layout: layout, home: home, isRig: { _ in true })
-        XCTAssertEqual(note, HVFMachineCachePolicy.rigDefaultTrustNote)
-        XCTAssertEqual(try trust(layout), .untrusted)
-        XCTAssertNil(try HVFMachineCachePolicy.applyRigDefaultTrust(layout: layout, home: home, isRig: { _ in true }))
+        let before = try Data(contentsOf: layout.config)
+        XCTAssertEqual(
+            HVFMachineCachePolicy.rigDefaultTrustHint(layout: layout, home: home, isRig: { _ in true }),
+            HVFMachineCachePolicy.rigDefaultTrustHint)
+        XCTAssertNil(try trust(layout), "the hint never writes machine.json")
+        XCTAssertEqual(try Data(contentsOf: layout.config), before)
+        XCTAssertTrue(HVFMachineCachePolicy.rigDefaultTrustHint.contains("--default-trust untrusted"))
     }
 
-    func testRigAutoConfigurationKeepsAnExplicitSettingAndOtherMachines() throws {
+    func testTheRigHintIsOnlyForAStandardRigMachineWithoutASetting() throws {
         let standard = HVFMachineLayout(root: HVFMachineLayout.standardRoot(home: home))
-        var trusted = HVFMachineCachePolicy()
-        trusted.defaultTrust = .trusted
-        try install(standard, policy: trusted)
-        XCTAssertNil(try HVFMachineCachePolicy.applyRigDefaultTrust(layout: standard, home: home, isRig: { _ in true }))
-        XCTAssertEqual(try trust(standard), .trusted, "an explicit setting is the user's")
+        var untrusted = HVFMachineCachePolicy()
+        untrusted.defaultTrust = .untrusted
+        try install(standard, policy: untrusted)
+        XCTAssertNil(HVFMachineCachePolicy.rigDefaultTrustHint(layout: standard, home: home, isRig: { _ in true }))
+        XCTAssertEqual(try trust(standard), .untrusted, "an explicit setting is the owner's")
 
         let throwaway = HVFMachineLayout(root: home.appendingPathComponent("throwaway"))
         try install(throwaway)
-        XCTAssertNil(
-            try HVFMachineCachePolicy.applyRigDefaultTrust(layout: throwaway, home: home, isRig: { _ in true }))
-        XCTAssertNil(try trust(throwaway), "a throwaway root is never changed")
+        XCTAssertNil(HVFMachineCachePolicy.rigDefaultTrustHint(layout: throwaway, home: home, isRig: { _ in true }))
 
-        let developer = HVFMachineLayout(root: HVFMachineLayout.standardRoot(home: home))
+        let devHome = home.appendingPathComponent("dev")
+        let developer = HVFMachineLayout(root: HVFMachineLayout.standardRoot(home: devHome))
         try install(developer)
-        XCTAssertNil(
-            try HVFMachineCachePolicy.applyRigDefaultTrust(layout: developer, home: home, isRig: { _ in false }))
-        XCTAssertNil(try trust(developer), "a developer's machine keeps the shipped default")
+        XCTAssertNil(HVFMachineCachePolicy.rigDefaultTrustHint(layout: developer, home: devHome, isRig: { _ in false }))
 
         let absent = HVFMachineLayout(root: home.appendingPathComponent("never-installed"))
-        XCTAssertNil(try HVFMachineCachePolicy.applyRigDefaultTrust(layout: absent, home: home, isRig: { _ in true }))
+        XCTAssertNil(HVFMachineCachePolicy.rigDefaultTrustHint(layout: absent, home: home, isRig: { _ in true }))
         XCTAssertFalse(FileManager.default.fileExists(atPath: absent.config.path))
     }
 }

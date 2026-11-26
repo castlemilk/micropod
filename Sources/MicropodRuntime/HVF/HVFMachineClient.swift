@@ -280,13 +280,8 @@ public struct HVFMachineClient: Sendable {
                 case .launch:
                     // Before the first supervisor resolves its payload: a store
                     // the earlier updater left pending boots only once probed.
-                    // The rig's standard machine gets its trust default before
-                    // the supervisor renders the policy.
                     if launches == 0 {
                         HVFPayloadStore.migrateLegacyStoreBeforeBoot(layout: layout)
-                        if let note = try? HVFMachineCachePolicy.applyRigDefaultTrust(layout: layout) {
-                            FileHandle.standardError.write(Data("note: \(note)\n".utf8))
-                        }
                     }
                     launches += 1
                     if let pid = try await launchSupervisor(until: deadline) { launched.insert(pid) }

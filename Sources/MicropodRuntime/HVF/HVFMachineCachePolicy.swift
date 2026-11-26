@@ -108,10 +108,9 @@ public struct HVFMachineCachePolicy: Codable, Sendable, Equatable {
     /// other store, L1 build caches included, stays in the container's scope.
     public var sharedL0: Bool
     /// The tier of a container that names none (`io.micropod.cache.trust`).
-    /// nil is not set: trusted, the shipped default for a developer's own
-    /// machine, where an unlabeled `docker run` warms the caches; the
-    /// standard machine on a rig is set to untrusted the first time it is
-    /// installed or started (`applyRigDefaultTrust`). A container may lower
+    /// nil is not set: trusted, the shipped default, where an unlabeled
+    /// `docker run` warms the caches. Nothing sets untrusted by itself, on a
+    /// rig neither (`rigDefaultTrustHint`): only the owner does. A container may lower
     /// its own tier, but may claim trusted only while this is trusted or on
     /// the host-facing Docker socket; one created from inside a container is
     /// never more trusted than that container.
@@ -439,37 +438,33 @@ struct HVFJSONKey: CodingKey, Hashable {
     }
 }
 
-// MARK: - Rig auto-configuration
+// MARK: - Rigs
 
 extension HVFMachineCachePolicy {
-    /// What `applyRigDefaultTrust` prints when it changed machine.json.
-    public static let rigDefaultTrustNote =
-        "this host runs CI (Cuttlefish): containers without io.micropod.cache.trust are now untrusted "
-        + "(cache defaultTrust untrusted; `micropod cache policy --default-trust trusted` changes it)"
+    /// What `rigDefaultTrustHint` returns.
+    public static let rigDefaultTrustHint =
+        "this host runs CI (Cuttlefish), which names the cache tier of every container it creates; containers "
+        + "without io.micropod.cache.trust stay trusted here, so your own docker run warms the caches. "
+        + "`micropod cache policy --default-trust untrusted` makes them read-only readers instead"
 
-    /// Rig auto-configuration: on a host Cuttlefish runs CI on
-    /// (`RuntimeRigClient.hasConfiguredRig`), the standard machine
-    /// (`~/.micropod/hvf`) gets `defaultTrust: untrusted` in machine.json the
-    /// first time it is installed or launched without a `defaultTrust` of its
-    /// own, so a CI container that names no tier never writes the shared
-    /// caches; the scheduler labels the attempts it trusts. An explicit
-    /// setting (`micropod cache policy --default-trust trusted`) is kept, and
-    /// a throwaway root (`MICROPOD_HVF_ROOT` elsewhere) is never changed.
-    /// Returns `rigDefaultTrustNote` when it changed machine.json, else nil.
-    @discardableResult
-    public static func applyRigDefaultTrust(
+    /// A hint for `machine install` on a host Cuttlefish runs CI on
+    /// (`RuntimeRigClient.hasConfiguredRig`) whose standard machine
+    /// (`~/.micropod/hvf`) has no `defaultTrust` of its own; nil otherwise.
+    /// It never changes machine.json: such a Mac is often also its owner's
+    /// development machine, where untrusted-by-default would stop every
+    /// unlabeled `docker run`, compose service and Testcontainers container
+    /// from warming the caches, and Cuttlefish labels each attempt's tier
+    /// itself (trusted, or untrusted and read-only), so the default does not
+    /// decide anything for its containers. Choosing untrusted by default is
+    /// the owner's call.
+    public static func rigDefaultTrustHint(
         layout: HVFMachineLayout, home: URL = FileManager.default.homeDirectoryForCurrentUser,
         isRig: (URL) -> Bool = { RuntimeRigClient.hasConfiguredRig(ownerHome: $0) }
-    ) throws -> String? {
+    ) -> String? {
         guard layout.isStandardRoot(home: home), FileManager.default.fileExists(atPath: layout.config.path),
-            isRig(home)
+            let config = try? HVFMachineConfig.load(from: layout.config),
+            config.effectiveCachePolicy.defaultTrust == nil, isRig(home)
         else { return nil }
-        var config = try HVFMachineConfig.load(from: layout.config)
-        var policy = config.effectiveCachePolicy
-        guard policy.defaultTrust == nil else { return nil }
-        policy.defaultTrust = .untrusted
-        config.cache = policy
-        try config.save(to: layout.config)
-        return rigDefaultTrustNote
+        return rigDefaultTrustHint
     }
 }
