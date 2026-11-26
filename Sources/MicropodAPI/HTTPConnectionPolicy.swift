@@ -137,6 +137,14 @@ extension HTTPServer {
     }
 }
 
+/// A count shared across threads.
+final class LiveCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func add(_ delta: Int) { lock.withLock { count += delta } }
+    var value: Int { lock.withLock { count } }
+}
+
 /// Chunked framing for a stream on a connection that persists, which a
 /// client asks for with `X-Micropod-Stream-Framing: chunked` (the server
 /// echoes it). Without it a stream is delimited by the close that ends it,

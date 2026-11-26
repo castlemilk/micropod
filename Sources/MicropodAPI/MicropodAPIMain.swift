@@ -413,71 +413,142 @@ final class HTTPServer: @unchecked Sendable {
         let keepAlive: Bool
     }
 
-    /// The read state of one request: its watchdogs and the receive loop
-    /// race to finish it; whichever wins first decides.
+    /// The read state of one request and its one timer: the keep-alive wait
+    /// for the first byte of a request on a kept connection, then the
+    /// request's `requestDeadline` and its `requestIdle` silence window. The
+    /// timer and the receive loop race to finish the read; whichever wins
+    /// first decides. Finishing cancels the timer, so a read that ended
+    /// leaves nothing scheduled behind it (a pipelining client used to leave
+    /// two or three timers per request, each holding its connection, for
+    /// up to 120 s).
     private final class PendingRead: @unchecked Sendable {
-        private let lock = NSLock()
-        private var finished = false
-        private var generation = 0
-        /// Waiting for the first byte of a request on a kept connection.
-        private var idle: Bool
-
-        init(idle: Bool = false) { self.idle = idle }
-
+        enum Expiry { case keepAlive, deadline, silence }
         enum Arrival { case finished, began, continuing }
 
+        private let lock = NSLock()
+        private let policy: ConnectionPolicy
+        private let timer: DispatchSourceTimer
+        private var finished = false
+        /// Waiting for the first byte of a request on a kept connection.
+        private var idle: Bool
+        private var keepAliveAt: DispatchTime?
+        private var deadlineAt: DispatchTime?
+        private var silenceAt: DispatchTime?
+        /// When the timer is next due.
+        private var due = DispatchTime.distantFuture
+        private var onExpire: (@Sendable (Expiry) -> Void)?
+
+        init(policy: ConnectionPolicy, idle: Bool, onExpire: @escaping @Sendable (Expiry) -> Void) {
+            self.policy = policy
+            self.idle = idle
+            self.onExpire = onExpire
+            timer = DispatchSource.makeTimerSource(queue: .global(qos: .userInitiated))
+            let now = DispatchTime.now()
+            if idle {
+                keepAliveAt = now + policy.keepAliveIdle
+            } else {
+                deadlineAt = now + policy.requestDeadline
+                silenceAt = now + policy.requestIdle
+            }
+            HTTPServer.liveReads.add(1)
+            // Holds the read until it finishes; `finish` and expiry cancel
+            // the timer, which releases this handler.
+            timer.setEventHandler { [self] in fire() }
+            lock.withLock { scheduleLocked() }
+            timer.activate()
+        }
+
+        deinit { HTTPServer.liveReads.add(-1) }
+
+        /// The earliest clock that applies now. Call with the lock held.
+        private func scheduleLocked() {
+            let next = (idle ? [keepAliveAt] : [deadlineAt, silenceAt]).compactMap { $0 }.min()
+            guard let next, next < due else { return }
+            due = next
+            timer.schedule(deadline: next, leeway: .milliseconds(10))
+        }
+
+        private func fire() {
+            lock.lock()
+            guard !finished else { return lock.unlock() }
+            let now = DispatchTime.now()
+            let expiry: Expiry? =
+                if idle {
+                    keepAliveAt.map { $0 <= now } == true ? .keepAlive : nil
+                } else if deadlineAt.map({ $0 <= now }) == true {
+                    .deadline
+                } else if silenceAt.map({ $0 <= now }) == true {
+                    .silence
+                } else {
+                    nil
+                }
+            guard let expiry else {
+                // A later silence window replaced the one this was due for.
+                due = .distantFuture
+                scheduleLocked()
+                return lock.unlock()
+            }
+            finished = true
+            let handler = onExpire
+            onExpire = nil
+            lock.unlock()
+            timer.cancel()
+            handler?(expiry)
+        }
+
         /// Bytes arrived: `.began` when they are the first of a request on a
-        /// kept connection, `.finished` when a watchdog settled it first.
+        /// kept connection (its own clocks start now), `.finished` when the
+        /// timer settled it first. Every arrival opens a new silence window.
         func arrive() -> Arrival {
             lock.withLock {
                 if finished { return .finished }
-                if idle {
-                    idle = false
-                    return .began
-                }
-                return .continuing
+                let now = DispatchTime.now()
+                silenceAt = now + policy.requestIdle
+                guard idle else { return .continuing }
+                idle = false
+                keepAliveAt = nil
+                deadlineAt = now + policy.requestDeadline
+                scheduleLocked()
+                return .began
             }
         }
 
         /// Marks the read finished; false if it already was.
         func finish() -> Bool {
-            lock.lock()
-            defer { lock.unlock() }
-            if finished { return false }
-            finished = true
-            return true
-        }
-
-        /// The keep-alive watchdog: finishes the read only while no byte of
-        /// a request has arrived.
-        func finishIdle() -> Bool {
-            lock.withLock {
-                guard !finished, idle else { return false }
+            let won = lock.withLock {
+                if finished { return false }
                 finished = true
+                onExpire = nil
                 return true
             }
+            if won { timer.cancel() }
+            return won
         }
+    }
 
-        /// Starts a new idle window; returns its token.
-        func touch() -> Int {
-            lock.lock()
-            defer { lock.unlock() }
-            generation += 1
-            return generation
-        }
+    /// Reads whose timer may still fire (tests: nothing is left scheduled
+    /// behind requests that were answered).
+    static let liveReads = LiveCount()
 
-        func isCurrent(_ token: Int) -> Bool {
-            lock.lock()
-            defer { lock.unlock() }
-            return !finished && generation == token
+    /// A read whose expiry closes `peer` (keep-alive) or answers 408.
+    private func pendingRead(_ peer: Peer, idle: Bool) -> PendingRead {
+        PendingRead(policy: policy, idle: idle) { [weak self] expiry in
+            switch expiry {
+            case .keepAlive:
+                // No byte of another request came: close without a reply.
+                self?.kept.release(peer.connection)
+                peer.connection.cancel()
+            case .deadline:
+                self?.reject(peer.connection, status: 408, reason: "request not received in time")
+            case .silence:
+                self?.reject(peer.connection, status: 408, reason: "request incomplete: client went idle")
+            }
         }
     }
 
     private func startReading(_ connection: NWConnection, admission: Admission = .guarded, keepAlive: Bool) {
         let peer = Peer(connection: connection, admission: admission, keepAlive: keepAlive)
-        let pending = PendingRead()
-        armRequestTimers(peer, pending: pending)
-        readRequest(peer, buffer: Data(), pending: pending)
+        readRequest(peer, buffer: Data(), pending: pendingRead(peer, idle: false))
     }
 
     /// After a reply that kept the connection: the request already buffered
@@ -486,8 +557,7 @@ final class HTTPServer: @unchecked Sendable {
     private func readNext(_ peer: Peer, leftover: Data) {
         guard leftover.isEmpty else {
             kept.release(peer.connection)
-            let pending = PendingRead()
-            armRequestTimers(peer, pending: pending)
+            let pending = pendingRead(peer, idle: false)
             if handleBuffered(peer, leftover, pending: pending) { return }
             readRequest(peer, buffer: leftover, pending: pending)
             return
@@ -496,34 +566,7 @@ final class HTTPServer: @unchecked Sendable {
             peer.connection.cancel()
             return
         }
-        let pending = PendingRead(idle: true)
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.keepAliveIdle) {
-            [weak self] in
-            // No byte of another request came: close without a reply.
-            guard pending.finishIdle() else { return }
-            self?.kept.release(peer.connection)
-            peer.connection.cancel()
-        }
-        readRequest(peer, buffer: Data(), pending: pending)
-    }
-
-    /// The request's deadline and its first silence window.
-    private func armRequestTimers(_ peer: Peer, pending: PendingRead) {
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.requestDeadline) {
-            [weak self] in
-            guard pending.finish() else { return }
-            self?.reject(peer.connection, status: 408, reason: "request not received in time")
-        }
-        armIdleTimer(peer.connection, pending: pending)
-    }
-
-    private func armIdleTimer(_ connection: NWConnection, pending: PendingRead) {
-        let token = pending.touch()
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.requestIdle) {
-            [weak self] in
-            guard pending.isCurrent(token), pending.finish() else { return }
-            self?.reject(connection, status: 408, reason: "request incomplete: client went idle")
-        }
+        readRequest(peer, buffer: Data(), pending: pendingRead(peer, idle: true))
     }
 
     private func readRequest(_ peer: Peer, buffer: Data, pending: PendingRead) {
@@ -548,15 +591,13 @@ final class HTTPServer: @unchecked Sendable {
         if let data, !data.isEmpty {
             switch pending.arrive() {
             case .finished:
-                // A watchdog settled this read first (408, or an idle close).
+                // The timer settled this read first (408, or an idle close).
                 return
             case .began:
-                // The next request on a kept connection: no longer idle,
-                // and its own clocks start at this first byte.
+                // The next request on a kept connection: no longer idle.
                 kept.release(connection)
-                armRequestTimers(peer, pending: pending)
             case .continuing:
-                armIdleTimer(connection, pending: pending)
+                break
             }
             newBuffer.append(data)
             if handleBuffered(peer, newBuffer, pending: pending) { return }
@@ -793,13 +834,7 @@ final class HTTPServer: @unchecked Sendable {
             peer.connection.cancel()
             return
         }
-        let pending = PendingRead(idle: true)
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + policy.keepAliveIdle) {
-            [weak self] in
-            guard pending.finishIdle() else { return }
-            self?.kept.release(peer.connection)
-            peer.connection.cancel()
-        }
+        let pending = pendingRead(peer, idle: true)
         let resumed = watch.end { [weak self] data, isComplete, failed in
             guard let self else {
                 peer.connection.cancel()

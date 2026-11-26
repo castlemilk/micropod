@@ -370,6 +370,34 @@ final class HTTPKeepAliveTests: XCTestCase {
         XCTAssertEqual(server.keptConnections, 0)
     }
 
+    /// Requests that were answered leave no timer behind: a client
+    /// pipelining over one kept connection used to leave two or three timers
+    /// per request, each holding its read and its connection, for up to
+    /// 120 s.
+    func testAnsweredRequestsLeaveNoTimerScheduled() async throws {
+        let server = server()
+        let path = try await ownerSocket(server)
+        let before = HTTPServer.liveReads.value
+        let client = try await blocking { () -> RawConnection in
+            let client = try RawConnection.unix(path)
+            for _ in 0..<20 {
+                try client.write(String(repeating: Self.get("/echo"), count: 50))
+                for _ in 0..<50 { XCTAssertEqual(try client.reply().status, 200) }
+            }
+            try client.write(Self.get("/echo"))
+            XCTAssertEqual(try client.reply().status, 200)
+            return client
+        }
+        var live = HTTPServer.liveReads.value - before
+        for _ in 0..<100 where live > 1 {
+            try await Task.sleep(for: .milliseconds(20))
+            live = HTTPServer.liveReads.value - before
+        }
+        XCTAssertEqual(live, 1, "only the kept connection's wait for its next request is scheduled")
+        XCTAssertEqual(server.keptConnections, 1)
+        client.close()
+    }
+
     func testKeptConnectionsAreBounded() async throws {
         var policy = Self.quick
         policy.maxKeptConnections = 1
