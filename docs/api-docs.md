@@ -8,9 +8,12 @@ view), generated samples in one flat strip (typed SDKs first — TypeScript /
 Go / Swift — then raw HTTP: cURL, fetch, requests, net/http, URLSession),
 and ⌘K search across every surface.
 
-**The daemon's public API is `micropod.v1` over Connect — six domain
-services (`ContainerService`, `ImageService`, `VolumeService`,
-`NetworkService`, `ComposeService`, `SystemService`, `K8sService`).**
+**The daemon's public API is `micropod.v1` over Connect — domain services
+for containers, images, volumes, networks, compose, the system, k8s, machines
+and sandboxes (`ContainerService`, `ImageService`, `VolumeService`,
+`NetworkService`, `ComposeService`, `SystemService`, `K8sService`,
+`MachineService`, `SandboxService`), and for the HVF machine's caches, the rig
+and CI telemetry (`CacheService`, `RigService`, `TelemetryService`).**
 Unary calls are plain `POST` + proto-JSON, so curl and browsers hit the same
 endpoints the typed SDKs do; server-streaming RPCs use the Connect envelope
 protocol. The legacy `/v1/*` REST facade still answers for compatibility but
