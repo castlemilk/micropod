@@ -38,6 +38,10 @@ struct MicropodAPI {
     static func main() async {
         // When spawned by the app, die with it — no orphaned apiserver.
         ParentDeathWatch.install()
+        // Before anything opens a descriptor: launchd's soft limit (256)
+        // is what the kept connections would otherwise share with every
+        // listener, database and child (see `ConnectionPolicy`).
+        let fileLimit = FileDescriptorLimit.raise()
 
         let port = UInt16(ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454") ?? 45454
 
@@ -95,7 +99,9 @@ struct MicropodAPI {
             compose: ComposeService(client: client),
             runtime: holder)
 
-        let server = HTTPServer(port: port, handler: api.handle)
+        let server = HTTPServer(
+            port: port, policy: .init(environment: ProcessInfo.processInfo.environment, fileLimit: fileLimit),
+            handler: api.handle)
         do {
             if let identity {
                 let gateway = IsolatedRuntimeGateway(identity: identity)

@@ -56,15 +56,23 @@ extension HTTPServer {
         /// Milliseconds from `MICROPOD_API_READ_IDLE_TIMEOUT_MS` (30 s),
         /// `MICROPOD_API_READ_DEADLINE_MS` (120 s) and
         /// `MICROPOD_API_KEEPALIVE_IDLE_MS` (120 s), so tests need not wait.
-        init(environment: [String: String]) {
+        /// The kept-connection bound follows the open-file limit
+        /// (`keptConnections(fileLimit:)`).
+        init(environment: [String: String], fileLimit: Int = FileDescriptorLimit.soft()) {
             func milliseconds(_ key: String, _ fallback: Int) -> DispatchTimeInterval {
                 .milliseconds(max(1, environment[key].flatMap { Int($0) } ?? fallback))
             }
             requestIdle = milliseconds("MICROPOD_API_READ_IDLE_TIMEOUT_MS", 30_000)
             requestDeadline = milliseconds("MICROPOD_API_READ_DEADLINE_MS", 120_000)
             keepAliveIdle = milliseconds("MICROPOD_API_KEEPALIVE_IDLE_MS", 120_000)
-            maxKeptConnections = 256
+            maxKeptConnections = Self.keptConnections(fileLimit: fileLimit)
         }
+
+        /// 256, or an eighth of the open-file limit when that is less: kept
+        /// connections never take the descriptors the listeners, the
+        /// metrics database and `container` children need. (A LaunchAgent
+        /// starts with a soft limit of 256, which `main` raises.)
+        static func keptConnections(fileLimit: Int) -> Int { min(256, max(0, fileLimit / 8)) }
 
         init(
             requestIdle: DispatchTimeInterval, requestDeadline: DispatchTimeInterval,
@@ -134,6 +142,36 @@ extension HTTPServer {
                 return idle.values.map(\.connection)
             }
         }
+    }
+}
+
+/// The process's open-file limit (`RLIMIT_NOFILE`). launchd starts a
+/// LaunchAgent with a soft limit of 256, which kept connections, listeners,
+/// SQLite files and `container` children all share.
+enum FileDescriptorLimit {
+    /// macOS refuses a soft `RLIMIT_NOFILE` above `OPEN_MAX`.
+    static let target = 10_240
+
+    /// The soft limit in force.
+    static func soft() -> Int {
+        var limit = rlimit()
+        guard getrlimit(RLIMIT_NOFILE, &limit) == 0 else { return 256 }
+        return Int(clamping: limit.rlim_cur)
+    }
+
+    /// Raises the soft limit to `target`, or to the hard limit when that is
+    /// lower; never lowers it. Returns the soft limit in force afterwards.
+    @discardableResult
+    static func raise(to target: Int = target) -> Int {
+        var limit = rlimit()
+        guard getrlimit(RLIMIT_NOFILE, &limit) == 0 else { return 256 }
+        let wanted = min(rlim_t(target), limit.rlim_max)
+        if limit.rlim_cur < wanted {
+            var raised = limit
+            raised.rlim_cur = wanted
+            _ = setrlimit(RLIMIT_NOFILE, &raised)
+        }
+        return soft()
     }
 }
 

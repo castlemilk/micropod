@@ -697,3 +697,32 @@ final class RawConnection: @unchecked Sendable {
         return false
     }
 }
+
+/// The kept-connection bound and the open-file limit: launchd starts the
+/// API with a soft limit of 256, which used to equal the bound, so the fd
+/// table filled (EMFILE on every listener) before the bound applied.
+final class FileDescriptorLimitTests: XCTestCase {
+    func testTheKeptBoundLeavesMostDescriptorsToEverythingElse() {
+        XCTAssertEqual(HTTPServer.ConnectionPolicy(environment: [:], fileLimit: 256).maxKeptConnections, 32)
+        XCTAssertEqual(HTTPServer.ConnectionPolicy(environment: [:], fileLimit: 10_240).maxKeptConnections, 256)
+        XCTAssertEqual(HTTPServer.ConnectionPolicy(environment: [:], fileLimit: 0).maxKeptConnections, 0)
+    }
+
+    func testStartUpRaisesALaunchdSoftLimit() throws {
+        var saved = rlimit()
+        XCTAssertEqual(getrlimit(RLIMIT_NOFILE, &saved), 0)
+        defer { _ = setrlimit(RLIMIT_NOFILE, &saved) }
+        var low = saved
+        low.rlim_cur = 256
+        XCTAssertEqual(setrlimit(RLIMIT_NOFILE, &low), 0)
+        XCTAssertEqual(FileDescriptorLimit.soft(), 256)
+        let raised = FileDescriptorLimit.raise()
+        XCTAssertEqual(raised, Int(clamping: min(rlim_t(FileDescriptorLimit.target), saved.rlim_max)))
+        XCTAssertEqual(FileDescriptorLimit.soft(), raised)
+        XCTAssertEqual(
+            HTTPServer.ConnectionPolicy(environment: [:], fileLimit: raised).maxKeptConnections, 256,
+            "a raised limit leaves room for the full bound")
+        // Never lowered.
+        XCTAssertEqual(FileDescriptorLimit.raise(to: 300), raised)
+    }
+}
