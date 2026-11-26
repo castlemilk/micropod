@@ -61,7 +61,7 @@ jobs:
           cache: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
       - name: Verify concurrent package cache binds over the production Unix socket
         run: |
           swiftc -O -parse-as-library Sources/MicropodSharedFS/*.swift scripts/bench_cache_bind.swift -o "$RUNNER_TEMP/bind-bench"

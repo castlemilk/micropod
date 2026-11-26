@@ -1,5 +1,5 @@
 # Deps-first: shares the npm cache mount (and base image) with node-app.
-FROM node:24-alpine
+FROM node:26.13.1-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json ./

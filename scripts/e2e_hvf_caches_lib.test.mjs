@@ -60,7 +60,7 @@ test('auto mode passes only the scope label, user, network and the request env',
   const run = (args) => lib(`build_args ${args}; printf '%s\\n' "\${RUNARGS[@]}"`).lines;
   assert.deepEqual(run('golang:alpine 0 default on -e GOFLAGS=-mod=mod'), ['-e', 'GOFLAGS=-mod=mod']); // guard:guest (guest container env)
   assert.deepEqual(run('golang:alpine 1000 q2-go on'), ['--user', '1000:1000', '--label', 'io.micropod.cache.scope=q2-go']);
-  assert.deepEqual(run('node:22-alpine node sc none --label x=y'), ['--user', 'node', '--network', 'none', '--label', 'io.micropod.cache.scope=sc', '--label', 'x=y']);
+  assert.deepEqual(run('node:26.13.1-alpine node sc none --label x=y'), ['--user', 'node', '--network', 'none', '--label', 'io.micropod.cache.scope=sc', '--label', 'x=y']);
   assert.deepEqual(run('golang:alpine drop1000 - on'), ['-e', 'QDROP=1000']);
 });
 
@@ -77,10 +77,10 @@ test('hand wiring adds exactly the plan mounts and env', () => {
   }
   assert.equal(go.filter((a) => a.startsWith('GOFLAGS=')).length, 1, 'the request GOFLAGS is merged, not duplicated'); // guard:guest (guest container env)
   assert.ok(!go.some((a) => a.includes('yarn') || a.includes('cargo')), 'no path-mode binds for a golang image');
-  const node0 = run('node:22-alpine 0 sc on');
+  const node0 = run('node:26.13.1-alpine 0 sc on');
   assert.ok(node0.includes('qm-sc-yarn-u0:/usr/local/share/.cache/yarn'));
   assert.ok(node0.includes('qm-sc-yarnberry:/root/.yarn/berry'));
-  const node1000 = run('node:22-alpine 1000 sc on');
+  const node1000 = run('node:26.13.1-alpine 1000 sc on');
   assert.ok(node1000.includes('qm-sc-yarn-u1000:/home/node/.cache/yarn'));
   assert.ok(node1000.includes('qm-sc-yarnberry:/home/node/.yarn/berry'));
   const rust = run('rust:1-alpine 0 sc on');
@@ -90,7 +90,7 @@ test('hand wiring adds exactly the plan mounts and env', () => {
   }
   const override = run('python:3.11-alpine 1000 sc on -e PIP_CACHE_DIR=/micropod/cache/pip/u0');
   assert.deepEqual(override.filter((a) => a.startsWith('PIP_CACHE_DIR=')), ['PIP_CACHE_DIR=/micropod/cache/pip/u0'], 'a request variable wins');
-  const lease = lib(`manual_prep() { :; }; QW=/ws/q; NO_YARN=1 build_args node:22-alpine 0 sc on; printf '%s\\n' "\${RUNARGS[@]}"`, env).lines;
+  const lease = lib(`manual_prep() { :; }; QW=/ws/q; NO_YARN=1 build_args node:26.13.1-alpine 0 sc on; printf '%s\\n' "\${RUNARGS[@]}"`, env).lines;
   assert.ok(!lease.some((a) => a.includes('-yarn-u')), 'NO_YARN stands in for a busy exclusive lease');
   assert.deepEqual(run('golang:alpine 0 - on'), [], 'scope "-" wires nothing');
 });

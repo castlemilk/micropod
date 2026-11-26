@@ -1,5 +1,5 @@
 # Deps-first: source-only changes reuse the npm-ci layer and the npm cache.
-FROM node:24-alpine
+FROM node:26.13.1-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json ./

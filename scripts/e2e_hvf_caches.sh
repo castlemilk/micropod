@@ -89,7 +89,7 @@ TIMEOUT="${QUAL_TIMEOUT:-900}"
 S="$(date +%s)"
 OUT="${QUAL_OUT:-$REPO/.build/qual-caches/$S}"
 IMG_GO="${QUAL_IMG_GO:-golang:alpine}"
-IMG_NODE="${QUAL_IMG_NODE:-node:22-alpine}"
+IMG_NODE="${QUAL_IMG_NODE:-node:26.13.1-alpine}"
 IMG_PY="${QUAL_IMG_PY:-python:3.12-alpine}"
 IMG_UV="${QUAL_IMG_UV:-ghcr.io/astral-sh/uv:python3.13-alpine}"
 IMG_RUST="${QUAL_IMG_RUST:-rust:1-alpine}"
@@ -547,17 +547,18 @@ for img in $(echo "$images" | tr ' ' '\n' | sort -u); do
     "$DOCKER" image inspect "$img" >/dev/null 2>&1 && continue
     "$DOCKER" pull -q "$img" >>"$OUT/pull.log" 2>&1 || record harness "pull $img" "failed (see pull.log)" "pulled" 0
 done
-if [ "$(cat "$QT/versions" 2>/dev/null)" != "$PNPM_VERSIONS yarn4 $YARN4_VERSION" ]; then
+if [ "$(cat "$QT/versions" 2>/dev/null)" != "$PNPM_VERSIONS yarn4 $YARN4_VERSION corepack 0.36.0" ]; then
     rm -rf "${QT:?}/"* && chmod 0755 "$QT"
     cat >"$QW/q/install-tools.sh" <<EOF
 set -e
 for v in $PNPM_VERSIONS; do npm i -g --prefix /qt/pnpm\${v%%.*} pnpm@\$v >/qt/install.log 2>&1; done
 npm i -g --prefix /qt/yarn4 @yarnpkg/cli-dist@$YARN4_VERSION >>/qt/install.log 2>&1
-echo "$PNPM_VERSIONS yarn4 $YARN4_VERSION" >/qt/versions
+npm i -g --prefix /qt/corepack corepack@0.36.0 >>/qt/install.log 2>&1
+echo "$PNPM_VERSIONS yarn4 $YARN4_VERSION corepack 0.36.0" >/qt/versions
 EOF
     "$DOCKER" run --rm --label "qual-run=$S" --label io.micropod.cache=off -e npm_config_cache=/tmp/npmc -e npm_config_update_notifier=false \
         -v "$QW/q:/q:ro" -v "$QT:/qt" "$IMG_NODE" sh /q/install-tools.sh >"$OUT/install-tools.log" 2>&1
-    check harness "pinned pnpm ($PNPM_VERSIONS) and yarn $YARN4_VERSION installed into the workspace" "$(cat "$QT/versions" 2>/dev/null)" "$PNPM_VERSIONS yarn4 $YARN4_VERSION"
+    check harness "pinned pnpm ($PNPM_VERSIONS) and yarn $YARN4_VERSION installed into the workspace" "$(cat "$QT/versions" 2>/dev/null)" "$PNPM_VERSIONS yarn4 $YARN4_VERSION corepack 0.36.0"
 fi
 
 # --- T0 preflight -------------------------------------------------------------------
