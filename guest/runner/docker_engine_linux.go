@@ -463,6 +463,9 @@ func serveEngine(ctx context.Context, n node) error {
 	}
 	s.namedNetworks = make(map[string]*workerNetwork)
 	if !privateRootless() {
+		if err := guardHostOutput(ctx); err != nil {
+			return fmt.Errorf("refuse the machine's own connections into container networks: %w", err)
+		}
 		if _, err := prepareDockerBridgeResolver(); err != nil {
 			return fmt.Errorf("prepare the native bridge resolver: %w", err)
 		}

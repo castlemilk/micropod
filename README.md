@@ -374,7 +374,10 @@ Testcontainers dials a sibling's mapped port and its Ryuk reaper. The gateway is
 rules that keep networks apart, so it relays only a container that shares a network with the published one (and could
 reach it anyway) or belongs to the same job (the container holding the socket and what it created), at most 128
 connections a port, 128 for any one job and 512 in all; once one side of a relayed connection closes, the other is
-closed after a minute without a byte. When the machine asked for its host config share, a policy file
+closed after a minute without a byte. Nor does the machine itself connect into a container network: a connection one of its own
+processes starts out through a network's bridge (a build's `ADD` URL or git context, an image pull, `docker login`,
+whichever socket asked) is refused at once (no route to host), so only the relays, whose rule decided the peer, reach
+a container from the machine. When the machine asked for its host config share, a policy file
 the guest cannot read fails closed (untrusted by default), and no bind may reach the machine's own directory
 (`~/.micropod/hvf` sits in the home-directory workspace): a bind source inside it is refused, and a bind that covers
 it (`-v $HOME:/h`) shows an empty directory there, to `docker cp` as well; both are decided by the directory's identity when the bind

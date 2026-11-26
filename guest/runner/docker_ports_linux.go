@@ -290,7 +290,9 @@ type tcpAcceptor interface {
 // is retried after a growing pause, as net/http does, so a burst that runs
 // the engine out of descriptors does not leave the port dead once it ends.
 func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target string, guard relayGuard) {
-	dial := net.Dialer{Timeout: relayDialTimeout}
+	// The guard decided the peer: past the rule that keeps the machine's own
+	// connections out of container networks (docker_host_output_linux.go).
+	dial := net.Dialer{Timeout: relayDialTimeout, Control: markHostOutput}
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
