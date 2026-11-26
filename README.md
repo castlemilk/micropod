@@ -336,6 +336,22 @@ container already has wins. On other runtimes `--cache off` maps to `com.micropo
 list or scope is refused. The host renders the policy into `<root>/run/guest-config/cache-policy.json`, shared with
 the guest as `mp-config` (read-only in the guest at `/run/micropod/host-config`).
 
+Every container has a cache trust tier. A trusted one writes the stores it uses; an untrusted one
+(`io.micropod.cache.trust=untrusted`) or a read-only one (`io.micropod.cache.readonly=1`) reads them warm through a
+copy-on-write view and never writes them, through any path (auto-attached caches, `micropod-ci-scoped-*` volumes,
+`docker cp`). A container that names no tier gets the policy's `defaultTrust`: trusted as shipped, so a plain
+`docker run` on your own machine warms the caches; `micropod cache policy --default-trust untrusted` (set by itself
+the first time the standard machine starts on a host that runs Cuttlefish CI) makes unlabeled containers readers. A
+container may lower its tier; it may claim `trusted` under an untrusted default only through the machine's own Docker
+socket, and a container created from inside another is never more trusted than its creator. `--allow-scopes` holds
+for scope labels and alias volumes alike. With `--share-l0 on`, only the stores whose tools verify them on every read
+(Go modules, npm, pnpm) are shared across scopes; maven, gradle, bun, playwright and every other store stay per
+scope. `--go-proxy` and `--npm-registry` reach a container only while the proxy answers, never over its own, its
+image's or its project's setting (`.npmrc`), never into an untrusted one unless `--proxy-untrusted on`, and the Go
+proxy always keeps a `direct` fallback. BuildKit's state, `RUN --mount=type=cache` contents included, lives on the
+OS disk with the image snapshots it refers to: it survives restarts, and `machine install --replace-disk` starts it
+empty (the dependency stores on the cache disk survive).
+
 Stock `docker build` with `DOCKER_HOST=$(micropod machine docker-endpoint)` works when the engine serves BuildKit on
 its Docker socket (`machine status` says `docker build: ready (docker socket)`). For an older engine,
 `micropod machine builder install` adds a docker context `micropod` on the machine's Docker socket and a remote
