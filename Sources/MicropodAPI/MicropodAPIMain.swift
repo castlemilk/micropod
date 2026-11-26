@@ -216,7 +216,11 @@ final class HTTPServer: @unchecked Sendable {
     let port: UInt16
     let handler: (HTTPRequest) async -> HTTPResponse
     let policy: ConnectionPolicy
+    /// Kept connections per kind of listener (each bounded by
+    /// `maxKeptConnections`), so loopback TCP and the internal socket, which
+    /// other local processes reach, cannot take the owner socket's places.
     private let kept: KeptConnections
+    private let ownerKept: KeptConnections
 
     init(
         port: UInt16, policy: ConnectionPolicy = .live, handler: @escaping (HTTPRequest) async -> HTTPResponse
@@ -225,10 +229,11 @@ final class HTTPServer: @unchecked Sendable {
         self.handler = handler
         self.policy = policy
         self.kept = KeptConnections(limit: policy.maxKeptConnections)
+        self.ownerKept = KeptConnections(limit: policy.maxKeptConnections)
     }
 
     /// Connections the server currently keeps for another request.
-    var keptConnections: Int { kept.count }
+    var keptConnections: Int { kept.count + ownerKept.count }
 
     /// Tests: runs after a chunked stream's last chunk went out and before
     /// its connection waits for the next request, to widen that window.
@@ -408,7 +413,7 @@ final class HTTPServer: @unchecked Sendable {
     func stop() {
         for listener in listeners { listener.cancel() }
         listeners.removeAll()
-        for connection in kept.stop() { connection.cancel() }
+        for connection in kept.stop() + ownerKept.stop() { connection.cancel() }
     }
 
     /// One accepted connection and what its listener allows.
@@ -417,6 +422,8 @@ final class HTTPServer: @unchecked Sendable {
         let admission: Admission
         /// The listener serves more than one request per connection.
         let keepAlive: Bool
+        /// Where its listener keeps connections.
+        let kept: KeptConnections
     }
 
     /// The read state of one request and its one timer: the keep-alive wait
@@ -542,7 +549,7 @@ final class HTTPServer: @unchecked Sendable {
             switch expiry {
             case .keepAlive:
                 // No byte of another request came: close without a reply.
-                self?.kept.release(peer.connection)
+                peer.kept.release(peer.connection)
                 peer.connection.cancel()
             case .deadline:
                 self?.reject(peer.connection, status: 408, reason: "request not received in time")
@@ -553,7 +560,9 @@ final class HTTPServer: @unchecked Sendable {
     }
 
     private func startReading(_ connection: NWConnection, admission: Admission = .guarded, keepAlive: Bool) {
-        let peer = Peer(connection: connection, admission: admission, keepAlive: keepAlive)
+        let peer = Peer(
+            connection: connection, admission: admission, keepAlive: keepAlive,
+            kept: admission == .ownerOnly ? ownerKept : kept)
         readRequest(peer, buffer: Data(), pending: pendingRead(peer, idle: false))
     }
 
@@ -562,13 +571,13 @@ final class HTTPServer: @unchecked Sendable {
     /// waits idle for the next one.
     private func readNext(_ peer: Peer, leftover: Data) {
         guard leftover.isEmpty else {
-            kept.release(peer.connection)
+            peer.kept.release(peer.connection)
             let pending = pendingRead(peer, idle: false)
             if handleBuffered(peer, leftover, pending: pending) { return }
             readRequest(peer, buffer: leftover, pending: pending)
             return
         }
-        guard kept.park(peer.connection) else {
+        guard peer.kept.park(peer.connection) else {
             peer.connection.cancel()
             return
         }
@@ -601,7 +610,7 @@ final class HTTPServer: @unchecked Sendable {
                 return
             case .began:
                 // The next request on a kept connection: no longer idle.
-                kept.release(connection)
+                peer.kept.release(connection)
             case .continuing:
                 break
             }
@@ -613,7 +622,7 @@ final class HTTPServer: @unchecked Sendable {
             // arrived: say so if we can, then close. A kept connection
             // the client closed while idle just closes.
             guard pending.finish() else { return }
-            kept.release(connection)
+            peer.kept.release(connection)
             if !newBuffer.isEmpty && !failed {
                 reject(connection, status: 400, reason: "request truncated")
             } else {
@@ -719,7 +728,7 @@ final class HTTPServer: @unchecked Sendable {
             // stream to its close.
             case .stream(let status, let contentType, let events)
             where peer.keepAlive && persistence == .persistent && leftover.isEmpty
-                && HTTPStreamFraming.wantsChunks(request.headers) && kept.reserve(connection):
+                && HTTPStreamFraming.wantsChunks(request.headers) && peer.kept.reserve(connection):
                 streamChunked(
                     status: status, contentType: contentType, events: events, cors: cors, peer: peer
                 ) {
@@ -821,7 +830,7 @@ final class HTTPServer: @unchecked Sendable {
                     }
                     finished()
                     guard !Task.isCancelled, await send(HTTPStreamFraming.lastChunk), let self else {
-                        self?.kept.release(connection)
+                        peer.kept.release(connection)
                         connection.cancel()
                         return
                     }
@@ -836,7 +845,7 @@ final class HTTPServer: @unchecked Sendable {
     /// does on an empty buffer. Its first bytes arrive through the receive
     /// the stream's watch already has outstanding.
     private func resumeAfterStream(_ peer: Peer, watch: StreamWatch) {
-        guard kept.park(peer.connection) else {
+        guard peer.kept.park(peer.connection) else {
             peer.connection.cancel()
             return
         }
@@ -851,7 +860,7 @@ final class HTTPServer: @unchecked Sendable {
         if !resumed {
             // The client closed its side.
             guard pending.finish() else { return }
-            kept.release(peer.connection)
+            peer.kept.release(peer.connection)
             peer.connection.cancel()
         }
     }
@@ -879,7 +888,7 @@ final class HTTPServer: @unchecked Sendable {
         leftover: Data
     ) {
         let connection = peer.connection
-        let keep = peer.keepAlive && persistence != .close && kept.reserve(connection)
+        let keep = peer.keepAlive && persistence != .close && peer.kept.reserve(connection)
         var headers = cors
         if keep && persistence == .announced { headers.append(("Connection", "keep-alive")) }
         let data = Self.serialize(response, extraHeaders: headers, closing: !keep)
@@ -887,7 +896,7 @@ final class HTTPServer: @unchecked Sendable {
             content: data,
             completion: .contentProcessed { [weak self] error in
                 guard keep, error == nil, let self else {
-                    if keep { self?.kept.release(connection) }
+                    if keep { peer.kept.release(connection) }
                     connection.cancel()
                     return
                 }

@@ -424,6 +424,34 @@ final class HTTPKeepAliveTests: XCTestCase {
         }
     }
 
+    /// Loopback TCP, which any local process reaches, holding every place
+    /// it may keep does not cost the owner socket its kept connections.
+    func testTCPConnectionsCannotTakeTheOwnerSocketsPlaces() async throws {
+        var policy = Self.quick
+        policy.maxKeptConnections = 1
+        let server = server(policy, port: try RawConnection.freePort())
+        let path = try await ownerSocket(server)
+        try server.startListening()
+        try await blocking {
+            let tcp = try RawConnection.tcp(server.port)
+            try tcp.write(Self.get("/echo", host: "127.0.0.1:\(server.port)"))
+            XCTAssertNil(try tcp.reply().headers["connection"], "TCP keeps its one place")
+            let other = try RawConnection.tcp(server.port)
+            try other.write(Self.get("/echo", host: "127.0.0.1:\(server.port)"))
+            XCTAssertEqual(try other.reply().headers["connection"], "close", "TCP is at its bound")
+            let owner = try RawConnection.unix(path)
+            for _ in 0..<3 {
+                try owner.write(Self.get("/echo"))
+                let reply = try owner.reply()
+                XCTAssertEqual(reply.status, 200)
+                XCTAssertNil(reply.headers["connection"], "the owner socket keeps its connection")
+            }
+            XCTAssertEqual(server.keptConnections, 2)
+            tcp.close()
+            owner.close()
+        }
+    }
+
     func testStopClosesIdleConnectionsAndAnswersTheOneInFlight() async throws {
         let server = server()
         let path = try await ownerSocket(server)
