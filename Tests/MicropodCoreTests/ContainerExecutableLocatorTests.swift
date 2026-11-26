@@ -103,4 +103,28 @@ final class ContainerExecutableLocatorTests: XCTestCase {
                 environment: ["MICROPOD_ISOLATED_RUNTIME": "1"], defaultDirectories: ["/legacy/bin"],
                 managedExecutable: { managed }, hasConfiguredRig: { true }, isExecutable: { _ in true }), managed)
     }
+
+    /// Every `ContainerCLIClient.executableURL` resolves, several times per
+    /// API request, and resolving built `ProcessInfo.environment` (the
+    /// whole environment as a dictionary, ~20 µs) each time: a quarter of a
+    /// B25 listing. The live lookup reads only what `resolve` uses.
+    func testTheLiveLookupReadsOnlyWhatResolveUsesAndIsCheap() {
+        let names = ["MICROPOD_CONTAINER_CLI_PATH", "MICROPOD_RUNTIME_CONTEXT", "MICROPOD_ISOLATED_RUNTIME", "PATH"]
+        let full = ProcessInfo.processInfo.environment
+        XCTAssertEqual(ContainerExecutableLocator.lookupEnvironment(), full.filter { names.contains($0.key) })
+        XCTAssertEqual(ContainerExecutableLocator.resolve(), ContainerExecutableLocator.resolve(environment: full))
+
+        setenv("MICROPOD_CONTAINER_CLI_PATH", "/opt/explicit/container", 1)
+        let explicit = ContainerExecutableLocator.resolve()
+        unsetenv("MICROPOD_CONTAINER_CLI_PATH")
+        XCTAssertEqual(explicit.path, "/opt/explicit/container", "the live environment, not a snapshot")
+        XCTAssertNil(LiveEnvironment.value("MICROPOD_CONTAINER_CLI_PATH"))
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        for _ in 0..<2000 { _ = ContainerExecutableLocator.resolve() }
+        let elapsed = clock.now - started
+        // ~60 ms with the dictionary, a few ms without it.
+        XCTAssertLessThan(elapsed, .milliseconds(25), "2000 resolutions took \(elapsed)")
+    }
 }

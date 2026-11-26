@@ -761,7 +761,7 @@ extension APIHandlers {
         if services.kind == .native {
             response.features.append(InitImageSelection.feature)
         }
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
+        if LiveEnvironment.isIsolatedRuntime {
             response.features.append(RuntimeCoordinationEnrollment.dataCapability)
         }
         response.defaultRuntime = engineRegistry.defaultName

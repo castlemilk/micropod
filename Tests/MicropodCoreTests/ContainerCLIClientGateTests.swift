@@ -140,6 +140,39 @@ final class ContainerCLIClientGateTests: XCTestCase {
         XCTAssertEqual(gate.asked, 0)
     }
 
+    /// `usesIsolatedTransport` read the root-owned identity (and decoded the
+    /// selection) on every check; Ping asked it four times per call, the
+    /// largest cost left once the host components were kept. A CLI outside
+    /// the isolated runtime's root is now decided without reading anything.
+    func testOnlyAnExecutableUnderTheIsolatedRootReadsTheIdentity() {
+        let reads = LockedCount()
+        let identity = IsolatedRuntimeIdentity(
+            instance: UUID(), ownerUID: getuid(), serviceUID: 401, serviceGID: 401, accountGUID: UUID(),
+            groupGUID: UUID())
+        func decide(_ path: String, isolated: String? = nil) -> Bool {
+            ContainerCLIClient.usesIsolatedTransport(
+                executable: URL(fileURLWithPath: path),
+                identity: {
+                    reads.add()
+                    return identity
+                }, isolatedExecutable: { isolated.map { URL(fileURLWithPath: $0) } })
+        }
+        let root = IsolatedRuntimePolicy.root.path
+        for outside in ["/usr/local/bin/container", "/opt/homebrew/bin/container", root + "-other/bin/container"] {
+            XCTAssertFalse(decide(outside), outside)
+        }
+        XCTAssertEqual(reads.value, 0, "no identity read for a CLI outside \(root)")
+
+        XCTAssertTrue(decide(root + "/apple/versions/1.5.0-abc/bin/container"))
+        XCTAssertTrue(decide(root + "/staged/bin/container", isolated: root + "/staged/bin/container"))
+        XCTAssertFalse(decide(root + "/invalid-selection/bin/container"))
+        XCTAssertEqual(reads.value, 3)
+        XCTAssertFalse(
+            ContainerCLIClient.usesIsolatedTransport(
+                executable: URL(fileURLWithPath: root + "/apple/versions/x/bin/container"), identity: { nil },
+                isolatedExecutable: { nil }), "no identity: never isolated")
+    }
+
     func testStatusOfAKnownDownRuntimeIsStoppedWithoutAStatusChild() async throws {
         let cli = try stoppedCLI()
         let status = try await SystemService(client: client(cli, gate: StubGate(down: true))).status()
@@ -148,6 +181,13 @@ final class ContainerCLIClientGateTests: XCTestCase {
         XCTAssertEqual(
             spawned.filter { !$0.hasPrefix("system version") }, [], "only the (cached) version read may spawn")
     }
+}
+
+private final class LockedCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func add() { lock.withLock { count += 1 } }
+    var value: Int { lock.withLock { count } }
 }
 
 /// A gate with a fixed answer that counts what it was asked.

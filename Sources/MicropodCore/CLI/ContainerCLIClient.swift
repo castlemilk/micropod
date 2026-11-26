@@ -37,9 +37,13 @@ public struct ContainerCLIClient: Sendable {
     /// An explicit `MICROPOD_CONTAINER_CLI_PATH` (mock CLIs in tests, custom
     /// installs) turns every gate off: that CLI may not talk to the Apple
     /// apiserver a gate observes.
-    public static func gateBypassed(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+    public static func gateBypassed(_ environment: [String: String]) -> Bool {
         environment["MICROPOD_CONTAINER_CLI_PATH"] != nil
     }
+
+    /// ``gateBypassed(_:)`` for the live environment, read without building
+    /// `ProcessInfo.environment` (asked before every gated command).
+    public static func gateBypassed() -> Bool { getenv("MICROPOD_CONTAINER_CLI_PATH") != nil }
 
     /// The gate to ask about `command`, nil when it spawns regardless.
     private func gate(for command: ContainerCommand, executable: URL) -> (any ContainerRuntimeGate)? {
@@ -52,10 +56,12 @@ public struct ContainerCLIClient: Sendable {
     /// True when this client's gate knows, without waiting, that the
     /// apiserver is down; always false for an ungated client.
     public var runtimeKnownDown: Bool {
-        guard let gate = gate(for: ContainerCommandFactory.listContainers(), executable: executableURL),
-            !usesIsolatedTransport
+        // The gate's own (in-memory) answer first: an up runtime costs no
+        // executable resolution.
+        guard let runtimeGate, runtimeGate.runtimeIsKnownDown(),
+            gate(for: ContainerCommandFactory.listContainers(), executable: executableURL) != nil
         else { return false }
-        return gate.runtimeIsKnownDown()
+        return !usesIsolatedTransport
     }
 
     public init(executableURL: URL? = nil) {
@@ -69,16 +75,27 @@ public struct ContainerCLIClient: Sendable {
     }
 
     public var followsDefaultSelection: Bool {
-        executableOverride == nil && ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"] == nil
+        executableOverride == nil && getenv("MICROPOD_CONTAINER_CLI_PATH") == nil
     }
 
     public var usesIsolatedTransport: Bool {
-        guard let identity = try? IsolatedRuntimeIdentity.readRootOwned(), getuid() == identity.ownerUID else {
-            return false
-        }
-        return executableURL == ContainerExecutableLocator.isolatedExecutable()
-            || executableURL.path.hasPrefix(
-                IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
+        Self.usesIsolatedTransport(
+            executable: executableURL, identity: { try? IsolatedRuntimeIdentity.readRootOwned() },
+            isolatedExecutable: ContainerExecutableLocator.isolatedExecutable)
+    }
+
+    /// Every executable of the isolated runtime lives under its root, so a
+    /// CLI anywhere else is decided without reading the root-owned identity
+    /// and selection (a file walk, an open and a JSON decode, which Ping
+    /// paid four times per call). The answer is the same either way.
+    static func usesIsolatedTransport(
+        executable: URL, identity: () -> IsolatedRuntimeIdentity?, isolatedExecutable: () -> URL?
+    ) -> Bool {
+        guard executable.path.hasPrefix(IsolatedRuntimePolicy.root.path + "/"),
+            let identity = identity(), getuid() == identity.ownerUID
+        else { return false }
+        return executable == isolatedExecutable()
+            || executable.path.hasPrefix(IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
     }
 
     /// Lifecycle must follow the selected backend. A separately installed

@@ -160,7 +160,7 @@ final class APIHandlers: Sendable {
     }
 
     func handle(_ request: HTTPRequest) async -> HTTPResponse {
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1",
+        if LiveEnvironment.isIsolatedRuntime,
             !IsolatedRuntimeRequestPolicy.allows(request.path)
         {
             return .json(
@@ -237,7 +237,7 @@ final class APIHandlers: Sendable {
             return .data(204, "text/plain", Data())
         }
 
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1", path == "/v1/managed/maintenance",
+        if LiveEnvironment.isIsolatedRuntime, path == "/v1/managed/maintenance",
             method == .get
         {
             do {
@@ -248,7 +248,7 @@ final class APIHandlers: Sendable {
                 return .json(200, ["idle": idle])
             } catch { return .json(503, ["idle": false]) }
         }
-        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1", method == .post {
+        if LiveEnvironment.isIsolatedRuntime, method == .post {
             if path == "/v1/managed/dependency" {
                 let services = await runtime.refreshIfNeeded()
                 let report = await RuntimeDependencyProbe.inspect(system: system, services: services)

@@ -6,8 +6,20 @@ import Foundation
 public enum ContainerExecutableLocator {
     public static let installerURL = URL(string: "https://github.com/apple/container/releases/tag/1.5.0")!
 
+    /// The variables `resolve` reads, from the live environment. Every
+    /// `ContainerCLIClient.executableURL` resolves, several times per API
+    /// request; building `ProcessInfo.environment` (a dictionary of the whole
+    /// environment, ~20 µs) each time was a quarter of a listing's cost.
+    public static func lookupEnvironment() -> [String: String] {
+        var found: [String: String] = [:]
+        for name in ["MICROPOD_CONTAINER_CLI_PATH", "MICROPOD_RUNTIME_CONTEXT", "MICROPOD_ISOLATED_RUNTIME", "PATH"] {
+            if let value = getenv(name) { found[name] = String(cString: value) }
+        }
+        return found
+    }
+
     public static func resolve(
-        environment: [String: String] = ProcessInfo.processInfo.environment,
+        environment: [String: String] = ContainerExecutableLocator.lookupEnvironment(),
         defaultDirectories: [String] = ["/usr/local/bin", "/opt/homebrew/bin"],
         managedExecutable: () -> URL? = {
             isolatedExecutable() ?? ManagedRuntimeLocation.executable()
@@ -32,11 +44,18 @@ public enum ContainerExecutableLocator {
             return managedExecutable()
                 ?? IsolatedRuntimePolicy.root.appendingPathComponent("missing-managed-runtime/bin/container")
         }
-        let directories = defaultDirectories + (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         var seen = Set<String>()
-        for directory in directories where directory.hasPrefix("/") && seen.insert(directory).inserted {
+        func installed(in directory: String) -> URL? {
+            guard directory.hasPrefix("/"), seen.insert(directory).inserted else { return nil }
             let candidate = URL(fileURLWithPath: directory, isDirectory: true).appendingPathComponent("container")
-            if isExecutable(candidate.path) { return candidate }
+            return isExecutable(candidate.path) ? candidate : nil
+        }
+        for directory in defaultDirectories {
+            if let found = installed(in: directory) { return found }
+        }
+        // PATH is split only when no default directory has the CLI.
+        for directory in (environment["PATH"] ?? "").split(separator: ":") {
+            if let found = installed(in: String(directory)) { return found }
         }
         if requested == "automatic", !hasConfiguredRig(), let managed = managedExecutable() { return managed }
         // A stable missing path makes diagnostics useful on a fresh Mac.
