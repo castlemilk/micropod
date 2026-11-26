@@ -38,9 +38,17 @@ func (buildkitTestCodec) Unmarshal(b []byte, v any) error {
 func (buildkitTestCodec) Name() string { return "proto" }
 
 type fakeBuildkit struct {
-	mu    sync.Mutex
-	calls map[string]metadata.MD
-	solve *control.SolveRequest
+	mu     sync.Mutex
+	calls  map[string]metadata.MD
+	counts map[string]int
+	solve  *control.SolveRequest
+}
+
+// count is how many times method reached the fake.
+func (f *fakeBuildkit) count(method string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.counts[method]
 }
 
 func (f *fakeBuildkit) handle(_ any, ss grpc.ServerStream) error {
@@ -48,8 +56,26 @@ func (f *fakeBuildkit) handle(_ any, ss grpc.ServerStream) error {
 	md, _ := metadata.FromIncomingContext(ss.Context())
 	f.mu.Lock()
 	f.calls[method] = md
+	if f.counts == nil {
+		f.counts = map[string]int{}
+	}
+	f.counts[method]++
 	f.mu.Unlock()
 	switch method {
+	case control.Control_Status_FullMethodName:
+		var b []byte
+		if err := ss.RecvMsg(&b); err != nil {
+			return err
+		}
+		var req control.StatusRequest
+		if err := proto.Unmarshal(b, &req); err != nil {
+			return err
+		}
+		resp, err := proto.Marshal(&control.StatusResponse{Logs: []*control.VertexLog{{Msg: []byte("log of " + req.Ref)}}})
+		if err != nil {
+			return err
+		}
+		return ss.SendMsg(&resp)
 	case control.Control_Solve_FullMethodName:
 		var b []byte
 		if err := ss.RecvMsg(&b); err != nil {
@@ -110,8 +136,10 @@ func (f *fakeBuildkit) handle(_ any, ss grpc.ServerStream) error {
 // proxyHarness runs a fake buildkitd, the engine's /grpc and /session upgrade
 // handler in front of it, and dials the handler the way buildx does.
 type proxyHarness struct {
-	up   *fakeBuildkit
-	sock string
+	up     *fakeBuildkit
+	sock   string
+	engine *dockerEngine
+	dir    string
 }
 
 func newProxyHarness(t *testing.T) *proxyHarness {
@@ -130,10 +158,28 @@ func newProxyHarness(t *testing.T) *proxyHarness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := &http.Server{ReadTimeout: 30 * time.Second, Handler: &dockerEngine{buildkitSocket: upSock}}
+	h.engine, h.dir = &dockerEngine{buildkitSocket: upSock}, dir
+	srv := &http.Server{ReadTimeout: 30 * time.Second, Handler: h.engine}
 	go srv.Serve(pl)
 	t.Cleanup(func() { srv.Close() })
 	return h
+}
+
+// delegated is a harness on the same engine and fake buildkitd whose socket
+// is viewer's delegated one.
+func (h *proxyHarness) delegated(t *testing.T, viewer string) *proxyHarness {
+	t.Helper()
+	d := &proxyHarness{up: h.up, sock: filepath.Join(h.dir, viewer[:8]+".sock"), engine: h.engine, dir: h.dir}
+	pl, err := net.Listen("unix", d.sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{ReadTimeout: 30 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.engine.ServeHTTP(w, r.WithContext(withViewer(r.Context(), viewer)))
+	})}
+	go srv.Serve(pl)
+	t.Cleanup(func() { srv.Close() })
+	return d
 }
 
 // upgrade sends what the Docker client's DialHijack sends and returns the
@@ -368,5 +414,89 @@ func TestExtraRoutesAndVersionCapabilities(t *testing.T) {
 	}
 	if !slices.Equal(engineCapabilities(true), []string{"caches", "buildkit", "grpc-build"}) || !slices.Equal(engineCapabilities(false), []string{"caches"}) {
 		t.Fatal("capability lists changed")
+	}
+}
+
+// On a delegated socket a build is its own job's: another job's build's
+// progress, frontend gateway and records, the machine's build history and
+// the history's content are not there, while its own build, the cache and
+// the workers are. The host's socket still reaches everything.
+func TestGRPCProxyKeepsADelegatedSocketToItsOwnBuilds(t *testing.T) {
+	old := buildkitRefWait
+	buildkitRefWait = 300 * time.Millisecond
+	t.Cleanup(func() { buildkitRefWait = old })
+	host := newProxyHarness(t)
+	a := host.delegated(t, strings.Repeat("a", 64)).client(t)
+	b := host.delegated(t, strings.Repeat("b", 64)).client(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	code := func(err error) codes.Code { st, _ := status.FromError(err); return st.Code() }
+	raw := func(cc *grpc.ClientConn, ctx context.Context, method string) error {
+		in, out := []byte("q"), []byte(nil)
+		return cc.Invoke(ctx, method, &in, &out, grpc.ForceCodec(buildkitTestCodec{}))
+	}
+	statusOf := func(cc *grpc.ClientConn, ref string) (string, error) {
+		stream, err := control.NewControlClient(cc).Status(ctx, &control.StatusRequest{Ref: ref})
+		if err != nil {
+			return "", err
+		}
+		msg, err := stream.Recv()
+		if err != nil {
+			return "", err
+		}
+		return string(msg.GetLogs()[0].GetMsg()), nil
+	}
+
+	if _, err := control.NewControlClient(a).Solve(ctx, &control.SolveRequest{Ref: "build-of-a"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := statusOf(a, "build-of-a"); err != nil || got != "log of build-of-a" {
+		t.Fatalf("its own build's progress: %q %v", got, err)
+	}
+	for _, ref := range []string{"build-of-a", "build-of-nobody"} {
+		if _, err := statusOf(b, ref); code(err) != codes.NotFound {
+			t.Errorf("another job's progress of %s: %v, want NotFound", ref, err)
+		}
+	}
+	if n := host.up.count(control.Control_Status_FullMethodName); n != 1 {
+		t.Errorf("Status reached buildkitd %d times, want once (its own)", n)
+	}
+	if _, err := control.NewControlClient(b).Solve(ctx, &control.SolveRequest{Ref: "build-of-a"}); code(err) != codes.AlreadyExists {
+		t.Errorf("a solve under another job's build ref: %v", err)
+	}
+	gateway := buildkitGatewayService + "Ping"
+	if err := raw(a, metadata.AppendToOutgoingContext(ctx, buildkitBuildIDHeader, "build-of-a"), gateway); err != nil {
+		t.Errorf("its own build's frontend gateway: %v", err)
+	}
+	for _, md := range [][]string{{buildkitBuildIDHeader, "build-of-a"}, {}} {
+		if err := raw(b, metadata.AppendToOutgoingContext(ctx, md...), gateway); code(err) != codes.NotFound {
+			t.Errorf("another job's frontend gateway (%v): %v, want NotFound", md, err)
+		}
+	}
+	if n := host.up.count(gateway); n != 1 {
+		t.Errorf("the gateway reached buildkitd %d times, want once (its own)", n)
+	}
+	for _, method := range []string{control.Control_ListenBuildHistory_FullMethodName, control.Control_UpdateBuildHistory_FullMethodName,
+		"/containerd.services.content.v1.Content/Info", "/containerd.services.content.v1.Content/Read",
+		"/opentelemetry.proto.collector.trace.v1.TraceService/Export", "/grpc.reflection.v1.ServerReflection/ServerReflectionInfo"} {
+		if err := raw(b, ctx, method); code(err) != codes.PermissionDenied {
+			t.Errorf("%s on a delegated socket: %v, want PermissionDenied", method, err)
+		}
+		if n := host.up.count(method); n != 0 {
+			t.Errorf("%s reached buildkitd from a delegated socket", method)
+		}
+	}
+	for _, method := range []string{control.Control_ListWorkers_FullMethodName, control.Control_Info_FullMethodName, control.Control_DiskUsage_FullMethodName} {
+		if err := raw(b, ctx, method); err != nil {
+			t.Errorf("%s on a delegated socket: %v", method, err)
+		}
+	}
+	// The host's socket is the machine's.
+	hc := host.client(t)
+	if err := raw(hc, ctx, control.Control_ListenBuildHistory_FullMethodName); err != nil {
+		t.Errorf("the host's build history: %v", err)
+	}
+	if got, err := statusOf(hc, "build-of-a"); err != nil || got != "log of build-of-a" {
+		t.Errorf("the host's view of a job's build: %q %v", got, err)
 	}
 }

@@ -362,7 +362,9 @@ the create, every start and a `docker cp` into it stopped decide this again by w
 binds, so a bind of a renamed parent of one of its read-only binds, or of a symlink to one, is refused while it would reach it writable; a request
 on its socket that needs this check while the container is not running is refused, HTTP 409), mounts a volume
 the container was given read-only only read-only, and cannot be given a socket in turn. Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
-socket changes them for every job, which is one more reason only a trusted container gets one. An untrusted or read-only
+socket changes them for every job, which is one more reason only a trusted container gets one. A build itself is the
+job's: on that socket another job's build's progress and frontend calls are not there, and the machine's build history
+(`docker buildx history`: every build's args, logs and results) and its content are refused. An untrusted or read-only
 container, a container created from inside another, or one an untrusted default leaves unlabelled is refused such a bind
 at create (HTTP 403); the Testcontainers reaper still gets only its session's cleanup socket, and one created through a
 container's socket reaps only what that container created. As under Docker, every container has an empty `/.dockerenv`,

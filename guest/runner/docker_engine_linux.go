@@ -104,16 +104,20 @@ type dockerContainer struct {
 }
 type dockerEngine struct {
 	buildkitSocket string
-	direct         *directNetwork
-	networkMu      sync.Mutex
-	namedNetworks  map[string]*workerNetwork
-	startSlots     chan struct{}
-	jobParents     dockerJobParents
-	metrics        dockerMetrics
-	node           node
-	imageMu        sync.RWMutex
-	healthImages   dockerImageHealthCache
-	workspace      string
+	// builds records the socket each build solved through the Docker
+	// socket proxy came from, so a delegated socket reaches only its own
+	// (dockerBuildRefs).
+	builds        dockerBuildRefs
+	direct        *directNetwork
+	networkMu     sync.Mutex
+	namedNetworks map[string]*workerNetwork
+	startSlots    chan struct{}
+	jobParents    dockerJobParents
+	metrics       dockerMetrics
+	node          node
+	imageMu       sync.RWMutex
+	healthImages  dockerImageHealthCache
+	workspace     string
 	// machineDir guards the machine's own directory inside the workspace
 	// (docker_private_linux.go); nil when it is outside or unknown.
 	machineDir *privateRoot

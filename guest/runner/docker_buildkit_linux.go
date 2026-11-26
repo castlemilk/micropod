@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/api/types"
@@ -82,6 +83,18 @@ func (s *dockerEngine) dockerBuildkitUpgrade(w http.ResponseWriter, r *http.Requ
 // Docker hands its Buildx control client an HTTP/2 connection. Pass streaming
 // RPCs, status trailers, and frontend gateway calls through to the local worker.
 // Only Solve needs the embedded Docker exporter's name translated.
+//
+// There is one buildkitd for the machine, and its API takes no caller: any
+// client can list every build (ListenBuildHistory), read a record's build
+// args, exporter response and logs (the record and its blobs through the
+// content service), stream an active build's output (Status), drive its
+// frontend gateway (LLBBridge, by build ID) or delete and pin records. On a
+// delegated socket (viewerOf(ctx) set) a build is its own job's: Solve
+// records whose each build is (dockerBuildRefs), Status and the frontend
+// gateway reach only a build of the same socket's, the cache (DiskUsage,
+// Prune), the workers, Info, a session and the health check stay the
+// machine's, and anything else (the history, the content and trace
+// services, reflection) is refused.
 func (s *dockerEngine) serveDockerBuildControl(ctx context.Context, conn net.Conn, bk control.ControlClient) {
 	transport := &http2.Transport{AllowHTTP: true, DialTLSContext: func(ctx context.Context, _, _ string, _ *tls.Config) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", s.buildkitSocket)
@@ -90,24 +103,178 @@ func (s *dockerEngine) serveDockerBuildControl(ctx context.Context, conn net.Con
 	proxy := httputil.ReverseProxy{Transport: transport, FlushInterval: -1, Rewrite: func(r *httputil.ProxyRequest) {
 		r.Out.URL.Scheme, r.Out.URL.Host, r.Out.Host = "http", "localhost", "localhost"
 	}}
+	viewer := viewerOf(ctx)
 	solver := grpc.NewServer(grpc.MaxRecvMsgSize(buildkitMaxMessage), grpc.MaxSendMsgSize(buildkitMaxMessage))
-	control.RegisterControlServer(solver, dockerBuildSolver{backend: bk, node: s.node})
+	control.RegisterControlServer(solver, dockerBuildSolver{backend: bk, node: s.node, viewer: viewer, builds: &s.builds})
 	defer solver.Stop()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == control.Control_Solve_FullMethodName {
-			solver.ServeHTTP(w, req)
-			return
+	refuse := grpc.NewServer(grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
+		if method, _ := grpc.MethodFromServerStream(stream); strings.HasPrefix(method, buildkitGatewayService) {
+			return status.Error(codes.NotFound, "no such build on this Docker socket")
 		}
-		proxy.ServeHTTP(w, req)
+		return status.Error(codes.PermissionDenied, "this BuildKit call is unavailable on a container's Docker socket: the machine's builds are not its own")
+	}))
+	defer refuse.Stop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		method := req.URL.Path
+		switch {
+		case method == control.Control_Solve_FullMethodName:
+			solver.ServeHTTP(w, req)
+		case viewer == "":
+			proxy.ServeHTTP(w, req)
+		case method == control.Control_Status_FullMethodName:
+			solver.ServeHTTP(w, req)
+		case strings.HasPrefix(method, buildkitGatewayService):
+			// The gateway client may call before its Solve has arrived.
+			if s.builds.owns(req.Context(), req.Header.Get(buildkitBuildIDHeader), viewer, buildkitRefWait) {
+				proxy.ServeHTTP(w, req)
+			} else {
+				refuse.ServeHTTP(w, req)
+			}
+		case delegatedBuildkitCall(method):
+			proxy.ServeHTTP(w, req)
+		default:
+			refuse.ServeHTTP(w, req)
+		}
 	})
 	server := &http2.Server{IdleTimeout: time.Minute}
 	server.ServeConn(conn, &http2.ServeConnOpts{Context: ctx, Handler: handler})
+}
+
+// buildkitGatewayService is the frontend gateway's service, whose calls name
+// their build by buildkitBuildIDHeader (BuildKit's client/buildid).
+const (
+	buildkitGatewayService = "/moby.buildkit.v1.frontend.LLBBridge/"
+	buildkitBuildIDHeader  = "buildkit-controlapi-buildid"
+)
+
+// buildkitRefWait is how long a delegated socket's Status or gateway call
+// waits for the Solve of its build to arrive (a client starts both at once);
+// a build that is not the socket's own is refused after it. A variable for
+// tests.
+var buildkitRefWait = 10 * time.Second
+
+// buildkitRefGrace is how long whose a build is stays known once its Solve
+// has returned, for a client's trailing Status of it.
+const buildkitRefGrace = time.Minute
+
+// delegatedBuildkitCall reports whether a delegated socket passes method
+// through as it is: the machine's cache, workers and version, a session the
+// client serves, and the health check.
+func delegatedBuildkitCall(method string) bool {
+	switch method {
+	case control.Control_DiskUsage_FullMethodName, control.Control_Prune_FullMethodName, control.Control_Session_FullMethodName,
+		control.Control_ListWorkers_FullMethodName, control.Control_Info_FullMethodName:
+		return true
+	}
+	return strings.HasPrefix(method, "/grpc.health.v1.Health/")
+}
+
+// dockerBuildRefs records whose each build solved through the Docker socket
+// proxy is (its Solve ref: BuildKit's job ID, the gateway's build ID): the
+// host's socket ("") or a delegated socket's owner.
+type dockerBuildRefs struct {
+	mu      sync.Mutex
+	viewers map[string]string
+	// claimed is closed and dropped when a build is recorded, for waiters.
+	claimed chan struct{}
+}
+
+// claim records ref as viewer's build for as long as its Solve runs (and
+// buildkitRefGrace after: call the returned release when it returns); false
+// when ref is another socket's build.
+func (b *dockerBuildRefs) claim(ref, viewer string) (release func(), ok bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if held, taken := b.viewers[ref]; taken && held != viewer {
+		return nil, false
+	}
+	if b.viewers == nil {
+		b.viewers = map[string]string{}
+	}
+	b.viewers[ref] = viewer
+	if b.claimed != nil {
+		close(b.claimed)
+		b.claimed = nil
+	}
+	return func() {
+		time.AfterFunc(buildkitRefGrace, func() {
+			b.mu.Lock()
+			defer b.mu.Unlock()
+			if b.viewers[ref] == viewer {
+				delete(b.viewers, ref)
+			}
+		})
+	}, true
+}
+
+// owns reports whether ref is viewer's build, waiting up to wait for its
+// Solve to arrive when it is no socket's yet.
+func (b *dockerBuildRefs) owns(ctx context.Context, ref, viewer string, wait time.Duration) bool {
+	if ref == "" {
+		return false
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	for {
+		b.mu.Lock()
+		held, known := b.viewers[ref]
+		if known {
+			b.mu.Unlock()
+			return held == viewer
+		}
+		if b.claimed == nil {
+			b.claimed = make(chan struct{})
+		}
+		claimed := b.claimed
+		b.mu.Unlock()
+		select {
+		case <-claimed:
+		case <-timer.C:
+			return false
+		case <-ctx.Done():
+			return false
+		}
+	}
 }
 
 type dockerBuildSolver struct {
 	control.UnimplementedControlServer
 	backend control.ControlClient
 	node    node
+	// viewer is the delegated socket's owner ("" for the host's socket) and
+	// builds whose each build is.
+	viewer string
+	builds *dockerBuildRefs
+}
+
+// Status streams a build's progress; on a delegated socket only its own
+// build's (serveDockerBuildControl).
+func (s dockerBuildSolver) Status(req *control.StatusRequest, stream grpc.ServerStreamingServer[control.StatusResponse]) error {
+	ctx := stream.Context()
+	if s.viewer != "" && !s.builds.owns(ctx, req.GetRef(), s.viewer, buildkitRefWait) {
+		return status.Error(codes.NotFound, "no such build on this Docker socket")
+	}
+	md, _ := metadata.FromIncomingContext(ctx)
+	up, err := s.backend.Status(metadata.NewOutgoingContext(ctx, buildkitMetadata(md)), req)
+	if err != nil {
+		return err
+	}
+	if header, err := up.Header(); err == nil {
+		_ = stream.SetHeader(buildkitMetadata(header))
+	}
+	for {
+		msg, err := up.Recv()
+		if errors.Is(err, io.EOF) {
+			stream.SetTrailer(buildkitMetadata(up.Trailer()))
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(msg); err != nil {
+			return err
+		}
+	}
 }
 
 func dockerImageExporter(kind *string, attrs *map[string]string) ([]string, error) {
@@ -160,6 +327,18 @@ func buildkitMetadata(md metadata.MD) metadata.MD {
 }
 
 func (s dockerBuildSolver) Solve(ctx context.Context, req *control.SolveRequest) (*control.SolveResponse, error) {
+	if s.builds != nil {
+		if s.viewer != "" && req.GetRef() == "" {
+			return nil, status.Error(codes.InvalidArgument, "a build on a container's Docker socket needs its own ref")
+		}
+		if req.GetRef() != "" {
+			release, ok := s.builds.claim(req.GetRef(), s.viewer)
+			if !ok {
+				return nil, status.Error(codes.AlreadyExists, "the build ref is another build's")
+			}
+			defer release()
+		}
+	}
 	tags, err := dockerImageExporter(&req.ExporterDeprecated, &req.ExporterAttrsDeprecated)
 	if err != nil {
 		return nil, err
