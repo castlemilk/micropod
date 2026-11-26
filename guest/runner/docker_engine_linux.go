@@ -446,8 +446,12 @@ func serveEngine(ctx context.Context, n node) error {
 		return err
 	}
 	if !privateRootless() {
-		// Before the socket opens, so no probe of this engine can be swept.
+		// Before the socket opens, so no probe of this engine can be swept
+		// and no container of this engine holds a cache unit yet (a unit a
+		// scheduler job still holds is left alone).
 		sweepProbes(ctx)
+		discardDirtyCaches()
+		go cacheDirty.run(ctx)
 	}
 	if st, err := os.Lstat(dockerSocket); err == nil && st.Mode()&os.ModeSocket == 0 {
 		return errors.New("Docker API path is occupied")
@@ -470,7 +474,14 @@ func serveEngine(ctx context.Context, n node) error {
 	server := &http.Server{Handler: s, BaseContext: func(net.Listener) context.Context { return ctx },
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
 	go func() { <-ctx.Done(); server.Close() }()
-	return server.Serve(l)
+	err = server.Serve(l)
+	if !privateRootless() {
+		// An orderly stop: units no writer holds are synced and unmarked.
+		// Containers still running keep theirs marked; guest init's
+		// clean-stop record clears them at the next start.
+		cacheDirty.shutdown()
+	}
+	return err
 }
 func engineLease() (*os.File, error) {
 	f, err := os.Open(engineGate)
@@ -592,7 +603,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, err := s.openMounts(spec, true, "")
+	files, _, _, err := s.openMounts(spec, true, "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
@@ -730,7 +741,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		lease.Close()
 		return err
 	}
-	files, mounts, err := s.openMounts(c.Config, false, socket)
+	files, mounts, aliasPins, err := s.openMounts(c.Config, false, socket)
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
@@ -740,6 +751,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// Replay the create-time decision; never recompute it. The unit locks and
 	// pinned store directories stay open until the container exits.
 	caches := openCacheMounts(c.Cache, filepath.Join(c.dir(), "shim"))
+	caches.adopt(aliasPins)
 	files = append(files, caches.files...)
 	mounts = append(mounts, caches.mounts...)
 	for _, reason := range caches.skipped {
@@ -757,6 +769,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
+		caches.release()
 		closeMounts(files)
 		lease.Close()
 		return err
@@ -768,6 +781,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 			s.mu.Unlock()
 			closeSocket()
 			f.Close()
+			caches.release()
 			closeMounts(files)
 			lease.Close()
 			return err
@@ -787,6 +801,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		s.mu.Unlock()
 		closeSocket()
 		f.Close()
+		caches.release()
 		closeMounts(files)
 		lease.Close()
 		if console != nil {
@@ -948,6 +963,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		for _, u := range caches.units {
 			_ = touchUsed(c.Cache.Scope, u)
 		}
+		caches.release()
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		// An admitted explicit kill publishes only after its CRI acknowledgement.

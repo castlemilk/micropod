@@ -306,8 +306,11 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 		if binding != nil {
 			return dockerArchiveView{}, nil, fail(http.StatusConflict, "the writable filesystem has an unresolved runtime attachment")
 		}
+		var pins []cachePin
 		if mount.Target != "" {
-			view.root, err = s.openDockerMount(mount, false)
+			// A write into a legacy alias volume of a cache store pins that
+			// kind's unit for the transfer, as a container start does.
+			view.root, pins, err = s.openDockerMount(mount, false, write)
 		} else if c.retainsRootFS() {
 			view.root, err = s.openStoppedArchiveRoot(ctx, c)
 		} else if c.Config.HostConfig.ReadonlyRootfs && !c.Config.HostConfig.AutoRemove {
@@ -318,7 +321,7 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 		if err != nil {
 			return dockerArchiveView{}, nil, err
 		}
-		return view, func() { view.root.Close() }, nil
+		return view, func() { view.root.Close(); releasePins(pins) }, nil
 	default:
 		return dockerArchiveView{}, nil, fail(http.StatusConflict, "the container filesystem is unavailable in its current state")
 	}

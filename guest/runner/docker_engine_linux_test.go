@@ -638,8 +638,8 @@ func TestDockerTmpfsConfig(t *testing.T) {
 	if *mounts[0].tmpfs != (dockerTmpfsOptions{flags: unix.MS_NOSUID | unix.MS_NODEV, size: 128 << 20, mode: 01777}) {
 		t.Fatalf("wrong CLI options: %+v", *mounts[0].tmpfs)
 	}
-	files, criMounts, err := (&dockerEngine{}).openMounts(spec, true, "")
-	if err != nil || len(criMounts) != 0 || len(files) != 0 {
+	files, criMounts, pins, err := (&dockerEngine{}).openMounts(spec, true, "")
+	if err != nil || len(criMounts) != 0 || len(files) != 0 || len(pins) != 0 {
 		t.Fatalf("Docker create materialized scratch: %+v, %v, %v", files, criMounts, err)
 	}
 	encoded, err := json.Marshal(dockerRecord{Config: spec})

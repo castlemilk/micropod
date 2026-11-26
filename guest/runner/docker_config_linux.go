@@ -8,11 +8,13 @@ import (
 	"log"
 	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/sys/unix"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -680,8 +682,64 @@ type cacheAttachment struct {
 	files   []*os.File // pinned bind sources and unit locks; closed when the container exits
 	mounts  []*cri.Mount
 	env     []string
-	units   []string          // locked and stamped units
+	units   []string          // the plan's locked, stamped and dirty-marked units
+	pins    []cachePin        // every unit this start locked and marked, alias volumes included
 	skipped map[string]string // tool -> reason, for this start only
+	scope   string
+}
+
+// cachePin is one writer's hold on a unit: its lock, held from before the
+// unit was marked dirty until the container exited (caches_dirty_linux.go).
+type cachePin struct {
+	scope, unit string
+	lock        *os.File
+}
+
+// pinUnit locks a unit for a writer and marks it dirty. A shared pin waits
+// briefly for a mark clearer's LOCK_EX (held for a stat and an unlink) rather
+// than leave the tool out of this start.
+func pinUnit(scope, unit string, exclusive bool) (cachePin, error) {
+	lock, err := unitLock(scope, unit, exclusive)
+	for i := 0; !exclusive && errors.Is(err, unix.EWOULDBLOCK) && i < 50; i++ {
+		time.Sleep(2 * time.Millisecond)
+		lock, err = unitLock(scope, unit, exclusive)
+	}
+	if err != nil {
+		return cachePin{}, err
+	}
+	if err := cacheDirty.attach(scope, unit); err != nil {
+		lock.Close()
+		return cachePin{}, err
+	}
+	return cachePin{scope, unit, lock}, nil
+}
+
+// release unpins the units after the container exited (or never started): it
+// drops their locks, then queues their dirty marks to be cleared once no
+// writer is left and a sync has put the writes on disk. Calling it again does
+// nothing.
+func (a *cacheAttachment) release() {
+	releasePins(a.pins)
+	a.pins = nil
+	a.units = nil
+}
+
+// releasePins drops each pin's lock, then queues its unit's dirty mark for a
+// clear (cacheAttachment.release).
+func releasePins(pins []cachePin) {
+	for _, p := range pins {
+		p.lock.Close()
+		cacheDirty.release(p.scope, p.unit)
+	}
+}
+
+// adopt takes over pins taken outside the plan (legacy alias volumes), so the
+// container's release drops them with its own.
+func (a *cacheAttachment) adopt(pins []cachePin) {
+	a.pins = append(a.pins, pins...)
+	for _, p := range pins {
+		a.files = append(a.files, p.lock)
+	}
 }
 
 func (a *cacheAttachment) skip(kind, reason string) {
@@ -719,13 +777,19 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		return dropAll(skipStoreFailed, err)
 	}
 	a.files = append(a.files, scopeDir)
+	a.scope = plan.Scope
 	stores := map[string]*os.File{}
 	for _, st := range plan.Stores {
-		lock, err := unitLock(plan.Scope, st.Unit, st.Exclusive)
+		// Locked and marked before the container can write, cleared after it
+		// exits and a sync (caches_dirty_linux.go): a crash meanwhile discards
+		// the unit instead of leaving torn entries for every container.
+		pin, err := pinUnit(plan.Scope, st.Unit, st.Exclusive)
 		if err != nil {
 			reason := skipStoreFailed
 			if errors.Is(err, unix.EWOULDBLOCK) {
 				reason = skipBusyExclusive
+			} else {
+				log.Printf("cache store %s/%s: %v", plan.Scope, st.Unit, err)
 			}
 			a.skip(st.Kind, reason)
 			continue
@@ -733,11 +797,14 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		dir, err := openStore(l, plan.Scope, scopeDir, st.Kind, st.UID)
 		if err != nil {
 			log.Printf("cache store %s/%s: %v", plan.Scope, st.Unit, err)
-			lock.Close()
+			// The mark stays until a sync after this release: openStore may
+			// have created or repaired part of the store.
+			a.pins = append(a.pins, pin)
 			a.skip(st.Kind, skipStoreFailed)
 			continue
 		}
-		a.files = append(a.files, lock, dir)
+		a.files = append(a.files, pin.lock, dir)
+		a.pins = append(a.pins, pin)
 		stores[st.Unit] = dir
 		a.units = append(a.units, st.Unit)
 	}
@@ -809,6 +876,22 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 		if _, gone := a.skipped[b.m.Kind]; gone && b.m.Kind != "" {
 			continue
 		}
+		if b.m.Kind == "" && !b.m.Shim {
+			// The scope is visible read-only; each env-mode unit this start
+			// locked and marked is bound writable over it (deeper mounts are
+			// applied after shallower ones). So nothing outside the marked
+			// units, a skipped tool's or another uid's partition included, can
+			// be written through this mount, and an archive write (docker cp)
+			// below the scope is refused as read-only.
+			a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target, Readonly: true})
+			for _, st := range plan.Stores {
+				if _, gone := a.skipped[st.Kind]; gone || plan.Tools[st.Kind].Mode != "env" || stores[st.Unit] == nil {
+					continue
+				}
+				a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(stores[st.Unit]), ContainerPath: path.Join(b.m.Target, cacheStoreSub(st.Kind, st.UID))})
+			}
+			continue
+		}
 		a.mounts = append(a.mounts, &cri.Mount{HostPath: dockerMountFDPath(b.src), ContainerPath: b.m.Target})
 	}
 	a.env = plan.env(a.skipped)
@@ -820,13 +903,18 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 	return a
 }
 
-func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket string) ([]*os.File, []*cri.Mount, error) {
+// openMounts opens the request's own mounts. For a start (createVolumes false)
+// a writable legacy alias volume of a cache store also pins that kind's unit
+// (lock plus dirty mark); the caller hands the pins to the container's cache
+// attachment, whose release drops them.
+func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket string) ([]*os.File, []*cri.Mount, []cachePin, error) {
 	requests, err := spec.mounts()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var files []*os.File
 	var mounts []*cri.Mount
+	var pins []cachePin
 	for _, m := range requests {
 		if m.tmpfs != nil {
 			continue
@@ -845,7 +933,10 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 			}
 			continue
 		}
-		f, e := s.openDockerMount(m, createVolumes)
+		// Only a start writes through these descriptors; a create opens them
+		// to validate the request and closes them at once.
+		f, mountPins, e := s.openDockerMount(m, createVolumes, !createVolumes)
+		pins = append(pins, mountPins...)
 		if e != nil {
 			err = e
 			break
@@ -855,9 +946,10 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 	}
 	if err != nil {
 		closeMounts(files)
-		return nil, nil, err
+		releasePins(pins)
+		return nil, nil, nil, err
 	}
-	return files, mounts, nil
+	return files, mounts, pins, nil
 }
 
 func dockerSocketMount(m dockerMount) bool {
@@ -869,7 +961,12 @@ func dockerMountFDPath(file *os.File) string {
 	return fmt.Sprintf("/proc/%d/fd/%d", os.Getpid(), file.Fd())
 }
 
-func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool) (*os.File, error) {
+// openDockerMount opens a request mount's source. With pinWrites set, a
+// writable legacy alias volume of a cache store also pins that kind's unit
+// (lock plus dirty mark), because the whole kind directory, every partition
+// included, is writable through it; the caller releases the pin once nothing
+// can write through the descriptor any more (caches_dirty_linux.go).
+func (s *dockerEngine) openDockerMount(m dockerMount, createVolume, pinWrites bool) (*os.File, []cachePin, error) {
 	root, source := s.workspace, m.Source
 	if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
 		root = "/runner/externals"
@@ -877,7 +974,7 @@ func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool) (*os.Fi
 	if m.Type == "volume" {
 		if createVolume {
 			if err := ensureVolume(m.Source, nil); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		root = filepath.Join(engineRoot, "volumes")
@@ -885,12 +982,26 @@ func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool) (*os.Fi
 		if scope, kind, shared := legacyCacheVolume(m.Source); shared {
 			path, err := ensureStore(scope, kind, nil)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			return openStoreBeneath(path)
+			var pins []cachePin
+			if pinWrites && !m.ReadOnly {
+				pin, err := pinUnit(scope, kind, false)
+				if err != nil {
+					return nil, nil, err
+				}
+				pins = append(pins, pin)
+			}
+			f, err := openStoreBeneath(path)
+			if err != nil {
+				releasePins(pins)
+				return nil, nil, err
+			}
+			return f, pins, nil
 		}
 	}
-	return openMount(root, source)
+	f, err := openMount(root, source)
+	return f, nil, err
 }
 
 func closeMounts(files []*os.File) {

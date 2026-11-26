@@ -526,7 +526,8 @@ func init() { extraRoutes = append(extraRoutes, cacheRoutes) }
 
 // cacheRoutes serves:
 //
-//	GET  /micropod/caches        effective policy, its digest and the scopes and units on disk
+//	GET  /micropod/caches        effective policy, its digest, the scopes and units on disk and
+//	                             the units this start discarded after an unclean stop
 //	POST /micropod/caches/debug  {"scope":"qual-x","kind":"gobuild","uid":null,"acl":false}
 //	                             strips (acl=false) or restores the default ACL of a
 //	                             qual-*/debug-* store; any other scope is HTTP 400
@@ -549,7 +550,8 @@ func cacheRoutes(s *dockerEngine, w http.ResponseWriter, r *http.Request, method
 			}
 			scopes[e.Name()] = units
 		}
-		writeJSON(w, 200, map[string]any{"root": cacheRoot, "mountPoint": cacheMountRoot, "policy": pol, "policyDigest": pol.digest(), "scopes": scopes})
+		writeJSON(w, 200, map[string]any{"root": cacheRoot, "mountPoint": cacheMountRoot, "policy": pol, "policyDigest": pol.digest(), "scopes": scopes,
+			"discardedAtStart": append([]string{}, cacheDiscarded...), "keptAtStart": append([]string{}, cacheKept...)})
 		return true, nil
 	case p == "micropod/caches/debug" && method == "POST":
 		b, err := readBody(w, r)

@@ -989,6 +989,23 @@ func TestOpenCacheMountsReplaysPlan(t *testing.T) {
 			t.Errorf("%s bound from %q, want %q", target, targets[target], src)
 		}
 	}
+	// The scope is bound read-only; only the env-mode units this start locked
+	// and marked are writable, each through its own bind over it.
+	for _, m := range a.mounts {
+		if want := m.ContainerPath == "/micropod/cache"; m.Readonly != want {
+			t.Errorf("%s readonly=%v", m.ContainerPath, m.Readonly)
+		}
+	}
+	for _, sub := range []string{"gomod", "gobuild", "npm", "pnpm", "pip/u1000", "uv", "corepack"} {
+		if got, want := targets["/micropod/cache/"+sub], filepath.Join(cacheRoot, "scopes/default", sub); got != want {
+			t.Errorf("/micropod/cache/%s bound from %q, want %q", sub, got, want)
+		}
+	}
+	for _, sub := range []string{"yarn/u1000", "yarnberry", "cargo", "pip", "pip/u0"} {
+		if _, bound := targets["/micropod/cache/"+sub]; bound {
+			t.Errorf("/micropod/cache/%s is writable although no env-mode tool of this start marked it", sub)
+		}
+	}
 	if _, owner := modeOf(t, filepath.Join(shimRoot, "0")); owner != 1000 {
 		t.Fatalf("shim owner %d", owner)
 	}

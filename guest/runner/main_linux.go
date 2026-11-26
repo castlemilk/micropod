@@ -190,7 +190,13 @@ func (n node) jobCaches(ctx context.Context, image string, j job, c *cri.Contain
 		for _, u := range a.units {
 			_ = touchUsed(plan.Scope, u)
 		}
+		a.release()
 		closeMounts(a.files)
+		// Clear the dirty marks now: a job may run outside the engine's
+		// process, where no background syncer would.
+		if err := cacheDirty.syncOnce(); err != nil {
+			fmt.Fprintf(os.Stderr, "job cache scope %s: sync: %v\n", j.Cache, err)
+		}
 	}
 }
 
