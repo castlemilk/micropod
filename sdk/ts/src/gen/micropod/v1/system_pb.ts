@@ -18,7 +18,86 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/system.proto.
  */
 export const file_micropod_v1_system: GenFile = /*@__PURE__*/
-  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIqUBChhHZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QSQQoEa2luZBgBIAEoCUIzukcPOg0SCydjb250YWluZXInukgechxSBnN5c3RlbVIJY29udGFpbmVyUgdtYWNoaW5lEhgKAmlkGAIgASgJQgy6Rwk6BxIFJ3dlYicSLAoNcmFuZ2Vfc2Vjb25kcxgDIAEoDUIVukcIOgYSBDM2MDC6SAcqBRiAmp4BImIKDk1ldHJpY3NIaXN0b3J5EiUKEnJlc29sdXRpb25fc2Vjb25kcxgBIAEoDUIJukcGOgQSAjEwEikKBnBvaW50cxgCIAMoCzIZLm1pY3JvcG9kLnYxLk1ldHJpY3NQb2ludCLZAgoMTWV0cmljc1BvaW50EjAKCXRpbWVzdGFtcBgBIAEoCUIdukcaOhgSFicyMDI2LTA5LTMwVDEwOjAwOjAwWicSEwoLY3B1X3BlcmNlbnQYAiABKAESFwoPY3B1X3BlcmNlbnRfbWF4GAMgASgBEhkKEW1lbW9yeV91c2VkX2J5dGVzGAQgASgBEh0KFW1lbW9yeV91c2VkX2J5dGVzX21heBgFIAEoARIaChJtZW1vcnlfbGltaXRfYnl0ZXMYBiABKAESIwobbmV0d29ya19yeF9ieXRlc19wZXJfc2Vjb25kGAcgASgBEiMKG25ldHdvcmtfdHhfYnl0ZXNfcGVyX3NlY29uZBgIIAEoARIjChtibG9ja19yZWFkX2J5dGVzX3Blcl9zZWNvbmQYCSABKAESJAocYmxvY2tfd3JpdGVfYnl0ZXNfcGVyX3NlY29uZBgKIAEoASLrAgoLUnVudGltZUluZm8SHAoEbmFtZRgBIAEoCUIOukcLOgkSBydhcHBsZScSGQoEa2luZBgCIAEoCUILukcIOgYSBCd2bScSEwoLZGVzY3JpcHRpb24YAyABKAkSHgoJYXZhaWxhYmxlGAQgASgIQgu6Rwg6BhIEdHJ1ZRIwCgZyZWFzb24YBSABKAlCILpHHTobEhknRG9ja2VyIHNvY2tldCBub3QgZm91bmQnEh8KB3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMS4zLjEnEjYKCGVuZHBvaW50GAcgASgJQiS6RyE6HxIdJ3VuaXg6Ly8vdmFyL3J1bi9kb2NrZXIuc29jaycSDwoHZGVmYXVsdBgIIAEoCBI0CgxjYXBhYmlsaXRpZXMYCSADKAlCHrpHGzoZEhdbJ3J1bicsICdleGVjJywgJ2xvZ3MnXRIcCgdlbmFibGVkGAogASgIQgu6Rwg6BhIEdHJ1ZSJjChRMaXN0UnVudGltZXNSZXNwb25zZRIqCghydW50aW1lcxgBIAMoCzIYLm1pY3JvcG9kLnYxLlJ1bnRpbWVJbmZvEh8KB2RlZmF1bHQYAiABKAlCDrpHCzoJEgcnYXBwbGUnItgBChRVcGRhdGVSdW50aW1lUmVxdWVzdBI4CgRuYW1lGAEgASgJQiq6Rww6ChIIJ2RvY2tlcie6SBjIAQFyEzIRXlthLXpdW2EtejAtOS1dKiQSIQoHZW5hYmxlZBgCIAEoCEILukcIOgYSBHRydWVIAIgBARJKCghlbmRwb2ludBgDIAEoCUIzukcwOi4SLCd1bml4Oi8vL1VzZXJzL21lLy5vcmJzdGFjay9ydW4vZG9ja2VyLnNvY2snSAGIAQFCCgoIX2VuYWJsZWRCCwoJX2VuZHBvaW50IlUKGFNldERlZmF1bHRSdW50aW1lUmVxdWVzdBI5CgRuYW1lGAEgASgJQiu6Rw06CxIJJ3NhbmRib3gnukgYyAEBchMyEV5bYS16XVthLXowLTktXSokIsYFCgxQaW5nUmVzcG9uc2USIAoGc3RhdHVzGAEgASgJQhC6Rw06CxIJJ3J1bm5pbmcnEigKD3J1bnRpbWVfYmFja2VuZBgCIAEoCUIPukcMOgoSCCduYXRpdmUnEioKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgDIAEoCUIOukcLOgkSBycxLjUuMCcSIwoLY2xpX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC43LjAnEkkKCGZlYXR1cmVzGAUgAygJQje6RzQ6MhIwWydjYXBfYWRkJywgJ2NhcF9kcm9wJywgJ3Jvc2V0dGEnLCAncHJpdmlsZWdlZCddEicKD2RlZmF1bHRfcnVudGltZRgGIAEoCUIOukcLOgkSBydhcHBsZScSKQoQbWljcm9wb2RfdmVyc2lvbhgHIAEoCUIPukcMOgoSCCcwLjE0LjAnEkoKD3NvdXJjZV9yZXZpc2lvbhgIIAEoCUIxukcuOiwSKiczM2VlYTY0OWExYjJjM2Q0ZTVmNjA3MTgyOTNhNGI1YzZkN2U4ZjkwJxIiChBwcm90b2NvbF92ZXJzaW9uGAkgASgNQgi6RwU6AxIBMRIxCg1wZWVyX3Byb3RvY29sGAogASgLMhoubWljcm9wb2QudjEuUHJvdG9jb2xSYW5nZRIxCgpjb21wb25lbnRzGAsgAygLMh0ubWljcm9wb2QudjEuQ29tcG9uZW50VmVyc2lvbhIuCgx1cGRhdGVfc3RhdGUYDCABKAsyGC5taWNyb3BvZC52MS5VcGRhdGVTdGF0ZRIwChhhcHBsZV9hcGlfc2VydmVyX3ZlcnNpb24YDSABKAlCDrpHCzoJEgcnMS41LjAnEkIKFGNvbnRhaW5lcl9vcGVyYXRpb25zGA4gASgLMiQubWljcm9wb2QudjEuQ29udGFpbmVyT3BlcmF0aW9uUXVldWUirAEKF0NvbnRhaW5lck9wZXJhdGlvblF1ZXVlEhcKBWRlcHRoGAEgASgNQgi6RwU6AxIBNBIbCglpbl9mbGlnaHQYAiABKA1CCLpHBToDEgEzEhsKCWFiYW5kb25lZBgDIAEoDUIIukcFOgMSATESGQoHd2FpdGluZxgEIAEoDUIIukcFOgMSATESIwoNb2xkZXN0X2FnZV9tcxgFIAEoBEIMukcJOgcSBTQyMDAwIoMBCg1Qcm90b2NvbFJhbmdlEjQKBG5hbWUYASABKAlCJrpHIzohEh8nbWljcm9wb2QtcnVudGltZS1jb29yZGluYXRpb24nEh0KC21pbl92ZXJzaW9uGAIgASgNQgi6RwU6AxIBMRIdCgttYXhfdmVyc2lvbhgDIAEoDUIIukcFOgMSATEi3gEKEENvbXBvbmVudFZlcnNpb24SIgoEbmFtZRgBIAEoCUIUukcROg8SDSdkb2NrZXItc2hpbScSIAoHdmVyc2lvbhgCIAEoCUIPukcMOgoSCCcwLjEzLjAnEkMKCHJldmlzaW9uGAMgASgJQjG6Ry46LBIqJzRiMWQ0OTA2Y2RhMjhjMDVhNDUyNjE5MTQ5YjQ5ZmQ2ZjMxYTcyYzEnEg4KBnNoYTI1NhgEIAEoCRIfCgVzdGF0ZRgFIAEoCUIQukcNOgsSCSdydW5uaW5nJxIOCgZkZXRhaWwYBiABKAki5QIKDlN5c3RlbVNuYXBzaG90EikKBnN0YXR1cxgBIAEoCzIZLm1pY3JvcG9kLnYxLlN5c3RlbVN0YXR1cxIqCgpkaXNrX3VzYWdlGAIgASgLMhYubWljcm9wb2QudjEuRGlza1VzYWdlEikKEG1pY3JvcG9kX3ZlcnNpb24YAyABKAlCD7pHDDoKEggnMC4xNC4wJxIXCg9zb3VyY2VfcmV2aXNpb24YBCABKAkSIgoQcHJvdG9jb2xfdmVyc2lvbhgFIAEoDUIIukcFOgMSATESMQoNcGVlcl9wcm90b2NvbBgGIAEoCzIaLm1pY3JvcG9kLnYxLlByb3RvY29sUmFuZ2USMQoKY29tcG9uZW50cxgHIAMoCzIdLm1pY3JvcG9kLnYxLkNvbXBvbmVudFZlcnNpb24SLgoMdXBkYXRlX3N0YXRlGAggASgLMhgubWljcm9wb2QudjEuVXBkYXRlU3RhdGUiwAIKDFN5c3RlbVN0YXR1cxIgCgZzdGF0dXMYASABKAlCELpHDToLEgkncnVubmluZycSNQoIYXBwX3Jvb3QYAiABKAlCI7pHIDoeEhwnL0FwcGxpY2F0aW9ucy9NaWNyb3BvZC5hcHAnEioKDGluc3RhbGxfcm9vdBgDIAEoCUIUukcROg8SDSd+Ly5taWNyb3BvZCcSKgoSYXBpX3NlcnZlcl92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzEuNS4wJxIjCgtjbGlfdmVyc2lvbhgFIAEoCUIOukcLOgkSBycwLjcuMCcSKAoPcnVudGltZV9iYWNrZW5kGAYgASgJQg+6Rww6ChIIJ25hdGl2ZScSMAoYYXBwbGVfYXBpX3NlcnZlcl92ZXJzaW9uGAcgASgJQg66Rws6CRIHJzEuNS4wJyKyAQoJRGlza1VzYWdlEi0KCmNvbnRhaW5lcnMYASABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKQoGaW1hZ2VzGAIgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EioKB3ZvbHVtZXMYAyABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSHwoXdG90YWxfcmVjbGFpbWFibGVfYnl0ZXMYBCABKAQilwEKDERpc2tDYXRlZ29yeRIYCgV0b3RhbBgBIAEoBEIJukcGOgQSAjEyEhgKBmFjdGl2ZRgCIAEoBEIIukcFOgMSATUSJQoKc2l6ZV9ieXRlcxgDIAEoBEIRukcOOgwSCjQyOTQ5NjcyOTYSLAoRcmVjbGFpbWFibGVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0In8KDVN0YXRzU25hcHNob3QSLwoKY29udGFpbmVycxgBIAMoCzIbLm1pY3JvcG9kLnYxLkNvbnRhaW5lclN0YXRzEj0KCnNhbXBsZWRfYXQYAiABKAlCKbpHJjoYEhYnMjAyNi0wMS0xNVQxMDozMDowMFonmgIJZGF0ZS10aW1lIoIECg5Db250YWluZXJTdGF0cxIYCgJpZBgBIAEoCUIMukcJOgcSBSd3ZWInEiAKC2NwdV9wZXJjZW50GAIgASgBQgu6Rwg6BhIEMTIuNRIrChFtZW1vcnlfdXNlZF9ieXRlcxgDIAEoBEIQukcNOgsSCTEzNDIxNzcyOBIsChJtZW1vcnlfbGltaXRfYnl0ZXMYBCABKARCELpHDToLEgk1MzY4NzA5MTISKAoQbmV0d29ya19yeF9ieXRlcxgFIAEoBEIOukcLOgkSBzEwNDg1NzYSJwoQbmV0d29ya190eF9ieXRlcxgGIAEoBEINukcKOggSBjUyNDI4OBIoChBibG9ja19yZWFkX2J5dGVzGAcgASgEQg66Rws6CRIHMjA5NzE1MhIpChFibG9ja193cml0ZV9ieXRlcxgIIAEoBEIOukcLOgkSBzEwNDg1NzYSFgoEcGlkcxgJIAEoBEIIukcFOgMSATcSKQoOY3B1X3VzYWdlX3VzZWMYCiABKARCEbpHDjoMEgo2NTc2Mzg5NzgxEiUKDm9vbV9raWxsX2NvdW50GAsgASgEQgi6RwU6AxIBMEgAiAEBEh4KEWJsb2NrX2lvX29ic2VydmVkGAwgASgISAGIAQFCEQoPX29vbV9raWxsX2NvdW50QhQKEl9ibG9ja19pb19vYnNlcnZlZCJ3Cg1SZWdpc3RyeUxvZ2luEiIKBnNlcnZlchgBIAEoCUISukcPOg0SCydkb2NrZXIuaW8nEiIKCHVzZXJuYW1lGAIgASgJQhC6Rw06CxIJJ29jdG9jYXQnEh4KBnNjaGVtZRgDIAEoCUIOukcLOgkSBydiYXNpYyci0AMKC1VzYWdlUmVwb3J0EjMKBmltYWdlcxgBIAMoCzIjLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LkltYWdlVXNhZ2USNQoHdm9sdW1lcxgCIAMoCzIkLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LlZvbHVtZVVzYWdlEjIKF3JlY2xhaW1hYmxlX2ltYWdlX2J5dGVzGAMgASgEQhG6Rw46DBIKMjE0NzQ4MzY0OBIzChhyZWNsYWltYWJsZV92b2x1bWVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0EikKF3N0b3BwZWRfY29udGFpbmVyX2NvdW50GAUgASgFQgi6RwU6AxIBMhpeCgpJbWFnZVVzYWdlEiEKBWltYWdlGAEgASgLMhIubWljcm9wb2QudjEuSW1hZ2USHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCBphCgtWb2x1bWVVc2FnZRIjCgZ2b2x1bWUYASABKAsyEy5taWNyb3BvZC52MS5Wb2x1bWUSHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCCLMBwoMVXBkYXRlU3RhdHVzEk8KBXN0YXRlGAEgASgOMh8ubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzLlN0YXRlQh+6Rxw6GhIYJ1NUQVRFX1VQREFURV9BVkFJTEFCTEUnEhcKD2ZlZWRfY29uZmlndXJlZBgCIAEoCBInCg9jdXJyZW50X3ZlcnNpb24YAyABKAlCDrpHCzoJEgcnMC44LjAnEikKEWF2YWlsYWJsZV92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzAuOS4wJxISCgpkb3dubG9hZGVkGAUgASgIEioKEmRvd25sb2FkZWRfdmVyc2lvbhgGIAEoCUIOukcLOgkSBycwLjkuMCcSGAoQcmVhZHlfdG9faW5zdGFsbBgHIAEoCBINCgVlcnJvchgIIAEoCRI9CgpjaGVja2VkX2F0GAkgASgJQim6RyY6GBIWJzIwMjYtMDEtMTVUMTA6MzA6MDBaJ5oCCWRhdGUtdGltZRIuCgx1cGRhdGVfc3RhdGUYCiABKAsyGC5taWNyb3BvZC52MS5VcGRhdGVTdGF0ZRIeChZyZXN0YXJ0X2Jsb2NrZWRfcmVhc29uGAsgASgJEiQKDXJlc3RhcnRfZ3VhcmQYDCABKAlCDbpHCjoIEgYnaWRsZScSIAoHY2hhbm5lbBgNIAEoCUIPukcMOgoSCCdzdGFibGUnEiMKEXdvcmtsb2FkX3Byb3RvY29sGA4gASgNQgi6RwU6AxIBMRIaChJwYXlsb2FkX2NvbXBhdGlibGUYDyABKAgSHwoXY3VycmVudF9zb3VyY2VfcmV2aXNpb24YECABKAkSMwoLdHJhbnNhY3Rpb24YESABKAsyHi5taWNyb3BvZC52MS5VcGRhdGVUcmFuc2FjdGlvbhIoChFkZXNrdG9wX2FkbWlzc2lvbhgSIAEoCUINukcKOggSBidvcGVuJxIUCgx1cGRhdGVfc2NvcGUYEyABKAkSFgoOcmVjb3ZlcnlfZXJyb3IYFCABKAkizgEKBVN0YXRlEhUKEVNUQVRFX1VOU1BFQ0lGSUVEEAASFQoRU1RBVEVfVU5BVkFJTEFCTEUQARIOCgpTVEFURV9JRExFEAISEgoOU1RBVEVfQ0hFQ0tJTkcQAxIUChBTVEFURV9VUF9UT19EQVRFEAQSGgoWU1RBVEVfVVBEQVRFX0FWQUlMQUJMRRAFEhQKEFNUQVRFX0lOU1RBTExJTkcQBhIPCgtTVEFURV9FUlJPUhAHEhoKFlNUQVRFX1JFQURZX1RPX0lOU1RBTEwQCCL1AQoRVXBkYXRlVHJhbnNhY3Rpb24SFAoMb3BlcmF0aW9uX2lkGAEgASgJEiMKBXBoYXNlGAIgASgJQhS6RxE6DxINJ2Rvd25sb2FkaW5nJxInCg5zb3VyY2VfdmVyc2lvbhgDIAEoCUIPukcMOgoSCCcwLjEzLjYnEicKDnRhcmdldF92ZXJzaW9uGAQgASgJQg+6Rww6ChIIJzAuMTMuNycSHgoWdGFyZ2V0X3NvdXJjZV9yZXZpc2lvbhgFIAEoCRIOCgZkZXRhaWwYBiABKAkSIwoKdXBkYXRlZF9hdBgHIAEoCUIPukcMmgIJZGF0ZS10aW1lIo0ECgtVcGRhdGVTdGF0ZRJCCgRraW5kGAEgASgOMh0ubWljcm9wb2QudjEuVXBkYXRlU3RhdGUuS2luZEIVukcSOhASDidLSU5EX0NVUlJFTlQnEh8KBXNjb3BlGAIgASgJQhC6Rw06CxIJJ2Rlc2t0b3AnEiMKBXBoYXNlGAMgASgJQhS6RxE6DxINJ2Rvd25sb2FkaW5nJxIOCgZyZWFzb24YBCABKAkSKAoPY3VycmVudF92ZXJzaW9uGAUgASgJQg+6Rww6ChIIJzAuMTMuNicSJwoOdGFyZ2V0X3ZlcnNpb24YBiABKAlCD7pHDDoKEggnMC4xMy43JxIqChFhdmFpbGFibGVfdmVyc2lvbhgHIAEoCUIPukcMOgoSCCcwLjEzLjcnEhQKDG9wZXJhdGlvbl9pZBgIIAEoCRIjCgp1cGRhdGVkX2F0GAkgASgJQg+6RwyaAglkYXRlLXRpbWUiqQEKBEtpbmQSFAoQS0lORF9VTlNQRUNJRklFRBAAEhAKDEtJTkRfQ1VSUkVOVBABEg8KC0tJTkRfU1RBR0VEEAISEgoOS0lORF9VUEdSQURJTkcQAxIUChBLSU5EX1JPTExFRF9CQUNLEAQSEAoMS0lORF9CTE9DS0VEEAUSGgoWS0lORF9SRUNPVkVSWV9SRVFVSVJFRBAGEhAKDEtJTkRfVU5LTk9XThAHMpYGCg1TeXN0ZW1TZXJ2aWNlEjwKCUdldFN5c3RlbRISLm1pY3JvcG9kLnYxLkVtcHR5GhsubWljcm9wb2QudjEuU3lzdGVtU25hcHNob3QSOAoIR2V0VXNhZ2USEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0EkAKD0NoZWNrRm9yVXBkYXRlcxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEkAKD0dldFVwZGF0ZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEjwKC0FwcGx5VXBkYXRlEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSPgoOR2V0VXBkYXRlU3RhdGUSEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXRlEjUKBFBpbmcSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlBpbmdSZXNwb25zZRJFCgxMaXN0UnVudGltZXMSEi5taWNyb3BvZC52MS5FbXB0eRohLm1pY3JvcG9kLnYxLkxpc3RSdW50aW1lc1Jlc3BvbnNlEl0KEVNldERlZmF1bHRSdW50aW1lEiUubWljcm9wb2QudjEuU2V0RGVmYXVsdFJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVQoNVXBkYXRlUnVudGltZRIhLm1pY3JvcG9kLnYxLlVwZGF0ZVJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVwoRR2V0TWV0cmljc0hpc3RvcnkSJS5taWNyb3BvZC52MS5HZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QaGy5taWNyb3BvZC52MS5NZXRyaWNzSGlzdG9yeUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIrgCChFSdW50aW1lRGVwZW5kZW5jeRINCgVzdGF0ZRgBIAEoCRIQCghjbGlfcGF0aBgCIAEoCRITCgtjbGlfdmVyc2lvbhgDIAEoCRIdChVjbGlfdmVyc2lvbl9zdXBwb3J0ZWQYBCABKAgSGgoSYXBpX3NlcnZlcl92ZXJzaW9uGAUgASgJEg8KB2JhY2tlbmQYBiABKAkSHAoUcnVudGltZV9pbnN0YWxsX3Jvb3QYByABKAkSGwoTbWFpbnRlbmFuY2VfYmxvY2tlZBgIIAEoCBIPCgdtZXNzYWdlGAkgASgJEhMKC25leHRfYWN0aW9uGAogASgJEhUKDWluc3RhbGxlcl91cmwYCyABKAkSKQoGc3RhdHVzGAwgASgLMhkubWljcm9wb2QudjEuU3lzdGVtU3RhdHVzIqUBChhHZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QSQQoEa2luZBgBIAEoCUIzukcPOg0SCydjb250YWluZXInukgechxSBnN5c3RlbVIJY29udGFpbmVyUgdtYWNoaW5lEhgKAmlkGAIgASgJQgy6Rwk6BxIFJ3dlYicSLAoNcmFuZ2Vfc2Vjb25kcxgDIAEoDUIVukcIOgYSBDM2MDC6SAcqBRiAmp4BImIKDk1ldHJpY3NIaXN0b3J5EiUKEnJlc29sdXRpb25fc2Vjb25kcxgBIAEoDUIJukcGOgQSAjEwEikKBnBvaW50cxgCIAMoCzIZLm1pY3JvcG9kLnYxLk1ldHJpY3NQb2ludCL+AwoMTWV0cmljc1BvaW50EjAKCXRpbWVzdGFtcBgBIAEoCUIdukcaOhgSFicyMDI2LTA5LTMwVDEwOjAwOjAwWicSEwoLY3B1X3BlcmNlbnQYAiABKAESFwoPY3B1X3BlcmNlbnRfbWF4GAMgASgBEhkKEW1lbW9yeV91c2VkX2J5dGVzGAQgASgBEh0KFW1lbW9yeV91c2VkX2J5dGVzX21heBgFIAEoARIaChJtZW1vcnlfbGltaXRfYnl0ZXMYBiABKAESIwobbmV0d29ya19yeF9ieXRlc19wZXJfc2Vjb25kGAcgASgBEiMKG25ldHdvcmtfdHhfYnl0ZXNfcGVyX3NlY29uZBgIIAEoARIjChtibG9ja19yZWFkX2J5dGVzX3Blcl9zZWNvbmQYCSABKAESJAocYmxvY2tfd3JpdGVfYnl0ZXNfcGVyX3NlY29uZBgKIAEoARInCh9uZXR3b3JrX3J4X2J5dGVzX3Blcl9zZWNvbmRfbWF4GAsgASgBEicKH25ldHdvcmtfdHhfYnl0ZXNfcGVyX3NlY29uZF9tYXgYDCABKAESJwofYmxvY2tfcmVhZF9ieXRlc19wZXJfc2Vjb25kX21heBgNIAEoARIoCiBibG9ja193cml0ZV9ieXRlc19wZXJfc2Vjb25kX21heBgOIAEoASLrAgoLUnVudGltZUluZm8SHAoEbmFtZRgBIAEoCUIOukcLOgkSBydhcHBsZScSGQoEa2luZBgCIAEoCUILukcIOgYSBCd2bScSEwoLZGVzY3JpcHRpb24YAyABKAkSHgoJYXZhaWxhYmxlGAQgASgIQgu6Rwg6BhIEdHJ1ZRIwCgZyZWFzb24YBSABKAlCILpHHTobEhknRG9ja2VyIHNvY2tldCBub3QgZm91bmQnEh8KB3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMS4zLjEnEjYKCGVuZHBvaW50GAcgASgJQiS6RyE6HxIdJ3VuaXg6Ly8vdmFyL3J1bi9kb2NrZXIuc29jaycSDwoHZGVmYXVsdBgIIAEoCBI0CgxjYXBhYmlsaXRpZXMYCSADKAlCHrpHGzoZEhdbJ3J1bicsICdleGVjJywgJ2xvZ3MnXRIcCgdlbmFibGVkGAogASgIQgu6Rwg6BhIEdHJ1ZSJjChRMaXN0UnVudGltZXNSZXNwb25zZRIqCghydW50aW1lcxgBIAMoCzIYLm1pY3JvcG9kLnYxLlJ1bnRpbWVJbmZvEh8KB2RlZmF1bHQYAiABKAlCDrpHCzoJEgcnYXBwbGUnItgBChRVcGRhdGVSdW50aW1lUmVxdWVzdBI4CgRuYW1lGAEgASgJQiq6Rww6ChIIJ2RvY2tlcie6SBjIAQFyEzIRXlthLXpdW2EtejAtOS1dKiQSIQoHZW5hYmxlZBgCIAEoCEILukcIOgYSBHRydWVIAIgBARJKCghlbmRwb2ludBgDIAEoCUIzukcwOi4SLCd1bml4Oi8vL1VzZXJzL21lLy5vcmJzdGFjay9ydW4vZG9ja2VyLnNvY2snSAGIAQFCCgoIX2VuYWJsZWRCCwoJX2VuZHBvaW50IlUKGFNldERlZmF1bHRSdW50aW1lUmVxdWVzdBI5CgRuYW1lGAEgASgJQiu6Rw06CxIJJ3NhbmRib3gnukgYyAEBchMyEV5bYS16XVthLXowLTktXSokIsYFCgxQaW5nUmVzcG9uc2USIAoGc3RhdHVzGAEgASgJQhC6Rw06CxIJJ3J1bm5pbmcnEigKD3J1bnRpbWVfYmFja2VuZBgCIAEoCUIPukcMOgoSCCduYXRpdmUnEioKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgDIAEoCUIOukcLOgkSBycxLjUuMCcSIwoLY2xpX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC43LjAnEkkKCGZlYXR1cmVzGAUgAygJQje6RzQ6MhIwWydjYXBfYWRkJywgJ2NhcF9kcm9wJywgJ3Jvc2V0dGEnLCAncHJpdmlsZWdlZCddEicKD2RlZmF1bHRfcnVudGltZRgGIAEoCUIOukcLOgkSBydhcHBsZScSKQoQbWljcm9wb2RfdmVyc2lvbhgHIAEoCUIPukcMOgoSCCcwLjE0LjAnEkoKD3NvdXJjZV9yZXZpc2lvbhgIIAEoCUIxukcuOiwSKiczM2VlYTY0OWExYjJjM2Q0ZTVmNjA3MTgyOTNhNGI1YzZkN2U4ZjkwJxIiChBwcm90b2NvbF92ZXJzaW9uGAkgASgNQgi6RwU6AxIBMRIxCg1wZWVyX3Byb3RvY29sGAogASgLMhoubWljcm9wb2QudjEuUHJvdG9jb2xSYW5nZRIxCgpjb21wb25lbnRzGAsgAygLMh0ubWljcm9wb2QudjEuQ29tcG9uZW50VmVyc2lvbhIuCgx1cGRhdGVfc3RhdGUYDCABKAsyGC5taWNyb3BvZC52MS5VcGRhdGVTdGF0ZRIwChhhcHBsZV9hcGlfc2VydmVyX3ZlcnNpb24YDSABKAlCDrpHCzoJEgcnMS41LjAnEkIKFGNvbnRhaW5lcl9vcGVyYXRpb25zGA4gASgLMiQubWljcm9wb2QudjEuQ29udGFpbmVyT3BlcmF0aW9uUXVldWUirAEKF0NvbnRhaW5lck9wZXJhdGlvblF1ZXVlEhcKBWRlcHRoGAEgASgNQgi6RwU6AxIBNBIbCglpbl9mbGlnaHQYAiABKA1CCLpHBToDEgEzEhsKCWFiYW5kb25lZBgDIAEoDUIIukcFOgMSATESGQoHd2FpdGluZxgEIAEoDUIIukcFOgMSATESIwoNb2xkZXN0X2FnZV9tcxgFIAEoBEIMukcJOgcSBTQyMDAwIoMBCg1Qcm90b2NvbFJhbmdlEjQKBG5hbWUYASABKAlCJrpHIzohEh8nbWljcm9wb2QtcnVudGltZS1jb29yZGluYXRpb24nEh0KC21pbl92ZXJzaW9uGAIgASgNQgi6RwU6AxIBMRIdCgttYXhfdmVyc2lvbhgDIAEoDUIIukcFOgMSATEi3gEKEENvbXBvbmVudFZlcnNpb24SIgoEbmFtZRgBIAEoCUIUukcROg8SDSdkb2NrZXItc2hpbScSIAoHdmVyc2lvbhgCIAEoCUIPukcMOgoSCCcwLjEzLjAnEkMKCHJldmlzaW9uGAMgASgJQjG6Ry46LBIqJzRiMWQ0OTA2Y2RhMjhjMDVhNDUyNjE5MTQ5YjQ5ZmQ2ZjMxYTcyYzEnEg4KBnNoYTI1NhgEIAEoCRIfCgVzdGF0ZRgFIAEoCUIQukcNOgsSCSdydW5uaW5nJxIOCgZkZXRhaWwYBiABKAki5QIKDlN5c3RlbVNuYXBzaG90EikKBnN0YXR1cxgBIAEoCzIZLm1pY3JvcG9kLnYxLlN5c3RlbVN0YXR1cxIqCgpkaXNrX3VzYWdlGAIgASgLMhYubWljcm9wb2QudjEuRGlza1VzYWdlEikKEG1pY3JvcG9kX3ZlcnNpb24YAyABKAlCD7pHDDoKEggnMC4xNC4wJxIXCg9zb3VyY2VfcmV2aXNpb24YBCABKAkSIgoQcHJvdG9jb2xfdmVyc2lvbhgFIAEoDUIIukcFOgMSATESMQoNcGVlcl9wcm90b2NvbBgGIAEoCzIaLm1pY3JvcG9kLnYxLlByb3RvY29sUmFuZ2USMQoKY29tcG9uZW50cxgHIAMoCzIdLm1pY3JvcG9kLnYxLkNvbXBvbmVudFZlcnNpb24SLgoMdXBkYXRlX3N0YXRlGAggASgLMhgubWljcm9wb2QudjEuVXBkYXRlU3RhdGUiwAIKDFN5c3RlbVN0YXR1cxIgCgZzdGF0dXMYASABKAlCELpHDToLEgkncnVubmluZycSNQoIYXBwX3Jvb3QYAiABKAlCI7pHIDoeEhwnL0FwcGxpY2F0aW9ucy9NaWNyb3BvZC5hcHAnEioKDGluc3RhbGxfcm9vdBgDIAEoCUIUukcROg8SDSd+Ly5taWNyb3BvZCcSKgoSYXBpX3NlcnZlcl92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzEuNS4wJxIjCgtjbGlfdmVyc2lvbhgFIAEoCUIOukcLOgkSBycwLjcuMCcSKAoPcnVudGltZV9iYWNrZW5kGAYgASgJQg+6Rww6ChIIJ25hdGl2ZScSMAoYYXBwbGVfYXBpX3NlcnZlcl92ZXJzaW9uGAcgASgJQg66Rws6CRIHJzEuNS4wJyKyAQoJRGlza1VzYWdlEi0KCmNvbnRhaW5lcnMYASABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKQoGaW1hZ2VzGAIgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EioKB3ZvbHVtZXMYAyABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSHwoXdG90YWxfcmVjbGFpbWFibGVfYnl0ZXMYBCABKAQilwEKDERpc2tDYXRlZ29yeRIYCgV0b3RhbBgBIAEoBEIJukcGOgQSAjEyEhgKBmFjdGl2ZRgCIAEoBEIIukcFOgMSATUSJQoKc2l6ZV9ieXRlcxgDIAEoBEIRukcOOgwSCjQyOTQ5NjcyOTYSLAoRcmVjbGFpbWFibGVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0In8KDVN0YXRzU25hcHNob3QSLwoKY29udGFpbmVycxgBIAMoCzIbLm1pY3JvcG9kLnYxLkNvbnRhaW5lclN0YXRzEj0KCnNhbXBsZWRfYXQYAiABKAlCKbpHJjoYEhYnMjAyNi0wMS0xNVQxMDozMDowMFonmgIJZGF0ZS10aW1lIoIECg5Db250YWluZXJTdGF0cxIYCgJpZBgBIAEoCUIMukcJOgcSBSd3ZWInEiAKC2NwdV9wZXJjZW50GAIgASgBQgu6Rwg6BhIEMTIuNRIrChFtZW1vcnlfdXNlZF9ieXRlcxgDIAEoBEIQukcNOgsSCTEzNDIxNzcyOBIsChJtZW1vcnlfbGltaXRfYnl0ZXMYBCABKARCELpHDToLEgk1MzY4NzA5MTISKAoQbmV0d29ya19yeF9ieXRlcxgFIAEoBEIOukcLOgkSBzEwNDg1NzYSJwoQbmV0d29ya190eF9ieXRlcxgGIAEoBEINukcKOggSBjUyNDI4OBIoChBibG9ja19yZWFkX2J5dGVzGAcgASgEQg66Rws6CRIHMjA5NzE1MhIpChFibG9ja193cml0ZV9ieXRlcxgIIAEoBEIOukcLOgkSBzEwNDg1NzYSFgoEcGlkcxgJIAEoBEIIukcFOgMSATcSKQoOY3B1X3VzYWdlX3VzZWMYCiABKARCEbpHDjoMEgo2NTc2Mzg5NzgxEiUKDm9vbV9raWxsX2NvdW50GAsgASgEQgi6RwU6AxIBMEgAiAEBEh4KEWJsb2NrX2lvX29ic2VydmVkGAwgASgISAGIAQFCEQoPX29vbV9raWxsX2NvdW50QhQKEl9ibG9ja19pb19vYnNlcnZlZCJ3Cg1SZWdpc3RyeUxvZ2luEiIKBnNlcnZlchgBIAEoCUISukcPOg0SCydkb2NrZXIuaW8nEiIKCHVzZXJuYW1lGAIgASgJQhC6Rw06CxIJJ29jdG9jYXQnEh4KBnNjaGVtZRgDIAEoCUIOukcLOgkSBydiYXNpYyci0AMKC1VzYWdlUmVwb3J0EjMKBmltYWdlcxgBIAMoCzIjLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LkltYWdlVXNhZ2USNQoHdm9sdW1lcxgCIAMoCzIkLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LlZvbHVtZVVzYWdlEjIKF3JlY2xhaW1hYmxlX2ltYWdlX2J5dGVzGAMgASgEQhG6Rw46DBIKMjE0NzQ4MzY0OBIzChhyZWNsYWltYWJsZV92b2x1bWVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0EikKF3N0b3BwZWRfY29udGFpbmVyX2NvdW50GAUgASgFQgi6RwU6AxIBMhpeCgpJbWFnZVVzYWdlEiEKBWltYWdlGAEgASgLMhIubWljcm9wb2QudjEuSW1hZ2USHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCBphCgtWb2x1bWVVc2FnZRIjCgZ2b2x1bWUYASABKAsyEy5taWNyb3BvZC52MS5Wb2x1bWUSHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCCLMBwoMVXBkYXRlU3RhdHVzEk8KBXN0YXRlGAEgASgOMh8ubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzLlN0YXRlQh+6Rxw6GhIYJ1NUQVRFX1VQREFURV9BVkFJTEFCTEUnEhcKD2ZlZWRfY29uZmlndXJlZBgCIAEoCBInCg9jdXJyZW50X3ZlcnNpb24YAyABKAlCDrpHCzoJEgcnMC44LjAnEikKEWF2YWlsYWJsZV92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzAuOS4wJxISCgpkb3dubG9hZGVkGAUgASgIEioKEmRvd25sb2FkZWRfdmVyc2lvbhgGIAEoCUIOukcLOgkSBycwLjkuMCcSGAoQcmVhZHlfdG9faW5zdGFsbBgHIAEoCBINCgVlcnJvchgIIAEoCRI9CgpjaGVja2VkX2F0GAkgASgJQim6RyY6GBIWJzIwMjYtMDEtMTVUMTA6MzA6MDBaJ5oCCWRhdGUtdGltZRIuCgx1cGRhdGVfc3RhdGUYCiABKAsyGC5taWNyb3BvZC52MS5VcGRhdGVTdGF0ZRIeChZyZXN0YXJ0X2Jsb2NrZWRfcmVhc29uGAsgASgJEiQKDXJlc3RhcnRfZ3VhcmQYDCABKAlCDbpHCjoIEgYnaWRsZScSIAoHY2hhbm5lbBgNIAEoCUIPukcMOgoSCCdzdGFibGUnEiMKEXdvcmtsb2FkX3Byb3RvY29sGA4gASgNQgi6RwU6AxIBMRIaChJwYXlsb2FkX2NvbXBhdGlibGUYDyABKAgSHwoXY3VycmVudF9zb3VyY2VfcmV2aXNpb24YECABKAkSMwoLdHJhbnNhY3Rpb24YESABKAsyHi5taWNyb3BvZC52MS5VcGRhdGVUcmFuc2FjdGlvbhIoChFkZXNrdG9wX2FkbWlzc2lvbhgSIAEoCUINukcKOggSBidvcGVuJxIUCgx1cGRhdGVfc2NvcGUYEyABKAkSFgoOcmVjb3ZlcnlfZXJyb3IYFCABKAkizgEKBVN0YXRlEhUKEVNUQVRFX1VOU1BFQ0lGSUVEEAASFQoRU1RBVEVfVU5BVkFJTEFCTEUQARIOCgpTVEFURV9JRExFEAISEgoOU1RBVEVfQ0hFQ0tJTkcQAxIUChBTVEFURV9VUF9UT19EQVRFEAQSGgoWU1RBVEVfVVBEQVRFX0FWQUlMQUJMRRAFEhQKEFNUQVRFX0lOU1RBTExJTkcQBhIPCgtTVEFURV9FUlJPUhAHEhoKFlNUQVRFX1JFQURZX1RPX0lOU1RBTEwQCCL1AQoRVXBkYXRlVHJhbnNhY3Rpb24SFAoMb3BlcmF0aW9uX2lkGAEgASgJEiMKBXBoYXNlGAIgASgJQhS6RxE6DxINJ2Rvd25sb2FkaW5nJxInCg5zb3VyY2VfdmVyc2lvbhgDIAEoCUIPukcMOgoSCCcwLjEzLjYnEicKDnRhcmdldF92ZXJzaW9uGAQgASgJQg+6Rww6ChIIJzAuMTMuNycSHgoWdGFyZ2V0X3NvdXJjZV9yZXZpc2lvbhgFIAEoCRIOCgZkZXRhaWwYBiABKAkSIwoKdXBkYXRlZF9hdBgHIAEoCUIPukcMmgIJZGF0ZS10aW1lIo0ECgtVcGRhdGVTdGF0ZRJCCgRraW5kGAEgASgOMh0ubWljcm9wb2QudjEuVXBkYXRlU3RhdGUuS2luZEIVukcSOhASDidLSU5EX0NVUlJFTlQnEh8KBXNjb3BlGAIgASgJQhC6Rw06CxIJJ2Rlc2t0b3AnEiMKBXBoYXNlGAMgASgJQhS6RxE6DxINJ2Rvd25sb2FkaW5nJxIOCgZyZWFzb24YBCABKAkSKAoPY3VycmVudF92ZXJzaW9uGAUgASgJQg+6Rww6ChIIJzAuMTMuNicSJwoOdGFyZ2V0X3ZlcnNpb24YBiABKAlCD7pHDDoKEggnMC4xMy43JxIqChFhdmFpbGFibGVfdmVyc2lvbhgHIAEoCUIPukcMOgoSCCcwLjEzLjcnEhQKDG9wZXJhdGlvbl9pZBgIIAEoCRIjCgp1cGRhdGVkX2F0GAkgASgJQg+6RwyaAglkYXRlLXRpbWUiqQEKBEtpbmQSFAoQS0lORF9VTlNQRUNJRklFRBAAEhAKDEtJTkRfQ1VSUkVOVBABEg8KC0tJTkRfU1RBR0VEEAISEgoOS0lORF9VUEdSQURJTkcQAxIUChBLSU5EX1JPTExFRF9CQUNLEAQSEAoMS0lORF9CTE9DS0VEEAUSGgoWS0lORF9SRUNPVkVSWV9SRVFVSVJFRBAGEhAKDEtJTkRfVU5LTk9XThAHMp4HCg1TeXN0ZW1TZXJ2aWNlEjwKCUdldFN5c3RlbRISLm1pY3JvcG9kLnYxLkVtcHR5GhsubWljcm9wb2QudjEuU3lzdGVtU25hcHNob3QSOAoIR2V0VXNhZ2USEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0EkAKD0NoZWNrRm9yVXBkYXRlcxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEkAKD0dldFVwZGF0ZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEjwKC0FwcGx5VXBkYXRlEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSPgoOR2V0VXBkYXRlU3RhdGUSEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXRlEjUKBFBpbmcSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlBpbmdSZXNwb25zZRJFCgxMaXN0UnVudGltZXMSEi5taWNyb3BvZC52MS5FbXB0eRohLm1pY3JvcG9kLnYxLkxpc3RSdW50aW1lc1Jlc3BvbnNlEl0KEVNldERlZmF1bHRSdW50aW1lEiUubWljcm9wb2QudjEuU2V0RGVmYXVsdFJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVQoNVXBkYXRlUnVudGltZRIhLm1pY3JvcG9kLnYxLlVwZGF0ZVJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVwoRR2V0TWV0cmljc0hpc3RvcnkSJS5taWNyb3BvZC52MS5HZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QaGy5taWNyb3BvZC52MS5NZXRyaWNzSGlzdG9yeRJKChRHZXRSdW50aW1lRGVwZW5kZW5jeRISLm1pY3JvcG9kLnYxLkVtcHR5Gh4ubWljcm9wb2QudjEuUnVudGltZURlcGVuZGVuY3kSOgoMR2V0RGlza1VzYWdlEhIubWljcm9wb2QudjEuRW1wdHkaFi5taWNyb3BvZC52MS5EaXNrVXNhZ2VCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+
+/**
+ * @generated from message micropod.v1.RuntimeDependency
+ */
+export type RuntimeDependency = Message<"micropod.v1.RuntimeDependency"> & {
+  /**
+   * checking, unsupportedHost, missingCLI, stopped, starting, stopping,
+   * nativeReady, cliFallback, unsupportedVersion, apiUnavailable or degraded.
+   *
+   * @generated from field: string state = 1;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string cli_path = 2;
+   */
+  cliPath: string;
+
+  /**
+   * @generated from field: string cli_version = 3;
+   */
+  cliVersion: string;
+
+  /**
+   * @generated from field: bool cli_version_supported = 4;
+   */
+  cliVersionSupported: boolean;
+
+  /**
+   * @generated from field: string api_server_version = 5;
+   */
+  apiServerVersion: string;
+
+  /**
+   * The backend the API uses for Apple's runtime (native or cli).
+   *
+   * @generated from field: string backend = 6;
+   */
+  backend: string;
+
+  /**
+   * @generated from field: string runtime_install_root = 7;
+   */
+  runtimeInstallRoot: string;
+
+  /**
+   * @generated from field: bool maintenance_blocked = 8;
+   */
+  maintenanceBlocked: boolean;
+
+  /**
+   * @generated from field: string message = 9;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string next_action = 10;
+   */
+  nextAction: string;
+
+  /**
+   * @generated from field: string installer_url = 11;
+   */
+  installerUrl: string;
+
+  /**
+   * The service status the CLI reported; unset when it could not be read.
+   *
+   * @generated from field: micropod.v1.SystemStatus status = 12;
+   */
+  status?: SystemStatus;
+};
+
+/**
+ * Describes the message micropod.v1.RuntimeDependency.
+ * Use `create(RuntimeDependencySchema)` to create a new message.
+ */
+export const RuntimeDependencySchema: GenMessage<RuntimeDependency> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 0);
 
 /**
  * @generated from message micropod.v1.GetMetricsHistoryRequest
@@ -51,7 +130,7 @@ export type GetMetricsHistoryRequest = Message<"micropod.v1.GetMetricsHistoryReq
  * Use `create(GetMetricsHistoryRequestSchema)` to create a new message.
  */
 export const GetMetricsHistoryRequestSchema: GenMessage<GetMetricsHistoryRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 0);
+  messageDesc(file_micropod_v1_system, 1);
 
 /**
  * @generated from message micropod.v1.MetricsHistory
@@ -77,7 +156,7 @@ export type MetricsHistory = Message<"micropod.v1.MetricsHistory"> & {
  * Use `create(MetricsHistorySchema)` to create a new message.
  */
 export const MetricsHistorySchema: GenMessage<MetricsHistory> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 1);
+  messageDesc(file_micropod_v1_system, 2);
 
 /**
  * One bucket: averages, plus the peak of the metrics that spike.
@@ -144,6 +223,28 @@ export type MetricsPoint = Message<"micropod.v1.MetricsPoint"> & {
    * @generated from field: double block_write_bytes_per_second = 10;
    */
   blockWriteBytesPerSecond: number;
+
+  /**
+   * The same rates' highest sample within the point.
+   *
+   * @generated from field: double network_rx_bytes_per_second_max = 11;
+   */
+  networkRxBytesPerSecondMax: number;
+
+  /**
+   * @generated from field: double network_tx_bytes_per_second_max = 12;
+   */
+  networkTxBytesPerSecondMax: number;
+
+  /**
+   * @generated from field: double block_read_bytes_per_second_max = 13;
+   */
+  blockReadBytesPerSecondMax: number;
+
+  /**
+   * @generated from field: double block_write_bytes_per_second_max = 14;
+   */
+  blockWriteBytesPerSecondMax: number;
 };
 
 /**
@@ -151,7 +252,7 @@ export type MetricsPoint = Message<"micropod.v1.MetricsPoint"> & {
  * Use `create(MetricsPointSchema)` to create a new message.
  */
 export const MetricsPointSchema: GenMessage<MetricsPoint> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 2);
+  messageDesc(file_micropod_v1_system, 3);
 
 /**
  * One execution engine (see ListRuntimes).
@@ -242,7 +343,7 @@ export type RuntimeInfo = Message<"micropod.v1.RuntimeInfo"> & {
  * Use `create(RuntimeInfoSchema)` to create a new message.
  */
 export const RuntimeInfoSchema: GenMessage<RuntimeInfo> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 3);
+  messageDesc(file_micropod_v1_system, 4);
 
 /**
  * @generated from message micropod.v1.ListRuntimesResponse
@@ -266,7 +367,7 @@ export type ListRuntimesResponse = Message<"micropod.v1.ListRuntimesResponse"> &
  * Use `create(ListRuntimesResponseSchema)` to create a new message.
  */
 export const ListRuntimesResponseSchema: GenMessage<ListRuntimesResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 4);
+  messageDesc(file_micropod_v1_system, 5);
 
 /**
  * @generated from message micropod.v1.UpdateRuntimeRequest
@@ -301,7 +402,7 @@ export type UpdateRuntimeRequest = Message<"micropod.v1.UpdateRuntimeRequest"> &
  * Use `create(UpdateRuntimeRequestSchema)` to create a new message.
  */
 export const UpdateRuntimeRequestSchema: GenMessage<UpdateRuntimeRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 5);
+  messageDesc(file_micropod_v1_system, 6);
 
 /**
  * @generated from message micropod.v1.SetDefaultRuntimeRequest
@@ -320,7 +421,7 @@ export type SetDefaultRuntimeRequest = Message<"micropod.v1.SetDefaultRuntimeReq
  * Use `create(SetDefaultRuntimeRequestSchema)` to create a new message.
  */
 export const SetDefaultRuntimeRequestSchema: GenMessage<SetDefaultRuntimeRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 6);
+  messageDesc(file_micropod_v1_system, 7);
 
 /**
  * Cheap liveness reply for detection and health ticks (see Ping).
@@ -452,7 +553,7 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
  * Use `create(PingResponseSchema)` to create a new message.
  */
 export const PingResponseSchema: GenMessage<PingResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 7);
+  messageDesc(file_micropod_v1_system, 8);
 
 /**
  * The container operations one Micropod API server has handed to Apple's
@@ -513,7 +614,7 @@ export type ContainerOperationQueue = Message<"micropod.v1.ContainerOperationQue
  * Use `create(ContainerOperationQueueSchema)` to create a new message.
  */
 export const ContainerOperationQueueSchema: GenMessage<ContainerOperationQueue> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8);
+  messageDesc(file_micropod_v1_system, 9);
 
 /**
  * A contiguous range of protocol versions, inclusive.
@@ -548,7 +649,7 @@ export type ProtocolRange = Message<"micropod.v1.ProtocolRange"> & {
  * Use `create(ProtocolRangeSchema)` to create a new message.
  */
 export const ProtocolRangeSchema: GenMessage<ProtocolRange> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 9);
+  messageDesc(file_micropod_v1_system, 10);
 
 /**
  * One installed or running piece of Micropod, as the answering server
@@ -609,7 +710,7 @@ export type ComponentVersion = Message<"micropod.v1.ComponentVersion"> & {
  * Use `create(ComponentVersionSchema)` to create a new message.
  */
 export const ComponentVersionSchema: GenMessage<ComponentVersion> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 10);
+  messageDesc(file_micropod_v1_system, 11);
 
 /**
  * @generated from message micropod.v1.SystemSnapshot
@@ -677,7 +778,7 @@ export type SystemSnapshot = Message<"micropod.v1.SystemSnapshot"> & {
  * Use `create(SystemSnapshotSchema)` to create a new message.
  */
 export const SystemSnapshotSchema: GenMessage<SystemSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 11);
+  messageDesc(file_micropod_v1_system, 12);
 
 /**
  * Runtime health, mapped from `container system status`.
@@ -743,7 +844,7 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
  * Use `create(SystemStatusSchema)` to create a new message.
  */
 export const SystemStatusSchema: GenMessage<SystemStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 12);
+  messageDesc(file_micropod_v1_system, 13);
 
 /**
  * Disk usage, mapped from `container system df`.
@@ -785,7 +886,7 @@ export type DiskUsage = Message<"micropod.v1.DiskUsage"> & {
  * Use `create(DiskUsageSchema)` to create a new message.
  */
 export const DiskUsageSchema: GenMessage<DiskUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 13);
+  messageDesc(file_micropod_v1_system, 14);
 
 /**
  * @generated from message micropod.v1.DiskCategory
@@ -825,7 +926,7 @@ export type DiskCategory = Message<"micropod.v1.DiskCategory"> & {
  * Use `create(DiskCategorySchema)` to create a new message.
  */
 export const DiskCategorySchema: GenMessage<DiskCategory> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 14);
+  messageDesc(file_micropod_v1_system, 15);
 
 /**
  * Single snapshot of runtime resource usage for all running containers,
@@ -854,7 +955,7 @@ export type StatsSnapshot = Message<"micropod.v1.StatsSnapshot"> & {
  * Use `create(StatsSnapshotSchema)` to create a new message.
  */
 export const StatsSnapshotSchema: GenMessage<StatsSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 15);
+  messageDesc(file_micropod_v1_system, 16);
 
 /**
  * Per-container resource counters within a StatsSnapshot.
@@ -965,7 +1066,7 @@ export type ContainerStats = Message<"micropod.v1.ContainerStats"> & {
  * Use `create(ContainerStatsSchema)` to create a new message.
  */
 export const ContainerStatsSchema: GenMessage<ContainerStats> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 16);
+  messageDesc(file_micropod_v1_system, 17);
 
 /**
  * A registry login, mapped from `container registry list`.
@@ -1000,7 +1101,7 @@ export type RegistryLogin = Message<"micropod.v1.RegistryLogin"> & {
  * Use `create(RegistryLoginSchema)` to create a new message.
  */
 export const RegistryLoginSchema: GenMessage<RegistryLogin> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 17);
+  messageDesc(file_micropod_v1_system, 18);
 
 /**
  * What a cleanup would reclaim: every image and volume annotated with the
@@ -1050,7 +1151,7 @@ export type UsageReport = Message<"micropod.v1.UsageReport"> & {
  * Use `create(UsageReportSchema)` to create a new message.
  */
 export const UsageReportSchema: GenMessage<UsageReport> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 18);
+  messageDesc(file_micropod_v1_system, 19);
 
 /**
  * An image plus the containers that reference it.
@@ -1085,7 +1186,7 @@ export type UsageReport_ImageUsage = Message<"micropod.v1.UsageReport.ImageUsage
  * Use `create(UsageReport_ImageUsageSchema)` to create a new message.
  */
 export const UsageReport_ImageUsageSchema: GenMessage<UsageReport_ImageUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 18, 0);
+  messageDesc(file_micropod_v1_system, 19, 0);
 
 /**
  * A volume plus the containers mounting it.
@@ -1120,7 +1221,7 @@ export type UsageReport_VolumeUsage = Message<"micropod.v1.UsageReport.VolumeUsa
  * Use `create(UsageReport_VolumeUsageSchema)` to create a new message.
  */
 export const UsageReport_VolumeUsageSchema: GenMessage<UsageReport_VolumeUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 18, 1);
+  messageDesc(file_micropod_v1_system, 19, 1);
 
 /**
  * Desktop-app updater status (Sparkle), proxied over the app control
@@ -1280,7 +1381,7 @@ export type UpdateStatus = Message<"micropod.v1.UpdateStatus"> & {
  * Use `create(UpdateStatusSchema)` to create a new message.
  */
 export const UpdateStatusSchema: GenMessage<UpdateStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 19);
+  messageDesc(file_micropod_v1_system, 20);
 
 /**
  * Updater lifecycle state.
@@ -1356,7 +1457,7 @@ export enum UpdateStatus_State {
  * Describes the enum micropod.v1.UpdateStatus.State.
  */
 export const UpdateStatus_StateSchema: GenEnum<UpdateStatus_State> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 19, 0);
+  enumDesc(file_micropod_v1_system, 20, 0);
 
 /**
  * The app's durable update transaction (~/.micropod/updates).
@@ -1420,7 +1521,7 @@ export type UpdateTransaction = Message<"micropod.v1.UpdateTransaction"> & {
  * Use `create(UpdateTransactionSchema)` to create a new message.
  */
 export const UpdateTransactionSchema: GenMessage<UpdateTransaction> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 20);
+  messageDesc(file_micropod_v1_system, 21);
 
 /**
  * One read-only answer to "what is this Micropod running, and where is
@@ -1503,7 +1604,7 @@ export type UpdateState = Message<"micropod.v1.UpdateState"> & {
  * Use `create(UpdateStateSchema)` to create a new message.
  */
 export const UpdateStateSchema: GenMessage<UpdateState> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 21);
+  messageDesc(file_micropod_v1_system, 22);
 
 /**
  * Lifecycle position.
@@ -1579,7 +1680,7 @@ export enum UpdateState_Kind {
  * Describes the enum micropod.v1.UpdateState.Kind.
  */
 export const UpdateState_KindSchema: GenEnum<UpdateState_Kind> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 21, 0);
+  enumDesc(file_micropod_v1_system, 22, 0);
 
 /**
  * Daemon-level operations: runtime snapshot, cleanup usage report, and the
@@ -1717,6 +1818,29 @@ export const SystemService: GenService<{
     methodKind: "unary";
     input: typeof GetMetricsHistoryRequestSchema;
     output: typeof MetricsHistorySchema;
+  },
+  /**
+   * Apple's container runtime as a dependency (GET /v1/system/dependency):
+   * whether the CLI is installed and qualified, whether its service runs,
+   * whether the native API answers, and what to do next. Never starts it.
+   *
+   * @generated from rpc micropod.v1.SystemService.GetRuntimeDependency
+   */
+  getRuntimeDependency: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof RuntimeDependencySchema;
+  },
+  /**
+   * Apple's runtime disk usage (`container system df`): containers, images
+   * and volumes with reclaimable bytes. `unavailable` while it is stopped.
+   *
+   * @generated from rpc micropod.v1.SystemService.GetDiskUsage
+   */
+  getDiskUsage: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof DiskUsageSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_micropod_v1_system, 0);

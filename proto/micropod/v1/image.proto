@@ -32,6 +32,10 @@ message Image {
   uint64 size_bytes = 5 [(gnostic.openapi.v3.property).example = {yaml: "3800000"}];
   // Per-platform variants of this image.
   repeated ImageVariant variants = 6;
+  // The engine that keeps this image when it is not Apple's (docker, ci,
+  // hvf); empty for Apple's runtime. Set by ListImages, which merges every
+  // enabled engine.
+  string runtime = 7 [(gnostic.openapi.v3.property).example = {yaml: "'hvf'"}];
 }
 
 // One platform variant of a multi-arch image.
@@ -56,6 +60,9 @@ message PullImageRequest {
   string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'alpine:3.20'"}];
   // Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
   optional string platform = 2 [(gnostic.openapi.v3.property).example = {yaml: "'linux/arm64'"}];
+  // The engine to pull into (apple, docker, ci, hvf). Unset pulls into the
+  // default runtime.
+  optional string runtime = 3 [(gnostic.openapi.v3.property).example = {yaml: "'hvf'"}];
 }
 
 // One pull-progress event (PullImage stream).

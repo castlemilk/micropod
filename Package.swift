@@ -103,7 +103,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodMCP",
-            dependencies: ["MicropodCore", "MicropodSharedFS", "MicropodBuildInfo"],
+            dependencies: [
+                "MicropodCore", "MicropodSharedFS", "MicropodBuildInfo",
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
@@ -122,7 +125,9 @@ let package = Package(
         .executableTarget(
             name: "MicropodRuntimeHost", dependencies: ["MicropodRuntimeHostKit", "MicropodCore", "MicropodBuildInfo"]),
         .executableTarget(name: "MicropodRuntimeSetup", dependencies: ["MicropodCore"]),
-        .testTarget(name: "MicropodAPITests", dependencies: ["MicropodAPI", "MicropodCore"]),
+        .testTarget(
+            name: "MicropodAPITests",
+            dependencies: ["MicropodAPI", "MicropodCore", .product(name: "SwiftProtobuf", package: "swift-protobuf")]),
         .testTarget(name: "MicropodRuntimeHostKitTests", dependencies: ["MicropodRuntimeHostKit", "MicropodCore"]),
         .executableTarget(
             name: "MicropodCLI",
@@ -231,7 +236,9 @@ let package = Package(
         ),
         .testTarget(
             name: "MicropodMCPTests",
-            dependencies: ["MicropodMCP", "MicropodCore"],
+            dependencies: [
+                "MicropodMCP", "MicropodCore", .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

@@ -55,6 +55,32 @@ service SystemService {
   // covers the range is returned. A container's or machine's history is
   // deleted with it.
   rpc GetMetricsHistory(GetMetricsHistoryRequest) returns (MetricsHistory);
+  // Apple's container runtime as a dependency (GET /v1/system/dependency):
+  // whether the CLI is installed and qualified, whether its service runs,
+  // whether the native API answers, and what to do next. Never starts it.
+  rpc GetRuntimeDependency(Empty) returns (RuntimeDependency);
+  // Apple's runtime disk usage (`container system df`): containers, images
+  // and volumes with reclaimable bytes. `unavailable` while it is stopped.
+  rpc GetDiskUsage(Empty) returns (DiskUsage);
+}
+
+message RuntimeDependency {
+  // checking, unsupportedHost, missingCLI, stopped, starting, stopping,
+  // nativeReady, cliFallback, unsupportedVersion, apiUnavailable or degraded.
+  string state = 1;
+  string cli_path = 2;
+  string cli_version = 3;
+  bool cli_version_supported = 4;
+  string api_server_version = 5;
+  // The backend the API uses for Apple's runtime (native or cli).
+  string backend = 6;
+  string runtime_install_root = 7;
+  bool maintenance_blocked = 8;
+  string message = 9;
+  string next_action = 10;
+  string installer_url = 11;
+  // The service status the CLI reported; unset when it could not be read.
+  SystemStatus status = 12;
 }
 
 message GetMetricsHistoryRequest {
@@ -96,6 +122,11 @@ message MetricsPoint {
   double network_tx_bytes_per_second = 8;
   double block_read_bytes_per_second = 9;
   double block_write_bytes_per_second = 10;
+  // The same rates' highest sample within the point.
+  double network_rx_bytes_per_second_max = 11;
+  double network_tx_bytes_per_second_max = 12;
+  double block_read_bytes_per_second_max = 13;
+  double block_write_bytes_per_second_max = 14;
 }
 
 // One execution engine (see ListRuntimes).

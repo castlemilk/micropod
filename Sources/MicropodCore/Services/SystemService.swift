@@ -84,44 +84,62 @@ public struct SystemService: SystemServing {
         backend: String = "cli",
         nativeReadiness: @Sendable () async -> RuntimeDependencyStatus.NativeReadiness = { .unobserved }
     ) async -> RuntimeDependencyStatus {
+        await dependencyReport(backend: backend, nativeReadiness: nativeReadiness).dependency
+    }
+
+    /// `dependencyStatus`, with the service status it was judged from (nil
+    /// when there was none to read, or reading it failed).
+    public func dependencyReport(
+        backend: String = "cli",
+        nativeReadiness: @Sendable () async -> RuntimeDependencyStatus.NativeReadiness = { .unobserved }
+    ) async -> (dependency: RuntimeDependencyStatus, status: Micropod_V1_SystemStatus?) {
         if client.usesIsolatedTransport {
             do {
                 let bytes = try await IsolatedRuntimeTransport.shared.request(
                     path: "/v1/managed/dependency", body: Data("{}".utf8), timeout: .seconds(10))
-                return try JSONDecoder().decode(RuntimeDependencyStatus.self, from: bytes)
+                return (try JSONDecoder().decode(RuntimeDependencyStatus.self, from: bytes), nil)
             } catch {
                 if let probe = try? await IsolatedRuntimeClient().call(.init(action: .probe)) {
                     var system = Micropod_V1_SystemStatus()
                     system.status = probe.nativeState == "stopped" ? "stopped" : "running"
                     system.cliVersion = (probe.selection ?? probe.pendingSelection)?.version ?? ""
                     system.apiServerVersion = probe.nativeVersion ?? ""
-                    return RuntimeDependencyStatus(
-                        cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
-                        status: probe.nativeState == nil ? nil : system,
-                        statusFailed: probe.nativeState == nil && probe.isTerminal, backend: "managed",
-                        native: .unavailable,
-                        starting: !probe.isTerminal && probe.action != .stop,
-                        stopping: !probe.isTerminal && probe.action == .stop)
+                    let status = probe.nativeState == nil ? nil : system
+                    return (
+                        RuntimeDependencyStatus(
+                            cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
+                            status: status,
+                            statusFailed: probe.nativeState == nil && probe.isTerminal, backend: "managed",
+                            native: .unavailable,
+                            starting: !probe.isTerminal && probe.action != .stop,
+                            stopping: !probe.isTerminal && probe.action == .stop), status
+                    )
                 }
-                return RuntimeDependencyStatus(
-                    cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
-                    status: nil, statusFailed: true, backend: "managed")
+                return (
+                    RuntimeDependencyStatus(
+                        cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
+                        status: nil, statusFailed: true, backend: "managed"), nil
+                )
             }
         }
         let path = client.executableURL.path
         let available = client.isAvailable()
         guard available, RuntimeDependencyStatus.hostSupported else {
-            return RuntimeDependencyStatus(cliAvailable: available, cliPath: path, status: nil, backend: backend)
+            return (RuntimeDependencyStatus(cliAvailable: available, cliPath: path, status: nil, backend: backend), nil)
         }
         do {
             let status = try await status()
             let native = status.status == "running" ? await nativeReadiness() : .unobserved
-            return RuntimeDependencyStatus(
-                cliAvailable: true, cliPath: path, status: status, backend: backend, native: native)
+            return (
+                RuntimeDependencyStatus(
+                    cliAvailable: true, cliPath: path, status: status, backend: backend, native: native), status
+            )
         } catch {
             // Do not expose raw process output/environment in rig diagnostics.
-            return RuntimeDependencyStatus(
-                cliAvailable: true, cliPath: path, status: nil, statusFailed: true, backend: backend)
+            return (
+                RuntimeDependencyStatus(
+                    cliAvailable: true, cliPath: path, status: nil, statusFailed: true, backend: backend), nil
+            )
         }
     }
 

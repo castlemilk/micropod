@@ -1225,7 +1225,11 @@ type StreamLogsRequest struct {
 	// Number of lines to drop from the start of the stream (after `tail` is
 	// applied). Lets a client re-open a stream after a transport error
 	// without replaying lines it already delivered.
-	SkipLines     int64 `protobuf:"varint,4,opt,name=skip_lines,json=skipLines,proto3" json:"skip_lines,omitempty"`
+	SkipLines int64 `protobuf:"varint,4,opt,name=skip_lines,json=skipLines,proto3" json:"skip_lines,omitempty"`
+	// Send the tail (`tail` lines; every line when 0), then end the stream
+	// instead of following the container. A client on a kept connection
+	// reads it to the end and reuses the connection.
+	NoFollow      bool `protobuf:"varint,5,opt,name=no_follow,json=noFollow,proto3" json:"no_follow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1286,6 +1290,13 @@ func (x *StreamLogsRequest) GetSkipLines() int64 {
 		return x.SkipLines
 	}
 	return 0
+}
+
+func (x *StreamLogsRequest) GetNoFollow() bool {
+	if x != nil {
+		return x.NoFollow
+	}
+	return false
 }
 
 // One streamed log line (StreamContainerLogs event).
@@ -1707,13 +1718,14 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x05state\x18\x04 \x01(\tB\x10\xbaG\r:\v\x12\t'stopped'R\x05state\"c\n" +
 	"\x16DeleteContainerRequest\x12&\n" +
 	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12!\n" +
-	"\x05force\x18\x02 \x01(\bB\v\xbaG\b:\x06\x12\x04trueR\x05force\"\xa8\x01\n" +
+	"\x05force\x18\x02 \x01(\bB\v\xbaG\b:\x06\x12\x04trueR\x05force\"\xc5\x01\n" +
 	"\x11StreamLogsRequest\x12&\n" +
 	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12%\n" +
 	"\x04tail\x18\x02 \x01(\x05B\x11\xbaG\a:\x05\x12\x03200\xbaH\x04\x1a\x02(\x00R\x04tail\x12\x12\n" +
 	"\x04boot\x18\x03 \x01(\bR\x04boot\x120\n" +
 	"\n" +
-	"skip_lines\x18\x04 \x01(\x03B\x11\xbaG\a:\x05\x12\x03120\xbaH\x04\"\x02(\x00R\tskipLines\"9\n" +
+	"skip_lines\x18\x04 \x01(\x03B\x11\xbaG\a:\x05\x12\x03120\xbaH\x04\"\x02(\x00R\tskipLines\x12\x1b\n" +
+	"\tno_follow\x18\x05 \x01(\bR\bnoFollow\"9\n" +
 	"\bLogChunk\x12-\n" +
 	"\x04text\x18\x01 \x01(\tB\x19\xbaG\x16:\x14\x12\x12'GET /healthz 200'R\x04text\"3\n" +
 	"\x0fGetStatsRequest\x12 \n" +

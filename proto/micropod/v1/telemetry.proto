@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+import "micropod/v1/api.proto";
+import "micropod/v1/cache.proto";
+
+// The Linux CI worker's telemetry (the worker MICROPOD_CI_HOME names for the
+// API process): one health verdict over its engine, hypervisor, kernel,
+// caches and workloads, the guest's recent request issues, and its traces.
+// Read live over the worker's sockets; the REST twins are GET /v1/ci/health
+// and GET /v1/ci/traces. `unavailable` when no worker runs.
+service TelemetryService {
+  rpc GetTelemetryHealth(Empty) returns (TelemetryHealth);
+  // The issues `micropod telemetry issues` lists.
+  rpc ListTelemetryIssues(Empty) returns (TelemetryIssues);
+  rpc GetTraces(Empty) returns (TelemetryTraces);
+}
+
+message TelemetryEngine {
+  // The VMM driving the worker.
+  string vmm = 1;
+  string engine = 2;
+  string engine_version = 3;
+  int32 cpus = 4;
+  uint64 memory_bytes = 5;
+  string storage_driver = 6;
+  string cgroup_driver = 7;
+  bool buildkit_available = 8;
+  string worker = 9;
+  string instance = 10;
+  string boot = 11;
+}
+
+message TelemetryWorkloads {
+  int32 running_count = 1;
+  int32 total_count = 2;
+}
+
+message TelemetryHealth {
+  // healthy, degraded or unhealthy.
+  string verdict = 1;
+  repeated string warnings = 2;
+  // RFC 3339.
+  string timestamp = 3;
+  TelemetryEngine engine = 4;
+  TelemetryWorkloads workloads = 5;
+  // The guest's cache totals, when it reported its inventory.
+  CacheTotals cache_totals = 6;
+  // The hypervisor answered its telemetry socket.
+  bool hypervisor_reported = 7;
+  // The guest kernel's metrics were read.
+  bool kernel_reported = 8;
+}
+
+message TelemetryIssue {
+  int64 ts_unix_ns = 1;
+  string kind = 2;
+  string source = 3;
+  string method = 4;
+  string route = 5;
+  int32 status = 6;
+  double duration_ms = 7;
+  optional string message = 8;
+}
+
+message TelemetryIssues {
+  string verdict = 1;
+  repeated string warnings = 2;
+  repeated TelemetryIssue issues = 3;
+}
+
+message TelemetryTraces {
+  // OTLP/JSON: an ExportTraceServiceRequest's JSON encoding
+  // ({"resourceSpans": [...]}), merged from the VMM and the guest.
+  bytes otlp_json = 1;
+  int32 resource_span_count = 2;
+}

@@ -650,6 +650,11 @@ public nonisolated struct Micropod_V1_StreamLogsRequest: Sendable {
   /// without replaying lines it already delivered.
   public var skipLines: Int64 = 0
 
+  /// Send the tail (`tail` lines; every line when 0), then end the stream
+  /// instead of following the container. A client on a kept connection
+  /// reads it to the end and reuses the connection.
+  public var noFollow: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1605,7 +1610,7 @@ nonisolated extension Micropod_V1_DeleteContainerRequest: SwiftProtobuf.Message,
 
 nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StreamLogsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}tail\0\u{1}boot\0\u{3}skip_lines\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}tail\0\u{1}boot\0\u{3}skip_lines\0\u{3}no_follow\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1617,6 +1622,7 @@ nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, Swif
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.tail) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.boot) }()
       case 4: try { try decoder.decodeSingularInt64Field(value: &self.skipLines) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.noFollow) }()
       default: break
       }
     }
@@ -1635,6 +1641,9 @@ nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, Swif
     if self.skipLines != 0 {
       try visitor.visitSingularInt64Field(value: self.skipLines, fieldNumber: 4)
     }
+    if self.noFollow != false {
+      try visitor.visitSingularBoolField(value: self.noFollow, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1643,6 +1652,7 @@ nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, Swif
     if lhs.tail != rhs.tail {return false}
     if lhs.boot != rhs.boot {return false}
     if lhs.skipLines != rhs.skipLines {return false}
+    if lhs.noFollow != rhs.noFollow {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -63,6 +63,12 @@ const (
 	// SystemServiceGetMetricsHistoryProcedure is the fully-qualified name of the SystemService's
 	// GetMetricsHistory RPC.
 	SystemServiceGetMetricsHistoryProcedure = "/micropod.v1.SystemService/GetMetricsHistory"
+	// SystemServiceGetRuntimeDependencyProcedure is the fully-qualified name of the SystemService's
+	// GetRuntimeDependency RPC.
+	SystemServiceGetRuntimeDependencyProcedure = "/micropod.v1.SystemService/GetRuntimeDependency"
+	// SystemServiceGetDiskUsageProcedure is the fully-qualified name of the SystemService's
+	// GetDiskUsage RPC.
+	SystemServiceGetDiskUsageProcedure = "/micropod.v1.SystemService/GetDiskUsage"
 )
 
 // SystemServiceClient is a client for the micropod.v1.SystemService service.
@@ -109,6 +115,13 @@ type SystemServiceClient interface {
 	// covers the range is returned. A container's or machine's history is
 	// deleted with it.
 	GetMetricsHistory(context.Context, *connect.Request[v1.GetMetricsHistoryRequest]) (*connect.Response[v1.MetricsHistory], error)
+	// Apple's container runtime as a dependency (GET /v1/system/dependency):
+	// whether the CLI is installed and qualified, whether its service runs,
+	// whether the native API answers, and what to do next. Never starts it.
+	GetRuntimeDependency(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.RuntimeDependency], error)
+	// Apple's runtime disk usage (`container system df`): containers, images
+	// and volumes with reclaimable bytes. `unavailable` while it is stopped.
+	GetDiskUsage(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.DiskUsage], error)
 }
 
 // NewSystemServiceClient constructs a client for the micropod.v1.SystemService service. By default,
@@ -188,22 +201,36 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(systemServiceMethods.ByName("GetMetricsHistory")),
 			connect.WithClientOptions(opts...),
 		),
+		getRuntimeDependency: connect.NewClient[v1.Empty, v1.RuntimeDependency](
+			httpClient,
+			baseURL+SystemServiceGetRuntimeDependencyProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("GetRuntimeDependency")),
+			connect.WithClientOptions(opts...),
+		),
+		getDiskUsage: connect.NewClient[v1.Empty, v1.DiskUsage](
+			httpClient,
+			baseURL+SystemServiceGetDiskUsageProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("GetDiskUsage")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // systemServiceClient implements SystemServiceClient.
 type systemServiceClient struct {
-	getSystem         *connect.Client[v1.Empty, v1.SystemSnapshot]
-	getUsage          *connect.Client[v1.Empty, v1.UsageReport]
-	checkForUpdates   *connect.Client[v1.Empty, v1.UpdateStatus]
-	getUpdateStatus   *connect.Client[v1.Empty, v1.UpdateStatus]
-	applyUpdate       *connect.Client[v1.Empty, v1.UpdateStatus]
-	getUpdateState    *connect.Client[v1.Empty, v1.UpdateState]
-	ping              *connect.Client[v1.Empty, v1.PingResponse]
-	listRuntimes      *connect.Client[v1.Empty, v1.ListRuntimesResponse]
-	setDefaultRuntime *connect.Client[v1.SetDefaultRuntimeRequest, v1.ListRuntimesResponse]
-	updateRuntime     *connect.Client[v1.UpdateRuntimeRequest, v1.ListRuntimesResponse]
-	getMetricsHistory *connect.Client[v1.GetMetricsHistoryRequest, v1.MetricsHistory]
+	getSystem            *connect.Client[v1.Empty, v1.SystemSnapshot]
+	getUsage             *connect.Client[v1.Empty, v1.UsageReport]
+	checkForUpdates      *connect.Client[v1.Empty, v1.UpdateStatus]
+	getUpdateStatus      *connect.Client[v1.Empty, v1.UpdateStatus]
+	applyUpdate          *connect.Client[v1.Empty, v1.UpdateStatus]
+	getUpdateState       *connect.Client[v1.Empty, v1.UpdateState]
+	ping                 *connect.Client[v1.Empty, v1.PingResponse]
+	listRuntimes         *connect.Client[v1.Empty, v1.ListRuntimesResponse]
+	setDefaultRuntime    *connect.Client[v1.SetDefaultRuntimeRequest, v1.ListRuntimesResponse]
+	updateRuntime        *connect.Client[v1.UpdateRuntimeRequest, v1.ListRuntimesResponse]
+	getMetricsHistory    *connect.Client[v1.GetMetricsHistoryRequest, v1.MetricsHistory]
+	getRuntimeDependency *connect.Client[v1.Empty, v1.RuntimeDependency]
+	getDiskUsage         *connect.Client[v1.Empty, v1.DiskUsage]
 }
 
 // GetSystem calls micropod.v1.SystemService.GetSystem.
@@ -261,6 +288,16 @@ func (c *systemServiceClient) GetMetricsHistory(ctx context.Context, req *connec
 	return c.getMetricsHistory.CallUnary(ctx, req)
 }
 
+// GetRuntimeDependency calls micropod.v1.SystemService.GetRuntimeDependency.
+func (c *systemServiceClient) GetRuntimeDependency(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.RuntimeDependency], error) {
+	return c.getRuntimeDependency.CallUnary(ctx, req)
+}
+
+// GetDiskUsage calls micropod.v1.SystemService.GetDiskUsage.
+func (c *systemServiceClient) GetDiskUsage(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.DiskUsage], error) {
+	return c.getDiskUsage.CallUnary(ctx, req)
+}
+
 // SystemServiceHandler is an implementation of the micropod.v1.SystemService service.
 type SystemServiceHandler interface {
 	// Runtime status + disk usage.
@@ -305,6 +342,13 @@ type SystemServiceHandler interface {
 	// covers the range is returned. A container's or machine's history is
 	// deleted with it.
 	GetMetricsHistory(context.Context, *connect.Request[v1.GetMetricsHistoryRequest]) (*connect.Response[v1.MetricsHistory], error)
+	// Apple's container runtime as a dependency (GET /v1/system/dependency):
+	// whether the CLI is installed and qualified, whether its service runs,
+	// whether the native API answers, and what to do next. Never starts it.
+	GetRuntimeDependency(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.RuntimeDependency], error)
+	// Apple's runtime disk usage (`container system df`): containers, images
+	// and volumes with reclaimable bytes. `unavailable` while it is stopped.
+	GetDiskUsage(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.DiskUsage], error)
 }
 
 // NewSystemServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -380,6 +424,18 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(systemServiceMethods.ByName("GetMetricsHistory")),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServiceGetRuntimeDependencyHandler := connect.NewUnaryHandler(
+		SystemServiceGetRuntimeDependencyProcedure,
+		svc.GetRuntimeDependency,
+		connect.WithSchema(systemServiceMethods.ByName("GetRuntimeDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
+	systemServiceGetDiskUsageHandler := connect.NewUnaryHandler(
+		SystemServiceGetDiskUsageProcedure,
+		svc.GetDiskUsage,
+		connect.WithSchema(systemServiceMethods.ByName("GetDiskUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.SystemService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SystemServiceGetSystemProcedure:
@@ -404,6 +460,10 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 			systemServiceUpdateRuntimeHandler.ServeHTTP(w, r)
 		case SystemServiceGetMetricsHistoryProcedure:
 			systemServiceGetMetricsHistoryHandler.ServeHTTP(w, r)
+		case SystemServiceGetRuntimeDependencyProcedure:
+			systemServiceGetRuntimeDependencyHandler.ServeHTTP(w, r)
+		case SystemServiceGetDiskUsageProcedure:
+			systemServiceGetDiskUsageHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -455,4 +515,12 @@ func (UnimplementedSystemServiceHandler) UpdateRuntime(context.Context, *connect
 
 func (UnimplementedSystemServiceHandler) GetMetricsHistory(context.Context, *connect.Request[v1.GetMetricsHistoryRequest]) (*connect.Response[v1.MetricsHistory], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.GetMetricsHistory is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) GetRuntimeDependency(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.RuntimeDependency], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.GetRuntimeDependency is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) GetDiskUsage(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.DiskUsage], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.GetDiskUsage is not implemented"))
 }

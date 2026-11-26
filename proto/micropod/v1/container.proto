@@ -371,6 +371,10 @@ message StreamLogsRequest {
   // applied). Lets a client re-open a stream after a transport error
   // without replaying lines it already delivered.
   int64 skip_lines = 4 [(buf.validate.field).int64.gte = 0, (gnostic.openapi.v3.property).example = {yaml: "120"}];
+  // Send the tail (`tail` lines; every line when 0), then end the stream
+  // instead of following the container. A client on a kept connection
+  // reads it to the end and reuses the connection.
+  bool no_follow = 5;
 }
 
 // One streamed log line (StreamContainerLogs event).
