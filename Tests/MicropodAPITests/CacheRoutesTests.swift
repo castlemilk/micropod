@@ -77,7 +77,9 @@ final class CacheRoutesTests: XCTestCase {
             XCTAssertEqual(reply.status, 200, "\(body): \(reply.body)")
         }
         let prunes = guest.requests.filter { $0.path == "/micropod/caches/prune" }.map(\.json)
-        XCTAssertEqual(prunes.count, bodies.count)
+        guard prunes.count == bodies.count else {
+            return XCTFail("the guest got \(prunes.count) prunes for \(bodies.count) bodies")
+        }
         XCTAssertEqual(prunes.map { $0["dryRun"] as? Bool }, [true, true, false, false, false])
         XCTAssertEqual(prunes[0]["reason"] as? String, "api")
         XCTAssertEqual(prunes[1]["scope"] as? String, "proj")

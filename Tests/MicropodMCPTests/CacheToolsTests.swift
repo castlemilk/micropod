@@ -99,7 +99,7 @@ final class CacheToolsTests: XCTestCase {
         XCTAssertFalse(reply.isError, reply.text)
 
         let requests = fake.requests.map(\.json)
-        XCTAssertEqual(requests.count, 3)
+        guard requests.count == 3 else { return XCTFail("\(requests.count) requests, want 3") }
         XCTAssertEqual(requests[0]["dryRun"] as? Bool, false)
         XCTAssertEqual((requests[0]["maxBytes"] as? NSNumber)?.uint64Value, 1000)
         XCTAssertEqual(requests[1]["dryRun"] as? Bool, false)
@@ -156,6 +156,7 @@ final class CacheToolsTests: XCTestCase {
         let requests = fake.requests
         XCTAssertEqual(requests.map(\.method), ["PUT", "PUT"])
         XCTAssertEqual(requests.map(\.path), ["/v1/caches/policy", "/v1/caches/policy"])
+        guard requests.count == 2 else { return }
         XCTAssertEqual(requests[0].json.count, 1)
         XCTAssertEqual(requests[0].json["sharedL0"] as? Bool, true)
         let second = requests[1].json
