@@ -82,21 +82,23 @@ final class StreamFrameCoalescerTests: XCTestCase {
     func testPartialBatchFlushesAfterTheDelayWhileTheSourceStaysOpen() async throws {
         let (source, continuation) = AsyncStream<Data>.makeStream()
         var iterator = StreamFrameCoalescer.coalesce(
-            source, maxBytes: 64 * 1024, maxDelay: .milliseconds(10)
+            source, maxBytes: 64 * 1024, maxDelay: .milliseconds(200)
         ).makeAsyncIterator()
 
+        // The first frame has no batch to join: it leaves at once.
         continuation.yield(Self.envelope("first"))
-        continuation.yield(Self.envelope("second"))
+        let first = await iterator.next()
+        XCTAssertEqual(try first.map(Self.payloads(in:)), ["first"])
+
+        // Frames right behind a write batch, and the batch leaves after the
+        // delay while the source stays open.
         let clock = ContinuousClock()
         let started = clock.now
-        let first = await iterator.next()
-        XCTAssertEqual(try first.map(Self.payloads(in:)), ["first", "second"])
-        XCTAssertLessThan(clock.now - started, .seconds(2), "a quiet stream must not hold lines back")
-
-        // The next batch starts its own timer.
+        continuation.yield(Self.envelope("second"))
         continuation.yield(Self.envelope("third"))
-        let second = await iterator.next()
-        XCTAssertEqual(try second.map(Self.payloads(in:)), ["third"])
+        let batched = await iterator.next()
+        XCTAssertEqual(try batched.map(Self.payloads(in:)), ["second", "third"])
+        XCTAssertLessThan(clock.now - started, .seconds(2), "a quiet stream must not hold lines back")
 
         continuation.finish()
         let end = await iterator.next()
@@ -114,8 +116,46 @@ final class StreamFrameCoalescerTests: XCTestCase {
             chunks.append(chunk)
         }
         XCTAssertLessThan(clock.now - started, .seconds(5))
-        XCTAssertEqual(chunks.count, 1, "the tail and the trailer leave in one send")
-        XCTAssertEqual(try Self.payloads(in: chunks[0]), ["tail-1", "tail-2", "{}"])
+        XCTAssertEqual(
+            try chunks.map(Self.payloads(in:)), [["tail-1"], ["tail-2", "{}"]],
+            "the first frame leaves at once; the tail and the trailer leave in one send")
+    }
+
+    /// The first frame waited out the whole `maxDelay` (10 ms in the API)
+    /// for company: B25 measured Connect log streams' first byte at ~14 ms
+    /// against ~1 ms for SSE, which is not coalesced.
+    func testTheFirstFrameAndOneAfterAQuietSpellLeaveAtOnce() async throws {
+        let (source, continuation) = AsyncStream<Data>.makeStream()
+        var iterator = StreamFrameCoalescer.coalesce(
+            source, maxBytes: 64 * 1024, maxDelay: .milliseconds(200)
+        ).makeAsyncIterator()
+        let clock = ContinuousClock()
+
+        var started = clock.now
+        continuation.yield(Self.envelope("first"))
+        let first = await iterator.next()
+        XCTAssertLessThan(clock.now - started, .milliseconds(20), "well under maxDelay")
+        XCTAssertEqual(try first.map(Self.payloads(in:)), ["first"])
+
+        try await Task.sleep(for: .milliseconds(250))
+        started = clock.now
+        continuation.yield(Self.envelope("after a pause"))
+        let next = await iterator.next()
+        XCTAssertLessThan(clock.now - started, .milliseconds(20), "nothing left within maxDelay: no batch to wait for")
+        XCTAssertEqual(try next.map(Self.payloads(in:)), ["after a pause"])
+        continuation.finish()
+    }
+
+    func testAFloodStillCoalescesAndKeepsItsBytes() async throws {
+        let frames = (0..<1000).map { Self.envelope(#"{"text":"flood line \#($0)"}"#) }
+        var writes: [Data] = []
+        for await chunk in StreamFrameCoalescer.coalesce(
+            Self.source(frames), maxBytes: 64 * 1024, maxDelay: .milliseconds(10))
+        {
+            writes.append(chunk)
+        }
+        XCTAssertLessThanOrEqual(writes.count, 5, "a handful of writes for 1000 frames, got \(writes.count)")
+        XCTAssertEqual(writes.reduce(Data(), +), frames.reduce(Data(), +), "the same bytes in the same order")
     }
 
     func testDroppingTheCoalescedStreamStopsPullingTheSource() async throws {
