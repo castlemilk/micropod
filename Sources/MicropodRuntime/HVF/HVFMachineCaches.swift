@@ -154,6 +154,10 @@ public struct HVFContainerCacheTool: Codable, Sendable, Equatable {
     public let reason: String?
     public let layer: String?
     public let scope: String?
+    /// How the latest start reached the store: `copy-on-write` (a view of
+    /// the container's own, whose writes go with it) or `read-only`; nil is
+    /// the store itself, read-write. Absent from guests before the trust tier.
+    public var access: String? = nil
 }
 
 public struct HVFContainerCachePlan: Codable, Sendable, Equatable {
@@ -164,6 +168,19 @@ public struct HVFContainerCachePlan: Codable, Sendable, Equatable {
     public let reason: String?
     public let policyDigest: String?
     public let tools: [String: HVFContainerCacheTool]?
+    /// The container's cache trust tier: `untrusted` or `readonly`; nil is
+    /// trusted (the guest leaves it out then).
+    public var trust: String? = nil
+    /// Where the tier came from: `policy-default`, `label`, `claim-refused`,
+    /// `creator` or `legacy-policy-default`.
+    public var trustFrom: String? = nil
+    /// The dependency proxy decision per tool kind (`gomod`, `npm`, `pnpm`):
+    /// `injected`, or why it was left out (`reader-tier`, `request-env`,
+    /// `npmrc-registry`, `goenv-proxy`, `proxy-unreachable`).
+    public var proxy: [String: String]? = nil
+
+    /// `trust`, with trusted for nil.
+    public var effectiveTrust: String { trust.flatMap { $0.isEmpty ? nil : $0 } ?? "trusted" }
 }
 
 public struct HVFContainerCacheExplain: Codable, Sendable, Equatable {

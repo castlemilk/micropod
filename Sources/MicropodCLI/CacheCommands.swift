@@ -257,41 +257,99 @@ enum CacheCommands {
             try printJSON(info)
             return
         }
-        print("CONTAINER: \(info.containerName) (\(String(info.containerId.prefix(12)))) [\(info.state)]")
-        print("IMAGE:     \(info.image)")
+        explainLines(info).forEach { print($0) }
+    }
+
+    /// `cache explain`'s text: the plan's scope, trust tier and where it came
+    /// from, the dependency proxy decisions, and each tool as the latest
+    /// start applied it, a store it only reads included.
+    static func explainLines(_ info: HVFContainerCacheExplain) -> [String] {
+        var out = [
+            "CONTAINER: \(info.containerName) (\(String(info.containerId.prefix(12)))) [\(info.state)]",
+            "IMAGE:     \(info.image)",
+        ]
         guard let cache = info.cache else {
-            print("CACHE:     no MicropodCache plan recorded on this container")
-            return
+            return out + ["CACHE:     no MicropodCache plan recorded on this container"]
         }
         let scope = cache.scope?.isEmpty == false ? cache.scope! : "(none)"
-        print("SCOPE:     \(scope)  UID=\(cache.uid ?? 0)  GID=\(cache.gid ?? 0)  HOME=\(cache.home ?? "/")")
+        out.append("SCOPE:     \(scope)  UID=\(cache.uid ?? 0)  GID=\(cache.gid ?? 0)  HOME=\(cache.home ?? "/")")
+        let from = cache.trustFrom.map { " (\($0): \(trustFromHint($0)))" } ?? ""
+        let reads =
+            cache.effectiveTrust == "trusted"
+            ? "writes the stores it uses"
+            : "only reads the stores: its writes go to copy-on-write views that leave with the container"
+        out.append("TRUST:     \(cache.effectiveTrust) — \(reads)\(from)")
+        if let proxy = cache.proxy, !proxy.isEmpty {
+            for kind in HVFMachineCachePolicy.toolKinds {
+                guard let why = proxy[kind] else { continue }
+                out.append("PROXY:     \(padRight(kind, 6)) \(why) — \(proxyHint(why))")
+            }
+        }
         if let reason = cache.reason, !reason.isEmpty {
-            print("PLAN OFF:  \(reason) — \(skipHint(reason))")
-            return
+            return out + ["PLAN OFF:  \(reason) — \(skipHint(reason))"]
         }
         guard let tools = cache.tools, !tools.isEmpty else {
-            print("TOOLS:     none")
-            return
+            return out + ["TOOLS:     none"]
         }
-        print("")
-        print(
+        out.append("")
+        out.append(
             "\(padRight("TOOL", 12)) \(padRight("LAYER", 5)) \(padRight("STATUS", 8)) \(padRight("SCOPE", 14)) DETAIL")
-        print(String(repeating: "-", count: 78))
+        out.append(String(repeating: "-", count: 78))
         for kind in HVFMachineCachePolicy.toolKinds {
             guard let st = tools[kind] else { continue }
             let layer = st.layer ?? (kind == "gobuild" ? "L1" : "L0")
             let sc = st.scope ?? scope
             if st.mode == "skipped" {
                 let r = st.reason ?? "skipped"
-                print(
+                out.append(
                     "\(padRight(kind, 12)) \(padRight(layer, 5)) \(padRight("skipped", 8)) \(padRight("-", 14)) \(r) — \(skipHint(r))"
                 )
+            } else if let access = st.access, !access.isEmpty {
+                // Attached, but the store is only read: nothing written there warms it.
+                let detail = "\(st.mode) -> \(st.path ?? "") [\(access): \(accessHint(access))]"
+                out.append(
+                    "\(padRight(kind, 12)) \(padRight(layer, 5)) \(padRight("reads", 8)) \(padRight(sc, 14)) \(detail)")
             } else {
                 let detail = "\(st.mode) -> \(st.path ?? "")"
-                print(
+                out.append(
                     "\(padRight(kind, 12)) \(padRight(layer, 5)) \(padRight("attached", 8)) \(padRight(sc, 14)) \(detail)"
                 )
             }
+        }
+        return out
+    }
+
+    static func trustFromHint(_ from: String) -> String {
+        switch from {
+        case "policy-default": return "no io.micropod.cache.trust label, so the machine policy's defaultTrust"
+        case "label": return "the container's io.micropod.cache.trust or .readonly setting"
+        case "claim-refused":
+            return
+                "it claimed trusted, which under an untrusted default only a label on the machine's Docker socket may "
+                + "(`micropod cache policy --default-trust`)"
+        case "creator": return "created from inside another container, so never more trusted than that container"
+        case "legacy-policy-default": return "an older engine's plan, read under an untrusted default"
+        default: return from
+        }
+    }
+
+    static func proxyHint(_ why: String) -> String {
+        switch why {
+        case "injected": return "the machine policy's dependency proxy is set in the container"
+        case "reader-tier": return "untrusted and read-only containers get none (`--proxy-untrusted on` changes it)"
+        case "request-env": return "the container or its image sets the variable, or names config files of its own"
+        case "npmrc-registry": return "an .npmrc of the project, a mount or the image sets the registry"
+        case "goenv-proxy": return "a go env file (`go env -w`) of a mount or the image sets GOPROXY"
+        case "proxy-unreachable": return "the proxy did not answer its health check at create or at the latest start"
+        default: return why
+        }
+    }
+
+    static func accessHint(_ access: String) -> String {
+        switch access {
+        case "copy-on-write": return "its writes go with the container"
+        case "read-only": return "bound read-only"
+        default: return access
         }
     }
 
@@ -457,6 +515,10 @@ enum CacheCommands {
         case "no-store-to-read":
             return "an untrusted or read-only container only reads, and no trusted container has filled this store yet"
         case "scope-not-allowed": return "the policy's default scope is not in its allowed scopes"
+        case "shared-store-retired":
+            return
+                "an older engine shared this tool's store across projects in scope global; recreate the "
+                + "container to use its own scope's store"
         default: return reason
         }
     }
