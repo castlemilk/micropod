@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -29,7 +30,11 @@ import (
 
 // reapChildTimeout bounds the reaping of one child of a family, so that one
 // that cannot be stopped or removed in time leaves every other child its own
-// time. A variable for tests.
+// time. A family's children are reaped at once, so however many of them run
+// out of time, they cost one reapChildTimeout in all: an owner's removal,
+// which answers once its family's first reaping is over (awaitFamily), waits
+// that long at most for them, as it did when one deadline bounded the whole
+// family. A variable for tests.
 var reapChildTimeout = 2 * time.Minute
 
 // reapRetryDelay is how long after a reaping that left part of a family the
@@ -39,13 +44,20 @@ var reapRetryDelay = 30 * time.Second
 
 const reapRetries = 5
 
+// orphanReapWait is how long an engine start waits, before it opens its
+// socket, for the first reaping of the families whose owner is gone; what is
+// still being reaped then goes on in the background, and is reaped again as
+// any other (retryReap). A child that cannot be reaped takes a whole
+// reapChildTimeout, longer than the engine's start-up may take
+// (startupBudget). A variable for tests.
+var orphanReapWait = 15 * time.Second
+
 // ownsFamily reports whether c's removal reaps a family: a container the
 // host created and granted a delegated socket.
 func (c *dockerContainer) ownsFamily() bool { return c.CreatedBy == "" && c.EngineSocket }
 
 // reapFamily removes what owner's delegated socket created, owner being gone.
 func (s *dockerEngine) reapFamily(ctx context.Context, owner string) error {
-	var errs []error
 	s.mu.Lock()
 	var children []*dockerContainer
 	for _, c := range s.containers {
@@ -54,14 +66,18 @@ func (s *dockerEngine) reapFamily(ctx context.Context, owner string) error {
 		}
 	}
 	s.mu.Unlock()
-	for _, c := range children {
-		child, cancel := context.WithTimeout(ctx, reapChildTimeout)
-		err := s.reapChild(child, c)
-		cancel()
-		if err != nil {
-			errs = append(errs, fmt.Errorf("container %.12s: %w", c.ID, err))
-		}
+	errs := make([]error, len(children))
+	var reaping sync.WaitGroup
+	for i, c := range children {
+		reaping.Go(func() {
+			child, cancel := context.WithTimeout(ctx, reapChildTimeout)
+			defer cancel()
+			if err := s.reapChild(child, c); err != nil {
+				errs[i] = fmt.Errorf("container %.12s: %w", c.ID, err)
+			}
+		})
 	}
+	reaping.Wait()
 	s.mu.Lock()
 	var networks []string
 	for id, n := range s.namedNetworks {
@@ -159,7 +175,9 @@ func (s *dockerEngine) familyVolumesLocked(created func(createdBy string) bool) 
 
 // reapOrphanFamilies reaps every family whose owner the engine does not have:
 // one removed by an engine that stopped before it reaped. Call once recovery
-// has loaded every container, before the socket opens.
+// has loaded every container, before the socket opens. It reaps the families
+// at once and returns when their first reapings are over, or after
+// orphanReapWait with those still running left to go on.
 func (s *dockerEngine) reapOrphanFamilies(ctx context.Context) {
 	s.mu.Lock()
 	orphans := map[string]bool{}
@@ -184,9 +202,24 @@ func (s *dockerEngine) reapOrphanFamilies(ctx context.Context) {
 	if err != nil {
 		log.Printf("find the volumes of removed Docker sockets: %v", err)
 	}
+	var first sync.WaitGroup
 	for owner := range orphans {
-		if err := s.reapFamily(ctx, owner); err != nil {
-			go s.retryReap(ctx, owner, err)
-		}
+		first.Add(1)
+		go func() {
+			err := s.reapFamily(ctx, owner)
+			first.Done()
+			s.retryReap(ctx, owner, err)
+		}()
+	}
+	reaped := make(chan struct{})
+	go func() {
+		first.Wait()
+		close(reaped)
+	}()
+	select {
+	case <-reaped:
+	case <-ctx.Done():
+	case <-time.After(orphanReapWait):
+		log.Printf("what the Docker sockets of removed containers created is still being removed after %v; the engine opens its socket meanwhile", orphanReapWait)
 	}
 }

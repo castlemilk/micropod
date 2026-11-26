@@ -513,7 +513,7 @@ func serveEngine(ctx context.Context, n node) error {
 	sweepVolumeTrash()
 	if !privateRootless() {
 		// Before the socket opens, so a job of the same project finds the
-		// names free.
+		// names free; for orphanReapWait at most, within startupBudget.
 		s.reapOrphanFamilies(ctx)
 	}
 	if !privateRootless() {
