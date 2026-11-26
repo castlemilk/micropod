@@ -157,30 +157,101 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 	// until the container releases its port, including across long SQL sessions.
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, lease: control, cancel: cancel}
-	p.relay(relayCtx, l, target, admit)
+	p.relay(relayCtx, l, target, relayGuard{admit: admit})
 	return p, port, nil
 }
 
-// relay copies every connection l accepts to target until relayCtx ends;
-// admit, when set, decides each peer by its address, and one it refuses is
-// closed before anything is dialed.
-func (p *publishedPort) relay(relayCtx context.Context, l *net.TCPListener, target string, admit func(netip.Addr) bool) {
-	var dial net.Dialer
+// relayDialTimeout bounds how long an accepted connection waits for the
+// published container to accept, so a target that never answers does not
+// pin the relay's descriptors until the port closes.
+const relayDialTimeout = 10 * time.Second
+
+// Container-facing relays (the gateway relay) hold at most relayPortSlots
+// connections each and gatewayRelaySlots between them, so no container can
+// exhaust the engine's descriptors through them (each costs two); a
+// connection over either limit is closed at once. The Mac-facing relay has
+// no limit: only the Mac's own loopback reaches it.
+const relayPortSlots = 128
+
+var gatewayRelaySlots = make(chan struct{}, 512)
+
+// relayGuard is who a relay serves and how many at once: admit, when set,
+// decides each peer by its address (closing one it refuses before dialing
+// anything); slots and shared, when set, are the listener's and the
+// engine-wide connection limits.
+type relayGuard struct {
+	admit         func(peer netip.Addr) bool
+	slots, shared chan struct{}
+}
+
+// take reserves a connection in both limits, or reports none is free.
+func (g relayGuard) take() (release func(), ok bool) {
+	for i, ch := range []chan struct{}{g.slots, g.shared} {
+		if ch == nil {
+			continue
+		}
+		select {
+		case ch <- struct{}{}:
+		default:
+			if i == 1 && g.slots != nil {
+				<-g.slots
+			}
+			return nil, false
+		}
+	}
+	return func() {
+		if g.shared != nil {
+			<-g.shared
+		}
+		if g.slots != nil {
+			<-g.slots
+		}
+	}, true
+}
+
+// tcpAcceptor is what relay accepts from (a *net.TCPListener).
+type tcpAcceptor interface {
+	AcceptTCP() (*net.TCPConn, error)
+}
+
+// relay copies every connection l accepts to target until relayCtx ends. An
+// accept that fails while the listener is open (EMFILE, ENFILE, ECONNABORTED)
+// is retried after a growing pause, as net/http does, so a burst that runs
+// the engine out of descriptors does not leave the port dead once it ends.
+func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target string, guard relayGuard) {
+	dial := net.Dialer{Timeout: relayDialTimeout}
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
+		var pause time.Duration
 		for {
 			in, err := l.AcceptTCP()
 			if err != nil {
-				return
+				if errors.Is(err, net.ErrClosed) || relayCtx.Err() != nil {
+					return
+				}
+				pause = min(max(2*pause, 5*time.Millisecond), time.Second)
+				select {
+				case <-relayCtx.Done():
+					return
+				case <-time.After(pause):
+				}
+				continue
+			}
+			pause = 0
+			release, ok := guard.take()
+			if !ok {
+				in.Close()
+				continue
 			}
 			p.wg.Add(1)
 			go func() {
 				defer p.wg.Done()
+				defer release()
 				defer in.Close()
-				if admit != nil {
+				if guard.admit != nil {
 					peer, _ := netip.ParseAddrPort(in.RemoteAddr().String())
-					if !admit(peer.Addr().Unmap()) {
+					if !guard.admit(peer.Addr().Unmap()) {
 						return
 					}
 				}
@@ -261,7 +332,7 @@ func openGatewayRelay(ctx context.Context, gateway string, port uint16, target s
 	}
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, cancel: cancel}
-	p.relay(relayCtx, l, target, admit)
+	p.relay(relayCtx, l, target, relayGuard{admit: admit, slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots})
 	return p, nil
 }
 
