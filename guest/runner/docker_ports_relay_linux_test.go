@@ -96,8 +96,7 @@ func TestGatewayRelayAdmitsOnlyWhatTheRuleAdmits(t *testing.T) {
 // Who a published port's gateway relay serves: a container on one of the
 // target's networks, or one of the target's job (its delegated socket's
 // owner and what that created), on any network; no other container, and no
-// address that is no running container's, except the Mac at the Mac-facing
-// relay.
+// address that is no running container's.
 func TestRelayAdmitsTheTargetsNetworkAndJob(t *testing.T) {
 	id := func(c byte) string { return strings.Repeat(string(c), 64) }
 	tcNet, jobNet, otherNet := id('1'), id('2'), id('3')
@@ -122,29 +121,57 @@ func TestRelayAdmitsTheTargetsNetworkAndJob(t *testing.T) {
 		name   string
 		target *dockerContainer
 		peer   string
-		mac    bool
 		want   bool
 	}{
-		{"the job reaches its sibling on another network", postgres, "10.88.0.10", false, true},
-		{"the job reaches its reaper", ryuk, "10.88.0.10", false, true},
-		{"a sibling reaches the job's reaper", ryuk, "10.90.1.2", false, true},
-		{"the target reaches itself", postgres, "10.90.1.2", false, true},
-		{"another job on the default network: not the sibling", postgres, "10.88.0.13", false, false},
-		{"another job on the default network: the reaper it could dial anyway", ryuk, "10.88.0.13", false, true},
-		{"another job's network: not the sibling", postgres, "10.90.3.2", false, false},
-		{"another job's network: not the reaper", ryuk, "10.90.3.2", false, false},
-		{"a host container on the sibling's network", postgres, "10.90.1.3", false, true},
-		{"a step reaches its job's service by its secondary network", service, "10.90.2.3", false, true},
-		{"a step reaches its job's service from its default address", service, "10.88.0.14", false, true},
-		{"the default network does not reach a job network's service", service, "10.88.0.13", false, false},
-		{"a stopped container's address is no one's", ryuk, "10.88.0.15", false, false},
-		{"an address that is no container's", ryuk, "10.88.0.99", false, false},
-		{"the engine's own address", ryuk, "10.88.0.1", false, false},
-		{"the Mac at the Mac-facing relay", postgres, "192.168.64.1", true, true},
-		{"a foreign container at the Mac-facing relay", postgres, "10.90.3.2", true, false},
+		{"the job reaches its sibling on another network", postgres, "10.88.0.10", true},
+		{"the job reaches its reaper", ryuk, "10.88.0.10", true},
+		{"a sibling reaches the job's reaper", ryuk, "10.90.1.2", true},
+		{"the target reaches itself", postgres, "10.90.1.2", true},
+		{"another job on the default network: not the sibling", postgres, "10.88.0.13", false},
+		{"another job on the default network: the reaper it could dial anyway", ryuk, "10.88.0.13", true},
+		{"another job's network: not the sibling", postgres, "10.90.3.2", false},
+		{"another job's network: not the reaper", ryuk, "10.90.3.2", false},
+		{"a host container on the sibling's network", postgres, "10.90.1.3", true},
+		{"a step reaches its job's service by its secondary network", service, "10.90.2.3", true},
+		{"a step reaches its job's service from its default address", service, "10.88.0.14", true},
+		{"the default network does not reach a job network's service", service, "10.88.0.13", false},
+		{"a stopped container's address is no one's", ryuk, "10.88.0.15", false},
+		{"an address that is no container's", ryuk, "10.88.0.99", false},
+		{"the engine's own address", ryuk, "10.88.0.1", false},
+		{"the Mac", postgres, "192.168.64.1", false},
 	} {
-		if got := s.relayAdmits(tc.target, tc.mac)(netip.MustParseAddr(tc.peer)); got != tc.want {
+		if got := s.relayAdmits(tc.target)(netip.MustParseAddr(tc.peer)); got != tc.want {
 			t.Errorf("%s: admitted %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// The Mac-facing relay of the userspace relay mode listens on the guest NIC,
+// which every container, BuildKit step and CI pod reaches: it serves the
+// Mac's port broker alone, never a container (not even one that shares the
+// target's network) or any other address of the machine's networks.
+func TestMacFacingRelayAdmitsOnlyTheBroker(t *testing.T) {
+	id := func(c byte) string { return strings.Repeat(string(c), 64) }
+	named := &workerNetwork{ID: id('1'), Name: "job-net", Subnet: netip.MustParsePrefix("10.90.1.0/24")}
+	target := &dockerContainer{IP: "10.90.1.2", dockerRecord: dockerRecord{ID: id('a'), Phase: "running", NetworkID: named.ID}}
+	peer := &dockerContainer{IP: "10.90.1.3", dockerRecord: dockerRecord{ID: id('b'), Phase: "running", NetworkID: named.ID}}
+	s := &dockerEngine{containers: map[string]*dockerContainer{target.ID: target, peer.ID: peer}, namedNetworks: map[string]*workerNetwork{named.ID: named}}
+	old := macBroker
+	t.Cleanup(func() { macBroker = old })
+	for _, broker := range []string{"10.43.0.1", ""} {
+		macBroker = func() netip.Addr { a, _ := netip.ParseAddr(broker); return a }
+		admit := s.macFacingAdmits()
+		for addr, want := range map[string]bool{
+			"10.90.1.3":  false, // a container on the target's network
+			"10.88.0.40": false, // a BuildKit step or CI pod on the default bridge
+			"10.89.0.7":  false, // the private allocation bridge
+			"10.90.1.99": false, // a named network's address that is no container's
+			"10.43.0.1":  true,  // the broker
+			"10.43.0.9":  broker == "",
+		} {
+			if got := admit(netip.MustParseAddr(addr)); got != want {
+				t.Errorf("broker %q, peer %s: admitted %v, want %v", broker, addr, got, want)
+			}
 		}
 	}
 }

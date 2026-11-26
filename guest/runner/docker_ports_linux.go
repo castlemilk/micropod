@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vishvananda/netlink"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
@@ -137,9 +138,9 @@ func reserveMacPort(ctx context.Context, host, guest uint16) (net.Conn, uint16, 
 }
 
 // openPublishedPort publishes target on the Mac's loopback. In the userspace
-// relay mode the guest end is a listener on the guest NIC, which a container
-// can reach too: admit (nil admits everyone) holds those peers to the same
-// rule as the gateway relay (relayAdmits).
+// relay mode the guest end is a listener on the guest NIC, which a container,
+// a BuildKit step or a CI pod can reach too: admit (nil admits everyone)
+// serves only the Mac's port broker there (macFacingAdmits).
 func openPublishedPort(ctx context.Context, ip, target string, host uint16, direct *directEndpoint, admit func(netip.Addr) bool) (*publishedPort, uint16, error) {
 	if kernelPublishedPorts() {
 		return openKernelPort(ctx, ip, target, host, direct)
@@ -170,7 +171,8 @@ const relayDialTimeout = 10 * time.Second
 // connections each and gatewayRelaySlots between them, so no container can
 // exhaust the engine's descriptors through them (each costs two); a
 // connection over either limit is closed at once. The Mac-facing relay has
-// no limit: only the Mac's own loopback reaches it.
+// no limit: it serves only the Mac's port broker (macFacingAdmits), and
+// closes any other peer, a container's included, before it dials anything.
 const relayPortSlots = 128
 
 var gatewayRelaySlots = make(chan struct{}, 512)
@@ -337,21 +339,81 @@ func openGatewayRelay(ctx context.Context, gateway string, port uint16, target s
 }
 
 // relayAdmits is the rule a published port of target holds a container peer
-// to at a relay a container can reach: the peer shares a network with target
-// (it could dial target's own address anyway) or is of target's family (the
-// delegated socket's owner and what it created there: a Testcontainers job
-// and its siblings, on whatever networks). A peer address that is no
-// container's is refused, unless macFacing, where it is the Mac's.
-func (s *dockerEngine) relayAdmits(target *dockerContainer, macFacing bool) func(netip.Addr) bool {
+// to at its gateway relay: the peer shares a network with target (it could
+// dial target's own address anyway) or is of target's family (the delegated
+// socket's owner and what it created there: a Testcontainers job and its
+// siblings, on whatever networks). A peer address that is no container's is
+// refused.
+func (s *dockerEngine) relayAdmits(target *dockerContainer) func(netip.Addr) bool {
 	return func(peer netip.Addr) bool {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		from := s.containerAtLocked(peer)
-		if from == nil {
-			return macFacing
-		}
-		return from.family() == target.family() || sharesNetwork(from, target)
+		return from != nil && (from.family() == target.family() || sharesNetwork(from, target))
 	}
+}
+
+// macFacingAdmits is who the Mac-facing relay of the userspace relay mode
+// serves: the Mac's port broker alone, which connects from the published
+// link's gateway (macBroker), as the kernel mapping admits only that source.
+// The relay listens on the guest NIC, which every container, BuildKit step
+// and CI pod reaches (nothing filters the engine's input), and none of them
+// needs it: a container dials a sibling's published port at its gateway
+// relay. With no gateway known it refuses every address of the machine's
+// container networks.
+func (s *dockerEngine) macFacingAdmits() func(netip.Addr) bool {
+	broker := macBroker()
+	return func(peer netip.Addr) bool {
+		if broker.IsValid() {
+			return peer == broker
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if !peer.IsValid() || reservedWorkerNetworks.Contains(peer) || s.containerAtLocked(peer) != nil {
+			return false
+		}
+		for _, n := range s.namedNetworks {
+			if n.Subnet.Contains(peer) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+// macBroker is the address the Mac's port broker connects from: the
+// dedicated published link's gateway, else eth0's default-route gateway (as
+// published-ports.sh matches it); invalid when there is none. A variable for
+// tests.
+var macBroker = func() netip.Addr {
+	if os.Getenv("MICROPOD_CI_PUBLISH_IPV4") != "" {
+		gw, _ := netip.ParseAddr(os.Getenv("MICROPOD_CI_PUBLISH_GATEWAY"))
+		return gw.Unmap()
+	}
+	link, err := netlink.LinkByName("eth0")
+	if err != nil {
+		return netip.Addr{}
+	}
+	routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return netip.Addr{}
+	}
+	for _, route := range routes {
+		if ones, _ := routeDstSize(route); ones == 0 {
+			if gw, ok := netip.AddrFromSlice(route.Gw.To4()); ok {
+				return gw
+			}
+		}
+	}
+	return netip.Addr{}
+}
+
+// routeDstSize is a route's destination prefix length (0 for a default route).
+func routeDstSize(route netlink.Route) (int, int) {
+	if route.Dst == nil {
+		return 0, 32
+	}
+	return route.Dst.Mask.Size()
 }
 
 // containerAtLocked is the running container with address ip on any of its
@@ -477,6 +539,10 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 	if !privateRootless() {
 		gateways = relayGateways(network)
 	}
+	var macAdmit func(netip.Addr) bool
+	if !kernelPublishedPorts() && !privateRootless() {
+		macAdmit = s.macFacingAdmits()
+	}
 	actual := portMap{}
 	for key, bindings := range ports {
 		port, _ := tcpPort(key)
@@ -488,7 +554,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			if privateRootless() {
 				p, n, err = publishRootless(ctx, target, port, request)
 			} else {
-				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request, direct, s.relayAdmits(c, true))
+				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request, direct, macAdmit)
 			}
 			if err != nil {
 				if p != nil {
@@ -509,7 +575,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			}
 			for _, gateway := range gateways {
 				// Best effort: the Mac mapping stands without it.
-				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c, false)); err != nil {
+				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c)); err != nil {
 					log.Printf("published port %d of %.12s at gateway %s: %v", n, c.ID, gateway, err)
 				} else {
 					open = append(open, g)
