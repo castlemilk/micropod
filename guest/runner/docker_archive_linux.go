@@ -342,7 +342,13 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 					return dockerArchiveView{}, nil, fail(http.StatusForbidden, "the archive path is not inside the creating container's binds")
 				}
 			}
-			view.root, pins, err = s.openDockerMount(mount, false, access, filepath.Join(c.dir(), "shim"))
+			if mount.root != "" {
+				// As its start would be: resolved and admitted by what its
+				// creator holds.
+				view.root, err = s.openChildBind(ctx, c, mount, write, mounts)
+			} else {
+				view.root, pins, err = s.openDockerMount(mount, false, access, filepath.Join(c.dir(), "shim"), nil)
+			}
 		} else if c.retainsRootFS() {
 			view.root, err = s.openStoppedArchiveRoot(ctx, c)
 		} else if c.Config.HostConfig.ReadonlyRootfs && !c.Config.HostConfig.AutoRemove {
@@ -366,6 +372,27 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 	}
 }
 
+// openChildBind opens, for a docker cp, the bind m of c, a stopped child of
+// a delegated socket, as a start of c would: below what its creator holds,
+// and admitted to it (creatorHold.admit); mounts are c's own.
+func (s *dockerEngine) openChildBind(ctx context.Context, c *dockerContainer, m dockerMount, write bool, mounts []dockerMount) (*os.File, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	creator, err := s.creatorHoldLocked(c.CreatedBy, viewerOf(ctx), c.BindRoots)
+	if err != nil {
+		return nil, err
+	}
+	f, _, err := s.openDockerMount(m, false, aliasRead, filepath.Join(c.dir(), "shim"), creator)
+	if err != nil || creator == nil {
+		return f, err
+	}
+	if err := creator.admit(m, f, write, mounts); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
 // guardMachineDir holds an archive view of a bind to what the container sees
 // of it: never the machine's own directory (docker_private_linux.go). A bind
 // source inside it is refused; one that covers it gets the directory as an
@@ -373,16 +400,30 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 // not part of the view; and every descriptor the view opens is checked by
 // identity (machineGuard), because the host's file system ignores case and a
 // rename can move the directory where no spelling of the mask is.
+//
+// A running container's file bind is the very file its start checked, held
+// open since (dockerLiveArchive): the container reads it, whatever its host
+// path now names (a save that renames a new file over it, an unlink), so a
+// copy of it is decided by that start, not by a walk up from a path that may
+// no longer lead to it.
 func (s *dockerEngine) guardMachineDir(view *dockerArchiveView, mount dockerMount) error {
 	if s.machineDir == nil || mount.Type != "bind" {
 		return nil
 	}
-	mask, err := s.machineDir.check(view.root, mount.Source, mount.Target)
-	if err != nil {
-		var api apiError
-		if errors.As(err, &api) {
-			return fail(http.StatusForbidden, "the archive path is inside the machine's own directory, which no container reaches")
+	if view.running {
+		var st unix.Stat_t
+		if err := unix.Fstat(int(view.root.Fd()), &st); err != nil {
+			return err
 		}
+		if st.Mode&unix.S_IFMT != unix.S_IFDIR {
+			return nil
+		}
+	}
+	mask, err := s.machineDir.check(view.root, mount.Source, mount.Target)
+	if inside := (insideMachineDir{}); errors.As(err, &inside) {
+		return fail(http.StatusForbidden, "the archive path is inside the machine's own directory, which no container reaches")
+	}
+	if err != nil {
 		return err
 	}
 	if mask != "" {

@@ -167,3 +167,87 @@ func TestArchiveNeverReachesTheMachineDirectory(t *testing.T) {
 		t.Error("the archive of the directory above held the machine directory's files")
 	}
 }
+
+// docker cp out of a running container's file bind copies the file the
+// container sees, the one its start opened, after the host replaced the
+// file at that path (an editor's save, sed -i, git checkout) or unlinked it;
+// a bind of a file inside the machine's directory is still refused, at its
+// start, with the error that says so.
+func TestArchiveOfAReplacedFileBindIsTheContainersFile(t *testing.T) {
+	ws := t.TempDir()
+	machine := filepath.Join(ws, ".micropod", "hvf")
+	if err := os.MkdirAll(machine, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(machine, "machine.json"), []byte(`{"secret":1}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	conf := filepath.Join(ws, "app.conf")
+	if err := os.WriteFile(conf, []byte("as started"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := loadPrivateRoot(machine, filepath.Join(t.TempDir(), "private-mask"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &dockerEngine{workspace: ws, machineDir: r}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("a", 64), Phase: "created",
+		Config: dockerConfig{Image: "nginx", HostConfig: dockerHost{Binds: []string{conf + ":/etc/app.conf"}}}}, changed: make(chan struct{})}
+	files, mounts, _, err := s.openMounts(c.Config, cacheVolumeRules{}, false, "", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeMounts(files)
+	c.Phase, c.archive = "running", newDockerLiveArchive(files, mounts)
+	read := func() (string, error) {
+		t.Helper()
+		p, _ := parseArchivePath("/etc/app.conf")
+		view, closeView, err := s.pinArchive(context.Background(), c, p.absolute, false)
+		if err != nil {
+			return "", err
+		}
+		defer closeView()
+		rec := httptest.NewRecorder()
+		if err := serveArchiveView(rec, httptest.NewRequest(http.MethodGet, "/", nil), view, p, false); err != nil {
+			return "", err
+		}
+		in := tar.NewReader(rec.Body)
+		if _, err := in.Next(); err != nil {
+			return "", err
+		}
+		b, err := io.ReadAll(in)
+		return string(b), err
+	}
+	// Saved the way editors do: a new file renamed over the old one.
+	if err := os.WriteFile(conf+".new", []byte("saved later"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(conf+".new", conf); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := read(); err != nil || got != "as started" {
+		t.Fatalf("docker cp of the replaced file bind: %q, %v; want the container's file", got, err)
+	}
+	if err := os.Remove(conf); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := read(); err != nil || got != "as started" {
+		t.Fatalf("docker cp of the unlinked file bind: %q, %v; want the container's file", got, err)
+	}
+
+	// A file inside the machine's directory is refused at the start.
+	inside := dockerConfig{Image: "nginx", HostConfig: dockerHost{Binds: []string{filepath.Join(machine, "machine.json") + ":/m.json:ro"}}}
+	if files, _, _, err := s.openMounts(inside, cacheVolumeRules{}, false, "", t.TempDir()); err == nil {
+		closeMounts(files)
+		t.Fatal("a start bound a file inside the machine's directory")
+	} else if !strings.Contains(err.Error(), "machine's own directory") {
+		t.Fatalf("a start bound a file inside the machine's directory: %v", err)
+	}
+	// And a stopped container's copy of one names why.
+	stopped := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("b", 64), Phase: "created", Config: inside}, changed: make(chan struct{})}
+	_, _, err = s.pinArchive(context.Background(), stopped, "/m.json", false)
+	var api apiError
+	if !errors.As(err, &api) || api.code != http.StatusForbidden || !strings.Contains(api.message, "machine's own directory") {
+		t.Fatalf("docker cp of a file inside the machine's directory: %v, want 403", err)
+	}
+}

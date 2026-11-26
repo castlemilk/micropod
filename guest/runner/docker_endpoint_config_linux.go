@@ -154,6 +154,13 @@ func (s *dockerEngine) allocateDockerEndpoint(n *workerNetwork, aliases []string
 }
 
 func (s *dockerEngine) selectNetwork(spec *dockerConfig) (id, address string, endpoints []dockerSecondaryEndpoint, err error) {
+	return s.selectNetworkFor(spec, "")
+}
+
+// selectNetworkFor is selectNetwork for a create through viewer's delegated
+// socket ("" for the host's): a network it may not see is not there
+// (findNetworkFor), with the same answer as one that does not exist.
+func (s *dockerEngine) selectNetworkFor(spec *dockerConfig, viewer string) (id, address string, endpoints []dockerSecondaryEndpoint, err error) {
 	if builtin := builtinDockerNetwork(spec.HostConfig.NetworkMode); builtin != "" {
 		if spec.HostConfig.NetworkMode == networkID(builtin) {
 			spec.HostConfig.NetworkMode = builtin
@@ -161,7 +168,7 @@ func (s *dockerEngine) selectNetwork(spec *dockerConfig) (id, address string, en
 		spec.Endpoints = nil
 		return "", "", nil, nil
 	}
-	primary, err := s.findNetwork(spec.HostConfig.NetworkMode, false)
+	primary, err := s.findNetworkFor(viewer, spec.HostConfig.NetworkMode, false)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -170,7 +177,7 @@ func (s *dockerEngine) selectNetwork(spec *dockerConfig) (id, address string, en
 	}
 	seen := make(map[string]bool, len(spec.Endpoints))
 	for key, config := range spec.Endpoints {
-		n, err := s.findNetwork(key, false)
+		n, err := s.findNetworkFor(viewer, key, false)
 		if err != nil {
 			return "", "", nil, err
 		}

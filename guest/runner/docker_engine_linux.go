@@ -97,19 +97,30 @@ type dockerContainer struct {
 	readersDone        chan struct{}
 	generationLogError string
 	removed            bool
+	// binds are the descriptors the running start opened, from before the
+	// container runs until it has exited: what a child of its delegated
+	// socket is held to by identity (creatorHoldLocked).
+	binds *heldBinds
+	// reaped closes once what c's delegated socket created is gone, after
+	// c's removal (reapFamily); nil for a container that owns no family.
+	reaped chan struct{}
 }
 type dockerEngine struct {
 	buildkitSocket string
-	direct         *directNetwork
-	networkMu      sync.Mutex
-	namedNetworks  map[string]*workerNetwork
-	startSlots     chan struct{}
-	jobParents     dockerJobParents
-	metrics        dockerMetrics
-	node           node
-	imageMu        sync.RWMutex
-	healthImages   dockerImageHealthCache
-	workspace      string
+	// builds records the socket each build solved through the Docker
+	// socket proxy came from, so a delegated socket reaches only its own
+	// (dockerBuildRefs).
+	builds        dockerBuildRefs
+	direct        *directNetwork
+	networkMu     sync.Mutex
+	namedNetworks map[string]*workerNetwork
+	startSlots    chan struct{}
+	jobParents    dockerJobParents
+	metrics       dockerMetrics
+	node          node
+	imageMu       sync.RWMutex
+	healthImages  dockerImageHealthCache
+	workspace     string
 	// machineDir guards the machine's own directory inside the workspace
 	// (docker_private_linux.go); nil when it is outside or unknown.
 	machineDir *privateRoot
@@ -455,6 +466,9 @@ func serveEngine(ctx context.Context, n node) error {
 	}
 	s.namedNetworks = make(map[string]*workerNetwork)
 	if !privateRootless() {
+		if err := guardHostOutput(ctx); err != nil {
+			return fmt.Errorf("refuse the machine's own connections into container networks: %w", err)
+		}
 		if _, err := prepareDockerBridgeResolver(); err != nil {
 			return fmt.Errorf("prepare the native bridge resolver: %w", err)
 		}
@@ -473,6 +487,11 @@ func serveEngine(ctx context.Context, n node) error {
 	}
 	if err := os.Mkdir(s.execPipeDir, 0700); err != nil {
 		return err
+	}
+	if !privateRootless() {
+		// Before the socket opens, so a job of the same project finds the
+		// names free.
+		s.reapOrphanFamilies(ctx)
 	}
 	if !privateRootless() {
 		// Before the socket opens, so no probe of this engine can be swept
@@ -633,11 +652,16 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, c := range s.containers {
-		if c.Name == name {
-			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", "/"+c.Name, c.ID))
+		if c.Name != name {
+			continue
 		}
+		if !seesContainer(viewerOf(ctx), c) {
+			// Names are the machine's; another job's container is not there.
+			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by another job's container.", "/"+c.Name))
+		}
+		return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", "/"+c.Name, c.ID))
 	}
-	network, ip, endpoints, err := s.selectNetwork(&spec)
+	network, ip, endpoints, err := s.selectNetworkFor(&spec, viewerOf(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -647,7 +671,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	var bindRoots map[string]string
 	if viewer := viewerOf(ctx); viewer != "" && !privateRootless() {
 		createdBy = viewer
-		if bindRoots, err = s.delegatedCreateLocked(viewer, &spec, network, endpoints); err != nil {
+		if bindRoots, err = s.delegatedCreateLocked(viewer, &spec); err != nil {
 			return nil, err
 		}
 	} else if viewer == "" {
@@ -668,9 +692,17 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, _, err := s.openMountsWith(spec, containerVolumeRules(s.cachePolicy.get(), spec, plan, createdBy), true, mountSockets{bindRoots: bindRoots}, "")
+	creator, err := s.creatorHoldLocked(createdBy, createdBy, bindRoots)
 	if err != nil {
-		return nil, fail(400, err.Error())
+		return nil, err
+	}
+	files, _, _, err := s.openMountsWith(spec, containerVolumeRules(s.cachePolicy.get(), spec, plan, createdBy), true, mountSockets{bindRoots: bindRoots, creator: creator}, "")
+	if err != nil {
+		var api apiError
+		if !errors.As(err, &api) {
+			err = fail(400, err.Error())
+		}
+		return nil, err
 	}
 	closeMounts(files)
 	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy, BindRoots: bindRoots}, changed: make(chan struct{})}
@@ -780,9 +812,10 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	if user == "" {
 		user = facts.User
 	}
-	var roots map[string]string
+	var roots *childProbeRoots
 	if (pol.NpmRegistry != "" || pol.GoProxy != "") && !off {
 		roots = s.probeRoots(ctx, spec)
+		defer roots.close()
 	}
 	if pol.NpmRegistry != "" && !off {
 		wd := spec.WorkingDir
@@ -804,13 +837,30 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 	return &plan, runAs, nil
 }
 
-// probeRoots is what holds the config probes of a create (projectNpmRegistry,
-// mountedConfigSets) to what its container may bind: nil for the host's
-// socket, whose binds resolve from the workspace, else the roots of a child
-// of a delegated socket (delegatedBinds on a copy of the request), empty when
-// its binds are not inside its creator's, so no probe reads outside them:
-// whether a probe found a setting shows in the child's environment.
-func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) map[string]string {
+// childProbeRoots holds the config probes of a create through a delegated
+// socket (projectNpmRegistry, mountedConfigSets) to what its child may bind:
+// each bind's root (delegatedBinds on a copy of the request; empty when its
+// binds are not inside its creator's, so no probe reads outside them:
+// whether a probe found a setting shows in the child's environment), and a
+// copy of the descriptor the running creator binds each root from, so a
+// probe resolves a root as the creator binds it (openMountWithin).
+type childProbeRoots struct {
+	roots map[string]string
+	held  map[string]*os.File
+}
+
+func (r *childProbeRoots) close() {
+	if r == nil {
+		return
+	}
+	for _, f := range r.held {
+		f.Close()
+	}
+}
+
+// probeRoots is the childProbeRoots of a create: nil for the host's socket,
+// whose binds resolve from the workspace. Close it once the probes are done.
+func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) *childProbeRoots {
 	viewer := viewerOf(ctx)
 	if viewer == "" || privateRootless() {
 		return nil
@@ -819,12 +869,28 @@ func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) map[st
 	spec.HostConfig.Mounts = slices.Clone(spec.HostConfig.Mounts)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if owner := s.containers[viewer]; owner != nil {
-		if roots, err := delegatedBinds(owner, &spec); err == nil {
-			return roots
+	probe := &childProbeRoots{roots: map[string]string{}, held: map[string]*os.File{}}
+	owner := s.containers[viewer]
+	if owner == nil {
+		return probe
+	}
+	roots, err := delegatedBinds(owner, &spec)
+	if err != nil {
+		return probe
+	}
+	probe.roots = roots
+	creator, err := s.creatorHoldLocked(viewer, viewer, roots)
+	if err != nil {
+		return probe
+	}
+	for _, root := range roots {
+		if f := creator.rootOf(root); f != nil && probe.held[root] == nil {
+			if fd, err := unix.FcntlInt(f.Fd(), unix.F_DUPFD_CLOEXEC, 0); err == nil {
+				probe.held[root] = os.NewFile(uintptr(fd), root)
+			}
 		}
 	}
-	return map[string]string{}
+	return probe
 }
 
 // openConfigFile opens the file at p, which the request mount m covers, for a
@@ -832,13 +898,14 @@ func (s *dockerEngine) probeRoots(ctx context.Context, spec dockerConfig) map[st
 // for the host's), else below the workspace for a bind, and below the volume
 // itself for a named one, so a symlink a mount carries cannot lead a probe
 // into another job's files.
-func (s *dockerEngine) openConfigFile(m dockerMount, p string, roots map[string]string) (*os.File, error) {
+func (s *dockerEngine) openConfigFile(m dockerMount, p string, roots *childProbeRoots) (*os.File, error) {
 	switch {
 	case m.Type == "bind" && roots != nil:
-		if roots[m.Target] == "" {
+		root := roots.roots[m.Target]
+		if root == "" {
 			return nil, errors.New("bind source is outside the creating container's binds")
 		}
-		return openMountWithin(s.workspace, roots[m.Target], p)
+		return openMountWithin(s.workspace, root, p, roots.held[root])
 	case m.Type == "bind":
 		return openMount(s.workspace, p)
 	case m.Type == "volume" && dockerName.MatchString(m.Source):
@@ -853,7 +920,7 @@ func (s *dockerEngine) openConfigFile(m dockerMount, p string, roots map[string]
 // that the same workspace bind covers. Files are opened below the workspace
 // (below roots, openConfigFile) without following symlinks out of it; a
 // missing or unreadable file counts as no setting.
-func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string, roots map[string]string) bool {
+func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string, roots *childProbeRoots) bool {
 	wd := spec.WorkingDir
 	if wd == "" {
 		wd = imageWorkDir
@@ -909,7 +976,7 @@ var configVolumesDir = filepath.Join(engineRoot, "volumes")
 // without following symlinks out of it; a missing or unreadable file counts
 // as no setting. A file a step writes after create (a clone into a volume, a
 // cd into a subproject) is not seen: the policy's proxy then wins over it.
-func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, match func([]byte) bool, roots map[string]string) bool {
+func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, match func([]byte) bool, roots *childProbeRoots) bool {
 	mounts, _ := spec.mounts()
 	for _, p := range paths {
 		if !filepath.IsAbs(p) {
@@ -972,7 +1039,10 @@ func readNpmrc(f *os.File) []byte {
 	b, _ := io.ReadAll(io.LimitReader(r, 64<<10))
 	return b
 }
-func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) {
+
+// start starts c; viewer is the container whose delegated socket asked for
+// it ("" for the host's socket).
+func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (startErr error) {
 	defer func() {
 		if startErr == nil {
 			return
@@ -1062,14 +1132,22 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// A plan an older engine made has no tier of its own yet, or an older
 	// table's exclusive kinds.
 	c.Cache.applyCurrentRules(pol)
-	files, mounts, aliasPins, err := s.openMountsWith(c.Config, containerVolumeRules(pol, c.Config, c.Cache, c.CreatedBy), false,
-		mountSockets{cleanup: socket, engine: engineSocket, bindRoots: c.delegatedBindRoots()}, filepath.Join(c.dir(), "shim"))
+	creator, err := s.creatorHoldLocked(c.CreatedBy, viewer, c.BindRoots)
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
 		lease.Close()
 		return err
 	}
+	files, mounts, aliasPins, err := s.openMountsWith(c.Config, containerVolumeRules(pol, c.Config, c.Cache, c.CreatedBy), false,
+		mountSockets{cleanup: socket, engine: engineSocket, bindRoots: c.delegatedBindRoots(), creator: creator}, filepath.Join(c.dir(), "shim"))
+	if err != nil {
+		s.mu.Unlock()
+		closeSocket()
+		lease.Close()
+		return err
+	}
+	held := &heldBinds{byTarget: mountFiles(files, mounts)}
 	// Replay the create-time decision; never recompute it. The unit locks and
 	// pinned store directories stay open until the container exits.
 	caches := openCacheMounts(c.Cache, filepath.Join(c.dir(), "shim"))
@@ -1141,6 +1219,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		return err
 	}
 	c.console = console
+	c.binds = held // until the exit below, before its files close
 	c.generationLogError = ""
 	write, sealLog := s.appendDockerOutput(c, f, c.outputBytes)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1299,6 +1378,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		caches.release()
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		if c.binds == held {
+			c.binds = nil // its files close as this goroutine returns
+		}
 		// An admitted explicit kill publishes only after its CRI acknowledgement.
 		// Let that acknowledgement precede exit and automatic removal events.
 		for c.killEventDone != nil {
@@ -1433,6 +1515,17 @@ func (s *dockerEngine) removeLocked(c *dockerContainer) (err error) {
 			delete(s.execs, id)
 		}
 	}
+	if c.ownsFamily() {
+		// What its socket created goes with it (docker_family_linux.go);
+		// remove waits for it, a removal on exit does not.
+		c.reaped = make(chan struct{})
+		go func() {
+			defer close(c.reaped)
+			if err := s.reapFamily(context.Background(), c.ID); err != nil {
+				log.Printf("remove what the Docker socket of %.12s created: %v", c.ID, err)
+			}
+		}()
+	}
 	c.signal()
 	if c.Config.HostConfig.AutoRemove {
 		return os.RemoveAll(retired)
@@ -1517,6 +1610,7 @@ func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force boo
 		}
 		if !c.busy() {
 			err := s.removeLocked(c)
+			reaped := c.reaped
 			s.mu.Unlock()
 			if err == nil && c.RootFS != nil {
 				if err := s.reclaimDockerRootFS(context.WithoutCancel(ctx), c, filepath.Join(engineRoot, "retired", c.ID)); err != nil {
@@ -1525,6 +1619,14 @@ func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force boo
 				s.mu.Lock()
 				s.containerEvent(c, "destroy", nil)
 				s.mu.Unlock()
+			}
+			if err == nil && reaped != nil {
+				// The next job of the same project may reuse the names
+				// once this answers.
+				select {
+				case <-reaped:
+				case <-ctx.Done():
+				}
 			}
 			return err
 		}

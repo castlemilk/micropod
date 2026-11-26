@@ -132,7 +132,7 @@ func TestDelegatedSocketSeesOnlyItsFamily(t *testing.T) {
 			t.Errorf("the bridge's members show another job's container %.12s", id)
 		}
 	}
-	for _, path := range []string{"/micropod/caches", "/micropod/containers/summary", "/micropod/metrics", "/micropod/traces", "/v1.47/micropod/storage"} {
+	for _, path := range []string{"/micropod/caches", "/micropod/containers/summary", "/micropod/metrics", "/micropod/traces", "/v1.47/micropod/storage", "/micropod/buildkit", "/v1.47/micropod/buildkit"} {
 		if code := getJSON(t, client, path, nil); code != 403 {
 			t.Errorf("%s: %d, want 403", path, code)
 		}
@@ -191,7 +191,7 @@ func TestDelegatedRoute(t *testing.T) {
 		{"POST", "/containers/create", true}, {"GET", "/containers/json", true}, {"POST", "/containers/x/start", true},
 		{"PUT", "/containers/x/archive", true}, {"POST", "/exec/x/start", true}, {"POST", "/images/create", true},
 		{"POST", "/networks/create", true}, {"GET", "/networks", true}, {"DELETE", "/volumes/x", true}, {"GET", "/volumes", true},
-		{"GET", "/micropod/buildkit", true},
+		{"GET", "/micropod/buildkit", false}, {"GET", "/v1.47/micropod/buildkit", false},
 		{"GET", "/micropod/caches", false}, {"POST", "/micropod/caches/prune", false}, {"DELETE", "/v1.47/micropod/caches", false},
 		{"POST", "/micropod/caches/debug", false}, {"GET", "/micropod/containers/summary", false}, {"POST", "/micropod/traces/clear", false},
 		{"GET", "/micropod/metrics", false}, {"GET", "/micropod/storage", false}, {"POST", "/commit", false}, {"POST", "/build", false},
@@ -289,7 +289,7 @@ func TestDelegatedChildKeepsTheOwnersReadOnlyVolume(t *testing.T) {
 		Mounts: []dockerMount{{Type: "volume", Source: "shared-fixtures", Target: "/m"}},
 	}}
 	s.mu.Lock()
-	_, err := s.delegatedCreateLocked(owner.ID, &spec, "", nil)
+	_, err := s.delegatedCreateLocked(owner.ID, &spec)
 	s.mu.Unlock()
 	if err != nil {
 		t.Fatal(err)
@@ -350,5 +350,116 @@ func TestHostSocketDoesNotAdoptADelegatedSocketsObjects(t *testing.T) {
 	}
 	if err := s.hostJoinLocked(strings.Repeat("9", 64), []string{squat.ID}, nil); err == nil {
 		t.Error("another family joined the owner's network on the host's socket")
+	}
+}
+
+// On a delegated socket another job's network is not there by any key, and
+// it answers exactly as a network that does not exist does, so a create's
+// answer does not tell a job that another job's network has some name.
+func TestDelegatedCreateDoesNotTellAnotherJobsNetworkExists(t *testing.T) {
+	useVolumeStore(t)
+	s, owner, _, other, _ := delegatedFixture(t)
+	imageID := healthConfigDigest([]byte("{}"))
+	s.node = node{images: dockerHealthTestImages{id: imageID}, imageStore: dockerHealthTestImageStore{}}
+	s.healthImages = dockerImageHealthCache{byID: map[string]dockerImageHealth{imageID: {}}}
+	foreign := &workerNetwork{Name: "repo_default", ID: strings.Repeat("3", 64), Driver: "bridge", Subnet: netip.MustParsePrefix("10.90.3.0/24"), CreatedBy: other.ID}
+	mine := &workerNetwork{Name: "mine", ID: strings.Repeat("4", 64), Driver: "bridge", Subnet: netip.MustParsePrefix("10.90.4.0/24"), CreatedBy: owner.ID}
+	s.namedNetworks[foreign.ID], s.namedNetworks[mine.ID] = foreign, mine
+	ctx := withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: owner.ID}), owner.ID)
+	answer := func(spec dockerConfig) string {
+		spec.Image, spec.Labels = "alpine", map[string]string{"io.micropod.cache": "off"}
+		_, err := s.create(ctx, spec, "")
+		var api apiError
+		if !errors.As(err, &api) {
+			t.Fatalf("create %+v: %v", spec.HostConfig, err)
+		}
+		return strconv.Itoa(api.code) + " " + api.message
+	}
+	for _, key := range []string{"repo_default", foreign.ID, foreign.ID[:12]} {
+		got := answer(dockerConfig{HostConfig: dockerHost{NetworkMode: key}})
+		if want := answer(dockerConfig{HostConfig: dockerHost{NetworkMode: "absent" + key[:4]}}); got != strings.Replace(want, "absent"+key[:4], key, 1) {
+			t.Errorf("primary %q: %q, a missing network: %q", key, got, want)
+		}
+		got = answer(dockerConfig{HostConfig: dockerHost{NetworkMode: "mine"}, Endpoints: map[string]dockerEndpointOptions{key: {}}})
+		if want := "404 no such network: " + key; got != want {
+			t.Errorf("endpoint %q: %q, want %q", key, got, want)
+		}
+	}
+}
+
+// What a delegated socket's owner creates gets at most the owner's own CPU,
+// memory and process limits, whatever it asks (more, or none), and its
+// family at most delegatedFamilyContainers containers, so the host's limits
+// on a job bound what the job's socket creates.
+func TestDelegatedChildGetsAtMostItsOwnersLimits(t *testing.T) {
+	useVolumeStore(t)
+	s, owner, _, _, _ := delegatedFixture(t)
+	pids := func(n int64) *int64 { return &n }
+	applied := func(spec dockerConfig) (quota, period, memory int64, procs string, shares int64) {
+		t.Helper()
+		_, cfg, err := config("x", t.TempDir(), "img", job{Trust: "trusted"})
+		if err == nil {
+			err = spec.configure(cfg, nil, containerExtras{})
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := cfg.Linux.Resources
+		return r.CpuQuota, r.CpuPeriod, r.MemoryLimitInBytes, r.Unified["pids.max"], r.CpuShares
+	}
+	create := func(h dockerHost) dockerConfig {
+		t.Helper()
+		spec := dockerConfig{Image: "alpine", HostConfig: h}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if _, err := s.delegatedCreateLocked(owner.ID, &spec); err != nil {
+			t.Fatal(err)
+		}
+		return spec
+	}
+	for _, tc := range []struct {
+		name   string
+		owner  dockerHost
+		child  dockerHost
+		quota  int64
+		period int64
+		memory int64
+		pids   string
+		shares int64
+	}{
+		{"an unlimited child of a default owner", dockerHost{}, dockerHost{CpuQuota: -1, Memory: 64 << 30, PidsLimit: pids(1e9), CpuShares: 262144}, 100000, 100000, 1 << 30, "512", 1024},
+		{"more CPUs than its owner", dockerHost{NanoCpus: 2e9, Memory: 2 << 30, PidsLimit: pids(2048)}, dockerHost{NanoCpus: 8e9}, 200000, 100000, 1 << 30, "512", 0},
+		{"a child that asks for less", dockerHost{NanoCpus: 2e9, Memory: 2 << 30, PidsLimit: pids(2048)}, dockerHost{NanoCpus: 5e8, Memory: 256 << 20, PidsLimit: pids(100)}, 50000, 100000, 256 << 20, "100", 0},
+		{"a default child of a smaller owner", dockerHost{NanoCpus: 5e8, Memory: 512 << 20, PidsLimit: pids(64)}, dockerHost{}, 50000, 100000, 512 << 20, "64", 0},
+		{"an unlimited owner", dockerHost{CpuQuota: -1}, dockerHost{CpuQuota: -1}, -1, 100000, 1 << 30, "512", 0},
+		{"a quota over a longer period", dockerHost{}, dockerHost{CpuQuota: 300000, CpuPeriod: 200000}, 100000, 100000, 1 << 30, "512", 0},
+	} {
+		owner.Config.HostConfig = tc.owner
+		quota, period, memory, procs, shares := applied(create(tc.child))
+		if quota != tc.quota || period != tc.period || memory != tc.memory || procs != tc.pids || shares != tc.shares {
+			t.Errorf("%s: quota %d/%d memory %d pids %s shares %d, want %d/%d %d %s %d", tc.name, quota, period, memory, procs, shares, tc.quota, tc.period, tc.memory, tc.pids, tc.shares)
+		}
+	}
+
+	// A family holds at most delegatedFamilyContainers containers at once.
+	owner.Config.HostConfig = dockerHost{}
+	held := 0
+	for _, c := range s.containers {
+		if c.CreatedBy == owner.ID {
+			held++
+		}
+	}
+	for i := held; i < delegatedFamilyContainers; i++ {
+		id := strconv.Itoa(i)
+		id = strings.Repeat("f", 64-len(id)) + id
+		s.containers[id] = &dockerContainer{dockerRecord: dockerRecord{ID: id, Phase: "exited", CreatedBy: owner.ID}}
+	}
+	spec := dockerConfig{Image: "alpine"}
+	s.mu.Lock()
+	_, err := s.delegatedCreateLocked(owner.ID, &spec)
+	s.mu.Unlock()
+	var api apiError
+	if !errors.As(err, &api) || api.code != http.StatusConflict {
+		t.Fatalf("a create past the family's %d containers: %v", delegatedFamilyContainers, err)
 	}
 }

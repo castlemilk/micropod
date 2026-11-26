@@ -7,9 +7,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"golang.org/x/sys/unix"
+	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // What a container created through a delegated Docker socket may bind: only
@@ -18,6 +20,13 @@ import (
 // open (create, start and a docker cp into it stopped). The workspace is the
 // Mac user's home directory, so without this a trusted job could hand a child
 // any of it.
+//
+// The create decides by spelling (delegatedBinds), so docker inspect shows
+// what the child gets; every open then decides again by identity, against
+// the descriptors the running owner's own binds were made from
+// (creatorHold): an owner that writes a parent of its read-only bind can
+// rename a directory above it, or plant a symlink to it, and no spelling of
+// the read-only bind names it any more.
 
 // delegatedBinds holds a child's binds to its creator's: each bind source must
 // be one of owner's own bind sources or lie below one. It returns each bind's
@@ -39,12 +48,7 @@ func delegatedBinds(owner *dockerContainer, spec *dockerConfig) (map[string]stri
 	if err != nil {
 		return nil, err
 	}
-	var ownBinds []dockerMount
-	for _, own := range ownMounts {
-		if own.Type == "bind" && !dockerSocketMount(own) && !owner.Config.cleanupMount(own) {
-			ownBinds = append(ownBinds, own)
-		}
-	}
+	ownBinds := owner.Config.pathBinds(ownMounts)
 	targets := map[string]bool{}
 	for _, m := range mounts {
 		targets[m.Target] = true
@@ -88,6 +92,230 @@ func delegatedBinds(owner *dockerContainer, spec *dockerConfig) (map[string]stri
 	}
 	spec.HostConfig.Mounts = append(spec.HostConfig.Mounts, nested...)
 	return roots, nil
+}
+
+// pathBinds are the binds among mounts (c's own) that are workspace paths:
+// not the docker.sock or reaper socket binds.
+func (c dockerConfig) pathBinds(mounts []dockerMount) []dockerMount {
+	var binds []dockerMount
+	for _, m := range mounts {
+		if m.Type == "bind" && !dockerSocketMount(m) && !c.cleanupMount(m) {
+			binds = append(binds, m)
+		}
+	}
+	return binds
+}
+
+// heldBinds are the descriptors a running container's start opened, by
+// container path: what its binds and volumes are mounted from, open until it
+// exits (dockerContainer.binds).
+type heldBinds struct{ byTarget map[string]*os.File }
+
+// mountFiles maps the container path of each of mounts made from one of
+// files (through its /proc descriptor path) to that descriptor.
+func mountFiles(files []*os.File, mounts []*cri.Mount) map[string]*os.File {
+	sources := make(map[string]*os.File, len(files))
+	for _, f := range files {
+		sources[dockerMountFDPath(f)] = f
+	}
+	byTarget := make(map[string]*os.File, len(files))
+	for _, m := range mounts {
+		if f := sources[m.HostPath]; f != nil {
+			byTarget[m.ContainerPath] = f
+		}
+	}
+	return byTarget
+}
+
+// creatorHold is what the creator of a delegated socket's child holds of the
+// workspace now, by identity: each of its binds at the identity its running
+// start's descriptor has (a mount pins it, and a rename moves the directory,
+// not the identity), whether the creator writes it there, and the binds it
+// holds only read-only, to walk up from.
+type creatorHold struct {
+	byID     map[fileID][]heldBind
+	readOnly []heldBind
+}
+
+type heldBind struct {
+	source string
+	f      *os.File
+	// writable: the creator binds it writable. only: it binds it read-only
+	// and no writable bind of its reaches it (ownerReach on its own binds,
+	// which the host made: they cannot change while it runs).
+	writable, only bool
+}
+
+// creatorHoldLocked is what a container created through createdBy's socket,
+// with binds (roots), is held to at an open: nil for none, and for a
+// container the host created. Its creator's start must hold its binds open;
+// when it does not (it is not running) a request on its socket (viewer) is
+// refused, and the host's own start or docker cp of the container keeps the
+// create-time decision, as nothing the job runs can make one then. Call with
+// s.mu held: the creator's descriptors stay open while it is held.
+func (s *dockerEngine) creatorHoldLocked(createdBy, viewer string, roots map[string]string) (*creatorHold, error) {
+	if createdBy == "" || len(roots) == 0 {
+		return nil, nil
+	}
+	owner := s.containers[createdBy]
+	if owner == nil || owner.binds == nil {
+		if viewer == "" {
+			return nil, nil
+		}
+		return nil, fail(http.StatusConflict, "the container this Docker socket belongs to is not running, so the binds it holds cannot be checked")
+	}
+	ownMounts, err := owner.Config.mounts()
+	if err != nil {
+		return nil, err
+	}
+	ownBinds := owner.Config.pathBinds(ownMounts)
+	h := &creatorHold{byID: map[fileID][]heldBind{}}
+	for _, own := range ownBinds {
+		f := owner.binds.byTarget[own.Target]
+		if f == nil {
+			return nil, fmt.Errorf("the creating container's bind %s is not held open", own.Source)
+		}
+		var st unix.Stat_t
+		if err := unix.Fstat(int(f.Fd()), &st); err != nil {
+			return nil, err
+		}
+		b := heldBind{source: own.Source, f: f, writable: !own.ReadOnly}
+		if own.ReadOnly {
+			_, w := ownerReach(ownMounts, ownBinds, own.Source)
+			b.only = !w
+		}
+		h.byID[statID(&st)] = append(h.byID[statID(&st)], b)
+		if b.only {
+			h.readOnly = append(h.readOnly, b)
+		}
+	}
+	return h, nil
+}
+
+// admit holds the child's bind m, opened as f, to what its creator holds by
+// identity. Walking up from f, the nearest of the creator's binds decides:
+// one it writes makes f writable, one it holds only read-only makes it
+// read-only, and f below none of them is refused. A writable use (write: the
+// bind is writable, or a docker cp writes through it) also needs every bind
+// the creator holds only read-only that lies inside f to be covered by
+// another of the child's mounts (mounts), as delegatedBinds puts one there:
+// walking up from each, the child's mount must be at it or at a directory
+// between it and f. Only the depth of each path is walked, never a tree.
+func (h *creatorHold) admit(m dockerMount, f *os.File, write bool, mounts []dockerMount) error {
+	reached, writable, err := h.reach(f)
+	if errors.Is(err, errFileMoved) {
+		return fail(400, fmt.Sprintf("bind source %s: %v", m.Source, err))
+	}
+	if err != nil {
+		return err
+	}
+	if !reached {
+		return fail(http.StatusForbidden, fmt.Sprintf("bind source %s is not inside the creating container's binds", m.Source))
+	}
+	if !write {
+		return nil
+	}
+	if !writable {
+		return fail(http.StatusForbidden, fmt.Sprintf("bind source %s is a path the creating container holds only read-only; bind it read-only", m.Source))
+	}
+	held, err := h.uncovered(f, m.Target, mounts)
+	if err != nil {
+		return err
+	}
+	if held != "" {
+		return fail(http.StatusForbidden, fmt.Sprintf("bind source %s holds what the creating container binds read-only from %s, at a path no read-only mount of this container covers; bind %s read-only", m.Source, held, m.Source))
+	}
+	return nil
+}
+
+// reach is how the creator reaches the opened f: below one of its binds at
+// all, and writable there (admit).
+func (h *creatorHold) reach(f *os.File) (reached, writable bool, err error) {
+	err = walkUp(f, func(id fileID) bool {
+		binds := h.byID[id]
+		for _, b := range binds {
+			if b.writable {
+				reached, writable = true, true
+				return false
+			}
+		}
+		for _, b := range binds {
+			// A read-only bind the creator also writes elsewhere does
+			// not decide: the bind it writes it through is further up.
+			reached = true
+			if b.only {
+				return false
+			}
+		}
+		return true
+	})
+	return reached, writable, err
+}
+
+// uncovered is the source of a bind the creator holds only read-only that
+// lies inside the directory f (the child's bind at target) where none of the
+// child's other mounts covers it, "" for none. A bind no longer linked
+// anywhere lies nowhere.
+func (h *creatorHold) uncovered(f *os.File, target string, mounts []dockerMount) (string, error) {
+	var st unix.Stat_t
+	if err := unix.Fstat(int(f.Fd()), &st); err != nil {
+		return "", err
+	}
+	if st.Mode&unix.S_IFMT != unix.S_IFDIR {
+		return "", nil
+	}
+	dir := statID(&st)
+	for _, r := range h.readOnly {
+		var held unix.Stat_t
+		if err := unix.Fstat(int(r.f.Fd()), &held); err != nil {
+			return "", err
+		}
+		if held.Nlink == 0 {
+			continue
+		}
+		// From the read-only bind up to, not including, f.
+		var between []fileID
+		inside := false
+		if err := walkUp(r.f, func(id fileID) bool {
+			if id == dir && len(between) > 0 {
+				inside = true
+				return false
+			}
+			between = append(between, id)
+			return true
+		}); err != nil {
+			return "", fmt.Errorf("the creating container's read-only bind %s: %w", r.source, err)
+		}
+		if inside && !coveredBelow(f, target, mounts, between) {
+			return r.source, nil
+		}
+	}
+	return "", nil
+}
+
+// coveredBelow reports whether one of mounts lies below target, the child's
+// bind of the directory f, at a path that resolves below f, through no
+// symlink, to one of the identities in between: the runtime mounts it there,
+// over what the bind holds at that path.
+func coveredBelow(f *os.File, target string, mounts []dockerMount, between []fileID) bool {
+	for _, m := range mounts {
+		if m.Target == target || !pathWithin(target, m.Target) {
+			continue
+		}
+		rel, _ := filepath.Rel(target, m.Target)
+		fd, err := unix.Openat2(int(f.Fd()), rel, &unix.OpenHow{Flags: unix.O_PATH | unix.O_CLOEXEC,
+			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS | unix.RESOLVE_NO_XDEV})
+		if err != nil {
+			continue
+		}
+		var st unix.Stat_t
+		err = unix.Fstat(fd, &st)
+		unix.Close(fd)
+		if err == nil && slices.Contains(between, statID(&st)) {
+			return true
+		}
+	}
+	return false
 }
 
 // ownerReach is how the owner reaches the workspace path source through its
@@ -186,25 +414,40 @@ func (spec *dockerConfig) makeReadOnly(target string) {
 
 // openMountWithin opens path, a bind source of a container made through a
 // delegated socket, below base, its creator's bind source (delegatedBinds).
-// base is resolved below the workspace through no symlink at all, so nothing
-// that can write its parent can turn it into a way out; path then resolves
-// below base, so a symlink the creator plants in its own bind stays inside it.
-func openMountWithin(workspace, base, path string) (*os.File, error) {
+// held, when set, is the descriptor the running creator's start made that
+// bind from (creatorHold.rootOf): path resolves below it, as the creator
+// binds it, whatever symlinks led there in the workspace (openMount follows
+// relative ones beneath it). Without one (the host's own start of a child
+// whose creator is stopped) base is resolved below the workspace through no
+// symlink at all, so nothing that can write its parent can turn it into a
+// way out, and one that has a symlink is refused (403). Either way path then
+// resolves below base, so a symlink the creator plants in its own bind stays
+// inside it.
+func openMountWithin(workspace, base, path string, held *os.File) (*os.File, error) {
 	if workspace == "" {
 		return nil, errors.New("configure MICROPOD_CI_WORKSPACE for bind mounts")
 	}
 	if !pathWithin(workspace, base) || !pathWithin(base, path) {
 		return nil, errors.New("bind source is outside the creating container's binds")
 	}
-	ws, err := os.Open(workspace)
-	if err != nil {
-		return nil, err
-	}
-	defer ws.Close()
-	relBase, _ := filepath.Rel(workspace, base)
-	baseFD, err := unix.Openat2(int(ws.Fd()), relBase, &unix.OpenHow{Flags: unix.O_PATH | unix.O_CLOEXEC, Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS})
-	if err != nil {
-		return nil, fmt.Errorf("bind source %s: the creating container's bind %s must be a path with no symlink in the workspace: %w", path, base, err)
+	var baseFD int
+	var err error
+	if held != nil {
+		baseFD, err = unix.FcntlInt(held.Fd(), unix.F_DUPFD_CLOEXEC, 0)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		ws, err := os.Open(workspace)
+		if err != nil {
+			return nil, err
+		}
+		relBase, _ := filepath.Rel(workspace, base)
+		baseFD, err = unix.Openat2(int(ws.Fd()), relBase, &unix.OpenHow{Flags: unix.O_PATH | unix.O_CLOEXEC, Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS})
+		ws.Close()
+		if err != nil {
+			return nil, fail(http.StatusForbidden, fmt.Sprintf("bind source %s: the creating container's bind %s, which is not running to resolve it as it binds it, must then be a path with no symlink in the workspace: %v", path, base, err))
+		}
 	}
 	fd := baseFD
 	if rel, _ := filepath.Rel(base, path); rel != "." {
@@ -221,4 +464,21 @@ func openMountWithin(workspace, base, path string) (*os.File, error) {
 		return nil, errors.New("bind source must be a directory or regular file")
 	}
 	return f, nil
+}
+
+// rootOf is the descriptor the creator's running start made its bind of
+// source from; nil when it holds none (h nil included). Valid while s.mu,
+// under which h was made, is held.
+func (h *creatorHold) rootOf(source string) *os.File {
+	if h == nil {
+		return nil
+	}
+	for _, binds := range h.byID {
+		for _, b := range binds {
+			if b.source == source {
+				return b.f
+			}
+		}
+	}
+	return nil
 }

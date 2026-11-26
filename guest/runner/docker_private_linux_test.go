@@ -104,3 +104,86 @@ func TestMachineDirectoryIsNeverBound(t *testing.T) {
 		t.Fatal("a missing machine directory loaded")
 	}
 }
+
+// The mask goes where the machine directory is when a bind opens, not where
+// it was at boot: a container that writes the workspace can rename the
+// directory, or one above it, and a bind of the new parent covers it under
+// another name.
+func TestMachineDirectoryMaskFollowsARename(t *testing.T) {
+	ws := t.TempDir()
+	machine := filepath.Join(ws, ".micropod", "hvf")
+	if err := os.MkdirAll(filepath.Join(machine, "run", "guest-config"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	mask := filepath.Join(t.TempDir(), "private-mask")
+	r, err := loadPrivateRoot(machine, mask)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.dir.Close()
+	s := &dockerEngine{workspace: ws, machineDir: r}
+	open := func(bind string) (string, error) {
+		t.Helper()
+		var masked []string
+		for _, create := range []bool{true, false} {
+			files, mounts, _, err := s.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{bind}}}, cacheVolumeRules{}, create, "", t.TempDir())
+			closeMounts(files)
+			if err != nil {
+				return "", err
+			}
+			masked = masked[:0]
+			for _, m := range mounts {
+				if m.HostPath == mask {
+					masked = append(masked, m.ContainerPath)
+				}
+			}
+		}
+		return strings.Join(masked, ","), nil
+	}
+	masks := func(want map[string]string) {
+		t.Helper()
+		for bind, at := range want {
+			if got, err := open(bind); err != nil || got != at {
+				t.Errorf("%s: mask at %q (%v), want %q", bind, got, err, at)
+			}
+		}
+	}
+	refused := func(binds ...string) {
+		t.Helper()
+		for _, bind := range binds {
+			_, err := open(bind)
+			var api apiError
+			if !errors.As(err, &api) || api.code != 400 || !strings.Contains(err.Error(), "machine's own directory") {
+				t.Errorf("%s: %v, want 400", bind, err)
+			}
+		}
+	}
+
+	// ~/.micropod moves below another directory, which then covers it.
+	if err := os.Mkdir(filepath.Join(ws, "a"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(ws, ".micropod"), filepath.Join(ws, "a", ".micropod")); err != nil {
+		t.Fatal(err)
+	}
+	masks(map[string]string{
+		ws + "/a:/x":           "/x/.micropod/hvf",
+		ws + ":/h":             "/h/a/.micropod/hvf",
+		ws + "/a/.micropod:/m": "/m/hvf",
+	})
+	// The machine directory itself is renamed, and a directory is made where
+	// it was: the mask follows the machine's, and the new one is a bind's.
+	if err := os.Rename(filepath.Join(ws, "a", ".micropod", "hvf"), filepath.Join(ws, "a", ".micropod", "other")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(ws, ".micropod", "hvf"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	masks(map[string]string{
+		ws + "/a:/x":           "/x/.micropod/other",
+		ws + ":/h":             "/h/a/.micropod/other",
+		ws + "/a/.micropod:/m": "/m/other",
+		ws + "/.micropod:/o":   "",
+	})
+	refused(ws+"/a/.micropod/other:/o", ws+"/a/.micropod/other/run:/r:ro")
+}

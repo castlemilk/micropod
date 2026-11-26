@@ -353,13 +353,25 @@ gives, so never hand that socket to untrusted code. A trusted container the host
 `-v /var/run/docker.sock:/var/run/docker.sock` (Testcontainers, compose or `docker build` in a CI step, Cuttlefish's
 `dockerSocket: true`) gets the machine's Docker API on a socket of its own, which is not the host's: through it the
 container sees and acts on only itself and the containers, networks and volumes it created there (plus the built-in
-networks and the ones it is attached to); every other job's are not there (404), a network or volume it created
+networks, the networks it is attached to and the volumes it mounts, which it may mount in what it creates but not
+remove); every other job's are not there (404), a network or volume it created
 there is no other container's to join or mount, not even through the machine's own socket (409), and the engine's own routes
-(`/micropod/*`: caches, metrics, traces) are refused (403). What it creates there is never more trusted than it is, is
-in its cache scope (naming another is refused, HTTP 403, as is mounting another's alias volume, HTTP 400), may bind only paths inside the container's own binds
-(read-only where it reaches them only read-only, as under a read-only bind nested in a writable one; anything else, the rest of the workspace included, is refused, HTTP 403), mounts a volume
-the container was given read-only only read-only, and cannot be given a socket in turn. Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
-socket changes them for every job, which is one more reason only a trusted container gets one. An untrusted or read-only
+(`/micropod/*`: caches, metrics, traces, the BuildKit probe, which `GET /version` answers too) are refused (403). What it creates there is never more trusted than it is, gets
+at most the container's own CPU, memory and process limits (a request for more, or for none, is lowered to them; at
+most 64 such containers at a time, HTTP 409 past that), is in its cache scope (naming another is refused, HTTP 403, as is mounting another's alias volume, HTTP 400), may bind only paths inside the container's own binds
+(read-only where it reaches them only read-only, as under a read-only bind nested in a writable one; anything else, the rest of the workspace included, is refused, HTTP 403;
+the create, every start and a `docker cp` into it stopped decide this again by what the bind resolves to, against the running container's own
+binds, so a bind of a renamed parent of one of its read-only binds, or of a symlink to one, is refused while it would reach it writable; a request
+on its socket that needs this check while the container is not running is refused, HTTP 409; such a bind resolves
+below what the running container binds, whatever symlink the path of its own bind runs through, and the host's own
+start of the child while the container is stopped refuses one whose path does, HTTP 403), mounts a volume
+the container was given read-only only read-only, and cannot be given a socket in turn. What it created there goes
+with the container: its removal stops and removes those containers, then the networks and volumes it created there
+(data included) once nothing uses them, so the next job of the same compose project finds the names free (an engine
+start does the same for anything whose creator is gone). Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
+socket changes them for every job, which is one more reason only a trusted container gets one. A build itself is the
+job's: on that socket another job's build's progress and frontend calls are not there, and the machine's build history
+(`docker buildx history`: every build's args, logs and results) and its content are refused. An untrusted or read-only
 container, a container created from inside another, or one an untrusted default leaves unlabelled is refused such a bind
 at create (HTTP 403); the Testcontainers reaper still gets only its session's cleanup socket, and one created through a
 container's socket reaps only what that container created. As under Docker, every container has an empty `/.dockerenv`,
@@ -369,10 +381,14 @@ Testcontainers dials a sibling's mapped port and its Ryuk reaper. The gateway is
 rules that keep networks apart, so it relays only a container that shares a network with the published one (and could
 reach it anyway) or belongs to the same job (the container holding the socket and what it created), at most 128
 connections a port, 128 for any one job and 512 in all; once one side of a relayed connection closes, the other is
-closed after a minute without a byte. When the machine asked for its host config share, a policy file
+closed after a minute without a byte. Nor does the machine itself connect into a container network: a connection one of its own
+processes starts out through a network's bridge (a build's `ADD` URL or git context, an image pull, `docker login`,
+whichever socket asked) is refused at once (no route to host), so only the relays, whose rule decided the peer, reach
+a container from the machine. When the machine asked for its host config share, a policy file
 the guest cannot read fails closed (untrusted by default), and no bind may reach the machine's own directory
 (`~/.micropod/hvf` sits in the home-directory workspace): a bind source inside it is refused, and a bind that covers
-it (`-v $HOME:/h`) shows an empty directory there, to `docker cp` as well. `--allow-scopes` holds for scope labels and alias volumes alike.
+it (`-v $HOME:/h`) shows an empty directory there, to `docker cp` as well; both are decided by the directory's identity when the bind
+opens (every start), so a rename of it or of a directory above it made before then does not move it out from under the mask. `--allow-scopes` holds for scope labels and alias volumes alike.
 With `--share-l0 on`, only the stores whose tools verify them on every read (Go modules, npm, pnpm) are shared
 across scopes, the modules and packages of private projects included; maven, gradle, bun, playwright and every
 other store stay per scope. A container an older engine created with such a store in scope `global` starts without

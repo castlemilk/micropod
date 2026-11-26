@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"slices"
@@ -29,6 +30,10 @@ import (
 // Images and the BuildKit cache are the machine's: a pull, build, load, tag
 // or image removal through the socket changes them for every job, as a
 // trusted job's writes to the shared stores reach the jobs that read them.
+
+// delegatedFamilyContainers is how many containers, in any state, a
+// delegated socket's owner may have created and not removed.
+const delegatedFamilyContainers = 64
 
 type apiViewerKey struct{}
 
@@ -157,7 +162,10 @@ func engineOwnRoute(raw string) bool {
 // delegatedRoute reports whether a delegated socket serves the route. The
 // container, exec, network and volume handlers scope themselves to the viewer
 // (lookupFor, seesNetworkLocked, seesVolumeLocked); images and BuildKit are
-// the machine's. dispatch still validates the API version.
+// the machine's (a build's own calls scoped by serveDockerBuildControl).
+// None of the engine's own routes is served, its BuildKit probe
+// (/micropod/buildkit) included: GET /version names the same capability.
+// dispatch still validates the API version.
 func delegatedRoute(method, raw string) bool {
 	path := strings.TrimPrefix(raw, "/")
 	if strings.HasPrefix(path, "v1.") {
@@ -169,8 +177,6 @@ func delegatedRoute(method, raw string) bool {
 		return read
 	case "auth", "grpc", "session":
 		return method == http.MethodPost
-	case "micropod/buildkit":
-		return method == http.MethodGet
 	case "networks", "volumes":
 		return true
 	}
@@ -183,21 +189,29 @@ func delegatedRoute(method, raw string) bool {
 }
 
 // delegatedCreateLocked holds a create through viewer's socket to what the
-// owner may hand its children: networks it sees, volumes it sees (a new one
-// becomes its own; one it sees only because it mounts it is read-only unless
-// it mounts it writable) and binds inside its own (delegatedBinds, whose
-// roots it returns and which it may make read-only in spec). Call with s.mu
-// held, after selectNetwork resolved the networks.
-func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, network string, endpoints []dockerSecondaryEndpoint) (map[string]string, error) {
+// owner may hand its children: volumes it sees (a new one becomes its own;
+// one it sees only because it mounts it is read-only unless it mounts it
+// writable) and binds inside its own (delegatedBinds, whose roots it returns
+// and which it may make read-only in spec). The networks are the ones it
+// sees: selectNetworkFor found no other. A child gets at most the owner's
+// own CPU, memory and process limits (clampTo), and the owner's family at
+// most delegatedFamilyContainers containers, so the host's limits on the
+// owner bound what it creates too. Call with s.mu held.
+func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig) (map[string]string, error) {
 	owner := s.containers[viewer]
 	if owner == nil {
 		return nil, fail(http.StatusForbidden, "the container this Docker socket belongs to is gone")
 	}
-	for _, id := range append([]string{network}, endpointNetworks(endpoints)...) {
-		if n := s.namedNetworks[id]; id != "" && (n == nil || !s.seesNetworkLocked(viewer, n)) {
-			return nil, fail(http.StatusNotFound, "no such network")
+	family := 0
+	for _, c := range s.containers {
+		if c.CreatedBy == viewer {
+			family++
 		}
 	}
+	if family >= delegatedFamilyContainers {
+		return nil, fail(http.StatusConflict, fmt.Sprintf("this Docker socket has created %d containers, as many as it may hold at once; remove one first", family))
+	}
+	spec.HostConfig.clampTo(owner.Config.HostConfig.limits())
 	roots, err := delegatedBinds(owner, spec)
 	if err != nil {
 		return nil, err
@@ -256,6 +270,18 @@ func (s *dockerEngine) hostJoinLocked(family string, networks []string, spec *do
 		if v, err := inspectVolume(m.Source); err == nil && v.createdBy != "" && v.createdBy != family {
 			return fail(http.StatusConflict, "the volume "+m.Source+" was created through a container's Docker socket; only what that container created there may mount it")
 		}
+	}
+	return nil
+}
+
+// admitNetworkChangeLocked holds a docker network connect or disconnect of
+// c through the request's socket to the rule for n, which findNetworkFor
+// found among the networks that socket sees: through the host's, c does not
+// join another family's network (hostJoinLocked). Call with s.mu held, both
+// before the change waits for c and again where it commits.
+func (s *dockerEngine) admitNetworkChangeLocked(ctx context.Context, c *dockerContainer, n *workerNetwork, connect bool) error {
+	if connect && viewerOf(ctx) == "" {
+		return s.hostJoinLocked(c.family(), []string{n.ID}, nil)
 	}
 	return nil
 }

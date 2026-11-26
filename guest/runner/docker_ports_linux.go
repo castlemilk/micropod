@@ -159,13 +159,22 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 	// until the container releases its port, including across long SQL sessions.
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, lease: control, cancel: cancel}
+	p.relay(relayCtx, l, target, macFacingGuard(admit))
+	return p, port, nil
+}
+
+// macFacingGuard is the Mac-facing relay's guard: admit (nil admits
+// everyone) decides each peer, with no connection limit, as it serves the
+// Mac's port broker alone, and no idle limit on a half-closed connection:
+// a Mac client may send a request, end its side and wait as long as the
+// service takes to answer.
+func macFacingGuard(admit func(netip.Addr) bool) relayGuard {
 	guard := relayGuard{}
 	if admit != nil {
 		guard.admit = func(peer netip.Addr) (string, bool) { return "", admit(peer) }
 		guard.pending = make(chan struct{}, relayPendingAdmissions)
 	}
-	p.relay(relayCtx, l, target, guard)
-	return p, port, nil
+	return guard
 }
 
 // relayDialTimeout bounds how long an accepted connection waits for the
@@ -173,8 +182,8 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 // pin the relay's descriptors until the port closes.
 const relayDialTimeout = 10 * time.Second
 
-// Container-facing relays (the gateway relay) hold at most relayPortSlots
-// connections each and gatewayRelaySlots between them, so no container can
+// Container-facing relays (the gateway relays) hold at most relayPortSlots
+// connections for each published port and gatewayRelaySlots between them, so no container can
 // exhaust the engine's descriptors through them (each costs two), and one
 // peer family (a job: a delegated socket's owner and what it created, or a
 // container of the host's alone) at most relayFamilySlots of the shared
@@ -183,7 +192,6 @@ const relayDialTimeout = 10 * time.Second
 // limit: it serves only the Mac's port broker (macFacingAdmits), and closes
 // any other peer, a container's included, before it dials anything.
 const (
-	relayPortSlots   = 128
 	relayFamilySlots = 128
 	// relayPendingAdmissions bounds a listener's connections waiting for
 	// admit, which takes the engine's lock (a create or a remove can hold
@@ -192,16 +200,21 @@ const (
 	relayPendingAdmissions = 16
 )
 
+// relayPortSlots is how many connections one published port's gateway
+// relays hold between them, at however many gateways it is relayed. A
+// variable for tests.
+var relayPortSlots = 128
+
 var (
 	gatewayRelaySlots    = make(chan struct{}, 512)
 	gatewayRelayFamilies = &familySlots{max: relayFamilySlots}
 )
 
-// relayHalfCloseIdle is how long a relayed connection whose one direction
-// has ended may go without a byte in the other before the relay closes it:
-// a peer that never closes its side after the target closed its own would
-// otherwise hold the connection's slots until the port closes. A variable
-// for tests.
+// relayHalfCloseIdle is how long a gateway relay's connection whose one
+// direction has ended may go without a byte in the other before the relay
+// closes it (relayGuard.halfCloseIdle): a peer that never closes its side
+// after the target closed its own would otherwise hold the connection's
+// slots until the port closes. A variable for tests.
 var relayHalfCloseIdle = 60 * time.Second
 
 // familySlots counts the shared gateway relay connections each peer family
@@ -241,13 +254,16 @@ func (f *familySlots) release(family string) {
 // one family may hold of shared. track, when set, registers each accepted
 // connection, before it is admitted, with the function that ends it, so a
 // change that withdraws its admission ends it too (recheckRelaysLocked); it
-// returns the function that unregisters it.
+// returns the function that unregisters it. halfCloseIdle, when set, closes
+// a connection that has gone relayHalfCloseIdle without a byte once one
+// direction has ended, so it does not hold its slots for good.
 type relayGuard struct {
 	admit         func(peer netip.Addr) (family string, ok bool)
 	pending       chan struct{}
 	slots, shared chan struct{}
 	families      *familySlots
 	track         func(peer netip.Addr, end func()) (forget func())
+	halfCloseIdle bool
 }
 
 // take reserves a connection of family in every limit, or reports one is full.
@@ -290,7 +306,9 @@ type tcpAcceptor interface {
 // is retried after a growing pause, as net/http does, so a burst that runs
 // the engine out of descriptors does not leave the port dead once it ends.
 func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target string, guard relayGuard) {
-	dial := net.Dialer{Timeout: relayDialTimeout}
+	// The guard decided the peer: past the rule that keeps the machine's own
+	// connections out of container networks (docker_host_output_linux.go).
+	dial := net.Dialer{Timeout: relayDialTimeout, Control: markHostOutput}
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
@@ -350,24 +368,29 @@ func (p *publishedPort) relay(relayCtx context.Context, l tcpAcceptor, target st
 				defer out.Close()
 				stop := context.AfterFunc(connCtx, func() { in.Close(); out.Close() })
 				defer stop()
-				relayPipe(in, out.(*net.TCPConn))
+				var idle time.Duration
+				if guard.halfCloseIdle {
+					idle = relayHalfCloseIdle
+				}
+				relayPipe(in, out.(*net.TCPConn), idle)
 			}()
 		}
 	}()
 }
 
 // relayPipe copies both directions of a relayed connection until each ends.
-// Once one has ended (its sender closed), the other is closed after
-// relayHalfCloseIdle without a byte, so a peer that keeps its side open and
-// silent does not hold the connection for good.
-func relayPipe(in, out *net.TCPConn) {
+// With an idle limit, once one has ended (its sender closed), the other is
+// closed after idle without a byte, so a peer that keeps its side open and
+// silent does not hold the connection for good; with none (0) it lasts until
+// its sender closes it.
+func relayPipe(in, out *net.TCPConn, idle time.Duration) {
 	var half atomic.Bool
 	pipe := func(dst, src *net.TCPConn) {
 		for {
 			n, err := io.Copy(dst, src)
 			var ne net.Error
 			if err != nil && n > 0 && half.Load() && errors.As(err, &ne) && ne.Timeout() {
-				src.SetReadDeadline(time.Now().Add(relayHalfCloseIdle))
+				src.SetReadDeadline(time.Now().Add(idle))
 				continue // progress since the last deadline
 			}
 			return
@@ -376,8 +399,10 @@ func relayPipe(in, out *net.TCPConn) {
 	// What one direction wrote to is what the other reads from.
 	ended := func(c *net.TCPConn) {
 		c.CloseWrite()
-		half.Store(true)
-		c.SetReadDeadline(time.Now().Add(relayHalfCloseIdle))
+		if idle > 0 {
+			half.Store(true)
+			c.SetReadDeadline(time.Now().Add(idle))
+		}
 	}
 	done := make(chan struct{})
 	go func() {
@@ -444,6 +469,31 @@ func relayGateways(network *workerNetwork) []string {
 // from that namespace. So admit decides each peer (relayAdmits): only one
 // that could reach the target anyway or belongs to the same job is relayed.
 func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) (string, bool), track func(netip.Addr, func()) func()) (*publishedPort, error) {
+	return openGatewayRelayWith(ctx, gateway, port, target, admit, track, make(chan struct{}, relayPortSlots))
+}
+
+// openGatewayRelays is openGatewayRelay at each of gateways (relayGateways)
+// for one published port, whose relays share its relayPortSlots. A gateway
+// it cannot listen at is skipped (the Mac mapping stands without it) and
+// returned among the errors.
+func openGatewayRelays(ctx context.Context, gateways []string, port uint16, target string, admit func(netip.Addr) (string, bool), track func(netip.Addr, func()) func()) ([]*publishedPort, error) {
+	slots := make(chan struct{}, relayPortSlots)
+	var open []*publishedPort
+	var errs []error
+	for _, gateway := range gateways {
+		p, err := openGatewayRelayWith(ctx, gateway, port, target, admit, track, slots)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("gateway %s: %w", gateway, err))
+			continue
+		}
+		open = append(open, p)
+	}
+	return open, errors.Join(errs...)
+}
+
+// openGatewayRelayWith is openGatewayRelay holding at most slots' capacity
+// of connections, shared with the port's relays at its other gateways.
+func openGatewayRelayWith(ctx context.Context, gateway string, port uint16, target string, admit func(netip.Addr) (string, bool), track func(netip.Addr, func()) func(), slots chan struct{}) (*publishedPort, error) {
 	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(gateway), Port: int(port)})
 	if err != nil {
 		return nil, err
@@ -451,7 +501,7 @@ func openGatewayRelay(ctx context.Context, gateway string, port uint16, target s
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, cancel: cancel}
 	p.relay(relayCtx, l, target, relayGuard{admit: admit, pending: make(chan struct{}, relayPendingAdmissions),
-		slots: make(chan struct{}, relayPortSlots), shared: gatewayRelaySlots, families: gatewayRelayFamilies, track: track})
+		slots: slots, shared: gatewayRelaySlots, families: gatewayRelayFamilies, track: track, halfCloseIdle: true})
 	return p, nil
 }
 
@@ -749,14 +799,12 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			default:
 				s.metrics.networks.rootlessPorts.Add(1)
 			}
-			for _, gateway := range gateways {
-				// Best effort: the Mac mapping stands without it.
-				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c), s.trackRelay(c)); err != nil {
-					log.Printf("published port %d of %.12s at gateway %s: %v", n, c.ID, gateway, err)
-				} else {
-					open = append(open, g)
-				}
+			// Best effort: the Mac mapping stands without them.
+			relays, err := openGatewayRelays(ctx, gateways, n, net.JoinHostPort(target, strconv.Itoa(int(port))), s.relayAdmits(c), s.trackRelay(c))
+			if err != nil {
+				log.Printf("published port %d of %.12s: %v", n, c.ID, err)
 			}
+			open = append(open, relays...)
 			actual[key] = append(actual[key], portBinding{HostIP: "127.0.0.1", HostPort: strconv.Itoa(int(n))})
 		}
 	}

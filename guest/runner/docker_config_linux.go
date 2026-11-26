@@ -322,6 +322,48 @@ func (h dockerHost) cpuBandwidth(quota, period int64) (int64, int64) {
 	return cmp.Or(h.CpuQuota, quota), period
 }
 
+// dockerLimits are what a container may use at most: memory bytes, CPU time
+// (quota per period, a negative quota for none), processes and CPU shares.
+type dockerLimits struct{ memory, quota, period, pids, shares int64 }
+
+// limits are what configure gives a container with h, over the job's
+// defaults (config: one CPU, 1 GiB, 512 processes, the runtime's 1024
+// shares).
+func (h dockerHost) limits() dockerLimits {
+	l := dockerLimits{memory: jobMemory, pids: jobPids, shares: 1024}
+	l.quota, l.period = h.cpuBandwidth(jobCPUQuota, jobCPUPeriod)
+	if h.Memory > 0 {
+		l.memory = h.Memory
+	}
+	if h.PidsLimit != nil && *h.PidsLimit > 0 {
+		l.pids = *h.PidsLimit
+	}
+	if h.CpuShares > 0 {
+		l.shares = min(max(h.CpuShares, 2), 262144)
+	}
+	return l
+}
+
+// clampTo lowers what h asks above most to most, so the container gets at most
+// those limits: a request for more, or for none (a CPU quota of -1), gets
+// most's.
+func (h *dockerHost) clampTo(most dockerLimits) {
+	asked := h.limits()
+	if asked.memory > most.memory {
+		h.Memory = most.memory
+	}
+	if asked.pids > most.pids {
+		pids := most.pids
+		h.PidsLimit = &pids
+	}
+	if most.quota >= 0 && (asked.quota < 0 || float64(asked.quota)/float64(asked.period) > float64(most.quota)/float64(most.period)) {
+		h.NanoCpus, h.CpuQuota, h.CpuPeriod = 0, most.quota, most.period
+	}
+	if asked.shares > most.shares {
+		h.CpuShares = most.shares
+	}
+}
+
 func (s dockerConfig) cpuGroup(network string) dockerCPUGroup {
 	// Built-in networks have no catalog ID. Their normalized names cannot
 	// collide with the IDs of user-defined networks.
@@ -1527,10 +1569,13 @@ func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, cre
 // Testcontainers reaper's session cleanup socket and the delegated engine
 // socket (docker_engine_socket_linux.go). "" when the start has none.
 // bindRoots holds a child of a delegated socket to its creator's binds
-// (dockerRecord.BindRoots): each of its binds resolves below its root.
+// (dockerRecord.BindRoots): each of its binds resolves below its root, and
+// creator, when set, is what its running creator holds (creatorHoldLocked),
+// which each of them is then admitted to by identity.
 type mountSockets struct {
 	cleanup, engine string
 	bindRoots       map[string]string
+	creator         *creatorHold
 }
 
 // openMountsWith is openMounts with every per-start socket. A docker.sock bind
@@ -1563,6 +1608,12 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 	var files []*os.File
 	var mounts []*cri.Mount
 	var pins []cachePin
+	// A delegated child's binds as opened, admitted to its creator's once all are.
+	type childBind struct {
+		m dockerMount
+		f *os.File
+	}
+	var children []childBind
 	for _, m := range requests {
 		if m.tmpfs != nil {
 			continue
@@ -1613,7 +1664,7 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 				}
 			}
 		}
-		f, mountPins, e := s.openDockerMount(m, createVolumes, access, privateRoot)
+		f, mountPins, e := s.openDockerMount(m, createVolumes, access, privateRoot, sockets.creator)
 		pins = append(pins, mountPins...)
 		if e != nil {
 			err = e
@@ -1621,6 +1672,9 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 		}
 		files = append(files, f)
 		mounts = append(mounts, &cri.Mount{HostPath: dockerMountFDPath(f), ContainerPath: m.Target, Readonly: m.ReadOnly})
+		if m.root != "" {
+			children = append(children, childBind{m, f})
+		}
 		if m.Type == "bind" {
 			// Never the machine's own directory: refused inside it, hidden
 			// in a bind that covers it (docker_private_linux.go).
@@ -1633,6 +1687,11 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 				mounts = append(mounts, s.machineDir.maskMount(mask))
 			}
 		}
+	}
+	// Once every mount is open: whether a child's writable bind covers what
+	// its creator holds read-only depends on the child's other mounts.
+	for i := 0; err == nil && sockets.creator != nil && i < len(children); i++ {
+		err = sockets.creator.admit(children[i].m, children[i].f, !children[i].m.ReadOnly, requests)
 	}
 	if err != nil {
 		closeMounts(files)
@@ -1666,13 +1725,15 @@ const (
 // is the container's own directory for private stand-ins (its shim directory;
 // "" at create, which only probes); the caller releases the returned pins once
 // nothing uses the descriptor any more.
-func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access aliasAccess, privateRoot string) (*os.File, []cachePin, error) {
+// creator, for a delegated child's bind, is what its running creator holds
+// (creatorHoldLocked; s.mu held), nil when it holds nothing.
+func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access aliasAccess, privateRoot string, creator *creatorHold) (*os.File, []cachePin, error) {
 	root, source := s.workspace, m.Source
 	if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
 		root = "/runner/externals"
 	}
 	if m.Type == "bind" && m.root != "" {
-		f, err := openMountWithin(s.workspace, m.root, m.Source)
+		f, err := openMountWithin(s.workspace, m.root, m.Source, creator.rootOf(m.root))
 		return f, nil, err
 	}
 	if m.Type == "volume" {
