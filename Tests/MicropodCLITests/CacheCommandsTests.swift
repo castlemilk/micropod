@@ -41,7 +41,7 @@ final class CacheCommandsTests: XCTestCase {
     func testExplainShowsTrustProxyAndAccess() throws {
         let body = #"""
             {"containerId":"0123456789abcdef0123","containerName":"fork-pr","image":"golang","state":"running",
-             "cache":{"scope":"cf-proj","uid":0,"trust":"untrusted","trustFrom":"policy-default",
+             "cache":{"scope":"cf-proj","uid":0,"trust":"untrusted","trustFrom":"policy-default","policyDigest":"7a3e25f1ddb256fe",
                       "proxy":{"gomod":"reader-tier","npm":"proxy-unreachable"},
                       "tools":{"gomod":{"mode":"env","path":"/micropod/cache/gomod","layer":"L0","scope":"cf-proj","access":"copy-on-write"},
                                "maven":{"mode":"path","path":"/root/.m2/repository","layer":"L0","scope":"cf-proj"},
@@ -53,6 +53,11 @@ final class CacheCommandsTests: XCTestCase {
         let text = CacheCommands.explainLines(info).joined(separator: "\n")
         XCTAssertTrue(text.contains("TRUST:     untrusted — only reads the stores"), text)
         XCTAssertTrue(text.contains("(policy-default: no io.micropod.cache.trust label"), text)
+        XCTAssertEqual(info.cache?.policyDigest, "7a3e25f1ddb256fe")
+        XCTAssertTrue(
+            text.contains(
+                "POLICY:    digest 7a3e25f1ddb256fe — the cache policy this container's plan was decided under"),
+            text)
         XCTAssertTrue(
             text.contains("PROXY:     gomod  reader-tier — untrusted and read-only containers get none"), text)
         XCTAssertTrue(text.contains("PROXY:     npm    proxy-unreachable — the proxy did not answer"), text)
@@ -71,6 +76,7 @@ final class CacheCommandsTests: XCTestCase {
         let lines = CacheCommands.explainLines(plain)
         XCTAssertTrue(lines.contains { $0.hasPrefix("TRUST:     trusted — writes the stores it uses") }, "\(lines)")
         XCTAssertFalse(lines.contains { $0.hasPrefix("PROXY:") })
+        XCTAssertFalse(lines.contains { $0.hasPrefix("POLICY:") }, "\(lines)")
         XCTAssertEqual(
             CacheCommands.skipHint("shared-store-retired").contains("recreate the container"), true)
         // Round trip: the API and MCP encode the same struct.

@@ -301,6 +301,11 @@ final class CacheRoutesTests: XCTestCase {
         let reply = await send(api, .get, "/v1/caches/explain/web-1", "")
         XCTAssertEqual(reply.status, 200, "\(reply.body)")
         XCTAssertEqual(reply.body["containerName"] as? String, "web-1")
+        // The plan's tier and the policy digest it was decided under, as the
+        // guest's inspect has them (MCP cache_explain returns this body).
+        let cache = try XCTUnwrap(reply.body["cache"] as? [String: Any], "\(reply.body)")
+        XCTAssertEqual(cache["trust"] as? String, "untrusted")
+        XCTAssertEqual(cache["policyDigest"] as? String, "7a3e25f1ddb256fe")
         XCTAssertEqual(guest.requests.map(\.path), ["/containers/web-1/json"])
     }
 }
@@ -394,7 +399,9 @@ private final class FakeGuestEngine: @unchecked Sendable {
                     .utf8)
         default:
             lock.withLock { seen.append(request) }
-            reply = Data(#"{"Id":"0123abcd","Name":"/web-1","Image":"alpine","State":{"Status":"running"}}"#.utf8)
+            reply = Data(
+                #"{"Id":"0123abcd","Name":"/web-1","Image":"alpine","State":{"Status":"running"},"MicropodCache":{"scope":"s","uid":0,"trust":"untrusted","policyDigest":"7a3e25f1ddb256fe","tools":{}}}"#
+                    .utf8)
         }
         let response =
             Data(

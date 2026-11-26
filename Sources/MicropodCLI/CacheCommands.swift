@@ -279,6 +279,11 @@ enum CacheCommands {
             ? "writes the stores it uses"
             : "only reads the stores: its writes go to copy-on-write views that leave with the container"
         out.append("TRUST:     \(cache.effectiveTrust) — \(reads)\(from)")
+        if let digest = cache.policyDigest, !digest.isEmpty {
+            // `cache status` prints the digest in force now; a different one
+            // here means the plan predates the latest policy change.
+            out.append("POLICY:    digest \(digest) — the cache policy this container's plan was decided under")
+        }
         if let proxy = cache.proxy, !proxy.isEmpty {
             for kind in HVFMachineCachePolicy.toolKinds {
                 guard let why = proxy[kind] else { continue }
