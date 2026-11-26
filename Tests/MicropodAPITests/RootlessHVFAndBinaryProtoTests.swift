@@ -85,7 +85,9 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
         XCTAssertNotEqual(policy.cloneMode, .unspecified)
     }
 
-    func testRootlessHVFPingAndGetSystemAdvertiseHVFWhenDefaultAndInstalled() async throws {
+    /// Installed stub assets and no VMM: hvf is the backend, but nothing
+    /// runs, so neither call may say `running` or advertise live features.
+    func testRootlessHVFPingAndGetSystemReportAnInstalledButStoppedMachineAsStopped() async throws {
         let dir = URL(fileURLWithPath: "/tmp/mp-hvfapi-\(UUID().uuidString.prefix(8))")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -118,12 +120,17 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
             return XCTFail("unexpected Ping response: \(String(describing: pingResp))")
         }
         let ping = try Micropod_V1_PingResponse(serializedBytes: pingBytes)
-        XCTAssertEqual(ping.status, "running")
+        XCTAssertEqual(ping.status, "stopped")
         XCTAssertEqual(ping.runtimeBackend, "hvf")
         XCTAssertEqual(ping.defaultRuntime, "hvf")
         XCTAssertTrue(ping.features.contains("hvf"))
         XCTAssertTrue(ping.features.contains("rootless"))
         XCTAssertTrue(ping.features.contains("proto-binary"))
+        XCTAssertFalse(ping.features.contains("buildkit"), "\(ping.features)")
+        XCTAssertFalse(ping.features.contains("caches-v2"), "\(ping.features)")
+        let component = try XCTUnwrap(ping.components.first { $0.name == "hvf-machine" })
+        XCTAssertEqual(component.state, "stopped")
+        XCTAssertTrue(component.detail.hasPrefix("stopped: "), component.detail)
 
         let sysResp = await api.connectRPC(
             method: "GetSystem",
@@ -133,9 +140,10 @@ final class RootlessHVFAndBinaryProtoTests: XCTestCase {
             return XCTFail("unexpected GetSystem response: \(String(describing: sysResp))")
         }
         let sys = try Micropod_V1_SystemSnapshot(serializedBytes: sysBytes)
-        XCTAssertEqual(sys.status.status, "running")
+        XCTAssertEqual(sys.status.status, "stopped")
         XCTAssertEqual(sys.status.runtimeBackend, "hvf")
         XCTAssertEqual(sys.status.installRoot, dir.path)
+        XCTAssertEqual(sys.components.first { $0.name == "hvf-machine" }?.state, "stopped")
     }
 
     func testRigAndCacheControlRoutesAndPersistentCacheDisk() async throws {

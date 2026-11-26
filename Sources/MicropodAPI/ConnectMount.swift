@@ -44,28 +44,25 @@ extension APIHandlers {
                 if versionEnvironment.role == .connect, versionEnvironment.usesDedicatedRuntime() {
                     return reply(try await dedicatedSystem())
                 }
-                if engineRegistry.defaultName == "hvf",
-                    let hvfEngine = engineRegistry.engine("hvf") as? HVFEngine
-                {
-                    let hvfStatus = hvfEngine.machine.status()
-                    if hvfStatus.installed && hvfStatus.problem == nil {
-                        var snapshot = Micropod_V1_SystemSnapshot()
-                        var status = Micropod_V1_SystemStatus()
-                        status.status = "running"
-                        status.runtimeBackend = "hvf"
-                        status.installRoot = hvfStatus.root
-                        status.apiServerVersion = hvfStatus.payload?.current?.version ?? "hvf"
-                        snapshot.status = status
-                        var disk = Micropod_V1_DiskUsage()
-                        let diskSize =
-                            (try? FileManager.default.attributesOfItem(atPath: hvfEngine.machine.layout.disk.path)[
-                                .size] as? UInt64) ?? 0
-                        disk.containers.sizeBytes = diskSize
-                        snapshot.diskUsage = disk
-                        await versionManifest(apple: AppleObservation(reported: "", state: .stopped), digests: false)
-                            .apply(to: &snapshot)
-                        return reply(snapshot)
-                    }
+                if let machine = defaultHVFMachine {
+                    let readiness = await machine.readiness()
+                    var snapshot = Micropod_V1_SystemSnapshot()
+                    var status = Micropod_V1_SystemStatus()
+                    status.status = readiness.status.rawValue
+                    status.runtimeBackend = "hvf"
+                    status.installRoot = machine.layout.root.path
+                    status.apiServerVersion = readiness.version
+                    snapshot.status = status
+                    var disk = Micropod_V1_DiskUsage()
+                    let diskSize =
+                        (try? FileManager.default.attributesOfItem(atPath: machine.layout.disk.path)[.size] as? UInt64)
+                        ?? 0
+                    disk.containers.sizeBytes = diskSize
+                    snapshot.diskUsage = disk
+                    await versionManifest(apple: AppleObservation(reported: "", state: .stopped), digests: false)
+                        .apply(to: &snapshot)
+                    snapshot.components.append(Self.hvfMachineComponent(readiness))
+                    return reply(snapshot)
                 }
                 var snapshot = Micropod_V1_SystemSnapshot()
                 var status = try await system.status()
@@ -713,6 +710,25 @@ extension APIHandlers {
         }
     }
 
+    /// The hvf machine when hvf is the default runtime: Ping and GetSystem
+    /// then describe it rather than Apple's runtime.
+    var defaultHVFMachine: HVFMachineClient? {
+        guard engineRegistry.defaultName == "hvf" else { return nil }
+        return (engineRegistry.engine("hvf") as? HVFEngine)?.machine
+    }
+
+    /// `hvf-machine` in Ping and GetSystem `components`: the readiness
+    /// status and why (`machine status`'s summary).
+    static func hvfMachineComponent(_ readiness: HVFMachineReadiness) -> Micropod_V1_ComponentVersion {
+        .with {
+            $0.name = "hvf-machine"
+            $0.version = readiness.version
+            $0.revision = readiness.revision
+            $0.state = readiness.componentState
+            $0.detail = "\(readiness.status.rawValue): \(readiness.detail)"
+        }
+    }
+
     /// Millisecond liveness for detection and health ticks — never `df`, and
     /// never an error: an unreachable runtime is `status: "stopped"`.
     ///
@@ -745,21 +761,23 @@ extension APIHandlers {
             response.features.append(RuntimeCoordinationEnrollment.dataCapability)
         }
         response.defaultRuntime = engineRegistry.defaultName
-        // When HVF is the active default runtime (and installed), advertise
-        // rootless `hvf` readiness directly without requiring Apple's `container` daemon.
-        if response.defaultRuntime == "hvf",
-            let hvfEngine = engineRegistry.engine("hvf") as? HVFEngine
-        {
-            let hvfStatus = hvfEngine.machine.status()
-            if hvfStatus.installed && hvfStatus.problem == nil {
-                response.runtimeBackend = "hvf"
-                response.status = "running"
-                response.apiServerVersion = hvfStatus.payload?.current?.version ?? "hvf"
-                response.features += ["hvf", "caches-v2", "buildkit", "rootless", "proto-binary"]
-                await versionManifest(apple: AppleObservation(reported: "", state: .stopped), digests: false)
-                    .apply(to: &response)
-                return response
-            }
+        // hvf as the default runtime answers for itself, without Apple's
+        // `container` daemon, and from live machine state only: `running`,
+        // `caches-v2` and `buildkit` mean a supervisor is up, the guest
+        // answered `_ping` and the bundle ships them. Anything else is the
+        // machine's own not-ready status (`stopped`, `starting`, `failed`,
+        // `not-ready`, `not-installed`, …), with the why in the
+        // `hvf-machine` component.
+        if let machine = defaultHVFMachine {
+            let readiness = await machine.readiness()
+            response.runtimeBackend = "hvf"
+            response.status = readiness.status.rawValue
+            response.apiServerVersion = readiness.version
+            response.features += readiness.features
+            await versionManifest(apple: AppleObservation(reported: "", state: .stopped), digests: false)
+                .apply(to: &response)
+            response.components.append(Self.hvfMachineComponent(readiness))
+            return response
         }
         // Only the native backend sends the apiserver requests it counts;
         // the CLI backend's `container` children are invisible to it.
