@@ -22,8 +22,9 @@
 #      index.db re-downloads
 #   T2 both uid orders (0 then 1000, 1000 then 0) per tool, a root entrypoint
 #      that drops to uid 1000, and `--user node`
-#   T3 precedence: image-prewarmed, user mounts and env, opt-outs, scope 400,
-#      GOFLAGS merge, postgres:alpine gets only /micropod/cache
+#   T3 precedence: image-prewarmed, an image's own cache env, user mounts and
+#      env, opt-outs, scope 400, GOFLAGS merge, postgres:alpine gets only
+#      /micropod/cache
 #   T4 concurrency on one scope
 #   T5 restart: machine stop/start, then kill -9 of the VMM mid-download
 #   T6 builds with the stock docker CLI (isolated DOCKER_CONFIG, DOCKER_HOST only)
@@ -996,6 +997,25 @@ t3() {
     n=t3-prewarm-corepack
     step $n "qual-prewarm-node:$S" 0 "$sc" none corepack prewarm a
     check engine "$n: the prepared pnpm runs offline, corepack reason image-prewarmed" "rc=$(r $n rc) reason=$(mc $n corepack reason)" "rc=0 reason=image-prewarmed"
+    # Images that set their own cache locations, or turn one off themselves.
+    qbuild "$QR/t3-build-goenv.log" -t "qual-goenv:$S" -f "$TMP/prewarm/prewarm/Dockerfile.goenv" "$TMP/prewarm"
+    check harness "t3: built qual-goenv (its own ENV GOCACHE and GOMODCACHE)" "$?" 0
+    qbuild "$QR/t3-build-pipoff.log" -t "qual-pipoff:$S" -f "$TMP/prewarm/prewarm/Dockerfile.pipoff" "$TMP/prewarm"
+    check harness "t3: built qual-pipoff (ENV PIP_NO_CACHE_DIR=1)" "$?" 0
+    n=t3-imgenv-cold
+    step $n "qual-goenv:$S" 0 "$sc" on go build base -e "$GO_REQ_FLAGS"
+    check engine "$n: the image's own GOCACHE and GOMODCACHE are kept, and the scope's stores are bound at those paths" \
+        "GOCACHE=$(r $n goenv.GOCACHE) GOMODCACHE=$(r $n goenv.GOMODCACHE) modes=$(mc $n gobuild mode),$(mc $n gomod mode) stores=$(under "$(r $n store.gobuild)" "$(expect gobuild 0 "$sc")" && under "$(r $n store.gomod)" "$(expect gomod 0 "$sc")" && echo scope || echo "$(r $n store.gobuild),$(r $n store.gomod)")" \
+        "GOCACHE=/opt/qual/gocache GOMODCACHE=/opt/qual/gomod modes=path,path stores=scope"
+    gcheck "$n: …and Config.Env sets neither variable" \
+        "$(insp $n "sorted(e.split('=')[0] for e in (c.get('Config') or {}).get('Env') or [] if e.split('=')[0] in ('GOCACHE', 'GOMODCACHE'))")" "[]"
+    n=t3-imgenv-warm
+    step $n "qual-goenv:$S" 0 "$sc" none go build base -e "$GO_REQ_FLAGS" -e "$GO_NOPROXY"
+    check auto "$n: a new container of that image, another checkout, --network none, hits the stores at the image's paths" "$(hits_go $n)" "rc=0 compiles=0 downloads=0"
+    n=t3-imgoff
+    step $n "qual-pipoff:$S" 0 "$sc" on env env a
+    gcheck "$n: an image with PIP_NO_CACHE_DIR=1 keeps pip's cache off (disabled-by-image, no PIP_CACHE_DIR; the other tools still attach)" \
+        "reason=$(mc $n pip reason) PIP_CACHE_DIR=$(r $n env.PIP_CACHE_DIR) mount=$(has_cache_mount $n)" "reason=disabled-by-image PIP_CACHE_DIR=__unset__ mount=True"
     # The user's own cache choices are kept, and the store does not change.
     step t3-count0 "$IMG_GO" 0 "$sc" on go count base
     n=t3-uvol
@@ -1083,14 +1103,17 @@ fi
 
 # --- T4 concurrency ---------------------------------------------------------------------
 t4() {
-    local sc=q4-$S bar=t4-barrier-$S i n names_go="" names_pnpm="" names_yarn="" names_cargo="" names_uv="" names_npm="" running deadline
+    # yarn v1's exclusive lease is taken by every container whose image has
+    # node on PATH, the eight pnpm containers here included, so the yarn
+    # writers race each other in a scope of their own.
+    local sc=q4-$S scy=q4y-$S bar=t4-barrier-$S i n names_go="" names_pnpm="" names_yarn="" names_cargo="" names_uv="" names_npm="" running deadline
     DETACHED=()
     BG=1
     if want_tool go; then for i in 1 2 3 4 5 6 7 8; do step t4-go-$i "$IMG_GO" 0 "$sc" on go build base -e QWAIT=$bar -e "$GO_REQ_FLAGS" -e "$GO_LOCAL"; names_go="$names_go t4-go-$i"; done; fi
     if want_tool pnpm; then for i in 1 2 3 4 5 6 7 8; do step t4-pnpm-$i "$IMG_NODE" 0 "$sc" on pnpm install a -e QWAIT=$bar -e QPNPM=10; names_pnpm="$names_pnpm t4-pnpm-$i"; done; fi
     if want_tool yarn1; then
         for i in 1 2 3 4; do # hand wiring stands in for the engine's exclusive lease: only #1 gets the store
-            NO_YARN=$([ "$MANUAL" = 1 ] && [ $i -gt 1 ] && echo 1 || echo 0) step t4-yarn1-$i "$IMG_NODE" 0 "$sc" on yarn1 install a -e QWAIT=$bar
+            NO_YARN=$([ "$MANUAL" = 1 ] && [ $i -gt 1 ] && echo 1 || echo 0) step t4-yarn1-$i "$IMG_NODE" 0 "$scy" on yarn1 install a -e QWAIT=$bar
             names_yarn="$names_yarn t4-yarn1-$i"
         done
     fi
@@ -1130,9 +1153,9 @@ t4() {
         local nmode=0 nbusy=0 x
         for x in $names_yarn; do [ "$(mc $x yarn mode)" = path ] && nmode=$((nmode + 1)); [ "$(mc $x yarn reason)" = busy-exclusive ] && nbusy=$((nbusy + 1)); done
         check safety "t4: 4 concurrent yarn 1 installs all exit 0" "$(rcs $names_yarn)" "0 0 0 0"
-        check auto "t4: exactly one yarn 1 container wrote the shared store (exclusive lease)" "$(on_store yarn "$(expect yarn 0 "$sc")" $names_yarn)" 1
+        check auto "t4: exactly one yarn 1 container wrote the shared store (exclusive lease)" "$(on_store yarn "$(expect yarn 0 "$scy")" $names_yarn)" 1
         check engine "t4: inspect shows one yarn mode=path and three busy-exclusive" "path=$nmode busy=$nbusy" "path=1 busy=3"
-        step t4-yarn1-warm "$IMG_NODE" 0 "$sc" none yarn1 install-offline a
+        step t4-yarn1-warm "$IMG_NODE" 0 "$scy" none yarn1 install-offline a
         check auto "t4-yarn1-warm: a later yarn install --offline hits" "$(r t4-yarn1-warm rc)" 0
     fi
     if want_tool cargo; then
@@ -1174,33 +1197,52 @@ t5() {
     else
         echo "   (T1 not selected: no warm stores to replay after the restart)"
     fi
-    echo "   kill -9 of the VMM during a cold go mod download and pnpm install"
-    local sc=q5-$S deadline vmm gets prog inflight
+    echo "   kill -9 of the VMM during a cold go mod download, with a cold pnpm install's units still held"
+    local sc=q5-$S deadline vmm gets prog inflight pn
     DETACHED=()
     BG=1
-    want_tool go && step t5-kill-go "$IMG_GO" 0 "$sc" on go download big -e QSTREAM=1 -e "$GO_REQ_FLAGS" -e "$GO_LOCAL"
-    want_tool pnpm && step t5-kill-pnpm "$IMG_NODE" 0 "$sc" on pnpm install big -e QSTREAM=1 -e QPNPM=10
-    BG=0
+    # Both fixtures finish in about 2 s, so they rarely overlap by chance. pnpm
+    # starts first and keeps its container (and so its units, fresh writes and
+    # dirty marks) for QHOLD seconds after it finishes; go starts once pnpm has
+    # progressed and the VMM dies while go is still downloading.
+    want_tool pnpm && step t5-kill-pnpm "$IMG_NODE" 0 "$sc" on pnpm install big -e QSTREAM=1 -e QPNPM=10 -e QHOLD=90
     deadline=$((SECONDS + 120))
-    while [ "$SECONDS" -lt "$deadline" ]; do
-        gets=$(grep -c '^# get' "$QR/t5-kill-go.progress" 2>/dev/null)
+    while want_tool pnpm && [ "$SECONDS" -lt "$deadline" ]; do
         prog=$(grep -c 'resolved' "$QR/t5-kill-pnpm.progress" 2>/dev/null)
-        { ! want_tool go || ge "$gets" 3; } && { ! want_tool pnpm || ge "$prog" 1; } && break
+        { ge "$prog" 1 || [ -f "$QR/t5-kill-pnpm.res" ]; } && break
         sleep 0.1
     done
+    want_tool go && step t5-kill-go "$IMG_GO" 0 "$sc" on go download big -e QSTREAM=1 -e "$GO_REQ_FLAGS" -e "$GO_LOCAL"
+    BG=0
+    deadline=$((SECONDS + 120))
+    while want_tool go && [ "$SECONDS" -lt "$deadline" ]; do
+        gets=$(grep -c '^# get' "$QR/t5-kill-go.progress" 2>/dev/null)
+        { ge "$gets" 3 || [ -f "$QR/t5-kill-go.res" ]; } && break
+        sleep 0.05
+    done
+    pn=$({ ! want_tool pnpm && echo skipped; } || { [ ! -f "$QR/t5-kill-pnpm.res" ] && echo in-flight; } ||
+        { [ "$("$DOCKER" inspect -f '{{.State.Running}}' "q$S-t5-kill-pnpm" 2>/dev/null)" = true ] && echo holding; } || echo exited)
     inflight="go=$({ ! want_tool go && echo skipped; } || { [ -f "$QR/t5-kill-go.res" ] && echo finished; } || echo in-flight)"
-    inflight="$inflight pnpm=$({ ! want_tool pnpm && echo skipped; } || { [ -f "$QR/t5-kill-pnpm.res" ] && echo finished; } || echo in-flight)"
     vmm=$(state "s['vmmPID']")
     if [ -n "$vmm" ] && ps -o command= -p "$vmm" 2>/dev/null | grep -q -- "^$ROOT_DIR/micropod-vmm "; then
         kill -9 "$vmm"
     fi
-    check harness "t5: the VMM ($vmm) was killed while both cold downloads were in flight" "$inflight" "go=in-flight pnpm=in-flight"
+    echo "    at the kill: $inflight pnpm=$pn"
+    case $pn in in-flight | holding) pn=held ;; esac
+    check harness "t5: the VMM ($vmm) was killed while go was downloading and pnpm's container still held its units" "$inflight pnpm=$pn" "go=$(want_tool go && echo in-flight || echo skipped) pnpm=$(want_tool pnpm && echo held || echo skipped)"
     deadline=$((SECONDS + 180))
     until [ "$(state "s['phase']=='running' and s['vmmPID']!=$vmm")" = True ] && ping_engine; do
         [ "$SECONDS" -lt "$deadline" ] || break
         sleep 0.5
     done
     check harness "t5: the supervisor relaunched the VMM and the engine answers" "$(ping_engine && echo up || echo down)" up
+    local discarded
+    discarded=$(curl -s -m 5 --unix-socket "$SOCK" http://d/micropod/caches | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin).get('discardedAtStart') or []))" 2>/dev/null)
+    echo "    units the engine discarded at start: ${discarded:-none}"
+    local want_disc="" got_disc=""
+    want_tool go && want_disc="gomod" && got_disc=$(words "$discarded" "$sc/gomod" && echo gomod || echo none)
+    want_tool pnpm && want_disc="$want_disc pnpm" && got_disc="$got_disc $(words "$discarded" "$sc/pnpm" && echo pnpm || echo none)"
+    check engine "t5: the engine discarded the units the kill caught with unsynced writes" "${got_disc# }" "${want_disc# }"
     "$DOCKER" rm -f "q$S-t5-kill-go" "q$S-t5-kill-pnpm" >/dev/null 2>&1
     if want_tool go; then
         step t5-go-verify "$IMG_GO" 0 "$sc" on go verify big -e "$GO_REQ_FLAGS" -e "$GO_LOCAL"
@@ -1328,6 +1370,11 @@ t6_builder_install() { # the fallback: micropod machine builder install + docker
         ctx_copy "$TMP/build/f2" f2
         "$DOCKER" --context micropod build --progress=plain "$TMP/build/f2" >"$QR/t6-f2.log" 2>&1
         check cli "t6: after machine builder install, docker --context micropod build hits on the second build" "$(counts_of "$QR/t6-f2.log")" "compiles=1 downloads=0 rc=0"
+        # The documented fallback command: the remote builder on run/buildkit.sock.
+        ctx_copy "$TMP/build/f3" f3
+        BUILDX_BUILDER=micropod-buildkit "$DOCKER" --context micropod build --progress=plain "$TMP/build/f3" >"$QR/t6-f3.log" 2>&1
+        check cli "t6: BUILDX_BUILDER=micropod-buildkit docker --context micropod build uses the remote builder and hits" \
+            "$(counts_of "$QR/t6-f3.log") $(grep -o 'using remote driver' "$QR/t6-f3.log" | head -1)" "compiles=1 downloads=0 rc=0 using remote driver"
         "$M" machine builder rm >/dev/null 2>&1
     else
         check cli "t6: micropod machine builder install succeeds" "$(tail -1 "$QR/t6-builder-install.log")" "exit 0"

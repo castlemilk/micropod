@@ -14,7 +14,9 @@
 # /qt (harness-installed pnpm<major>/ and yarn4/, ro), /qr (results, rw 0777).
 # Env: QCO checkout dir (default /tmp/qco/<name>), QEDIT one-file-change token,
 #      QWAIT barrier file in /qr to wait for, QDROP uid that a root entrypoint
-#      drops to with busybox su before the tool runs, QPNPM pnpm major.
+#      drops to with busybox su before the tool runs, QPNPM pnpm major,
+#      QHOLD seconds to keep the container (and its cache units) after the
+#      result is written.
 # Nothing here sets a cache variable: every cache path comes from the engine
 # (or from the harness's QUAL_MANUAL_WIRING arguments).
 set -u
@@ -45,6 +47,7 @@ finish() {
     printf 'QUAL-SENTINEL %s\n' "$NAME" >>"$TMP"
     mv -f "$TMP" "$RES"
     echo "QUAL-SENTINEL $NAME"
+    [ -n "${QHOLD:-}" ] && sleep "$QHOLD"
     exit 0
 }
 count() { grep -c "$1" "$MAIN" 2>/dev/null | tr -d ' ' || true; }
