@@ -9,14 +9,15 @@ import MicropodRuntime
 enum RuntimeCommands {
     static let usage = """
         runtime ls                            engines, availability, default
-        runtime install|repair|start|stop|restart  managed runtime operations (approved helper required)
-        runtime operation|cancel|recover        progress, cancellation and verified recovery
-        runtime update [--rollback]           move the dedicated runtime to the installed app's release
-        runtime install-authority             (sudo, once) install the root-owned runtime helper
-        runtime status                        Apple dependency readiness and next action (--json supported)
-        runtime use <name>                    make <name> the default for new containers
+        runtime mode [container|sandbox]      show or switch between Containers (hvf) and Isolated Sandboxes (sandbox)
+        runtime use <name>                    make <name> the default (aliases: container -> hvf, isolated -> sandbox)
         runtime enable|disable <name>         include/exclude an engine from ps and run
         runtime endpoint <name> <url|default> point docker at another socket (unix:// or tcp://)
+        runtime status                        Apple dependency readiness and next action (--json supported)
+        runtime install|repair|start|stop|restart  legacy Apple managed runtime operations
+        runtime operation|cancel|recover        legacy Apple runtime operation state
+        runtime update [--rollback]           legacy Apple dedicated runtime update
+        runtime install-authority             legacy Apple root helper setup (sudo)
         """
 
     static func run(_ args: [String], _ services: Services) async throws {
@@ -86,12 +87,47 @@ enum RuntimeCommands {
             print(
                 renderTable(
                     headers: ["NAME", "KIND", "AVAILABLE", "ENABLED", "VERSION", "ENDPOINT / REASON"], rows: rows))
+        case "mode":
+            if let requested = args.dropFirst().first {
+                guard let mode = RuntimeMode(rawValue: requested.lowercased()) else {
+                    throw UsageError(
+                        message: "runtime mode wants 'container' (shared HVF VM) or 'sandbox' (isolated microVM)")
+                }
+                try await registry.setDefault(mode.engineName, apple: apple)
+                if MicropodCLI.jsonOutput {
+                    let payload: [String: String] = [
+                        "mode": mode.rawValue, "runtime": mode.engineName, "summary": mode.summary,
+                    ]
+                    let data = try JSONSerialization.data(
+                        withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+                    print(String(decoding: data, as: UTF8.self))
+                } else {
+                    print("mode → \(mode.rawValue) (\(mode.engineName)): \(mode.summary)")
+                }
+            } else {
+                let current = registry.defaultName
+                let mode = registry.activeMode
+                if MicropodCLI.jsonOutput {
+                    let payload: [String: String] = [
+                        "mode": mode?.rawValue ?? "legacy",
+                        "runtime": current,
+                        "summary": mode?.summary ?? "Legacy runtime '\(current)'",
+                    ]
+                    let data = try JSONSerialization.data(
+                        withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+                    print(String(decoding: data, as: UTF8.self))
+                } else if let mode {
+                    print("mode: \(mode.rawValue) (\(mode.engineName)) — \(mode.summary)")
+                } else {
+                    print("mode: legacy (\(current)) — switch with `micropod runtime mode container|sandbox`")
+                }
+            }
         case "use", "default":
-            let name = try requireName(args)
+            let name = EngineRegistry.canonicalName(try requireName(args))
             try await registry.setDefault(name, apple: apple)
             print("default runtime → \(name)")
         case "enable", "disable":
-            let name = try requireName(args)
+            let name = EngineRegistry.canonicalName(try requireName(args))
             try registry.update(name, enabled: args[0] == "enable", endpoint: nil)
             print("\(name) \(args[0])d")
         case "endpoint":

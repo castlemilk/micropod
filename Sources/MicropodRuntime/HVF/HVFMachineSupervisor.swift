@@ -373,9 +373,14 @@ public actor HVFMachineSupervisor {
             return
         }
         self.process = process
+        let activeRoot = layout.activePayloadRoot
+        let payloadManifest = HVFPayloadManifest.load(from: activeRoot)
         state.phase = .starting
         state.vmmPID = process.pid
         state.vmmStartSeconds = inspector.facts(process.pid)?.startSeconds
+        state.loadedPayloadPath = HVFMachineLayout.canonicalPath(activeRoot.path)
+        state.loadedPayloadVersion = payloadManifest?.version
+        state.loadedPayloadRevision = payloadManifest?.revision
         state.startedAt = Date()
         state.readyAt = nil
         persist()
@@ -476,11 +481,18 @@ public actor HVFMachineSupervisor {
     static func orphans(among candidates: [HVFProcessFacts], layout: HVFMachineLayout, supervisorPID: Int32)
         -> [Int32]
     {
+        let rootPath = HVFMachineLayout.canonicalPath(layout.root.path)
         let binary = HVFMachineLayout.canonicalPath(layout.vmm.path)
         let disk = HVFMachineLayout.canonicalPath(layout.disk.path)
         return candidates.filter { facts in
             guard facts.pid > 1, facts.pid != supervisorPID,
-                let path = facts.executablePath, HVFMachineLayout.canonicalPath(path) == binary,
+                let path = facts.executablePath
+            else { return false }
+            let canon = HVFMachineLayout.canonicalPath(path)
+            let isRootVMM =
+                canon == binary
+                || (canon.hasPrefix(rootPath + "/") && URL(fileURLWithPath: canon).lastPathComponent == "micropod-vmm")
+            guard isRootVMM,
                 let flag = facts.arguments.firstIndex(of: "--disk"), flag + 1 < facts.arguments.count
             else { return false }
             return HVFMachineLayout.canonicalPath(facts.arguments[flag + 1]) == disk

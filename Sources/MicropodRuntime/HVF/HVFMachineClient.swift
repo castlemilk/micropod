@@ -18,6 +18,10 @@ public struct HVFMachineStatus: Sendable, Equatable {
     public var state: HVFMachineState?
     /// state.json exists but could not be read.
     public var stateError: String?
+    /// True when a newer versioned payload is staged at `<root>/current` than the running VMM loaded.
+    public var updatePending: Bool = false
+    /// Staged vs running versioned payload summary.
+    public var payload: HVFPayloadStatus?
 
     public var installed: Bool { missing.isEmpty }
 
@@ -26,9 +30,11 @@ public struct HVFMachineStatus: Sendable, Equatable {
         if !installed { return "not installed: missing \(missing.joined(separator: ", "))" }
         if let problem { return problem }
         if let stateError { return "\(phase.rawValue) (\(stateError))" }
+        let pending = updatePending ? ", update pending -> \(payload?.current?.version ?? "staged")" : ""
         switch phase {
         case .running:
-            return "running (vmm pid \(state?.vmmPID.map(String.init) ?? "?"), restarts \(state?.restartCount ?? 0))"
+            return
+                "running (vmm pid \(state?.vmmPID.map(String.init) ?? "?"), restarts \(state?.restartCount ?? 0)\(pending))"
         case .starting:
             let restarts = state?.restartCount ?? 0
             return restarts > 0
@@ -84,10 +90,11 @@ public struct HVFMachineClient: Sendable {
         let phase: HVFMachinePhase =
             if alive { state?.phase ?? .starting } else if state?.phase == .failed { .failed } else { .stopped }
         let missing = layout.missingAssets()
+        let payload = HVFPayloadStore.status(layout: layout)
         return HVFMachineStatus(
             root: layout.root.path, socket: layout.dockerSocket.path, missing: missing,
             problem: missing.isEmpty ? layout.configurationProblem() : nil, supervisorAlive: alive, phase: phase,
-            state: state, stateError: stateError)
+            state: state, stateError: stateError, updatePending: payload.updatePending, payload: payload)
     }
 
     /// Cheap "is there a guest engine to talk to": a live supervisor that

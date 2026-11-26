@@ -49,10 +49,20 @@ public struct HVFMachineLayout: Sendable, Equatable {
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/hvf")
     }
 
-    public var vmm: URL { root.appendingPathComponent("micropod-vmm") }
-    public var kernel: URL { root.appendingPathComponent("Image") }
-    public var initrd: URL { root.appendingPathComponent("mp-hvf-init.cpio") }
-    public var tools: URL { root.appendingPathComponent("tools") }
+    public var versionsDirectory: URL { root.appendingPathComponent("versions") }
+    public var currentLink: URL { root.appendingPathComponent("current") }
+    public var previousLink: URL { root.appendingPathComponent("previous") }
+
+    /// Immutable versioned payload directory when `<root>/current` points to a
+    /// valid staged release; otherwise the legacy flat `<root>` directory.
+    public var activePayloadRoot: URL {
+        HVFPayloadStore.resolveLinkTarget(currentLink) ?? root
+    }
+
+    public var vmm: URL { activePayloadRoot.appendingPathComponent("micropod-vmm") }
+    public var kernel: URL { activePayloadRoot.appendingPathComponent("Image") }
+    public var initrd: URL { activePayloadRoot.appendingPathComponent("mp-hvf-init.cpio") }
+    public var tools: URL { activePayloadRoot.appendingPathComponent("tools") }
     public var disk: URL { root.appendingPathComponent("disk.ext4") }
     public var config: URL { root.appendingPathComponent("machine.json") }
     public var runDirectory: URL { root.appendingPathComponent("run") }
@@ -405,16 +415,24 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
     /// (nil after a signal or a failed launch).
     public var lastExitCode: Int32?
     public var lastExitMeaning: String?
+    /// Immutable payload directory and manifest version loaded by the active VMM.
+    public var loadedPayloadPath: String?
+    public var loadedPayloadVersion: String?
+    public var loadedPayloadRevision: String?
     public var updatedAt: Date
 
     public init(
         phase: HVFMachinePhase, supervisorPID: Int32, supervisorStartSeconds: Int64? = nil, vmmPID: Int32? = nil,
         vmmStartSeconds: Int64? = nil, startedAt: Date? = nil, readyAt: Date? = nil, restartCount: Int = 0,
         lastExitReason: String? = nil, lastExitCode: Int32? = nil, lastExitMeaning: String? = nil,
+        loadedPayloadPath: String? = nil, loadedPayloadVersion: String? = nil, loadedPayloadRevision: String? = nil,
         updatedAt: Date = Date()
     ) {
         self.lastExitCode = lastExitCode
         self.lastExitMeaning = lastExitMeaning
+        self.loadedPayloadPath = loadedPayloadPath
+        self.loadedPayloadVersion = loadedPayloadVersion
+        self.loadedPayloadRevision = loadedPayloadRevision
         schema = Self.currentSchema
         self.phase = phase
         self.supervisorPID = supervisorPID

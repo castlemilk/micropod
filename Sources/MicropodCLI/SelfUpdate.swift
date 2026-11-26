@@ -2,6 +2,7 @@ import Crypto
 import Foundation
 import MicropodBuildInfo
 import MicropodCore
+import MicropodRuntime
 import Security
 
 /// Updates a standalone CLI install (one not linked into the app bundle)
@@ -128,7 +129,7 @@ enum SelfUpdate {
     }
 
     /// Downloads, verifies and installs `release` over the files at `cli`.
-    static func install(_ release: Release, cli: URL, progress: (String) -> Void) async throws {
+    static func install(_ release: Release, cli: URL, progress: @Sendable (String) -> Void) async throws {
         let files = installedFiles(cli: cli)
         let dir = cli.deletingLastPathComponent()
         guard access(dir.path, W_OK) == 0 else {
@@ -192,6 +193,29 @@ enum SelfUpdate {
             }
         }
         staged.removeAll()
+
+        // If the release bundle ships HVF assets and an HVF machine root exists,
+        // atomically stage the immutable versioned payload without disrupting any running VM.
+        let appBundle = mount.appendingPathComponent("Micropod.app")
+        let hvfLayout = HVFMachineLayout()
+        if FileManager.default.fileExists(atPath: hvfLayout.root.path),
+            (try? HVFPayloadStore.resolveAssets(from: .directory(appBundle))) != nil
+        {
+            do {
+                let manifest = try HVFPayloadStore.stage(
+                    from: .directory(appBundle),
+                    version: release.version.description,
+                    revision: release.sourceRevision ?? "unknown",
+                    layout: hvfLayout,
+                    verifySignature: true,
+                    progress: progress)
+                progress(
+                    "staged HVF runtime payload \(manifest.version) — run `micropod update hvf apply` when idle to activate"
+                )
+            } catch {
+                progress("note: skipped HVF payload staging: \(error.localizedDescription)")
+            }
+        }
     }
 
     @discardableResult

@@ -13,6 +13,9 @@ enum SandboxCommands {
 
         Usage:
           micropod sandbox run [flags] [image|--from ckpt] [-- cmd…]
+          micropod sandbox status [--json]           show standalone sandbox assets (zero com.apple.container)
+          micropod sandbox setup [--kernel PATH] [--vminit REF]
+                                                     bootstrap ~/.micropod/sandbox standalone
           micropod sandbox checkpoint create <name> [flags] [image|--from ckpt] -- cmd…
           micropod sandbox checkpoint ls | rm <name…>
           micropod sandbox prune                     drop cached base disks + stale runs
@@ -81,6 +84,12 @@ enum SandboxCommands {
             switch args.first {
             case "run":
                 return try await run(Array(args.dropFirst()), saveAs: nil)
+            case "status":
+                try status(Array(args.dropFirst()))
+                return ExitCode.ok
+            case "setup":
+                try await setup(Array(args.dropFirst()))
+                return ExitCode.ok
             case "checkpoint", "checkpoints", "ckpt":
                 return try await checkpoint(Array(args.dropFirst()))
             case "prune":
@@ -252,6 +261,46 @@ enum SandboxCommands {
             return ExitCode.ok
         default:
             throw UsageError(message: "unknown checkpoint command '\(args[0])'")
+        }
+    }
+
+    static func status(_ args: [String]) throws {
+        let json = args.contains("--json") || MicropodCLI.jsonOutput
+        let st = SandboxVM.assetStatus()
+        if json {
+            let enc = JSONEncoder()
+            enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+            print(String(decoding: try enc.encode(st), as: UTF8.self))
+            return
+        }
+        print("Sandbox root:     \(st.root)")
+        print(
+            "Standalone ready: \(st.standaloneReady ? "yes (zero com.apple.container dependency)" : "no — run `micropod sandbox setup`")"
+        )
+        print("Kernel:           \(st.kernelPath ?? "missing") (\(st.kernelOrigin.rawValue))")
+        print("OCI store:        \(st.contentPath) (\(st.contentOrigin.rawValue))")
+        print(
+            "Cached initfs:    \(st.initfsPaths.isEmpty ? "none (pulled on first run or `sandbox setup`)" : st.initfsPaths.joined(separator: ", "))"
+        )
+    }
+
+    static func setup(_ args: [String]) async throws {
+        let json = args.contains("--json") || MicropodCLI.jsonOutput
+        let cleaned = args.filter { $0 != "--json" }
+        let parsed = try parseArgs(
+            cleaned, boolFlags: [], valueFlags: ["--kernel", "--vminit"], commandName: "sandbox setup")
+        let kernel = parsed.value("--kernel").map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+        let vminit = parsed.value("--vminit") ?? SandboxVM.defaultVMInitReference
+        let st = try await SandboxVM.setupStandalone(
+            kernelSource: kernel,
+            vminitReference: vminit,
+            progress: { if !json { FileHandle.standardError.write(Data("sandbox: \($0)\n".utf8)) } })
+        if json {
+            let enc = JSONEncoder()
+            enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+            print(String(decoding: try enc.encode(st), as: UTF8.self))
+        } else {
+            print("standalone sandbox ready under \(st.root) (kernel: \(st.kernelPath ?? "?"))")
         }
     }
 

@@ -73,6 +73,35 @@ public struct EngineProbe: Sendable, Equatable {
     }
 }
 
+/// First-class execution modes: fast shared-VM containers (`hvf`) vs
+/// 1-microVM-per-workload isolated sandboxes (`sandbox`).
+public enum RuntimeMode: String, CaseIterable, Sendable {
+    case container
+    case sandbox
+
+    public var engineName: String {
+        switch self {
+        case .container: return "hvf"
+        case .sandbox: return "sandbox"
+        }
+    }
+
+    public var summary: String {
+        switch self {
+        case .container: return "Fast shared Linux microVM (hvf — Docker API, BuildKit, 10-tool caches)"
+        case .sandbox: return "Isolated 1-microVM-per-workload sandbox (ephemeral rootfs, checkpoints, egress control)"
+        }
+    }
+
+    public init?(engineName: String) {
+        switch EngineRegistry.canonicalName(engineName) {
+        case "hvf": self = .container
+        case "sandbox": self = .sandbox
+        default: return nil
+        }
+    }
+}
+
 // MARK: - Persisted configuration
 
 /// `~/.micropod/runtimes.json` (`MICROPOD_RUNTIMES_CONFIG` overrides the
@@ -164,20 +193,42 @@ public final class EngineRegistry: Sendable {
 
     public static let engineNames = ["apple", "docker", "sandbox", "ci", "hvf"]
 
+    /// Normalizes ergonomic mode aliases (`container` -> `hvf`, `isolated`/`microvm` -> `sandbox`)
+    /// so every CLI and API surface speaks both clean modes and concrete engine names.
+    public static func canonicalName(_ raw: String) -> String {
+        switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "container", "containers": return "hvf"
+        case "sandbox", "sandboxes", "isolated", "microvm": return "sandbox"
+        default: return raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+    }
+
     public var config: EngineConfig { state.withLock { $0.config } }
 
     public var defaultName: String {
-        if let envDefault { return envDefault }
-        return state.withLock { $0.config.default } ?? "apple"
+        if let envDefault { return Self.canonicalName(envDefault) }
+        if let persisted = state.withLock({ $0.config.default }) {
+            return Self.canonicalName(persisted)
+        }
+        return "apple"
     }
 
-    public func isEnabled(_ name: String) -> Bool {
-        name == defaultName || state.withLock { $0.config.isEnabled(name) }
+    public var activeMode: RuntimeMode? { RuntimeMode(engineName: defaultName) }
+
+    public func isEnabled(_ rawName: String) -> Bool {
+        let name = Self.canonicalName(rawName)
+        if name == defaultName { return true }
+        return state.withLock { state in
+            if let explicit = state.config.engines[name]?.enabled { return explicit }
+            // Auto-enable HVF once installed on disk so users don't need a separate `runtime enable hvf`.
+            if name == "hvf" { return state.hvf.machine.status().installed }
+            return state.config.isEnabled(name)
+        }
     }
 
     /// Non-apple engine by name (enabled or not).
-    public func engine(_ name: String) -> (any RuntimeEngine)? {
-        switch name {
+    public func engine(_ rawName: String) -> (any RuntimeEngine)? {
+        switch Self.canonicalName(rawName) {
         case "docker": return state.withLock { $0.docker }
         case "ci": return ci
         case "sandbox": return sandbox
@@ -192,9 +243,10 @@ public final class EngineRegistry: Sendable {
         ["sandbox", "ci", "docker", "hvf"].filter(isEnabled).compactMap(engine)
     }
 
-    public func setDefault(_ name: String, apple: any RuntimeEngine) async throws {
+    public func setDefault(_ rawName: String, apple: any RuntimeEngine) async throws {
+        let name = Self.canonicalName(rawName)
         guard Self.engineNames.contains(name) else {
-            throw MicropodError.message("failedPrecondition: unknown runtime '\(name)'")
+            throw MicropodError.message("failedPrecondition: unknown runtime '\(rawName)'")
         }
         let target = name == "apple" ? apple : engine(name)!
         let probe = await target.probe()
@@ -207,9 +259,10 @@ public final class EngineRegistry: Sendable {
         }
     }
 
-    public func update(_ name: String, enabled: Bool?, endpoint: String?) throws {
+    public func update(_ rawName: String, enabled: Bool?, endpoint: String?) throws {
+        let name = Self.canonicalName(rawName)
         guard Self.engineNames.contains(name) else {
-            throw MicropodError.message("failedPrecondition: unknown runtime '\(name)'")
+            throw MicropodError.message("failedPrecondition: unknown runtime '\(rawName)'")
         }
         if enabled == false, name == defaultName {
             throw MicropodError.message(
@@ -335,7 +388,7 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
 
     /// Engine for a new container.
     func target(_ request: ContainerRunRequest) async throws -> any RuntimeEngine {
-        let name = request.runtime ?? registry.defaultName
+        let name = request.runtime.map(EngineRegistry.canonicalName) ?? registry.defaultName
         if request.sandbox != nil && name != "sandbox" {
             throw MicropodError.unsupported("sandbox options need runtime 'sandbox', not '\(name)'")
         }

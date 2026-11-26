@@ -127,4 +127,38 @@ final class SelfUpdateTests: XCTestCase {
             UpdateNotice.message(latest: "0.12.0", kind: app, current: "0.11.2")?.contains("comes with the app") == true
         )
     }
+
+    func testRunModeSelectorResolutionAndConflictRejection() throws {
+        let boolFlags: Set<String> = ["--isolated", "--sandbox"]
+        let valueFlags: Set<String> = ["--mode", "--runtime"]
+
+        let iso = try parseArgs(
+            ["--isolated", "alpine"], boolFlags: boolFlags, valueFlags: valueFlags, commandName: "run")
+        XCTAssertEqual(try ContainerCommands.resolveRunMode(iso), "sandbox")
+
+        let sbx = try parseArgs(
+            ["--sandbox", "alpine"], boolFlags: boolFlags, valueFlags: valueFlags, commandName: "run")
+        XCTAssertEqual(try ContainerCommands.resolveRunMode(sbx), "sandbox")
+
+        let modeContainer = try parseArgs(
+            ["--mode", "container", "alpine"], boolFlags: boolFlags, valueFlags: valueFlags, commandName: "run")
+        XCTAssertEqual(try ContainerCommands.resolveRunMode(modeContainer), "hvf")
+
+        let modeSandbox = try parseArgs(
+            ["--mode", "sandbox", "alpine"], boolFlags: boolFlags, valueFlags: valueFlags, commandName: "run")
+        XCTAssertEqual(try ContainerCommands.resolveRunMode(modeSandbox), "sandbox")
+
+        let aliasRuntime = try parseArgs(
+            ["--runtime", "container", "alpine"], boolFlags: boolFlags, valueFlags: valueFlags, commandName: "run")
+        XCTAssertEqual(try ContainerCommands.resolveRunMode(aliasRuntime), "hvf")
+
+        let conflict = try parseArgs(
+            ["--isolated", "--runtime", "hvf", "alpine"], boolFlags: boolFlags, valueFlags: valueFlags,
+            commandName: "run")
+        XCTAssertThrowsError(try ContainerCommands.resolveRunMode(conflict))
+
+        let badMode = try parseArgs(
+            ["--mode", "bogus", "alpine"], boolFlags: boolFlags, valueFlags: valueFlags, commandName: "run")
+        XCTAssertThrowsError(try ContainerCommands.resolveRunMode(badMode))
+    }
 }
