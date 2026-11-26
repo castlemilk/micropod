@@ -51,3 +51,39 @@ func TestContainerdLogsOnlyWarningsAndErrors(t *testing.T) {
 		t.Fatalf("containerd's [debug] level is %q, want warn", level)
 	}
 }
+
+// The OCI service runs a scheduler job the moment the host asks, and the
+// engine's recovery (node.recover) removes every job directory and ready pod
+// it finds. start.sh used to run `job recover` before it started either;
+// with the recovery inside the engine, the service must not start until the
+// engine has bound its Docker socket, which it does only after recovery.
+func TestStartScriptStartsTheOCIServiceAfterTheEngineRecovered(t *testing.T) {
+	b, err := os.ReadFile("../../ci/runner/start.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(b)
+	// dockerSocket (docker_engine_linux.go), where the engine listens.
+	const dockerSocket = "/var/lib/micropod/docker.sock"
+	clear := strings.Index(script, "rm -f "+dockerSocket+"\n")
+	engine := strings.Index(script, `"$tools/runner/bin/job" engine &`)
+	wait := strings.Index(script, "until [ -S "+dockerSocket+" ]; do")
+	service := strings.Index(script, `"$tools/service" serve &`)
+	if clear < 0 || engine < clear {
+		t.Fatal("start.sh does not remove an earlier boot's Docker socket before it starts the engine")
+	}
+	if wait < engine || service < wait {
+		t.Fatal("start.sh starts the OCI service without waiting for the engine's Docker socket")
+	}
+	loop := script[wait:service]
+	done := strings.Index(loop, "\ndone\n")
+	if done < 0 {
+		t.Fatal("the wait for the engine's Docker socket does not end before the OCI service starts")
+	}
+	// A dead containerd or engine never binds the socket: the wait must end.
+	for _, alive := range []string{`kill -0 "$engine"`, `kill -0 "$api"`} {
+		if !strings.Contains(loop[:done], alive+" 2>/dev/null || exit 1") {
+			t.Fatalf("the wait for the engine's Docker socket does not stop when %s fails", alive)
+		}
+	}
+}
