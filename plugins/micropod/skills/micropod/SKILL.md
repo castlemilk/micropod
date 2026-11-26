@@ -111,8 +111,9 @@ container out or narrow it with the label `io.micropod.cache=off|<tools>`
 [--default-scope S|none] [--allow-scopes 'ci-*'] [--default-trust
 trusted|untrusted]`, applied while running. An untrusted container
 (`io.micropod.cache.trust=untrusted`, or any unlabeled one under
-`--default-trust untrusted`, the default on a Cuttlefish rig) only reads the
-caches.
+`--default-trust untrusted`, which nothing sets by itself) only reads the
+caches, and only the stores it uses of its own scope; `micropod cache explain
+<container>` shows the tier, where it came from and each proxy decision.
 `micropod save|load --runtime hvf` move image archives. When `machine status`
 says `docker build: fallback builder only`, `micropod machine builder install`
 adds a `micropod` docker context and the remote buildx builder

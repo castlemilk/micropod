@@ -339,18 +339,32 @@ the guest as `mp-config` (read-only in the guest at `/run/micropod/host-config`)
 Every container has a cache trust tier. A trusted one writes the stores it uses; an untrusted one
 (`io.micropod.cache.trust=untrusted`) or a read-only one (`io.micropod.cache.readonly=1`) reads them warm through a
 copy-on-write view and never writes them, through any path (auto-attached caches, `micropod-ci-scoped-*` volumes,
-`docker cp`). A container that names no tier gets the policy's `defaultTrust`: trusted as shipped, so a plain
-`docker run` on your own machine warms the caches; `micropod cache policy --default-trust untrusted` (set by itself
-the first time the standard machine starts on a host that runs Cuttlefish CI) makes unlabeled containers readers. A
-container may lower its tier; it may claim `trusted` under an untrusted default only through the machine's own Docker
-socket, and a container created from inside another is never more trusted than its creator. `--allow-scopes` holds
-for scope labels and alias volumes alike. With `--share-l0 on`, only the stores whose tools verify them on every read
-(Go modules, npm, pnpm) are shared across scopes; maven, gradle, bun, playwright and every other store stay per
-scope. `--go-proxy` and `--npm-registry` reach a container only while the proxy answers, never over its own, its
-image's or its project's setting (`.npmrc`), never into an untrusted one unless `--proxy-untrusted on`, and the Go
-proxy always keeps a `direct` fallback. BuildKit's state, `RUN --mount=type=cache` contents included, lives on the
-OS disk with the image snapshots it refers to: it survives restarts, and `machine install --replace-disk` starts it
-empty (the dependency stores on the cache disk survive).
+`docker cp`). A reader sees only the stores it uses, of its own scope: not the scope's other tools or another uid's
+partition, and no alias volume of another scope. A container that names no tier gets the policy's `defaultTrust`:
+trusted as shipped, so a plain `docker run` on your own machine warms the caches, on a host that runs Cuttlefish CI
+too (Cuttlefish labels the tier of every container it creates); `micropod cache policy --default-trust untrusted`
+makes unlabeled containers readers. A container may lower its tier; it may claim `trusted` under an untrusted
+default only with the `io.micropod.cache.trust` label on the machine's own Docker socket, never with
+`MICROPOD_CACHE_TRUST` in its environment (an orchestrator passes a job's `env:` through), and under that default
+`MICROPOD_CACHE_SCOPE` names no scope either. A container created from inside another is never more trusted than its
+creator. Whoever holds the machine's Docker socket is the host: it can name any tier and any scope, and every
+`docker build` shares one BuildKit, whose `RUN --mount=type=cache` contents are keyed only by the id the Dockerfile
+gives, so never hand that socket to untrusted code. When the machine asked for its host config share, a policy file
+the guest cannot read fails closed (untrusted by default), and no bind may reach the machine's own directory
+(`~/.micropod/hvf` sits in the home-directory workspace): a bind source inside it is refused, and a bind that covers
+it (`-v $HOME:/h`) shows an empty directory there. `--allow-scopes` holds for scope labels and alias volumes alike.
+With `--share-l0 on`, only the stores whose tools verify them on every read (Go modules, npm, pnpm) are shared
+across scopes, the modules and packages of private projects included; maven, gradle, bun, playwright and every
+other store stay per scope. A container an older engine created with such a store in scope `global` starts without
+it (`shared-store-retired`) until it is recreated, and `micropod cache prune --scope global --tool maven` (and so on)
+removes what is left there. `--go-proxy` and `--npm-registry` reach a container only while the proxy answers, at
+create and at every start, never over its own, its image's or a mount's setting (a variable, a `.npmrc` registry, a
+go env file's `GOPROXY`, or config files the container names itself), never into an untrusted one unless
+`--proxy-untrusted on`, and the injected `GOPROXY` always ends in `|direct`. A setting a step writes after create (a
+clone into a volume, a subproject's own `.npmrc`) is not seen. Maven's local repository has one writer at a time:
+another container that uses it reads it copy-on-write (`micropod cache explain` says `reads`). BuildKit's state,
+`RUN --mount=type=cache` contents included, lives on the OS disk with the image snapshots it refers to: it survives
+restarts, and `machine install --replace-disk` starts it empty (the dependency stores on the cache disk survive).
 
 Stock `docker build` with `DOCKER_HOST=$(micropod machine docker-endpoint)` works when the engine serves BuildKit on
 its Docker socket (`machine status` says `docker build: ready (docker socket)`). For an older engine,
