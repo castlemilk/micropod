@@ -21,14 +21,19 @@ import (
 )
 
 func (s *dockerEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := s.dispatch(w, r); err != nil {
+	start := time.Now()
+	rec := &statusRecorder{ResponseWriter: w}
+	var errMsg string
+	if err := s.dispatch(rec, r); err != nil {
 		code := 500
 		var problem apiError
 		if errors.As(err, &problem) {
 			code = problem.code
 		}
-		writeJSON(w, code, map[string]string{"message": err.Error()})
+		errMsg = err.Error()
+		writeJSON(rec, code, map[string]string{"message": errMsg})
 	}
+	s.metrics.api.recordHTTP("docker_api", r.Method, r.URL.Path, rec.status, start, time.Since(start), errMsg)
 }
 func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 	path := strings.TrimPrefix(r.URL.Path, "/")
@@ -78,10 +83,20 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 			}
 		}
 		metrics["network"] = network
+		apiSnap, recentIssues := s.metrics.api.snapshot()
+		metrics["api"] = apiSnap
+		metrics["reaper"] = s.metrics.reaper.snapshot()
+		metrics["recent_issues"] = recentIssues
 		metrics["start_parallelism_limit"] = cap(s.startSlots)
 		metrics["setup_slots_in_use"] = len(s.startSlots)
 		metrics["setup_wait_usec_total"] = s.metrics.setupWaitUS.Load()
 		writeJSON(w, 200, metrics)
+		return nil
+	case path == "micropod/traces" && (method == "GET" || method == "POST"):
+		s.serveObservabilityTraces(w, r)
+		return nil
+	case path == "micropod/traces/clear" && method == "POST":
+		s.serveObservabilityTraces(w, r)
 		return nil
 	case path == "micropod/storage" && method == "GET":
 		// All snapshots, writable layers and caches live on this ext4 disk.
@@ -266,15 +281,16 @@ func (s *dockerEngine) list(w http.ResponseWriter, r *http.Request) error {
 			}
 			anyMatch := false
 			for _, v := range values {
-				anyMatch = anyMatch || (k == "id" && strings.HasPrefix(c.ID, v)) || (k == "status" && c.Phase == v)
+				anyMatch = anyMatch || (k == "id" && strings.HasPrefix(c.ID, v)) || (k == "status" && c.dockerStatus() == v)
 			}
 			match = match && anyMatch
 		}
 		if match {
+			status := c.dockerStatus()
 			list = append(list, dockerContainerListRow{
 				ID: c.ID, Names: []string{"/" + c.Name}, Image: c.Config.Image, ImageID: c.ImageID,
 				Command: strings.Join(append(append([]string{}, c.Config.Entrypoint...), c.Config.Cmd...), " "),
-				Created: c.Created.Unix(), State: c.Phase, Status: c.Phase, Labels: c.Config.Labels,
+				Created: c.Created.Unix(), State: status, Status: status, Labels: c.Config.Labels,
 				Ports: c.effectivePorts().summary(), Mounts: []any{}, created: c.Created,
 				NetworkSettings: dockerNetworkSettings{Networks: s.dockerContainerNetworks(c)},
 			})

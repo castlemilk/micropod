@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -55,8 +56,19 @@ func (s *dockerEngine) openCleanupSocket(c *dockerContainer) (string, func(), er
 		}
 		api := &cleanupAPI{engine: s, session: c.Config.Labels[tcSession], owner: c.ID}
 		server := &http.Server{Handler: api, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 << 10}
+		s.metrics.reaper.sessionsStarted.Add(1)
+		s.metrics.reaper.activeSessions.Add(1)
+		var closeOnce sync.Once
 		go func() { _ = server.Serve(l) }()
-		return name, func() { server.Close(); l.Close(); os.Remove(dir) }, nil
+		return name, func() {
+			closeOnce.Do(func() {
+				s.metrics.reaper.activeSessions.Add(-1)
+				s.metrics.reaper.sessionsClosed.Add(1)
+			})
+			server.Close()
+			l.Close()
+			os.Remove(dir)
+		}, nil
 	}
 	return "", func() {}, nil
 }
@@ -70,14 +82,33 @@ func (p *cleanupAPI) owns(labels map[string]string) bool {
 	return labels[tcSession] == p.session && labels[tcReap] == "true" && labels["org.testcontainers.ryuk"] != "true"
 }
 func (p *cleanupAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := p.handle(w, r); err != nil {
+	start := time.Now()
+	p.engine.metrics.reaper.requestsTotal.Add(1)
+	rec := &statusRecorder{ResponseWriter: w}
+	var errMsg string
+	err := p.handle(rec, r)
+	dur := time.Since(start)
+	if err != nil {
 		code := 500
 		var api apiError
 		if errors.As(err, &api) {
 			code = api.code
 		}
-		writeJSON(w, code, map[string]string{"message": err.Error()})
+		if code == 403 {
+			p.engine.metrics.reaper.reapDenied.Add(1)
+		}
+		errMsg = err.Error()
+		writeJSON(rec, code, map[string]string{"message": errMsg})
 	}
+	if r.Method == http.MethodDelete {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if strings.HasPrefix(path, "v1.") {
+			_, path, _ = strings.Cut(path, "/")
+		}
+		kind, _, _ := strings.Cut(path, "/")
+		p.engine.metrics.reaper.recordDelete(kind, dur, err)
+	}
+	p.engine.metrics.api.recordHTTP("ryuk_reaper", r.Method, r.URL.Path, rec.status, start, dur, errMsg)
 }
 func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 	path := strings.TrimPrefix(r.URL.Path, "/")

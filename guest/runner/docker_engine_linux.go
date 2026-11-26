@@ -1139,11 +1139,27 @@ func (c *dockerContainer) effectivePorts() portMap {
 	}
 	return c.Ports.withExposed(c.Config.ExposedPorts)
 }
+// dockerStatus maps internal engine phases onto valid Docker Engine API v1.47
+// container states ("created", "running", "paused", "restarting", "removing",
+// "exited", "dead"). Moby keeps a container in "created" (or "exited" on
+// restart) until start transitions it directly into "running"; exposing the
+// internal "starting" phase breaks stock clients such as testcontainers-go
+// during concurrent Ryuk startup races.
+func (c *dockerContainer) dockerStatus() string {
+	if c.Phase == "starting" {
+		if c.Exits > 0 {
+			return "exited"
+		}
+		return "created"
+	}
+	return c.Phase
+}
+
 func (c *dockerContainer) inspect() map[string]any {
 	network := networkName(c.Config.HostConfig.NetworkMode)
 	config := c.Config
 	config.HostConfig.LogConfig = config.HostConfig.LogConfig.withDefault()
-	state := map[string]any{"Status": c.Phase, "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure, "LogError": c.LogError}
+	state := map[string]any{"Status": c.dockerStatus(), "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure, "LogError": c.LogError}
 	if c.Health != nil {
 		state["Health"] = c.Health.snapshot()
 	}
