@@ -7,21 +7,28 @@ import MicropodCore
 public struct HVFPayloadManifest: Codable, Sendable, Equatable {
     public static let currentSchema = 1
     public static let fileName = "payload-manifest.json"
+    /// The `origin` of the copy of a flat (pre-versioning) install that the
+    /// first stage over it makes, so the first update can roll back.
+    public static let flatOrigin = "flat"
 
     public var schema: Int
     public var version: String
     public var revision: String
     public var installedAt: Date
     public var digests: [String: String]
+    /// nil for a staged release; `flatOrigin` for an imported flat install.
+    public var origin: String?
 
     public init(
-        version: String, revision: String = "unknown", installedAt: Date = Date(), digests: [String: String] = [:]
+        version: String, revision: String = "unknown", installedAt: Date = Date(), digests: [String: String] = [:],
+        origin: String? = nil
     ) {
         schema = Self.currentSchema
         self.version = version
         self.revision = revision
         self.installedAt = installedAt
         self.digests = digests
+        self.origin = origin
     }
 
     static let encoder: JSONEncoder = {
@@ -58,53 +65,285 @@ public enum HVFPayloadSource: Sendable, Equatable {
     case explicit(vmm: URL, kernel: URL, initrd: URL, tools: URL)
 }
 
-/// Snapshot of staged, previous, and currently running HVF payloads.
+/// One payload's boot assets, every one derived from a single directory: a
+/// version under `<root>/versions/`, or the root itself for the legacy flat
+/// layout. A launch built from one value can never mix two versions.
+public struct HVFMachinePayload: Sendable, Equatable {
+    /// `id` of the legacy flat layout.
+    public static let flatID = "flat"
+
+    public let directory: URL
+    public let isVersioned: Bool
+
+    public init(directory: URL, isVersioned: Bool) {
+        self.directory = directory.standardizedFileURL
+        self.isVersioned = isVersioned
+    }
+
+    public var vmm: URL { directory.appendingPathComponent("micropod-vmm") }
+    public var kernel: URL { directory.appendingPathComponent("Image") }
+    public var initrd: URL { directory.appendingPathComponent("mp-hvf-init.cpio") }
+    public var tools: URL { directory.appendingPathComponent("tools") }
+    /// The version directory's name, or `flat`.
+    public var id: String { isVersioned ? directory.lastPathComponent : Self.flatID }
+    public var canonicalPath: String { HVFMachineLayout.canonicalPath(directory.path) }
+    public func manifest() -> HVFPayloadManifest? { isVersioned ? HVFPayloadManifest.load(from: directory) : nil }
+
+    /// The VMM, kernel and initrd are files and the tool bundle has `runner/start.sh`.
+    public var hasBootAssets: Bool {
+        [vmm, kernel, initrd].allSatisfy(HVFMachineLayout.isRegularFile)
+            && FileManager.default.fileExists(atPath: tools.appendingPathComponent("runner/start.sh").path)
+    }
+
+    /// The manifest version, or the id when there is none.
+    var label: String { manifest().map { "\($0.version) (\(id))" } ?? id }
+}
+
+/// Snapshot of the payload pointers and of what the live machine loaded.
 public struct HVFPayloadStatus: Codable, Sendable, Equatable {
+    /// What a newly started supervisor boots (absent: the flat layout).
     public var currentPath: String?
+    /// What `current` named before the last activation or rollback.
     public var previousPath: String?
+    /// Staged and waiting for `update hvf apply`.
+    public var stagedPath: String?
+    /// The last payload that booted and passed the health probes.
+    public var knownGoodPath: String?
     public var current: HVFPayloadManifest?
     public var previous: HVFPayloadManifest?
+    public var staged: HVFPayloadManifest?
+    public var knownGood: HVFPayloadManifest?
     public var runningPath: String?
     public var runningVersion: String?
     public var runningRevision: String?
+    /// An activation would change what runs: a staged payload (or `current`)
+    /// differs from the one the live machine loaded or, while it is
+    /// stopped, a staged payload differs from `current`.
     public var updatePending: Bool
     public var availableVersions: [String]
 }
 
-/// Outcome of activating a staged HVF payload.
+/// Outcome of activating a staged HVF payload, or of a rollback.
 public struct HVFActivationResult: Codable, Sendable, Equatable {
     public enum Action: String, Codable, Sendable, Equatable {
+        /// Nothing to do; nothing was stopped.
         case noop
+        /// The target booted, passed the health probes and is now `current`
+        /// and known-good.
         case activated
+        /// Nothing was stopped: workloads still run, or whether they do
+        /// could not be told (the drain check fails closed).
         case deferred
+        /// The target failed; the machine was returned to known-good (or a
+        /// rollback reached it) and passed the health probes again.
         case rolledBack = "rolled_back"
+        /// The rollback boot failed its probes too.
+        case failedRollback = "failed_rollback"
+        /// The target failed and no known-good payload existed to return to.
+        case failed
     }
 
     public var action: Action
+    /// What ran (or, stopped, would boot) before the transaction.
     public var fromVersion: String?
+    /// What runs (or, stopped, will boot) after it.
     public var toVersion: String?
+    /// Workloads that held off a restart (`deferred`).
     public var activeContainers: Int
     public var detail: String
+    /// What the transaction tried to boot.
+    public var targetVersion: String?
+    /// From the old VMM's exit (or a cold start) to the new guest answering
+    /// `_ping`, for a boot that ran.
+    public var switchoverMilliseconds: Int?
+
+    public init(
+        action: Action, fromVersion: String? = nil, toVersion: String? = nil, activeContainers: Int = 0,
+        detail: String, targetVersion: String? = nil, switchoverMilliseconds: Int? = nil
+    ) {
+        self.action = action
+        self.fromVersion = fromVersion
+        self.toVersion = toVersion
+        self.activeContainers = activeContainers
+        self.detail = detail
+        self.targetVersion = targetVersion
+        self.switchoverMilliseconds = switchoverMilliseconds
+    }
 }
 
-/// Rootless atomic versioned payload store for the HVF microVM engine.
+// MARK: - What an update transaction drives
+
+/// The machine as an activation or rollback drives it.
+public protocol HVFUpdateMachine: Sendable {
+    /// A supervisor holds the lock.
+    func isRunning() -> Bool
+    /// The payload directory the live supervisor loaded; nil when stopped.
+    func loadedPayloadPath() -> String?
+    /// Powers the guest off and waits for its supervisor to exit.
+    func stop() async throws
+    /// Starts a supervisor (which resolves its payload once) and returns
+    /// once the guest's Docker API answers.
+    func start() async throws
+}
+
+/// What a restart of the machine would interrupt.
+public struct HVFWorkloads: Sendable, Equatable {
+    /// Running containers (exec sessions run inside them).
+    public var containers: Int
+    /// Live Testcontainers reaper sessions.
+    public var sessions: Int
+
+    public init(containers: Int, sessions: Int = 0) {
+        self.containers = containers
+        self.sessions = sessions
+    }
+
+    public var total: Int { containers + sessions }
+
+    public var summary: String {
+        "\(containers) running container(s)" + (sessions > 0 ? " and \(sessions) live reaper session(s)" : "")
+    }
+}
+
+/// Decides whether the machine is idle enough to restart.
+public protocol HVFDrainCoordinating: Sendable {
+    /// What a restart would interrupt now. Throws when that cannot be told;
+    /// callers treat an error as busy, never as idle.
+    func activeWorkloads() async throws -> HVFWorkloads
+}
+
+/// The health gate a boot must pass before its payload counts as known-good.
+public protocol HVFHealthProbing: Sendable {
+    /// nil when the guest passes every check, else the first that failed.
+    func failure() async -> String?
+}
+
+/// Everything outside the payload store an activation or rollback uses.
+public struct HVFUpdateEnvironment: Sendable {
+    public var machine: any HVFUpdateMachine
+    public var drain: any HVFDrainCoordinating
+    public var probe: any HVFHealthProbing
+    public var drainPollInterval: Duration
+
+    public init(
+        machine: any HVFUpdateMachine, drain: any HVFDrainCoordinating, probe: any HVFHealthProbing,
+        drainPollInterval: Duration = .milliseconds(500)
+    ) {
+        self.machine = machine
+        self.drain = drain
+        self.probe = probe
+        self.drainPollInterval = drainPollInterval
+    }
+
+    /// The machine under `layout`, its guest Docker API for the drain check
+    /// and the health probes.
+    public static func live(layout: HVFMachineLayout) -> HVFUpdateEnvironment {
+        let client = HVFMachineClient(layout: layout)
+        return HVFUpdateEnvironment(
+            machine: HVFClientUpdateMachine(client: client), drain: HVFGuestWorkloadDrain(client: client),
+            probe: HVFGuestHealthProbe(client: client))
+    }
+}
+
+public struct HVFClientUpdateMachine: HVFUpdateMachine {
+    public let client: HVFMachineClient
+
+    public init(client: HVFMachineClient) { self.client = client }
+
+    public func isRunning() -> Bool { HVFFileLock.isHeld(client.layout.supervisorLock) }
+
+    public func loadedPayloadPath() -> String? {
+        guard isRunning(), let state = try? HVFMachineState.load(from: client.layout.state) else { return nil }
+        return state.loadedPayloadPath.map(HVFMachineLayout.canonicalPath)
+    }
+
+    public func stop() async throws { try await client.stop() }
+
+    public func start() async throws { try await client.ensureRunning() }
+}
+
+/// Running containers from the guest's `GET /containers/json` and live
+/// reaper sessions from `/micropod/metrics`. Any failed, slow or unreadable
+/// answer throws: an unknown count is never zero.
+public struct HVFGuestWorkloadDrain: HVFDrainCoordinating {
+    public let client: HVFMachineClient
+    /// Per request; whole seconds (the socket's receive timeout).
+    public var timeout: Duration
+
+    public init(client: HVFMachineClient, timeout: Duration = .seconds(3)) {
+        self.client = client
+        self.timeout = timeout
+    }
+
+    public func activeWorkloads() async throws -> HVFWorkloads {
+        let docker = client.docker
+        let listed = try await docker.request("GET", "/containers/json", timeout: timeout)
+        guard listed.status == 200, let containers = (try? listed.json()) as? [[String: Any]] else {
+            throw MicropodError.message(
+                "unavailable: hvf: GET /containers/json answered HTTP \(listed.status): \(listed.message)")
+        }
+        let metrics = try await docker.request("GET", "/micropod/metrics", timeout: timeout)
+        guard metrics.status == 200, let object = (try? metrics.json()) as? [String: Any] else {
+            throw MicropodError.message(
+                "unavailable: hvf: GET /micropod/metrics answered HTTP \(metrics.status): \(metrics.message)")
+        }
+        let sessions = ((object["reaper"] as? [String: Any])?["active_sessions"] as? NSNumber)?.intValue ?? 0
+        return HVFWorkloads(containers: containers.count, sessions: max(sessions, 0))
+    }
+}
+
+/// `/_ping`, `/micropod/metrics` and the cache status (`/micropod/caches`).
+public struct HVFGuestHealthProbe: HVFHealthProbing {
+    public let client: HVFMachineClient
+    public var timeout: Duration
+
+    public init(client: HVFMachineClient, timeout: Duration = .seconds(5)) {
+        self.client = client
+        self.timeout = timeout
+    }
+
+    public func failure() async -> String? {
+        guard await HVFMachineClient.ping(client.layout.dockerSocket, timeout: timeout) else {
+            return "GET /_ping did not answer"
+        }
+        do {
+            let metrics = try await client.docker.request("GET", "/micropod/metrics", timeout: timeout)
+            guard metrics.status == 200 else { return "GET /micropod/metrics answered HTTP \(metrics.status)" }
+        } catch {
+            return "GET /micropod/metrics: \(error.localizedDescription)"
+        }
+        do {
+            _ = try await client.cacheInspection(includeStats: false, timeout: timeout)
+        } catch {
+            return "GET /micropod/caches: \(error.localizedDescription)"
+        }
+        return nil
+    }
+}
+
+// MARK: - Store
+
+/// Rootless versioned payload store for the HVF microVM engine.
 ///
 /// ```
-/// <root>/versions/<version>-<shortrev>/
-///   micropod-vmm
-///   Image
-///   mp-hvf-init.cpio
-///   tools/
-///   payload-manifest.json
-/// <root>/current  -> versions/<version>-<shortrev>
-/// <root>/previous -> versions/<prev-version>-<prev-rev>
+/// <root>/versions/<version>-<shortrev>/   read-only once committed
+///   micropod-vmm  Image  mp-hvf-init.cpio  tools/  payload-manifest.json
+/// <root>/staged     -> versions/<id>   staged, waiting for an activation
+/// <root>/current    -> versions/<id>   what a new supervisor boots
+/// <root>/known-good -> versions/<id>   last boot that passed the probes
+/// <root>/previous   -> versions/<id>   `current` before the last change
+/// <root>/trial      -> versions/<id>   an activation's probe boot
+/// <root>/update.lock                   one transaction at a time
 /// ```
 ///
-/// Staging NEVER mutates a running VMM's binaries or guest tools: it writes
-/// a fresh immutable version directory, verifies SHA-256 digests and code
-/// signature entitlements, and atomically flips `current`. Activation drains
-/// or restarts the supervisor and automatically rolls back to `previous` if
-/// the new payload fails boot or health verification.
+/// Staging writes a new immutable version and the `staged` pointer and
+/// nothing else, so no relaunch, `machine start` or crash recovery can boot
+/// an unverified payload. Activation drains (failing closed), boots the
+/// staged payload through `trial`, probes it, and only then moves `current`
+/// and `known-good`; on any failure it returns to known-good and probes that
+/// again. Rollback targets known-good by name, so repeating one changes
+/// nothing. Stage, activate, rollback and prune each hold `update.lock`; a
+/// second caller gets an `unavailable` (busy) error.
 public enum HVFPayloadStore {
     public struct ResolvedAssets: Sendable, Equatable {
         public var vmm: URL
@@ -173,40 +412,42 @@ public enum HVFPayloadStore {
         return assets
     }
 
-    /// Reads current, previous, and live running payload state without booting anything.
+    // MARK: Status
+
+    /// Reads the pointers and the live machine's loaded payload without booting anything.
     public static func status(layout: HVFMachineLayout) -> HVFPayloadStatus {
-        let fm = FileManager.default
-        let currentTarget = resolveLinkTarget(layout.currentLink)
-        let previousTarget = resolveLinkTarget(layout.previousLink)
-        let currentManifest = currentTarget.flatMap(HVFPayloadManifest.load(from:))
-        let previousManifest = previousTarget.flatMap(HVFPayloadManifest.load(from:))
+        let current = pointed(layout.currentLink, layout)
+        let previous = pointed(layout.previousLink, layout)
+        let staged = pointed(layout.stagedLink, layout)
+        let knownGood = pointed(layout.knownGoodLink, layout)
         let alive = HVFFileLock.isHeld(layout.supervisorLock)
         let state = alive ? (try? HVFMachineState.load(from: layout.state)) : nil
+        // A supervisor that recorded nothing predates versioned payloads: it booted the flat layout.
+        let runningPath = alive ? HVFMachineLayout.canonicalPath(state?.loadedPayloadPath ?? layout.root.path) : nil
 
-        let runningPath = state?.loadedPayloadPath.map(HVFMachineLayout.canonicalPath)
-        let currentCanonical = currentTarget.map { HVFMachineLayout.canonicalPath($0.path) }
         let updatePending: Bool
-        if alive, let currentCanonical {
-            if let runningPath {
-                updatePending = runningPath != currentCanonical
-            } else {
-                // Supervisor started on legacy flat layout while a versioned payload is now staged.
-                updatePending = HVFMachineLayout.canonicalPath(layout.root.path) != currentCanonical
+        if let runningPath {
+            updatePending = [staged, current].contains { payload in
+                payload.map { !runs(runningPath, $0, layout: layout) } ?? false
             }
         } else {
-            updatePending = false
+            updatePending = staged.map { $0.canonicalPath != current?.canonicalPath } ?? false
         }
 
         let versions =
-            ((try? fm.contentsOfDirectory(atPath: layout.versionsDirectory.path)) ?? [])
+            ((try? FileManager.default.contentsOfDirectory(atPath: layout.versionsDirectory.path)) ?? [])
             .filter { !$0.hasPrefix(".") }
             .sorted()
 
         return HVFPayloadStatus(
-            currentPath: currentCanonical,
-            previousPath: previousTarget.map { HVFMachineLayout.canonicalPath($0.path) },
-            current: currentManifest,
-            previous: previousManifest,
+            currentPath: current?.canonicalPath,
+            previousPath: previous?.canonicalPath,
+            stagedPath: staged?.canonicalPath,
+            knownGoodPath: knownGood?.canonicalPath,
+            current: current?.manifest(),
+            previous: previous?.manifest(),
+            staged: staged?.manifest(),
+            knownGood: knownGood?.manifest(),
             runningPath: runningPath,
             runningVersion: state?.loadedPayloadVersion,
             runningRevision: state?.loadedPayloadRevision,
@@ -214,9 +455,17 @@ public enum HVFPayloadStore {
             availableVersions: versions)
     }
 
-    /// Stages an immutable payload directory under `<root>/versions/<id>/` and
-    /// atomically updates `<root>/current` (preserving the old target at `previous`).
-    /// Safe to invoke while the HVF supervisor & VMM are actively running.
+    // MARK: Stage
+
+    /// Copies a payload into a new immutable `<root>/versions/<id>/`, verifies
+    /// its digests (and, with `verifySignature`, the VMM's hypervisor
+    /// entitlement), and points `staged` at it. `current` does not move:
+    /// nothing boots the payload until `activate` has probed it. Safe while
+    /// the machine runs.
+    ///
+    /// The first stage over a flat install first copies that install into
+    /// `versions/legacy-<digest>` and makes it `current` and `known-good`,
+    /// so a failed first activation has something to roll back to.
     @discardableResult
     public static func stage(
         from source: HVFPayloadSource,
@@ -227,70 +476,127 @@ public enum HVFPayloadStore {
         progress: @Sendable (String) -> Void = { _ in }
     ) throws -> HVFPayloadManifest {
         try layout.validatePaths()
+        if layout.installInProgress { throw layout.installInProgressError() }
         let assets = try resolveAssets(from: source)
         if verifySignature {
             try HVFMachineInstaller.verifyHypervisorEntitlement(assets.vmm)
         }
+        try FileManager.default.createDirectory(at: layout.root, withIntermediateDirectories: true)
+        let lock = try transactionLock(layout)
+        defer { lock.release() }
+
+        try importFlatInstallIfNeeded(layout: layout, progress: progress)
+        progress("staging HVF payload \(sanitizeVersionID(version: version, revision: revision))…")
+        let (name, manifest) = try commit(
+            assets, version: version, revision: revision, origin: nil,
+            id: sanitizeVersionID(version: version, revision: revision), layout: layout,
+            verifySignature: verifySignature)
+        try atomicSymlink(destination: "versions/\(name)", at: layout.stagedLink)
+        let active = pointed(layout.currentLink, layout)?.id ?? HVFMachinePayload.flatID
+        progress("staged \(name); the machine keeps booting \(active) until `micropod update hvf apply` verifies it")
+        return manifest
+    }
+
+    /// Drops `staged` when it still names `manifest`: an update that staged
+    /// a payload and then failed. The directory stays until a prune.
+    public static func unstage(layout: HVFMachineLayout, manifest: HVFPayloadManifest) throws {
+        guard FileManager.default.fileExists(atPath: layout.root.path) else { return }
+        let lock = try transactionLock(layout)
+        defer { lock.release() }
+        guard let staged = pointed(layout.stagedLink, layout), staged.manifest() == manifest else { return }
+        unlink(layout.stagedLink.path)
+    }
+
+    /// With no `current` and a complete flat install, copies the flat
+    /// assets into `versions/legacy-<digest>` and points `current` and
+    /// `known-good` at it. The copies are byte-identical to what a running
+    /// flat machine loaded, so nothing that runs changes.
+    static func importFlatInstallIfNeeded(layout: HVFMachineLayout, progress: @Sendable (String) -> Void) throws {
+        guard pointed(layout.currentLink, layout) == nil else { return }
+        let flat = HVFMachinePayload(directory: layout.root, isVersioned: false)
+        guard flat.hasBootAssets else { return }
+        var hasher = SHA256()
+        for file in [flat.vmm, flat.kernel, flat.initrd] { hasher.update(data: Data(try sha256File(file).utf8)) }
+        let short = String(hasher.finalize().map { String(format: "%02x", $0) }.joined().prefix(12))
+        let assets = ResolvedAssets(vmm: flat.vmm, kernel: flat.kernel, initrd: flat.initrd, tools: flat.tools)
+        let (name, _) = try commit(
+            assets, version: "legacy-flat", revision: short, origin: HVFPayloadManifest.flatOrigin,
+            id: "legacy-\(short)", layout: layout, verifySignature: false)
+        try atomicSymlink(destination: "versions/\(name)", at: layout.currentLink)
+        try atomicSymlink(destination: "versions/\(name)", at: layout.knownGoodLink)
+        progress("imported the flat install as \(name) (current and known-good), so this update can roll back to it")
+    }
+
+    /// Copies `assets` into a fresh directory beside the versions, records
+    /// and re-checks their digests, and renames it to `versions/<id>` (or a
+    /// digest-suffixed name: an existing directory is never rewritten, and
+    /// one with the same digests is reused). The result is read-only.
+    private static func commit(
+        _ assets: ResolvedAssets, version: String, revision: String, origin: String?, id: String,
+        layout: HVFMachineLayout, verifySignature: Bool
+    ) throws -> (name: String, manifest: HVFPayloadManifest) {
         let fm = FileManager.default
         try fm.createDirectory(at: layout.versionsDirectory, withIntermediateDirectories: true)
-
-        let id = sanitizeVersionID(version: version, revision: revision)
         let stageDir = layout.versionsDirectory.appendingPathComponent(".stage-\(UUID().uuidString)")
         try fm.createDirectory(at: stageDir, withIntermediateDirectories: true)
         var cleanupStage = true
-        defer { if cleanupStage { try? fm.removeItem(at: stageDir) } }
+        defer { if cleanupStage { try? removeTree(stageDir) } }
 
-        let dstVMM = stageDir.appendingPathComponent("micropod-vmm")
-        let dstKernel = stageDir.appendingPathComponent("Image")
-        let dstInitrd = stageDir.appendingPathComponent("mp-hvf-init.cpio")
-        let dstTools = stageDir.appendingPathComponent("tools")
-
-        progress("staging HVF payload \(id)…")
-        try cloneOrCopy(assets.vmm, to: dstVMM)
-        try cloneOrCopy(assets.kernel, to: dstKernel)
-        try cloneOrCopy(assets.initrd, to: dstInitrd)
-        try cloneOrCopy(assets.tools, to: dstTools)
+        let payload = HVFMachinePayload(directory: stageDir, isVersioned: true)
+        try cloneOrCopy(assets.vmm, to: payload.vmm)
+        try cloneOrCopy(assets.kernel, to: payload.kernel)
+        try cloneOrCopy(assets.initrd, to: payload.initrd)
+        try cloneOrCopy(assets.tools, to: payload.tools)
         if verifySignature {
-            try HVFMachineInstaller.verifyHypervisorEntitlement(dstVMM)
+            try HVFMachineInstaller.verifyHypervisorEntitlement(payload.vmm)
         }
 
         var digests: [String: String] = [
-            "micropod-vmm": try sha256File(dstVMM),
-            "Image": try sha256File(dstKernel),
-            "mp-hvf-init.cpio": try sha256File(dstInitrd),
-            "tools/runner/start.sh": try sha256File(dstTools.appendingPathComponent("runner/start.sh")),
+            "micropod-vmm": try sha256File(payload.vmm),
+            "Image": try sha256File(payload.kernel),
+            "mp-hvf-init.cpio": try sha256File(payload.initrd),
+            "tools/runner/start.sh": try sha256File(payload.tools.appendingPathComponent("runner/start.sh")),
         ]
-        let jobBin = dstTools.appendingPathComponent("runner/bin/job")
+        let jobBin = payload.tools.appendingPathComponent("runner/bin/job")
         if HVFMachineLayout.isRegularFile(jobBin) {
             digests["tools/runner/bin/job"] = try sha256File(jobBin)
         }
-        let manifest = HVFPayloadManifest(version: version, revision: revision, digests: digests)
-        try manifest.save(to: stageDir)
+        try HVFPayloadManifest(version: version, revision: revision, digests: digests, origin: origin).save(
+            to: stageDir)
         try verify(payloadDirectory: stageDir)
 
-        var targetName = id
-        var targetDir = layout.versionsDirectory.appendingPathComponent(targetName)
-        if fm.fileExists(atPath: targetDir.path) {
-            // Never overwrite an immutable directory in place (a running VMM may map it).
-            let shortDigest = String((digests["micropod-vmm"] ?? UUID().uuidString).prefix(8))
-            targetName = "\(id)-\(shortDigest)"
-            targetDir = layout.versionsDirectory.appendingPathComponent(targetName)
-            if fm.fileExists(atPath: targetDir.path) {
-                targetName = "\(id)-\(UUID().uuidString.prefix(8).lowercased())"
-                targetDir = layout.versionsDirectory.appendingPathComponent(targetName)
+        let shortDigest = String((digests["micropod-vmm"] ?? "").prefix(8))
+        for name in [id, "\(id)-\(shortDigest)"] {
+            let existing = layout.versionsDirectory.appendingPathComponent(name)
+            guard fm.fileExists(atPath: existing.path) else {
+                guard rename(stageDir.path, existing.path) == 0 else {
+                    throw HVFFiles.posixError("commit payload \(existing.path)")
+                }
+                cleanupStage = false
+                setReadOnly(existing, true)
+                return (name, try loadManifest(existing))
+            }
+            if let manifest = HVFPayloadManifest.load(from: existing), manifest.digests == digests,
+                manifest.version == version, manifest.revision == revision,
+                (try? verify(payloadDirectory: existing)) != nil
+            {
+                return (name, manifest)
             }
         }
-        guard rename(stageDir.path, targetDir.path) == 0 else {
-            throw HVFFiles.posixError("commit payload \(targetDir.path)")
+        let name = "\(id)-\(UUID().uuidString.prefix(8).lowercased())"
+        let target = layout.versionsDirectory.appendingPathComponent(name)
+        guard rename(stageDir.path, target.path) == 0 else {
+            throw HVFFiles.posixError("commit payload \(target.path)")
         }
         cleanupStage = false
+        setReadOnly(target, true)
+        return (name, try loadManifest(target))
+    }
 
-        let oldCurrent = readRelativeLink(layout.currentLink)
-        if let oldCurrent, oldCurrent != "versions/\(targetName)" {
-            try atomicSymlink(destination: oldCurrent, at: layout.previousLink)
+    private static func loadManifest(_ directory: URL) throws -> HVFPayloadManifest {
+        guard let manifest = HVFPayloadManifest.load(from: directory) else {
+            throw MicropodError.message("internal: hvf: unreadable \(HVFPayloadManifest.fileName) in \(directory.path)")
         }
-        try atomicSymlink(destination: "versions/\(targetName)", at: layout.currentLink)
-        progress("staged \(targetName) (current -> versions/\(targetName))")
         return manifest
     }
 
@@ -314,193 +620,373 @@ public enum HVFPayloadStore {
         }
     }
 
-    /// Activates the staged `current` payload on `layout`.
-    /// - If the machine is stopped, verifies `current` and returns `.activated` (next start uses it).
-    /// - If running with active containers and `!force`, waits up to `drainTimeout` for them to exit;
-    ///   if still busy, returns `.deferred` so live workloads are never disrupted.
-    /// - Stops, restarts on `current`, and verifies `healthProbe`; on failure automatically rolls back
-    ///   `current` to `previous` and restarts on `previous`.
+    // MARK: Activate
+
+    /// Activates the staged payload.
+    ///
+    /// 1. Verifies its digests. Nothing staged, or already running it: `noop`.
+    /// 2. With the machine running and no `force`: waits up to
+    ///    `drainTimeout` for `environment.drain` to report nothing running.
+    ///    Busy, or a drain check that fails, is `deferred` and stops nothing.
+    /// 3. Points `trial` at it, stops the machine and starts it (the new
+    ///    supervisor boots the trial), checks that the machine loaded it and
+    ///    runs the health probes.
+    /// 4. Passed: `current` and `known-good` name it, `staged` is cleared,
+    ///    and a machine that was stopped is stopped again: `activated`.
+    /// 5. Failed: `staged` is cleared, `current` names known-good, the
+    ///    machine boots known-good and is probed again: `rolledBack`, or
+    ///    `failedRollback` when that fails too, or `failed` when there is no
+    ///    known-good payload.
+    ///
+    /// A stopped machine is booted for the probes: nothing is `activated`
+    /// without a boot that passed them.
     public static func activate(
         layout: HVFMachineLayout,
-        client: HVFMachineClient? = nil,
         force: Bool = false,
         drainTimeout: Duration = .zero,
-        healthProbe: (@Sendable (HVFMachineClient) async -> Bool)? = nil,
+        environment: HVFUpdateEnvironment? = nil,
         progress: @Sendable (String) -> Void = { _ in }
     ) async throws -> HVFActivationResult {
-        let client = client ?? HVFMachineClient(layout: layout)
-        let snap = status(layout: layout)
-        guard let currentDir = resolveLinkTarget(layout.currentLink) else {
-            throw MicropodError.message("failedPrecondition: no staged versioned payload under \(layout.root.path)")
+        guard FileManager.default.fileExists(atPath: layout.root.path) else {
+            return HVFActivationResult(action: .noop, detail: "no HVF machine under \(layout.root.path)")
         }
-        try verify(payloadDirectory: currentDir)
+        let env = environment ?? .live(layout: layout)
+        let lock = try transactionLock(layout)
+        defer { lock.release() }
 
-        let running = HVFFileLock.isHeld(layout.supervisorLock)
-        if !running {
+        let current = pointed(layout.currentLink, layout)
+        let knownGood = pointed(layout.knownGoodLink, layout)
+        let wasRunning = env.machine.isRunning()
+        let loaded = wasRunning ? env.machine.loadedPayloadPath() : nil
+        let before = describe(running: loaded, current: current)
+        guard let target = pointed(layout.stagedLink, layout) else {
             return HVFActivationResult(
-                action: .activated,
-                fromVersion: snap.previous?.version,
-                toVersion: snap.current?.version,
-                activeContainers: 0,
-                detail:
-                    "Machine is stopped; next start will boot \(snap.current?.version ?? currentDir.lastPathComponent)")
+                action: .noop, fromVersion: before, toVersion: before,
+                detail: "no staged HVF payload (stage one with `micropod update hvf stage`)")
         }
-        if !snap.updatePending {
+        try verify(payloadDirectory: target.directory)
+        // Running, but what it loaded is unknown: not known to run the target.
+        let runsTarget = wasRunning ? loaded.map { runs($0, target, layout: layout) } ?? false : true
+        if current == target, runsTarget {
+            unlink(layout.stagedLink.path)
             return HVFActivationResult(
-                action: .noop,
-                fromVersion: snap.runningVersion,
-                toVersion: snap.current?.version,
-                activeContainers: 0,
-                detail: "Already running staged payload \(snap.current?.version ?? currentDir.lastPathComponent)")
+                action: .noop, fromVersion: before, toVersion: before,
+                detail: "\(target.label) is already active", targetVersion: target.label)
         }
 
-        if !force {
-            var active = await runningContainerCount(client: client)
-            if active > 0 && drainTimeout > .zero {
-                progress("waiting up to \(drainTimeout) for \(active) running container(s) to finish…")
-                let deadline = ContinuousClock.now + drainTimeout
-                while active > 0 && ContinuousClock.now < deadline {
-                    try await Task.sleep(for: .milliseconds(500))
-                    active = await runningContainerCount(client: client)
-                }
-            }
-            if active > 0 {
-                return HVFActivationResult(
-                    action: .deferred,
-                    fromVersion: snap.runningVersion,
-                    toVersion: snap.current?.version,
-                    activeContainers: active,
-                    detail:
-                        "\(active) container(s) still running; keeping current VM alive (re-run when idle or pass --force)"
-                )
-            }
+        if wasRunning, !force,
+            let busy = await busyWorkloads(env, waitingUpTo: drainTimeout, progress: progress)
+        {
+            return HVFActivationResult(
+                action: .deferred, fromVersion: before, toVersion: before, activeContainers: busy.count,
+                detail: "\(busy.reason); the machine keeps running \(before) (re-run when idle, or pass --force)",
+                targetVersion: target.label)
         }
 
-        let probe = healthProbe ?? defaultHealthProbe
-        progress("restarting HVF machine onto \(snap.current?.version ?? currentDir.lastPathComponent)…")
+        progress("booting \(target.label) to verify it…")
+        try atomicSymlink(destination: "versions/\(target.id)", at: layout.trialLink)
+        defer { unlink(layout.trialLink.path) }
+        var switchover: Int?
+        var failure: String?
         do {
-            try await client.stop()
-            try await client.ensureRunning()
-            guard await probe(client) else {
-                throw MicropodError.message(
-                    "health gate failed after switching to \(snap.current?.version ?? "new payload")")
-            }
-            return HVFActivationResult(
-                action: .activated,
-                fromVersion: snap.runningVersion,
-                toVersion: snap.current?.version,
-                activeContainers: 0,
-                detail: "Activated \(snap.current?.version ?? currentDir.lastPathComponent) and verified health")
-        } catch let activationError {
-            guard let prevRel = readRelativeLink(layout.previousLink) else {
-                throw activationError
-            }
-            progress("activation failed (\(activationError.localizedDescription)); rolling back to \(prevRel)…")
-            try atomicSymlink(destination: prevRel, at: layout.currentLink)
-            _ = try? await client.stop()
-            try await client.ensureRunning()
-            return HVFActivationResult(
-                action: .rolledBack,
-                fromVersion: snap.current?.version,
-                toVersion: snap.previous?.version,
-                activeContainers: 0,
-                detail:
-                    "Activation failed (\(activationError.localizedDescription)); rolled back to \(snap.previous?.version ?? prevRel)"
-            )
+            if wasRunning { try await env.machine.stop() }
+            let stopped = ContinuousClock.now
+            try await env.machine.start()
+            switchover = milliseconds(ContinuousClock.now - stopped)
+            failure = await bootFailure(env, expected: target, layout: layout)
+        } catch {
+            failure = error.localizedDescription
         }
+        // Before anything else boots: the trial is this boot's only.
+        unlink(layout.trialLink.path)
+
+        guard let failure else {
+            try point(layout.currentLink, at: target, layout: layout)
+            try atomicSymlink(destination: "versions/\(target.id)", at: layout.knownGoodLink)
+            unlink(layout.stagedLink.path)
+            var detail = "activated \(target.label): booted and passed the health probes"
+            detail += switchover.map { " (switchover \($0) ms)" } ?? ""
+            if !wasRunning { detail += await stopAgain(env) }
+            return HVFActivationResult(
+                action: .activated, fromVersion: before, toVersion: target.label, detail: detail,
+                targetVersion: target.label, switchoverMilliseconds: switchover)
+        }
+
+        progress("\(target.label) failed: \(failure)")
+        // A payload that failed is no longer pending.
+        unlink(layout.stagedLink.path)
+        guard let fallback = knownGood ?? current else {
+            _ = try? await env.machine.stop()
+            return HVFActivationResult(
+                action: .failed, fromVersion: before, toVersion: nil,
+                detail: "\(target.label) failed (\(failure)) and there is no known-good payload to return to; "
+                    + "the machine is stopped", targetVersion: target.label)
+        }
+        try point(layout.currentLink, at: fallback, layout: layout)
+        progress("rolling back to known-good \(fallback.label)…")
+        if let rollbackFailure = await reboot(env, onto: fallback, layout: layout) {
+            return HVFActivationResult(
+                action: .failedRollback, fromVersion: before, toVersion: nil,
+                detail: "\(target.label) failed (\(failure)); the rollback to \(fallback.label) failed too "
+                    + "(\(rollbackFailure))", targetVersion: target.label)
+        }
+        // A store from before known-good was tracked falls back to `current`;
+        // having booted and passed the probes, it is known-good now.
+        if knownGood == nil { try atomicSymlink(destination: "versions/\(fallback.id)", at: layout.knownGoodLink) }
+        var detail =
+            "\(target.label) failed (\(failure)); rolled back to known-good \(fallback.label), which passed the "
+        detail += "health probes again"
+        if !wasRunning { detail += await stopAgain(env) }
+        return HVFActivationResult(
+            action: .rolledBack, fromVersion: before, toVersion: fallback.label, detail: detail,
+            targetVersion: target.label)
     }
 
-    /// Explicitly rolls `current` back to `previous` and cycles the supervisor if running.
+    // MARK: Rollback
+
+    /// Returns the machine to the known-good payload, by name: once there,
+    /// repeating it (a replayed request) changes nothing.
+    ///
+    /// When the running machine loaded something else it is restarted onto
+    /// known-good and probed again (`failedRollback` when that fails) —
+    /// unless workloads run, or the drain check fails, and `force` is not
+    /// set: then nothing changes and the result is `deferred`. A stopped
+    /// machine only has `current` moved; its next start boots known-good.
     public static func rollback(
         layout: HVFMachineLayout,
-        client: HVFMachineClient? = nil,
+        force: Bool = false,
+        environment: HVFUpdateEnvironment? = nil,
         progress: @Sendable (String) -> Void = { _ in }
     ) async throws -> HVFActivationResult {
-        guard let prevRel = readRelativeLink(layout.previousLink),
-            let prevDir = resolveLinkTarget(layout.previousLink)
-        else {
-            throw MicropodError.message("failedPrecondition: no previous payload available for rollback")
+        guard FileManager.default.fileExists(atPath: layout.root.path) else {
+            throw MicropodError.message("failedPrecondition: no HVF machine under \(layout.root.path)")
         }
-        try verify(payloadDirectory: prevDir)
-        let oldCurrent = readRelativeLink(layout.currentLink)
-        let prevManifest = HVFPayloadManifest.load(from: prevDir)
-        let curManifest = resolveLinkTarget(layout.currentLink).flatMap(HVFPayloadManifest.load(from:))
+        let env = environment ?? .live(layout: layout)
+        let lock = try transactionLock(layout)
+        defer { lock.release() }
 
-        try atomicSymlink(destination: prevRel, at: layout.currentLink)
-        if let oldCurrent, oldCurrent != prevRel {
-            try atomicSymlink(destination: oldCurrent, at: layout.previousLink)
+        guard let knownGood = pointed(layout.knownGoodLink, layout) else {
+            throw MicropodError.message(
+                "failedPrecondition: no known-good HVF payload under \(layout.root.path) to roll back to")
         }
-
-        let client = client ?? HVFMachineClient(layout: layout)
-        if HVFFileLock.isHeld(layout.supervisorLock) {
-            progress(
-                "restarting HVF machine on rolled-back payload \(prevManifest?.version ?? prevDir.lastPathComponent)…")
-            try await client.stop()
-            try await client.ensureRunning()
+        try verify(payloadDirectory: knownGood.directory)
+        let current = pointed(layout.currentLink, layout)
+        let running = env.machine.isRunning()
+        let loaded = running ? env.machine.loadedPayloadPath() : nil
+        let before = describe(running: loaded, current: current)
+        let restart = running && !(loaded.map { runs($0, knownGood, layout: layout) } ?? false)
+        if current == knownGood, !restart {
+            return HVFActivationResult(
+                action: .noop, fromVersion: before, toVersion: knownGood.label,
+                detail: "already on known-good \(knownGood.label); nothing to roll back", targetVersion: knownGood.label
+            )
+        }
+        if restart, !force, let busy = await busyWorkloads(env, waitingUpTo: .zero, progress: progress) {
+            return HVFActivationResult(
+                action: .deferred, fromVersion: before, toVersion: before, activeContainers: busy.count,
+                detail:
+                    "\(busy.reason); not restarting the machine onto \(knownGood.label) (pass --force to interrupt it)",
+                targetVersion: knownGood.label)
+        }
+        try point(layout.currentLink, at: knownGood, layout: layout)
+        guard restart else {
+            return HVFActivationResult(
+                action: .rolledBack, fromVersion: before, toVersion: knownGood.label,
+                detail: "current -> known-good \(knownGood.label); "
+                    + (running ? "the machine already runs it" : "the next start boots it"),
+                targetVersion: knownGood.label)
+        }
+        progress("restarting the HVF machine onto known-good \(knownGood.label)…")
+        let started = ContinuousClock.now
+        if let failure = await reboot(env, onto: knownGood, layout: layout) {
+            return HVFActivationResult(
+                action: .failedRollback, fromVersion: before, toVersion: nil,
+                detail: "restarting onto \(knownGood.label) failed (\(failure))", targetVersion: knownGood.label)
         }
         return HVFActivationResult(
-            action: .rolledBack,
-            fromVersion: curManifest?.version,
-            toVersion: prevManifest?.version,
-            activeContainers: 0,
-            detail: "Rolled back current -> \(prevRel)")
+            action: .rolledBack, fromVersion: before, toVersion: knownGood.label,
+            detail: "restarted onto known-good \(knownGood.label), which passed the health probes",
+            targetVersion: knownGood.label, switchoverMilliseconds: milliseconds(ContinuousClock.now - started))
     }
 
-    /// Prunes old immutable payload directories while preserving `current`, `previous`,
-    /// any currently running supervisor's payload, and the newest `keep` versions.
+    // MARK: Prune
+
+    /// Removes old payload directories, newest `keep` first kept, and never
+    /// `current`, `staged`, `known-good`, `previous` or what the running
+    /// machine loaded. Also clears what an interrupted stage left behind.
     @discardableResult
-    public static func pruneVersions(layout: HVFMachineLayout, keep: Int = 2) -> [String] {
+    public static func pruneVersions(layout: HVFMachineLayout, keep: Int = 2) throws -> [String] {
         let fm = FileManager.default
-        guard let entries = try? fm.contentsOfDirectory(atPath: layout.versionsDirectory.path) else { return [] }
-        let snap = status(layout: layout)
-        var protected: Set<String> = []
-        for path in [snap.currentPath, snap.previousPath, snap.runningPath].compactMap({ $0 }) {
-            protected.insert(HVFMachineLayout.canonicalPath(path))
+        guard fm.fileExists(atPath: layout.versionsDirectory.path) else { return [] }
+        let lock = try transactionLock(layout)
+        defer { lock.release() }
+
+        let entries = try fm.contentsOfDirectory(atPath: layout.versionsDirectory.path)
+        // Under the lock no stage is live, so a stage directory is a leftover.
+        for name in entries where name.hasPrefix(".stage-") {
+            try? removeTree(layout.versionsDirectory.appendingPathComponent(name))
+        }
+        var protected = Set(
+            [layout.currentLink, layout.stagedLink, layout.knownGoodLink, layout.previousLink]
+                .compactMap { pointed($0, layout)?.canonicalPath })
+        if HVFFileLock.isHeld(layout.supervisorLock) {
+            guard let loaded = (try? HVFMachineState.load(from: layout.state))?.loadedPayloadPath else {
+                throw MicropodError.message(
+                    "failedPrecondition: the running hvf machine did not record which payload it loaded; "
+                        + "stop it (`micropod machine stop`) before pruning")
+            }
+            protected.insert(HVFMachineLayout.canonicalPath(loaded))
         }
         let candidates =
             entries
             .filter { !$0.hasPrefix(".") }
             .map { layout.versionsDirectory.appendingPathComponent($0) }
-            .sorted { a, b in
-                let ma =
-                    (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
-                    ?? .distantPast
-                let mb =
-                    (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
-                    ?? .distantPast
-                return ma > mb
-            }
+            .map { (dir: $0, at: stagedAt($0)) }
+            // Newest first; manifests record whole seconds, so names break ties.
+            .sorted { $0.at != $1.at ? $0.at > $1.at : $0.dir.lastPathComponent > $1.dir.lastPathComponent }
+            .map(\.dir)
         var kept = 0
         var removed: [String] = []
         for dir in candidates {
-            let canon = HVFMachineLayout.canonicalPath(dir.path)
-            if protected.contains(canon) || kept < max(keep, 1) {
+            if protected.contains(HVFMachineLayout.canonicalPath(dir.path)) || kept < max(keep, 1) {
                 kept += 1
                 continue
             }
-            if (try? fm.removeItem(at: dir)) != nil {
+            if (try? removeTree(dir)) != nil {
                 removed.append(dir.lastPathComponent)
             }
         }
         return removed
     }
 
-    // MARK: Helpers
-
-    static func defaultHealthProbe(_ client: HVFMachineClient) async -> Bool {
-        guard await HVFMachineClient.ping(client.layout.dockerSocket, timeout: .seconds(5)) else { return false }
-        guard let resp = try? await client.docker.request("GET", "/micropod/metrics", timeout: .seconds(5)),
-            resp.status == 200
-        else { return false }
-        return true
+    private static func stagedAt(_ dir: URL) -> Date {
+        HVFPayloadManifest.load(from: dir)?.installedAt
+            ?? (try? dir.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+            ?? .distantPast
     }
 
-    static func runningContainerCount(client: HVFMachineClient) async -> Int {
-        guard let resp = try? await client.docker.request("GET", "/containers/json", timeout: .seconds(3)),
-            resp.status == 200,
-            let list = (try? resp.json()) as? [[String: Any]]
-        else { return 0 }
-        return list.count
+    // MARK: Transaction steps
+
+    /// `update.lock`, or a busy error. Clears a `trial` a killed activator
+    /// left: under the lock no activation is live.
+    static func transactionLock(_ layout: HVFMachineLayout) throws -> HVFFileLock {
+        // Readers probe the lock with a brief shared flock; ride those out.
+        guard let lock = try HVFFileLock.acquire(layout.updateLock, wait: .milliseconds(250)) else {
+            throw MicropodError.message(
+                "unavailable: another HVF payload update (stage, apply, rollback or prune) is in progress on "
+                    + "\(layout.root.path); retry when it finishes")
+        }
+        unlink(layout.trialLink.path)
+        return lock
+    }
+
+    /// Nil once nothing would be interrupted, else how many and why not.
+    /// A failed check counts as busy.
+    static func busyWorkloads(
+        _ env: HVFUpdateEnvironment, waitingUpTo timeout: Duration, progress: @Sendable (String) -> Void
+    ) async -> (count: Int, reason: String)? {
+        let deadline = ContinuousClock.now + timeout
+        var announced = false
+        while true {
+            let busy: (count: Int, reason: String)?
+            do {
+                let workloads = try await env.drain.activeWorkloads()
+                busy = workloads.total > 0 ? (workloads.total, "\(workloads.summary) on the machine") : nil
+            } catch {
+                busy = (0, "could not confirm the machine is idle (\(error.localizedDescription))")
+            }
+            guard let busy, ContinuousClock.now < deadline else { return busy }
+            if !announced {
+                progress("waiting up to \(timeout) while \(busy.reason)…")
+                announced = true
+            }
+            do {
+                try await Task.sleep(for: env.drainPollInterval)
+            } catch {
+                return busy
+            }
+        }
+    }
+
+    /// Why the machine did not come up on `expected`, or nil when it did
+    /// and passed the probes.
+    static func bootFailure(_ env: HVFUpdateEnvironment, expected: HVFMachinePayload, layout: HVFMachineLayout) async
+        -> String?
+    {
+        guard let loaded = env.machine.loadedPayloadPath() else { return "the machine is not running after the boot" }
+        guard runs(loaded, expected, layout: layout) else {
+            return "the machine booted \(loaded), not \(expected.directory.path)"
+        }
+        return await env.probe.failure()
+    }
+
+    /// Stop, start on what `current` names now, and check it is `expected`.
+    private static func reboot(_ env: HVFUpdateEnvironment, onto expected: HVFMachinePayload, layout: HVFMachineLayout)
+        async -> String?
+    {
+        do {
+            try await env.machine.stop()
+            try await env.machine.start()
+        } catch {
+            return error.localizedDescription
+        }
+        return await bootFailure(env, expected: expected, layout: layout)
+    }
+
+    /// Leaves a machine an activation booted only for its probes as it found it.
+    private static func stopAgain(_ env: HVFUpdateEnvironment) async -> String {
+        do {
+            try await env.machine.stop()
+            return "; the machine was stopped and is stopped again"
+        } catch {
+            return "; the machine was stopped before, but stopping it again failed: \(error.localizedDescription)"
+        }
+    }
+
+    /// Moves `link` (`current`) to `payload`, keeping what it named at `previous`.
+    private static func point(_ link: URL, at payload: HVFMachinePayload, layout: HVFMachineLayout) throws {
+        if let old = pointed(link, layout), old != payload {
+            try atomicSymlink(destination: "versions/\(old.id)", at: layout.previousLink)
+        }
+        try atomicSymlink(destination: "versions/\(payload.id)", at: link)
+    }
+
+    /// Whether a machine that loaded `loadedPath` runs `payload`. A flat
+    /// install and its imported copy are the same bytes.
+    static func runs(_ loadedPath: String, _ payload: HVFMachinePayload, layout: HVFMachineLayout) -> Bool {
+        let loaded = HVFMachineLayout.canonicalPath(loadedPath)
+        if loaded == payload.canonicalPath { return true }
+        return loaded == HVFMachineLayout.canonicalPath(layout.root.path)
+            && payload.manifest()?.origin == HVFPayloadManifest.flatOrigin
+    }
+
+    private static func describe(running loadedPath: String?, current: HVFMachinePayload?) -> String {
+        if let loadedPath {
+            let url = URL(fileURLWithPath: loadedPath)
+            return HVFPayloadManifest.load(from: url).map { "\($0.version) (\(url.lastPathComponent))" }
+                ?? HVFMachinePayload.flatID
+        }
+        return current?.label ?? HVFMachinePayload.flatID
+    }
+
+    private static func pointed(_ link: URL, _ layout: HVFMachineLayout) -> HVFMachinePayload? {
+        resolveVersion(link, in: layout).map { HVFMachinePayload(directory: $0, isVersioned: true) }
+    }
+
+    private static func milliseconds(_ duration: Duration) -> Int {
+        let (seconds, attoseconds) = duration.components
+        return Int(seconds) * 1000 + Int(attoseconds / 1_000_000_000_000_000)
+    }
+
+    // MARK: Helpers
+
+    /// The directory `link` names when it is a version directly under
+    /// `<root>/versions/`; nil for anything else (dangling, absent, elsewhere).
+    static func resolveVersion(_ link: URL, in layout: HVFMachineLayout) -> URL? {
+        guard let target = resolveLinkTarget(link), !target.lastPathComponent.hasPrefix(".") else { return nil }
+        let parent = HVFMachineLayout.canonicalPath(target.deletingLastPathComponent().path)
+        guard parent == HVFMachineLayout.canonicalPath(layout.versionsDirectory.path) else { return nil }
+        return target
     }
 
     static func resolveLinkTarget(_ link: URL) -> URL? {
@@ -531,6 +1017,36 @@ public enum HVFPayloadStore {
         guard rename(tmp.path, link.path) == 0 else {
             throw HVFFiles.posixError("rename symlink \(link.path)")
         }
+    }
+
+    /// Write bits off (`readOnly`) or the owner's back on, for every
+    /// directory and regular file under `root`; symlinks are left alone.
+    static func setReadOnly(_ root: URL, _ readOnly: Bool) {
+        func apply(_ path: String) {
+            var info = stat()
+            guard lstat(path, &info) == 0 else { return }
+            let mode = info.st_mode & 0o7777
+            switch info.st_mode & S_IFMT {
+            case S_IFREG:
+                _ = chmod(path, readOnly ? mode & ~0o222 : mode | 0o200)
+            case S_IFDIR:
+                // Writable before its entries change, read-only after.
+                if !readOnly { _ = chmod(path, mode | 0o200) }
+                for name in (try? FileManager.default.contentsOfDirectory(atPath: path)) ?? [] {
+                    apply(path + "/" + name)
+                }
+                if readOnly { _ = chmod(path, mode & ~0o222) }
+            default:
+                break  // a symlink is never followed
+            }
+        }
+        apply(root.path)
+    }
+
+    /// Removes a tree that may be read-only.
+    static func removeTree(_ url: URL) throws {
+        setReadOnly(url, false)
+        try FileManager.default.removeItem(at: url)
     }
 
     static func sanitizeVersionID(version: String, revision: String) -> String {
