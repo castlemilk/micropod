@@ -114,7 +114,7 @@ func (r *privateRoot) check(f *os.File, source, target string) (string, error) {
 			return path.Join(target, rel), nil
 		}
 	}
-	inside, err := r.holds(f, &st)
+	inside, err := r.inside(f)
 	if errors.Is(err, errFileMoved) {
 		return "", fail(400, fmt.Sprintf("bind source %s: %v", source, err))
 	}
@@ -127,44 +127,53 @@ func (r *privateRoot) check(f *os.File, source, target string) (string, error) {
 	return "", nil
 }
 
-// errFileMoved is what holds returns for a file whose directory it cannot
+// errFileMoved is what walkUp returns for a file whose directory it cannot
 // find again.
 var errFileMoved = errors.New("the file moved or was unlinked while it was opened")
 
-// holds reports whether the opened f (st is its stat) is the machine
-// directory or lies below it: a directory is walked up from itself, a file
-// from the directory that holds it, found by the path the kernel resolved it
-// to and checked to hold this very file.
-func (r *privateRoot) holds(f *os.File, st *unix.Stat_t) (bool, error) {
-	id := statID(st)
-	if id == r.id {
-		return true, nil
-	}
-	start := int(f.Fd())
-	if st.Mode&unix.S_IFMT != unix.S_IFDIR {
-		dir, err := parentOf(f, id)
-		if err != nil {
-			return false, fmt.Errorf("%w: %v", errFileMoved, err)
-		}
-		defer unix.Close(dir)
-		start = dir
-	}
-	return r.below(start)
+// inside reports whether the opened f is the machine directory or lies below
+// it (walkUp).
+func (r *privateRoot) inside(f *os.File) (bool, error) {
+	inside := false
+	err := walkUp(f, func(id fileID) bool {
+		inside = id == r.id
+		return !inside
+	})
+	return inside, err
 }
 
-// inside reports whether the opened f is the machine directory or lies below
-// it (holds, for a descriptor whose stat the caller does not have).
-func (r *privateRoot) inside(f *os.File) (bool, error) {
+// walkUp calls visit with the identity of the opened f and then of every
+// directory above it, nearest first, up to the file system root or until
+// visit returns false: a directory from itself, a file from the directory
+// that holds it, found by the path the kernel resolved it to and checked to
+// hold this very file (errFileMoved when it does not). Each step is one
+// lookup of "..", so a walk costs the depth of f, never the size of a tree.
+func walkUp(f *os.File, visit func(fileID) bool) error {
 	var st unix.Stat_t
 	if err := unix.Fstat(int(f.Fd()), &st); err != nil {
-		return false, err
+		return err
 	}
-	return r.holds(f, &st)
+	if st.Mode&unix.S_IFMT == unix.S_IFDIR {
+		return walkUpDir(int(f.Fd()), st, visit)
+	}
+	id := statID(&st)
+	if !visit(id) {
+		return nil
+	}
+	dir, err := parentOf(f, id)
+	if err != nil {
+		return fmt.Errorf("%w: %v", errFileMoved, err)
+	}
+	defer unix.Close(dir)
+	if err := unix.Fstat(dir, &st); err != nil {
+		return err
+	}
+	return walkUpDir(dir, st, visit)
 }
 
-// below reports whether the directory dir is the machine directory or lies
-// below it, walking ".." up to the file system root.
-func (r *privateRoot) below(dir int) (bool, error) {
+// walkUpDir is walkUp from the directory dir (st is its stat), walking ".."
+// up to the file system root.
+func walkUpDir(dir int, st unix.Stat_t, visit func(fileID) bool) error {
 	cur, owned := dir, false
 	defer func() {
 		if owned {
@@ -172,32 +181,28 @@ func (r *privateRoot) below(dir int) (bool, error) {
 		}
 	}()
 	for range 4096 {
-		var st unix.Stat_t
-		if err := unix.Fstat(cur, &st); err != nil {
-			return false, err
-		}
-		if statID(&st) == r.id {
-			return true, nil
+		if !visit(statID(&st)) {
+			return nil
 		}
 		next, err := unix.Openat(cur, "..", unix.O_PATH|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
 		if err != nil {
-			return false, err
+			return err
 		}
 		var up unix.Stat_t
 		if err := unix.Fstat(next, &up); err != nil {
 			unix.Close(next)
-			return false, err
+			return err
 		}
 		if statID(&up) == statID(&st) { // "/" is its own parent
 			unix.Close(next)
-			return false, nil
+			return nil
 		}
 		if owned {
 			unix.Close(cur)
 		}
-		cur, owned = next, true
+		cur, owned, st = next, true, up
 	}
-	return false, errors.New("bind source is nested too deep")
+	return errors.New("the path is nested too deep")
 }
 
 // parentOf opens the directory that holds the file f (whose identity is id)

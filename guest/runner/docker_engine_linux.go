@@ -97,6 +97,10 @@ type dockerContainer struct {
 	readersDone        chan struct{}
 	generationLogError string
 	removed            bool
+	// binds are the descriptors the running start opened, from before the
+	// container runs until it has exited: what a child of its delegated
+	// socket is held to by identity (creatorHoldLocked).
+	binds *heldBinds
 }
 type dockerEngine struct {
 	buildkitSocket string
@@ -668,9 +672,17 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, err
 		}
 	}
-	files, _, _, err := s.openMountsWith(spec, containerVolumeRules(s.cachePolicy.get(), spec, plan, createdBy), true, mountSockets{bindRoots: bindRoots}, "")
+	creator, err := s.creatorHoldLocked(createdBy, createdBy, bindRoots)
 	if err != nil {
-		return nil, fail(400, err.Error())
+		return nil, err
+	}
+	files, _, _, err := s.openMountsWith(spec, containerVolumeRules(s.cachePolicy.get(), spec, plan, createdBy), true, mountSockets{bindRoots: bindRoots, creator: creator}, "")
+	if err != nil {
+		var api apiError
+		if !errors.As(err, &api) {
+			err = fail(400, err.Error())
+		}
+		return nil, err
 	}
 	closeMounts(files)
 	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket, CreatedBy: createdBy, BindRoots: bindRoots}, changed: make(chan struct{})}
@@ -972,7 +984,10 @@ func readNpmrc(f *os.File) []byte {
 	b, _ := io.ReadAll(io.LimitReader(r, 64<<10))
 	return b
 }
-func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) {
+
+// start starts c; viewer is the container whose delegated socket asked for
+// it ("" for the host's socket).
+func (s *dockerEngine) start(c *dockerContainer, restart bool, viewer string) (startErr error) {
 	defer func() {
 		if startErr == nil {
 			return
@@ -1062,14 +1077,22 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	// A plan an older engine made has no tier of its own yet, or an older
 	// table's exclusive kinds.
 	c.Cache.applyCurrentRules(pol)
-	files, mounts, aliasPins, err := s.openMountsWith(c.Config, containerVolumeRules(pol, c.Config, c.Cache, c.CreatedBy), false,
-		mountSockets{cleanup: socket, engine: engineSocket, bindRoots: c.delegatedBindRoots()}, filepath.Join(c.dir(), "shim"))
+	creator, err := s.creatorHoldLocked(c.CreatedBy, viewer, c.BindRoots)
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()
 		lease.Close()
 		return err
 	}
+	files, mounts, aliasPins, err := s.openMountsWith(c.Config, containerVolumeRules(pol, c.Config, c.Cache, c.CreatedBy), false,
+		mountSockets{cleanup: socket, engine: engineSocket, bindRoots: c.delegatedBindRoots(), creator: creator}, filepath.Join(c.dir(), "shim"))
+	if err != nil {
+		s.mu.Unlock()
+		closeSocket()
+		lease.Close()
+		return err
+	}
+	held := &heldBinds{byTarget: mountFiles(files, mounts)}
 	// Replay the create-time decision; never recompute it. The unit locks and
 	// pinned store directories stay open until the container exits.
 	caches := openCacheMounts(c.Cache, filepath.Join(c.dir(), "shim"))
@@ -1141,6 +1164,7 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		return err
 	}
 	c.console = console
+	c.binds = held // until the exit below, before its files close
 	c.generationLogError = ""
 	write, sealLog := s.appendDockerOutput(c, f, c.outputBytes)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1299,6 +1323,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		caches.release()
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		if c.binds == held {
+			c.binds = nil // its files close as this goroutine returns
+		}
 		// An admitted explicit kill publishes only after its CRI acknowledgement.
 		// Let that acknowledgement precede exit and automatic removal events.
 		for c.killEventDone != nil {

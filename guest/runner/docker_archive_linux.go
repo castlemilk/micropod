@@ -343,6 +343,13 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 				}
 			}
 			view.root, pins, err = s.openDockerMount(mount, false, access, filepath.Join(c.dir(), "shim"))
+			if err == nil && mount.root != "" {
+				// As its start would be: admitted to what its creator holds.
+				err = s.admitChildBind(ctx, c, mount, view.root, write, mounts)
+				if err != nil {
+					view.root.Close()
+				}
+			}
 		} else if c.retainsRootFS() {
 			view.root, err = s.openStoppedArchiveRoot(ctx, c)
 		} else if c.Config.HostConfig.ReadonlyRootfs && !c.Config.HostConfig.AutoRemove {
@@ -364,6 +371,19 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 	default:
 		return dockerArchiveView{}, nil, fail(http.StatusConflict, "the container filesystem is unavailable in its current state")
 	}
+}
+
+// admitChildBind admits a docker cp through the bind m of c, a stopped child
+// of a delegated socket, opened as f, to what its creator holds
+// (creatorHold.admit), as a start of c would be; mounts are c's own.
+func (s *dockerEngine) admitChildBind(ctx context.Context, c *dockerContainer, m dockerMount, f *os.File, write bool, mounts []dockerMount) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	creator, err := s.creatorHoldLocked(c.CreatedBy, viewerOf(ctx), c.BindRoots)
+	if err != nil || creator == nil {
+		return err
+	}
+	return creator.admit(m, f, write, mounts)
 }
 
 // guardMachineDir holds an archive view of a bind to what the container sees

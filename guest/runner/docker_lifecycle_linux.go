@@ -181,7 +181,7 @@ func (s *dockerEngine) containerLifecycle(w http.ResponseWriter, r *http.Request
 	var mutate func() error
 	switch op {
 	case "start":
-		mutate = func() error { return s.start(c, false) }
+		mutate = func() error { return s.start(c, false, viewerOf(ctx)) }
 	case "kill":
 		signal, err := dockerPID1Signal(q.Get("signal"))
 		if err != nil {
@@ -255,5 +255,5 @@ func (s *dockerEngine) restart(ctx context.Context, c *dockerContainer, timeout 
 	if err := s.restartable(c); err != nil {
 		return err
 	}
-	return s.start(c, true)
+	return s.start(c, true, viewerOf(ctx))
 }

@@ -253,6 +253,161 @@ func TestDelegatedBindsKeepTheOwnersNestedReadOnlyBinds(t *testing.T) {
 	}
 }
 
+// A child is held to what its running creator holds by identity, not by the
+// spelling its create saw: once the owner renames a directory above its
+// read-only bind (it writes the parent), or plants a symlink to it, binding
+// the new path reaches that bind no more writably than the owner does, at
+// create, at start and through docker cp.
+func TestDelegatedBindsHoldTheOwnersReadOnlyBindsByIdentity(t *testing.T) {
+	ws := t.TempDir()
+	for _, d := range []string{"job/.git/hooks", "job/src"} {
+		if err := os.MkdirAll(filepath.Join(ws, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(ws, "job/.git/config"), []byte("[core]\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	imageID := healthConfigDigest([]byte("{}"))
+	owner := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("a", 64), Name: "job", Phase: "running", Config: dockerConfig{Image: "golang:1", HostConfig: dockerHost{
+		Binds: []string{ws + ":/h", ws + "/job/.git:/h/job/.git:ro", "/var/run/docker.sock:/var/run/docker.sock"}}}}}
+	s := &dockerEngine{
+		node:         node{images: dockerHealthTestImages{id: imageID}, imageStore: dockerHealthTestImageStore{}},
+		containers:   map[string]*dockerContainer{owner.ID: owner},
+		healthImages: dockerImageHealthCache{byID: map[string]dockerImageHealth{imageID: {}}},
+		cachePolicy:  policyLoader{path: filepath.Join(t.TempDir(), "absent.json")},
+		workspace:    ws,
+	}
+	// The owner's start: the descriptors its mounts are made from.
+	files, mounts, _, err := s.openMountsWith(owner.Config, cacheVolumeRules{}, false, mountSockets{engine: filepath.Join(t.TempDir(), "docker.sock")}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeMounts(files)
+	owner.binds = &heldBinds{byTarget: mountFiles(files, mounts)}
+	viewer := owner.ID
+	child := func(binds []string, tmpfs ...string) (dockerConfig, map[string]string) {
+		t.Helper()
+		spec := dockerConfig{Image: "alpine", HostConfig: dockerHost{Binds: binds, Tmpfs: map[string]string{}}}
+		for _, p := range tmpfs {
+			spec.HostConfig.Tmpfs[p] = ""
+		}
+		roots, err := delegatedBinds(owner, &spec)
+		if err != nil {
+			t.Fatalf("%v: %v", binds, err)
+		}
+		return spec, roots
+	}
+	// open is a create's check, then a start's: the mounts the start makes.
+	open := func(spec dockerConfig, roots map[string]string) (map[string]bool, error) {
+		t.Helper()
+		var modes map[string]bool
+		for _, create := range []bool{true, false} {
+			s.mu.Lock()
+			creator, err := s.creatorHoldLocked(owner.ID, viewer, roots)
+			s.mu.Unlock()
+			if err != nil {
+				return nil, err
+			}
+			files, mounts, _, err := s.openMountsWith(spec, cacheVolumeRules{}, create, mountSockets{bindRoots: roots, creator: creator}, t.TempDir())
+			closeMounts(files)
+			if err != nil {
+				return nil, err
+			}
+			modes = map[string]bool{}
+			for _, m := range mounts {
+				modes[m.ContainerPath] = m.Readonly
+			}
+		}
+		return modes, nil
+	}
+	refused := func(why string, binds []string, tmpfs ...string) {
+		t.Helper()
+		spec, roots := child(binds, tmpfs...)
+		_, err := open(spec, roots)
+		var api apiError
+		if !errors.As(err, &api) || api.code != 403 {
+			t.Errorf("%s (%v): %v, want 403", why, binds, err)
+		}
+	}
+	admitted := func(why string, binds []string, tmpfs ...string) map[string]bool {
+		t.Helper()
+		spec, roots := child(binds, tmpfs...)
+		modes, err := open(spec, roots)
+		if err != nil {
+			t.Errorf("%s (%v): %v", why, binds, err)
+		}
+		return modes
+	}
+
+	// As the create spelled it: .git read-only below the checkout.
+	if m := admitted("the checkout", []string{ws + "/job:/x"}); !m["/x/.git"] || m["/x"] {
+		t.Errorf("checkout mounts %v", m)
+	}
+	admitted("the read-only bind, made read-only by its name", []string{ws + "/job/.git:/g"})
+
+	// The owner renames the checkout through its writable /h, leaves a
+	// decoy .git at the old path and plants a symlink to the read-only bind
+	// inside its writable one.
+	if err := os.Rename(filepath.Join(ws, "job"), filepath.Join(ws, "job2")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(ws, "job/.git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("job2/.git", filepath.Join(ws, "gitlink")); err != nil {
+		t.Fatal(err)
+	}
+	job := ws + "/job2"
+	refused("the renamed checkout holds .git with no read-only mount over it", []string{job + ":/x"})
+	refused("the read-only bind by its new name", []string{job + "/.git:/g"})
+	refused("below the read-only bind", []string{job + "/.git/hooks:/hk"})
+	refused("through a symlink to it", []string{ws + "/gitlink:/l"})
+	refused("the decoy at the old path covers nothing", []string{ws + ":/w"})
+	if m := admitted("the rest of the checkout", []string{job + "/src:/s"}); m["/s"] {
+		t.Errorf("a writable path of the owner's became read-only: %v", m)
+	}
+	admitted("the read-only bind, read-only", []string{job + "/.git:/g:ro", ws + "/gitlink:/l:ro"})
+	admitted("the checkout read-only", []string{job + ":/x:ro"})
+	if m := admitted("the checkout with .git read-only over it", []string{job + ":/x", job + "/.git:/x/.git:ro"}); !m["/x/.git"] || m["/x"] {
+		t.Errorf("mounts %v", m)
+	}
+	admitted("the checkout with a tmpfs over .git", []string{job + ":/x"}, "/x/.git")
+	refused("a tmpfs elsewhere covers nothing", []string{job + ":/x"}, "/x/src")
+
+	// The create itself, through the owner's socket.
+	ctx := withViewer(withCacheOrigin(context.Background(), cacheOrigin{creator: owner.ID}), owner.ID)
+	_, err = s.create(ctx, dockerConfig{Image: "alpine:3.23", Labels: map[string]string{"io.micropod.cache": "off"}, HostConfig: dockerHost{Binds: []string{job + ":/x"}}}, "")
+	var api apiError
+	if !errors.As(err, &api) || api.code != 403 || !strings.Contains(api.message, "binds read-only") || len(s.containers) != 1 {
+		t.Fatalf("create of the renamed checkout through the owner's socket: %v, want 403", err)
+	}
+
+	// docker cp into a stopped child made before this rule: no write
+	// through the bind that holds .git; reading stays the owner's.
+	spec, roots := child([]string{job + ":/x"})
+	stopped := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("c", 64), Phase: "created", CreatedBy: owner.ID, Config: spec, BindRoots: roots}, changed: make(chan struct{})}
+	if _, _, err := s.pinArchive(ctx, stopped, "/x/.git/config", true); !errors.As(err, &api) || api.code != 403 {
+		t.Errorf("docker cp into .git of a stopped child: %v, want 403", err)
+	}
+	if _, closeView, err := s.pinArchive(ctx, stopped, "/x/.git/config", false); err != nil {
+		t.Errorf("docker cp out of a stopped child: %v", err)
+	} else {
+		closeView()
+	}
+
+	// Its creator stopped: a request on its socket cannot be checked and is
+	// refused; the host's own start keeps the create-time decision.
+	owner.binds = nil
+	s.mu.Lock()
+	_, onSocket := s.creatorHoldLocked(owner.ID, viewer, roots)
+	byHost, hostErr := s.creatorHoldLocked(owner.ID, "", roots)
+	s.mu.Unlock()
+	if !errors.As(onSocket, &api) || api.code != 409 || byHost != nil || hostErr != nil {
+		t.Fatalf("creator stopped: socket %v, host %v %v", onSocket, byHost, hostErr)
+	}
+}
+
 // The config probes a create runs on a child's binds (an .npmrc registry, a
 // go env GOPROXY) read below the creator's binds, as the bind itself would
 // open: a symlink the owner plants there does not read another project's

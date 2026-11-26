@@ -1527,10 +1527,13 @@ func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, cre
 // Testcontainers reaper's session cleanup socket and the delegated engine
 // socket (docker_engine_socket_linux.go). "" when the start has none.
 // bindRoots holds a child of a delegated socket to its creator's binds
-// (dockerRecord.BindRoots): each of its binds resolves below its root.
+// (dockerRecord.BindRoots): each of its binds resolves below its root, and
+// creator, when set, is what its running creator holds (creatorHoldLocked),
+// which each of them is then admitted to by identity.
 type mountSockets struct {
 	cleanup, engine string
 	bindRoots       map[string]string
+	creator         *creatorHold
 }
 
 // openMountsWith is openMounts with every per-start socket. A docker.sock bind
@@ -1563,6 +1566,12 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 	var files []*os.File
 	var mounts []*cri.Mount
 	var pins []cachePin
+	// A delegated child's binds as opened, admitted to its creator's once all are.
+	type childBind struct {
+		m dockerMount
+		f *os.File
+	}
+	var children []childBind
 	for _, m := range requests {
 		if m.tmpfs != nil {
 			continue
@@ -1621,6 +1630,9 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 		}
 		files = append(files, f)
 		mounts = append(mounts, &cri.Mount{HostPath: dockerMountFDPath(f), ContainerPath: m.Target, Readonly: m.ReadOnly})
+		if m.root != "" {
+			children = append(children, childBind{m, f})
+		}
 		if m.Type == "bind" {
 			// Never the machine's own directory: refused inside it, hidden
 			// in a bind that covers it (docker_private_linux.go).
@@ -1633,6 +1645,11 @@ func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules,
 				mounts = append(mounts, s.machineDir.maskMount(mask))
 			}
 		}
+	}
+	// Once every mount is open: whether a child's writable bind covers what
+	// its creator holds read-only depends on the child's other mounts.
+	for i := 0; err == nil && sockets.creator != nil && i < len(children); i++ {
+		err = sockets.creator.admit(children[i].m, children[i].f, !children[i].m.ReadOnly, requests)
 	}
 	if err != nil {
 		closeMounts(files)
