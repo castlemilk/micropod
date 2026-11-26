@@ -64,6 +64,12 @@ public final class MetricsStore: @unchecked Sendable {
         public var timestamp: Date
         public var average: Sample
         public var peak: Sample
+
+        public init(timestamp: Date, average: Sample, peak: Sample) {
+            self.timestamp = timestamp
+            self.average = average
+            self.peak = peak
+        }
     }
 
     public struct Tier: Sendable {

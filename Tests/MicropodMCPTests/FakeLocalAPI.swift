@@ -1,12 +1,15 @@
 import Darwin
 import Foundation
 import MicropodCore
+import SwiftProtobuf
 
-/// A stand-in for the Micropod API daemon, on a Unix socket or a loopback
-/// TCP port: it records every request and, like the daemon's prune route,
-/// counts an eviction for each prune that is not a dry run. `stall` reads a
-/// request and then never answers, as a daemon busy pruning would;
-/// `respondAfter` answers late, as a long pull or exec does.
+/// A stand-in for the Micropod API daemon on a Unix socket or a loopback
+/// TCP port, speaking HTTP/1.1 with keep-alive and Connect like the daemon
+/// does: it records every request (its connection, route, content type and
+/// body) and answers from `respond`. By default a unary call gets an empty
+/// binary reply (every field at its default). `stall` reads a request and
+/// never answers, as a daemon busy pruning would; `respondAfter` answers
+/// late, as a long pull does.
 final class FakeLocalAPI: @unchecked Sendable {
     enum Behavior: Sendable {
         case respond
@@ -15,13 +18,37 @@ final class FakeLocalAPI: @unchecked Sendable {
     }
 
     struct Request: Sendable {
+        var connection: Int
         var method: String
         var path: String
+        var contentType: String
         var body: Data
 
-        var json: [String: Any] {
-            (try? JSONSerialization.jsonObject(with: body) as? [String: Any]) ?? [:]
+        /// The RPC's method name (`…/micropod.v1.X/Method` → `Method`).
+        var rpc: String { String(path.split(separator: "/").last ?? "") }
+
+        /// The request message (a stream request's single envelope unwrapped).
+        func message<M: Message>(_ type: M.Type) throws -> M {
+            var payload = body
+            if contentType.hasPrefix("application/connect+"), body.count >= 5 { payload = Data(body.dropFirst(5)) }
+            return try M(serializedBytes: payload)
         }
+    }
+
+    enum Reply: Sendable {
+        case unary(Data)
+        case error(status: Int, code: String, message: String)
+        /// Envelopes, then an end-of-stream frame (`{}`, or the error).
+        case stream([Data], errorCode: String?, errorMessage: String?)
+        /// Read the request, then close the connection without a byte.
+        case drop
+        /// Answer, then close the connection (as a server stopping would).
+        case thenClose(Data)
+    }
+
+    static func unary(_ message: some Message) -> Reply { .unary((try? message.serializedData()) ?? Data()) }
+    static func stream(_ messages: [any Message]) -> Reply {
+        .stream(messages.map { (try? $0.serializedData()) ?? Data() }, errorCode: nil, errorMessage: nil)
     }
 
     let behavior: Behavior
@@ -31,13 +58,13 @@ final class FakeLocalAPI: @unchecked Sendable {
     private let socketPath: String?
     private let lock = NSLock()
     private var seen: [Request] = []
-    private var evicted = 0
     private var stopped = false
-    private var statuses: [String: Int] = [:]
+    private var accepted = 0
+    private var responder: @Sendable (Request) -> Reply = { _ in .unary(Data()) }
 
-    /// Answers `path` with `status` (and the usual body) from now on.
-    func reply(_ path: String, status: Int) {
-        lock.withLock { statuses[path] = status }
+    /// Answers each request with `responder` from now on.
+    func respond(_ responder: @escaping @Sendable (Request) -> Reply) {
+        lock.withLock { self.responder = responder }
     }
 
     init(unixSocket path: String, behavior: Behavior = .respond) throws {
@@ -92,7 +119,8 @@ final class FakeLocalAPI: @unchecked Sendable {
     }
 
     var requests: [Request] { lock.withLock { seen } }
-    var evictions: Int { lock.withLock { evicted } }
+    /// Connections accepted so far.
+    var connections: Int { lock.withLock { accepted } }
 
     func stop() {
         lock.withLock { stopped = true }
@@ -110,66 +138,114 @@ final class FakeLocalAPI: @unchecked Sendable {
             guard Darwin.poll(&poll, 1, 20) > 0 else { continue }
             let client = accept(fd, nil, nil)
             guard client >= 0 else { continue }
-            handle(client)
-            Darwin.close(client)
+            let id = lock.withLock {
+                accepted += 1
+                return accepted
+            }
+            Thread.detachNewThread { [self] in
+                serveConnection(client, id: id)
+                Darwin.close(client)
+            }
         }
     }
 
-    private func handle(_ client: Int32) {
+    /// One connection: requests until the client closes it, or a reply
+    /// closes it.
+    private func serveConnection(_ client: Int32, id: Int) {
         var one: Int32 = 1
         setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
-        var timeout = timeval(tv_sec: 5, tv_usec: 0)
-        setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 65536)
         func fill() -> Bool {
-            let count = read(client, &buffer, buffer.count)
-            guard count > 0 else { return false }
-            data.append(contentsOf: buffer[0..<count])
-            return true
+            while !isStopped {
+                var poll = pollfd(fd: client, events: Int16(POLLIN), revents: 0)
+                if Darwin.poll(&poll, 1, 50) == 0 { continue }
+                let count = read(client, &buffer, buffer.count)
+                guard count > 0 else { return false }
+                data.append(contentsOf: buffer[0..<count])
+                return true
+            }
+            return false
         }
         let separator = Data("\r\n\r\n".utf8)
-        while data.range(of: separator) == nil { guard fill() else { return } }
-        guard let end = data.range(of: separator) else { return }
-        let head = String(decoding: data[data.startIndex..<end.lowerBound], as: UTF8.self)
-        let lines = head.components(separatedBy: "\r\n")
-        let requestLine = lines[0].split(separator: " ")
-        guard requestLine.count >= 2 else { return }
-        let length =
-            lines.dropFirst().first { $0.lowercased().hasPrefix("content-length:") }
-            .flatMap { Int($0.split(separator: ":")[1].trimmingCharacters(in: .whitespaces)) } ?? 0
-        while data.count - end.upperBound < length { guard fill() else { break } }
-        let request = Request(
-            method: String(requestLine[0]), path: String(requestLine[1]), body: Data(data[end.upperBound...]))
-        let dryRun = request.json["dryRun"] as? Bool ?? true
-        lock.withLock {
-            seen.append(request)
-            if request.path == "/v1/caches/prune", !dryRun { evicted += 1 }
-        }
-        switch behavior {
-        case .stall:
-            // Hold the request unanswered until the client gives up.
-            let deadline = Date().addingTimeInterval(10)
-            while !isStopped, Date() < deadline {
-                var poll = pollfd(fd: client, events: Int16(POLLIN), revents: 0)
-                if Darwin.poll(&poll, 1, 50) > 0 { break }
+        while true {
+            while data.range(of: separator) == nil { guard fill() else { return } }
+            guard let end = data.range(of: separator) else { return }
+            let head = String(decoding: data[data.startIndex..<end.lowerBound], as: UTF8.self)
+            let lines = head.components(separatedBy: "\r\n")
+            let requestLine = lines[0].split(separator: " ")
+            guard requestLine.count >= 2 else { return }
+            func header(_ name: String) -> String? {
+                lines.dropFirst().first { $0.lowercased().hasPrefix(name + ":") }
+                    .map { String($0.drop { $0 != ":" }.dropFirst()).trimmingCharacters(in: .whitespaces) }
             }
-        case .respond, .respondAfter:
-            if case .respondAfter(let seconds) = behavior {
+            let length = header("content-length").flatMap { Int($0) } ?? 0
+            while data.count - end.upperBound < length { guard fill() else { return } }
+            let bodyStart = end.upperBound
+            let request = Request(
+                connection: id, method: String(requestLine[0]), path: String(requestLine[1]),
+                contentType: header("content-type") ?? "", body: Data(data[bodyStart..<(bodyStart + length)]))
+            data = Data(data[(bodyStart + length)...])
+            let closing = (header("connection") ?? "").lowercased().contains("close")
+            lock.withLock { seen.append(request) }
+            switch behavior {
+            case .stall:
+                let deadline = Date().addingTimeInterval(10)
+                while !isStopped, Date() < deadline {
+                    var poll = pollfd(fd: client, events: Int16(POLLIN), revents: 0)
+                    if Darwin.poll(&poll, 1, 50) > 0 { break }
+                }
+                return
+            case .respondAfter(let seconds):
                 Thread.sleep(forTimeInterval: seconds)
+            case .respond:
+                break
             }
-            let status = lock.withLock { statuses[request.path] } ?? 200
-            let reply: Data
-            if request.path == "/v1/caches/prune" {
-                reply = Data(#"{"dryRun":\#(dryRun),"freedBytes":0,"actions":[]}"#.utf8)
-            } else {
-                reply = request.body.isEmpty ? Data("{}".utf8) : request.body
-            }
-            let response =
+            let reply = lock.withLock { responder }(request)
+            func send(_ bytes: Data) { _ = bytes.withUnsafeBytes { write(client, $0.baseAddress, $0.count) } }
+            func replyHead(_ status: Int, _ type: String, _ count: Int, close: Bool) -> Data {
                 Data(
-                    "HTTP/1.1 \(status) Fake\r\nContent-Type: application/json\r\nContent-Length: \(reply.count)\r\nConnection: close\r\n\r\n"
-                        .utf8) + reply
-            _ = response.withUnsafeBytes { write(client, $0.baseAddress, $0.count) }
+                    ("HTTP/1.1 \(status) X\r\nContent-Type: \(type)\r\nContent-Length: \(count)\r\n"
+                        + (close ? "Connection: close\r\n" : "") + "\r\n").utf8)
+            }
+            switch reply {
+            case .unary(let body):
+                send(replyHead(200, "application/proto", body.count, close: closing) + body)
+                if closing { return }
+            case .thenClose(let body):
+                send(replyHead(200, "application/proto", body.count, close: false) + body)
+                return
+            case .error(let status, let code, let message):
+                let body = Data(#"{"code":"\#(code)","message":"\#(message)"}"#.utf8)
+                send(replyHead(status, "application/json", body.count, close: closing) + body)
+                if closing { return }
+            case .drop:
+                return
+            case .stream(let messages, let code, let message):
+                var frames = Data()
+                for message in messages { frames += Self.envelope(message, flags: 0) }
+                let trailer = code.map { #"{"error":{"code":"\#($0)","message":"\#(message ?? "")"}}"# } ?? "{}"
+                frames += Self.envelope(Data(trailer.utf8), flags: 2)
+                // Chunked and kept when the client asks, as the daemon does.
+                if !closing, (header("x-micropod-stream-framing") ?? "").lowercased() == "chunked" {
+                    var body = Data(
+                        ("HTTP/1.1 200 OK\r\nContent-Type: application/connect+proto\r\nTransfer-Encoding: chunked\r\n"
+                            + "X-Micropod-Stream-Framing: chunked\r\n\r\n").utf8)
+                    body += Data((String(frames.count, radix: 16) + "\r\n").utf8) + frames + Data("\r\n0\r\n\r\n".utf8)
+                    send(body)
+                    continue
+                }
+                send(
+                    Data("HTTP/1.1 200 X\r\nContent-Type: application/connect+proto\r\nConnection: close\r\n\r\n".utf8)
+                        + frames)
+                return
+            }
         }
+    }
+
+    static func envelope(_ payload: Data, flags: UInt8) -> Data {
+        var frame = Data([flags])
+        withUnsafeBytes(of: UInt32(payload.count).bigEndian) { frame.append(contentsOf: $0) }
+        return frame + payload
     }
 }
