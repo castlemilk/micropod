@@ -197,13 +197,14 @@ func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 			}
 			p.engine.mu.Lock()
 			v, err := inspectVolume(key)
+			var data string
 			if err == nil && p.owns(v.Labels) && (p.family == "" || v.createdBy == p.family) {
-				err = p.engine.removeVolumeLocked(key)
+				data, err = p.engine.removeVolumeLocked(key)
 			} else if err == nil || errors.Is(err, os.ErrNotExist) {
 				err = fail(404, "unknown session volume")
 			}
 			p.engine.mu.Unlock()
-			if err != nil {
+			if err := errors.Join(err, discardVolumeData(data)); err != nil {
 				return err
 			}
 		default:

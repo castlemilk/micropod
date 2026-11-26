@@ -65,11 +65,19 @@ func (s *dockerEngine) reapFamily(ctx context.Context, owner string) error {
 		}
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	volumes, err := s.familyVolumesLocked(func(createdBy string) bool { return createdBy == owner })
 	errs = append(errs, err)
+	data := map[string]string{}
 	for _, name := range volumes {
-		if err := s.removeVolumeLocked(name); err != nil {
+		var err error
+		if data[name], err = s.removeVolumeLocked(name); err != nil {
+			errs = append(errs, fmt.Errorf("volume %s: %w", name, err))
+		}
+	}
+	s.mu.Unlock()
+	// The names are free; their data goes without the engine's lock.
+	for name, d := range data {
+		if err := discardVolumeData(d); err != nil {
 			errs = append(errs, fmt.Errorf("volume %s: %w", name, err))
 		}
 	}

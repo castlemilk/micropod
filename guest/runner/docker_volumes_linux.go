@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -248,25 +249,75 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		s.mu.Unlock()
 		return fail(501, "unsupported volume operation")
 	}
-	err = s.removeVolumeLocked(name)
+	data, err := s.removeVolumeLocked(name)
 	s.mu.Unlock()
-	if err != nil {
+	if err := errors.Join(err, discardVolumeData(data)); err != nil {
 		return err
 	}
 	w.WriteHeader(204)
 	return nil
 }
 
-func (s *dockerEngine) removeVolumeLocked(name string) error {
+// volumeTrash holds the data of removed volumes until it is deleted
+// (removeVolumeLocked); beside volumes/, so a rename moves a tree there.
+func volumeTrash() string { return filepath.Join(volumeStore, "volume-trash") }
+
+// deleteVolumeData deletes a removed volume's data; a variable only so tests
+// can see when it runs.
+var deleteVolumeData = os.RemoveAll
+
+// removeVolumeLocked removes the volume name. Under s.mu it only moves the
+// volume's directory into volumeTrash and drops its metadata, so the name is
+// free at once; the caller deletes the data it returns (discardVolumeData)
+// once it has released s.mu. A volume's tree (a node_modules, a build cache)
+// can take seconds to delete, and every engine request needs that lock. An
+// engine start deletes what a crash left in volumeTrash (sweepVolumeTrash).
+// Call with s.mu held.
+func (s *dockerEngine) removeVolumeLocked(name string) (data string, err error) {
 	if s.volumeInUse(name) {
-		return fail(409, "volume is in use")
+		return "", fail(409, "volume is in use")
 	}
-	err := os.RemoveAll(volumePath(name))
-	if err == nil {
-		e := os.Remove(volumeMeta(name))
-		if !os.IsNotExist(e) {
-			err = e
+	if err := os.MkdirAll(volumeTrash(), 0700); err != nil {
+		return "", err
+	}
+	data = filepath.Join(volumeTrash(), name+"."+engineID()[:16])
+	if err := os.Rename(volumePath(name), data); errors.Is(err, os.ErrNotExist) {
+		data = ""
+	} else if err != nil {
+		return "", err
+	}
+	if err := os.Remove(volumeMeta(name)); err != nil && !os.IsNotExist(err) {
+		return data, err
+	}
+	return data, nil
+}
+
+// discardVolumeData deletes data, what removeVolumeLocked moved aside ("" for
+// nothing). Call without s.mu.
+func discardVolumeData(data string) error {
+	if data == "" {
+		return nil
+	}
+	return deleteVolumeData(data)
+}
+
+// sweepVolumeTrash deletes, in the background, the data of volumes whose
+// removal a stop or crash interrupted before it was deleted. Call before
+// anything removes a volume.
+func sweepVolumeTrash() {
+	trash := volumeTrash()
+	entries, err := os.ReadDir(trash)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Printf("read removed volumes' data: %v", err)
 		}
+		return
 	}
-	return err
+	go func() {
+		for _, e := range entries {
+			if err := os.RemoveAll(filepath.Join(trash, e.Name())); err != nil {
+				log.Printf("delete a removed volume's data: %v", err)
+			}
+		}
+	}()
 }

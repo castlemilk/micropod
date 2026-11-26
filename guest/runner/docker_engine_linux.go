@@ -488,6 +488,9 @@ func serveEngine(ctx context.Context, n node) error {
 	if err := os.Mkdir(s.execPipeDir, 0700); err != nil {
 		return err
 	}
+	// Before any volume is removed, so the sweep deletes only what an
+	// earlier engine left.
+	sweepVolumeTrash()
 	if !privateRootless() {
 		// Before the socket opens, so a job of the same project finds the
 		// names free.

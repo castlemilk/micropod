@@ -177,6 +177,79 @@ func TestEveryAnswerThatAnOwnerIsRemovedWaitsForItsFamily(t *testing.T) {
 	}
 }
 
+// A removed volume's data is deleted without the engine's lock, whether a
+// family's reaping or a `docker volume rm` removes it: while its tree is
+// still being deleted every other request is answered, and its name is free
+// for a new, empty volume.
+func TestAVolumesDataIsDeletedWithoutTheEngineLock(t *testing.T) {
+	s, owner, _, _, _ := familyFixture(t)
+	for _, name := range []string{"app_pgdata", "host_data"} {
+		if err := os.WriteFile(filepath.Join(volumePath(name), "PG_VERSION"), []byte("17"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	deleting := make(chan string)
+	proceed := make(chan struct{})
+	deleteVolumeData = func(p string) error {
+		deleting <- p
+		<-proceed
+		return os.RemoveAll(p)
+	}
+	t.Cleanup(func() { deleteVolumeData = os.RemoveAll })
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for _, c := range []struct {
+		name   string
+		remove func() error
+	}{
+		{"app_pgdata", func() error { return s.remove(ctx, owner, true) }},
+		{"host_data", func() error {
+			rec := httptest.NewRecorder()
+			err := s.volumes(rec, httptest.NewRequest("DELETE", "/volumes/host_data", nil).WithContext(ctx), "/host_data")
+			if err == nil && rec.Code != http.StatusNoContent {
+				err = errors.New(rec.Result().Status)
+			}
+			return err
+		}},
+	} {
+		done := make(chan error, 1)
+		go func() { done <- c.remove() }()
+		var data string
+		select {
+		case data = <-deleting:
+		case err := <-done:
+			t.Fatalf("%s: removed (%v) without deleting its data", c.name, err)
+		case <-ctx.Done():
+			t.Fatalf("%s: its data was never deleted", c.name)
+		}
+		if !s.mu.TryLock() {
+			close(proceed)
+			t.Fatalf("%s: the engine's lock is held while the volume's data is deleted", c.name)
+		}
+		s.mu.Unlock()
+		if _, err := os.Stat(filepath.Join(data, "PG_VERSION")); err != nil {
+			t.Errorf("%s: the data being deleted: %v", c.name, err)
+		}
+		if hasVolume(c.name) {
+			t.Errorf("%s: the name is still taken while its old data is deleted", c.name)
+		}
+		if err := ensureVolume(c.name, nil); err != nil {
+			t.Fatal(err)
+		}
+		if entries, err := os.ReadDir(volumePath(c.name)); err != nil || len(entries) != 0 {
+			t.Errorf("%s: a new volume of the name holds %v (%v)", c.name, entries, err)
+		}
+		proceed <- struct{}{}
+		if err := <-done; err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if _, err := os.Stat(data); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("%s: its old data is left: %v", c.name, err)
+		}
+	}
+}
+
 // An engine start reaps a family whose owner it does not find, removed by an
 // engine that stopped before it reaped, and leaves every other alone.
 func TestEngineStartReapsAFamilyWithoutItsOwner(t *testing.T) {
