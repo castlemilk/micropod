@@ -499,11 +499,10 @@ public actor HVFMachineSupervisor {
                 URL(fileURLWithPath: previous).appendingPathComponent("micropod-vmm").path)
             if !binaries.contains(binary) { binaries.append(binary) }
         }
-        for binary in binaries {
-            for other in inspector.processes(executable: binary) where !candidates.contains(where: { $0.pid == other })
-            {
-                if let facts = inspector.facts(other) { candidates.append(facts) }
-            }
+        // One look at the process table for both: it is on every launch's
+        // path, an update's switchover included.
+        for other in inspector.processes(executables: binaries) where !candidates.contains(where: { $0.pid == other }) {
+            if let facts = inspector.facts(other) { candidates.append(facts) }
         }
         for orphan in Self.orphans(among: candidates, layout: layout, supervisorPID: pid) {
             log("reaping orphaned micropod-vmm pid \(orphan) left by a previous supervisor")
@@ -621,7 +620,10 @@ extension HVFMachineSupervisor {
     /// (`logs/supervisor.log` when detached). A failed write — a full disk,
     /// a closed pipe — loses the line and never aborts supervision.
     static func stderrLog(_ line: String, to fd: Int32 = STDERR_FILENO) {
-        let stamp = ISO8601DateFormatter().string(from: Date())
+        // Milliseconds: a relaunch or a switchover is timed from these lines.
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let stamp = formatter.string(from: Date())
         HVFFiles.writeBestEffort(Data("\(stamp) hvf-supervisor: \(line)\n".utf8), to: fd)
     }
 }
