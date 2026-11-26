@@ -1,0 +1,196 @@
+{
+  "date": "2026-11-24",
+  "base": "a3b561c6a97320d4ca9aff60885ae6393ccaa613",
+  "tier": "host-only, untimed Darwin socketpair source fixture",
+  "direction": "230.14",
+  "change": "Deferred client read after successful async connect to its first level-triggered readiness event",
+  "workload": "One staged connection on two Darwin AF_UNIX streams. Four-byte request before/after connect, with/without immediate client FIN, free/full guest buffer. Real kevent polling one event at a time.",
+  "guardrails": "Each arm verifies all four request bytes and reverse reply marker across both FINs in all eight cases, including a full guest socket. Each flow retires. Address and undefined-behavior sanitizer reruns cover identical cases.",
+  "verdict": "A late request saves one empty read. An already-buffered request needs an extra poll. Keep the speculative read unless first-request state in the revised workload justifies delaying handoff.",
+  "limits": "No TCP handshake, process scheduling, throughput or latency measurement. Poll index is fixed work, not an elapsed duration. A production callback may poll more than once.",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "input_sha256": {
+    "handshake_ready_only.c": "4476359b92609079facb44c2984cb80343cd62c14031922e4e7a1674f584a3ad",
+    "handshake_ready_only.patch": "b1f0c885e80ddd605acb2915c6e72a3034c0e18c96ac13da1f33e64405aaea1f",
+    "filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "compare.py": "87f69f6b3c6d6e27fd2fa97c447a7f5b23efe0ef9a1fdc40aa206a35b7b0d150",
+    "relay_buffer_policies.py": "a01dd1e8e11f14ad6969f17032b23a0fa9a3db7ba1b919376c1a12f5e713f413"
+  },
+  "arms": {
+    "control": {
+      "c_sha256": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+      "header_sha256": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+      "rows": [
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 0,
+          "pressured": 0,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 1,
+          "client_reads_to_delivery": 2,
+          "request_read_poll": 2,
+          "delivery_poll": 2
+        },
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 0,
+          "pressured": 1,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 1,
+          "client_reads_to_delivery": 2,
+          "request_read_poll": 2,
+          "delivery_poll": 3
+        },
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 1,
+          "pressured": 0,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 1,
+          "client_reads_to_delivery": 2,
+          "request_read_poll": 2,
+          "delivery_poll": 2
+        },
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 1,
+          "pressured": 1,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 1,
+          "client_reads_to_delivery": 2,
+          "request_read_poll": 2,
+          "delivery_poll": 3
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 0,
+          "pressured": 0,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 1,
+          "delivery_poll": 1
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 0,
+          "pressured": 1,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 1,
+          "delivery_poll": 2
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 1,
+          "pressured": 0,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 1,
+          "delivery_poll": 1
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 1,
+          "pressured": 1,
+          "client_reads_at_connect": 1,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 1,
+          "delivery_poll": 2
+        }
+      ],
+      "sanitizer_rows_verified": 8
+    },
+    "candidate": {
+      "c_sha256": "8dd6366f10b7e6a64b9fe7c9dbf6a9827271c8e9b17ed7f301f694d5774a02f1",
+      "header_sha256": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+      "rows": [
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 0,
+          "pressured": 0,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 2
+        },
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 0,
+          "pressured": 1,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 3
+        },
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 1,
+          "pressured": 0,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 2
+        },
+        {
+          "request_before_connect": 0,
+          "request_and_fin": 1,
+          "pressured": 1,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 3
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 0,
+          "pressured": 0,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 2
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 0,
+          "pressured": 1,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 3
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 1,
+          "pressured": 0,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 2
+        },
+        {
+          "request_before_connect": 1,
+          "request_and_fin": 1,
+          "pressured": 1,
+          "client_reads_at_connect": 0,
+          "eagain_at_connect": 0,
+          "client_reads_to_delivery": 1,
+          "request_read_poll": 2,
+          "delivery_poll": 3
+        }
+      ],
+      "sanitizer_rows_verified": 8
+    }
+  }
+}

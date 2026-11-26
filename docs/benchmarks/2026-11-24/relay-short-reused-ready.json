@@ -1,0 +1,196 @@
+{
+  "method": "Six Darwin AF_UNIX socketpair cases per arm. Stage established flows, prime all but one with 16 KiB to activate production bulk classification, queue payloads, then drain a flat owner once at its stock two-worker 128-event budget, width 24 and 256 KiB read cap. Observe actual kqueue readiness and count forwarded bytes preceding each first write. Check every byte, reverse payload, half-closes and retirement. The late-burst case appends 64 KiB after kevent returns a real 17-byte snapshot.",
+  "scope": "Deterministic service order. The new-flow marker uses an established unclassified direction. No timed CPU, fresh connection setup, TCP or VM throughput measurement.",
+  "base": "ea8b53a7119bc2b7cce8b24802f6a4c66789dafd",
+  "collected_utc": "2026-11-23T22:49:28.267718+00:00",
+  "platform": {
+    "machine": "arm64",
+    "darwin": "25.5.0",
+    "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)"
+  },
+  "flags": [
+    "-std=gnu11",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O1",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-fno-sanitize-recover=all"
+  ],
+  "source_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/short_reused_ready.c": "c018aea42cca3b301e3fb801e001350d53e085831b4809eff9d4b15418c3cf67",
+    "scripts/relaybench/short_reused_ready.patch": "ac0c98ee207c62a7cecf77315de5b33de18e52287768cd6d2d5ffe8037ed2a7c",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "scripts/relaybench/test_final_read_fin.py": "d991688ea2802d06e0f7d7247039f8a25d0f667d43123f164e50a8fbb1767e72",
+    "scripts/relaybench/test_short_reused_ready.py": "eaf8733c2af3f59b5e0a3dde4c2c7fcb0c0c14f260672c4c97111b566a1d736a"
+  },
+  "binary_sha256": {
+    "stock": "ad13b3833e541e3a93f769c4abbdc0b6fcbf19c31ddb1d0ecc9438d46e963cdc",
+    "candidate": "0ea669755d8fd772c5b2a4c0b23069b9e3293b4d4508dfef1aaa25047749b9a5"
+  },
+  "rows": {
+    "stock": [
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 17,
+        "late_bytes": 0,
+        "verified_bytes": 1048594,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1048577,
+        "ahead_of_first_large_bytes": 1,
+        "tagged_first_write": 17,
+        "tagged_writes": 1
+      },
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 17,
+        "late_bytes": 65536,
+        "verified_bytes": 1114130,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1048577,
+        "ahead_of_first_large_bytes": 1,
+        "tagged_first_write": 65553,
+        "tagged_writes": 1
+      },
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 4096,
+        "late_bytes": 0,
+        "verified_bytes": 1052673,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1048577,
+        "ahead_of_first_large_bytes": 1,
+        "tagged_first_write": 4096,
+        "tagged_writes": 1
+      },
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 4097,
+        "late_bytes": 0,
+        "verified_bytes": 1052674,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1048577,
+        "ahead_of_first_large_bytes": 1,
+        "tagged_first_write": 4097,
+        "tagged_writes": 1
+      },
+      {
+        "background": 16,
+        "tails": 8,
+        "hint_bytes": 17,
+        "late_bytes": 0,
+        "verified_bytes": 557074,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 557057,
+        "ahead_of_first_large_bytes": 1,
+        "tagged_first_write": 17,
+        "tagged_writes": 1
+      },
+      {
+        "background": 32,
+        "tails": 0,
+        "hint_bytes": 17,
+        "late_bytes": 0,
+        "verified_bytes": 2097170,
+        "nonempty_polls": 2,
+        "ahead_of_new_bytes": 1572864,
+        "ahead_of_tagged_bytes": 2097153,
+        "ahead_of_first_large_bytes": 0,
+        "tagged_first_write": 17,
+        "tagged_writes": 1
+      }
+    ],
+    "candidate": [
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 17,
+        "late_bytes": 0,
+        "verified_bytes": 1048594,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1,
+        "ahead_of_first_large_bytes": 18,
+        "tagged_first_write": 17,
+        "tagged_writes": 1
+      },
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 17,
+        "late_bytes": 65536,
+        "verified_bytes": 1114130,
+        "nonempty_polls": 2,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1,
+        "ahead_of_first_large_bytes": 4097,
+        "tagged_first_write": 4096,
+        "tagged_writes": 2
+      },
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 4096,
+        "late_bytes": 0,
+        "verified_bytes": 1052673,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1,
+        "ahead_of_first_large_bytes": 4097,
+        "tagged_first_write": 4096,
+        "tagged_writes": 1
+      },
+      {
+        "background": 16,
+        "tails": 0,
+        "hint_bytes": 4097,
+        "late_bytes": 0,
+        "verified_bytes": 1052674,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 1048577,
+        "ahead_of_first_large_bytes": 1,
+        "tagged_first_write": 4097,
+        "tagged_writes": 1
+      },
+      {
+        "background": 16,
+        "tails": 8,
+        "hint_bytes": 17,
+        "late_bytes": 0,
+        "verified_bytes": 557074,
+        "nonempty_polls": 1,
+        "ahead_of_new_bytes": 0,
+        "ahead_of_tagged_bytes": 32769,
+        "ahead_of_first_large_bytes": 32786,
+        "tagged_first_write": 17,
+        "tagged_writes": 1
+      },
+      {
+        "background": 32,
+        "tails": 0,
+        "hint_bytes": 17,
+        "late_bytes": 0,
+        "verified_bytes": 2097170,
+        "nonempty_polls": 2,
+        "ahead_of_new_bytes": 1572864,
+        "ahead_of_tagged_bytes": 1572865,
+        "ahead_of_first_large_bytes": 0,
+        "tagged_first_write": 17,
+        "tagged_writes": 1
+      }
+    ]
+  }
+}

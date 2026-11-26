@@ -1,0 +1,375 @@
+{
+  "date": "2026-11-24",
+  "id": "231.02",
+  "tier": "offline replay of archived VM first attempts",
+  "source_base": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "archive": "gamma-vcpu-priority.json.gz",
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "service_image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "kernel": {
+    "SHA256SUMS": "9f25306b0af194bdf144c69dcd04213131faa94f2b339172987732098c085db5  Image\n73dbc97277885a089db1de0ecce96334995b7ed06dc2022e1052f59b66426790  config",
+    "release": "7.3.5-micropod-ring"
+  },
+  "changed_feature": "indirect-descriptors",
+  "changed_bit": 28,
+  "control": "fix-ring-control",
+  "candidate": "fix-ring-direct",
+  "readbacks": {
+    "fix-ring-control": {
+      "after": "11010101100110001000000000001100101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "before": "11010101100110001000000000001100101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "filter": ""
+    },
+    "fix-ring-direct": {
+      "after": "11010101100110001000000000000100101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "before": "11010101100110001000000000001100101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "filter": "28"
+    }
+  },
+  "debug_scopes": {
+    "fix-ring-control": {
+      "boot": "9266983A-9F40-40F6-A26E-F0F7F2103AB0",
+      "vm": "4 4116488192 \"7.3.5-micropod-ring\" \"micropod\""
+    },
+    "fix-ring-direct": {
+      "boot": "AF45A96F-B639-4410-B8C0-9BB19BDB85F7",
+      "vm": "4 4116488192 \"7.3.5-micropod-ring\" \"micropod\""
+    }
+  },
+  "order": [
+    "fix-ring-event fix-ring-control fix-ring-direct",
+    "fix-ring-event fix-ring-direct fix-ring-control",
+    "fix-ring-control fix-ring-event fix-ring-direct",
+    "fix-ring-control fix-ring-direct fix-ring-event",
+    "fix-ring-direct fix-ring-event fix-ring-control"
+  ],
+  "workload": "32 continuing streams with 240 fresh GETs at 25 ms intervals. Separate VMs on the same debug kernel. Control also unbound and rebound eth1. Before/after feature masks are left-to-right kernel bit strings recorded as digit sequences in the source archive.",
+  "limits": "Dirty-round percentiles include missing request timings. Only clean rounds contribute to latency summaries. Host CPU and runnable counters include setup and drain. No notification counters. One common clean pair cannot estimate repeatable throughput.",
+  "summary": {
+    "control": {
+      "attempts": 5,
+      "clean": 2,
+      "clean_and_p95_pass": 2,
+      "fresh_offers": 1200,
+      "fresh_errors": 380,
+      "bulk_errors": 64,
+      "bulk_reopens": 69,
+      "clean_median_p95_ms": 44.134,
+      "clean_median_p99_ms": 68.512
+    },
+    "candidate": {
+      "attempts": 5,
+      "clean": 1,
+      "clean_and_p95_pass": 0,
+      "fresh_offers": 1200,
+      "fresh_errors": 350,
+      "bulk_errors": 71,
+      "bulk_reopens": 20,
+      "clean_median_p95_ms": 80.033,
+      "clean_median_p99_ms": 94.453
+    },
+    "common_clean": [
+      {
+        "block": 3,
+        "control_mib_s": 6118.891074762893,
+        "candidate_mib_s": 3271.3451321968028,
+        "ratio": 0.5346303917207036,
+        "both_pass": false
+      }
+    ],
+    "unpaired_candidate_followup": null
+  },
+  "attempts": [
+    {
+      "block": 1,
+      "arm": "fix-ring-control",
+      "phase": "ring-trials",
+      "clean": false,
+      "fresh_offers": 240,
+      "fresh_errors": 239,
+      "bulk_errors": 32,
+      "reopens": 21,
+      "bytes": 447683940,
+      "mib_s": 71.11052432736885,
+      "reported_p95_us": 0,
+      "reported_p99_us": 0,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 0.5106069583333332,
+          "runnable_s": 0.6464527083333332,
+          "observer_s": 30.164426,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 0.6535175,
+          "runnable_s": 0.7296650416666666,
+          "observer_s": 30.164426,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "fix-ring-control",
+      "phase": "ring-trials",
+      "clean": false,
+      "fresh_offers": 240,
+      "fresh_errors": 118,
+      "bulk_errors": 0,
+      "reopens": 10,
+      "bytes": 16577166900,
+      "mib_s": 2634.3251082769966,
+      "reported_p95_us": 45840,
+      "reported_p99_us": 65816,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 7.031965416666666,
+          "runnable_s": 12.665407166666665,
+          "observer_s": 28.033388,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 4.557330416666666,
+          "runnable_s": 5.10932025,
+          "observer_s": 28.033388,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "fix-ring-control",
+      "phase": "ring-trials",
+      "clean": true,
+      "fresh_offers": 240,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "reopens": 0,
+      "bytes": 38496884212,
+      "mib_s": 6118.891074762893,
+      "reported_p95_us": 28153,
+      "reported_p99_us": 48651,
+      "guardrail_pass": true,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 15.389379374999999,
+          "runnable_s": 22.917113916666665,
+          "observer_s": 6.127662,
+          "cpu_s_per_scored_gib": 0.4292352645825206
+        },
+        "relay": {
+          "cpu_s": 9.703321916666665,
+          "runnable_s": 10.592561833333333,
+          "observer_s": 6.127662,
+          "cpu_s_per_scored_gib": 0.27064171002216175
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "fix-ring-control",
+      "phase": "ring-trials",
+      "clean": false,
+      "fresh_offers": 240,
+      "fresh_errors": 23,
+      "bulk_errors": 32,
+      "reopens": 38,
+      "bytes": 26674098768,
+      "mib_s": 4239.2699415932,
+      "reported_p95_us": 47943,
+      "reported_p99_us": 96427,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 36.423772375,
+          "runnable_s": 58.66918241666666,
+          "observer_s": 65.591301,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 13.77646875,
+          "runnable_s": 14.926237416666666,
+          "observer_s": 65.591301,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 5,
+      "arm": "fix-ring-control",
+      "phase": "ring-trials",
+      "clean": true,
+      "fresh_offers": 240,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "reopens": 0,
+      "bytes": 27541843920,
+      "mib_s": 4362.118330697426,
+      "reported_p95_us": 60115,
+      "reported_p99_us": 88373,
+      "guardrail_pass": true,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 11.516119416666665,
+          "runnable_s": 24.133121291666665,
+          "observer_s": 6.264695,
+          "cpu_s_per_scored_gib": 0.44896554870366434
+        },
+        "relay": {
+          "cpu_s": 7.2853921249999996,
+          "runnable_s": 8.022004083333332,
+          "observer_s": 6.264695,
+          "cpu_s_per_scored_gib": 0.28402710623061056
+        }
+      }
+    },
+    {
+      "block": 1,
+      "arm": "fix-ring-direct",
+      "phase": "ring-trials",
+      "clean": false,
+      "fresh_offers": 240,
+      "fresh_errors": 138,
+      "bulk_errors": 7,
+      "reopens": 18,
+      "bytes": 7852559840,
+      "mib_s": 1247.930506060858,
+      "reported_p95_us": 78241,
+      "reported_p99_us": 151927,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 4.822802291666666,
+          "runnable_s": 9.408418625,
+          "observer_s": 32.716779,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 2.701225833333333,
+          "runnable_s": 3.3681789999999996,
+          "observer_s": 32.716779,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "fix-ring-direct",
+      "phase": "ring-trials",
+      "clean": false,
+      "fresh_offers": 240,
+      "fresh_errors": 187,
+      "bulk_errors": 0,
+      "reopens": 0,
+      "bytes": 2831833004,
+      "mib_s": 449.81380883368314,
+      "reported_p95_us": 112431,
+      "reported_p99_us": 155735,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 2.1846860416666662,
+          "runnable_s": 5.7591969999999995,
+          "observer_s": 29.042101,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 1.3745357916666665,
+          "runnable_s": 1.6928621666666666,
+          "observer_s": 29.042101,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 3,
+      "arm": "fix-ring-direct",
+      "phase": "ring-trials",
+      "clean": true,
+      "fresh_offers": 240,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "reopens": 0,
+      "bytes": 20581712624,
+      "mib_s": 3271.3451321968028,
+      "reported_p95_us": 80033,
+      "reported_p99_us": 94453,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 11.118812541666665,
+          "runnable_s": 19.59090445833333,
+          "observer_s": 6.34049,
+          "cpu_s_per_scored_gib": 0.5800651421632269
+        },
+        "relay": {
+          "cpu_s": 5.841238833333333,
+          "runnable_s": 7.002251583333333,
+          "observer_s": 6.34049,
+          "cpu_s_per_scored_gib": 0.304735692014731
+        }
+      }
+    },
+    {
+      "block": 4,
+      "arm": "fix-ring-direct",
+      "phase": "ring-trials",
+      "clean": false,
+      "fresh_offers": 240,
+      "fresh_errors": 25,
+      "bulk_errors": 32,
+      "reopens": 0,
+      "bytes": 10655208232,
+      "mib_s": 1693.2752052417297,
+      "reported_p95_us": 190138,
+      "reported_p99_us": 229068,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 6.534654375,
+          "runnable_s": 18.373458166666666,
+          "observer_s": 35.651909,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 3.6058921249999996,
+          "runnable_s": 4.333913583333333,
+          "observer_s": 35.651909,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    },
+    {
+      "block": 5,
+      "arm": "fix-ring-direct",
+      "phase": "ring-trials",
+      "clean": false,
+      "fresh_offers": 240,
+      "fresh_errors": 0,
+      "bulk_errors": 32,
+      "reopens": 2,
+      "bytes": 0,
+      "mib_s": 0,
+      "reported_p95_us": 12240660,
+      "reported_p99_us": 12490656,
+      "guardrail_pass": false,
+      "host_processes": {
+        "vmm": {
+          "cpu_s": 47.083141166666664,
+          "runnable_s": 60.79409595833333,
+          "observer_s": 50.511548,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 0.2021835,
+          "runnable_s": 0.30113562499999996,
+          "observer_s": 50.511548,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    }
+  ]
+}

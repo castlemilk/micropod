@@ -1,0 +1,427 @@
+{
+  "revision": "17bcd4355234b11da3a7a1da2ded52f4dc20f5d1",
+  "experiment": "worker_assignment",
+  "darwin": "25.5.0",
+  "machine": "arm64",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "control_sha256": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+  "candidate_relay_sha256": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+  "fixture_sha256": "e8d91ae75d36586d9cffca12f1471979d8783f3d08948efd93ca6e52d0818ebe",
+  "driver_sha256": "770330ad3acb7f85111bee3eafc83d964635638e967985139ca59d2e5ff17c45",
+  "support_sha256": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+  "header_sha256": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+  "attempts": [
+    {
+      "arm": "control",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "workload": 0,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            524288
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 2,
+          "long_lived": [
+            32,
+            0
+          ],
+          "verified_bulk_bytes": [
+            1048576,
+            0
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            272
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 0,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            262144,
+            262144,
+            262144
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 4,
+          "long_lived": [
+            16,
+            0,
+            16,
+            0
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            0,
+            524288,
+            0
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            136,
+            262144,
+            136
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "workload": 0,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            524288
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            524288
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            272
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 0,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            262144,
+            262144,
+            262144
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            262144,
+            262144,
+            262144
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            136,
+            262144,
+            136
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "workload": 0,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            524288
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            524288
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            272
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 0,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            262144,
+            262144,
+            262144
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            262144,
+            262144,
+            262144
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            136,
+            262144,
+            136
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        }
+      ]
+    },
+    {
+      "arm": "control",
+      "returncode": 0,
+      "stderr": "",
+      "rows": [
+        {
+          "workload": 0,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            524288
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 2,
+          "long_lived": [
+            32,
+            0
+          ],
+          "verified_bulk_bytes": [
+            1048576,
+            0
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 2,
+          "long_lived": [
+            16,
+            16
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            272
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 0,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            262144,
+            262144,
+            262144
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 1,
+          "workers": 4,
+          "long_lived": [
+            16,
+            0,
+            16,
+            0
+          ],
+          "verified_bulk_bytes": [
+            524288,
+            0,
+            524288,
+            0
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        },
+        {
+          "workload": 2,
+          "workers": 4,
+          "long_lived": [
+            8,
+            8,
+            8,
+            8
+          ],
+          "verified_bulk_bytes": [
+            262144,
+            136,
+            262144,
+            136
+          ],
+          "fresh_delivered": 240,
+          "flows_retired": 272
+        }
+      ]
+    }
+  ]
+}

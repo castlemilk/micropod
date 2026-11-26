@@ -1,0 +1,17 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -138,6 +138,14 @@
+     // operations are idempotent on EINTR. The caller closes both descriptors
+     // on error, which also removes any prefix the kernel already installed.
+     if (r->bulk.fd < 0) return submit_changes(r->kq, changes, count);
++    // A split owner can also submit a complete change list if every filter
++    // targets the same kqueue. Preserve separate submissions for mixed lists.
++    if (count > 1) {
++        int queue = watch_queue(r, changes[0].udata, changes[0].filter);
++        int i = 1;
++        while (i < count && watch_queue(r, changes[i].udata, changes[i].filter) == queue) ++i;
++        if (i == count) return submit_changes(queue, changes, count);
++    }
+ #endif
+     for (int i = 0; i < count; ++i) {
+         int q = watch_queue(r, changes[i].udata, changes[i].filter);

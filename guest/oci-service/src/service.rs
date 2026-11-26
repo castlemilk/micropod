@@ -92,12 +92,20 @@ fn kernel_metrics() -> Value {
         json!({"some_usec":total("some"),"full_usec":total("full")})
     };
     let memory = read("/proc/meminfo");
+    let scx = Path::new("/sys/kernel/sched_ext");
+    let scheduler = fs::read_to_string(scx.join("state")).ok().map(|state| {
+        let ops = fs::read_to_string(scx.join("root/ops")).ok();
+        let sequence = fs::read_to_string(scx.join("enable_seq")).ok();
+        json!({"state":state.trim(), "ops":ops.as_deref().map(str::trim),
+               "enable_seq":sequence.and_then(|s| s.trim().parse::<u64>().ok())})
+    });
     json!({
         "boot":read("/proc/sys/kernel/random/boot_id").trim(),
         "uptime_seconds":read("/proc/uptime").split_whitespace().next().and_then(|s| s.parse::<f64>().ok()),
         "available_bytes":fields(&memory,"MemAvailable:").and_then(|n| n.checked_mul(1024)),
         "memory_bytes":fields(&memory,"MemTotal:").and_then(|n| n.checked_mul(1024)),
         "oom_kills":fields(&read("/proc/vmstat"),"oom_kill"),
+        "sched_ext":scheduler,
         "cpu":pressure("/proc/pressure/cpu"),"memory":pressure("/proc/pressure/memory"),"io":pressure("/proc/pressure/io")
     })
 }

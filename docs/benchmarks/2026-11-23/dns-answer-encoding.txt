@@ -1,0 +1,68 @@
+Single-record service DNS reply encoding, 23 November 2026
+
+Base commit c4006c29c0f8348c663d8914059da4a926f85654
+Apple M5 Max, Darwin arm64, macOS 26.5.1 (25F80), Go 1.27.2, GOARM64=v8.0
+golang.org/x/net v0.48.0. Host CGO_ENABLED=1. GOMAXPROCS=2. Benchmark -cpu=1.
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOTELEMETRY=off, fresh temporary GOCACHE.
+
+Run from guest/runner:
+go test -mod=readonly -p 2 -cpu 1 -count 7 -bench '^BenchmarkPackSingleServiceA$' -benchmem -benchtime 300ms docker_dns_answer.go docker_dns_answer_test.go
+
+Input: IN A backend., 10.90.0.4, request ID 123, authoritative reply, RD set.
+Both encoders ran in one binary with the same input and output sink. The general
+encoder reproduces dnsReply's single local A resource append and Message.Pack.
+The candidate constructs that resource directly and sizes the AppendPack buffer.
+Neither timed region includes parsing, lookup, scheduling or socket I/O.
+
+First run, all ns/op samples in order:
+general  361.7 348.9 348.6 376.0 325.2 310.9 323.0   1072 B/op, 6 allocs/op each
+single   176.2 171.9 184.5 182.6 159.6 162.2 147.7    320 B/op, 5 allocs/op each
+Medians: 348.6 and 171.9 ns/op, respectively. Elapsed test time 4.858 s.
+
+Independent repeat, stdout captured directly from the same command:
+goos: darwin
+goarch: arm64
+cpu: Apple M5 Max
+BenchmarkPackSingleServiceA/general         	 1445582	       245.8 ns/op	    1072 B/op	       6 allocs/op
+BenchmarkPackSingleServiceA/general         	 1571936	       229.0 ns/op	    1072 B/op	       6 allocs/op
+BenchmarkPackSingleServiceA/general         	 1000000	       300.2 ns/op	    1072 B/op	       6 allocs/op
+BenchmarkPackSingleServiceA/general         	 1610683	       224.9 ns/op	    1072 B/op	       6 allocs/op
+BenchmarkPackSingleServiceA/general         	 1607646	       226.6 ns/op	    1072 B/op	       6 allocs/op
+BenchmarkPackSingleServiceA/general         	 1578951	       230.3 ns/op	    1072 B/op	       6 allocs/op
+BenchmarkPackSingleServiceA/general         	 1230675	       284.7 ns/op	    1072 B/op	       6 allocs/op
+BenchmarkPackSingleServiceA/single          	 2960240	       123.5 ns/op	     320 B/op	       5 allocs/op
+BenchmarkPackSingleServiceA/single          	 2941644	       126.4 ns/op	     320 B/op	       5 allocs/op
+BenchmarkPackSingleServiceA/single          	 2965564	       117.1 ns/op	     320 B/op	       5 allocs/op
+BenchmarkPackSingleServiceA/single          	 3128938	       114.1 ns/op	     320 B/op	       5 allocs/op
+BenchmarkPackSingleServiceA/single          	 3077647	       116.8 ns/op	     320 B/op	       5 allocs/op
+BenchmarkPackSingleServiceA/single          	 3025630	       119.3 ns/op	     320 B/op	       5 allocs/op
+BenchmarkPackSingleServiceA/single          	 2964331	       140.4 ns/op	     320 B/op	       5 allocs/op
+PASS
+ok  	command-line-arguments	5.044s
+Repeat medians: 230.3 and 119.3 ns/op.
+
+Go ran each implementation's seven samples consecutively. Host load and
+temperature were uncontrolled. No end-to-end DNS latency was measured.
+
+Source SHA-256:
+0a3234f7b03b764f2ea6ce80dfb1fa2263dc00748fccfe1828744dabd4edce93  base docker_dns_linux.go
+461f39a4a0cb9bc31e5508bb6f657b862a15ccdba2084f6d480a279728c76130  candidate docker_dns_linux.go
+79534859927e676643ccdc504e5451774d626d72156dccea6fca2a0e64d423ec  docker_dns_answer.go
+45db704f8670f25cabd6aa29fddeef9df62df771c66c11165be8c19fa6d8249e  docker_dns_answer_test.go
+
+All 16 combinations in TestSingleServiceAWireMatchesGeneralPacker returned
+identical bytes, including mixed case, a maximum-length name, A and ANY.
+
+The production dnsReply method bodies were extracted unchanged from the base
+and the candidate, renamed for comparison, and compiled together on Darwin.
+They used the original locked serviceDirectory.lookup, atomic counters and a
+stub upstream function that panics if invoked. All 48 response byte comparisons
+passed across svc., SvC., many. (two replicas), and missing., A/ANY/AAAA,
+TCP/UDP, and both RD values in an internal network.
+Old method SHA-256 3f66e77c784cf716bf9e4ebdc973a8a61f1a3799892dd0a40094d8b0d6558694
+New method SHA-256 ae729dc699b10fcf7a21f0edb35895d25b12c67973dc4d399c1f1d931b038c7a
+
+Linux arm64 production build verified with a private temporary build cache:
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -mod=readonly -p 2 -o "$TMP/runner" .
+Statically linked ELF aarch64, 21,453,242 bytes
+SHA-256 e4805d8310cf0bdcee4cfe3fa20b349532c8eecb86ab13531a69687228b91f28

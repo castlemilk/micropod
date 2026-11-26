@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"net"
+	"net/netip"
 	"os"
 	"slices"
 	"strings"
@@ -144,6 +146,9 @@ func readDNS(r io.Reader) ([]byte, error) {
 	return b, err
 }
 func sendDNS(w io.Writer, b []byte) error {
+	if len(b) > math.MaxUint16 {
+		return errors.New("DNS message exceeds TCP frame limit")
+	}
 	var h [2]byte
 	binary.BigEndian.PutUint16(h[:], uint16(len(b)))
 	if _, err := w.Write(h[:]); err != nil {
@@ -163,59 +168,65 @@ func (s *dockerEngine) dnsReply(ctx context.Context, n *workerNetwork, upstream 
 	if err != nil {
 		return nil
 	}
-	if _, err = parser.Question(); err != dnsmessage.ErrSectionDone {
+	if err = parser.SkipQuestion(); err != dnsmessage.ErrSectionDone {
 		return nil
 	}
 	host := strings.ToLower(strings.TrimSuffix(q.Name.String(), "."))
-	ips := n.services.lookup(host)
-	out := dnsmessage.Message{Header: dnsmessage.Header{ID: h.ID, Response: true, Authoritative: true, RecursionDesired: h.RecursionDesired, RecursionAvailable: !n.Internal}, Questions: []dnsmessage.Question{q}}
-	if len(ips) > 0 {
-		s.metrics.networks.dnsLocal.Add(1)
-		for _, ip := range ips {
-			if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
-				out.Answers = append(out.Answers, dnsmessage.Resource{Header: dnsmessage.ResourceHeader{Name: q.Name, Class: dnsmessage.ClassINET, TTL: 1}, Body: &dnsmessage.AResource{A: ip.As4()}})
+	var addresses [8]netip.Addr
+	var count int
+	var ips []netip.Addr
+	var found bool
+	if q.Type == dnsmessage.TypeA || q.Type == dnsmessage.TypeALL {
+		// Eight IPv4 records fit legacy UDP even with the longest question.
+		// Most queries can finish the lookup without parsing any EDNS options.
+		ips, count = n.services.lookup(host, addresses[:], len(addresses))
+		if count > len(addresses) {
+			limit := serviceAnswerLimit(&q, network, &parser, binary.BigEndian.Uint16(packet[10:12]) != 0, count)
+			if count <= limit {
+				// Membership may have changed. Take both the data and count from
+				// this lookup, under the packet's effective limit.
+				ips, count = n.services.lookup(host, addresses[:], limit)
 			}
+		}
+		found = count > 0
+	} else {
+		found = n.services.contains(host)
+	}
+	header := dnsmessage.Header{ID: h.ID, Response: true, Authoritative: true, RecursionDesired: h.RecursionDesired, RecursionAvailable: !n.Internal}
+	if found {
+		s.metrics.networks.dnsLocal.Add(1)
+		if len(ips) == 1 {
+			wire, err := packSingleServiceA(header, q, ips[0].As4())
+			if err != nil {
+				return nil
+			}
+			return wire
+		}
+		if count > 1 {
+			raw, err := packServiceAddresses(header, q, ips, count)
+			if err != nil {
+				return nil
+			}
+			return raw
 		}
 	} else if n.Internal || !strings.Contains(host, ".") {
 		s.metrics.networks.dnsMissing.Add(1)
-		out.RCode = dnsmessage.RCodeNameError
+		header.RCode = dnsmessage.RCodeNameError
 	} else {
 		s.metrics.networks.dnsForwarded.Add(1)
-		out.Authoritative = false
+		header.Authoritative = false
 		for _, addr := range upstream {
 			if raw := forwardDNS(ctx, addr, network, packet, h.ID); raw != nil {
 				return raw
 			}
 		}
 		s.metrics.networks.dnsFailures.Add(1)
-		out.RCode = dnsmessage.RCodeServerFailure
+		header.RCode = dnsmessage.RCodeServerFailure
 	}
-	raw, err := out.Pack()
+	// Local NODATA, NXDOMAIN and upstream failures contain only the original question.
+	raw, err := packServiceQuestion(header, q)
 	if err != nil {
 		return nil
-	}
-	if network == "udp" && len(raw) > 512 {
-		limit := 512
-		if parser.SkipAllAnswers() == nil && parser.SkipAllAuthorities() == nil {
-			for {
-				h, err := parser.AdditionalHeader()
-				if err != nil {
-					break
-				}
-				if h.Type == dnsmessage.TypeOPT {
-					limit = min(4096, max(512, int(h.Class)))
-					break
-				}
-				if parser.SkipAdditional() != nil {
-					break
-				}
-			}
-		}
-		if len(raw) > limit {
-			out.Truncated = true
-			out.Answers = nil
-			raw, _ = out.Pack()
-		}
 	}
 	return raw
 }

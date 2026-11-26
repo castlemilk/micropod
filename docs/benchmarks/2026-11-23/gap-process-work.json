@@ -1,0 +1,1112 @@
+{
+  "source_sha256": {
+    "docs/benchmarks/2026-11-21/gamma-vcpu-priority.json.gz": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+    "docs/benchmarks/2026-11-21/gamma-direct-macvlan.json.gz": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976"
+  },
+  "archived_host_rusage_c_sha256": "27beb1d5036fd3989be307f88a705672d3ffd3eb6c612713fedc76f65ccf1bb9",
+  "method": "Within each archived four-vCPU Micropod series, rank all clean rounds by bulk MiB/s. Take the bottom and top quarter and compute the median of each metric separately. Keep the two older full-Reno series separate from the peer holdout. They have distinct worker lifetimes. Use original client bytes and the VMM and supervisor PIDs in each fixture.",
+  "scope": "Apple process counters cover setup and drain as well as the client byte interval. Instructions and cycles per byte use the payload counted in that byte interval. Mean host cores and runnable off-CPU thread-seconds per second use elapsed host counter time. The VMM process is a host accounting boundary. These figures cannot attribute work to individual vCPU threads, identify a guest kernel function, or separate host scheduling from offered CPU demand. Ranking by observed throughput makes these comparisons descriptive. The peer holdout contributes all 16 clean Micropod attempts, including the round in which the OrbStack peer had a fresh failure.",
+  "series": {
+    "peer_holdout_micropod": {
+      "slowest_quarter": {
+        "mib_s": 2055.949907939832,
+        "bulk_window_s": 6.0015651255,
+        "host_counter_window_s": 6.2273805,
+        "rounds": [
+          8,
+          9,
+          11,
+          12
+        ],
+        "vmm": {
+          "mean_host_cores": 1.1949809022950961,
+          "wait_s_per_s": 2.6562490643256327,
+          "instructions_per_byte": 2.119422473031568,
+          "cycles_per_byte": 2.0290231719630594,
+          "instructions_per_cycle": 1.0402489533755968
+        },
+        "relay": {
+          "mean_host_cores": 0.6913959723741776,
+          "wait_s_per_s": 0.11120117922625375,
+          "instructions_per_byte": 1.0833087522584823,
+          "cycles_per_byte": 1.2090584431211333,
+          "instructions_per_cycle": 0.8960001695922022
+        }
+      },
+      "fastest_quarter": {
+        "mib_s": 3800.03633646161,
+        "bulk_window_s": 6.000676833,
+        "host_counter_window_s": 6.155025,
+        "rounds": [
+          14,
+          13,
+          3,
+          1
+        ],
+        "vmm": {
+          "mean_host_cores": 2.0985103604098923,
+          "wait_s_per_s": 1.2191911902486356,
+          "instructions_per_byte": 2.0717021150039336,
+          "cycles_per_byte": 1.8693206158426743,
+          "instructions_per_cycle": 1.1111929464040091
+        },
+        "relay": {
+          "mean_host_cores": 1.2201141237347295,
+          "wait_s_per_s": 0.1444589570874789,
+          "instructions_per_byte": 1.0743193173956427,
+          "cycles_per_byte": 1.063402183266036,
+          "instructions_per_cycle": 1.0131580468506973
+        }
+      },
+      "all_rounds": {
+        "mib_s": 2709.8300097735155,
+        "bulk_window_s": 6.0007295,
+        "host_counter_window_s": 6.1892055,
+        "rounds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "vmm": {
+          "mean_host_cores": 1.545041146979971,
+          "wait_s_per_s": 2.093862124413853,
+          "instructions_per_byte": 2.0975864649529177,
+          "cycles_per_byte": 1.9468935438118322,
+          "instructions_per_cycle": 1.0797073845544305
+        },
+        "relay": {
+          "mean_host_cores": 0.8956653516315989,
+          "wait_s_per_s": 0.12357918620473934,
+          "instructions_per_byte": 1.0771873191523222,
+          "cycles_per_byte": 1.1504010731475924,
+          "instructions_per_cycle": 0.9371577131526977
+        }
+      },
+      "rows": [
+        {
+          "round": 1,
+          "mib_s": 4069.293054335416,
+          "payload_bytes": 25602671952,
+          "bulk_window_s": 6.000209458,
+          "host_counter_window_s": 6.148727,
+          "relay": {
+            "mean_host_cores": 1.3252631804924822,
+            "wait_s_per_s": 0.15695526624183076,
+            "instructions_per_byte": 1.0814006058393917,
+            "cycles_per_byte": 1.085593197190843,
+            "instructions_per_cycle": 0.996137971974861
+          },
+          "vmm": {
+            "mean_host_cores": 2.2942399296634894,
+            "wait_s_per_s": 0.9857174772382423,
+            "instructions_per_byte": 2.085724876532996,
+            "cycles_per_byte": 1.9488938727780798,
+            "instructions_per_cycle": 1.0702095715247277
+          }
+        },
+        {
+          "round": 2,
+          "mib_s": 3433.9523440331063,
+          "payload_bytes": 21604771472,
+          "bulk_window_s": 6.000058708,
+          "host_counter_window_s": 6.154845,
+          "relay": {
+            "mean_host_cores": 1.1567367252952754,
+            "wait_s_per_s": 0.18002643310540992,
+            "instructions_per_byte": 1.078482051439308,
+            "cycles_per_byte": 1.1257470288228189,
+            "instructions_per_cycle": 0.9580145661739518
+          },
+          "vmm": {
+            "mean_host_cores": 2.005991194741703,
+            "wait_s_per_s": 1.3765400333666675,
+            "instructions_per_byte": 2.118059894931343,
+            "cycles_per_byte": 1.8957538072124995,
+            "instructions_per_cycle": 1.1172652729869605
+          }
+        },
+        {
+          "round": 3,
+          "mib_s": 3811.0250961640354,
+          "payload_bytes": 23977522936,
+          "bulk_window_s": 6.000156708,
+          "host_counter_window_s": 6.161323,
+          "relay": {
+            "mean_host_cores": 1.2573032745294042,
+            "wait_s_per_s": 0.1804487648188546,
+            "instructions_per_byte": 1.087503347555968,
+            "cycles_per_byte": 1.0613333516946406,
+            "instructions_per_cycle": 1.0246576589904965
+          },
+          "vmm": {
+            "mean_host_cores": 2.1900351664190736,
+            "wait_s_per_s": 1.0932420547773045,
+            "instructions_per_byte": 2.0966825735580645,
+            "cycles_per_byte": 1.8863694503276107,
+            "instructions_per_cycle": 1.111490950616237
+          }
+        },
+        {
+          "round": 4,
+          "mib_s": 2556.217408074395,
+          "payload_bytes": 16084294744,
+          "bulk_window_s": 6.00073325,
+          "host_counter_window_s": 6.186181,
+          "relay": {
+            "mean_host_cores": 0.8941149636585155,
+            "wait_s_per_s": 0.13630559521833152,
+            "instructions_per_byte": 1.089488505894045,
+            "cycles_per_byte": 1.2412423175997476,
+            "instructions_per_cycle": 0.8777403819109578
+          },
+          "vmm": {
+            "mean_host_cores": 1.5434047341431918,
+            "wait_s_per_s": 2.098077695269504,
+            "instructions_per_byte": 2.12034020451671,
+            "cycles_per_byte": 2.0687012287195374,
+            "instructions_per_cycle": 1.024962026937614
+          }
+        },
+        {
+          "round": 5,
+          "mib_s": 2500.378450314961,
+          "payload_bytes": 15731703992,
+          "bulk_window_s": 6.0002605,
+          "host_counter_window_s": 6.188097,
+          "relay": {
+            "mean_host_cores": 0.8432090134764639,
+            "wait_s_per_s": 0.12515095513208663,
+            "instructions_per_byte": 1.0792084606113659,
+            "cycles_per_byte": 1.1736727008332588,
+            "instructions_per_cycle": 0.9195139836218161
+          },
+          "vmm": {
+            "mean_host_cores": 1.4500438637812776,
+            "wait_s_per_s": 2.2411435346493973,
+            "instructions_per_byte": 2.118387798355925,
+            "cycles_per_byte": 1.9448932148455849,
+            "instructions_per_cycle": 1.0892051975841333
+          }
+        },
+        {
+          "round": 6,
+          "mib_s": 2455.041846296845,
+          "payload_bytes": 15446610456,
+          "bulk_window_s": 6.000319583,
+          "host_counter_window_s": 6.18057,
+          "relay": {
+            "mean_host_cores": 0.8071935449858723,
+            "wait_s_per_s": 0.11613860722662579,
+            "instructions_per_byte": 1.06276122193678,
+            "cycles_per_byte": 1.1850490105995848,
+            "instructions_per_cycle": 0.8968078218124224
+          },
+          "vmm": {
+            "mean_host_cores": 1.3952947300977094,
+            "wait_s_per_s": 2.370058984581249,
+            "instructions_per_byte": 2.0730461890143492,
+            "cycles_per_byte": 2.007719955930764,
+            "instructions_per_cycle": 1.0325375224221949
+          }
+        },
+        {
+          "round": 7,
+          "mib_s": 3118.8546527245658,
+          "payload_bytes": 19628173624,
+          "bulk_window_s": 6.001845917,
+          "host_counter_window_s": 6.213376,
+          "relay": {
+            "mean_host_cores": 1.023825010750999,
+            "wait_s_per_s": 0.12200741727739207,
+            "instructions_per_byte": 1.0724649292515347,
+            "cycles_per_byte": 1.1840781697377143,
+            "instructions_per_cycle": 0.9057382837225154
+          },
+          "vmm": {
+            "mean_host_cores": 1.7522770699321377,
+            "wait_s_per_s": 1.8091382272160361,
+            "instructions_per_byte": 2.0670158853390017,
+            "cycles_per_byte": 2.0080814148090704,
+            "instructions_per_cycle": 1.0293486459738659
+          }
+        },
+        {
+          "round": 8,
+          "mib_s": 1561.921229438398,
+          "payload_bytes": 9828302584,
+          "bulk_window_s": 6.000942667,
+          "host_counter_window_s": 6.232955,
+          "relay": {
+            "mean_host_cores": 0.5611048651883416,
+            "wait_s_per_s": 0.10803231238901398,
+            "instructions_per_byte": 1.113026433761657,
+            "cycles_per_byte": 1.3285844382993814,
+            "instructions_per_cycle": 0.8377536283552715
+          },
+          "vmm": {
+            "mean_host_cores": 1.0122571944874728,
+            "wait_s_per_s": 2.965320381745095,
+            "instructions_per_byte": 2.1844250461876094,
+            "cycles_per_byte": 2.312914315337282,
+            "instructions_per_cycle": 0.9444470258592629
+          }
+        },
+        {
+          "round": 9,
+          "mib_s": 1759.3318610989334,
+          "payload_bytes": 11075480728,
+          "bulk_window_s": 6.003643625,
+          "host_counter_window_s": 6.221806,
+          "relay": {
+            "mean_host_cores": 0.5926147488365917,
+            "wait_s_per_s": 0.09218460845612993,
+            "instructions_per_byte": 1.0907249176516287,
+            "cycles_per_byte": 1.2184577629107496,
+            "instructions_per_cycle": 0.8951684259009665
+          },
+          "vmm": {
+            "mean_host_cores": 1.0391270771434102,
+            "wait_s_per_s": 2.943375859570892,
+            "instructions_per_byte": 2.1222828169955714,
+            "cycles_per_byte": 2.059701275117419,
+            "instructions_per_cycle": 1.030383795278558
+          }
+        },
+        {
+          "round": 10,
+          "mib_s": 2854.0611513491435,
+          "payload_bytes": 17957940036,
+          "bulk_window_s": 6.000581375,
+          "host_counter_window_s": 6.234193,
+          "relay": {
+            "mean_host_cores": 0.8972157396046821,
+            "wait_s_per_s": 0.10956397377067621,
+            "instructions_per_byte": 1.0746685988655675,
+            "cycles_per_byte": 1.0932216430528234,
+            "instructions_per_cycle": 0.9830290185845145
+          },
+          "vmm": {
+            "mean_host_cores": 1.5466775598167501,
+            "wait_s_per_s": 2.0896465535582016,
+            "instructions_per_byte": 2.077330857504596,
+            "cycles_per_byte": 1.895324820038841,
+            "instructions_per_cycle": 1.0960289421324758
+          }
+        },
+        {
+          "round": 11,
+          "mib_s": 2352.5679547807304,
+          "payload_bytes": 14806474208,
+          "bulk_window_s": 6.002187584,
+          "host_counter_window_s": 6.190314,
+          "relay": {
+            "mean_host_cores": 0.7901771959117636,
+            "wait_s_per_s": 0.11456243711277542,
+            "instructions_per_byte": 1.0758925868653362,
+            "cycles_per_byte": 1.1996591233315173,
+            "instructions_per_cycle": 0.8968319132834378
+          },
+          "vmm": {
+            "mean_host_cores": 1.350834727446782,
+            "wait_s_per_s": 2.369122269080373,
+            "instructions_per_byte": 2.098490356347771,
+            "cycles_per_byte": 1.9983450688086999,
+            "instructions_per_cycle": 1.0501141114726358
+          }
+        },
+        {
+          "round": 12,
+          "mib_s": 2428.0905633132024,
+          "payload_bytes": 15276286048,
+          "bulk_window_s": 6.000024,
+          "host_counter_window_s": 6.253108,
+          "relay": {
+            "mean_host_cores": 0.7921426366429835,
+            "wait_s_per_s": 0.11437004606349353,
+            "instructions_per_byte": 1.071652026648408,
+            "cycles_per_byte": 1.1271294454619263,
+            "instructions_per_cycle": 0.950779904617981
+          },
+          "vmm": {
+            "mean_host_cores": 1.3936945435773695,
+            "wait_s_per_s": 2.3641811533294055,
+            "instructions_per_byte": 2.116562129067564,
+            "cycles_per_byte": 1.9295440732375582,
+            "instructions_per_cycle": 1.096923443430971
+          }
+        },
+        {
+          "round": 13,
+          "mib_s": 3789.0475767591847,
+          "payload_bytes": 23857611920,
+          "bulk_window_s": 6.004778583,
+          "host_counter_window_s": 6.19612,
+          "relay": {
+            "mean_host_cores": 1.1829249729400548,
+            "wait_s_per_s": 0.1135243641719872,
+            "instructions_per_byte": 1.0672380289518935,
+            "cycles_per_byte": 1.0654710148374313,
+            "instructions_per_cycle": 1.001658434710898
+          },
+          "vmm": {
+            "mean_host_cores": 2.006985554400711,
+            "wait_s_per_s": 1.3451403257199668,
+            "instructions_per_byte": 2.057679353474872,
+            "cycles_per_byte": 1.8522717813577378,
+            "instructions_per_cycle": 1.1108949421917813
+          }
+        },
+        {
+          "round": 14,
+          "mib_s": 3593.862795953447,
+          "payload_bytes": 22614941528,
+          "bulk_window_s": 6.001144208,
+          "host_counter_window_s": 6.144274,
+          "relay": {
+            "mean_host_cores": 1.0969305188321137,
+            "wait_s_per_s": 0.1319626479331271,
+            "instructions_per_byte": 1.052676000268454,
+            "cycles_per_byte": 1.0223440369887478,
+            "instructions_per_cycle": 1.0296690372147592
+          },
+          "vmm": {
+            "mean_host_cores": 1.861766940786386,
+            "wait_s_per_s": 1.6668663919176347,
+            "instructions_per_byte": 2.0470867304556846,
+            "cycles_per_byte": 1.753849027506537,
+            "instructions_per_cycle": 1.1671966619419039
+          }
+        },
+        {
+          "round": 15,
+          "mib_s": 3193.1309856249977,
+          "payload_bytes": 20095626880,
+          "bulk_window_s": 6.001846875,
+          "host_counter_window_s": 6.15429,
+          "relay": {
+            "mean_host_cores": 0.9880459470819001,
+            "wait_s_per_s": 0.13295142494097614,
+            "instructions_per_byte": 1.0496367775912845,
+            "cycles_per_byte": 1.0122230679075983,
+            "instructions_per_cycle": 1.0369619216059018
+          },
+          "vmm": {
+            "mean_host_cores": 1.6784737489350245,
+            "wait_s_per_s": 1.9878030812652636,
+            "instructions_per_byte": 2.042828904424802,
+            "cycles_per_byte": 1.7358302736361315,
+            "instructions_per_cycle": 1.1768598206007692
+          }
+        },
+        {
+          "round": 16,
+          "mib_s": 2565.5988681978874,
+          "payload_bytes": 16143304824,
+          "bulk_window_s": 6.00072575,
+          "host_counter_window_s": 6.196321,
+          "relay": {
+            "mean_host_cores": 0.8796934032845188,
+            "wait_s_per_s": 0.12955533076266812,
+            "instructions_per_byte": 1.0993876413468138,
+            "cycles_per_byte": 1.1904118634636767,
+            "instructions_per_cycle": 0.9235355216874144
+          },
+          "vmm": {
+            "mean_host_cores": 1.5340075855764517,
+            "wait_s_per_s": 2.157115495092437,
+            "instructions_per_byte": 2.1319006821846282,
+            "cycles_per_byte": 2.042404547424657,
+            "instructions_per_cycle": 1.0438190048454505
+          }
+        }
+      ]
+    },
+    "confirmation_full_reno": {
+      "slowest_quarter": {
+        "mib_s": 1676.8304806837823,
+        "bulk_window_s": 6.000952959,
+        "host_counter_window_s": 6.663128,
+        "rounds": [
+          4,
+          12,
+          8
+        ],
+        "vmm": {
+          "mean_host_cores": 0.8323816006790928,
+          "wait_s_per_s": 2.796296449155211,
+          "instructions_per_byte": 1.6486039613641628,
+          "cycles_per_byte": 1.620405884760263,
+          "instructions_per_cycle": 1.0174018601568282
+        },
+        "relay": {
+          "mean_host_cores": 0.46515260876850334,
+          "wait_s_per_s": 1.2155168525953575,
+          "instructions_per_byte": 0.937489393884777,
+          "cycles_per_byte": 0.9084851362749586,
+          "instructions_per_cycle": 1.0233653753062315
+        }
+      },
+      "fastest_quarter": {
+        "mib_s": 4500.450817294627,
+        "bulk_window_s": 6.000106292,
+        "host_counter_window_s": 6.261187,
+        "rounds": [
+          9,
+          6,
+          2
+        ],
+        "vmm": {
+          "mean_host_cores": 1.9269970117498907,
+          "wait_s_per_s": 1.5919760636913647,
+          "instructions_per_byte": 1.4818802450624229,
+          "cycles_per_byte": 1.3897560475253443,
+          "instructions_per_cycle": 1.0699887582980185
+        },
+        "relay": {
+          "mean_host_cores": 1.2272917970482249,
+          "wait_s_per_s": 0.5285897335603928,
+          "instructions_per_byte": 0.8664617382944149,
+          "cycles_per_byte": 0.8853770094099851,
+          "instructions_per_cycle": 0.9786359133854454
+        }
+      },
+      "all_rounds": {
+        "mib_s": 3237.9778429116614,
+        "bulk_window_s": 6.000786688,
+        "host_counter_window_s": 6.298825,
+        "rounds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "vmm": {
+          "mean_host_cores": 1.4214569326178808,
+          "wait_s_per_s": 1.9743566410143227,
+          "instructions_per_byte": 1.5013213593196921,
+          "cycles_per_byte": 1.4724381203540107,
+          "instructions_per_cycle": 1.0393600866566248
+        },
+        "relay": {
+          "mean_host_cores": 0.8810001270484877,
+          "wait_s_per_s": 0.8242351393595766,
+          "instructions_per_byte": 0.8778405324620027,
+          "cycles_per_byte": 0.9040901939390199,
+          "instructions_per_cycle": 0.9654096328859934
+        }
+      },
+      "rows": [
+        {
+          "round": 1,
+          "mib_s": 3837.0069194705006,
+          "payload_bytes": 24148773624,
+          "bulk_window_s": 6.002091125,
+          "host_counter_window_s": 6.295634,
+          "relay": {
+            "mean_host_cores": 1.0866541797061264,
+            "wait_s_per_s": 0.636195218781778,
+            "instructions_per_byte": 0.8748844478380787,
+            "cycles_per_byte": 0.9082889741117564,
+            "instructions_per_cycle": 0.9632225786883025
+          },
+          "vmm": {
+            "mean_host_cores": 1.7249816102714992,
+            "wait_s_per_s": 1.6125407041345372,
+            "instructions_per_byte": 1.5058992893476966,
+            "cycles_per_byte": 1.4420659223618055,
+            "instructions_per_cycle": 1.044265221163638
+          }
+        },
+        {
+          "round": 2,
+          "mib_s": 4757.950987563563,
+          "payload_bytes": 29934658184,
+          "bulk_window_s": 6.000043875,
+          "host_counter_window_s": 6.261187,
+          "relay": {
+            "mean_host_cores": 1.323266112852616,
+            "wait_s_per_s": 0.49922032888226037,
+            "instructions_per_byte": 0.8639390882312805,
+            "cycles_per_byte": 0.8928710688697937,
+            "instructions_per_cycle": 0.9675966870836843
+          },
+          "vmm": {
+            "mean_host_cores": 2.0958073391940966,
+            "wait_s_per_s": 1.4035876969760952,
+            "instructions_per_byte": 1.479327882075809,
+            "cycles_per_byte": 1.4121588620843026,
+            "instructions_per_cycle": 1.0475647760283617
+          }
+        },
+        {
+          "round": 3,
+          "mib_s": 1967.6829348162933,
+          "payload_bytes": 12401937744,
+          "bulk_window_s": 6.010830958,
+          "host_counter_window_s": 6.581237,
+          "relay": {
+            "mean_host_cores": 0.5242151792031396,
+            "wait_s_per_s": 1.3068926416619449,
+            "instructions_per_byte": 0.8975195524090674,
+            "cycles_per_byte": 0.9786462985489407,
+            "instructions_per_cycle": 0.9171030981671707
+          },
+          "vmm": {
+            "mean_host_cores": 0.8430220450957776,
+            "wait_s_per_s": 2.7851020636394037,
+            "instructions_per_byte": 1.5480338132069889,
+            "cycles_per_byte": 1.5577964694546849,
+            "instructions_per_cycle": 0.993733034809667
+          }
+        },
+        {
+          "round": 4,
+          "mib_s": 1154.3523415718269,
+          "payload_bytes": 7263710452,
+          "bulk_window_s": 6.000952959,
+          "host_counter_window_s": 7.382087,
+          "relay": {
+            "mean_host_cores": 0.29388517885705395,
+            "wait_s_per_s": 1.4030469861255586,
+            "instructions_per_byte": 0.937489393884777,
+            "cycles_per_byte": 1.0453851645351901,
+            "instructions_per_cycle": 0.8967885002477658
+          },
+          "vmm": {
+            "mean_host_cores": 0.5177538377697255,
+            "wait_s_per_s": 2.9710379327688763,
+            "instructions_per_byte": 1.8106585073719015,
+            "cycles_per_byte": 1.8335433789672761,
+            "instructions_per_cycle": 0.9875187727446818
+          }
+        },
+        {
+          "round": 5,
+          "mib_s": 2728.024557833393,
+          "payload_bytes": 17178067056,
+          "bulk_window_s": 6.005181042,
+          "host_counter_window_s": 6.215337,
+          "relay": {
+            "mean_host_cores": 0.7583500768609436,
+            "wait_s_per_s": 0.9107302696002914,
+            "instructions_per_byte": 0.8807966170859265,
+            "cycles_per_byte": 0.9417998060701015,
+            "instructions_per_cycle": 0.935227010463374
+          },
+          "vmm": {
+            "mean_host_cores": 1.2027177220371692,
+            "wait_s_per_s": 2.2009024946408107,
+            "instructions_per_byte": 1.4967434292916875,
+            "cycles_per_byte": 1.5028103183462156,
+            "instructions_per_cycle": 0.995962970855028
+          }
+        },
+        {
+          "round": 6,
+          "mib_s": 4500.450817294627,
+          "payload_bytes": 28314889896,
+          "bulk_window_s": 6.000106292,
+          "host_counter_window_s": 6.302016,
+          "relay": {
+            "mean_host_cores": 1.2272917970482249,
+            "wait_s_per_s": 0.5285897335603928,
+            "instructions_per_byte": 0.8677506397957423,
+            "cycles_per_byte": 0.8815008406063413,
+            "instructions_per_cycle": 0.9844013752713601
+          },
+          "vmm": {
+            "mean_host_cores": 1.9269970117498907,
+            "wait_s_per_s": 1.5919760636913647,
+            "instructions_per_byte": 1.4818802450624229,
+            "cycles_per_byte": 1.3789278621039496,
+            "instructions_per_cycle": 1.0746611811885431
+          }
+        },
+        {
+          "round": 7,
+          "mib_s": 4273.345230530148,
+          "payload_bytes": 26889029116,
+          "bulk_window_s": 6.000773417,
+          "host_counter_window_s": 6.264229,
+          "relay": {
+            "mean_host_cores": 1.1906356445994124,
+            "wait_s_per_s": 0.6350562522006564,
+            "instructions_per_byte": 0.8663214240836556,
+            "cycles_per_byte": 0.8998914137662835,
+            "instructions_per_cycle": 0.962695510625967
+          },
+          "vmm": {
+            "mean_host_cores": 1.857329229981854,
+            "wait_s_per_s": 1.7250039071049283,
+            "instructions_per_byte": 1.4804553082324834,
+            "cycles_per_byte": 1.4012375531469152,
+            "instructions_per_cycle": 1.056534136490747
+          }
+        },
+        {
+          "round": 8,
+          "mib_s": 1957.4556979022784,
+          "payload_bytes": 12316888344,
+          "bulk_window_s": 6.000799959,
+          "host_counter_window_s": 6.663128,
+          "relay": {
+            "mean_host_cores": 0.5063007131685499,
+            "wait_s_per_s": 1.2155168525953575,
+            "instructions_per_byte": 0.9038643011993517,
+            "cycles_per_byte": 0.8832273623962309,
+            "instructions_per_cycle": 1.0233653753062315
+          },
+          "vmm": {
+            "mean_host_cores": 0.8900870957304136,
+            "wait_s_per_s": 2.796296449155211,
+            "instructions_per_byte": 1.6004573404777793,
+            "cycles_per_byte": 1.5427314468801197,
+            "instructions_per_cycle": 1.0374179794638914
+          }
+        },
+        {
+          "round": 9,
+          "mib_s": 4313.26908950539,
+          "payload_bytes": 27137519672,
+          "bulk_window_s": 6.000171792,
+          "host_counter_window_s": 6.220784,
+          "relay": {
+            "mean_host_cores": 1.2010971607437262,
+            "wait_s_per_s": 0.5966700499486881,
+            "instructions_per_byte": 0.8664617382944149,
+            "cycles_per_byte": 0.8853770094099851,
+            "instructions_per_cycle": 0.9786359133854454
+          },
+          "vmm": {
+            "mean_host_cores": 1.8874497504387442,
+            "wait_s_per_s": 1.7232559700942303,
+            "instructions_per_byte": 1.4870233476288053,
+            "cycles_per_byte": 1.3897560475253443,
+            "instructions_per_cycle": 1.0699887582980185
+          }
+        },
+        {
+          "round": 10,
+          "mib_s": 3647.3379562355435,
+          "payload_bytes": 22947245864,
+          "bulk_window_s": 6.000046959,
+          "host_counter_window_s": 6.212615,
+          "relay": {
+            "mean_host_cores": 0.9984073131845446,
+            "wait_s_per_s": 0.7656344054261636,
+            "instructions_per_byte": 0.8709309365684496,
+            "cycles_per_byte": 0.8908121745916898,
+            "instructions_per_cycle": 0.9776818968237013
+          },
+          "vmm": {
+            "mean_host_cores": 1.5937857488352325,
+            "wait_s_per_s": 1.8765969456232732,
+            "instructions_per_byte": 1.4829442027457418,
+            "cycles_per_byte": 1.424124727197371,
+            "instructions_per_cycle": 1.0413021938493585
+          }
+        },
+        {
+          "round": 11,
+          "mib_s": 2828.6177295877787,
+          "payload_bytes": 17796315544,
+          "bulk_window_s": 6.000064584,
+          "host_counter_window_s": 6.487439,
+          "relay": {
+            "mean_host_cores": 0.7635929409124308,
+            "wait_s_per_s": 0.8828358732929897,
+            "instructions_per_byte": 0.8931163079067059,
+            "cycles_per_byte": 0.9485024970065231,
+            "instructions_per_cycle": 0.9416067018541162
+          },
+          "vmm": {
+            "mean_host_cores": 1.2491281164005292,
+            "wait_s_per_s": 2.0721163364053723,
+            "instructions_per_byte": 1.5315381901726972,
+            "cycles_per_byte": 1.5537702190452911,
+            "instructions_per_cycle": 0.9856915594081509
+          }
+        },
+        {
+          "round": 12,
+          "mib_s": 1676.8304806837823,
+          "payload_bytes": 10553891004,
+          "bulk_window_s": 6.002380625,
+          "host_counter_window_s": 6.439571,
+          "relay": {
+            "mean_host_cores": 0.46515260876850334,
+            "wait_s_per_s": 1.0817266851575464,
+            "instructions_per_byte": 0.9392210185080665,
+            "cycles_per_byte": 0.9084851362749586,
+            "instructions_per_cycle": 1.0338320144225293
+          },
+          "vmm": {
+            "mean_host_cores": 0.8323816006790928,
+            "wait_s_per_s": 2.2294838623566693,
+            "instructions_per_byte": 1.6486039613641628,
+            "cycles_per_byte": 1.620405884760263,
+            "instructions_per_cycle": 1.0174018601568282
+          }
+        }
+      ]
+    },
+    "kernel-holdout_full_reno": {
+      "slowest_quarter": {
+        "mib_s": 2059.6753391167836,
+        "bulk_window_s": 6.00008925,
+        "host_counter_window_s": 6.381495,
+        "rounds": [
+          11,
+          9,
+          8
+        ],
+        "vmm": {
+          "mean_host_cores": 0.8786857626704224,
+          "wait_s_per_s": 2.6043938793748804,
+          "instructions_per_byte": 1.511073345677999,
+          "cycles_per_byte": 1.417825428040205,
+          "instructions_per_cycle": 1.064570715166617
+        },
+        "relay": {
+          "mean_host_cores": 0.5572045255297634,
+          "wait_s_per_s": 1.1747487674326387,
+          "instructions_per_byte": 0.8898734928897237,
+          "cycles_per_byte": 0.8870426793554519,
+          "instructions_per_cycle": 1.0024764085404279
+        }
+      },
+      "fastest_quarter": {
+        "mib_s": 5073.775129183307,
+        "bulk_window_s": 6.001065958,
+        "host_counter_window_s": 6.136565,
+        "rounds": [
+          3,
+          6,
+          7
+        ],
+        "vmm": {
+          "mean_host_cores": 2.136728845329556,
+          "wait_s_per_s": 1.3409129523197192,
+          "instructions_per_byte": 1.4643421935075722,
+          "cycles_per_byte": 1.4187569934724475,
+          "instructions_per_cycle": 1.0348411983604824
+        },
+        "relay": {
+          "mean_host_cores": 1.3746733661986539,
+          "wait_s_per_s": 0.4478544322491367,
+          "instructions_per_byte": 0.8511103010614857,
+          "cycles_per_byte": 0.9147147942836811,
+          "instructions_per_cycle": 0.9326825139881981
+        }
+      },
+      "all_rounds": {
+        "mib_s": 3440.274938961167,
+        "bulk_window_s": 6.000177208,
+        "host_counter_window_s": 6.2522675,
+        "rounds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "vmm": {
+          "mean_host_cores": 1.4928738472554217,
+          "wait_s_per_s": 2.0126702107774874,
+          "instructions_per_byte": 1.4834836212667604,
+          "cycles_per_byte": 1.4101805181753653,
+          "instructions_per_cycle": 1.043941545109447
+        },
+        "relay": {
+          "mean_host_cores": 0.9466479953936816,
+          "wait_s_per_s": 0.8077841221406903,
+          "instructions_per_byte": 0.8664550863706892,
+          "cycles_per_byte": 0.8999705216899507,
+          "instructions_per_cycle": 0.9697598847173092
+        }
+      },
+      "rows": [
+        {
+          "round": 1,
+          "mib_s": 4388.497146487516,
+          "payload_bytes": 27619533792,
+          "bulk_window_s": 6.002063834,
+          "host_counter_window_s": 6.305558,
+          "relay": {
+            "mean_host_cores": 1.146746984961521,
+            "wait_s_per_s": 0.6591273193691447,
+            "instructions_per_byte": 0.8579264005485643,
+            "cycles_per_byte": 0.8749760583938534,
+            "instructions_per_cycle": 0.9805141435794412
+          },
+          "vmm": {
+            "mean_host_cores": 1.7865197787940943,
+            "wait_s_per_s": 1.8249492881253857,
+            "instructions_per_byte": 1.465955255831568,
+            "cycles_per_byte": 1.3589821547919052,
+            "instructions_per_cycle": 1.078715603926413
+          }
+        },
+        {
+          "round": 2,
+          "mib_s": 3064.4998118539565,
+          "payload_bytes": 19281019544,
+          "bulk_window_s": 6.000265708,
+          "host_counter_window_s": 6.243707,
+          "relay": {
+            "mean_host_cores": 0.8421935278192907,
+            "wait_s_per_s": 0.8374349965493255,
+            "instructions_per_byte": 0.8823500969010791,
+            "cycles_per_byte": 0.9246719695146013,
+            "instructions_per_cycle": 0.9542303930379347
+          },
+          "vmm": {
+            "mean_host_cores": 1.3448248172119543,
+            "wait_s_per_s": 2.0990693709682406,
+            "instructions_per_byte": 1.4951674867717772,
+            "cycles_per_byte": 1.4861671065479005,
+            "instructions_per_cycle": 1.0060561024290082
+          }
+        },
+        {
+          "round": 3,
+          "mib_s": 4734.257977179152,
+          "payload_bytes": 29790667416,
+          "bulk_window_s": 6.001065958,
+          "host_counter_window_s": 6.139994,
+          "relay": {
+            "mean_host_cores": 1.3150915266909597,
+            "wait_s_per_s": 0.5377613900491325,
+            "instructions_per_byte": 0.8531384939147011,
+            "cycles_per_byte": 0.9147147942836811,
+            "instructions_per_cycle": 0.9326825139881981
+          },
+          "vmm": {
+            "mean_host_cores": 2.065210168229263,
+            "wait_s_per_s": 1.4738339728019276,
+            "instructions_per_byte": 1.4643421935075722,
+            "cycles_per_byte": 1.436658240292175,
+            "instructions_per_cycle": 1.0192696860248176
+          }
+        },
+        {
+          "round": 4,
+          "mib_s": 3957.414141110326,
+          "payload_bytes": 24898153532,
+          "bulk_window_s": 6.000061834,
+          "host_counter_window_s": 6.190208,
+          "relay": {
+            "mean_host_cores": 1.0748911762469586,
+            "wait_s_per_s": 0.7249609854251532,
+            "instructions_per_byte": 0.8614576336929305,
+            "cycles_per_byte": 0.8982821481623113,
+            "instructions_per_cycle": 0.9590056258551773
+          },
+          "vmm": {
+            "mean_host_cores": 1.6662584480198404,
+            "wait_s_per_s": 1.9049011896423078,
+            "instructions_per_byte": 1.4686897158860366,
+            "cycles_per_byte": 1.3969993880588782,
+            "instructions_per_cycle": 1.0513173652329022
+          }
+        },
+        {
+          "round": 5,
+          "mib_s": 3816.0500660683783,
+          "payload_bytes": 24009141640,
+          "bulk_window_s": 6.000157583,
+          "host_counter_window_s": 6.204736,
+          "relay": {
+            "mean_host_cores": 1.0511024629680725,
+            "wait_s_per_s": 0.7781332477320551,
+            "instructions_per_byte": 0.8612709924851774,
+            "cycles_per_byte": 0.9200344382657405,
+            "instructions_per_cycle": 0.9361290802425485
+          },
+          "vmm": {
+            "mean_host_cores": 1.640922877298889,
+            "wait_s_per_s": 1.9262710505867344,
+            "instructions_per_byte": 1.4823075749491892,
+            "cycles_per_byte": 1.4335899878509777,
+            "instructions_per_cycle": 1.033982929227374
+          }
+        },
+        {
+          "round": 6,
+          "mib_s": 5073.775129183307,
+          "payload_bytes": 31921528520,
+          "bulk_window_s": 6.000017958,
+          "host_counter_window_s": 6.12804,
+          "relay": {
+            "mean_host_cores": 1.3746733661986539,
+            "wait_s_per_s": 0.4478544322491367,
+            "instructions_per_byte": 0.8511103010614857,
+            "cycles_per_byte": 0.9016588952175902,
+            "instructions_per_cycle": 0.9439382293856191
+          },
+          "vmm": {
+            "mean_host_cores": 2.136728845329556,
+            "wait_s_per_s": 1.3409129523197192,
+            "instructions_per_byte": 1.453820339647069,
+            "cycles_per_byte": 1.4025356083105258,
+            "instructions_per_cycle": 1.0365657249859916
+          }
+        },
+        {
+          "round": 7,
+          "mib_s": 5413.949870709939,
+          "payload_bytes": 34069920456,
+          "bulk_window_s": 6.001460833,
+          "host_counter_window_s": 6.136565,
+          "relay": {
+            "mean_host_cores": 1.4682621371511042,
+            "wait_s_per_s": 0.41609232255069944,
+            "instructions_per_byte": 0.8457416397027587,
+            "cycles_per_byte": 0.9154649234147892,
+            "instructions_per_cycle": 0.923838388638688
+          },
+          "vmm": {
+            "mean_host_cores": 2.2867484971912893,
+            "wait_s_per_s": 1.275881885875893,
+            "instructions_per_byte": 1.4681881873073428,
+            "cycles_per_byte": 1.4187569934724475,
+            "instructions_per_cycle": 1.0348411983604824
+          }
+        },
+        {
+          "round": 8,
+          "mib_s": 2357.8720044432403,
+          "payload_bytes": 14834668632,
+          "bulk_window_s": 6.00008925,
+          "host_counter_window_s": 6.262506,
+          "relay": {
+            "mean_host_cores": 0.6439750583339426,
+            "wait_s_per_s": 1.1277945881409135,
+            "instructions_per_byte": 0.8873338860165245,
+            "cycles_per_byte": 0.8851419130236222,
+            "instructions_per_cycle": 1.0024764085404279
+          },
+          "vmm": {
+            "mean_host_cores": 1.0389772281256098,
+            "wait_s_per_s": 2.484167500198802,
+            "instructions_per_byte": 1.5093754299101758,
+            "cycles_per_byte": 1.417825428040205,
+            "instructions_per_cycle": 1.064570715166617
+          }
+        },
+        {
+          "round": 9,
+          "mib_s": 2059.6753391167836,
+          "payload_bytes": 12958380888,
+          "bulk_window_s": 6.000011167,
+          "host_counter_window_s": 6.470167,
+          "relay": {
+            "mean_host_cores": 0.5572045255297634,
+            "wait_s_per_s": 1.1747487674326387,
+            "instructions_per_byte": 0.8898734928897237,
+            "cycles_per_byte": 0.8870426793554519,
+            "instructions_per_cycle": 1.003191293497094
+          },
+          "vmm": {
+            "mean_host_cores": 0.8786857626704224,
+            "wait_s_per_s": 2.6043938793748804,
+            "instructions_per_byte": 1.511073345677999,
+            "cycles_per_byte": 1.391878754906992,
+            "instructions_per_cycle": 1.0856357569585664
+          }
+        },
+        {
+          "round": 10,
+          "mib_s": 2527.90031288565,
+          "payload_bytes": 15905068312,
+          "bulk_window_s": 6.000337542,
+          "host_counter_window_s": 6.260828,
+          "relay": {
+            "mean_host_cores": 0.6875752496315183,
+            "wait_s_per_s": 1.1316627968377344,
+            "instructions_per_byte": 0.8761293655989172,
+            "cycles_per_byte": 0.8777730198408971,
+            "instructions_per_cycle": 0.9981274723592235
+          },
+          "vmm": {
+            "mean_host_cores": 1.0865533214350134,
+            "wait_s_per_s": 2.5430557800555027,
+            "instructions_per_byte": 1.4846596675843313,
+            "cycles_per_byte": 1.383794797246766,
+            "instructions_per_cycle": 1.0728900488267832
+          }
+        },
+        {
+          "round": 11,
+          "mib_s": 1325.9568228295714,
+          "payload_bytes": 8342370776,
+          "bulk_window_s": 6.000123541,
+          "host_counter_window_s": 6.381495,
+          "relay": {
+            "mean_host_cores": 0.3612521308355905,
+            "wait_s_per_s": 1.446593790587733,
+            "instructions_per_byte": 0.9132602832660287,
+            "cycles_per_byte": 0.9204039490895916,
+            "instructions_per_cycle": 0.9922385537017427
+          },
+          "vmm": {
+            "mean_host_cores": 0.6161794375769313,
+            "wait_s_per_s": 2.9170206458935817,
+            "instructions_per_byte": 1.5750916589325183,
+            "cycles_per_byte": 1.5471642367097782,
+            "instructions_per_cycle": 1.018050715987419
+          }
+        },
+        {
+          "round": 12,
+          "mib_s": 3058.5982797250977,
+          "payload_bytes": 19243667776,
+          "bulk_window_s": 6.000196833,
+          "host_counter_window_s": 6.270672,
+          "relay": {
+            "mean_host_cores": 0.8210349837040325,
+            "wait_s_per_s": 0.9489422146462133,
+            "instructions_per_byte": 0.871452539048448,
+            "cycles_per_byte": 0.871602106118172,
+            "instructions_per_cycle": 0.9998283998298373
+          },
+          "vmm": {
+            "mean_host_cores": 1.3135490236665754,
+            "wait_s_per_s": 2.1637064841960583,
+            "instructions_per_byte": 1.497589101904063,
+            "cycles_per_byte": 1.4009772084417011,
+            "instructions_per_cycle": 1.0689603605827556
+          }
+        }
+      ]
+    }
+  }
+}

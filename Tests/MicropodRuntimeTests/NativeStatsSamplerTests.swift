@@ -39,6 +39,29 @@ final class NativeStatsSamplerTests: XCTestCase {
         XCTAssertEqual(a.pids, 2)
     }
 
+    func testLargeRequestedSubsetFetchesEachIdentityOnceInWireOrder() async throws {
+        actor Calls {
+            var count: [String: Int] = [:]
+            func record(_ id: String) { count[id, default: 0] += 1 }
+        }
+        let calls = Calls()
+        let sampler = NativeStatsSampler(
+            listRunning: {
+                XCTFail("An explicit subset needs no listing")
+                return []
+            },
+            fetchStats: { id in
+                await calls.record(id)
+                return try Self.entry(id, cpuUsageUsec: nil)
+            }, readOOMKills: nil)
+        let ids = (0..<256).reversed().map { "container-\($0)" }
+        let result = try await sampler.snapshot(ids: Array(ids.prefix(62)) + ids + ids)
+        XCTAssertEqual(result.containers.map(\.id), ids)
+        let counts = await calls.count
+        XCTAssertEqual(counts, Dictionary(uniqueKeysWithValues: ids.map { ($0, 1) }))
+        XCTAssertNotNil(ISO8601DateFormatter().date(from: result.sampledAt))
+    }
+
     func testMissingCPUCounterIsZero() async throws {
         let snap = try await sampler(usec: nil).snapshot(ids: ["a"])
         XCTAssertEqual(snap.containers.map(\.id), ["a"])

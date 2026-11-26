@@ -19,6 +19,11 @@ extension CIWorker {
     }
 
     public struct KernelMetrics: Codable, Sendable {
+        public struct Scheduler: Codable, Sendable {
+            public let state: String
+            public let ops: String?
+            public let enableSeq: UInt64?
+        }
         public struct Pressure: Codable, Sendable {
             public let someUsec: UInt64?
             public let fullUsec: UInt64?
@@ -28,6 +33,7 @@ extension CIWorker {
         public let availableBytes: UInt64?
         public let memoryBytes: UInt64?
         public let oomKills: UInt64?
+        public let schedExt: Scheduler?
         public let cpu: Pressure
         public let memory: Pressure
         public let io: Pressure

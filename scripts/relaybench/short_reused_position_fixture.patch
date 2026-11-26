@@ -1,0 +1,61 @@
+--- a/scripts/relaybench/short_reused_ready.c
++++ b/scripts/relaybench/short_reused_ready.c
+@@ -61,7 +61,8 @@
+           setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) == 0, "socket capacity");
+ }
+ 
+-static void run_case(int background, int tails, size_t tagged_bytes, int grow) {
++static void run_case(int position) {
++    const int background = 16, tails = 0, tagged_bytes = 17, grow = 0;
+     flows = background + 2;
+     int large_flows = background - tails;
+     tagged = background;
+@@ -89,6 +90,12 @@
+         if (i == tagged) sized[i] = tagged_bytes;
+         if (i == fresh) sized[i] = 1;
+         writes_seen[i] = 0;
++    }
++    for (int slot = 0, bulk = 0; slot < flows; ++slot) {
++        int i;
++        if (slot == position) i = tagged;
++        else if (slot == flows - 1) i = fresh;
++        else i = bulk++;
+         check(write(guest[i][0], content[i], sized[i]) == (ssize_t)sized[i], "queue complete payload");
+     }
+     tagged_endpoint = guest[tagged][1];
+@@ -124,21 +131,23 @@
+     check(!l->active && !l->head, "retired all flows");
+     mp_tcp_release(l, NULL);
+     mp_tcp_relay_destroy(r);
+-    printf("{\"background\":%d,\"tails\":%d,\"hint_bytes\":%zu,\"late_bytes\":%d,"
+-           "\"verified_bytes\":%zu,\"nonempty_polls\":%zu,\"ahead_of_new_bytes\":%zu,"
+-           "\"ahead_of_tagged_bytes\":%zu,\"ahead_of_first_large_bytes\":%zu,"
+-           "\"tagged_first_write\":%zu,\"tagged_writes\":%zu}\n",
+-           background, tails, tagged_snapshot, appended ? LARGE_PIECE : 0, delivered, polls,
+-           first_bytes[fresh], first_bytes[tagged], first_bytes[0], first_write[tagged], writes_seen[tagged]);
++    printf("{\"bulk_enqueued_before_tag\":%d,\"fresh_ahead_bytes\":%zu,\"tagged_ahead_bytes\":%zu,"
++           "\"verified_bytes\":%zu,\"nonempty_polls\":%zu,\"write_order\":[",
++           position, first_bytes[fresh], first_bytes[tagged], delivered, polls);
++    size_t offset = 0;
++    for (int slot = 0; slot < flows; ++slot) {
++        int i = 0;
++        while (i < flows && first_bytes[i] != offset) ++i;
++        check(i < flows && writes_seen[i] == 1, "unique ordered stream");
++        printf("%s%d", slot ? "," : "", i);
++        offset += sized[i];
++    }
++    check(offset == delivered, "order covers all bytes");
++    puts("]}");
+ }
+ 
+ int main(void) {
+     alarm(15);
+-    run_case(16, 0, 17, 0);
+-    run_case(16, 8, 17, 0);
+-    run_case(16, 0, SMALL_PIECE, 0);
+-    run_case(16, 0, SMALL_PIECE + 1, 0);
+-    run_case(16, 0, 17, 1);
+-    run_case(32, 0, 17, 0);
++    for (int position = 0; position <= 16; ++position) run_case(position);
+     return 0;
+ }

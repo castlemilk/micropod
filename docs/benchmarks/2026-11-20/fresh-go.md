@@ -17,6 +17,8 @@ With a source-only checkout, Micropod still took 2.77× the native Ubuntu time a
 
 ## Python, Go and container startup
 
+The current first-build fixture checks that the private Go build and module stores start empty. It fetches the fixture module from its local file proxy, verifies the module ZIP, then checks the actual build cache is still empty and the output absent before building with `GOPROXY=off`. Both store directories retain their identities across the build. In a separate Darwin arm64 run, the empty action cache produced 106 compiler or assembler invocations. Changing only the main package against the same cache produced one invocation, and an unchanged checkout produced zero. A positive tool count alone therefore cannot identify a first build. OS file-cache state, VM boot and peer performance remain unmeasured by this check. Reproduce it with `python3 -B scripts/check_first_go_build.py`. [Local first-build receipt](../2026-11-23/first-go-build-local.json)
+
 The legacy fixture starts Python in every timed container. It imports the Go and npm fixture, writes both sets of workspace files, starts Go and verifies its output. Fresh production Go jobs and the direct measurements use a shell entrypoint and Go. Python on the Mac schedules clients and records measurements. Untimed setup also uses the existing fixture to seed and audit the guest stores. The native Ubuntu driver launches Go from a single measurement process.
 
 | Fresh workload | Micropod, 16 | Micropod, 32 | OrbStack, 16 | OrbStack, 32 |

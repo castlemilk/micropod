@@ -1,0 +1,574 @@
+{
+  "source": "docs/benchmarks/2026-11-21/gamma-vcpu-priority.json.gz",
+  "source_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "method": "The host rusage snapshots bracket the full client invocation. The pinned Go client measures bulk bytes after stream setup and before fresh-request drain and stream shutdown. Outside time is the host elapsed duration minus the reported bulk duration. CPU sums the Micropod VMM and supervisor or the OrbStack helper over the full bracket and divides by scored payload GiB.",
+  "limitations": "The archive cannot partition outside time into setup and teardown, count unscored bytes, or isolate CPU consumption during the bulk window. Summaries are medians of individual attempts. Run order alternated with pair number.",
+  "attempts": [
+    {
+      "phase": "grace-warmup",
+      "pair": 1,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6001.040541,
+        "host_ms": 6134.766,
+        "outside_ms": 133.725459,
+        "outside_pct_of_host": 2.1797972245396156,
+        "host_cpu_s_per_scored_gib": 0.8695002108219194
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.185792,
+        "host_ms": 7175.921,
+        "outside_ms": 1175.735208,
+        "outside_pct_of_host": 16.38445027474522,
+        "host_cpu_s_per_scored_gib": 1.0670181251449813
+      }
+    },
+    {
+      "phase": "grace-warmup",
+      "pair": 2,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.220375,
+        "host_ms": 7041.641,
+        "outside_ms": 1041.420625,
+        "outside_pct_of_host": 14.789459232585132,
+        "host_cpu_s_per_scored_gib": 1.1150699492431013
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.087417,
+        "host_ms": 6115.074,
+        "outside_ms": 114.986583,
+        "outside_pct_of_host": 1.880379256244487,
+        "host_cpu_s_per_scored_gib": 0.897697441265406
+      }
+    },
+    {
+      "phase": "grace-warmup",
+      "pair": 3,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.047834,
+        "host_ms": 6118.018,
+        "outside_ms": 117.970166,
+        "outside_pct_of_host": 1.9282415645066753,
+        "host_cpu_s_per_scored_gib": 0.9145845469316819
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.007667,
+        "host_ms": 6367.893,
+        "outside_ms": 367.885333,
+        "outside_pct_of_host": 5.7771908698842775,
+        "host_cpu_s_per_scored_gib": 0.9983093862354661
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 1,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.209458,
+        "host_ms": 6148.727,
+        "outside_ms": 148.517542,
+        "outside_pct_of_host": 2.415419354282602,
+        "host_cpu_s_per_scored_gib": 0.9333590514320149
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.002958,
+        "host_ms": 7207.453,
+        "outside_ms": 1207.450042,
+        "outside_pct_of_host": 16.752797999515224,
+        "host_cpu_s_per_scored_gib": 1.0710749598669436
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 2,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.014375,
+        "host_ms": 9106.432,
+        "outside_ms": 3106.417625,
+        "outside_pct_of_host": 34.11234636134108,
+        "host_cpu_s_per_scored_gib": 1.3542943448320541
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.058708,
+        "host_ms": 6154.845,
+        "outside_ms": 154.786292,
+        "outside_pct_of_host": 2.5148690503172704,
+        "host_cpu_s_per_scored_gib": 0.9674513744092486
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 3,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.156708,
+        "host_ms": 6161.323,
+        "outside_ms": 161.166292,
+        "outside_pct_of_host": 2.615774112150913,
+        "host_cpu_s_per_scored_gib": 0.951159727429886
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.100833,
+        "host_ms": 8132.765,
+        "outside_ms": 2132.664167,
+        "outside_pct_of_host": 26.223113135569513,
+        "host_cpu_s_per_scored_gib": 1.1702618607648398
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 4,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6057.248583,
+        "host_ms": 7372.339,
+        "outside_ms": 1315.090417,
+        "outside_pct_of_host": 17.83817072166649,
+        "host_cpu_s_per_scored_gib": 1.1989321264941544
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.73325,
+        "host_ms": 6186.181,
+        "outside_ms": 185.44775,
+        "outside_pct_of_host": 2.997774394250669,
+        "host_cpu_s_per_scored_gib": 1.0066270666223593
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 5,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.2605,
+        "host_ms": 6188.097,
+        "outside_ms": 187.8365,
+        "outside_pct_of_host": 3.0354485393490114,
+        "host_cpu_s_per_scored_gib": 0.9685747957038064
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.28025,
+        "host_ms": 7648.468,
+        "outside_ms": 1648.18775,
+        "outside_pct_of_host": 21.549253392967064,
+        "host_cpu_s_per_scored_gib": 1.1291061271336513
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 6,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6003.152291,
+        "host_ms": 6280.814,
+        "outside_ms": 277.661709,
+        "outside_pct_of_host": 4.420791779536856,
+        "host_cpu_s_per_scored_gib": 0.9400328361275739
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.319583,
+        "host_ms": 6180.57,
+        "outside_ms": 180.250417,
+        "outside_pct_of_host": 2.916404425481792,
+        "host_cpu_s_per_scored_gib": 0.9462563572609426
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 7,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6001.845917,
+        "host_ms": 6213.376,
+        "outside_ms": 211.530083,
+        "outside_pct_of_host": 3.404430747471262,
+        "host_cpu_s_per_scored_gib": 0.9435893840396379
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.922541,
+        "host_ms": 6462.961,
+        "outside_ms": 462.038459,
+        "outside_pct_of_host": 7.149021307725669,
+        "host_cpu_s_per_scored_gib": 1.0971111517228493
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 8,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6003.433375,
+        "host_ms": 6332.194,
+        "outside_ms": 328.760625,
+        "outside_pct_of_host": 5.191891230748774,
+        "host_cpu_s_per_scored_gib": 1.0597275394752204
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.942667,
+        "host_ms": 6232.955,
+        "outside_ms": 232.012333,
+        "outside_pct_of_host": 3.7223489179690854,
+        "host_cpu_s_per_scored_gib": 1.0713811868567509
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 9,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6003.643625,
+        "host_ms": 6221.806,
+        "outside_ms": 218.162375,
+        "outside_pct_of_host": 3.506415580942254,
+        "host_cpu_s_per_scored_gib": 0.9842494831671227
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6005.32175,
+        "host_ms": 6935.082,
+        "outside_ms": 929.76025,
+        "outside_pct_of_host": 13.40662230093314,
+        "host_cpu_s_per_scored_gib": 1.057074965971411
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 10,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6003.859708,
+        "host_ms": 6504.964,
+        "outside_ms": 501.104292,
+        "outside_pct_of_host": 7.703413762166862,
+        "host_cpu_s_per_scored_gib": 0.9744633644953341
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.581375,
+        "host_ms": 6234.193,
+        "outside_ms": 233.611625,
+        "outside_pct_of_host": 3.747263278502927,
+        "host_cpu_s_per_scored_gib": 0.9109736951719577
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 11,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6002.187584,
+        "host_ms": 6190.314,
+        "outside_ms": 188.126416,
+        "outside_pct_of_host": 3.03904480451234,
+        "host_cpu_s_per_scored_gib": 0.9611252353973065
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6001.46725,
+        "host_ms": 6525.14,
+        "outside_ms": 523.67275,
+        "outside_pct_of_host": 8.0254638214659,
+        "host_cpu_s_per_scored_gib": 1.0341041047883774
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 12,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": false,
+        "fresh_failed": 1,
+        "reopened": 0,
+        "client_ms": 6000.098125,
+        "host_ms": 11880.367,
+        "outside_ms": 5880.268875,
+        "outside_pct_of_host": 49.49568371919824,
+        "host_cpu_s_per_scored_gib": 1.6291126391919195
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.024,
+        "host_ms": 6253.108,
+        "outside_ms": 253.084,
+        "outside_pct_of_host": 4.047331343069718,
+        "host_cpu_s_per_scored_gib": 0.9607177760564136
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 13,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6004.778583,
+        "host_ms": 6196.12,
+        "outside_ms": 191.341417,
+        "outside_pct_of_host": 3.088084430256354,
+        "host_cpu_s_per_scored_gib": 0.8895517575003147
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.008125,
+        "host_ms": 9446.594,
+        "outside_ms": 3446.585875,
+        "outside_pct_of_host": 36.48495822938934,
+        "host_cpu_s_per_scored_gib": 1.3480263697269237
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 14,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.004459,
+        "host_ms": 8575.691,
+        "outside_ms": 2575.686541,
+        "outside_pct_of_host": 30.034740535777235,
+        "host_cpu_s_per_scored_gib": 1.2229537220184177
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6001.144208,
+        "host_ms": 6144.274,
+        "outside_ms": 143.129792,
+        "outside_pct_of_host": 2.3294825719035317,
+        "host_cpu_s_per_scored_gib": 0.8631286532276999
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 15,
+      "first": "micropod",
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6001.846875,
+        "host_ms": 6154.29,
+        "outside_ms": 152.443125,
+        "outside_pct_of_host": 2.4770221260291603,
+        "host_cpu_s_per_scored_gib": 0.8768414354927927
+      },
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6002.273042,
+        "host_ms": 7466.917,
+        "outside_ms": 1464.643958,
+        "outside_pct_of_host": 19.61510966306442,
+        "host_cpu_s_per_scored_gib": 1.073912669733817
+      }
+    },
+    {
+      "phase": "grace-holdout",
+      "pair": 16,
+      "first": "orbstack",
+      "orbstack": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.054458,
+        "host_ms": 7307.981,
+        "outside_ms": 1307.926542,
+        "outside_pct_of_host": 17.897235118701047,
+        "host_cpu_s_per_scored_gib": 1.040262062758618
+      },
+      "micropod": {
+        "clean": true,
+        "fresh_failed": 0,
+        "reopened": 0,
+        "client_ms": 6000.72575,
+        "host_ms": 6196.321,
+        "outside_ms": 195.59525,
+        "outside_pct_of_host": 3.1566352033730984,
+        "host_cpu_s_per_scored_gib": 0.9947748553349197
+      }
+    }
+  ],
+  "clean_scored_by_arm": {
+    "micropod": {
+      "attempts": 16,
+      "client_ms": 6000.7294999999995,
+      "host_ms": 6189.2055,
+      "outside_ms": 187.981458,
+      "outside_pct_of_host": 3.0372466719306757,
+      "host_cpu_s_per_scored_gib": 0.9559387517431498
+    },
+    "orbstack": {
+      "attempts": 15,
+      "client_ms": 6000.922541,
+      "host_ms": 7307.981,
+      "outside_ms": 1307.926542,
+      "outside_pct_of_host": 17.83817072166649,
+      "host_cpu_s_per_scored_gib": 1.073912669733817
+    }
+  },
+  "common_clean_pairs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16
+  ],
+  "common_clean_by_arm": {
+    "micropod": {
+      "attempts": 15,
+      "client_ms": 6000.73325,
+      "host_ms": 6188.097,
+      "outside_ms": 187.8365,
+      "outside_pct_of_host": 3.0354485393490114,
+      "host_cpu_s_per_scored_gib": 0.951159727429886
+    },
+    "orbstack": {
+      "attempts": 15,
+      "client_ms": 6000.922541,
+      "host_ms": 7307.981,
+      "outside_ms": 1307.926542,
+      "outside_pct_of_host": 17.83817072166649,
+      "host_cpu_s_per_scored_gib": 1.073912669733817
+    }
+  },
+  "common_clean_by_first": {
+    "micropod": {
+      "micropod": {
+        "attempts": 8,
+        "client_ms": 6001.846396,
+        "host_ms": 6189.2055,
+        "outside_ms": 187.981458,
+        "outside_pct_of_host": 3.0372466719306757,
+        "host_cpu_s_per_scored_gib": 0.9473745557347619
+      },
+      "orbstack": {
+        "attempts": 8,
+        "client_ms": 6000.6013955,
+        "host_ms": 7337.185,
+        "outside_ms": 1336.047,
+        "outside_pct_of_host": 18.18395383128982,
+        "host_cpu_s_per_scored_gib": 1.085511910728333
+      }
+    },
+    "orbstack": {
+      "micropod": {
+        "attempts": 7,
+        "client_ms": 6000.72575,
+        "host_ms": 6186.181,
+        "outside_ms": 185.44775,
+        "outside_pct_of_host": 2.997774394250669,
+        "host_cpu_s_per_scored_gib": 0.9674513744092486
+      },
+      "orbstack": {
+        "attempts": 7,
+        "client_ms": 6003.152291,
+        "host_ms": 7307.981,
+        "outside_ms": 1307.926542,
+        "outside_pct_of_host": 17.83817072166649,
+        "host_cpu_s_per_scored_gib": 1.0597275394752204
+      }
+    }
+  }
+}

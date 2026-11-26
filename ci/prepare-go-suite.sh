@@ -31,7 +31,11 @@ compile='
     go build -trimpath -buildvcs=false -o "$out/product" "$1"
     chmod -R a+rX "$out"
 '
-key=$( { printf '%s\0' go-suite-v2 "$source_id" "$scope" "$main" "${envs[@]}" "$compile"; cat "$suite"; } | shasum -a 256 | cut -d' ' -f1)
+# Both tools emit the hex digest first. Keep the original input bytes so existing tags hit.
+digest=(sha256sum)
+if ! command -v sha256sum >/dev/null; then digest=(shasum -a 256); fi
+key=$( { printf '%s\0' go-suite-v2 "$source_id" "$scope" "$main" "${envs[@]}" "$compile"; cat "$suite"; } | "${digest[@]}")
+key=${key%% *}
 tag="micropod-internal/ci-go-suite:$key"
 publication=null
 result() {

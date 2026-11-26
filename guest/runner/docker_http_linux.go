@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -423,29 +422,6 @@ func disconnected(peer *net.UnixConn) bool {
 	return err != nil || closed
 }
 
-func copyFrames(r *bufio.Reader, w io.Writer, stdout, stderr bool) error {
-	for {
-		h, err := r.Peek(8)
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		n := int64(binary.BigEndian.Uint32(h[4:]))
-		dst := io.Writer(io.Discard)
-		if (h[0] == 1 && stdout) || (h[0] == 2 && stderr) {
-			dst = w
-		}
-		if _, err = dst.Write(h); err != nil {
-			return err
-		}
-		r.Discard(8)
-		if _, err = io.CopyN(dst, r, n); err != nil {
-			return err
-		}
-	}
-}
 func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path string) error {
 	q := r.URL.Query()
 	imgMap := func(i *cri.Image) map[string]any {

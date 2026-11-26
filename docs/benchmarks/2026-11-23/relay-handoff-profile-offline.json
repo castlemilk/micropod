@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "darwin_release": "25.5.0",
+  "source_sha256": {
+    "Sources/MicropodRuntime/NativeLoopbackRelay.swift": "afb5d108f82555e9191518c8843e42b4c738d158c3b2a9431c5526bed5ed8480",
+    "Sources/CPublishedTCP/PublishedTCP.c": "9e2fe1ba6e61af1d1c950179ccf4ff6d5652f56bd352e5969686737eaf5099ba",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "eb6b05e54420d19f52e58ee7991016dfb70e791d30d6a2ab83a33c69a5e114ff",
+    "scripts/relaybench/check_handoff_profile.py": "9a1ad7e7c570242ea69c8f7539072c39e317efd70efc2bfa311ec352f8a50740",
+    "scripts/relaybench/handoff_profile_fixture.swift": "c3b0c25238e47a9bc636c35ff81de3faba3530791e0bdafcdfd125da645c9cd4",
+    "scripts/relaybench/handoff_profile_fixture.c": "768cf7365170515b87d13c3ab533b658a5affee186ab49288af1b470720786f0"
+  },
+  "scope": "Eight descriptor handoffs per queued arm and eight direct accepts in the inline control. Anonymous UNIX descriptors enter the production accept callback via a socketpair mailbox. Real Swift owner queues run C adoption. Client TCP_NODELAY fails on the UNIX descriptor before any dial. A 32 ms test gate holds previous setup work on each owner to force queue wait. Histogram values describe this forced wait, not TCP or production latency.",
+  "c_clock_calls": [
+    "clock 2 false 8",
+    "clock 2 true 16",
+    "clock 0 true 8"
+  ],
+  "profiled": [
+    {
+      "port": 4002,
+      "accepted": 8,
+      "connect_errors": 8,
+      "handoff": {
+        "accept_to_adopt_us": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          6
+        ],
+        "accept_to_enqueue_us": [
+          8,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "enqueue_to_adopt_us": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          6
+        ]
+      },
+      "handoff_by_worker": [
+        {
+          "accept_to_adopt_us": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3
+          ],
+          "accept_to_enqueue_us": [
+            4,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "enqueue_to_adopt_us": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3
+          ]
+        },
+        {
+          "accept_to_adopt_us": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3
+          ],
+          "accept_to_enqueue_us": [
+            4,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "enqueue_to_adopt_us": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "port": 4000,
+      "accepted": 8,
+      "connect_errors": 8,
+      "handoff": {
+        "accept_to_adopt_us": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accept_to_enqueue_us": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "enqueue_to_adopt_us": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "handoff_by_worker": []
+    }
+  ]
+}

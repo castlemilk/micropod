@@ -1,0 +1,271 @@
+{
+  "experiment": "Nested directory event in the production SharedViewSync implementation",
+  "base": "d622b5c0568b3b927c96c22bdfbad0dc71710515",
+  "source_sha256": {
+    "baseline": "bb3382ce170f611dadff823712074f4c1df700c41b9b54c87cfe7ce2678ece06",
+    "subtree": "4e0b19aace7c9a2be53f96ef5dd080c71874407bd4bdd4656fc65313ce8db1ea"
+  },
+  "benchmark_sha256": "29df8874c6ff3e21f66f1b71e6b7c121434a926fec4ca8d53dd3c94a383d5c4f",
+  "compiler": [
+    "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)",
+    "Target: arm64-apple-macosx26.0"
+  ],
+  "compile_flags": [
+    "-O",
+    "-swift-version",
+    "6",
+    "-module-name",
+    "DirectoryBench"
+  ],
+  "inputs": [
+    "Sources/MicropodSharedFS/ChunkHash.swift",
+    "Sources/MicropodSharedFS/SharedView.swift",
+    "Sources/MicropodSharedFS/SharedViewSync.swift",
+    "scripts/bench_shared_view_directory.swift"
+  ],
+  "macos": "26.5.1",
+  "arch": "arm64",
+  "utc": {
+    "start": "2026-11-23T05:57:15.491044+00:00",
+    "end": "2026-11-23T05:57:19.432086+00:00"
+  },
+  "seed": 23809,
+  "orders": [
+    [
+      "baseline",
+      "subtree"
+    ],
+    [
+      "subtree",
+      "baseline"
+    ],
+    [
+      "subtree",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "subtree"
+    ]
+  ],
+  "scope": "Background QoS, private local source/view pairs, 256 unrelated dependency files and one edited file. Timing starts after each atomic editor replacement, on entry to synchronize, and ends when it returns. FSEvents delivery, VM mounts and guest application polling are outside the interval.",
+  "summary": {
+    "pooled_median_ms": {
+      "baseline": 18.1279165,
+      "subtree": 1.0487085
+    },
+    "baseline_over_candidate_within_pair_medians": [
+      25.660076189723767,
+      16.264749367311378,
+      18.840147989397103,
+      13.25171857846788
+    ],
+    "median_paired_ratio": 17.55244867835424,
+    "atomic_edit_destination_checks": 112
+  },
+  "rounds": [
+    {
+      "pair": 1,
+      "arm": "baseline",
+      "scored_directory_event_ns": [
+        15705167,
+        16916083,
+        22411041,
+        21754250,
+        21261708,
+        44130500,
+        17966958,
+        21790166,
+        26536334,
+        19397250,
+        17494125,
+        20311875
+      ],
+      "cross_view_payload_checks": 14,
+      "qos": "background",
+      "warmups": 2,
+      "unrelated_files": 256,
+      "origins_alternate": true,
+      "first_scored_origin": "source"
+    },
+    {
+      "pair": 1,
+      "arm": "subtree",
+      "scored_directory_event_ns": [
+        781000,
+        770375,
+        807166,
+        759541,
+        830833,
+        737625,
+        813000,
+        914625,
+        2217625,
+        841292,
+        627750,
+        883084
+      ],
+      "cross_view_payload_checks": 14,
+      "origins_alternate": true,
+      "qos": "background",
+      "unrelated_files": 256,
+      "warmups": 2,
+      "first_scored_origin": "source"
+    },
+    {
+      "pair": 2,
+      "arm": "subtree",
+      "first_scored_origin": "source",
+      "unrelated_files": 256,
+      "warmups": 2,
+      "scored_directory_event_ns": [
+        848750,
+        749333,
+        1202875,
+        633916,
+        589958,
+        1486625,
+        970167,
+        1052125,
+        3007583,
+        1485334,
+        5706208,
+        1129833
+      ],
+      "cross_view_payload_checks": 14,
+      "origins_alternate": true,
+      "qos": "background"
+    },
+    {
+      "pair": 2,
+      "arm": "baseline",
+      "cross_view_payload_checks": 14,
+      "first_scored_origin": "source",
+      "warmups": 2,
+      "origins_alternate": true,
+      "scored_directory_event_ns": [
+        12400333,
+        14757083,
+        14967750,
+        19927416,
+        15819000,
+        20080208,
+        18288875,
+        17200125,
+        20377542,
+        144634250,
+        122497667,
+        14944458
+      ],
+      "qos": "background",
+      "unrelated_files": 256
+    },
+    {
+      "pair": 3,
+      "arm": "subtree",
+      "qos": "background",
+      "scored_directory_event_ns": [
+        833709,
+        914458,
+        1055125,
+        1163000,
+        1124333,
+        1365500,
+        814750,
+        1045292,
+        1092042,
+        1587458,
+        1512292,
+        1659750
+      ],
+      "origins_alternate": true,
+      "warmups": 2,
+      "unrelated_files": 256,
+      "cross_view_payload_checks": 14,
+      "first_scored_origin": "source"
+    },
+    {
+      "pair": 3,
+      "arm": "baseline",
+      "origins_alternate": true,
+      "qos": "background",
+      "warmups": 2,
+      "unrelated_files": 256,
+      "cross_view_payload_checks": 14,
+      "first_scored_origin": "source",
+      "scored_directory_event_ns": [
+        30205625,
+        33721708,
+        23307500,
+        24354375,
+        23218750,
+        19741958,
+        18447250,
+        17207208,
+        15955291,
+        22014875,
+        15424625,
+        15150709
+      ]
+    },
+    {
+      "pair": 4,
+      "arm": "baseline",
+      "origins_alternate": true,
+      "first_scored_origin": "source",
+      "qos": "background",
+      "unrelated_files": 256,
+      "scored_directory_event_ns": [
+        16753958,
+        14212167,
+        13498166,
+        15638958,
+        15915833,
+        19440250,
+        15890750,
+        14867458,
+        18399042,
+        14976875,
+        17493334,
+        14985625
+      ],
+      "warmups": 2,
+      "cross_view_payload_checks": 14
+    },
+    {
+      "pair": 4,
+      "arm": "subtree",
+      "scored_directory_event_ns": [
+        1432042,
+        4501042,
+        1094584,
+        1421000,
+        813667,
+        4917875,
+        946292,
+        1135792,
+        882709,
+        867125,
+        3836833,
+        1243500
+      ],
+      "unrelated_files": 256,
+      "first_scored_origin": "source",
+      "warmups": 2,
+      "cross_view_payload_checks": 14,
+      "origins_alternate": true,
+      "qos": "background"
+    }
+  ],
+  "verification": {
+    "fixture": "Isolated offline SwiftPM package with actual MicropodSharedFS source and existing XCTest files, macOS 26 target.",
+    "baseline_nested_directory_test": "Failed, unreadable unrelated directory (NSCocoaErrorDomain 257).",
+    "candidate_sync_tests_passed": 6,
+    "candidate_sync_and_daemon_tests_passed": 7,
+    "daemon_case": "SharedFSDaemonTests.testSyncCopiesWritesBackToSource",
+    "daemon_result": "Both base and candidate used the explicit-sync fallback after the asynchronous watcher did not deliver within the test deadline. The test passed on both. Automatic watcher delivery remains unverified.",
+    "scored_scope": "Processing a delivered directory event in the product synchronizer only."
+  },
+  "reproduce_each_revision": "xcrun swiftc -O -swift-version 6 -module-name DirectoryBench Sources/MicropodSharedFS/{ChunkHash,SharedView,SharedViewSync}.swift scripts/bench_shared_view_directory.swift -o $SCRATCH/directory-bench; $SCRATCH/directory-bench",
+  "reproduction_note": "Use the candidate's unchanged benchmark file for both executables. For the baseline, substitute SharedViewSync.swift from the recorded parent commit. Create a private scratch directory first."
+}

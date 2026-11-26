@@ -1,0 +1,291 @@
+{
+  "direction": "232.04",
+  "archive": "gamma-vnic.json.gz",
+  "archive_sha256": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f",
+  "recorded_parent_commit": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "vsock_host_binary_sha256": "1bba9b4eb93fe5b56e873799c8577edbf63a588ce7470b7b0c4d5448538bd257",
+  "archived_baseline_host_binary_sha256": "412127a9f65cceac955f4fdbdcb020e0ae43a6d51e6aecdca563fceec762c100",
+  "replay_sha256": "58c92687d4927e0a9a2558cb08d81e8bdc96e846a3f7d4e14396d714e76cd1ac",
+  "workload": "M5 Max Gamma archive, 4 vCPUs, service quota 4 CPUs and 1 GiB, 8 MiB response. Within each vsock diagnostic series the independent variable is the stream count. Bulk runs attempted three responses per stream. The separate barrier series used four fresh checks, a 64 MiB sequential sampling stage and one synchronized parallel burst. The separate original screen attempted 160 fresh checks and three 32-stream bursts per arm.",
+  "diagnostic_stream_counts": [
+    1,
+    4,
+    12,
+    24,
+    32
+  ],
+  "diagnostics": {
+    "barrier": [
+      {
+        "record": "vs-diagnostic/barrier-1",
+        "status": 0,
+        "sample": {
+          "bulk_bytes": 67108864,
+          "bulk_mib_s": 207.436742708212,
+          "fresh_connect_p50_us": 226,
+          "fresh_connected_to_first_byte_p50_us": 901,
+          "fresh_p50_us": 1155,
+          "fresh_p95_us": 1570,
+          "fresh_p99_us": 1570,
+          "keepalive_p50_us": 830,
+          "keepalive_p95_us": 1397,
+          "keepalive_p99_us": 1397,
+          "parallel_barrier": true,
+          "parallel_bursts_mib_s": [
+            96.63600989915128
+          ],
+          "parallel_mib_s": 96.63600989915128,
+          "parallel_streams": 1,
+          "requests": 4
+        }
+      },
+      {
+        "record": "vs-diagnostic/barrier-4",
+        "status": 0,
+        "sample": {
+          "bulk_bytes": 67108864,
+          "bulk_mib_s": 114.67798302313591,
+          "fresh_connect_p50_us": 235,
+          "fresh_connected_to_first_byte_p50_us": 1256,
+          "fresh_p50_us": 1654,
+          "fresh_p95_us": 2401,
+          "fresh_p99_us": 2401,
+          "keepalive_p50_us": 480,
+          "keepalive_p95_us": 800,
+          "keepalive_p99_us": 800,
+          "parallel_barrier": true,
+          "parallel_bursts_mib_s": [
+            61.90888801238371
+          ],
+          "parallel_mib_s": 61.90888801238371,
+          "parallel_streams": 4,
+          "requests": 4
+        }
+      },
+      {
+        "record": "vs-diagnostic/barrier-12",
+        "status": 1,
+        "reset_log_lines": 1,
+        "stderr_sha256": "5b701615a57a955d8994de701c1162f263585883fdc5703fccdce64e5c59ce97",
+        "sample": null
+      },
+      {
+        "record": "vs-diagnostic/barrier-24",
+        "status": 1,
+        "reset_log_lines": 2,
+        "stderr_sha256": "dfc49713006d9c3bd3965bde751a9ebf185938f615eb1536952ae71b8d117a38",
+        "sample": null
+      },
+      {
+        "record": "vs-diagnostic/barrier-32",
+        "status": 1,
+        "reset_log_lines": 1,
+        "stderr_sha256": "323f290051498692d8fddedc7cb0ead9e279a6f225d21e01b49f3132570b4a01",
+        "sample": null
+      }
+    ],
+    "bulk": [
+      {
+        "record": "vs-diagnostic/bulk-1",
+        "status": 0,
+        "sample": {
+          "bytes": 25165824,
+          "elapsed_s": 0.39683275,
+          "iterations": 3,
+          "mib_s": 60.47887932636608,
+          "mode": "bulk",
+          "reopened_connections": 0,
+          "streams": 1
+        }
+      },
+      {
+        "record": "vs-diagnostic/bulk-4",
+        "status": 0,
+        "sample": {
+          "bytes": 100663296,
+          "elapsed_s": 1.7958331250000001,
+          "iterations": 3,
+          "mib_s": 53.45708276764301,
+          "mode": "bulk",
+          "reopened_connections": 0,
+          "streams": 4
+        }
+      },
+      {
+        "record": "vs-diagnostic/bulk-12",
+        "status": 0,
+        "sample": {
+          "bytes": 301989888,
+          "elapsed_s": 3.074295083,
+          "iterations": 3,
+          "mib_s": 93.680011913157,
+          "mode": "bulk",
+          "reopened_connections": 0,
+          "streams": 12
+        }
+      },
+      {
+        "record": "vs-diagnostic/bulk-24",
+        "status": 0,
+        "sample": {
+          "bytes": 603979776,
+          "elapsed_s": 7.802715875,
+          "iterations": 3,
+          "mib_s": 73.82045036978872,
+          "mode": "bulk",
+          "reopened_connections": 0,
+          "streams": 24
+        }
+      },
+      {
+        "record": "vs-diagnostic/bulk-32",
+        "status": 0,
+        "sample": {
+          "bytes": 805306368,
+          "elapsed_s": 6.120909083,
+          "iterations": 3,
+          "mib_s": 125.4715581600479,
+          "mode": "bulk",
+          "reopened_connections": 0,
+          "streams": 32
+        }
+      }
+    ]
+  },
+  "screen": {
+    "control": [
+      {
+        "record": "vs-screen/1-control",
+        "status": 0,
+        "sample": {
+          "bulk_bytes": 67108864,
+          "bulk_mib_s": 1344.6884993372996,
+          "fresh_connect_p50_us": 118,
+          "fresh_connected_to_first_byte_p50_us": 459,
+          "fresh_p50_us": 605,
+          "fresh_p95_us": 958,
+          "fresh_p99_us": 1334,
+          "keepalive_p50_us": 330,
+          "keepalive_p95_us": 688,
+          "keepalive_p99_us": 1327,
+          "parallel_barrier": true,
+          "parallel_bursts_mib_s": [
+            2342.679400947228,
+            3614.0177130913785,
+            3611.808214394678
+          ],
+          "parallel_mib_s": 3611.808214394678,
+          "parallel_streams": 32,
+          "requests": 160
+        }
+      },
+      {
+        "record": "vs-screen/2-control",
+        "status": 0,
+        "sample": {
+          "bulk_bytes": 67108864,
+          "bulk_mib_s": 1525.6424015308678,
+          "fresh_connect_p50_us": 95,
+          "fresh_connected_to_first_byte_p50_us": 364,
+          "fresh_p50_us": 483,
+          "fresh_p95_us": 614,
+          "fresh_p99_us": 673,
+          "keepalive_p50_us": 239,
+          "keepalive_p95_us": 351,
+          "keepalive_p99_us": 480,
+          "parallel_barrier": true,
+          "parallel_bursts_mib_s": [
+            4095.538547480778,
+            3774.9597834069637,
+            3650.728006502859
+          ],
+          "parallel_mib_s": 3774.9597834069637,
+          "parallel_streams": 32,
+          "requests": 160
+        }
+      },
+      {
+        "record": "vs-screen/3-control",
+        "status": 0,
+        "sample": {
+          "bulk_bytes": 67108864,
+          "bulk_mib_s": 491.30806935120467,
+          "fresh_connect_p50_us": 167,
+          "fresh_connected_to_first_byte_p50_us": 795,
+          "fresh_p50_us": 997,
+          "fresh_p95_us": 4179,
+          "fresh_p99_us": 6411,
+          "keepalive_p50_us": 473,
+          "keepalive_p95_us": 1668,
+          "keepalive_p99_us": 3572,
+          "parallel_barrier": true,
+          "parallel_bursts_mib_s": [
+            1945.8900574853928,
+            2009.3987901582568,
+            2223.1155402905865
+          ],
+          "parallel_mib_s": 2009.3987901582568,
+          "parallel_streams": 32,
+          "requests": 160
+        }
+      },
+      {
+        "record": "vs-screen/4-control",
+        "status": 0,
+        "sample": {
+          "bulk_bytes": 67108864,
+          "bulk_mib_s": 146.59164417824866,
+          "fresh_connect_p50_us": 245,
+          "fresh_connected_to_first_byte_p50_us": 2565,
+          "fresh_p50_us": 2847,
+          "fresh_p95_us": 17857,
+          "fresh_p99_us": 45118,
+          "keepalive_p50_us": 2251,
+          "keepalive_p95_us": 11959,
+          "keepalive_p99_us": 27985,
+          "parallel_barrier": true,
+          "parallel_bursts_mib_s": [
+            743.9995059378281,
+            542.6792881997993,
+            963.8002354142313
+          ],
+          "parallel_mib_s": 743.9995059378281,
+          "parallel_streams": 32,
+          "requests": 160
+        }
+      }
+    ],
+    "vs": [
+      {
+        "record": "vs-screen/1-vs",
+        "status": 1,
+        "reset_log_lines": 2,
+        "stderr_sha256": "d793e0e0d226051fa82a511881abf78655c520d1bdde59c1ae2ce3a1b7466417",
+        "sample": null
+      },
+      {
+        "record": "vs-screen/2-vs",
+        "status": 1,
+        "reset_log_lines": 1,
+        "stderr_sha256": "b7a0fcb43d876a6e63d930df1d3ad4894bb7ae05fd6973048a20a77b9910da14",
+        "sample": null
+      },
+      {
+        "record": "vs-screen/3-vs",
+        "status": 1,
+        "reset_log_lines": 2,
+        "stderr_sha256": "15c64eca48b9521491805c56d932f572eb90bab50cda035f06d48a0bc89a13a1",
+        "sample": null
+      },
+      {
+        "record": "vs-screen/4-vs",
+        "status": 1,
+        "reset_log_lines": 1,
+        "stderr_sha256": "9d307c4738afcfb60e95e99ef468b548d068a7d018c3a27dc6f922b733ee3d81",
+        "sample": null
+      }
+    ]
+  },
+  "interpretation": "Concurrency alone cannot explain the failures: the 12-, 24- and 32-stream sustained controls all completed their expected bytes without reconnecting, while each corresponding synchronized workload exited on a /data read reset with no final sample. One and four streams completed in both workloads. The workloads also differ in setup and reuse; the archive cannot isolate just the barrier, prove credit starvation, locate the failing request within the executable, or supply mixed-load p95/p99 for failed runs. One diagnostic per count and shape does not identify a reliable concurrency threshold. Keep bulk vsock gated on per-stream delivery and backpressure evidence under synchronized first responses."
+}

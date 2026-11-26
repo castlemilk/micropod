@@ -1,0 +1,215 @@
+{
+  "date": "2026-11-24",
+  "issue": 230,
+  "stable_id": "230.03",
+  "experiment": "callback-handoff-work",
+  "revision": "2ccda8507355b8220258db2ce8160f3113d3e1ff",
+  "source_sha256": {
+    "scripts/relaybench/callback_handoff_work.py": "32ab1c91430021ffceb90ef74e676d8222a75e1c329190288a6aae833b31afb6",
+    "scripts/relaybench/callback_handoff_work.c": "53338b7b3602173b80dcc9cd733fa09183ee0b50be9958d2995891921248c623",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9"
+  },
+  "tier": "Local Darwin host-only fixed-work fixture using anonymous UNIX stream socketpairs.",
+  "toolchain": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "system": [
+    "arm64",
+    "25.5.0"
+  ],
+  "build_flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fblocks"
+  ],
+  "arm_order": [
+    128,
+    24,
+    24,
+    128
+  ],
+  "positions": [
+    1,
+    16,
+    24,
+    25,
+    31
+  ],
+  "method": "One data owner in the four-worker configuration serving eight established downloads. The 128-event control and the ordinary 24-event arm use the same relay revision, 24-event polls and 256 KiB cap. On the selected successful bulk write the fixture queues a handoff on that owner's actual serial dispatch queue. At entry it stages a fresh connected socketpair flow and writes its one-byte reply. Measure bytes relayed after enqueue up to entry and up to forwarding the reply. The fixture explicitly submits follow-on drain callbacks.",
+  "guardrails": "Every trial validates 8 MiB of per-flow ordered bulk, one fresh byte, forward FIN, reverse marker/FIN and retirement of all nine streams. No clocks, TCP, guest, per-process CPU or scheduled-arrival percentiles. Results are deterministic fixed-work counts for the five chosen injection positions, not a sampled arrival distribution.",
+  "verdict": "The shorter drain permits earlier entry at three of five positions. It removes 2 MiB before handoff entry in each case, and saves zero bulk bytes before the actual fresh reply at every position. Both repeated arm orders agree.",
+  "next_check": "Retain 128 events in the worker-count comparison. In a separately admitted callback trial, distinguish enqueue-to-adopt from adopt-to-first-byte before crediting earlier handoff entry with any reduction in scheduled-arrival latency.",
+  "raw_passes": [
+    [
+      {
+        "budget": 128,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 8126464,
+        "bulk_bytes_after_enqueue_before_reply": 8126464
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 4194304,
+        "bulk_bytes_after_enqueue_before_reply": 4194304
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 24,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 2097152,
+        "bulk_bytes_after_enqueue_before_reply": 2097152
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 1835008,
+        "bulk_bytes_after_enqueue_before_reply": 1835008
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 31,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 262144,
+        "bulk_bytes_after_enqueue_before_reply": 262144
+      }
+    ],
+    [
+      {
+        "budget": 24,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 6029312,
+        "bulk_bytes_after_enqueue_before_reply": 8126464
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 2097152,
+        "bulk_bytes_after_enqueue_before_reply": 4194304
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 24,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 0,
+        "bulk_bytes_after_enqueue_before_reply": 2097152
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 1835008,
+        "bulk_bytes_after_enqueue_before_reply": 1835008
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 31,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 262144,
+        "bulk_bytes_after_enqueue_before_reply": 262144
+      }
+    ],
+    [
+      {
+        "budget": 24,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 6029312,
+        "bulk_bytes_after_enqueue_before_reply": 8126464
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 2097152,
+        "bulk_bytes_after_enqueue_before_reply": 4194304
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 24,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 0,
+        "bulk_bytes_after_enqueue_before_reply": 2097152
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 1835008,
+        "bulk_bytes_after_enqueue_before_reply": 1835008
+      },
+      {
+        "budget": 24,
+        "enqueue_after_write": 31,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 262144,
+        "bulk_bytes_after_enqueue_before_reply": 262144
+      }
+    ],
+    [
+      {
+        "budget": 128,
+        "enqueue_after_write": 1,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 8126464,
+        "bulk_bytes_after_enqueue_before_reply": 8126464
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 16,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 4194304,
+        "bulk_bytes_after_enqueue_before_reply": 4194304
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 24,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 2097152,
+        "bulk_bytes_after_enqueue_before_reply": 2097152
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 25,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 1835008,
+        "bulk_bytes_after_enqueue_before_reply": 1835008
+      },
+      {
+        "budget": 128,
+        "enqueue_after_write": 31,
+        "bulk_writes": 32,
+        "bulk_bytes": 8388608,
+        "bulk_bytes_after_enqueue_before_entry": 262144,
+        "bulk_bytes_after_enqueue_before_reply": 262144
+      }
+    ]
+  ]
+}

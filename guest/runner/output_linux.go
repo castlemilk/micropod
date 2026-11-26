@@ -13,6 +13,7 @@ import (
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
+// The sink consumes data synchronously, before the next read reuses its buffer.
 type outputSink func(stream string, data []byte) error
 
 func jsonOutput(out *json.Encoder) outputSink {
@@ -39,7 +40,10 @@ func (s *criOutput) drain(write outputSink) error {
 		if s.bytes >= (8<<20)-4096 {
 			return errors.New("job log exceeded the 8 MiB limit")
 		}
-		s.partial = append(s.partial, line...)
+		if err != nil || len(s.partial) != 0 {
+			s.partial = append(s.partial, line...)
+			line = s.partial
+		}
 		if errors.Is(err, bufio.ErrBufferFull) {
 			continue
 		}
@@ -49,23 +53,29 @@ func (s *criOutput) drain(write outputSink) error {
 		if err != nil {
 			return err
 		}
-		fields := bytes.SplitN(s.partial[:len(s.partial)-1], []byte(" "), 4)
-		if len(fields) != 4 {
+		_, rest, _ := bytes.Cut(line, []byte(" "))
+		channel, rest, _ := bytes.Cut(rest, []byte(" "))
+		tag, body, ok := bytes.Cut(rest, []byte(" "))
+		if !ok {
 			return errors.New("invalid CRI log record")
 		}
-		stream := string(fields[1])
-		if stream != "stdout" && stream != "stderr" {
+		var stream string
+		switch string(channel) {
+		case "stdout":
+			stream = "stdout"
+		case "stderr":
+			stream = "stderr"
+		default:
 			return errors.New("invalid CRI log stream")
 		}
-		body := fields[3]
-		switch string(fields[2]) {
+		switch string(tag) {
 		case "F":
-			body = append(body, '\n')
 		case "P":
+			body = body[:len(body)-1] // Skip the physical newline on partial records.
 		default:
 			return errors.New("invalid CRI log fragment")
 		}
-		if err := write(stream, body); err != nil {
+		if err := write(stream, body[:len(body):len(body)]); err != nil {
 			return err
 		}
 		s.partial = s.partial[:0]

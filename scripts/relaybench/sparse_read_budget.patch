@@ -1,0 +1,54 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -55,6 +55,7 @@
+     struct pair *retired;
+ #if MICROPOD_BENCH_512K_READS
+     unsigned read_bytes;
++    bool sparse_reads, sparse_ready, one_large_read;
+ #endif
+     char scratch[CHUNK];
+ };
+@@ -163,6 +164,11 @@
+     // Both arms reserve the same scratch capacity in one executable.
+     const char *kib = getenv("MICROPOD_BENCH_RELAY_READ_KIB");
+     if (!kib || strcmp(kib, "512") == 0) r->read_bytes = CHUNK;
++    else if (strcmp(kib, "sparse") == 0 || strcmp(kib, "one-large") == 0) {
++        r->read_bytes = CHUNK;
++        r->sparse_reads = true;
++        r->one_large_read = strcmp(kib, "one-large") == 0;
++    }
+     else if (strcmp(kib, "256") == 0) r->read_bytes = 256 * 1024;
+     else { free(r); errno = EINVAL; return NULL; }
+ #endif
+@@ -637,6 +643,15 @@
+     } else {
+         if (src->eof) return;
+         size_t cap = mp_tcp_relay_read_bytes(r);
++        // Trial build only. Increase the quantum for an established guest download
++        // when an untruncated, lightly occupied poll saw data beyond the usual cap.
++        if (r->sparse_reads) {
++            bool eligible = r->sparse_ready && src == &p->guest && src->bulk_read && read_event &&
++                read_event->filter == EVFILT_READ && !(read_event->flags & (EV_EOF | EV_ERROR)) &&
++                read_event->data > 256 * 1024;
++            if (!eligible) cap = 256 * 1024;
++            else if (r->one_large_read) r->sparse_ready = false;
++        }
+         ssize_t got = read(src->watch.fd, data, cap);
+         if (l->profile) ++l->stats.reads;
+         if (got < 0) {
+@@ -833,6 +848,7 @@
+         int limit = budget - serviced;
+         int n = kevent(r->kq, NULL, 0, events, limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH, &now);
+         if (n <= 0) break;
++        r->sparse_ready = limit > 2 && n <= 2;
+         bool bulk[DATA_READY_BATCH] = {0};
+         for (int i = 0; i < n; ++i) {
+             struct watch *w = events[i].udata;
+@@ -843,6 +859,7 @@
+             if (!bulk[i]) service_event(&events[i]);
+         }
+         for (int i = 0; i < n; ++i) if (bulk[i]) service_event(&events[i]);
++        r->sparse_ready = false;
+         serviced += n;
+     }
+ }

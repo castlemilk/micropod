@@ -34,6 +34,7 @@ public actor NativeStatsSampler: StatsSampling {
     /// alongside, so this only bounds the tail of a slow guest.
     static let guestReadTimeout: Duration = .seconds(2)
 
+    private lazy var timestampFormatter = ISO8601DateFormatter()
     private let listRunning: ListRunning
     private let fetchStats: FetchStats
     private let readOOMKills: ReadOOMKills?
@@ -74,9 +75,25 @@ public actor NativeStatsSampler: StatsSampling {
     /// unfiltered sample still has its deltas.
     public func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot {
         guard !ids.isEmpty else { return try await snapshot() }
+        return try await sample(ids: Self.requestedIDs(ids), forgetOthers: false)
+    }
+
+    static func requestedIDs(_ ids: [String]) -> [String] {
+        guard ids.count > 1 else { return ids }
         var unique: [String] = []
-        for id in ids where !unique.contains(id) { unique.append(id) }
-        return try await sample(ids: unique, forgetOthers: false)
+        for (index, id) in ids.enumerated() where !unique.contains(id) {
+            unique.append(id)
+            // Linear lookup wins for the usual small selection. Switch once there
+            // are enough distinct ids and remaining lookups to amortize hashing.
+            if unique.count == 64 && ids.count - index > 32 {
+                var seen = Set(unique)
+                for remaining in ids[(index + 1)...] where seen.insert(remaining).inserted {
+                    unique.append(remaining)
+                }
+                break
+            }
+        }
+        return unique
     }
 
     /// Fan out stats calls in parallel; a container whose stats fail (it
@@ -113,7 +130,7 @@ public actor NativeStatsSampler: StatsSampling {
 
         let now = ContinuousClock.now
         var snapshot = Micropod_V1_StatsSnapshot()
-        snapshot.sampledAt = ISO8601DateFormatter().string(from: Date())
+        snapshot.sampledAt = timestampFormatter.string(from: Date())
 
         for (entry, oomKills) in sampled {
             var stats = Micropod_V1_ContainerStats(entry: entry)

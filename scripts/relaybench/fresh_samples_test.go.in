@@ -1,0 +1,59 @@
+package main
+
+import (
+	"bytes"
+	"errors"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"testing/synctest"
+	"time"
+)
+
+type mockTransfer func(*http.Request) (*http.Response, error)
+
+func (f mockTransfer) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+func TestFreshObservationFixture(t *testing.T) {
+	// This clock advances only when every simulated goroutine is blocked.
+	synctest.Test(t, func(t *testing.T) {
+		body := make([]byte, 8<<20)
+		response := func(r io.Reader) *http.Response {
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(r)}
+		}
+		bulk := func() *http.Client {
+			return &http.Client{Transport: mockTransfer(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path == "/id" {
+					return response(strings.NewReader("marker")), nil
+				}
+				time.Sleep(710 * time.Millisecond)
+				return response(bytes.NewReader(body)), nil
+			})}
+		}
+		var requests atomic.Int32
+		fresh := &http.Client{Transport: mockTransfer(func(req *http.Request) (*http.Response, error) {
+			i := requests.Add(1) - 1
+			switch i {
+			case 237:
+				time.Sleep(150 * time.Millisecond)
+				return nil, errors.New("fixture failed identity transfer")
+			case 239:
+				time.Sleep(250 * time.Millisecond)
+			default:
+				time.Sleep(time.Millisecond)
+			}
+			return response(strings.NewReader("marker")), nil
+		})}
+		var output bytes.Buffer
+		err := run([]service{{"http://fixture.invalid", "marker"}}, bulk, fresh, &output)
+		if err == nil || requests.Load() != 240 {
+			t.Fatalf("expected one failed transfer and 240 offers: %v, %d", err, requests.Load())
+		}
+		if err := os.WriteFile(os.Getenv("MP_FRESH_RECEIPT"), output.Bytes(), 0600); err != nil {
+			t.Fatal(err)
+		}
+	})
+}

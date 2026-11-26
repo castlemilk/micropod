@@ -1,0 +1,91 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -47,6 +47,7 @@
+     uint64_t interface_checked;
+     struct pair *retired;
++    char *read_buffer, *alternate, *loaned;
+     char scratch[CHUNK];
+ };
+ 
+ struct mp_tcp_listener {
+@@ -149,6 +150,7 @@
+     if (inet_pton(AF_INET, guest, &address) != 1) { errno = EINVAL; return NULL; }
+     mp_tcp_relay *r = calloc(1, sizeof(*r));
+     if (!r) return NULL;
++    r->read_buffer = r->scratch;
+     r->guest = address;
+     atomic_init(&r->path_failure, false);
+     atomic_init(&r->guest_data, false);
+@@ -373,12 +375,20 @@
+     retire(p);
+ }
+ 
++// At most one pending direction can own an entire scratch buffer. Closing it,
++// finishing its pending write or revoking its lease returns the loan to this owner.
++static void release_pending(mp_tcp_relay *r, struct endpoint *e) {
++    if (e->pending && e->pending == r->loaned) r->loaned = NULL;
++    else free(e->pending);
++    e->pending = NULL;
++}
++
+ static void reap(mp_tcp_relay *r) {
+     while (r->retired) {
+         struct pair *p = r->retired;
+         r->retired = p->next;
+-        free(p->client.pending);
+-        free(p->guest.pending);
++        release_pending(r, &p->client);
++        release_pending(r, &p->guest);
+         free(p);
+     }
+ }
+@@ -441,6 +451,7 @@
+ void mp_tcp_relay_destroy(mp_tcp_relay *r) {
+     close(r->kq);
+     if (r->bulk.fd >= 0) close(r->bulk.fd);
++    free(r->alternate);
+     free(r);
+ }
+ 
+@@ -586,7 +597,7 @@
+     // One write per ready endpoint keeps sustained downloads from delaying
+     // a new connect, FIN or small response for a full burst of copies.
+     size_t count = dst->length;
+-    char *data = r->scratch;
++    char *data = r->read_buffer;
+     if (dst->pending) {
+         data = dst->pending + dst->offset;
+     } else {
+@@ -661,9 +672,19 @@
+         if (l->profile) ++l->stats.blocked_writes;
+         size_t remaining = count - (size_t)sent;
+         if (!dst->pending) {
+-            dst->pending = malloc(remaining);
+-            if (!dst->pending) { retire(p); return; }
+-            memcpy(dst->pending, r->scratch + sent, remaining);
++            if (remaining >= CHUNK / 4 && !r->loaned) {
++                if (!r->alternate) r->alternate = malloc(CHUNK);
++                if (r->alternate) {
++                    dst->pending = r->loaned = data;
++                    dst->offset = (size_t)sent;
++                    r->read_buffer = data == r->scratch ? r->alternate : r->scratch;
++                }
++            }
++            if (!dst->pending) {
++                dst->pending = malloc(remaining);
++                if (!dst->pending) { retire(p); return; }
++                memcpy(dst->pending, data + sent, remaining);
++            }
+             dst->length = remaining;
+             struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
+                                         filter_change(&dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) };
+@@ -675,8 +696,7 @@
+         return;
+     }
+     if (dst->pending) {
+-        free(dst->pending);
+-        dst->pending = NULL;
++        release_pending(r, dst);
+         dst->offset = dst->length = 0;
+         struct kevent changes[] = { filter_change(&dst->watch, EVFILT_WRITE, EV_DISABLE),
+                                     filter_change(&src->watch, EVFILT_READ, EV_ENABLE) };

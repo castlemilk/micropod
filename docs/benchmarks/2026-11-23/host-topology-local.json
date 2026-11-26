@@ -1,0 +1,51 @@
+{
+  "observed_at": "2026-11-23T05:37:11.749945+00:00",
+  "platform": "26.5.1",
+  "architecture": "arm64",
+  "source": "CIWorkerCPUCount.auto.topologyPlan() in a local read-only diagnostic, independent of any worker manifest",
+  "sample": {
+    "activeCPUs": 18,
+    "allocation": {
+      "count": 6,
+      "source": "hw.perflevel0.physicalcpu"
+    },
+    "levels": [
+      {
+        "cpusPerL2": 6,
+        "index": 0,
+        "name": "Super",
+        "physicalCPUs": 6
+      },
+      {
+        "cpusPerL2": 6,
+        "index": 1,
+        "name": "Performance",
+        "physicalCPUs": 12
+      }
+    ],
+    "policy": "auto",
+    "reportedLevelCount": 2,
+    "vmMaximumCPUs": 64,
+    "vmMinimumCPUs": 1
+  },
+  "verification": {
+    "target": "CIWorkerCPUTopologyTests, isolated SwiftPM package with the checked-in CPU policy, MicropodError and its ImagePullFailure type",
+    "tests_passed": 2,
+    "test_scope": "Swift policy and topology, no live VM",
+    "normal_cli": {
+      "build": "current Runtime, CLI and CPublishedTCP compiled and linked against the existing local SwiftPM dependency objects",
+      "commands": [
+        "micropod ci cpu-plan",
+        "micropod ci cpu-plan --topology",
+        "micropod ci cpu-plan --bad"
+      ],
+      "exit_codes": [
+        0,
+        0,
+        2
+      ],
+      "temporary_worker_directory_created": false,
+      "same_allocation": true
+    }
+  }
+}

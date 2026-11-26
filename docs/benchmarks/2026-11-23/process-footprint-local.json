@@ -1,0 +1,55 @@
+{
+  "scope": "private same-boot process; anonymous private mapping",
+  "mapped_bytes": 8388608,
+  "macos": "26.5.1",
+  "architecture": "arm64",
+  "sampler_source_sha256": "0b28d4409980b3a9608b9e522ae6b0b9d441adefedc9e138b655b38abb849805",
+  "stale_start_rejected": true,
+  "samples": {
+    "idle": {
+      "pid": 2336,
+      "start_ticks": 14468616881496,
+      "sample_ticks": 14468617263535,
+      "user_ticks": 194471,
+      "system_ticks": 88916,
+      "numer": 125,
+      "denom": 3,
+      "interrupt_wakeups": 0,
+      "resident_bytes": 17793024,
+      "phys_footprint_bytes": 7012808,
+      "lifetime_max_phys_footprint_bytes": 7012808,
+      "instructions": 97740209,
+      "cycles": 45116228
+    },
+    "touch": {
+      "pid": 2336,
+      "start_ticks": 14468616881496,
+      "sample_ticks": 14468617344812,
+      "user_ticks": 197041,
+      "system_ticks": 98584,
+      "numer": 125,
+      "denom": 3,
+      "interrupt_wakeups": 0,
+      "resident_bytes": 26181632,
+      "phys_footprint_bytes": 15417824,
+      "lifetime_max_phys_footprint_bytes": 15417824,
+      "instructions": 102308053,
+      "cycles": 47068105
+    },
+    "release": {
+      "pid": 2336,
+      "start_ticks": 14468616881496,
+      "sample_ticks": 14468617413315,
+      "user_ticks": 197461,
+      "system_ticks": 102549,
+      "numer": 125,
+      "denom": 3,
+      "interrupt_wakeups": 0,
+      "resident_bytes": 17793024,
+      "phys_footprint_bytes": 7012808,
+      "lifetime_max_phys_footprint_bytes": 15417824,
+      "instructions": 103232646,
+      "cycles": 47767477
+    }
+  }
+}

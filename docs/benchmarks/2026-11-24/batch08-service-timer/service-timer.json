@@ -1,0 +1,589 @@
+{
+  "date": "2026-11-24",
+  "stable_id": "231.07",
+  "evidence_tier": "archived VM",
+  "source_revision": "4f887ba5d28f47fa37d4bd0a2d89cd0914d74754",
+  "archive_revision": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "archive_sha256": "09ebe5510401244cd6d299c1d0cf6dd8f88b256bf14b8c2c14f6db3eff61b74a",
+  "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "fixture_sha256": "66b28cbd1988c15f91a6c891bd6fa9d1450944781d6d002ad062f22533b48d06",
+  "fixture_inputs": {
+    "fixtures/pacing-test.sh": "18ebfc48f727a1d6a30e011bb793c5d726c5326fecd7d9bd0a1eb096d94f37de",
+    "fixtures/pacing-action": "bd1ade390780d56330556249e2b538f00c77db7e9c3452fdf6ddebabe7aad6b7"
+  },
+  "image_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "pairs": [
+    {
+      "block": 0,
+      "first": "on",
+      "on": {
+        "key": "pacing/0-on",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 0,
+          "packets": 0,
+          "drops": 0,
+          "throttled": 0
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 30222271800,
+          "packets": 20027240,
+          "drops": 0,
+          "throttled": 374216
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 905176991317,
+          "packets": 599505883,
+          "drops": 4329,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 30222271800,
+          "packets": 20027240,
+          "drops": 0,
+          "throttled": 374216
+        },
+        "deferrals_per_service_gib": 13295.207357971813,
+        "mib_s": 4515.289980859314,
+        "bulk_bytes": 28409761248,
+        "seconds": 6.000425167,
+        "fresh_offers": 240,
+        "p95_ms": 51.673,
+        "p99_ms": 104.426,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": true
+      },
+      "slack": {
+        "key": "pacing/0-slack",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 99959976794,
+          "packets": 66285633,
+          "drops": 0,
+          "throttled": 881048
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 126722037732,
+          "packets": 84011956,
+          "drops": 0,
+          "throttled": 1179462
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1001625546951,
+          "packets": 663456300,
+          "drops": 5754,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 26762060938,
+          "packets": 17726323,
+          "drops": 0,
+          "throttled": 298414
+        },
+        "deferrals_per_service_gib": 11972.904232206034,
+        "mib_s": 3549.108152457073,
+        "bulk_bytes": 22330273940,
+        "seconds": 6.000326792,
+        "fresh_offers": 240,
+        "p95_ms": 97.437,
+        "p99_ms": 140.228,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": false
+      }
+    },
+    {
+      "block": 1,
+      "first": "on",
+      "on": {
+        "key": "pacing/1-on",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 159198497768,
+          "packets": 105569274,
+          "drops": 0,
+          "throttled": 1179462
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 185271237032,
+          "packets": 122837888,
+          "drops": 0,
+          "throttled": 1490015
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1060117068567,
+          "packets": 702243596,
+          "drops": 7362,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 26072739264,
+          "packets": 17268614,
+          "drops": 0,
+          "throttled": 310553
+        },
+        "deferrals_per_service_gib": 12789.363683358315,
+        "mib_s": 3855.7630313591467,
+        "bulk_bytes": 24277386224,
+        "seconds": 6.004705041,
+        "fresh_offers": 240,
+        "p95_ms": 56.628,
+        "p99_ms": 73.298,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": true
+      },
+      "slack": {
+        "key": "pacing/1-slack",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 205342946134,
+          "packets": 136121459,
+          "drops": 0,
+          "throttled": 1713056
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 227063580238,
+          "packets": 150499499,
+          "drops": 0,
+          "throttled": 1942027
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1101887086185,
+          "packets": 729890271,
+          "drops": 7963,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 21720634104,
+          "packets": 14378040,
+          "drops": 0,
+          "throttled": 228971
+        },
+        "deferrals_per_service_gib": 11318.99455632504,
+        "mib_s": 3182.224002602855,
+        "bulk_bytes": 20020845512,
+        "seconds": 6.000006958,
+        "fresh_offers": 240,
+        "p95_ms": 77.684,
+        "p99_ms": 98.817,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": false
+      }
+    },
+    {
+      "block": 2,
+      "first": "slack",
+      "on": {
+        "key": "pacing/2-on",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 248408927132,
+          "packets": 164627350,
+          "drops": 0,
+          "throttled": 2162007
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 268059803356,
+          "packets": 177639098,
+          "drops": 0,
+          "throttled": 2382476
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1142863264163,
+          "packets": 757016472,
+          "drops": 8490,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 19650876224,
+          "packets": 13011748,
+          "drops": 0,
+          "throttled": 220469
+        },
+        "deferrals_per_service_gib": 12046.627514061533,
+        "mib_s": 2904.6067660292942,
+        "bulk_bytes": 18274969756,
+        "seconds": 6.000250875,
+        "fresh_offers": 240,
+        "p95_ms": 83.51,
+        "p99_ms": 141.534,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": false
+      },
+      "slack": {
+        "key": "pacing/2-slack",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 227063580238,
+          "packets": 150499499,
+          "drops": 0,
+          "throttled": 1942027
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 248408927132,
+          "packets": 164627350,
+          "drops": 0,
+          "throttled": 2162007
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1123221258977,
+          "packets": 744010643,
+          "drops": 8270,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 21345346894,
+          "packets": 14127851,
+          "drops": 0,
+          "throttled": 219980
+        },
+        "deferrals_per_service_gib": 11065.72442305514,
+        "mib_s": 3140.723923188077,
+        "bulk_bytes": 19761233600,
+        "seconds": 6.000457667,
+        "fresh_offers": 240,
+        "p95_ms": 80.352,
+        "p99_ms": 125.124,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": false
+      }
+    },
+    {
+      "block": 3,
+      "first": "slack",
+      "on": {
+        "key": "pacing/3-on",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 430922164690,
+          "packets": 285646979,
+          "drops": 0,
+          "throttled": 3591614
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 471992235914,
+          "packets": 312882675,
+          "drops": 0,
+          "throttled": 4138936
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1346696036119,
+          "packets": 892193246,
+          "drops": 11334,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 41070071224,
+          "packets": 27235696,
+          "drops": 0,
+          "throttled": 547322
+        },
+        "deferrals_per_service_gib": 14309.26475364634,
+        "mib_s": 6158.405028704643,
+        "bulk_bytes": 38745490864,
+        "seconds": 6.00002425,
+        "fresh_offers": 240,
+        "p95_ms": 23.52,
+        "p99_ms": 32.8,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": true
+      },
+      "slack": {
+        "key": "pacing/3-slack",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 315344097834,
+          "packets": 208989069,
+          "drops": 0,
+          "throttled": 2589928
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 356613633874,
+          "packets": 236345589,
+          "drops": 0,
+          "throttled": 3093880
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1231360758237,
+          "packets": 815685213,
+          "drops": 10082,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 41269536040,
+          "packets": 27356520,
+          "drops": 0,
+          "throttled": 503952
+        },
+        "deferrals_per_service_gib": 13111.713666079973,
+        "mib_s": 5855.204044591081,
+        "bulk_bytes": 36837940504,
+        "seconds": 6.000029625,
+        "fresh_offers": 240,
+        "p95_ms": 31.57,
+        "p99_ms": 44.428,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": true
+      }
+    },
+    {
+      "block": 4,
+      "first": "slack",
+      "on": {
+        "key": "pacing/4-on",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 577494641900,
+          "packets": 382846086,
+          "drops": 0,
+          "throttled": 4982158
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 600678264766,
+          "packets": 398203373,
+          "drops": 0,
+          "throttled": 5260102
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1475331646149,
+          "packets": 977480193,
+          "drops": 12715,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 23183622866,
+          "packets": 15357287,
+          "drops": 0,
+          "throttled": 277944
+        },
+        "deferrals_per_service_gib": 12872.884417367488,
+        "mib_s": 3424.2472779148075,
+        "bulk_bytes": 21546903160,
+        "seconds": 6.0009475,
+        "fresh_offers": 240,
+        "p95_ms": 123.385,
+        "p99_ms": 209.096,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": false
+      },
+      "slack": {
+        "key": "pacing/4-slack",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 471992235914,
+          "packets": 312882675,
+          "drops": 0,
+          "throttled": 4138936
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 510053414944,
+          "packets": 338114072,
+          "drops": 0,
+          "throttled": 4593210
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1384756975147,
+          "packets": 917424482,
+          "drops": 11341,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 38061179030,
+          "packets": 25231397,
+          "drops": 0,
+          "throttled": 454274
+        },
+        "deferrals_per_service_gib": 12815.498778198937,
+        "mib_s": 5680.099711319991,
+        "bulk_bytes": 35737608004,
+        "seconds": 6.000253625,
+        "fresh_offers": 240,
+        "p95_ms": 24.175,
+        "p99_ms": 33.182,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": true
+      }
+    },
+    {
+      "block": 5,
+      "first": "on",
+      "on": {
+        "key": "pacing/5-on",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 635163240784,
+          "packets": 421066764,
+          "drops": 0,
+          "throttled": 5709438
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 675413857058,
+          "packets": 447769103,
+          "drops": 0,
+          "throttled": 6250588
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1550067204323,
+          "packets": 1027045904,
+          "drops": 12716,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 40250616274,
+          "packets": 26702339,
+          "drops": 0,
+          "throttled": 541150
+        },
+        "deferrals_per_service_gib": 14435.937678622187,
+        "mib_s": 6041.609005513026,
+        "bulk_bytes": 38011454288,
+        "seconds": 6.000147916,
+        "fresh_offers": 240,
+        "p95_ms": 29.804,
+        "p99_ms": 51.652,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": true
+      },
+      "slack": {
+        "key": "pacing/5-slack",
+        "service_before": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 715239944640,
+          "packets": 474209862,
+          "drops": 0,
+          "throttled": 6250588
+        },
+        "service_after": {
+          "header": "qdisc fq 800b: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 100us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 754008834088,
+          "packets": 499918752,
+          "drops": 0,
+          "throttled": 6729130
+        },
+        "nic_after": {
+          "header": "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us",
+          "bytes": 1628620576883,
+          "packets": 1079167654,
+          "drops": 13916,
+          "throttled": 21663
+        },
+        "service_delta": {
+          "bytes": 38768889448,
+          "packets": 25708890,
+          "drops": 0,
+          "throttled": 478542
+        },
+        "deferrals_per_service_gib": 13253.682714584835,
+        "mib_s": 5819.504203266154,
+        "bulk_bytes": 36613238792,
+        "seconds": 6.000013791,
+        "fresh_offers": 240,
+        "p95_ms": 23.617,
+        "p99_ms": 70.673,
+        "errors": null,
+        "reopened": 0,
+        "stderr": "",
+        "clean": true,
+        "passes": true
+      }
+    }
+  ],
+  "summaries": {
+    "on": {
+      "mib_s": 4185.5265061092305,
+      "p95_ms": 54.1505,
+      "p99_ms": 88.862,
+      "deferrals_per_service_gib": 13084.04588766965,
+      "passes": 4,
+      "clean": 6,
+      "fresh_offers": 1440,
+      "service_drops": 0
+    },
+    "slack": {
+      "mib_s": 4614.603931888532,
+      "p95_ms": 54.626999999999995,
+      "p99_ms": 84.745,
+      "deferrals_per_service_gib": 12394.201505202485,
+      "passes": 3,
+      "clean": 6,
+      "fresh_offers": 1440,
+      "service_drops": 0
+    }
+  },
+  "common_clean": 6,
+  "common_passing": 2,
+  "paired": {
+    "mib_s": {
+      "n": 6,
+      "median_pct": -4.299810589082415,
+      "increases": 2,
+      "bootstrap_95_pct": [
+        -19.4331868540638,
+        37.00392029877342
+      ]
+    },
+    "deferrals_per_service_gib": {
+      "n": 6,
+      "median_pct": -8.279363069818775,
+      "increases": 0,
+      "bootstrap_95_pct": [
+        -10.721262457390873,
+        -4.294170229371602
+      ]
+    }
+  }
+}

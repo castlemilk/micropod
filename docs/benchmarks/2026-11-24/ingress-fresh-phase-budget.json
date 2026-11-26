@@ -1,0 +1,171 @@
+{
+  "direction": "232.01",
+  "archive": "gamma-mixed-path.json.gz",
+  "archive_sha256": "09ebe5510401244cd6d299c1d0cf6dd8f88b256bf14b8c2c14f6db3eff61b74a",
+  "base": "4f887ba5",
+  "trace_client_sha256": "14ac0223f59f9756f4651e331619626bd64134bb8a3d4bc3ad281f0bfcdbdb40",
+  "release_sha256": "c0ec6e8d18c336beb6a95fb0ba0dc7c5a4b46212e17a814c57d107fd9a1d2fb7",
+  "image_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "target_us": 75000,
+  "population": "Three archived closed-loop sets, release published and direct guest DNAT for the same service. All 960 observed fresh requests and all six first-attempt windows retained.",
+  "interpretation": "For each request, vary just one measured client phase while fixing every other phase at its observed duration. The minimum is in basis points; null means even full removal cannot pass. These are arithmetic sensitivities at fixed observations. Demand, queueing and bulk throughput would change in a real system. Phase clocks do not locate host vs guest work, and closed-loop arrivals differ between arms. Three sequential sets supply no population uncertainty estimate.",
+  "rows": {
+    "final-trace/1-candidate.json": {
+      "requests": 160,
+      "bulk_reopens": 0,
+      "observed": {
+        "p95_us": 90326,
+        "p99_us": 123035,
+        "requests_above_75ms": 13
+      },
+      "historical_overlap_mib_s": 2532.0157329546387,
+      "before_write": {
+        "after_removing_phase": {
+          "p95_us": 89572,
+          "p99_us": 122796,
+          "requests_above_75ms": 13
+        },
+        "minimum_phase_reduction_bp_to_pass": null
+      },
+      "write_to_first_byte": {
+        "after_removing_phase": {
+          "p95_us": 2737,
+          "p99_us": 6493,
+          "requests_above_75ms": 0
+        },
+        "minimum_phase_reduction_bp_to_pass": 1717
+      }
+    },
+    "final-trace/1-direct.json": {
+      "requests": 160,
+      "bulk_reopens": 0,
+      "observed": {
+        "p95_us": 49248,
+        "p99_us": 67838,
+        "requests_above_75ms": 1
+      },
+      "historical_overlap_mib_s": 2776.961626023859,
+      "before_write": {
+        "after_removing_phase": {
+          "p95_us": 32464,
+          "p99_us": 49744,
+          "requests_above_75ms": 0
+        },
+        "minimum_phase_reduction_bp_to_pass": 0
+      },
+      "write_to_first_byte": {
+        "after_removing_phase": {
+          "p95_us": 23505,
+          "p99_us": 31178,
+          "requests_above_75ms": 0
+        },
+        "minimum_phase_reduction_bp_to_pass": 0
+      }
+    },
+    "final-trace/2-candidate.json": {
+      "requests": 160,
+      "bulk_reopens": 0,
+      "observed": {
+        "p95_us": 237949,
+        "p99_us": 346217,
+        "requests_above_75ms": 75
+      },
+      "historical_overlap_mib_s": 1062.1074929039528,
+      "before_write": {
+        "after_removing_phase": {
+          "p95_us": 237625,
+          "p99_us": 345868,
+          "requests_above_75ms": 72
+        },
+        "minimum_phase_reduction_bp_to_pass": null
+      },
+      "write_to_first_byte": {
+        "after_removing_phase": {
+          "p95_us": 9491,
+          "p99_us": 16580,
+          "requests_above_75ms": 0
+        },
+        "minimum_phase_reduction_bp_to_pass": 6858
+      }
+    },
+    "final-trace/2-direct.json": {
+      "requests": 160,
+      "bulk_reopens": 0,
+      "observed": {
+        "p95_us": 75992,
+        "p99_us": 188029,
+        "requests_above_75ms": 9
+      },
+      "historical_overlap_mib_s": 2252.308995869637,
+      "before_write": {
+        "after_removing_phase": {
+          "p95_us": 45308,
+          "p99_us": 103986,
+          "requests_above_75ms": 2
+        },
+        "minimum_phase_reduction_bp_to_pass": 970
+      },
+      "write_to_first_byte": {
+        "after_removing_phase": {
+          "p95_us": 39934,
+          "p99_us": 159511,
+          "requests_above_75ms": 2
+        },
+        "minimum_phase_reduction_bp_to_pass": 151
+      }
+    },
+    "final-trace/3-candidate.json": {
+      "requests": 160,
+      "bulk_reopens": 0,
+      "observed": {
+        "p95_us": 72923,
+        "p99_us": 109725,
+        "requests_above_75ms": 8
+      },
+      "historical_overlap_mib_s": 2631.3383735999355,
+      "before_write": {
+        "after_removing_phase": {
+          "p95_us": 70945,
+          "p99_us": 109369,
+          "requests_above_75ms": 8
+        },
+        "minimum_phase_reduction_bp_to_pass": 0
+      },
+      "write_to_first_byte": {
+        "after_removing_phase": {
+          "p95_us": 3347,
+          "p99_us": 7577,
+          "requests_above_75ms": 0
+        },
+        "minimum_phase_reduction_bp_to_pass": 0
+      }
+    },
+    "final-trace/3-direct.json": {
+      "requests": 160,
+      "bulk_reopens": 0,
+      "observed": {
+        "p95_us": 58209,
+        "p99_us": 70434,
+        "requests_above_75ms": 0
+      },
+      "historical_overlap_mib_s": 2709.1971896224336,
+      "before_write": {
+        "after_removing_phase": {
+          "p95_us": 27982,
+          "p99_us": 43484,
+          "requests_above_75ms": 0
+        },
+        "minimum_phase_reduction_bp_to_pass": 0
+      },
+      "write_to_first_byte": {
+        "after_removing_phase": {
+          "p95_us": 32088,
+          "p99_us": 44794,
+          "requests_above_75ms": 0
+        },
+        "minimum_phase_reduction_bp_to_pass": 0
+      }
+    }
+  },
+  "replay_sha256": "6dd76022114d4d90602c741adceca12fc1f8e061b9871c19b0d7e550d1f2ddff"
+}

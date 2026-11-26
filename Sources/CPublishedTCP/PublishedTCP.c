@@ -18,12 +18,26 @@
 #include <unistd.h>
 
 // One scratch buffer per worker. Only a short write needs per-stream storage.
+#ifndef MICROPOD_BENCH_512K_READS
+#define MICROPOD_BENCH_512K_READS 0
+#endif
+#if MICROPOD_BENCH_512K_READS
+#define CHUNK (512 * 1024)
+#else
 #define CHUNK (256 * 1024)
+#endif
 #define EVENTS_PER_TURN 128
 #define INTERACTIVE_BULK_BATCH 2
 #define THROUGHPUT_BULK_BATCH 12
 #define DATA_READY_BATCH 24
 #define LARGE_READ (16 * 1024)
+
+#ifndef MICROPOD_BENCH_DEFER_HANDSHAKE_READS
+#define MICROPOD_BENCH_DEFER_HANDSHAKE_READS 0
+#endif
+// The experiment creates the read filters only when the connection can use them.
+// Both policies preserve buffered input and the single-write service budget.
+static const uint16_t connected_read_flags = MICROPOD_BENCH_DEFER_HANDSHAKE_READS ? EV_ADD | EV_ENABLE : EV_ENABLE;
 
 enum event_kind { ACCEPT, STREAM, BULK_READY, RETRY_GUEST };
 struct watch { enum event_kind kind; int fd; };
@@ -34,10 +48,14 @@ struct mp_tcp_relay {
     struct watch bulk;
     struct in_addr guest, gateway;
     unsigned ifindex;
+    unsigned next_first_worker;
     int guest_receive_buffer;
     atomic_bool path_failure, guest_data;
     uint64_t interface_checked;
     struct pair *retired;
+#if MICROPOD_BENCH_512K_READS
+    unsigned read_bytes;
+#endif
     char scratch[CHUNK];
 };
 
@@ -51,8 +69,9 @@ struct mp_tcp_listener {
     mp_tcp_listener *parent;
     atomic_uint group_active, group_peak;
     unsigned active;
+    unsigned next_worker;
     uint64_t last_error_at;
-    bool profile, retry_accept;
+    bool profile, retry_accept, assigned_worker;
     mp_tcp_stats stats;
 };
 
@@ -78,26 +97,53 @@ struct pair {
     uint64_t accepted_at, connected_at, first_request_write_at;
 };
 
-static int change_watch(int kq, struct watch *w, int16_t filter, uint16_t flags) {
+static struct kevent filter_change(struct watch *w, int16_t filter, uint16_t flags) {
     struct kevent change;
     EV_SET(&change, w->fd, filter, flags, 0, 0, w);
+    return change;
+}
+
+static int submit_changes(int kq, const struct kevent *changes, int count) {
     int status;
-    do { status = kevent(kq, &change, 1, NULL, 0, NULL); } while (status < 0 && errno == EINTR);
+    do { status = kevent(kq, changes, count, NULL, 0, NULL); } while (status < 0 && errno == EINTR);
     return status;
+}
+
+static int change_watch(int kq, struct watch *w, int16_t filter, uint16_t flags) {
+    struct kevent change = filter_change(w, filter, flags);
+    return submit_changes(kq, &change, 1);
 }
 
 static struct endpoint *opposite(struct endpoint *e) {
     return e == &e->pair->client ? &e->pair->guest : &e->pair->client;
 }
 
-static int watch_fd(mp_tcp_relay *r, struct watch *w, int16_t filter, uint16_t flags) {
+static int watch_queue(mp_tcp_relay *r, struct watch *w, int16_t filter) {
     int q = r->kq;
     if (r->bulk.fd >= 0 && w->kind == STREAM) {
         struct endpoint *e = (struct endpoint *)w;
         // READ consumes this direction; WRITE flushes its peer's pending bytes.
         if ((filter == EVFILT_READ ? e : opposite(e))->bulk_read) q = r->bulk.fd;
     }
-    return change_watch(q, w, filter, flags);
+    return q;
+}
+
+static int watch_fd(mp_tcp_relay *r, struct watch *w, int16_t filter, uint16_t flags) {
+    return change_watch(watch_queue(r, w, filter), w, filter, flags);
+}
+
+static int update_stream_filters(mp_tcp_relay *r, const struct kevent *changes, int count) {
+#if defined(MICROPOD_BATCH_STREAM_FILTERS) && MICROPOD_BATCH_STREAM_FILTERS
+    // Dedicated data owners use one kqueue. These ADD/ENABLE/DISABLE
+    // operations are idempotent on EINTR. The caller closes both descriptors
+    // on error, which also removes any prefix the kernel already installed.
+    if (r->bulk.fd < 0) return submit_changes(r->kq, changes, count);
+#endif
+    for (int i = 0; i < count; ++i) {
+        int q = watch_queue(r, changes[i].udata, changes[i].filter);
+        if (submit_changes(q, &changes[i], 1) < 0) return -1;
+    }
+    return 0;
 }
 
 static int prepare(int fd) {
@@ -113,6 +159,13 @@ static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
     if (inet_pton(AF_INET, guest, &address) != 1) { errno = EINVAL; return NULL; }
     mp_tcp_relay *r = calloc(1, sizeof(*r));
     if (!r) return NULL;
+#if MICROPOD_BENCH_512K_READS
+    // Both arms reserve the same scratch capacity in one executable.
+    const char *kib = getenv("MICROPOD_BENCH_RELAY_READ_KIB");
+    if (!kib || strcmp(kib, "512") == 0) r->read_bytes = CHUNK;
+    else if (strcmp(kib, "256") == 0) r->read_bytes = 256 * 1024;
+    else { free(r); errno = EINVAL; return NULL; }
+#endif
     r->guest = address;
     atomic_init(&r->path_failure, false);
     atomic_init(&r->guest_data, false);
@@ -134,6 +187,14 @@ static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
 mp_tcp_relay *mp_tcp_relay_create(const char *guest) { return create_relay(guest, false); }
 
 mp_tcp_relay *mp_tcp_relay_create_data(const char *guest) { return create_relay(guest, true); }
+
+unsigned mp_tcp_relay_read_bytes(const mp_tcp_relay *r) {
+#if MICROPOD_BENCH_512K_READS
+    return r->read_bytes;
+#else
+    return sizeof(r->scratch);
+#endif
+}
 
 void mp_tcp_relay_bound_guest_window(mp_tcp_relay *r) {
     // Keep macOS receive autotuning from admitting several MiB per stream
@@ -210,6 +271,20 @@ mp_tcp_listener *mp_tcp_target(mp_tcp_relay *r, mp_tcp_listener *parent) {
 void mp_tcp_set_handoff(mp_tcp_listener *l, mp_tcp_handoff handler, void *owner) {
     l->handoff = handler;
     l->owner = owner;
+}
+
+unsigned mp_tcp_next_worker(mp_tcp_listener *l, unsigned workers) {
+    if (!workers) return 0;
+    // Stagger the first connection across active leases. Later connections
+    // on each port rotate independently, even when two ports accept in lockstep.
+    if (!l->assigned_worker) {
+        l->next_worker = l->relay->next_first_worker;
+        l->relay->next_first_worker = (l->next_worker + 1) % workers;
+        l->assigned_worker = true;
+    }
+    unsigned selected = l->next_worker;
+    l->next_worker = (selected + 1) % workers;
+    return selected;
 }
 
 mp_tcp_listener *mp_tcp_listen(mp_tcp_relay *r, uint16_t host, uint16_t guest,
@@ -363,6 +438,16 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
         sum->reads += one->reads;
         sum->writes += one->writes;
         sum->blocked_writes += one->blocked_writes;
+        sum->pending_allocations += one->pending_allocations;
+        sum->pending_copy_bytes += one->pending_copy_bytes;
+        if (l->profile) {
+            for (unsigned i = 0; i < 4; ++i) sum->guest_reads_by_size[i] += one->guest_reads_by_size[i];
+            sum->guest_read_bytes += one->guest_read_bytes;
+            sum->guest_full_cap_reads += one->guest_full_cap_reads;
+            sum->guest_full_cap_ready_above_cap += one->guest_full_cap_ready_above_cap;
+            sum->guest_flat_bulk_full_cap_ready_above_cap += one->guest_flat_bulk_full_cap_ready_above_cap;
+            sum->guest_sparse_flat_bulk_full_cap_ready_above_cap += one->guest_sparse_flat_bulk_full_cap_ready_above_cap;
+        }
         sum->bulk_directions += one->bulk_directions;
         sum->route_waits += one->route_waits;
         sum->handshake_timeouts += one->handshake_timeouts;
@@ -371,6 +456,11 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
             sum->last_connect_error = one->last_connect_error;
         }
         for (unsigned i = 0; i < 12; ++i) {
+            if (l->profile) {
+                sum->handoff.accept_to_enqueue_us[i] += one->handoff.accept_to_enqueue_us[i];
+                sum->handoff.enqueue_to_adopt_us[i] += one->handoff.enqueue_to_adopt_us[i];
+                sum->handoff.accept_to_adopt_us[i] += one->handoff.accept_to_adopt_us[i];
+            }
             sum->connect_us[i] += one->connect_us[i];
             sum->first_byte_us[i] += one->first_byte_us[i];
             sum->first_request_write_us[i] += one->first_request_write_us[i];
@@ -403,7 +493,7 @@ static void connected(struct pair *p) {
     observe(p->listener->stats.connect_us, p->connected_at - p->accepted_at);
 }
 
-// The client read filter stays disabled throughout setup. No application byte
+// The client read filter stays inactive throughout setup. No application byte
 // can be consumed, sent or replayed while a guest handshake is pending.
 static int dial_guest(struct pair *p, int timeout_seconds) {
     mp_tcp_listener *l = p->listener;
@@ -420,9 +510,10 @@ static int dial_guest(struct pair *p, int timeout_seconds) {
     int rc = connect(fd, (struct sockaddr *)&l->target, sizeof(l->target));
     if (rc < 0 && errno != EINPROGRESS && errno != EINTR) return -1;
     p->guest.connecting = rc < 0;
-    if (watch_fd(r, &p->guest.watch, EVFILT_READ, EV_ADD | (rc < 0 ? EV_DISABLE : EV_ENABLE)) < 0) return -1;
+    if ((!MICROPOD_BENCH_DEFER_HANDSHAKE_READS || rc == 0) &&
+        watch_fd(r, &p->guest.watch, EVFILT_READ, EV_ADD | (rc < 0 ? EV_DISABLE : EV_ENABLE)) < 0) return -1;
     if (rc < 0) return watch_fd(r, &p->guest.watch, EVFILT_WRITE, EV_ADD);
-    if (watch_fd(r, &p->client.watch, EVFILT_READ, EV_ENABLE) < 0) return -1;
+    if (watch_fd(r, &p->client.watch, EVFILT_READ, connected_read_flags) < 0) return -1;
     connected(p);
     return 0;
 }
@@ -498,7 +589,8 @@ void mp_tcp_adopt(mp_tcp_listener *l, int client, uint64_t accepted_at) {
         while (peak < active && !atomic_compare_exchange_weak_explicit(&l->parent->group_peak, &peak, active,
                memory_order_relaxed, memory_order_relaxed)) {}
     } else if (l->profile && l->active > l->stats.peak_active) l->stats.peak_active = l->active;
-    if (watch_fd(l->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) < 0) {
+    if (!MICROPOD_BENCH_DEFER_HANDSHAKE_READS &&
+        watch_fd(l->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) < 0) {
         ++l->stats.connect_errors;
         retire(p);
         return;
@@ -506,9 +598,43 @@ void mp_tcp_adopt(mp_tcp_listener *l, int client, uint64_t accepted_at) {
     attempt_guest(p);
 }
 
+void mp_tcp_adopt_profiled(mp_tcp_listener *l, int client, uint64_t accepted_at, uint64_t enqueued_at) {
+    // Count every handoff at owner entry, even if client setup or the guest dial fails.
+    // The ordinary accept and inline-adopt paths do not read a clock here.
+    if (l->profile && l->parent) {
+        uint64_t adopted_at = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+        if (accepted_at <= enqueued_at && enqueued_at <= adopted_at) {
+            observe(l->stats.handoff.accept_to_enqueue_us, enqueued_at - accepted_at);
+            observe(l->stats.handoff.enqueue_to_adopt_us, adopted_at - enqueued_at);
+            observe(l->stats.handoff.accept_to_adopt_us, adopted_at - accepted_at);
+        }
+    }
+    mp_tcp_adopt(l, client, accepted_at);
+}
+
+enum bulk_poll { OTHER_EVENT, FLAT_BULK, SPARSE_FLAT_BULK };
+
+static void observe_guest_read(mp_tcp_stats *stats, size_t count, size_t cap, const struct kevent *event,
+                               enum bulk_poll poll) {
+    unsigned bin = (count > 128 * 1024) + (count >= 256 * 1024) + (count > 256 * 1024);
+    ++stats->guest_reads_by_size[bin];
+    stats->guest_read_bytes += count;
+    if (count == cap) {
+        ++stats->guest_full_cap_reads;
+        // kqueue captured this snapshot before the owner serviced the batch.
+        if (event && event->filter == EVFILT_READ && !(event->flags & EV_ERROR) && event->data > (intptr_t)cap) {
+            ++stats->guest_full_cap_ready_above_cap;
+            if (poll != OTHER_EVENT && !(event->flags & EV_EOF)) {
+                ++stats->guest_flat_bulk_full_cap_ready_above_cap;
+                if (poll == SPARSE_FLAT_BULK) ++stats->guest_sparse_flat_bulk_full_cap_ready_above_cap;
+            }
+        }
+    }
+}
+
 // Read directly into the worker scratch and immediately write to the peer.
 // On backpressure, keep just the unwritten suffix and pause that reader.
-static void pump(struct endpoint *src, struct endpoint *dst) {
+static void pump_ready(struct endpoint *src, struct endpoint *dst, const struct kevent *read_event, enum bulk_poll poll) {
     struct pair *p = src->pair;
     mp_tcp_listener *l = p->listener;
     mp_tcp_relay *r = l->relay;
@@ -520,7 +646,8 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         data = dst->pending + dst->offset;
     } else {
         if (src->eof) return;
-        ssize_t got = read(src->watch.fd, data, CHUNK);
+        size_t cap = mp_tcp_relay_read_bytes(r);
+        ssize_t got = read(src->watch.fd, data, cap);
         if (l->profile) ++l->stats.reads;
         if (got < 0) {
             if (errno != EAGAIN && errno != EINTR) {
@@ -548,6 +675,7 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         count = (size_t)got;
         if (src == &p->guest) {
             p->guest_replied = true;
+            if (l->profile) observe_guest_read(&l->stats, count, cap, read_event, poll);
             // One notification per data owner between watchdog polls. Counting only
             // bytes from the guest excludes accepts, writes and unanswered handshakes.
             if (!atomic_load_explicit(&r->guest_data, memory_order_relaxed))
@@ -593,9 +721,14 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
             dst->pending = malloc(remaining);
             if (!dst->pending) { retire(p); return; }
             memcpy(dst->pending, r->scratch + sent, remaining);
+            if (l->profile) {
+                ++l->stats.pending_allocations;
+                l->stats.pending_copy_bytes += remaining;
+            }
             dst->length = remaining;
-            if (watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0 ||
-                watch_fd(r, &dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) < 0) retire(p);
+            struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
+                                        filter_change(&dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) };
+            if (update_stream_filters(r, changes, 2) < 0) retire(p);
         } else {
             dst->offset += (size_t)sent;
             dst->length = remaining;
@@ -606,9 +739,14 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         free(dst->pending);
         dst->pending = NULL;
         dst->offset = dst->length = 0;
-        if (watch_fd(r, &dst->watch, EVFILT_WRITE, EV_DISABLE) < 0 ||
-            watch_fd(r, &src->watch, EVFILT_READ, EV_ENABLE) < 0) { retire(p); return; }
+        struct kevent changes[] = { filter_change(&dst->watch, EVFILT_WRITE, EV_DISABLE),
+                                    filter_change(&src->watch, EVFILT_READ, EV_ENABLE) };
+        if (update_stream_filters(r, changes, 2) < 0) retire(p);
     }
+}
+
+static void pump(struct endpoint *src, struct endpoint *dst) {
+    pump_ready(src, dst, NULL, OTHER_EVENT);
 }
 
 static void finish_connect(struct pair *p) {
@@ -623,9 +761,10 @@ static void finish_connect(struct pair *p) {
         return;
     }
     p->guest.connecting = false;
-    if (watch_fd(r, &p->guest.watch, EVFILT_WRITE, EV_DISABLE) < 0 ||
-        watch_fd(r, &p->guest.watch, EVFILT_READ, EV_ENABLE) < 0 ||
-        watch_fd(r, &p->client.watch, EVFILT_READ, EV_ENABLE) < 0) { retire(p); return; }
+    struct kevent changes[] = { filter_change(&p->guest.watch, EVFILT_WRITE, EV_DISABLE),
+                                filter_change(&p->guest.watch, EVFILT_READ, connected_read_flags),
+                                filter_change(&p->client.watch, EVFILT_READ, connected_read_flags) };
+    if (update_stream_filters(r, changes, 3) < 0) { retire(p); return; }
     connected(p);
     // The Mac client can already have sent its first request during connect.
     pump(&p->client, &p->guest);
@@ -659,7 +798,7 @@ static void accept_ready(mp_tcp_listener *l, int16_t filter) {
     }
 }
 
-static void service_event(const struct kevent *event) {
+static void service_polled_event(const struct kevent *event, enum bulk_poll poll) {
     struct watch *w = event->udata;
     if (w->kind == ACCEPT) {
         accept_ready((mp_tcp_listener *)w, event->filter);
@@ -689,20 +828,25 @@ static void service_event(const struct kevent *event) {
     } else if (event->filter == EVFILT_WRITE) {
         if (e->length) pump(peer, e);
     } else if (!e->eof && !peer->length) {
-        pump(e, peer);
+        pump_ready(e, peer, event, poll);
     }
+}
+
+static void service_event(const struct kevent *event) {
+    service_polled_event(event, OTHER_EVENT);
 }
 
 // A dedicated data owner already has a separate accept queue. Read each
 // ready set once, service handshakes and small flows first, then service every
 // bulk event returned by the kernel. Bound the callback to allow revocation.
-static void drain_data(mp_tcp_relay *r) {
+static void drain_data(mp_tcp_relay *r, int budget) {
     struct kevent events[DATA_READY_BATCH];
     const struct timespec now = {0};
     int serviced = 0;
-    while (serviced < EVENTS_PER_TURN) {
-        int limit = EVENTS_PER_TURN - serviced;
-        int n = kevent(r->kq, NULL, 0, events, limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH, &now);
+    while (serviced < budget) {
+        int limit = budget - serviced;
+        int capacity = limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH;
+        int n = kevent(r->kq, NULL, 0, events, capacity, &now);
         if (n <= 0) break;
         bool bulk[DATA_READY_BATCH] = {0};
         for (int i = 0; i < n; ++i) {
@@ -713,19 +857,34 @@ static void drain_data(mp_tcp_relay *r) {
             }
             if (!bulk[i]) service_event(&events[i]);
         }
-        for (int i = 0; i < n; ++i) if (bulk[i]) service_event(&events[i]);
+        // A short return only demonstrates a sparse poll when the caller could
+        // have observed a third event. The last slots of the callback may cap it.
+        enum bulk_poll poll = n <= 2 && capacity > 2 ? SPARSE_FLAT_BULK : FLAT_BULK;
+        for (int i = 0; i < n; ++i) if (bulk[i]) service_polled_event(&events[i], poll);
         serviced += n;
     }
 }
 
-void mp_tcp_relay_drain(mp_tcp_relay *r, int dedicated_data_owner) {
+int mp_tcp_data_callback_events(int data_workers) {
+#if defined(MICROPOD_BENCH_FIXED_RELAY_BUDGET) && MICROPOD_BENCH_FIXED_RELAY_BUDGET
+    // Benchmark both worker counts with one binary and the two-worker callback limit.
+    (void)data_workers;
+    return EVENTS_PER_TURN;
+#else
+    return data_workers > 2 ? DATA_READY_BATCH : EVENTS_PER_TURN;
+#endif
+}
+
+void mp_tcp_relay_drain(mp_tcp_relay *r, int data_workers) {
     if (r->bulk.fd < 0) {
-        drain_data(r);
+        // Handoffs and revocations share this dispatch queue with the drain.
+        // Wider groups can copy concurrently, so yield each owner sooner.
+        drain_data(r, mp_tcp_data_callback_events(data_workers));
         reap(r);
         return;
     }
     // The dedicated accept queue stays responsive during larger data batches.
-    const int batch = dedicated_data_owner ? THROUGHPUT_BULK_BATCH : INTERACTIVE_BULK_BATCH;
+    const int batch = data_workers ? THROUGHPUT_BULK_BATCH : INTERACTIVE_BULK_BATCH;
     struct kevent events[EVENTS_PER_TURN];
     struct timespec now = {0};
     // Recheck new and interactive sockets between groups of bulk reads. A

@@ -1,0 +1,190 @@
+{
+  "date": "2026-11-24",
+  "base": "a3b561c6a97320d4ca9aff60885ae6393ccaa613",
+  "tier": "host-only, untimed Darwin socketpair source fixture",
+  "direction": "230.07",
+  "change": "Cache at most one drained, exact-size suffix allocation up to 64 KiB per serial data owner",
+  "workload": "Real Darwin nonblocking AF_UNIX streams, deterministic full/partial writes, bidirectional content and FIN checks. One, alternating and simultaneous flows, revoked suffix and cache re-use.",
+  "guardrails": "Payload compared byte for byte on every offer and both FINs verified. A failed malloc and a lease revocation with pending bytes each retire safely. Independent malloc/free instrumentation verifies no retained storage after destroying the owner. Sanitizer reruns cover the same cases.",
+  "verdict": "Exact-size reuse reduces repeated allocator calls for matching backpressure episodes. It retains bounded idle memory and cannot reduce the number of copied bytes. Measure repeated suffix sizes per owner before selecting it for a VM screen.",
+  "limits": "Fixed work, no elapsed time, CPU/GiB or latency measurement. Pressure is forced. Allocation count denotes malloc calls; libmalloc may recycle storage internally.",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "input_sha256": {
+    "spare_suffix.c": "484e795c33c7381cb6ae0032baae3439a60fc5d87bdc9e1902327ac2fbfb566a",
+    "spare_suffix.patch": "b7ef703139cfde98ee0d63454b207b2d9604edaa5c139d030dc51d8f3e6d207e",
+    "filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "compare.py": "87f69f6b3c6d6e27fd2fa97c447a7f5b23efe0ef9a1fdc40aa206a35b7b0d150",
+    "relay_buffer_policies.py": "a01dd1e8e11f14ad6969f17032b23a0fa9a3db7ba1b919376c1a12f5e713f413"
+  },
+  "arms": {
+    "control": {
+      "c_sha256": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+      "header_sha256": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+      "rows": [
+        {
+          "case": "freely_draining",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 262144,
+          "copied_bytes": 0,
+          "allocations": 0,
+          "peak_allocated_bytes": 0,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "serial_32k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 262144,
+          "copied_bytes": 262144,
+          "allocations": 8,
+          "peak_allocated_bytes": 32768,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "alternating_4k_32k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 147456,
+          "copied_bytes": 147456,
+          "allocations": 8,
+          "peak_allocated_bytes": 32768,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "two_simultaneously_pending",
+          "offers": 8,
+          "concurrency": 2,
+          "delivered_bytes": 262144,
+          "copied_bytes": 262144,
+          "allocations": 8,
+          "peak_allocated_bytes": 65536,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "partial_writes",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 262144,
+          "copied_bytes": 131072,
+          "allocations": 8,
+          "peak_allocated_bytes": 16384,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "serial_64k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 524288,
+          "copied_bytes": 524288,
+          "allocations": 8,
+          "peak_allocated_bytes": 65536,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "serial_96k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 786432,
+          "copied_bytes": 786432,
+          "allocations": 8,
+          "peak_allocated_bytes": 98304,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        }
+      ],
+      "sanitizer_rows_verified": 7
+    },
+    "candidate": {
+      "c_sha256": "583ab004f29aedf932afb20b829b6441835eecd133c05e39264b631da1fce3ec",
+      "header_sha256": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+      "rows": [
+        {
+          "case": "freely_draining",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 262144,
+          "copied_bytes": 0,
+          "allocations": 0,
+          "peak_allocated_bytes": 0,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "serial_32k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 262144,
+          "copied_bytes": 262144,
+          "allocations": 1,
+          "peak_allocated_bytes": 32768,
+          "retained_idle_bytes": 32768,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "alternating_4k_32k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 147456,
+          "copied_bytes": 147456,
+          "allocations": 5,
+          "peak_allocated_bytes": 36864,
+          "retained_idle_bytes": 4096,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "two_simultaneously_pending",
+          "offers": 8,
+          "concurrency": 2,
+          "delivered_bytes": 262144,
+          "copied_bytes": 262144,
+          "allocations": 5,
+          "peak_allocated_bytes": 65536,
+          "retained_idle_bytes": 32768,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "partial_writes",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 262144,
+          "copied_bytes": 131072,
+          "allocations": 1,
+          "peak_allocated_bytes": 16384,
+          "retained_idle_bytes": 16384,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "serial_64k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 524288,
+          "copied_bytes": 524288,
+          "allocations": 1,
+          "peak_allocated_bytes": 65536,
+          "retained_idle_bytes": 65536,
+          "retained_after_destroy": 0
+        },
+        {
+          "case": "serial_96k",
+          "offers": 8,
+          "concurrency": 1,
+          "delivered_bytes": 786432,
+          "copied_bytes": 786432,
+          "allocations": 8,
+          "peak_allocated_bytes": 98304,
+          "retained_idle_bytes": 0,
+          "retained_after_destroy": 0
+        }
+      ],
+      "sanitizer_rows_verified": 7
+    }
+  }
+}

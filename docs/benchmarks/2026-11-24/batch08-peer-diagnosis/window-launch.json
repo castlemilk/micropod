@@ -1,0 +1,33 @@
+{
+  "source_sha256": {
+    "build-window.py": "f7a7c90755d814e83905319cc1c1d4e519ee2ff5014ba9c63bcc7b593199464b",
+    "start-window-worker.sh": "1761945dccdf00d0607964765ab374a99805605492a46d0031511c5eafe855e4",
+    "larger-windows.sh": "ca4fc93e2d11d24877fa38522727afa0d39cdfc80d74d255fa79daac35810bb0",
+    "screen.py": "f2070e09e0eff1b69996d0cfefe1b7c8590e5a5b4fccf0ad9a18dc30ff38f6bf"
+  },
+  "binary_sha256": "d44dfba4b80542aeebcce8c8dd403ce4de02eb4f312b9085bae6b67e7efc055b",
+  "jobs": {
+    "fix-window-512": {
+      "plist_sha256": "df4cd1747961a3f6dc348d66b7a797345101e772061722248fdb56bec6ea4d0f",
+      "process_type": "Interactive",
+      "rcvbuf_request": 524288,
+      "normalized_remaining_env_sha256": "a9c642f209144817fcabc2204594dddcf1dcb68606e86e412d2d2a73b98164ee",
+      "program_args_sha256": "ed77c184aa9da73196a350d2415b10c727573883766dca953f480f39841e2d03",
+      "pids": {
+        "relay": 89839,
+        "vmm": 89997
+      }
+    },
+    "fix-window-1024": {
+      "plist_sha256": "848dc5b9764da96dcf8badf962feb2823acbc35183b571339c77e2e02b8c1009",
+      "process_type": "Interactive",
+      "rcvbuf_request": 1048576,
+      "normalized_remaining_env_sha256": "a9c642f209144817fcabc2204594dddcf1dcb68606e86e412d2d2a73b98164ee",
+      "program_args_sha256": "ed77c184aa9da73196a350d2415b10c727573883766dca953f480f39841e2d03",
+      "pids": {
+        "relay": 8614,
+        "vmm": 8666
+      }
+    }
+  }
+}

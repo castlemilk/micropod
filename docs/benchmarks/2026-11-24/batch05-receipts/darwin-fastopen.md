@@ -1,0 +1,7 @@
+**24 November 2026 · 231.05 · A warm idempotent request on the Darwin TCP opening handshake**
+
+Local/host-only Darwin 25.5.0 arm64, one private IPv4 listener with TCP_FASTOPEN read back enabled. The control connected then sent the 20-byte GET. The candidate submitted those bytes with idempotent connectx. Sixteen randomized order-balanced pairs, eight per order. Every request, 256-byte reply and both EOFs verified on all 32 first attempts. Both endpoints reported zero retransmissions.
+
+Both kernel endpoints confirmed SYN data sent, acknowledged and received in 0/16 controls and 15/16 candidates. The cold candidate acquired a cookie with zero SYN payload. All 15 subsequent candidates sent data on SYN. A shared endpoint cookie cache makes these observations dependent. No wire-drop counters, throughput, scheduled fresh p95/p99, CPU/GiB or runnable time. One pre-listen setup error occurred before scoring and was retained.
+
+Keep ordinary connect in the generic relay, whose caller supplies opaque bytes. This is a positive fixture for a protocol-aware idempotent guest endpoint. Verify cold acquisition and warm delivery separately there before any end-to-end latency claim. Raw-verified local report `231.05-darwin-fastopen.md`. Checkout `7d9b565173a901cb18942e00384838da96e0ba98`, standalone fixture `socket_trials.c` SHA-256 `5b71dffe3c5d07c0505d079191e7fc7259fb78cb944aaf808f0d736ff45c2126`. First attempts `fastopen.jsonl` SHA-256 `e10320cd66f7f0687838fa86820b44b78e05f6c8e3f77a58f2917256382503b2`. Reproduction in `batch05-tcp-control/reproduce.md`.

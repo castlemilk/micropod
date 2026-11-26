@@ -1,0 +1,599 @@
+{
+  "direction": "231.07",
+  "archive": "gamma-direct-macvlan.json.gz",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "interval": "Block bootstrap of median paired ratios, 10,000 resamples, seed 7317.",
+  "original_revision": "816121afd30fba52bda7828418cd963d4216166b",
+  "kernel_image": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+  "scopes": {
+    "full-reno": {
+      "name": "mp-direct-full-reno-4ab1c7d7-d",
+      "relay": 80214,
+      "vmm": 80225,
+      "controller": "reno",
+      "vm": "4 4116488192 \"7.3.5-micropod\" \"micropod\""
+    },
+    "full-bbr": {
+      "name": "mp-direct-full-bbr-21d52bb3-1",
+      "relay": 81098,
+      "vmm": 81103,
+      "controller": "bbr",
+      "vm": "4 4116488192 \"7.3.5-micropod\" \"micropod\""
+    }
+  },
+  "service_image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "fixed_client": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "limits": "Separate warm VMs. Whole-invocation process counters divided by scored GiB. Wait is runnable off-CPU thread-seconds per second of observer wall time. Unknown whole-invocation payload prevents exact aligned CPU/GiB.",
+  "rows": [
+    {
+      "block": 1,
+      "order": [
+        "full-reno",
+        "full-bbr",
+        "orb",
+        "lazy-reno",
+        "lazy-bbr"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 31420248936,
+        "window_s": 6.000035167,
+        "mib_s": 4994.084799728976,
+        "fresh_p95_us": 38834,
+        "fresh_p99_us": 62286,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.29746134665751717,
+        "relay_wait_s_per_s": 0.4459653636447024,
+        "relay_cpu_s": 8.704429083333332,
+        "relay_runnable_s": 11.480559458333332,
+        "relay_sample_seconds": 6.224991,
+        "vmm_cpu_s_per_gib": 0.4736866468934614,
+        "vmm_wait_s_per_s": 1.3045838941775176,
+        "vmm_cpu_s": 13.861202041666665,
+        "vmm_runnable_s": 21.982225041666666,
+        "vmm_sample_seconds": 6.224991
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 22651741136,
+        "window_s": 6.000590542,
+        "mib_s": 3600.0429611192976,
+        "fresh_p95_us": 18499,
+        "fresh_p99_us": 66872,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.3515258619407421,
+        "relay_wait_s_per_s": 0.5298738181448617,
+        "relay_cpu_s": 7.415816958333332,
+        "relay_runnable_s": 10.705685333333331,
+        "relay_sample_seconds": 6.208777,
+        "vmm_cpu_s_per_gib": 0.5655029094862448,
+        "vmm_wait_s_per_s": 1.4188207409177898,
+        "vmm_cpu_s": 11.929893416666665,
+        "vmm_runnable_s": 20.739034999999998,
+        "vmm_sample_seconds": 6.208777
+      }
+    },
+    {
+      "block": 2,
+      "order": [
+        "full-bbr",
+        "lazy-reno",
+        "full-reno",
+        "lazy-bbr",
+        "orb"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 36096880632,
+        "window_s": 6.0000275,
+        "mib_s": 5737.418363685934,
+        "fresh_p95_us": 35054,
+        "fresh_p99_us": 112624,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.2956209812730868,
+        "relay_wait_s_per_s": 0.3064936700075935,
+        "relay_cpu_s": 9.938138791666665,
+        "relay_runnable_s": 11.829799333333332,
+        "relay_sample_seconds": 6.17194,
+        "vmm_cpu_s_per_gib": 0.4684208855370395,
+        "vmm_wait_s_per_s": 0.927583378699944,
+        "vmm_cpu_s": 15.747298291666665,
+        "vmm_runnable_s": 21.472287249999997,
+        "vmm_sample_seconds": 6.17194
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 27365132528,
+        "window_s": 6.000115042,
+        "mib_s": 4349.487280548517,
+        "fresh_p95_us": 13038,
+        "fresh_p99_us": 16200,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.3528698687866922,
+        "relay_wait_s_per_s": 0.3460998405087738,
+        "relay_cpu_s": 8.993158791666666,
+        "relay_runnable_s": 11.141555208333333,
+        "relay_sample_seconds": 6.207447,
+        "vmm_cpu_s_per_gib": 0.56115630109739,
+        "vmm_wait_s_per_s": 0.9574385612958112,
+        "vmm_cpu_s": 14.301497999999999,
+        "vmm_runnable_s": 20.244747124999996,
+        "vmm_sample_seconds": 6.207447
+      }
+    },
+    {
+      "block": 3,
+      "order": [
+        "lazy-reno",
+        "lazy-bbr",
+        "full-bbr",
+        "orb",
+        "full-reno"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 33913471660,
+        "window_s": 6.000121167,
+        "mib_s": 5390.2922961277645,
+        "fresh_p95_us": 33189,
+        "fresh_p99_us": 56126,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.28771494535866204,
+        "relay_wait_s_per_s": 0.37340460655755825,
+        "relay_cpu_s": 9.087298666666666,
+        "relay_runnable_s": 11.383726541666666,
+        "relay_sample_seconds": 6.149972,
+        "vmm_cpu_s_per_gib": 0.4561298772606664,
+        "vmm_wait_s_per_s": 1.2185925467086136,
+        "vmm_cpu_s": 14.406580166666664,
+        "vmm_runnable_s": 21.90089020833333,
+        "vmm_sample_seconds": 6.149972
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 16917746360,
+        "window_s": 6.000279625,
+        "mib_s": 2688.8780529136297,
+        "fresh_p95_us": 85130,
+        "fresh_p99_us": 166607,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.36826449867127914,
+        "relay_wait_s_per_s": 0.6944007833508501,
+        "relay_cpu_s": 5.802330916666666,
+        "relay_runnable_s": 10.075075458333332,
+        "relay_sample_seconds": 6.153139,
+        "vmm_cpu_s_per_gib": 0.5986627928185104,
+        "vmm_wait_s_per_s": 1.659637219311964,
+        "vmm_cpu_s": 9.432458583333332,
+        "vmm_runnable_s": 19.644437083333333,
+        "vmm_sample_seconds": 6.153139
+      }
+    },
+    {
+      "block": 4,
+      "order": [
+        "lazy-bbr",
+        "orb",
+        "lazy-reno",
+        "full-reno",
+        "full-bbr"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 42797850744,
+        "window_s": 6.00001025,
+        "mib_s": 6802.5235543457475,
+        "fresh_p95_us": 27055,
+        "fresh_p99_us": 35618,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.26235079275648626,
+        "relay_wait_s_per_s": 0.24081244864112727,
+        "relay_cpu_s": 10.4569365,
+        "relay_runnable_s": 11.929323291666666,
+        "relay_sample_seconds": 6.114247,
+        "vmm_cpu_s_per_gib": 0.4104662233567776,
+        "vmm_wait_s_per_s": 0.867875594492666,
+        "vmm_cpu_s": 16.360610875,
+        "vmm_runnable_s": 21.667016625,
+        "vmm_sample_seconds": 6.114247
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 22562312500,
+        "window_s": 6.000272541,
+        "mib_s": 3586.020102079508,
+        "fresh_p95_us": 50748,
+        "fresh_p99_us": 103465,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.31617123163236743,
+        "relay_wait_s_per_s": 0.6701214667845586,
+        "relay_cpu_s": 6.6436399999999995,
+        "relay_runnable_s": 10.826451749999999,
+        "relay_sample_seconds": 6.241871,
+        "vmm_cpu_s_per_gib": 0.4968664570311675,
+        "vmm_wait_s_per_s": 1.6381282885105015,
+        "vmm_cpu_s": 10.440551,
+        "vmm_runnable_s": 20.66553645833333,
+        "vmm_sample_seconds": 6.241871
+      }
+    },
+    {
+      "block": 5,
+      "order": [
+        "orb",
+        "full-reno",
+        "lazy-bbr",
+        "full-bbr",
+        "lazy-reno"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 30063472960,
+        "window_s": 6.000027333,
+        "mib_s": 4778.438569144062,
+        "fresh_p95_us": 35909,
+        "fresh_p99_us": 59951,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.30021909505406086,
+        "relay_wait_s_per_s": 0.465650785640803,
+        "relay_cpu_s": 8.405771708333333,
+        "relay_runnable_s": 11.263552999999998,
+        "relay_sample_seconds": 6.137177,
+        "vmm_cpu_s_per_gib": 0.47253767367701976,
+        "vmm_wait_s_per_s": 1.3675311004826267,
+        "vmm_cpu_s": 13.230483583333331,
+        "vmm_runnable_s": 21.623264,
+        "vmm_sample_seconds": 6.137177
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 29936247872,
+        "window_s": 6.000158166,
+        "mib_s": 4758.113025565475,
+        "fresh_p95_us": 16768,
+        "fresh_p99_us": 47686,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.3122965576623128,
+        "relay_wait_s_per_s": 0.37323695264478945,
+        "relay_cpu_s": 8.706922791666665,
+        "relay_runnable_s": 11.006468875,
+        "relay_sample_seconds": 6.161089,
+        "vmm_cpu_s_per_gib": 0.4804708974672469,
+        "vmm_wait_s_per_s": 1.120174899275112,
+        "vmm_cpu_s": 13.395674416666665,
+        "vmm_runnable_s": 20.297171666666664,
+        "vmm_sample_seconds": 6.161089
+      }
+    },
+    {
+      "block": 6,
+      "order": [
+        "lazy-bbr",
+        "lazy-reno",
+        "orb",
+        "full-bbr",
+        "full-reno"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 44672190768,
+        "window_s": 6.000155083,
+        "mib_s": 7100.269976978859,
+        "fresh_p95_us": 19991,
+        "fresh_p99_us": 23163,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.26220399713806425,
+        "relay_wait_s_per_s": 0.18258327935681357,
+        "relay_cpu_s": 10.908792708333332,
+        "relay_runnable_s": 12.030984416666666,
+        "relay_sample_seconds": 6.146191,
+        "vmm_cpu_s_per_gib": 0.40685794187099583,
+        "vmm_wait_s_per_s": 0.7667148848774793,
+        "vmm_cpu_s": 16.927007208333332,
+        "vmm_runnable_s": 21.63938333333333,
+        "vmm_sample_seconds": 6.146191
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 33038205848,
+        "window_s": 6.000066583,
+        "mib_s": 5251.223122531867,
+        "fresh_p95_us": 10021,
+        "fresh_p99_us": 19996,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.33921678137685773,
+        "relay_wait_s_per_s": 0.17150781058763825,
+        "relay_cpu_s": 10.437438124999998,
+        "relay_runnable_s": 11.500798041666666,
+        "relay_sample_seconds": 6.200067,
+        "vmm_cpu_s_per_gib": 0.5081475205745055,
+        "vmm_wait_s_per_s": 0.5222408282039532,
+        "vmm_cpu_s": 15.635306374999999,
+        "vmm_runnable_s": 18.8732345,
+        "vmm_sample_seconds": 6.200067
+      }
+    },
+    {
+      "block": 7,
+      "order": [
+        "orb",
+        "lazy-bbr",
+        "full-reno",
+        "lazy-reno",
+        "full-bbr"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 49075485512,
+        "window_s": 6.000004,
+        "mib_s": 7800.333149438138,
+        "fresh_p95_us": 17155,
+        "fresh_p99_us": 22563,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.2524054212593059,
+        "relay_wait_s_per_s": 0.08935444609843322,
+        "relay_cpu_s": 11.536216916666666,
+        "relay_runnable_s": 12.081075041666665,
+        "relay_sample_seconds": 6.097717,
+        "vmm_cpu_s_per_gib": 0.39487590439953263,
+        "vmm_wait_s_per_s": 0.47138614883789015,
+        "vmm_cpu_s": 18.047845666666664,
+        "vmm_runnable_s": 20.922224999999997,
+        "vmm_sample_seconds": 6.097717
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 33167439016,
+        "window_s": 6.000008667,
+        "mib_s": 5271.814839951761,
+        "fresh_p95_us": 11493,
+        "fresh_p99_us": 16861,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.3201159324438257,
+        "relay_wait_s_per_s": 0.23187252784943627,
+        "relay_cpu_s": 9.888248208333332,
+        "relay_runnable_s": 11.316943541666665,
+        "relay_sample_seconds": 6.161555,
+        "vmm_cpu_s_per_gib": 0.48998185871001015,
+        "vmm_wait_s_per_s": 0.7560893989693618,
+        "vmm_cpu_s": 15.135336124999998,
+        "vmm_runnable_s": 19.794022541666664,
+        "vmm_sample_seconds": 6.161555
+      }
+    },
+    {
+      "block": 8,
+      "order": [
+        "full-reno",
+        "orb",
+        "full-bbr",
+        "lazy-bbr",
+        "lazy-reno"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 28929020720,
+        "window_s": 6.000257292,
+        "mib_s": 4597.946840751615,
+        "fresh_p95_us": 64531,
+        "fresh_p99_us": 126494,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.27404527526185285,
+        "relay_wait_s_per_s": 0.5685109853821505,
+        "relay_cpu_s": 7.383396333333333,
+        "relay_runnable_s": 10.877077125,
+        "relay_sample_seconds": 6.145318,
+        "vmm_cpu_s_per_gib": 0.42882425280385417,
+        "vmm_wait_s_per_s": 1.566668403761476,
+        "vmm_cpu_s": 11.55349025,
+        "vmm_runnable_s": 21.181165791666665,
+        "vmm_sample_seconds": 6.145318
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 10081338168,
+        "window_s": 6.000124958,
+        "mib_s": 1602.352176517394,
+        "fresh_p95_us": 34741,
+        "fresh_p99_us": 82885,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.413695872992099,
+        "relay_wait_s_per_s": 0.9130046741106762,
+        "relay_cpu_s": 3.884181375,
+        "relay_runnable_s": 9.564574166666667,
+        "relay_sample_seconds": 6.221647,
+        "vmm_cpu_s_per_gib": 0.7082578595988775,
+        "vmm_wait_s_per_s": 2.067025560112941,
+        "vmm_cpu_s": 6.649817333333333,
+        "vmm_runnable_s": 19.510120708333332,
+        "vmm_sample_seconds": 6.221647
+      }
+    },
+    {
+      "block": 9,
+      "order": [
+        "full-bbr",
+        "full-reno",
+        "lazy-reno",
+        "orb",
+        "lazy-bbr"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 30467730000,
+        "window_s": 6.000071458,
+        "mib_s": 4842.657588929034,
+        "fresh_p95_us": 41263,
+        "fresh_p99_us": 63372,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.29588118498433535,
+        "relay_wait_s_per_s": 0.4933443376496585,
+        "relay_cpu_s": 8.395712875,
+        "relay_runnable_s": 11.445850749999998,
+        "relay_sample_seconds": 6.182574,
+        "vmm_cpu_s_per_gib": 0.47371616544187006,
+        "vmm_wait_s_per_s": 1.3151248236845474,
+        "vmm_cpu_s": 13.441831083333332,
+        "vmm_runnable_s": 21.572687624999997,
+        "vmm_sample_seconds": 6.182574
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 11945178008,
+        "window_s": 6.000016,
+        "mib_s": 1898.6298488421317,
+        "fresh_p95_us": 45761,
+        "fresh_p99_us": 118038,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.3946169482023417,
+        "relay_wait_s_per_s": 0.88144273947908,
+        "relay_cpu_s": 4.390040125,
+        "relay_runnable_s": 10.101009,
+        "relay_sample_seconds": 6.479115,
+        "vmm_cpu_s_per_gib": 0.6630662357145698,
+        "vmm_wait_s_per_s": 1.9863608944534348,
+        "vmm_cpu_s": 7.376488499999999,
+        "vmm_runnable_s": 20.246349166666665,
+        "vmm_sample_seconds": 6.479115
+      }
+    },
+    {
+      "block": 10,
+      "order": [
+        "lazy-reno",
+        "full-bbr",
+        "lazy-bbr",
+        "full-reno",
+        "orb"
+      ],
+      "full-reno": {
+        "arrivals": 240,
+        "bytes": 23402115200,
+        "window_s": 6.000804166,
+        "mib_s": 3719.167564619424,
+        "fresh_p95_us": 92839,
+        "fresh_p99_us": 199633,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.2998167636837458,
+        "relay_wait_s_per_s": 0.6981699768970164,
+        "relay_cpu_s": 6.5344818333333325,
+        "relay_runnable_s": 10.888565833333333,
+        "relay_sample_seconds": 6.236424,
+        "vmm_cpu_s_per_gib": 0.4871647446688292,
+        "vmm_wait_s_per_s": 1.8181455897909868,
+        "vmm_cpu_s": 10.617715749999999,
+        "vmm_runnable_s": 21.956442541666664,
+        "vmm_sample_seconds": 6.236424
+      },
+      "full-bbr": {
+        "arrivals": 240,
+        "bytes": 23398061616,
+        "window_s": 6.000023375,
+        "mib_s": 3719.007247512618,
+        "fresh_p95_us": 12957,
+        "fresh_p99_us": 23515,
+        "reopened": 0,
+        "errors": null,
+        "relay_cpu_s_per_gib": 0.3715646748692027,
+        "relay_wait_s_per_s": 0.4532810718592941,
+        "relay_cpu_s": 8.096818958333332,
+        "relay_runnable_s": 10.938852749999999,
+        "relay_sample_seconds": 6.269915,
+        "vmm_cpu_s_per_gib": 0.5907111515625677,
+        "vmm_wait_s_per_s": 1.1714098463323133,
+        "vmm_cpu_s": 12.872271166666666,
+        "vmm_runnable_s": 20.216911333333332,
+        "vmm_sample_seconds": 6.269915
+      }
+    }
+  ],
+  "summary": {
+    "mib_s": {
+      "control_median": 5192.18854792837,
+      "candidate_median": 3659.525104315958,
+      "paired_median_ratio": 0.6983531156198233,
+      "ci95": [
+        0.45961193957282315,
+        0.8676635863737683
+      ]
+    },
+    "relay_cpu_s_per_gib": {
+      "control_median": 0.2916679633158744,
+      "candidate_median": 0.3521978653637171,
+      "paired_median_ratio": 1.2537833958352853,
+      "ci95": [
+        1.1934499641827785,
+        1.3068318823377898
+      ]
+    },
+    "vmm_cpu_s_per_gib": {
+      "control_median": 0.46227538139885294,
+      "candidate_median": 0.5633296052918174,
+      "paired_median_ratio": 1.2266996457297892,
+      "ci95": [
+        1.1979745532781494,
+        1.3243338555152193
+      ]
+    },
+    "relay_wait_s_per_s": {
+      "control_median": 0.40968498510113033,
+      "candidate_median": 0.4915774450020779,
+      "paired_median_ratio": 1.3970539999819072,
+      "ci95": [
+        0.9393401805017914,
+        2.19082155608459
+      ]
+    },
+    "vmm_wait_s_per_s": {
+      "control_median": 1.2615882204430657,
+      "candidate_median": 1.2951152936250514,
+      "paired_median_ratio": 1.2034711442796773,
+      "ci95": [
+        0.8191220652164926,
+        1.5103972327800068
+      ]
+    },
+    "fresh_p95_us": {
+      "control_median": 35481.5,
+      "candidate_median": 17633.5,
+      "paired_median_ratio": 0.519818490851915,
+      "ci95": [
+        0.42415067780018145,
+        1.2728425332185735
+      ]
+    },
+    "fresh_p99_us": {
+      "control_median": 61118.5,
+      "candidate_median": 57279.0,
+      "paired_median_ratio": 0.8293447902224959,
+      "ci95": [
+        0.4455634167347323,
+        1.9892397911061772
+      ]
+    }
+  },
+  "passes_75ms": {
+    "full-reno": 9,
+    "full-bbr": 9
+  },
+  "faster_and_75ms": 0
+}

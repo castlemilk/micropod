@@ -14,6 +14,8 @@ enum CICommands {
         micropod ci start                 start or join this account's Linux worker
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
+        micropod ci cpu-plan [--topology] show the next boot's vCPU plan and optionally the host CPU tiers
+        micropod ci set-cpus COUNT|auto   change a stopped worker's CPU policy and reuse its disk
         micropod ci docker [arguments]    run the stock Docker CLI or a plugin against this worker
         micropod ci snapshot BASE_IMAGE [DIRECTORY]
                                           put a checkout in a reusable job image and print its local ID
@@ -29,7 +31,8 @@ enum CICommands {
         micropod ci serve                 supervise the worker in the foreground
         micropod ci install-service       run the worker under launchd across CI job lifetimes
         micropod ci uninstall-service     retire the idle service and retain its disk
-        micropod ci launch-agent          print the launchd configuration for inspection
+        micropod ci launch-agent [--process-type Standard|Interactive]
+                                          print the launchd configuration for inspection
         """
 
     static func main(_ args: [String]) async -> Int32 {
@@ -48,10 +51,16 @@ enum CICommands {
             print(help)
             return 0
         }
+        let processType =
+            command == "launch-agent" && args.count == 3 && args[1] == "--process-type"
+            ? CIWorker.LaunchProcessType(rawValue: args[2]) : nil
         guard
             ["run", "create", "docker", "snapshot", "warm-go", "job", "runner-prime"].contains(command)
+                || args == ["cpu-plan", "--topology"]
                 || args == ["metrics", "--usage"]
                 || args == ["metrics", "--kernel"]
+                || processType != nil
+                || (command == "set-cpus" && args.count == 2)
                 || args.count == 1
         else {
             print(help)
@@ -59,6 +68,14 @@ enum CICommands {
         }
         do {
             switch command {
+            case "cpu-plan" where args.count == 2: try printStatus(worker.cpuTopologyPlan())
+            case "cpu-plan": try printStatus(worker.cpuPlan())
+            case "set-cpus":
+                guard args.count == 2 else {
+                    print(help)
+                    return 2
+                }
+                try printStatus(worker.setCPUs(args[1]))
             case "runner-status": try printStatus(await worker.status())
             case "runner-stop": try await worker.stop()
             case "job", "runner-prime", "runner-start", "runner-endpoint", "runner-docker-endpoint",
@@ -130,7 +147,8 @@ enum CICommands {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
                 if command == "launch-agent" {
-                    FileHandle.standardOutput.write(try worker.launchAgent(executable: executable))
+                    FileHandle.standardOutput.write(
+                        try worker.launchAgent(executable: executable, processType: processType))
                 } else {
                     try printStatus(await worker.installService(executable: executable))
                 }

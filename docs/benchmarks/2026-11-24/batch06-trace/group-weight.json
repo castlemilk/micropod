@@ -1,0 +1,133 @@
+{
+  "stable_id": "231.10",
+  "source_revision": "17bcd4355234b11da3a7a1da2ded52f4dc20f5d1",
+  "linux": "7.3.5",
+  "fair_c_sha256": "d23f85896da9c68cae4f6969c55d8915db51f77b15a3521a4eb8c26c60ce1460",
+  "sched_h_sha256": "40f9b78752fbd166a11b3e3d8120b3aaaa7ef52d6101e83d5883d0ba7c1c54f3",
+  "archived_budget": {
+    "cpu.max": "400000 100000",
+    "cpuset.cpus.effective": "0-3"
+  },
+  "budget_archive": "gamma-direct-macvlan.json.gz",
+  "budget_archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "fixture_sha256": {
+    "group_weight.c": "df21c37af241e17cd9afe0becf5bb6664a7d41f75738ddb877d114a82a456836",
+    "group_weight.inc": "d49335218693e85a8af463b5d1ef967c2cb6eb3faf90b0d8dc11fe94b65ac9a2",
+    "group_weight.py": "5ce2e6358ec312edc9e52af2fd6325b0229115bec529593f6651d08606cf99bc"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "cases": [
+    {
+      "service_runnable_tasks": 1,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "concur",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 1,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "tasks",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 4,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "concur",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 4,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "tasks",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 8,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "concur",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 8,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "tasks",
+      "service_weight": 2097152,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 2.0
+    },
+    {
+      "service_runnable_tasks": 32,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "concur",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 32,
+      "sibling_runnable_tasks": 1,
+      "weight_mode": "tasks",
+      "service_weight": 8388608,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 8.0
+    },
+    {
+      "service_runnable_tasks": 1,
+      "sibling_runnable_tasks": 8,
+      "weight_mode": "concur",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 1,
+      "sibling_runnable_tasks": 8,
+      "weight_mode": "tasks",
+      "service_weight": 1048576,
+      "sibling_weight": 2097152,
+      "service_to_sibling_weight_ratio": 0.5
+    },
+    {
+      "service_runnable_tasks": 1,
+      "sibling_runnable_tasks": 32,
+      "weight_mode": "concur",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 1,
+      "sibling_runnable_tasks": 32,
+      "weight_mode": "tasks",
+      "service_weight": 1048576,
+      "sibling_weight": 8388608,
+      "service_to_sibling_weight_ratio": 0.125
+    },
+    {
+      "service_runnable_tasks": 32,
+      "sibling_runnable_tasks": 32,
+      "weight_mode": "concur",
+      "service_weight": 1048576,
+      "sibling_weight": 1048576,
+      "service_to_sibling_weight_ratio": 1.0
+    },
+    {
+      "service_runnable_tasks": 32,
+      "sibling_runnable_tasks": 32,
+      "weight_mode": "tasks",
+      "service_weight": 8388608,
+      "sibling_weight": 8388608,
+      "service_to_sibling_weight_ratio": 1.0
+    }
+  ]
+}

@@ -5,6 +5,48 @@ import XCTest
 @testable import MicropodRuntime
 
 final class CIWorkerTests: XCTestCase {
+    func testAutomaticCPUsUseTheFastestTierWithinHostAndVMLimits() throws {
+        let policy = CIWorkerCPUCount.auto
+        XCTAssertEqual(
+            try policy.resolve(fastestCores: 6, activeCPUs: 18, minimum: 1, maximum: 32),
+            .init(count: 6, source: .performanceLevel))
+        XCTAssertEqual(try policy.resolve(fastestCores: 12, activeCPUs: 18, minimum: 1, maximum: 8).count, 8)
+        XCTAssertEqual(try policy.resolve(fastestCores: 8, activeCPUs: 3, minimum: 1, maximum: 16).count, 3)
+        XCTAssertEqual(
+            try policy.resolve(fastestCores: nil, activeCPUs: 18, minimum: 1, maximum: 64),
+            .init(count: 4, source: .fallback))
+        XCTAssertEqual(try policy.resolve(fastestCores: 0, activeCPUs: 2, minimum: 1, maximum: 64).count, 2)
+        XCTAssertThrowsError(try policy.resolve(fastestCores: 6, activeCPUs: 18, minimum: 1, maximum: 0))
+        XCTAssertThrowsError(
+            try CIWorkerCPUCount.fixed(6).resolve(fastestCores: 2, activeCPUs: 4, minimum: 1, maximum: 4))
+        XCTAssertThrowsError(try CIWorkerCPUCount("0"))
+        XCTAssertThrowsError(try CIWorkerCPUCount("65"))
+    }
+
+    func testCPUManifestRetainsLegacyIntegersAndResolvesAutoOnlyAtBoot() throws {
+        for setting in [nil, "7", "auto"] as [String?] {
+            let home = FileManager.default.temporaryDirectory.appendingPathComponent(
+                "cpu-" + UUID().uuidString.prefix(8))
+            let base = ["MICROPOD_CI_HOME": home.path]
+            var env = base
+            env["MICROPOD_CI_CPUS"] = setting
+            let worker = CIWorker(environment: env)
+            try worker.prepareDirectory()
+            defer { try? FileManager.default.removeItem(at: home) }
+            let config = try worker.configuration(create: true)
+            let manifest = try Data(contentsOf: home.appendingPathComponent("worker.json"))
+            let json = try XCTUnwrap(JSONSerialization.jsonObject(with: manifest) as? [String: Any])
+            if setting == "auto" {
+                XCTAssertEqual(json["cpus"] as? String, "auto")
+            } else {
+                XCTAssertEqual(json["cpus"] as? Int, setting.flatMap(Int.init) ?? 4)
+            }
+            XCTAssertEqual(try CIWorker(environment: base).configuration(), config)
+            env["MICROPOD_CI_CPUS"] = "8"
+            XCTAssertThrowsError(try CIWorker(environment: env).configuration())
+        }
+    }
+
     func testDiscoveryUsesOnlyTheOwnedEndpointAndDoesNotStartAWorker() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let registry = EngineRegistry(environment: [
@@ -18,6 +60,39 @@ final class CIWorkerTests: XCTestCase {
         XCTAssertFalse(probe.available)
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
         XCTAssertThrowsError(try registry.update("ci", enabled: true, endpoint: "unix:///var/run/docker.sock"))
+    }
+
+    func testStoppedCPUResizePreservesDiskAndOtherManifestFieldsAndRefusesLiveOwner() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "resize-" + UUID().uuidString.prefix(8))
+        let worker = CIWorker(environment: ["MICROPOD_CI_HOME": root.path])
+        try worker.prepareDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let old = try worker.configuration(create: true)
+        let disk = Data("cached worker contents".utf8)
+        try disk.write(to: worker.disk)
+        let manifest = root.appendingPathComponent("worker.json")
+        var fields = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as? [String: Any])
+        fields["future_setting"] = "keep"
+        try JSONSerialization.data(withJSONObject: fields).write(to: manifest)
+        for name in ["start.lock", "worker.lock"] {
+            let fd = open(root.appendingPathComponent(name).path, O_RDWR | O_CREAT | O_CLOEXEC, 0o600)
+            XCTAssertGreaterThanOrEqual(fd, 0)
+            defer { close(fd) }
+            XCTAssertEqual(flock(fd, LOCK_EX | LOCK_NB), 0)
+            XCTAssertThrowsError(try worker.setCPUs("auto"))
+            XCTAssertEqual(try worker.configuration(), old)
+        }
+        _ = try worker.setCPUs("auto")
+        _ = try worker.setCPUs("auto")
+        let updated = try worker.configuration()
+        XCTAssertEqual(updated.cpus, .auto)
+        XCTAssertEqual(updated.worker, old.worker)
+        let saved = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as? [String: Any])
+        XCTAssertEqual(saved["future_setting"] as? String, "keep")
+        XCTAssertEqual(try Data(contentsOf: worker.disk), disk)
+        _ = try worker.setCPUs("4")
+        XCTAssertEqual(try worker.configuration(), old)
     }
 
     func testRunRejectsAWorkerWithAPendingStopBeforeConnectingOrLaunching() async throws {
@@ -63,6 +138,22 @@ final class CIWorkerTests: XCTestCase {
         XCTAssertFalse(try CIWorker.hasLocalGateway("example.org"))
     }
 
+    func testKernelMetricsDistinguishMissingSchedulerSupportFromAnActivePolicy() throws {
+        var data: [String: Any] = ["boot": UUID().uuidString, "cpu": [:], "io": [:], "memory": [:]]
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        func read() throws -> CIWorker.KernelMetrics {
+            try decoder.decode(CIWorker.KernelMetrics.self, from: JSONSerialization.data(withJSONObject: data))
+        }
+        XCTAssertNil(try read().schedExt)
+        data["sched_ext"] = ["state": "disabled", "enable_seq": 0]
+        XCTAssertEqual(try read().schedExt?.state, "disabled")
+        XCTAssertNil(try read().schedExt?.ops)
+        data["sched_ext"] = ["state": "enabled", "ops": "bpfland", "enable_seq": 2]
+        XCTAssertEqual(try read().schedExt?.ops, "bpfland")
+        XCTAssertEqual(try read().schedExt?.enableSeq, 2)
+    }
+
     func testMetricsGroupsOverlappingScopeAndStoreNames() throws {
         XCTAssertNil(CIWorker.cacheStore("unrelated-gobuild", activeContainers: 5))
         XCTAssertNil(CIWorker.cacheStore("micropod-ci-scoped--npm", activeContainers: 0))
@@ -95,12 +186,54 @@ final class CIWorkerTests: XCTestCase {
     func testInteractiveNativeAgentUsesInteractiveLaunchType() throws {
         let worker = CIWorker(environment: [
             "MICROPOD_CI_ENGINE": "containerd", "MICROPOD_CI_PORT_RELAY": "kqueue-interactive",
+            "MICROPOD_CI_PORT_RELAY_WORKERS": "4",
         ])
         let data = try worker.launchAgent(executable: URL(fileURLWithPath: "/bin/micropod"))
         let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         XCTAssertEqual(plist["ProcessType"] as? String, "Interactive")
         XCTAssertEqual(
             (plist["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_PORT_RELAY"], "kqueue-interactive")
+        XCTAssertEqual((plist["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_PORT_RELAY_WORKERS"], "4")
+    }
+
+    func testLaunchProcessTypeOnlyChangesTheRenderedJobRole() throws {
+        let worker = CIWorker(environment: [
+            "MICROPOD_CI_ENGINE": "containerd", "MICROPOD_CI_PORT_RELAY": "kqueue-interactive",
+            "MICROPOD_CI_PORT_RELAY_WORKERS": "2", "MICROPOD_CI_CPUS": "4",
+        ])
+        let binary = URL(fileURLWithPath: "/bin/micropod")
+        func plist(_ data: Data) throws -> [String: Any] {
+            try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        }
+        let original = try plist(worker.launchAgent(executable: binary))
+        let interactive = try plist(worker.launchAgent(executable: binary, processType: .interactive))
+        XCTAssertEqual(original as NSDictionary, interactive as NSDictionary)
+        var standard = try plist(worker.launchAgent(executable: binary, processType: .standard))
+        XCTAssertEqual(standard["ProcessType"] as? String, "Standard")
+        standard["ProcessType"] = "Interactive"
+        XCTAssertEqual(standard as NSDictionary, interactive as NSDictionary)
+    }
+
+    func testPublishedRelayWorkerCountFollowsTheSelectedMode() throws {
+        for mode in [nil, "kqueue", "nio"] as [String?] {
+            let config = try CIWorkerPortRelay(mode: mode)
+            XCTAssertEqual(config.dataWorkers, 0)
+            XCTAssertEqual(config.usesKqueue, mode != "nio")
+            XCTAssertThrowsError(try CIWorkerPortRelay(mode: mode, workers: "4"))
+        }
+        for mode in ["kqueue-interactive", "kqueue-throughput"] {
+            XCTAssertEqual(try CIWorkerPortRelay(mode: mode).dataWorkers, 2)
+            for count in 1...4 {
+                let config = try CIWorkerPortRelay(mode: mode, workers: String(count))
+                XCTAssertTrue(config.usesKqueue)
+                XCTAssertEqual(config.boundedGuestWindow, mode == "kqueue-interactive")
+                let relay = try NativeLoopbackRelay(guest: "127.0.0.1", dataWorkers: config.dataWorkers)
+                XCTAssertEqual(relay.dataWorkerCount, count)
+            }
+            for invalid in ["0", "5", "-1", "", "auto"] {
+                XCTAssertThrowsError(try CIWorkerPortRelay(mode: mode, workers: invalid))
+            }
+        }
     }
 
     func testLaunchAgentRunsTheStableBinaryInTheSpecifiedWorkerDirectory() throws {

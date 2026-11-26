@@ -6,6 +6,35 @@ import (
 	"testing"
 )
 
+func TestTrustedJobCPUQuotaIsIndependentOfVMSize(t *testing.T) {
+	j := job{Trust: "trusted", Image: "fixture", Command: []string{"true"}}
+	for _, count := range []int64{1, 4, 64} {
+		j.CPUs = &count
+		if _, err := j.handler(); err != nil {
+			t.Fatal(err)
+		}
+		_, container, err := config("cpu", "/jobs/cpu", j.Image, j)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := container.Linux.Resources
+		if r.CpuPeriod != 100000 || r.CpuQuota != count*100000 || r.MemoryLimitInBytes != 1<<30 || r.Unified["pids.max"] != "512" {
+			t.Fatalf("unexpected resources for %d CPUs: %+v", count, r)
+		}
+	}
+	for _, count := range []int64{-1, 0, 65} {
+		j.CPUs = &count
+		if _, err := j.handler(); err == nil {
+			t.Fatalf("accepted invalid job CPU count %d", count)
+		}
+	}
+	one := int64(1)
+	j.Trust, j.Image, j.CPUs = "untrusted", "a@sha256:"+strings.Repeat("a", 64), &one
+	if _, err := j.handler(); err == nil {
+		t.Fatal("accepted a CPU override on an untrusted job")
+	}
+}
+
 const pinned = "docker.io/library/alpine@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2"
 
 func TestJobTrustBoundary(t *testing.T) {

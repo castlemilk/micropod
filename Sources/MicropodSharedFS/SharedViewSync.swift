@@ -7,12 +7,11 @@ import Foundation
 struct SharedViewSync {
     let source: URL
     let view: URL
-    private var exchanged: [String: ChunkHash]
+    private var exchanged = ExchangedFiles()
 
     init(source: URL, view: URL) throws {
         self.source = source.resolvingSymlinksInPath().standardizedFileURL
         self.view = view.resolvingSymlinksInPath().standardizedFileURL
-        exchanged = [:]
         // The view is the snapshot just cloned. The source can already have
         // changed again before its delayed notification arrives.
         for name in try Self.files(in: self.view) {
@@ -32,11 +31,10 @@ struct SharedViewSync {
         let exists = FileManager.default.fileExists(atPath: changed, isDirectory: &directory)
         let names: Set<String>
         if relative.isEmpty || directory.boolValue {
-            let prefix = relative.isEmpty ? "" : relative + "/"
-            names = Set(try Self.files(in: origin).filter { $0.hasPrefix(prefix) })
-                .union(exchanged.keys.filter { $0.hasPrefix(prefix) })
+            names = try Self.files(in: origin, below: URL(fileURLWithPath: changed, isDirectory: true))
+                .union(exchanged.paths(below: relative))
         } else if !exists {
-            names = Set(exchanged.keys.filter { $0 == relative || $0.hasPrefix(relative + "/") })
+            names = exchanged.paths(below: relative, includingFile: true)
         } else {
             names = [relative]
         }
@@ -50,7 +48,7 @@ struct SharedViewSync {
                 if FileManager.default.fileExists(atPath: output.path) {
                     try FileManager.default.removeItem(at: output)
                 }
-                exchanged.removeValue(forKey: name)
+                exchanged[name] = nil
             } else {
                 let copiedHash = try Self.replace(from: input, to: output)
                 exchanged[name] = copiedHash
@@ -71,16 +69,17 @@ struct SharedViewSync {
         }
     }
 
-    private static func files(in root: URL) throws -> Set<String> {
+    private static func files(in root: URL, below directory: URL? = nil) throws -> Set<String> {
+        let subtree = directory ?? root
         var failure: Error?
         guard
             let enumerator = FileManager.default.enumerator(
-                at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
+                at: subtree, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
                 errorHandler: { _, error in
                     failure = error
                     return false
                 })
-        else { throw SharedFSError.sourceUnreadable(root) }
+        else { throw SharedFSError.sourceUnreadable(subtree) }
         var names = Set<String>()
         for case let file as URL in enumerator {
             let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
@@ -108,5 +107,51 @@ struct SharedViewSync {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
         return hash
+    }
+}
+
+/// FSEvents can report a directory after its files are already gone. Keep the paths
+/// that were last exchanged so deletion discovery only visits that directory's subtree.
+private struct ExchangedFiles {
+    private var hashes: [String: ChunkHash] = [:]
+    private var children: [String: Set<String>] = [:]
+
+    subscript(path: String) -> ChunkHash? {
+        get { hashes[path] }
+        set {
+            var child = path
+            if let newValue {
+                guard hashes.updateValue(newValue, forKey: path) == nil else { return }
+                while !child.isEmpty {
+                    let parent = Self.parent(of: child)
+                    guard children[parent, default: []].insert(child).inserted else { return }
+                    child = parent
+                }
+            } else {
+                hashes.removeValue(forKey: path)
+                while !child.isEmpty && children[child] == nil && hashes[child] == nil {
+                    let parent = Self.parent(of: child)
+                    children[parent]?.remove(child)
+                    if children[parent]?.isEmpty == true { children[parent] = nil }
+                    child = parent
+                }
+            }
+        }
+    }
+
+    func paths(below directory: String, includingFile: Bool = false) -> Set<String> {
+        if directory.isEmpty { return Set(hashes.keys) }
+        var paths: Set<String> = includingFile && hashes[directory] != nil ? [directory] : []
+        var pending = Array(children[directory] ?? [])
+        while let path = pending.popLast() {
+            if hashes[path] != nil { paths.insert(path) }
+            if let nested = children[path] { pending.append(contentsOf: nested) }
+        }
+        return paths
+    }
+
+    private static func parent(of path: String) -> String {
+        guard let slash = path.lastIndex(of: "/") else { return "" }
+        return String(path[..<slash])
     }
 }

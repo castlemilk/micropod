@@ -1,0 +1,226 @@
+{
+  "base": "405d7c7982268a9df95d56e5bb7b36e5c606639c",
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "suite_sha256": "cd56bd1b9739b7b355de141cc6289bb1eb33720ad99df7a3fac0924a5727b4fc",
+  "preparer_sha256": {
+    "baseline": "328c0f43c9773283aaf99c75e5f88cc223384e8d3828de9aa59d70de316c2dc8",
+    "candidate": "69b6152dd613c7e6da08cf9b6e14af0b6b37a489ee75dc457f60531f6d49f012"
+  },
+  "digest_tools": {
+    "shasum": "/usr/bin/shasum",
+    "sha256sum": "/sbin/sha256sum"
+  },
+  "method": "24 alternating pairs. Time the entire host bash preparer with a scripted endpoint and a fixed label-bearing image-inspect response. No VM, Docker engine or worker timings.",
+  "verified": [
+    "existing keys for source, scope and main",
+    "shasum fallback",
+    "changed suite bytes",
+    "exact hit skips lock",
+    "reuse after lock",
+    "wrong label rejects hit"
+  ],
+  "existing_cache_key": "cfed353c124ee0845d17ea82170a469639bf0b92057253a4e87689b546029456",
+  "samples_ns": [
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23773625,
+      "candidate": 17210292
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 16996875,
+      "baseline": 24608834
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23506375,
+      "candidate": 16351250
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 15976334,
+      "baseline": 22723250
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 22378709,
+      "candidate": 15052667
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 14567708,
+      "baseline": 22488709
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23407542,
+      "candidate": 16264125
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 15442167,
+      "baseline": 23181000
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23886542,
+      "candidate": 15994584
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 16714667,
+      "baseline": 23136208
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 22884959,
+      "candidate": 15427667
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 15117708,
+      "baseline": 23531167
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 24185959,
+      "candidate": 18430875
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 16923375,
+      "baseline": 24982000
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23385791,
+      "candidate": 16526166
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 15540708,
+      "baseline": 24308000
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23147000,
+      "candidate": 16502917
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 15600958,
+      "baseline": 23191542
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23935833,
+      "candidate": 16220875
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 16826334,
+      "baseline": 23678250
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 23368875,
+      "candidate": 16627250
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 16193709,
+      "baseline": 24091916
+    },
+    {
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "baseline": 24425375,
+      "candidate": 18241916
+    },
+    {
+      "order": [
+        "candidate",
+        "baseline"
+      ],
+      "candidate": 17862625,
+      "baseline": 26609208
+    }
+  ],
+  "median_ms": {
+    "baseline": 23.519,
+    "candidate": 16.308
+  },
+  "median_paired_change_pct": -31.58,
+  "paired_bootstrap_ci95_pct": [
+    -32.74,
+    -29.33
+  ]
+}

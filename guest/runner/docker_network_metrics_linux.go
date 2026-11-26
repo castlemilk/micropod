@@ -4,15 +4,9 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
-
-type serviceDirectory struct {
-	mu      sync.RWMutex
-	records map[string][]netip.Addr
-}
 
 func (d *serviceDirectory) publish(c *dockerContainer, add bool) {
 	ip, err := netip.ParseAddr(c.IP)
@@ -44,11 +38,6 @@ func (d *serviceDirectory) publish(c *dockerContainer, add bool) {
 			}
 		}
 	}
-}
-func (d *serviceDirectory) lookup(name string) []netip.Addr {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return slices.Clone(d.records[name])
 }
 
 // Counts are boot scoped and aggregate across network names, aliases and jobs.

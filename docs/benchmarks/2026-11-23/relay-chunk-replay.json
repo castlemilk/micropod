@@ -1,0 +1,585 @@
+{
+  "scope": "Archived chunk-size screens with distinct controls. No revised two-worker holdout.",
+  "interval": "10,000 paired-block bootstrap draws, seed 7317; percentile interval of the median ratio.",
+  "fixed_arrivals": {
+    "archive": "gamma-mixed-scheduler.json.gz",
+    "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+    "guest": {
+      "host": "Gamma",
+      "model": "Apple M5 Max",
+      "macOS": "26.5.1 (25F80)",
+      "cores": 18,
+      "memory_GiB": 128,
+      "vm_vcpus": 4,
+      "vm_memory_MiB": 4096,
+      "guest_kernel": "6.18.35",
+      "service_cpus": "0-3",
+      "service_memory_MiB": 1024,
+      "service_pids": 512,
+      "orbstack": "2.2.5",
+      "containerd": "2.4.2",
+      "service_config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889"
+    },
+    "driver": "records.fixtures/chunk-screen.sh",
+    "driver_sha256": "75373380a6afcdffb2edc3f17dfc391b9e5b290235a0dea7dc2b9bd66e98d042",
+    "relay_source": "records.fixtures/flat.c",
+    "relay_source_sha256_by_kib": {
+      "256": "56033c9d20af65c55f7539ef8ff088f1d959c72e95be371e2af0f877026712ef",
+      "512": "83925a49beaf54dffebc06af3aa473d3246bcb8a52d8447b0a401a691c04dcf4",
+      "1024": "447fbe8d35a85b593f9d72839a492e8b2e0c7653d31f66714d7d2fd7ed83b52e",
+      "2048": "8cbda4e96652b2c92158fb6c5fbf689f543f42331b428fbac193c5b299842ffc"
+    },
+    "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "workload": "Same service via detached flat queues (MP_FLAT=24). One write per ready endpoint, 32 warm streams, 240 fresh requests scheduled at 25 ms over six seconds.",
+    "policy": "Pair rates only when both fixed-load clients are clean. Keep every p95 above 75 ms visible, including on otherwise clean rounds. Exceeding the limit on any round misses the tail criterion.",
+    "blocks": [
+      {
+        "id": 0,
+        "order": [
+          "stock",
+          "256",
+          "orb",
+          "512",
+          "nested1024",
+          "1024",
+          "2048"
+        ],
+        "arms": {
+          "256": {
+            "mib_s": 5026.341525820486,
+            "fresh_p95_ms": 38.7,
+            "clean": true
+          },
+          "512": {
+            "mib_s": 5923.73296552677,
+            "fresh_p95_ms": 30.284,
+            "clean": true
+          },
+          "1024": {
+            "mib_s": 3781.0666215816254,
+            "fresh_p95_ms": 95.355,
+            "clean": true
+          },
+          "2048": {
+            "mib_s": 4235.661684281296,
+            "fresh_p95_ms": 87.741,
+            "clean": true
+          }
+        }
+      },
+      {
+        "id": 1,
+        "order": [
+          "256",
+          "512",
+          "stock",
+          "1024",
+          "orb",
+          "2048",
+          "nested1024"
+        ],
+        "arms": {
+          "256": {
+            "mib_s": 5539.695478636793,
+            "fresh_p95_ms": 60.524,
+            "clean": true
+          },
+          "512": {
+            "mib_s": 5745.1092219991015,
+            "fresh_p95_ms": 40.448,
+            "clean": true
+          },
+          "1024": {
+            "mib_s": 4444.667418433334,
+            "fresh_p95_ms": 50.28,
+            "clean": true
+          },
+          "2048": {
+            "mib_s": 5637.228591280061,
+            "fresh_p95_ms": 65.979,
+            "clean": true
+          }
+        }
+      },
+      {
+        "id": 2,
+        "order": [
+          "512",
+          "1024",
+          "256",
+          "2048",
+          "stock",
+          "nested1024",
+          "orb"
+        ],
+        "arms": {
+          "256": {
+            "mib_s": 6301.249839671933,
+            "fresh_p95_ms": 24.75,
+            "clean": true
+          },
+          "512": {
+            "mib_s": 4030.0061891544287,
+            "fresh_p95_ms": 87.159,
+            "clean": true
+          },
+          "1024": {
+            "mib_s": 5219.997193309824,
+            "fresh_p95_ms": 83.516,
+            "clean": true
+          },
+          "2048": {
+            "mib_s": 5337.939198806779,
+            "fresh_p95_ms": 93.074,
+            "clean": true
+          }
+        }
+      },
+      {
+        "id": 3,
+        "order": [
+          "1024",
+          "2048",
+          "512",
+          "nested1024",
+          "256",
+          "orb",
+          "stock"
+        ],
+        "arms": {
+          "256": {
+            "mib_s": 5259.958418922005,
+            "fresh_p95_ms": 29.484,
+            "clean": true
+          },
+          "512": {
+            "mib_s": 5324.381897418884,
+            "fresh_p95_ms": 42.442,
+            "clean": true
+          },
+          "1024": {
+            "mib_s": 5735.829146467541,
+            "fresh_p95_ms": 34.856,
+            "clean": true
+          },
+          "2048": {
+            "mib_s": 6131.300910376983,
+            "fresh_p95_ms": 60.68,
+            "clean": true
+          }
+        }
+      },
+      {
+        "id": 4,
+        "order": [
+          "2048",
+          "nested1024",
+          "1024",
+          "orb",
+          "512",
+          "stock",
+          "256"
+        ],
+        "arms": {
+          "256": {
+            "mib_s": 3314.6000369603253,
+            "fresh_p95_ms": 62.576,
+            "clean": true
+          },
+          "512": {
+            "mib_s": 4051.3764814573096,
+            "fresh_p95_ms": 59.467,
+            "clean": true
+          },
+          "1024": {
+            "mib_s": 4183.558486001399,
+            "fresh_p95_ms": 40.769,
+            "clean": true
+          },
+          "2048": {
+            "mib_s": 3848.7731383643923,
+            "fresh_p95_ms": 80.528,
+            "clean": true
+          }
+        }
+      },
+      {
+        "id": 5,
+        "order": [
+          "nested1024",
+          "orb",
+          "2048",
+          "stock",
+          "1024",
+          "256",
+          "512"
+        ],
+        "arms": {
+          "256": {
+            "mib_s": 5248.795681394563,
+            "fresh_p95_ms": 34.506,
+            "clean": true
+          },
+          "512": {
+            "mib_s": 5873.846159998178,
+            "fresh_p95_ms": 24.258,
+            "clean": true
+          },
+          "1024": {
+            "mib_s": 5570.450146000863,
+            "fresh_p95_ms": 34.096,
+            "clean": true
+          },
+          "2048": {
+            "mib_s": 5127.7010653939515,
+            "fresh_p95_ms": 41.311,
+            "clean": true
+          }
+        }
+      },
+      {
+        "id": 6,
+        "order": [
+          "orb",
+          "stock",
+          "nested1024",
+          "256",
+          "2048",
+          "512",
+          "1024"
+        ],
+        "arms": {
+          "256": {
+            "mib_s": 2247.1021083579735,
+            "fresh_p95_ms": 128.937,
+            "clean": true
+          },
+          "512": {
+            "mib_s": 3884.5637868861136,
+            "fresh_p95_ms": 51.448,
+            "clean": true
+          },
+          "1024": {
+            "mib_s": 4495.62066531094,
+            "fresh_p95_ms": 57.113,
+            "clean": true
+          },
+          "2048": {
+            "mib_s": 2682.91963203944,
+            "fresh_p95_ms": 202.848,
+            "clean": true
+          }
+        }
+      }
+    ],
+    "latency_by_kib": {
+      "256": {
+        "median_round_p95_ms": 38.7,
+        "p95_over_75ms_blocks": [
+          6
+        ]
+      },
+      "512": {
+        "median_round_p95_ms": 42.442,
+        "p95_over_75ms_blocks": [
+          2
+        ]
+      },
+      "1024": {
+        "median_round_p95_ms": 50.28,
+        "p95_over_75ms_blocks": [
+          0,
+          2
+        ]
+      },
+      "2048": {
+        "median_round_p95_ms": 80.528,
+        "p95_over_75ms_blocks": [
+          0,
+          2,
+          4,
+          6
+        ]
+      }
+    },
+    "rate_vs_256": {
+      "512": {
+        "common_block_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "candidate_ran_before_control": 3,
+        "wins": 6,
+        "median_ratio": 1.1190845513036896,
+        "paired_bootstrap_ci95": [
+          1.012247906421679,
+          1.2222821566045265
+        ]
+      },
+      "1024": {
+        "common_block_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "candidate_ran_before_control": 4,
+        "wins": 4,
+        "median_ratio": 1.061281574694643,
+        "paired_bootstrap_ci95": [
+          0.802330639937464,
+          1.262160875928173
+        ]
+      },
+      "2048": {
+        "common_block_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "candidate_ran_before_control": 3,
+        "wins": 4,
+        "median_ratio": 1.0176062227643006,
+        "paired_bootstrap_ci95": [
+          0.8471238777424341,
+          1.1656557755894872
+        ]
+      }
+    }
+  },
+  "separate_bursts": {
+    "archive": "gamma-published-profile.json.gz",
+    "archive_sha256": "234f8f89de4462068e31934a8b1fc0ec6ecc93d814dd2da97b13c574481ebe93",
+    "records": "experiments.chunk_kib",
+    "original_driver": "chunks.sh",
+    "original_driver_sha256": "41ee51c6084b819f9cabb4066b72bac334204eeb3f1d42ec5861199bf814e7c0",
+    "dispatch_probe_sha256": "238fda8259f5b2a7d7fbb918e0fcc0f19ebf57f076938072fd415164eef31873",
+    "relay_source_sha256_by_kib": {
+      "128": "ed80ad5ace7d3f1285f4a1e7a0704518bf3bfed5aba1045b9bded05b59abd949",
+      "256": "da053b6a96a02d613fb2559f7cf93ea0843bf47d580c7b0ee4548b733697bd48",
+      "512": "4f3bfd5a2e5c126991d8ff1dd39d582b6f754d5001d411c11aa0c2b0c200fa1f"
+    },
+    "client_sha256": "3f6a908d51b87d00bfddfcfa325aec0797e17dcc58ffac7af52619832fdcb5b4",
+    "workload": "Three separately launched sizes dial the same guest target. Single serial dispatch queue at user-initiated QoS, up to four chunks per turn. Separate request and bulk phases, 64 MiB single stream and median of three barrier-synchronized 32-stream bursts.",
+    "order_provenance": "Round IDs in the archive give matched blocks. Arm order is from the retained original driver, cross-checked against output timestamps. All 18 original JSON results matched the archive. Each of the six permutations is represented once.",
+    "policy": "Use recorded completed burst results. The earlier client lacks the fixed-arrival loss and reopen evidence. Its separate fresh phase cannot be scored against the mixed-load p95 limit.",
+    "blocks": [
+      {
+        "id": 1,
+        "order": [
+          "128",
+          "256",
+          "512"
+        ],
+        "arms": {
+          "128": {
+            "parallel_mib_s": 1611.3968560451378,
+            "single_mib_s": 1373.9175703126466
+          },
+          "256": {
+            "parallel_mib_s": 1649.9815504992646,
+            "single_mib_s": 506.71546442154767
+          },
+          "512": {
+            "parallel_mib_s": 1276.3700609832165,
+            "single_mib_s": 785.7862754888348
+          }
+        }
+      },
+      {
+        "id": 2,
+        "order": [
+          "256",
+          "512",
+          "128"
+        ],
+        "arms": {
+          "256": {
+            "parallel_mib_s": 2133.4985194562023,
+            "single_mib_s": 461.70105689071045
+          },
+          "512": {
+            "parallel_mib_s": 1061.977557858819,
+            "single_mib_s": 273.8023553419802
+          },
+          "128": {
+            "parallel_mib_s": 1215.1514211815313,
+            "single_mib_s": 287.7613738807094
+          }
+        }
+      },
+      {
+        "id": 3,
+        "order": [
+          "512",
+          "128",
+          "256"
+        ],
+        "arms": {
+          "512": {
+            "parallel_mib_s": 1276.5700159384255,
+            "single_mib_s": 145.39854784745197
+          },
+          "128": {
+            "parallel_mib_s": 1580.1420584745147,
+            "single_mib_s": 144.66678287327392
+          },
+          "256": {
+            "parallel_mib_s": 2323.867922748748,
+            "single_mib_s": 592.8583742954469
+          }
+        }
+      },
+      {
+        "id": 4,
+        "order": [
+          "512",
+          "256",
+          "128"
+        ],
+        "arms": {
+          "512": {
+            "parallel_mib_s": 1650.9405443750732,
+            "single_mib_s": 555.9834794373941
+          },
+          "256": {
+            "parallel_mib_s": 804.1565873936537,
+            "single_mib_s": 201.17688477593924
+          },
+          "128": {
+            "parallel_mib_s": 1387.699346263511,
+            "single_mib_s": 323.2520514029755
+          }
+        }
+      },
+      {
+        "id": 5,
+        "order": [
+          "128",
+          "512",
+          "256"
+        ],
+        "arms": {
+          "128": {
+            "parallel_mib_s": 915.125534793911,
+            "single_mib_s": 169.6330922356747
+          },
+          "512": {
+            "parallel_mib_s": 1499.019568008208,
+            "single_mib_s": 169.64407120557541
+          },
+          "256": {
+            "parallel_mib_s": 1491.1369122712256,
+            "single_mib_s": 367.68472707618724
+          }
+        }
+      },
+      {
+        "id": 6,
+        "order": [
+          "256",
+          "128",
+          "512"
+        ],
+        "arms": {
+          "256": {
+            "parallel_mib_s": 1817.854204187278,
+            "single_mib_s": 757.9275192018569
+          },
+          "128": {
+            "parallel_mib_s": 1344.8309374154555,
+            "single_mib_s": 203.82492893404995
+          },
+          "512": {
+            "parallel_mib_s": 898.3802386780122,
+            "single_mib_s": 221.22985652466045
+          }
+        }
+      }
+    ],
+    "parallel_vs_256": {
+      "128": {
+        "common_block_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "candidate_ran_before_control": 3,
+        "wins": 1,
+        "median_ratio": 0.7098761966412613,
+        "paired_bootstrap_ci95": [
+          0.5916340302037155,
+          1.3511365985256167
+        ]
+      },
+      "512": {
+        "common_block_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "candidate_ran_before_control": 3,
+        "wins": 2,
+        "median_ratio": 0.6614480558606637,
+        "paired_bootstrap_ci95": [
+          0.4959808088163844,
+          1.529147565868957
+        ]
+      }
+    },
+    "single_vs_256": {
+      "128": {
+        "common_block_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "candidate_ran_before_control": 3,
+        "wins": 2,
+        "median_ratio": 0.5423090744395785,
+        "paired_bootstrap_ci95": [
+          0.25646989568142264,
+          2.1591117046125428
+        ]
+      },
+      "512": {
+        "common_block_ids": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "candidate_ran_before_control": 3,
+        "wins": 2,
+        "median_ratio": 0.5272070597726716,
+        "paired_bootstrap_ci95": [
+          0.26856896644548733,
+          2.157199745437092
+        ]
+      }
+    }
+  }
+}

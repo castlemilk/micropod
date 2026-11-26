@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "observed_utc": "2026-11-23T05:45:02.949022+00:00",
+  "darwin": "25.5.0",
+  "arch": "arm64",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-DMP_LOW=131072"
+  ],
+  "archive": "docs/benchmarks/2026-11-21/gamma-mixed-scheduler.json.gz",
+  "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "prototype_path": "records[\"fixtures/lowat.c\"]",
+  "prototype_sha256": "b3fdb88422ca1e0363f81b26f4ca81c14c5cd827e24d852d21eefdd244674034",
+  "header_commit": "816121afd30fba52bda7828418cd963d4216166b",
+  "header_sha256": "941ff17557d63461e06c8e7cec556a050a90aa6353d2df70825c0dbf327ba595",
+  "fixture_sha256": {
+    "scripts/relaybench/check_watermark_tail.py": "bd7fc8e15a984deb20716b8c152d83731d459d559e43b93fc7fb21415044eb72",
+    "scripts/relaybench/watermark_tail.c": "ac44dcd77677bc0d2ffe060fb9424554e6befa34c65982dbb98f430488847116",
+    "scripts/relaybench/filter_work.c": "4c11e89dccdde3c04b8bc18c8d153c9ed8dabdd9c83117797bfdda7040527024"
+  },
+  "scope": "Archived dedicated-owner prototype on a single background-QoS thread; anonymous local sockets. No TCP, VM, libdispatch, throughput or mixed-arrival latency measurement.",
+  "method": "The first byte and all subsequent chunks used real read readiness. Exactly 256 KiB promoted only the tested direction. On an open connection, a 17-byte trailer produced no read event before the timer; after demotion it was readable and the connection remained open. With FIN, the high watermark remained active, including if a timer event was already pending. The first EV_EOF carried 17 unread bytes, the next carried zero, and the peer received the bytes before its EOF. The reverse marker succeeded in each case. The open-row wait times measure time spent waiting in the fixture for the configured 2 ms timer; dispatch time depends on scheduling.",
+  "samples": [
+    [
+      {
+        "fin": false,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 65191
+      },
+      {
+        "fin": true,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 0
+      }
+    ],
+    [
+      {
+        "fin": false,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 64777
+      },
+      {
+        "fin": true,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 0
+      }
+    ],
+    [
+      {
+        "fin": false,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 65266
+      },
+      {
+        "fin": true,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 0
+      }
+    ],
+    [
+      {
+        "fin": false,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 64129
+      },
+      {
+        "fin": true,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 0
+      }
+    ],
+    [
+      {
+        "fin": false,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 65633
+      },
+      {
+        "fin": true,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 0
+      }
+    ],
+    [
+      {
+        "fin": false,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 65264
+      },
+      {
+        "fin": true,
+        "promoted_history_bytes": 262144,
+        "watermark_bytes": 131072,
+        "short_tail_bytes": 17,
+        "reverse_marker_bytes": 1,
+        "wait_for_demotion_us": 0
+      }
+    ]
+  ]
+}

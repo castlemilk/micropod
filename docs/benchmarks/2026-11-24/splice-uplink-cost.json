@@ -1,0 +1,485 @@
+{
+  "direction": "234.01",
+  "date": "2026-11-24",
+  "tier": "offline replay of historical VM observations",
+  "source_base": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "archive_commit": "816121afd30fba52bda7828418cd963d4216166b",
+  "archive": "gamma-mixed-scheduler.json.gz",
+  "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "splice_binary_sha256": "c5900f301102cebef6326d773e8f715858c0dec4820a4d86964f56b916d84b7f",
+  "fixed_client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "platform": {
+    "host": "Gamma",
+    "model": "Apple M5 Max",
+    "macOS": "26.5.1 (25F80)",
+    "cores": 18,
+    "memory_GiB": 128,
+    "vm_vcpus": 4,
+    "vm_memory_MiB": 4096,
+    "guest_kernel": "6.18.35",
+    "service_cpus": "0-3",
+    "service_memory_MiB": 1024,
+    "service_pids": 512,
+    "orbstack": "2.2.5",
+    "containerd": "2.4.2",
+    "service_config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889"
+  },
+  "vmm_pid": 87233,
+  "fixture_sha256": "6c2a6c93a746764c3dc24747199a49fcfcb8263c15a07804497966d14fdfb4ef",
+  "method": "One contrast, ordinary container ingress versus guest TCP splice forwarder. VMM process observations and device-wide NIC qdisc deltas bracket each invocation. NIC-accounted GiB includes headers, retransmissions and background traffic. The archive does not identify full-invocation application bytes or guest forwarder CPU. 95% percentile intervals use all ordered bootstrap resamples of six paired blocks.",
+  "pairs": [
+    {
+      "ordinary": {
+        "start_epoch_ns": 1795244508980147000,
+        "scored_body_bytes": 17315003936,
+        "mib_s": 2752.017234165196,
+        "fresh_p95_ms": 127.656,
+        "fresh_p99_ms": 181.957,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6063425060974,
+          4018850871,
+          23339
+        ],
+        "nic_last": [
+          6082132218244,
+          4031235254,
+          23548
+        ],
+        "nic_sent_bytes": 18707157270,
+        "nic_packets": 12384383,
+        "nic_drops": 209,
+        "process": {
+          "cpu_s": 8.849609041666666,
+          "runnable_s": 24.30384883333333,
+          "wait_s": 15.454239791666666,
+          "sample_seconds": 6.209613
+        },
+        "vmm_cpu_s_per_nic_gib": 0.5079443774883097,
+        "vmm_wait_thread_s_per_nic_gib": 0.887032881743531
+      },
+      "splice": {
+        "start_epoch_ns": 1795244547799639000,
+        "scored_body_bytes": 24454050340,
+        "mib_s": 3886.8348001006616,
+        "fresh_p95_ms": 65.737,
+        "fresh_p99_ms": 122.508,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6240956196876,
+          4136560349,
+          26677
+        ],
+        "nic_last": [
+          6267375231024,
+          4154015016,
+          26677
+        ],
+        "nic_sent_bytes": 26419034148,
+        "nic_packets": 17454667,
+        "nic_drops": 0,
+        "process": {
+          "cpu_s": 13.307761374999998,
+          "runnable_s": 25.047821666666664,
+          "wait_s": 11.740060291666666,
+          "sample_seconds": 6.271652
+        },
+        "vmm_cpu_s_per_nic_gib": 0.5408638291657977,
+        "vmm_wait_thread_s_per_nic_gib": 0.4771481682799685
+      }
+    },
+    {
+      "ordinary": {
+        "start_epoch_ns": 1795244643379348000,
+        "scored_body_bytes": 32952998904,
+        "mib_s": 5237.661807104319,
+        "fresh_p95_ms": 28.554,
+        "fresh_p99_ms": 53.444,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6487271599439,
+          4299606274,
+          29790
+        ],
+        "nic_last": [
+          6523475934623,
+          4323606808,
+          29859
+        ],
+        "nic_sent_bytes": 36204335184,
+        "nic_packets": 24000534,
+        "nic_drops": 69,
+        "process": {
+          "cpu_s": 17.213559999999998,
+          "runnable_s": 24.28628545833333,
+          "wait_s": 7.072725458333332,
+          "sample_seconds": 6.388083
+        },
+        "vmm_cpu_s_per_nic_gib": 0.5105167438650193,
+        "vmm_wait_thread_s_per_nic_gib": 0.20976165135158328
+      },
+      "splice": {
+        "start_epoch_ns": 1795244603060020000,
+        "scored_body_bytes": 21103928830,
+        "mib_s": 3351.2250424117037,
+        "fresh_p95_ms": 104.317,
+        "fresh_p99_ms": 158.911,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6336976607127,
+          4200008571,
+          26677
+        ],
+        "nic_last": [
+          6359799478223,
+          4215087581,
+          26677
+        ],
+        "nic_sent_bytes": 22822871096,
+        "nic_packets": 15079010,
+        "nic_drops": 0,
+        "process": {
+          "cpu_s": 11.786944499999999,
+          "runnable_s": 25.43869408333333,
+          "wait_s": 13.651749583333332,
+          "sample_seconds": 6.354168
+        },
+        "vmm_cpu_s_per_nic_gib": 0.5545373863604267,
+        "vmm_wait_thread_s_per_nic_gib": 0.6422703978277585
+      }
+    },
+    {
+      "ordinary": {
+        "start_epoch_ns": 1795244701037010000,
+        "scored_body_bytes": 41845547368,
+        "mib_s": 6650.992946643558,
+        "fresh_p95_ms": 20.179,
+        "fresh_p99_ms": 32.543,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6717609440861,
+          4452140005,
+          32628
+        ],
+        "nic_last": [
+          6761857611311,
+          4481492652,
+          32671
+        ],
+        "nic_sent_bytes": 44248170450,
+        "nic_packets": 29352647,
+        "nic_drops": 43,
+        "process": {
+          "cpu_s": 19.74311133333333,
+          "runnable_s": 22.922802666666666,
+          "wait_s": 3.179691333333333,
+          "sample_seconds": 6.124808
+        },
+        "vmm_cpu_s_per_nic_gib": 0.47909335366629613,
+        "vmm_wait_thread_s_per_nic_gib": 0.07715951953015325
+      },
+      "splice": {
+        "start_epoch_ns": 1795244669672066000,
+        "scored_body_bytes": 33386637123,
+        "mib_s": 5306.2927580254045,
+        "fresh_p95_ms": 32.802,
+        "fresh_p99_ms": 51.561,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6613615487199,
+          4383402234,
+          32628
+        ],
+        "nic_last": [
+          6649086319963,
+          4406836547,
+          32628
+        ],
+        "nic_sent_bytes": 35470832764,
+        "nic_packets": 23434313,
+        "nic_drops": 0,
+        "process": {
+          "cpu_s": 17.65377283333333,
+          "runnable_s": 24.456175499999997,
+          "wait_s": 6.802402666666666,
+          "sample_seconds": 6.115817
+        },
+        "vmm_cpu_s_per_nic_gib": 0.534399470366632,
+        "vmm_wait_thread_s_per_nic_gib": 0.20591634528248567
+      }
+    },
+    {
+      "ordinary": {
+        "start_epoch_ns": 1795244732738670000,
+        "scored_body_bytes": 24848575512,
+        "mib_s": 3949.4030217395525,
+        "fresh_p95_ms": 57.98,
+        "fresh_p99_ms": 80.407,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6874484234939,
+          4556145188,
+          32900
+        ],
+        "nic_last": [
+          6901064219287,
+          4573744294,
+          33180
+        ],
+        "nic_sent_bytes": 26579984348,
+        "nic_packets": 17599106,
+        "nic_drops": 280,
+        "process": {
+          "cpu_s": 12.693101833333332,
+          "runnable_s": 23.232906416666665,
+          "wait_s": 10.539804583333332,
+          "sample_seconds": 6.144385
+        },
+        "vmm_cpu_s_per_nic_gib": 0.5127585530638806,
+        "vmm_wait_thread_s_per_nic_gib": 0.42577259827331077
+      },
+      "splice": {
+        "start_epoch_ns": 1795244761617649000,
+        "scored_body_bytes": 18841423262,
+        "mib_s": 2993.905030735877,
+        "fresh_p95_ms": 166.313,
+        "fresh_p99_ms": 213.47,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          6966270612844,
+          4616838439,
+          33180
+        ],
+        "nic_last": [
+          6986576145223,
+          4630254360,
+          33180
+        ],
+        "nic_sent_bytes": 20305532379,
+        "nic_packets": 13415921,
+        "nic_drops": 0,
+        "process": {
+          "cpu_s": 10.560289625,
+          "runnable_s": 25.943248875,
+          "wait_s": 15.382959249999999,
+          "sample_seconds": 6.240587
+        },
+        "vmm_cpu_s_per_nic_gib": 0.5584204556804728,
+        "vmm_wait_thread_s_per_nic_gib": 0.8134397274259554
+      }
+    },
+    {
+      "ordinary": {
+        "start_epoch_ns": 1795244821086693000,
+        "scored_body_bytes": 14359709112,
+        "mib_s": 2282.3834830195124,
+        "fresh_p95_ms": 142.041,
+        "fresh_p99_ms": 265.303,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          7047343340062,
+          4670478618,
+          36573
+        ],
+        "nic_last": [
+          7063128101124,
+          4680925715,
+          36764
+        ],
+        "nic_sent_bytes": 15784761062,
+        "nic_packets": 10447097,
+        "nic_drops": 191,
+        "process": {
+          "cpu_s": 6.803940666666666,
+          "runnable_s": 25.656541291666663,
+          "wait_s": 18.852600624999997,
+          "sample_seconds": 6.56236
+        },
+        "vmm_cpu_s_per_nic_gib": 0.4628309312455807,
+        "vmm_wait_thread_s_per_nic_gib": 1.282428394241793
+      },
+      "splice": {
+        "start_epoch_ns": 1795244791318727000,
+        "scored_body_bytes": 5053140695,
+        "mib_s": 803.1563873947877,
+        "fresh_p95_ms": 302.646,
+        "fresh_p99_ms": 388.255,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          7014967048863,
+          4649081245,
+          36573
+        ],
+        "nic_last": [
+          7020800313661,
+          4652936817,
+          36573
+        ],
+        "nic_sent_bytes": 5833264798,
+        "nic_packets": 3855572,
+        "nic_drops": 0,
+        "process": {
+          "cpu_s": 3.4663045416666662,
+          "runnable_s": 26.894455374999996,
+          "wait_s": 23.42815083333333,
+          "sample_seconds": 6.373938
+        },
+        "vmm_cpu_s_per_nic_gib": 0.6380502668736641,
+        "vmm_wait_thread_s_per_nic_gib": 4.312471022634767
+      }
+    },
+    {
+      "ordinary": {
+        "start_epoch_ns": 1795244898694537000,
+        "scored_body_bytes": 16353763216,
+        "mib_s": 2599.284268916034,
+        "fresh_p95_ms": 87.514,
+        "fresh_p99_ms": 123.095,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          7193826559524,
+          4767520923,
+          44434
+        ],
+        "nic_last": [
+          7211443232020,
+          4779183041,
+          44730
+        ],
+        "nic_sent_bytes": 17616672496,
+        "nic_packets": 11662118,
+        "nic_drops": 296,
+        "process": {
+          "cpu_s": 8.134203833333332,
+          "runnable_s": 23.202998499999996,
+          "wait_s": 15.068794666666665,
+          "sample_seconds": 6.247893
+        },
+        "vmm_cpu_s_per_nic_gib": 0.49578232567894154,
+        "vmm_wait_thread_s_per_nic_gib": 0.9184478552656257
+      },
+      "splice": {
+        "start_epoch_ns": 1795244928044540000,
+        "scored_body_bytes": 20713159479,
+        "mib_s": 3292.1282561792837,
+        "fresh_p95_ms": 116.382,
+        "fresh_p99_ms": 204.899,
+        "bulk_reopens": 0,
+        "fresh_errors": 0,
+        "nic_first": [
+          7277377550572,
+          4822757408,
+          44730
+        ],
+        "nic_last": [
+          7299656652712,
+          4837477900,
+          44730
+        ],
+        "nic_sent_bytes": 22279102140,
+        "nic_packets": 14720492,
+        "nic_drops": 0,
+        "process": {
+          "cpu_s": 11.482865583333332,
+          "runnable_s": 25.114814666666664,
+          "wait_s": 13.631949083333332,
+          "sample_seconds": 6.270566
+        },
+        "vmm_cpu_s_per_nic_gib": 0.5534169626189054,
+        "vmm_wait_thread_s_per_nic_gib": 0.6569920897814717
+      }
+    }
+  ],
+  "medians": {
+    "ordinary": {
+      "mib_s": 3350.710127952374,
+      "fresh_p95_ms": 72.747,
+      "fresh_p99_ms": 101.751,
+      "vmm_cpu_s_per_nic_gib": 0.5018633515836256,
+      "vmm_wait_thread_s_per_nic_gib": 0.6564027400084209,
+      "all_nic_drops": [
+        209,
+        69,
+        43,
+        280,
+        191,
+        296
+      ],
+      "delivery_and_75ms": 3
+    },
+    "splice": {
+      "mib_s": 3321.676649295494,
+      "fresh_p95_ms": 110.3495,
+      "fresh_p99_ms": 181.905,
+      "vmm_cpu_s_per_nic_gib": 0.553977174489666,
+      "vmm_wait_thread_s_per_nic_gib": 0.6496312438046151,
+      "all_nic_drops": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "delivery_and_75ms": 2
+    }
+  },
+  "paired_change_pct": {
+    "mib_s": {
+      "n": 6,
+      "median_pct": -22.2057578069968,
+      "increases": 2,
+      "bootstrap_95_pct": [
+        -50.41370110024155,
+        33.9455142559234
+      ]
+    },
+    "fresh_p95_ms": {
+      "n": 6,
+      "median_pct": 87.81229871543805,
+      "increases": 5,
+      "bootstrap_95_pct": [
+        -7.758926335150413,
+        226.08890834412784
+      ]
+    },
+    "fresh_p99_ms": {
+      "n": 6,
+      "median_pct": 62.44779613169623,
+      "increases": 5,
+      "bootstrap_95_pct": [
+        6.835993331368783,
+        181.41398892666902
+      ]
+    },
+    "vmm_cpu_s_per_nic_gib": {
+      "n": 6,
+      "median_pct": 10.224529634148494,
+      "increases": 6,
+      "bootstrap_95_pct": [
+        7.551839192350418,
+        24.741580714109155
+      ]
+    },
+    "vmm_wait_thread_s_per_nic_gib": {
+      "n": 6,
+      "median_pct": 128.96061500467232,
+      "increases": 4,
+      "bootstrap_95_pct": [
+        -37.337823125059664,
+        221.23219828472168
+      ]
+    }
+  }
+}

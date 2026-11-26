@@ -1,0 +1,233 @@
+{
+  "direction": "231.01",
+  "evidence": "offline replay of archived VM first attempts",
+  "archive": "gamma-vnic.json.gz",
+  "sha256": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f",
+  "source_parent": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "archive_revision": "4f887ba5d28f47fa37d4bd0a2d89cd0914d74754",
+  "original_driver_sha256": "9029f59ace7da117a76a023f758f4e9d9c2b64d49a7345babd2d7047f6dabf61",
+  "original_setter_sha256": "55eca9b42e6fb01a27ea97993645934c5d52dcff50054691c0c74aada4ed14ef",
+  "client_sha256": "6e2531ef4bed59edd55144630a7bff68a3e1f63fae606d276a4cf3913a48abbd",
+  "image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "relay_binary": "c932bff850e09a5d449ccc32f0c6419a481bbd1b0dd3572cb9e7c80d59e12462",
+  "guest_boot": "CE330CC3-0DF5-4AE0-A382-00A24E534931",
+  "metrics": {
+    "mib_s": {
+      "control_median": 2982.8133588100036,
+      "candidate_median": 3278.1598722110043,
+      "paired_median_pct": 13.838032140522227,
+      "paired_bootstrap_95_pct": [
+        -10.250855764241084,
+        34.576980470255535
+      ],
+      "candidate_higher": 4
+    },
+    "header_p95_ms": {
+      "control_median": 6.541,
+      "candidate_median": 6.1775,
+      "paired_median_pct": -3.561907501495537,
+      "paired_bootstrap_95_pct": [
+        -27.112616927948846,
+        15.03678849755864
+      ],
+      "candidate_higher": 3
+    },
+    "body_done_p95_ms": {
+      "control_median": 85.749,
+      "candidate_median": 76.7965,
+      "paired_median_pct": -11.91374655911463,
+      "paired_bootstrap_95_pct": [
+        -26.318706069679937,
+        9.256632205848693
+      ],
+      "candidate_higher": 2
+    },
+    "body_done_p99_ms": {
+      "control_median": 85.958,
+      "candidate_median": 78.19200000000001,
+      "paired_median_pct": -11.343003400658164,
+      "paired_bootstrap_95_pct": [
+        -25.686517273143586,
+        11.617582344025834
+      ],
+      "candidate_higher": 2
+    }
+  },
+  "blocks": [
+    {
+      "block": 0,
+      "order": [
+        "off",
+        "on"
+      ],
+      "off": {
+        "raw_key": "ablation/gro-0-off",
+        "mib_s": 2297.8807435798467,
+        "bytes": 268435456,
+        "elapsed_us": 111407,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 6.461,
+        "body_done_p95_ms": 111.381,
+        "body_done_p99_ms": 111.407
+      },
+      "on": {
+        "raw_key": "ablation/gro-0-on",
+        "mib_s": 3121.4944154513973,
+        "bytes": 268435456,
+        "elapsed_us": 82012,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 6.637,
+        "body_done_p95_ms": 81.77,
+        "body_done_p99_ms": 82.012
+      }
+    },
+    {
+      "block": 1,
+      "order": [
+        "on",
+        "off"
+      ],
+      "on": {
+        "raw_key": "ablation/gro-1-on",
+        "mib_s": 2898.9117756967016,
+        "bytes": 268435456,
+        "elapsed_us": 88309,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 7.557,
+        "body_done_p95_ms": 85.541,
+        "body_done_p99_ms": 88.309
+      },
+      "off": {
+        "raw_key": "ablation/gro-1-off",
+        "mib_s": 3100.1368419777905,
+        "bytes": 268435456,
+        "elapsed_us": 82577,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 6.621,
+        "body_done_p95_ms": 82.346,
+        "body_done_p99_ms": 82.577
+      }
+    },
+    {
+      "block": 2,
+      "order": [
+        "off",
+        "on"
+      ],
+      "off": {
+        "raw_key": "ablation/gro-2-off",
+        "mib_s": 2865.4898756422167,
+        "bytes": 268435456,
+        "elapsed_us": 89339,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 5.981,
+        "body_done_p95_ms": 89.152,
+        "body_done_p99_ms": 89.339
+      },
+      "on": {
+        "raw_key": "ablation/gro-2-on",
+        "mib_s": 3574.370645481074,
+        "bytes": 268435456,
+        "elapsed_us": 71621,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 5.392,
+        "body_done_p95_ms": 70.52,
+        "body_done_p99_ms": 71.621
+      }
+    },
+    {
+      "block": 3,
+      "order": [
+        "on",
+        "off"
+      ],
+      "on": {
+        "raw_key": "ablation/gro-3-on",
+        "mib_s": 3395.0453556840484,
+        "bytes": 268435456,
+        "elapsed_us": 75404,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 7.355,
+        "body_done_p95_ms": 74.817,
+        "body_done_p99_ms": 75.404
+      },
+      "off": {
+        "raw_key": "ablation/gro-3-off",
+        "mib_s": 3298.1615326144374,
+        "bytes": 268435456,
+        "elapsed_us": 77619,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 10.457,
+        "body_done_p95_ms": 77.074,
+        "body_done_p99_ms": 77.619
+      }
+    },
+    {
+      "block": 4,
+      "order": [
+        "off",
+        "on"
+      ],
+      "off": {
+        "raw_key": "ablation/gro-4-off",
+        "mib_s": 2603.0015862040914,
+        "bytes": 268435456,
+        "elapsed_us": 98348,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 6.889,
+        "body_done_p95_ms": 98.257,
+        "body_done_p99_ms": 98.348
+      },
+      "on": {
+        "raw_key": "ablation/gro-4-on",
+        "mib_s": 3470.104238678107,
+        "bytes": 268435456,
+        "elapsed_us": 73773,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 5.197,
+        "body_done_p95_ms": 72.659,
+        "body_done_p99_ms": 73.773
+      }
+    },
+    {
+      "block": 5,
+      "order": [
+        "on",
+        "off"
+      ],
+      "on": {
+        "raw_key": "ablation/gro-5-on",
+        "mib_s": 3161.27438873796,
+        "bytes": 268435456,
+        "elapsed_us": 80980,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 5.718,
+        "body_done_p95_ms": 78.776,
+        "body_done_p99_ms": 80.98
+      },
+      "off": {
+        "raw_key": "ablation/gro-5-off",
+        "mib_s": 3676.3649941120716,
+        "bytes": 268435456,
+        "elapsed_us": 69634,
+        "completed_streams": 32,
+        "reopens": 0,
+        "header_p95_ms": 4.932,
+        "body_done_p95_ms": 68.72,
+        "body_done_p99_ms": 69.634
+      }
+    }
+  ],
+  "limitations": "Burst-only workload. Phase quantiles are across 32 simultaneous 8 MiB transfers from one launch; p99 is the maximum. No concurrent short GETs, NIC loss counter deltas, process CPU/GiB or runnable time in these arms. Six alternating blocks, non-randomized."
+}

@@ -1,0 +1,385 @@
+{
+  "date": "2026-11-24",
+  "direction": "230.15",
+  "evidence_tier": "VM (offline analysis of historical Gamma round records)",
+  "revision": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "replay_base": "2ccda8507355b8220258db2ce8160f3113d3e1ff",
+  "raw_archive": "gamma-mixed-scheduler.json.gz",
+  "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "client_source_sha256": "ed5150165e2fbc8dbba78404db0d5e0acafab47419fa354850ce119ffa2fc9f5",
+  "client_binary_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "driver_sha256": "75373380a6afcdffb2edc3f17dfc391b9e5b290235a0dea7dc2b9bd66e98d042",
+  "workload": "4 vCPU VM, detached MP_FLAT=24 host relay, 32 warm bulk streams and 240 fresh identity requests spaced 25 ms apart per arm. Only change is flat relay read cap, 256 vs 512 KiB. Seven rotated blocks, one recorded attempt per arm per block.",
+  "latency_definition": "Scheduled target to checked HTTP identity response body. The start timestamp is inside the fresh request goroutine before the HTTP operation. Bounds retain all client work after goroutine launch, network, relay and service.",
+  "method": "For each latency rank, post-launch duration is bounded by scheduled quantile minus maximum launch delay minus 1 us, and scheduled quantile plus 1 us. This follows from the per-request inequalities and microsecond truncation. Paired differences use the extreme endpoints of the two intervals. These are deterministic measurement bounds, not resampling intervals or treatment-effect estimates.",
+  "official_scheduled_p95_limit_us": 75000,
+  "coverage": "All 14 recorded attempts. No per-arrival pairing or per-process CPU/GiB on these arms.",
+  "pairs": [
+    {
+      "block": 0,
+      "arms_kib": {
+        "256": {
+          "source_record": "chunks/0-flat256.json",
+          "mib_s": 5026.341525820486,
+          "delivered_bytes": 31623313336,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 38700,
+          "scheduled_p99_us": 45291,
+          "max_launch_delay_us": 9447,
+          "post_launch_p95_bounds_us": [
+            29252,
+            38701
+          ],
+          "post_launch_p99_bounds_us": [
+            35843,
+            45292
+          ],
+          "scheduled_p95_over_limit": false
+        },
+        "512": {
+          "source_record": "chunks/0-flat512.json",
+          "mib_s": 5923.73296552677,
+          "delivered_bytes": 37270523400,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 30284,
+          "scheduled_p99_us": 46218,
+          "max_launch_delay_us": 6834,
+          "post_launch_p95_bounds_us": [
+            23449,
+            30285
+          ],
+          "post_launch_p99_bounds_us": [
+            39383,
+            46219
+          ],
+          "scheduled_p95_over_limit": false
+        }
+      },
+      "post_launch_p95_difference_us": [
+        -15252,
+        1033
+      ],
+      "larger_cap_post_launch_p95": "unresolved"
+    },
+    {
+      "block": 1,
+      "arms_kib": {
+        "256": {
+          "source_record": "chunks/1-flat256.json",
+          "mib_s": 5539.695478636793,
+          "delivered_bytes": 34852990696,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 60524,
+          "scheduled_p99_us": 85563,
+          "max_launch_delay_us": 23441,
+          "post_launch_p95_bounds_us": [
+            37082,
+            60525
+          ],
+          "post_launch_p99_bounds_us": [
+            62121,
+            85564
+          ],
+          "scheduled_p95_over_limit": false
+        },
+        "512": {
+          "source_record": "chunks/1-flat512.json",
+          "mib_s": 5745.1092219991015,
+          "delivered_bytes": 36145351136,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 40448,
+          "scheduled_p99_us": 67472,
+          "max_launch_delay_us": 14662,
+          "post_launch_p95_bounds_us": [
+            25785,
+            40449
+          ],
+          "post_launch_p99_bounds_us": [
+            52809,
+            67473
+          ],
+          "scheduled_p95_over_limit": false
+        }
+      },
+      "post_launch_p95_difference_us": [
+        -34740,
+        3367
+      ],
+      "larger_cap_post_launch_p95": "unresolved"
+    },
+    {
+      "block": 2,
+      "arms_kib": {
+        "256": {
+          "source_record": "chunks/2-flat256.json",
+          "mib_s": 6301.249839671933,
+          "delivered_bytes": 39644178440,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 24750,
+          "scheduled_p99_us": 34401,
+          "max_launch_delay_us": 1303,
+          "post_launch_p95_bounds_us": [
+            23446,
+            24751
+          ],
+          "post_launch_p99_bounds_us": [
+            33097,
+            34402
+          ],
+          "scheduled_p95_over_limit": false
+        },
+        "512": {
+          "source_record": "chunks/2-flat512.json",
+          "mib_s": 4030.0061891544287,
+          "delivered_bytes": 25354721416,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 87159,
+          "scheduled_p99_us": 185686,
+          "max_launch_delay_us": 23170,
+          "post_launch_p95_bounds_us": [
+            63988,
+            87160
+          ],
+          "post_launch_p99_bounds_us": [
+            162515,
+            185687
+          ],
+          "scheduled_p95_over_limit": true
+        }
+      },
+      "post_launch_p95_difference_us": [
+        39237,
+        63714
+      ],
+      "larger_cap_post_launch_p95": "slower"
+    },
+    {
+      "block": 3,
+      "arms_kib": {
+        "256": {
+          "source_record": "chunks/3-flat256.json",
+          "mib_s": 5259.958418922005,
+          "delivered_bytes": 33094361968,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 29484,
+          "scheduled_p99_us": 69578,
+          "max_launch_delay_us": 12718,
+          "post_launch_p95_bounds_us": [
+            16765,
+            29485
+          ],
+          "post_launch_p99_bounds_us": [
+            56859,
+            69579
+          ],
+          "scheduled_p95_over_limit": false
+        },
+        "512": {
+          "source_record": "chunks/3-flat512.json",
+          "mib_s": 5324.381897418884,
+          "delivered_bytes": 33498272384,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 42442,
+          "scheduled_p99_us": 86282,
+          "max_launch_delay_us": 4879,
+          "post_launch_p95_bounds_us": [
+            37562,
+            42443
+          ],
+          "post_launch_p99_bounds_us": [
+            81402,
+            86283
+          ],
+          "scheduled_p95_over_limit": false
+        }
+      },
+      "post_launch_p95_difference_us": [
+        8077,
+        25678
+      ],
+      "larger_cap_post_launch_p95": "slower"
+    },
+    {
+      "block": 4,
+      "arms_kib": {
+        "256": {
+          "source_record": "chunks/4-flat256.json",
+          "mib_s": 3314.6000369603253,
+          "delivered_bytes": 20855689320,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 62576,
+          "scheduled_p99_us": 102214,
+          "max_launch_delay_us": 6929,
+          "post_launch_p95_bounds_us": [
+            55646,
+            62577
+          ],
+          "post_launch_p99_bounds_us": [
+            95284,
+            102215
+          ],
+          "scheduled_p95_over_limit": false
+        },
+        "512": {
+          "source_record": "chunks/4-flat512.json",
+          "mib_s": 4051.3764814573096,
+          "delivered_bytes": 25489323624,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 59467,
+          "scheduled_p99_us": 99042,
+          "max_launch_delay_us": 43115,
+          "post_launch_p95_bounds_us": [
+            16351,
+            59468
+          ],
+          "post_launch_p99_bounds_us": [
+            55926,
+            99043
+          ],
+          "scheduled_p95_over_limit": false
+        }
+      },
+      "post_launch_p95_difference_us": [
+        -46226,
+        3822
+      ],
+      "larger_cap_post_launch_p95": "unresolved"
+    },
+    {
+      "block": 5,
+      "arms_kib": {
+        "256": {
+          "source_record": "chunks/5-flat256.json",
+          "mib_s": 5248.795681394563,
+          "delivered_bytes": 33022605152,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 34506,
+          "scheduled_p99_us": 56391,
+          "max_launch_delay_us": 6166,
+          "post_launch_p95_bounds_us": [
+            28339,
+            34507
+          ],
+          "post_launch_p99_bounds_us": [
+            50224,
+            56392
+          ],
+          "scheduled_p95_over_limit": false
+        },
+        "512": {
+          "source_record": "chunks/5-flat512.json",
+          "mib_s": 5873.846159998178,
+          "delivered_bytes": 36955713448,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 24258,
+          "scheduled_p99_us": 31576,
+          "max_launch_delay_us": 11018,
+          "post_launch_p95_bounds_us": [
+            13239,
+            24259
+          ],
+          "post_launch_p99_bounds_us": [
+            20557,
+            31577
+          ],
+          "scheduled_p95_over_limit": false
+        }
+      },
+      "post_launch_p95_difference_us": [
+        -21268,
+        -4080
+      ],
+      "larger_cap_post_launch_p95": "faster"
+    },
+    {
+      "block": 6,
+      "arms_kib": {
+        "256": {
+          "source_record": "chunks/6-flat256.json",
+          "mib_s": 2247.1021083579735,
+          "delivered_bytes": 14137578896,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 128937,
+          "scheduled_p99_us": 185693,
+          "max_launch_delay_us": 15697,
+          "post_launch_p95_bounds_us": [
+            113239,
+            128938
+          ],
+          "post_launch_p99_bounds_us": [
+            169995,
+            185694
+          ],
+          "scheduled_p95_over_limit": true
+        },
+        "512": {
+          "source_record": "chunks/6-flat512.json",
+          "mib_s": 3884.5637868861136,
+          "delivered_bytes": 24439890384,
+          "fresh_requests": 240,
+          "client_errors": 0,
+          "reopens": 0,
+          "scheduled_p95_us": 51448,
+          "scheduled_p99_us": 66787,
+          "max_launch_delay_us": 15239,
+          "post_launch_p95_bounds_us": [
+            36208,
+            51449
+          ],
+          "post_launch_p99_bounds_us": [
+            51547,
+            66788
+          ],
+          "scheduled_p95_over_limit": false
+        }
+      },
+      "post_launch_p95_difference_us": [
+        -92730,
+        -61790
+      ],
+      "larger_cap_post_launch_p95": "faster"
+    }
+  ],
+  "blocks_by_post_launch_p95_direction": {
+    "slower": [
+      2,
+      3
+    ],
+    "faster": [
+      5,
+      6
+    ],
+    "unresolved": [
+      0,
+      1,
+      4
+    ]
+  },
+  "decision": "Timing the client from launch cannot consistently explain the read-cap tail differences. Keep scheduled p95 for acceptance. Preserve paired launch and completion times on the separate read-cap comparison after the worker decision; individual durations from these archived percentile summaries cannot be recovered."
+}

@@ -1,0 +1,22 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -46,2 +46,3 @@
+ struct mp_tcp_relay {
++    char scratch[CHUNK];
+     int kq;
+@@ -58,3 +59,2 @@
+ #endif
+-    char scratch[CHUNK];
+ };
+@@ -159,4 +159,9 @@
+     if (inet_pton(AF_INET, guest, &address) != 1) { errno = EINVAL; return NULL; }
+-    mp_tcp_relay *r = calloc(1, sizeof(*r));
+-    if (!r) return NULL;
++    long page = sysconf(_SC_PAGESIZE);
++    if (page <= 0) { errno = EINVAL; return NULL; }
++    void *storage = NULL;
++    int allocation_error = posix_memalign(&storage, (size_t)page, sizeof(mp_tcp_relay));
++    if (allocation_error) { errno = allocation_error; return NULL; }
++    mp_tcp_relay *r = storage;
++    memset(r, 0, sizeof(*r));
+ #if MICROPOD_BENCH_512K_READS

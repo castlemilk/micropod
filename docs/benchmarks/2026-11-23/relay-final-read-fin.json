@@ -1,0 +1,413 @@
+{
+  "method": "One isolated established relay flow per scenario, real AF_UNIX sockets and Darwin kqueue. Read, write and poll counts cover the guest response and its FIN. The reverse-data and two-way FIN controls run after counting. A separate suite revokes pressured leases on both queue types. The flagged event and limited read are injected controls.",
+  "coverage": "No TCP, VM, latency or throughput measurement. Actual TCP FIN/reset races and the fraction of TCP responses arriving together with FIN require their own qualification.",
+  "darwin": "25.5.0",
+  "arch": "arm64",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O1",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-fno-sanitize-recover=all"
+  ],
+  "source_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "scripts/relaybench/final_read_fin.patch": "4e1c880d7d81a2071837ea7f482beb2d9ae2bec5720ad5c125144d0ee65c5902",
+    "scripts/relaybench/final_read_fin.c": "36e90a08e2b00d720b1edb183f353e69dc2f09693b5f36896d1b13793203716a",
+    "scripts/relaybench/test_final_read_fin.py": "d991688ea2802d06e0f7d7247039f8a25d0f667d43123f164e50a8fbb1767e72"
+  },
+  "binary_sha256": {
+    "stock": "82508ac9d0693b803f1574281117cccc491a17efefdffd3f4d2e70d25a0c244c",
+    "candidate": "6e9a45cc510e378a20a4390473c9915d339aa3e372fc16c6b39effd3e63af5a4"
+  },
+  "rows": {
+    "stock": {
+      "empty": {
+        "case": "empty",
+        "bytes": 0,
+        "reads": 1,
+        "zero_reads": 1,
+        "writes": 0,
+        "partial_writes": 0,
+        "ready_polls": 2,
+        "ready_events": 1,
+        "disable_reads": 1,
+        "data_fin_events": 0,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 0
+      },
+      "short": {
+        "case": "short",
+        "bytes": 148,
+        "reads": 2,
+        "zero_reads": 1,
+        "writes": 1,
+        "partial_writes": 0,
+        "ready_polls": 3,
+        "ready_events": 2,
+        "disable_reads": 1,
+        "data_fin_events": 1,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 148
+      },
+      "over-cap": {
+        "case": "over-cap",
+        "bytes": 262257,
+        "reads": 3,
+        "zero_reads": 1,
+        "writes": 2,
+        "partial_writes": 0,
+        "ready_polls": 4,
+        "ready_events": 3,
+        "disable_reads": 1,
+        "data_fin_events": 2,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 262257
+      },
+      "delayed-fin": {
+        "case": "delayed-fin",
+        "bytes": 148,
+        "reads": 2,
+        "zero_reads": 1,
+        "writes": 1,
+        "partial_writes": 0,
+        "ready_polls": 4,
+        "ready_events": 2,
+        "disable_reads": 1,
+        "data_fin_events": 0,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 0
+      },
+      "limited-read": {
+        "case": "limited-read",
+        "bytes": 148,
+        "reads": 3,
+        "zero_reads": 1,
+        "writes": 2,
+        "partial_writes": 0,
+        "ready_polls": 4,
+        "ready_events": 3,
+        "disable_reads": 1,
+        "data_fin_events": 2,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 148
+      },
+      "short-write": {
+        "case": "short-write",
+        "bytes": 262144,
+        "reads": 2,
+        "zero_reads": 1,
+        "writes": 4,
+        "partial_writes": 3,
+        "ready_polls": 9,
+        "ready_events": 5,
+        "disable_reads": 2,
+        "data_fin_events": 1,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 262144
+      },
+      "flagged-terminal-event": {
+        "case": "flagged-terminal-event",
+        "bytes": 148,
+        "reads": 2,
+        "zero_reads": 1,
+        "writes": 1,
+        "partial_writes": 0,
+        "ready_polls": 3,
+        "ready_events": 2,
+        "disable_reads": 1,
+        "data_fin_events": 1,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 148
+      }
+    },
+    "candidate": {
+      "empty": {
+        "case": "empty",
+        "bytes": 0,
+        "reads": 1,
+        "zero_reads": 1,
+        "writes": 0,
+        "partial_writes": 0,
+        "ready_polls": 2,
+        "ready_events": 1,
+        "disable_reads": 1,
+        "data_fin_events": 0,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 0
+      },
+      "short": {
+        "case": "short",
+        "bytes": 148,
+        "reads": 1,
+        "zero_reads": 0,
+        "writes": 1,
+        "partial_writes": 0,
+        "ready_polls": 2,
+        "ready_events": 1,
+        "disable_reads": 1,
+        "data_fin_events": 1,
+        "empty_fin_events": 0,
+        "first_fin_bytes": 148
+      },
+      "over-cap": {
+        "case": "over-cap",
+        "bytes": 262257,
+        "reads": 2,
+        "zero_reads": 0,
+        "writes": 2,
+        "partial_writes": 0,
+        "ready_polls": 3,
+        "ready_events": 2,
+        "disable_reads": 1,
+        "data_fin_events": 2,
+        "empty_fin_events": 0,
+        "first_fin_bytes": 262257
+      },
+      "delayed-fin": {
+        "case": "delayed-fin",
+        "bytes": 148,
+        "reads": 2,
+        "zero_reads": 1,
+        "writes": 1,
+        "partial_writes": 0,
+        "ready_polls": 4,
+        "ready_events": 2,
+        "disable_reads": 1,
+        "data_fin_events": 0,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 0
+      },
+      "limited-read": {
+        "case": "limited-read",
+        "bytes": 148,
+        "reads": 2,
+        "zero_reads": 0,
+        "writes": 2,
+        "partial_writes": 0,
+        "ready_polls": 3,
+        "ready_events": 2,
+        "disable_reads": 1,
+        "data_fin_events": 2,
+        "empty_fin_events": 0,
+        "first_fin_bytes": 148
+      },
+      "short-write": {
+        "case": "short-write",
+        "bytes": 262144,
+        "reads": 2,
+        "zero_reads": 1,
+        "writes": 4,
+        "partial_writes": 3,
+        "ready_polls": 9,
+        "ready_events": 5,
+        "disable_reads": 2,
+        "data_fin_events": 1,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 262144
+      },
+      "flagged-terminal-event": {
+        "case": "flagged-terminal-event",
+        "bytes": 148,
+        "reads": 2,
+        "zero_reads": 1,
+        "writes": 1,
+        "partial_writes": 0,
+        "ready_polls": 3,
+        "ready_events": 2,
+        "disable_reads": 1,
+        "data_fin_events": 1,
+        "empty_fin_events": 1,
+        "first_fin_bytes": 148
+      }
+    }
+  },
+  "lifecycle": {
+    "stock": [
+      {
+        "owner": "split",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "split",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      }
+    ],
+    "candidate": [
+      {
+        "owner": "split",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "split",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 0,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 0,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      },
+      {
+        "owner": "dedicated",
+        "room_bytes": 16384,
+        "connect_complete": {
+          "syscalls": 3,
+          "filters": 3
+        },
+        "unblocked_bulk": {
+          "syscalls": 0,
+          "filters": 0
+        },
+        "pause_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "first_write_bytes": 16384,
+        "resume_reader": {
+          "syscalls": 2,
+          "filters": 2
+        },
+        "verified_payload_bytes": 131075
+      }
+    ]
+  }
+}

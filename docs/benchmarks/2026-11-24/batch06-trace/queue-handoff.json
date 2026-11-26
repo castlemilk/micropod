@@ -1,0 +1,944 @@
+{
+  "dependency": "c0185aea5c04fcd4d1cfe9359e0066a380835403",
+  "dependency_files": {
+    "Sources/Containerization/VZVirtualMachineInstance.swift": "cc1a80f95bfb81cc0981f6e8cfbb5ad4f812b41e1b5fb7cfa9fbf7768da24c12",
+    "Sources/Containerization/VZVirtualMachine+Helpers.swift": "610fe5fdd1dd8e94fbdd271c3fd1f274df844e8f88f8ffc248f70049f17e980a"
+  },
+  "fixture_sha256": {
+    "queue_probe.c": "d536f5a2a622c761a65438dbb0380a716031069b7015dda88b01bbdb2d573b55",
+    "queue_probe.h": "2ac5ec27a37a1588129e438d7793c7b307f07a7b8f5c0184c13d9e09aab0b3fb",
+    "queue_handoff.swift": "9b56862b41677ccdc990f82aa3f5bc89211bd53031b087b588cb9e489ab6d9e4",
+    "queue_handoff.py": "7631dac0811f626dcf34a5588398cb4d90b62b96148f5dfd3958c3bced305a87"
+  },
+  "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "attempts": [
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 1,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 1,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 2,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 2,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 3,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 3,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 4,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 4,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 5,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 5,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 6,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 6,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 7,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 7,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 17,
+      "pair": 8,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 17,
+      "pair": 8,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "async": {
+          "base": 20,
+          "current": 20,
+          "qos": 17,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 17
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 17,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 1,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 1,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 2,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 2,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 3,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 3,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 4,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 4,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 5,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 5,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 6,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 6,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 7,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 7,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "explicit",
+      "callerQos": 25,
+      "pair": 8,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    },
+    {
+      "arm": "unspecified",
+      "callerQos": 25,
+      "pair": 8,
+      "states": {
+        "after": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "async": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 0
+        },
+        "before": {
+          "base": 31,
+          "current": 31,
+          "qos": 25
+        },
+        "sync": {
+          "base": 31,
+          "current": 31,
+          "qos": 25,
+          "sameThreadAsSubmitter": 1
+        }
+      }
+    }
+  ]
+}

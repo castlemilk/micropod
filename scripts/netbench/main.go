@@ -29,7 +29,7 @@ const size = 8 << 20
 var payload = bytes.Repeat([]byte("micropod"), size/8)
 
 func main() {
-	listen := flag.String("listen", "", "listen address for server mode")
+	listen := flag.String("listen", "", "comma-separated listen addresses for server mode")
 	target := flag.String("url", "", "service URL for client mode")
 	marker := flag.String("marker", "ok", "expected server identity")
 	rounds := flag.Int("requests", 200, "number of small requests")
@@ -40,14 +40,29 @@ func main() {
 	traceMixed := flag.Bool("trace-mixed", false, "sample per-stream bytes and fresh HTTP phase timestamps around the mixed interval")
 	freshURL := flag.String("fresh-url", "", "mixed profile only: send fresh requests to a second URL serving the same marker")
 	netInfo := flag.Bool("net-info", false, "snapshot Linux network-namespace and cgroup counters")
+	selfDigest := flag.Bool("self-sha256", false, "print the SHA-256 of the running Linux probe")
 	cgroupInfo := flag.Bool("cgroup-info", false, "print the actual cgroup v2 limits seen inside this Linux container")
 	dns := flag.Int("lookups", 0, "number of single-family service DNS lookups")
 	dnsClients := flag.Int("dns-clients", 1, "independent resolvers issuing parallel service lookups")
 	flag.Parse()
+	if *selfDigest {
+		executable, err := os.Open("/proc/self/exe")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer executable.Close()
+		hash := sha256.New()
+		if _, err := io.Copy(hash, executable); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%x\n", hash.Sum(nil))
+		return
+	}
 	if *netInfo {
 		files := []string{"/proc/net/snmp", "/proc/net/netstat", "/proc/net/sockstat", "/proc/net/dev", "/proc/net/stat/nf_conntrack",
 			"/proc/sys/net/netfilter/nf_conntrack_count", "/proc/sys/net/netfilter/nf_conntrack_max",
-			"/sys/fs/cgroup/cpu.stat", "/sys/fs/cgroup/cpu.pressure", "/sys/fs/cgroup/memory.events"}
+			"/sys/fs/cgroup/cpu.stat", "/sys/fs/cgroup/cpu.pressure", "/sys/fs/cgroup/memory.events",
+			"/proc/sys/kernel/random/boot_id", "/proc/interrupts", "/proc/softirqs", "/proc/stat"}
 		values := map[string]string{}
 		for _, path := range files {
 			if b, err := os.ReadFile(path); err == nil {
@@ -77,12 +92,7 @@ func main() {
 		return
 	}
 	if *listen != "" {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/id", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, *marker) })
-		mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeContent(w, r, "data", time.Time{}, bytes.NewReader(payload))
-		})
-		log.Fatal((&http.Server{Addr: *listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}).ListenAndServe())
+		log.Fatal(serveAddresses(strings.Split(*listen, ","), *marker))
 	}
 	maxBursts := 100
 	if *profile == "bulk" {
@@ -267,6 +277,29 @@ func main() {
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func serveAddresses(addresses []string, marker string) error {
+	done := make(chan error, len(addresses))
+	for i, address := range addresses {
+		listener, err := net.Listen("tcp", address)
+		if err != nil {
+			return err
+		}
+		defer listener.Close()
+		id := marker
+		if i > 0 {
+			id += fmt.Sprintf("-%d", listener.Addr().(*net.TCPAddr).Port)
+		}
+		mux := http.NewServeMux()
+		mux.HandleFunc("/id", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, id) })
+		mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeContent(w, r, "data", time.Time{}, bytes.NewReader(payload))
+		})
+		server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+		go func() { done <- server.Serve(listener) }()
+	}
+	return <-done
 }
 func hashPayload() []byte { h := sha256.Sum256(payload); return h[:] }
 

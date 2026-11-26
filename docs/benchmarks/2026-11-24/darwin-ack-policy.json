@@ -1,0 +1,270 @@
+{
+  "date": "2026-11-24",
+  "direction": "230.11",
+  "tier": "archived VM; offline replay",
+  "archive": "gamma-vcpu-priority.json.gz",
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "archive_source": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "replay_base": "2ccda8507355b8220258db2ce8160f3113d3e1ff",
+  "fixture": "darwin-ack-fixture.json.gz",
+  "fixture_sha256": "733991064cd7dc4556739d5092f72bd7fdf6be5d4594d645ee3e25800a242e45",
+  "source_sha256": {
+    "ack-trials.sh": "63c41b47dd6a236bdfd98d9d74b2c69ede017bce7618cd7981557e9046afbe5f",
+    "build-window.py": "f7a7c90755d814e83905319cc1c1d4e519ee2ff5014ba9c63bcc7b593199464b",
+    "build-window.sh": "42fd7d905d3923e97084d138ad1964ca16eb045280c96271a84b0d8a6f4b8811",
+    "data/fix-ack-512/job.plist": "6509e40c8dc64a917d19ac1147a156c219515426b30f226fe12e7a522802f5dc",
+    "data/fix-window-512/job.plist": "df4cd1747961a3f6dc348d66b7a797345101e772061722248fdb56bec6ea4d0f",
+    "start-window-worker.sh": "1761945dccdf00d0607964765ab374a99805605492a46d0031511c5eafe855e4"
+  },
+  "workload": "32 ongoing 8-MiB downloads, 240 fresh identity GETs at 25 ms over 6 s",
+  "control": "Darwin guest-facing TCP socket requests SO_RCVBUF=524288",
+  "candidate": "Same receive-window request, additionally sets TCP_SENDMOREACKS=1 before connect",
+  "scopes": {
+    "fix-window-512": {
+      "host_sha256": "d44dfba4b80542aeebcce8c8dd403ce4de02eb4f312b9085bae6b67e7efc055b",
+      "boot": "86A33014-C004-4FEA-A999-9786D06279A6"
+    },
+    "fix-ack-512": {
+      "host_sha256": "04d85df1eae9e33e0355d11cf56d1810b25cbb67f20b7c8d9c3a23971d408565",
+      "boot": "8896CF17-E79B-4F71-A213-BC8D2B51411E"
+    }
+  },
+  "orders": [
+    [
+      "fix-ack-512",
+      "fix-ack-768",
+      "fix-window-512"
+    ],
+    [
+      "fix-ack-512",
+      "fix-window-512",
+      "fix-ack-768"
+    ],
+    [
+      "fix-ack-768",
+      "fix-ack-512",
+      "fix-window-512"
+    ],
+    [
+      "fix-ack-768",
+      "fix-window-512",
+      "fix-ack-512"
+    ],
+    [
+      "fix-window-512",
+      "fix-ack-512",
+      "fix-ack-768"
+    ]
+  ],
+  "arms": {
+    "fix-window-512": {
+      "attempts": [
+        {
+          "round": 1,
+          "position": 3,
+          "delivery_clean": true,
+          "guardrail_pass": true,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 0,
+          "reopens": 0,
+          "progressing_streams": 32,
+          "mib_s": 1607.8743621405738,
+          "window_s": 6.006681583,
+          "scored_bytes": 10127135808,
+          "fresh_p95_ms": 44.545,
+          "fresh_p99_ms": 92.546
+        },
+        {
+          "round": 2,
+          "position": 2,
+          "delivery_clean": true,
+          "guardrail_pass": true,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 0,
+          "reopens": 0,
+          "progressing_streams": 32,
+          "mib_s": 2982.070960128588,
+          "window_s": 6.00115725,
+          "scored_bytes": 18765186872,
+          "fresh_p95_ms": 54.432,
+          "fresh_p99_ms": 116.063
+        },
+        {
+          "round": 3,
+          "position": 3,
+          "delivery_clean": false,
+          "guardrail_pass": false,
+          "offered": 240,
+          "fresh_failed": 176,
+          "bulk_errors": 32,
+          "reopens": 3,
+          "progressing_streams": 32,
+          "mib_s": 815.7674725289478,
+          "window_s": 6.001041083,
+          "scored_bytes": 5133255696,
+          "fresh_p95_ms": 82.614,
+          "fresh_p99_ms": 132.108
+        },
+        {
+          "round": 4,
+          "position": 2,
+          "delivery_clean": true,
+          "guardrail_pass": true,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 0,
+          "reopens": 0,
+          "progressing_streams": 32,
+          "mib_s": 3470.1901549436243,
+          "window_s": 6.000023916,
+          "scored_bytes": 21832635696,
+          "fresh_p95_ms": 22.977,
+          "fresh_p99_ms": 37.84
+        },
+        {
+          "round": 5,
+          "position": 1,
+          "delivery_clean": true,
+          "guardrail_pass": true,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 0,
+          "reopens": 0,
+          "progressing_streams": 32,
+          "mib_s": 3247.915242440991,
+          "window_s": 6.046969875,
+          "scored_bytes": 20594080484,
+          "fresh_p95_ms": 59.993,
+          "fresh_p99_ms": 101.926
+        }
+      ],
+      "attempted": 5,
+      "qualifying": 4,
+      "offered": 1200,
+      "fresh_failed": 176,
+      "bulk_errors": 32,
+      "reopens": 3,
+      "clean_median_p95_ms": 49.4885,
+      "clean_median_p99_ms": 97.236
+    },
+    "fix-ack-512": {
+      "attempts": [
+        {
+          "round": 1,
+          "position": 1,
+          "delivery_clean": true,
+          "guardrail_pass": true,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 0,
+          "reopens": 0,
+          "progressing_streams": 32,
+          "mib_s": 2307.710011897455,
+          "window_s": 6.000350834,
+          "scored_bytes": 14519704952,
+          "fresh_p95_ms": 50.271,
+          "fresh_p99_ms": 75.141
+        },
+        {
+          "round": 2,
+          "position": 1,
+          "delivery_clean": false,
+          "guardrail_pass": false,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 32,
+          "reopens": 11,
+          "progressing_streams": 0,
+          "mib_s": 0,
+          "window_s": 6.005264916,
+          "scored_bytes": 0,
+          "fresh_p95_ms": 10.603,
+          "fresh_p99_ms": 16.285
+        },
+        {
+          "round": 3,
+          "position": 2,
+          "delivery_clean": true,
+          "guardrail_pass": true,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 0,
+          "reopens": 0,
+          "progressing_streams": 32,
+          "mib_s": 3241.1953525344484,
+          "window_s": 6.05606375,
+          "scored_bytes": 20582378432,
+          "fresh_p95_ms": 27.027,
+          "fresh_p99_ms": 58.149
+        },
+        {
+          "round": 4,
+          "position": 3,
+          "delivery_clean": true,
+          "guardrail_pass": true,
+          "offered": 240,
+          "fresh_failed": 0,
+          "bulk_errors": 0,
+          "reopens": 0,
+          "progressing_streams": 32,
+          "mib_s": 3501.223824763223,
+          "window_s": 6.001601334,
+          "scored_bytes": 22033674616,
+          "fresh_p95_ms": 54.4,
+          "fresh_p99_ms": 74.679
+        },
+        {
+          "round": 5,
+          "position": 2,
+          "delivery_clean": false,
+          "guardrail_pass": false,
+          "offered": 240,
+          "fresh_failed": 147,
+          "bulk_errors": 9,
+          "reopens": 3,
+          "progressing_streams": 32,
+          "mib_s": 1267.9285251647511,
+          "window_s": 6.022009042,
+          "scored_bytes": 8006377976,
+          "fresh_p95_ms": 71.289,
+          "fresh_p99_ms": 121.529
+        }
+      ],
+      "attempted": 5,
+      "qualifying": 3,
+      "offered": 1200,
+      "fresh_failed": 147,
+      "bulk_errors": 41,
+      "reopens": 14,
+      "clean_median_p95_ms": 50.271,
+      "clean_median_p99_ms": 74.679
+    }
+  },
+  "jointly_qualifying": [
+    {
+      "round": 1,
+      "candidate_first": true,
+      "rate_change_pct": 43.52551830139173,
+      "fresh_p95_change_ms": 5.725999999999999,
+      "fresh_p99_change_ms": -17.405
+    },
+    {
+      "round": 4,
+      "candidate_first": false,
+      "rate_change_pct": 0.8942930627414913,
+      "fresh_p95_change_ms": 31.423,
+      "fresh_p99_change_ms": 36.839
+    }
+  ],
+  "guardrail": "Zero errors, zero reopens, all 32 streams deliver and fresh p95 <=75 ms",
+  "caveats": [
+    "Separate VM boots per arm. Third 768-KiB arm interleaved and excluded.",
+    "Socket option requested and fail-on-error. No wire ACK count or effective SO_RCVBUF readback.",
+    "Failed fresh requests occupy zero latency slots in the archived client; dirty percentiles are diagnostic only.",
+    "No per-attempt NIC drop counters or individual fresh timings. Two eligible pairs cannot establish repeatability."
+  ],
+  "verdict": "Do not advance. Extra ACKs missed the delivery guardrail twice, including a zero-byte window.",
+  "next_check": "Require a delivery-clean production-path control before testing supported ACK cadence with packet-level readback."
+}
