@@ -76,7 +76,11 @@
 # The rig (~/.micropod/hvf, ~/.micropod/docker.sock, ~/.micropod/api.sock,
 # 127.0.0.1:45454) is only read: the default bundle is cloned from it. Only
 # processes proven to be this root's (its VMM on its disk, the proxy on its
-# socket) are ever signalled. Published ports: 19360-19362.
+# socket) are ever signalled. Published ports: 19360-19362, and the API on
+# 19389, unless B26_PORT_START names the first of four ports in a row (the
+# three published ports, then the API's) or B26_PORT_RANGE (LO-HI) a range
+# to take the first four free ones in a row from, so parallel runs given
+# separate ranges never collide.
 set -Eeuo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -96,7 +100,9 @@ TS=$(date -u +%Y%m%dT%H%M%SZ)
 R=$HOME/.micropod/gates/b26/$TS
 DISK_FROM=${B26_DISK_FROM:-$HOME/.micropod/ci/worker.ext4}
 IMAGE=${B26_IMAGE:-alpine:3.20}
-PORT_BASE=19362 PORT_NOBOOT=19360 PORT_PROBE=19361
+PORT_BASE=19362 PORT_NOBOOT=19360 PORT_PROBE=19361 API_PORT=19389
+PORT_START=${B26_PORT_START:-}
+PORT_RANGE=${B26_PORT_RANGE:-}
 JOB_SECONDS=20
 
 usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; }
@@ -144,7 +150,24 @@ done
 [[ -f $DISK_FROM ]] || die2 "missing disk to clone: $DISK_FROM"
 codesign -d --entitlements - --xml "$BUNDLE/micropod-vmm" 2>/dev/null | grep -q com.apple.security.hypervisor ||
     die2 "$BUNDLE/micropod-vmm lacks the hypervisor entitlement"
-busy=$(python3 "$GATE/gate.py" busy-ports $PORT_NOBOOT $PORT_PROBE $PORT_BASE)
+if [[ -n $PORT_RANGE && -z $PORT_START ]]; then
+    [[ $PORT_RANGE =~ ^([0-9]+)-([0-9]+)$ ]] || die2 "B26_PORT_RANGE must be LO-HI (got '$PORT_RANGE')"
+    lo=${BASH_REMATCH[1]} hi=${BASH_REMATCH[2]}
+    for ((p = lo; p + 3 <= hi; p++)); do
+        if [[ -z $(python3 "$GATE/gate.py" busy-ports "$p" $((p + 1)) $((p + 2)) $((p + 3))) ]]; then
+            PORT_START=$p
+            break
+        fi
+    done
+    [[ -n $PORT_START ]] || die2 "no four free ports in a row in $PORT_RANGE (B26_PORT_RANGE)"
+fi
+if [[ -n $PORT_START ]]; then
+    if ! [[ $PORT_START =~ ^[0-9]+$ ]] || ((PORT_START < 1024 || PORT_START + 3 > 65535)); then
+        die2 "B26_PORT_START must be a port from 1024 to 65532 (got '$PORT_START')"
+    fi
+    PORT_NOBOOT=$PORT_START PORT_PROBE=$((PORT_START + 1)) PORT_BASE=$((PORT_START + 2)) API_PORT=$((PORT_START + 3))
+fi
+busy=$(python3 "$GATE/gate.py" busy-ports "$PORT_NOBOOT" "$PORT_PROBE" "$PORT_BASE" "$API_PORT")
 [[ -z $busy ]] || die2 "ports already in use: $busy"
 
 mkdir -p "$R"/{logs,apply,monitor,manifests}
@@ -163,7 +186,7 @@ export MICROPOD_HVF_ROOT=$MROOT
 export MICROPOD_LINK_DOCKER_SOCK=0
 export MICROPOD_DOCKER_SOCK=$MROOT/canonical-docker.sock
 export MICROPOD_API_SOCK=$BASE/api.sock
-export MICROPOD_API_PORT=19389
+export MICROPOD_API_PORT=$API_PORT
 export MICROPOD_RUNTIMES_CONFIG=$BASE/runtimes.json
 export MICROPOD_CLI=$M
 export MICROPOD_NO_UPDATE_NOTIFIER=1
