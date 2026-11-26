@@ -177,6 +177,7 @@ final class HVFMachineTests: XCTestCase {
                 "--vsock-expose", "\(root.path)/run/docker.sock:2375",
                 "--vsock-expose", "\(root.path)/run/buildkit.sock:2377", "--published-net",
                 "--cpus", "4", "--memory-mib", "4096", "--cmdline-append", "mp.config=1",
+                "--cmdline-append", "loglevel=6",
                 "--shutdown-timeout", "10", "--json-summary", "--parent-pid", "4242",
             ])
         XCTAssertFalse(args.contains("--cmdline"), "the VMM's own kernel command line is never replaced")
@@ -224,10 +225,26 @@ final class HVFMachineTests: XCTestCase {
             layout: layout, config: HVFMachineConfig(workspace: nil, kernelArguments: ["loglevel=4"]), parentPID: 1)
         let joined = args.joined(separator: "|")
         XCTAssertTrue(joined.contains("--disk|\(root.path)/disk.ext4|--cache-disk|\(root.path)/caches.ext4|"))
-        let appended = "--cmdline-append|mp.config=1|--cmdline-append|mp.cache_disk=1|--cmdline-append|loglevel=4"
+        let appended =
+            "--cmdline-append|mp.config=1|--cmdline-append|mp.cache_disk=1|--cmdline-append|loglevel=6|"
+            + "--cmdline-append|loglevel=4"
         XCTAssertTrue(
             joined.contains(appended),
             "guest init learns the disk is attached, so a missing /dev/vdb turns shared caches off")
+    }
+
+    func testTheGuestKernelPrintsOnlyNoticesAndWorseUnlessConfiguredOtherwise() throws {
+        // Every byte on the guest's serial console is a trapped register
+        // write: the kernel's informational boot messages cost each boot
+        // (each switchover) ~30 ms. Notices, warnings and errors (a panic,
+        // the OOM killer) still print.
+        let appended = { (config: HVFMachineConfig) throws -> [String] in
+            let args = try HVFVMMCommand.arguments(layout: self.layout, config: config, parentPID: 1)
+            return args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
+        }
+        XCTAssertEqual(try appended(HVFMachineConfig(workspace: nil)), ["mp.config=1", "loglevel=6"])
+        let verbose = try appended(HVFMachineConfig(workspace: nil, kernelArguments: ["loglevel=8"]))
+        XCTAssertEqual(verbose.suffix(2), ["loglevel=6", "loglevel=8"], "the kernel takes the last loglevel")
     }
 
     func testWorkspaceKernelArgumentsAndExtras() throws {
@@ -239,7 +256,9 @@ final class HVFMachineTests: XCTestCase {
         XCTAssertTrue(joined.contains("--workspace|/Users/me/My Projects|"), "the VMM shares and encodes it")
         XCTAssertFalse(joined.contains("workspace:"), "no hand-built workspace share")
         XCTAssertTrue(
-            joined.contains("--cmdline-append|mp.config=1|--cmdline-append|mp.mtu=1500|--cmdline-append|loglevel=4"),
+            joined.contains(
+                "--cmdline-append|mp.config=1|--cmdline-append|loglevel=6|--cmdline-append|mp.mtu=1500|"
+                    + "--cmdline-append|loglevel=4"),
             "the config share's boot argument comes first, so a configured one can override it")
         XCTAssertTrue(joined.contains("--shutdown-timeout|30|"))
         XCTAssertFalse(args.contains("--published-net"))
@@ -1580,7 +1599,7 @@ extension HVFMachineTests {
             shares[1].hasSuffix(":ro"),
             "micropod-vmm caches a :ro share as immutable: the guest would never see a rewritten policy")
         let appended = args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
-        XCTAssertEqual(appended, ["mp.config=1"])
+        XCTAssertEqual(appended, ["mp.config=1", "loglevel=6"])
     }
 
     func testTheSupervisorRendersThePolicyBeforeEveryLaunch() async throws {

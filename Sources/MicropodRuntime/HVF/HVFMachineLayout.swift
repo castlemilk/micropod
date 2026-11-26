@@ -487,6 +487,13 @@ public enum HVFVMMCommand {
     /// shared caches off for the boot instead of creating stores on the OS
     /// disk below the mount point.
     public static let cacheDiskBootArgument = "mp.cache_disk=1"
+    /// Keeps the guest kernel's informational boot messages off its serial
+    /// console: notices, warnings and errors still print, and everything
+    /// stays in the kernel's log buffer. Each byte on the PL011 console is a
+    /// trapped register write; the ~16 KB the kernel prints at boot cost
+    /// every boot, and so every payload switchover, ~30 ms. A configured
+    /// `loglevel=` (machine.json `kernelArguments`) comes later and wins.
+    public static let kernelLogLevelBootArgument = "loglevel=6"
     /// Names the machine root for guest init (`mp.private_b64`, base64 with a
     /// trailing "." as micropod-vmm writes `mp.workspace_b64`) when it lies
     /// inside the workspace share, as the standard machine's `~/.micropod/hvf`
@@ -538,6 +545,7 @@ public enum HVFVMMCommand {
         if let privateRoot = privateRootBootArgument(root: layout.root, workspace: config.workspace) {
             args += ["--cmdline-append", privateRoot]
         }
+        args += ["--cmdline-append", kernelLogLevelBootArgument]
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
         if !config.console { args.append("--quiet") }
         args += [
