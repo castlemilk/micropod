@@ -74,7 +74,18 @@ final class APIHandlers: Sendable {
     }
 
     func usage(_ services: RuntimeServices) -> UsageService {
-        UsageService(containers: services.containers, images: images, volumes: services.volumes)
+        UsageService(containers: services.containers, images: imageRouter(services), volumes: volumeRouter(services))
+    }
+
+    /// Apple's images routed across the enabled engines that keep their own
+    /// (a pass-through when none do, or when this process routes nothing).
+    func imageRouter(_ services: RuntimeServices) -> ImageRouter {
+        ImageRouter(apple: images, registry: services.router?.registry)
+    }
+
+    /// `services.volumes` routed like `imageRouter`.
+    func volumeRouter(_ services: RuntimeServices) -> VolumeRouter {
+        VolumeRouter(apple: services.volumes, registry: services.router?.registry)
     }
 
     /// A transport error means the native backend's XPC connection may be
@@ -147,7 +158,13 @@ final class APIHandlers: Sendable {
         // /metrics — Prometheus text format, always 200: this API's routes,
         // then the apiserver XPC traffic behind them.
         if request.path == "/metrics" {
-            return .text(200, metrics.render() + APIServerMetrics.render())
+            var body = metrics.render() + APIServerMetrics.render()
+            var ciEnv = ProcessInfo.processInfo.environment
+            ciEnv["MICROPOD_CI_ENGINE"] = ciEnv["MICROPOD_CI_ENGINE"] ?? "containerd"
+            if let ciProm = try? await CIWorker(environment: ciEnv).prometheusMetrics() {
+                body += "\n" + ciProm
+            }
+            return .text(200, body)
         }
 
         let path = request.path
@@ -283,6 +300,64 @@ final class APIHandlers: Sendable {
 
         do {
             switch (resource, method) {
+            // MARK: CI Worker Engine & Workload Health
+            case ("ci", .get) where segments == ["v1", "ci", "health"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                let ciWorker = CIWorker(environment: env)
+                do {
+                    let report = try await ciWorker.health()
+                    let enc = JSONEncoder()
+                    enc.dateEncodingStrategy = .iso8601
+                    enc.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+                    let data = try enc.encode(report)
+                    let status = report.verdict == .unhealthy ? 503 : 200
+                    return .data(status, "application/json", data)
+                } catch {
+                    return .json(503, ["verdict": "unhealthy", "error": error.localizedDescription])
+                }
+
+            case ("ci", .get) where segments == ["v1", "ci", "metrics"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                let ciWorker = CIWorker(environment: env)
+                do {
+                    if request.query["format"] == "otlp" {
+                        return .data(200, "application/json", try await ciWorker.otlpMetricsJSON())
+                    }
+                    return .text(200, try await ciWorker.prometheusMetrics())
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
+            case ("ci", .get) where segments == ["v1", "ci", "traces"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                do {
+                    return .data(200, "application/json", try CIWorker(environment: env).tracesOTLPJSON())
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
+            case ("ci", .get) where segments == ["v1", "ci", "tracing"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                do {
+                    return .data(200, "application/json", try CIWorker(environment: env).tracingStatus())
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
+            case ("ci", .post) where segments == ["v1", "ci", "tracing", "enable"] || segments == ["v1", "ci", "tracing", "disable"]:
+                var env = ProcessInfo.processInfo.environment
+                env["MICROPOD_CI_ENGINE"] = env["MICROPOD_CI_ENGINE"] ?? "containerd"
+                let enable = segments.last == "enable"
+                do {
+                    return .data(200, "application/json", try CIWorker(environment: env).setLiveTracing(enabled: enable))
+                } catch {
+                    return .json(503, ["error": error.localizedDescription])
+                }
+
             // MARK: System
             case ("usage", .get):
                 let report = try await usage(services).report()
@@ -460,9 +535,13 @@ final class APIHandlers: Sendable {
                     Self.serverSentEvents(stream))
 
             // MARK: Images
+            // `?runtime=` (or a body `runtime`) picks an engine; without it
+            // listings merge every enabled engine, pulls take the default
+            // runtime and deletes the engine that has the image. Entries
+            // from an engine other than Apple's carry a `runtime` key.
             case ("images", .get) where segments.count == 2:
-                let list = try await images.list()
-                return .json(200, ["images": list.map(projection)])
+                let list = try await imageRouter(services).listByRuntime(runtime: Self.runtimeQuery(request))
+                return .json(200, ["images": list.map { Self.stamped(projection($0.image), runtime: $0.runtime) }])
 
             case ("images", .post) where segments.count == 3 && segments[2] == "pull":
                 let payload = try decodeBody(request.body)
@@ -471,8 +550,9 @@ final class APIHandlers: Sendable {
                 var lastLine = ""
                 // No platform pulls linux/<host arch> (see ImageService.pull).
                 let budget = try ImagePullBudget.api(headers: request.headers)
-                for try await event in images.pullForAPI(
-                    reference, platform: payload["platform"] as? String, budget: budget)
+                for try await event in imageRouter(services).pullForAPI(
+                    reference, platform: payload["platform"] as? String, budget: budget,
+                    runtime: payload["runtime"] as? String)
                 {
                     lastLine = event.line
                 }
@@ -480,24 +560,33 @@ final class APIHandlers: Sendable {
 
             case ("images", .delete) where segments.count == 3:
                 let reference = segments[2].removingPercentEncoding ?? segments[2]
-                try await images.delete(reference, force: request.query["force"] == "true")
+                try await imageRouter(services).delete(
+                    reference, force: request.query["force"] == "true", runtime: Self.runtimeQuery(request))
                 return .json(200, ["deleted": reference])
 
             // MARK: Volumes
             case ("volumes", .get) where segments.count == 2:
-                let list = try await services.volumes.list()
-                return .json(200, ["volumes": list.map(projection)])
+                let list = try await volumeRouter(services).list(runtime: Self.runtimeQuery(request))
+                return .json(
+                    200,
+                    [
+                        "volumes": list.map {
+                            Self.stamped(projection($0), runtime: RuntimeStamp.runtime(of: $0))
+                        }
+                    ])
 
             case ("volumes", .post) where segments.count == 2:
                 let payload = try decodeBody(request.body)
                 let name = payload["name"] as? String ?? ""
                 guard !name.isEmpty else { return .json(400, ["error": "name is required"]) }
-                try await services.volumes.create(name: name, size: payload["size"] as? String, labels: [], options: [])
+                try await volumeRouter(services).create(
+                    name: name, size: payload["size"] as? String, labels: [], options: [],
+                    runtime: payload["runtime"] as? String)
                 return .json(201, ["name": name])
 
             case ("volumes", .delete) where segments.count == 3:
                 let name = segments[2].removingPercentEncoding ?? segments[2]
-                try await services.volumes.delete(name)
+                try await volumeRouter(services).delete(name, runtime: Self.runtimeQuery(request))
                 return .json(200, ["deleted": name])
 
             // MARK: Volume policy (native backend mount handling)
@@ -897,6 +986,20 @@ final class APIHandlers: Sendable {
             },
             "resources": ["cpus": container.resources.cpus, "memoryBytes": container.resources.memoryBytes],
         ]
+    }
+
+    /// `?runtime=`, when given and non-empty.
+    static func runtimeQuery(_ request: HTTPRequest) -> String? {
+        request.query["runtime"].flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// A projection from an engine other than Apple's gains a `runtime`
+    /// key; Apple's stay exactly as they were.
+    static func stamped(_ projection: [String: Any], runtime: String) -> [String: Any] {
+        guard runtime != "apple" else { return projection }
+        var stamped = projection
+        stamped["runtime"] = runtime
+        return stamped
     }
 
     private func projection(_ image: Micropod_V1_Image) -> [String: Any] {

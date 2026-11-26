@@ -1,0 +1,90 @@
+{
+  "source_sha256": {
+    "scripts/relaybench/late_read_size.c": "599848ebb0251722e7c097b3e02c4b14e8a90f034c29536fc0e2c1def8ab354a",
+    "scripts/relaybench/filter_work.c": "24673c51511b00f28ec9378b07bf3c7e273d55cba8986ba87e35e9a94e365a3b",
+    "Sources/CPublishedTCP/PublishedTCP.c": "7453a16f8097d21d89eebc0e0121e870511a6a81486015942a45770babbd945e",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "9aadfce77b524b1448742366bbcbd8cfb42d7eaaf450c988b82c7e3097c23cc6"
+  },
+  "binary_sha256": "dfffc659363e6f28023d858430994974b3f5634a2ad39b83f3f83d6182301af1",
+  "flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-DMICROPOD_BENCH_512K_READS=1"
+  ],
+  "darwin": "25.5.0",
+  "machine": "arm64",
+  "method": "One binary, 16 established bulk downloads and one first reply on the same dedicated owner. Each bulk destination drains freely. Inject one fresh byte into its guest socket immediately after the first or sixteenth bulk write returns. Count actual subsequent bulk writes and bytes before the first fresh write; verify every stream byte. The fixture uses Darwin kqueue and anonymous stream sockets and measures work ordering, without timing or a VM.",
+  "rows_by_read_kib": {
+    "256": [
+      {
+        "offer_per_stream": 131072,
+        "inject_after": 1,
+        "writes_ahead": 15,
+        "bytes_ahead": 1966080,
+        "bulk_writes": 16,
+        "verified_bulk_bytes": 2097152
+      },
+      {
+        "offer_per_stream": 131072,
+        "inject_after": 16,
+        "writes_ahead": 0,
+        "bytes_ahead": 0,
+        "bulk_writes": 16,
+        "verified_bulk_bytes": 2097152
+      },
+      {
+        "offer_per_stream": 524288,
+        "inject_after": 1,
+        "writes_ahead": 15,
+        "bytes_ahead": 3932160,
+        "bulk_writes": 32,
+        "verified_bulk_bytes": 8388608
+      },
+      {
+        "offer_per_stream": 524288,
+        "inject_after": 16,
+        "writes_ahead": 0,
+        "bytes_ahead": 0,
+        "bulk_writes": 32,
+        "verified_bulk_bytes": 8388608
+      }
+    ],
+    "512": [
+      {
+        "offer_per_stream": 131072,
+        "inject_after": 1,
+        "writes_ahead": 15,
+        "bytes_ahead": 1966080,
+        "bulk_writes": 16,
+        "verified_bulk_bytes": 2097152
+      },
+      {
+        "offer_per_stream": 131072,
+        "inject_after": 16,
+        "writes_ahead": 0,
+        "bytes_ahead": 0,
+        "bulk_writes": 16,
+        "verified_bulk_bytes": 2097152
+      },
+      {
+        "offer_per_stream": 524288,
+        "inject_after": 1,
+        "writes_ahead": 15,
+        "bytes_ahead": 7864320,
+        "bulk_writes": 16,
+        "verified_bulk_bytes": 8388608
+      },
+      {
+        "offer_per_stream": 524288,
+        "inject_after": 16,
+        "writes_ahead": 0,
+        "bytes_ahead": 0,
+        "bulk_writes": 16,
+        "verified_bulk_bytes": 8388608
+      }
+    ]
+  }
+}

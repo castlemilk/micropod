@@ -1,0 +1,155 @@
+{
+  "original_fault": {
+    "original": {
+      "boot": "87712CA4-845A-4A49-BC48-84C2C98E43F0",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+      "endpoint": "unix:///Users/benebsworth/.micropod/ci/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.69.2",
+      "instance": "6C052BFA-8E5F-46CB-8BC0-CA1662161D03",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+    },
+    "old_route": "   route to: 192.168.69.2\ndestination: default\n       mask: default\n    gateway: 192.168.0.1\n  interface: en0\n      flags: <UP,GATEWAY,DONE,STATIC,PRCLONING,GLOBAL>\n recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire\n       0         0         0         0         0         0      1500         0 \n",
+    "before_dns_code": 1,
+    "before_volumes": [
+      "micropod-ci-gobuild",
+      "micropod-ci-gomod",
+      "micropod-ci-npm"
+    ],
+    "new": {
+      "boot": "9766C3AB-C139-4627-9D71-934E70289868",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+      "endpoint": "unix:///Users/benebsworth/.micropod/ci/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.69.2",
+      "instance": "B41DFA75-4766-4213-9855-97ABF67A5C04",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+    },
+    "after_volumes": [
+      "micropod-ci-gobuild",
+      "micropod-ci-gomod",
+      "micropod-ci-npm"
+    ]
+  },
+  "mac_bridge": {
+    "absent_on_mac": true,
+    "cause": "host-gateway-missing",
+    "container": "585e83587c14047036fa88d10916cbfa3be8b17817574890794d13949277bd3d",
+    "daemon": "067ba4f9-b9a9-432a-bf10-5b269eee2a9f",
+    "gateway": "192.168.70.1",
+    "kernel_and_sentinel": "warm\ne6a2243f-df42-4c98-b5ac-d0682fb21d5d",
+    "passed": true,
+    "repair_seconds": 2.063163834
+  },
+  "compose": {
+    "passed": true,
+    "before": {
+      "boot": "A621E08A-2852-4F3C-96C5-FB18C4B6FDF6",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "49713dfb-fe9b-42f0-9efc-fdd1f84f5956",
+      "endpoint": "unix:///tmp/mpci-profile.emYJSs/vm/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.70.2",
+      "instance": "9F8A3C6C-1AE3-41EF-9079-025826937C60",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "1DD62BB4-D907-4FEB-BC6C-9EAEDB961A85"
+    },
+    "container": "c8f4756fd8237ffe31a112a8d46ef54e4c55ccad8b78cbe327164e9fdc046993",
+    "host_bind_roundtrip": true,
+    "compose_volume": true,
+    "host_to_published_port": true,
+    "fault_probe_exit": 1,
+    "auto_seconds": 21.727327917004004,
+    "automatic_repair": {
+      "cause": "guest-link-unreachable",
+      "gateway": "192.168.70.1",
+      "instance": "9F8A3C6C-1AE3-41EF-9079-025826937C60",
+      "seconds": 2.2214159159999998,
+      "timestamp": "2026-11-20T00:01:34Z"
+    },
+    "manual_repair": {
+      "cause": "requested",
+      "gateway": "192.168.70.1",
+      "instance": "9F8A3C6C-1AE3-41EF-9079-025826937C60",
+      "request": "C118859D-FBB5-4E7E-8600-95BF0172DA01",
+      "seconds": 2.159831916,
+      "timestamp": "2026-11-20T00:01:37Z"
+    },
+    "same_boot": true,
+    "same_daemon": true,
+    "same_running_container": true
+  },
+  "passed": true,
+  "final_physical_bridge": {
+    "absent_on_mac": true,
+    "cause": "host-gateway-missing",
+    "container": "aa9b7534d62e6f3aed2f0d68594bee549cb39376cc354e7273a7b2f679b60980",
+    "daemon": "21a42395-ecd0-4344-94b4-4b7af66b7b42",
+    "gateway": "192.168.70.1",
+    "kernel_and_sentinel": "warm\ndeed5b02-2235-4f0a-a5a2-882a38c0c830",
+    "passed": true,
+    "repair_seconds": 2.917377125
+  },
+  "final_compose": {
+    "seconds": 14.133,
+    "automatic": {
+      "cause": "guest-link-unreachable",
+      "gateway": "192.168.70.1",
+      "instance": "1497F376-4D77-4BF7-8375-EC0472CF1BCE",
+      "seconds": 4.051809541,
+      "timestamp": "2026-11-20T01:11:20Z"
+    },
+    "requested": {
+      "cause": "requested",
+      "gateway": "192.168.70.1",
+      "instance": "1497F376-4D77-4BF7-8375-EC0472CF1BCE",
+      "request": "1965BC27-CD36-4C82-B274-8D928FB0428D",
+      "seconds": 2.8777312090000002,
+      "timestamp": "2026-11-20T01:11:24Z"
+    },
+    "container": "9945ce349fc827db8642893a8d501c2c9776b6e521a7b5af0b01404714610ad8",
+    "same_kernel": true,
+    "compose_volume": true,
+    "host_bind_roundtrip": true,
+    "host_to_published_port": true,
+    "worker": {
+      "boot": "DBCAA62E-42B2-45BD-9054-40F50739F59F",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "e6eed954-3734-45b8-99ce-62579ef81e17",
+      "endpoint": "unix:///tmp/mpci-66qvm7xy/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.70.2",
+      "instance": "1497F376-4D77-4BF7-8375-EC0472CF1BCE",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "7ABF0E65-5182-43A5-A9F1-664D3BD21FA5"
+    }
+  },
+  "worker_repairs": [
+    {
+      "cause": "host-gateway-missing",
+      "gateway": "192.168.69.1",
+      "instance": "B41DFA75-4766-4213-9855-97ABF67A5C04",
+      "seconds": 2.131799042,
+      "timestamp": "2026-11-20T00:15:35Z"
+    },
+    {
+      "cause": "host-gateway-missing",
+      "gateway": "192.168.69.1",
+      "instance": "B41DFA75-4766-4213-9855-97ABF67A5C04",
+      "seconds": 2.493964625,
+      "timestamp": "2026-11-20T00:27:28Z"
+    }
+  ]
+}

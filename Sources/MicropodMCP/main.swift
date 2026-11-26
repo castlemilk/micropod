@@ -271,14 +271,20 @@ private actor MCPServer {
             "Run a container. Arguments: image (required), name (optional), memory (optional), "
                 + "command (optional, run by /bin/sh -c instead of the image's default command — e.g. "
                 + "`sleep infinity` keeps a sandbox up for exec), "
-                + "runtime (optional: apple | docker | sandbox; default is the configured engine)."
+                + "runtime (optional: apple | docker | sandbox | ci | hvf; ci is this account's persistent "
+                + "Linux CI worker (`micropod ci start`), hvf is the shared Linux machine, "
+                + "started on first run once installed with `micropod machine install`)."
         ),
         (
             "runtimes",
-            "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs): availability, "
-                + "enabled, default, capabilities. Needs the Micropod API daemon."
+            "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs, the CI worker, "
+                + "the shared hvf machine): "
+                + "availability, enabled, default, capabilities. Needs the Micropod API daemon."
         ),
-        ("runtime_set_default", "Set the default engine for new containers. Arguments: name (apple|docker|sandbox)."),
+        (
+            "runtime_set_default",
+            "Set the default engine for new containers. Arguments: name (apple|docker|sandbox|ci|hvf)."
+        ),
         (
             "runtime_update",
             "Enable/disable an engine or change its endpoint. Arguments: name (required), "
@@ -334,8 +340,16 @@ private actor MCPServer {
             """
         ),
         ("sandbox_checkpoint_delete", "Delete a sandbox checkpoint. Arguments: name."),
-        ("list_images", "List local images (name, id, size, variants)."),
-        ("list_volumes", "List volumes (name, size, driver)."),
+        (
+            "list_images",
+            "List local images (name, size, id). Images on other enabled engines (docker, the hvf machine) "
+                + "follow, tagged [runtime], when the Micropod API daemon runs."
+        ),
+        (
+            "list_volumes",
+            "List volumes (name, size, driver). Volumes on other enabled engines follow, tagged [runtime], "
+                + "when the Micropod API daemon runs."
+        ),
         (
             "volume_policy",
             "Show the shared volume-mount policy (clone mode, golden volumes, sync/cache modes)."
@@ -349,7 +363,11 @@ private actor MCPServer {
             """
         ),
         ("list_networks", "List networks (name, mode, subnet)."),
-        ("pull", "Pull an image. Arguments: reference."),
+        (
+            "pull",
+            "Pull an image. Arguments: reference, runtime (optional: apple | docker | ci | hvf; a non-apple runtime "
+                + "pulls through the Micropod API daemon)."
+        ),
         ("push", "Push an image. Arguments: reference."),
         ("df", "Disk usage: containers/images/volumes sizes + reclaimable bytes."),
         ("compose_up", "Parse + run a docker-compose.yml. Arguments: path, profiles (optional comma list)."),
@@ -697,16 +715,42 @@ private actor MCPServer {
                 return toolResult(id, lines.isEmpty ? "No logs" : lines.map(\.text).joined(separator: "\n"))
 
             case "list_images":
-                let images = try await images.list()
-                let lines = images.map { image -> String in
+                // Apple's from the runtime; other engines' from the API daemon.
+                let remote = await LocalAPI.nonAppleResources("/v1/images", key: "images")
+                let local: [Micropod_V1_Image]
+                do {
+                    local = try await images.list()
+                } catch {
+                    guard !remote.isEmpty else { throw error }
+                    local = []
+                }
+                var lines = local.map { image -> String in
                     "\(image.names.first ?? image.id)\t\(ByteFormat.string(image.sizeBytes))\t\(image.id.prefix(19))"
+                }
+                lines += remote.map { image in
+                    let id = image["id"] as? String ?? ""
+                    let name = (image["names"] as? [String])?.first ?? id
+                    let size = ByteFormat.string((image["sizeBytes"] as? NSNumber)?.uint64Value ?? 0)
+                    return "\(name)\t\(size)\t\(id.prefix(19))\t[\(image["runtime"] as? String ?? "")]"
                 }
                 return toolResult(id, lines.isEmpty ? "No images" : lines.joined(separator: "\n"))
 
             case "list_volumes":
-                let volumes = try await volumes.list()
-                let lines = volumes.map { volume in
+                let remote = await LocalAPI.nonAppleResources("/v1/volumes", key: "volumes")
+                let local: [Micropod_V1_Volume]
+                do {
+                    local = try await volumes.list()
+                } catch {
+                    guard !remote.isEmpty else { throw error }
+                    local = []
+                }
+                var lines = local.map { volume in
                     "\(volume.id)\t\(ByteFormat.string(volume.sizeBytes))\t\(volume.driver)"
+                }
+                lines += remote.map { volume in
+                    let size = ByteFormat.string((volume["sizeBytes"] as? NSNumber)?.uint64Value ?? 0)
+                    let (name, driver) = (volume["id"] as? String ?? "?", volume["driver"] as? String ?? "")
+                    return "\(name)\t\(size)\t\(driver)\t[\(volume["runtime"] as? String ?? "")]"
                 }
                 return toolResult(id, lines.isEmpty ? "No volumes" : lines.joined(separator: "\n"))
 
@@ -771,6 +815,12 @@ private actor MCPServer {
                     "\(network.id)\t\(network.mode)\(network.builtin ? " (builtin)" : "")\t\(network.ipv4Subnet)"
                 }
                 return toolResult(id, lines.isEmpty ? "No networks" : lines.joined(separator: "\n"))
+
+            case "pull" where !string("runtime").isEmpty && string("runtime") != "apple":
+                // Other engines' stores are routed by the API daemon.
+                _ = try await LocalAPI.call(
+                    "POST", "/v1/images/pull", ["reference": string("reference"), "runtime": string("runtime")])
+                return toolResult(id, "Pulled \(string("reference")) on \(string("runtime"))")
 
             case "pull":
                 var lastLine = ""
@@ -1084,6 +1134,17 @@ enum LocalAPI {
     static func nonAppleContainers() async -> [[String: Any]] {
         guard let reply = try? await connect("ContainerService", "ListContainers", [:]) else { return [] }
         return (reply["containers"] as? [[String: Any]] ?? []).filter {
+            let runtime = $0["runtime"] as? String ?? "apple"
+            return !runtime.isEmpty && runtime != "apple"
+        }
+    }
+
+    /// The daemon's images or volumes (`GET path` → `{key: [...]}`) kept by
+    /// engines other than Apple's: the entries it stamps with `runtime`.
+    /// Empty without a daemon.
+    static func nonAppleResources(_ path: String, key: String) async -> [[String: Any]] {
+        guard let reply = try? await call("GET", path) else { return [] }
+        return (reply[key] as? [[String: Any]] ?? []).filter {
             let runtime = $0["runtime"] as? String ?? "apple"
             return !runtime.isEmpty && runtime != "apple"
         }

@@ -1,0 +1,485 @@
+{
+  "started_utc": "2026-11-22T13:11:09.084334+00:00",
+  "host": "Gamma-128GB.local",
+  "macos": "26.5.1",
+  "arch": "arm64",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "baseline_revision": "86ca2713a0791d26c137e9a8c6385e1b6bd04ebb",
+  "checkout_head": "32c02970ceca807f850d8be314f5c47b22b0a81f",
+  "fixture_sha256": "4c11e89dccdde3c04b8bc18c8d153c9ed8dabdd9c83117797bfdda7040527024",
+  "load_fixture_sha256": "184149f5bb2c869bb9cd2e8d29ed2f8075aff5684a23c100fdc03eee9f75bf23",
+  "driver_sha256": "5b9712c0150c02618409c62dd050166b2316fa61317df0bde010c491c789362a",
+  "arms": {
+    "parent": {
+      "passed": true,
+      "build": {
+        "binary": "2ffe11dcea0619bcf596ef281709486faa18ac7277c157b27425d30515d25d0a",
+        "flags": [
+          "-O3",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fblocks"
+        ],
+        "c": "93d30bc14268a4d759d0ba2c79c6b4cae1665914f7699cdb799087b920f4b815",
+        "header": "1bfc0e3c285013e1484c46d35edf37c2d2603f40a45bed4ca89808749306ef21"
+      },
+      "exit_code": 0,
+      "stderr": "",
+      "cases": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        }
+      ]
+    },
+    "default": {
+      "passed": true,
+      "build": {
+        "binary": "3fbbae68da8678475a37cafe0d92fed6a6d800d26d43ad18b950f2fd00fcd60f",
+        "flags": [
+          "-O3",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fblocks"
+        ],
+        "c": "4e8ca903d411167f9eb29287c64b412be01121fa55291677b8954ab2c16b38ac",
+        "header": "1bfc0e3c285013e1484c46d35edf37c2d2603f40a45bed4ca89808749306ef21"
+      },
+      "exit_code": 0,
+      "stderr": "",
+      "cases": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        }
+      ],
+      "pilot_build": {
+        "binary": "8fdb52645aee3ddbf82fe220f57ca4825e76a7a37123ec40a8fe929aa5c4f046",
+        "flags": [
+          "-O3",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fblocks",
+          "-DRELAYBENCH_STAGE_CONNECT"
+        ],
+        "c": "4e8ca903d411167f9eb29287c64b412be01121fa55291677b8954ab2c16b38ac",
+        "header": "1bfc0e3c285013e1484c46d35edf37c2d2603f40a45bed4ca89808749306ef21"
+      },
+      "pilot_check": {
+        "exit_code": 0,
+        "stderr": "",
+        "stdout": "{\"live_revocation\":true,\"sibling_and_reuse\":true,\"timed_rounds\":0}\n"
+      }
+    },
+    "batched": {
+      "passed": true,
+      "build": {
+        "binary": "acdf34a07d00f6feae03b7f11ddf2c62ab47ffd0ede5d3029486d378f6d3cf3e",
+        "flags": [
+          "-O3",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fblocks",
+          "-DMICROPOD_BATCH_STREAM_FILTERS=1"
+        ],
+        "c": "4e8ca903d411167f9eb29287c64b412be01121fa55291677b8954ab2c16b38ac",
+        "header": "1bfc0e3c285013e1484c46d35edf37c2d2603f40a45bed4ca89808749306ef21"
+      },
+      "exit_code": 0,
+      "stderr": "",
+      "cases": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        }
+      ],
+      "pilot_build": {
+        "binary": "6542e5ed09baa7efd807be80b4badb4f28e30cc877547ffa8ed008ada748d92b",
+        "flags": [
+          "-O3",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fblocks",
+          "-DRELAYBENCH_STAGE_CONNECT",
+          "-DMICROPOD_BATCH_STREAM_FILTERS=1"
+        ],
+        "c": "4e8ca903d411167f9eb29287c64b412be01121fa55291677b8954ab2c16b38ac",
+        "header": "1bfc0e3c285013e1484c46d35edf37c2d2603f40a45bed4ca89808749306ef21"
+      },
+      "pilot_check": {
+        "exit_code": 0,
+        "stderr": "",
+        "stdout": "{\"live_revocation\":true,\"sibling_and_reuse\":true,\"timed_rounds\":0}\n"
+      }
+    },
+    "batched_sanitized": {
+      "passed": true,
+      "build": {
+        "binary": "956313d398330760223c48d42e0d26c8d470605d2fec9a371f76c49c295ae518",
+        "flags": [
+          "-O3",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-fblocks",
+          "-DMICROPOD_BATCH_STREAM_FILTERS=1",
+          "-O1",
+          "-g",
+          "-fsanitize=address,undefined",
+          "-fno-sanitize-recover=all"
+        ],
+        "c": "4e8ca903d411167f9eb29287c64b412be01121fa55291677b8954ab2c16b38ac",
+        "header": "1bfc0e3c285013e1484c46d35edf37c2d2603f40a45bed4ca89808749306ef21"
+      },
+      "exit_code": 0,
+      "stderr": "",
+      "cases": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        }
+      ]
+    }
+  }
+}

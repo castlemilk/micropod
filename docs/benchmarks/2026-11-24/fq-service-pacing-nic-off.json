@@ -1,0 +1,538 @@
+{
+  "analyzer_sha256": "d2a52fb31dfd0c145959bae5e3ead02df0b853f190af4a424f8adf3d46655bb0",
+  "archive_revision": "816121afd30fba52bda7828418cd963d4216166b",
+  "attempts": [
+    {
+      "control": {
+        "arm": "extra/0-nicoff",
+        "bytes": 32901606504,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 32.322,
+        "fresh_p99_ms": 45.427,
+        "mib_s": 5229.43888820271,
+        "nic_bytes_at_end": 6204894489430,
+        "nic_bytes_at_start": 6169993729420,
+        "nic_drops_per_million_sent": 0.38879491331839006,
+        "nic_qdisc": {
+          "bytes": 34900760010,
+          "dropped": 9,
+          "packets": 23148451
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": true,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 34901068584,
+          "dropped": 0,
+          "packets": 23148658
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 16.820373583333332,
+          "runnable_s": 22.959324083333332,
+          "sample_seconds": 6.112161,
+          "wait_s": 6.138950499999999
+        },
+        "window_s": 6.000149875
+      },
+      "first": "control",
+      "trial": {
+        "arm": "extra/0-bothoff",
+        "bytes": 34022006792,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 19.452,
+        "fresh_p99_ms": 26.558,
+        "mib_s": 5407.614115893573,
+        "nic_bytes_at_end": 6240956196876,
+        "nic_bytes_at_start": 6204894489430,
+        "nic_drops_per_million_sent": 47.45446679162731,
+        "nic_qdisc": {
+          "bytes": 36061707446,
+          "dropped": 1136,
+          "packets": 23938737
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": true,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 36100861286,
+          "dropped": 0,
+          "packets": 23964997
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 15.878747749999999,
+          "runnable_s": 19.178219041666665,
+          "sample_seconds": 6.120535,
+          "wait_s": 3.2994712916666664
+        },
+        "window_s": 6.000042417
+      }
+    },
+    {
+      "control": {
+        "arm": "extra/1-nicoff",
+        "bytes": 23149038512,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 61.618,
+        "fresh_p99_ms": 95.738,
+        "mib_s": 3679.397858243727,
+        "nic_bytes_at_end": 6411141818575,
+        "nic_bytes_at_start": 6386228834367,
+        "nic_drops_per_million_sent": 8.841547716561298,
+        "nic_qdisc": {
+          "bytes": 24912984208,
+          "dropped": 146,
+          "packets": 16512946
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": true,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 24918535568,
+          "dropped": 0,
+          "packets": 16516654
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 12.220122125,
+          "runnable_s": 23.15924645833333,
+          "sample_seconds": 6.181354,
+          "wait_s": 10.939124333333332
+        },
+        "window_s": 6.000069666
+      },
+      "first": "trial",
+      "trial": {
+        "arm": "extra/1-bothoff",
+        "bytes": 24042147288,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 40.956,
+        "fresh_p99_ms": 62.89,
+        "mib_s": 3821.373096451403,
+        "nic_bytes_at_end": 6386228834367,
+        "nic_bytes_at_start": 6359799478223,
+        "nic_drops_per_million_sent": 81.53586660139236,
+        "nic_qdisc": {
+          "bytes": 26429356144,
+          "dropped": 1430,
+          "packets": 17538294
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": true,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 26478444570,
+          "dropped": 0,
+          "packets": 17571219
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 12.021769416666665,
+          "runnable_s": 21.74877570833333,
+          "sample_seconds": 6.5515,
+          "wait_s": 9.727006291666665
+        },
+        "window_s": 6.000036584
+      }
+    },
+    {
+      "control": {
+        "arm": "extra/2-nicoff",
+        "bytes": 27727361424,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 46.299,
+        "fresh_p99_ms": 78.954,
+        "mib_s": 4406.977881773174,
+        "nic_bytes_at_end": 6583644429643,
+        "nic_bytes_at_start": 6553931499235,
+        "nic_drops_per_million_sent": 1.6759146685193143,
+        "nic_qdisc": {
+          "bytes": 29712930408,
+          "dropped": 33,
+          "packets": 19690740
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": true,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 29714599442,
+          "dropped": 0,
+          "packets": 19691849
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 14.294056249999999,
+          "runnable_s": 23.613974624999997,
+          "sample_seconds": 6.22833,
+          "wait_s": 9.319918374999999
+        },
+        "window_s": 6.000228084
+      },
+      "first": "control",
+      "trial": {
+        "arm": "extra/2-bothoff",
+        "bytes": 28168764192,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 35.354,
+        "fresh_p99_ms": 52.811,
+        "mib_s": 4477.183698450544,
+        "nic_bytes_at_end": 6613615487199,
+        "nic_bytes_at_start": 6583644429643,
+        "nic_drops_per_million_sent": 68.0150845694434,
+        "nic_qdisc": {
+          "bytes": 29971057556,
+          "dropped": 1353,
+          "packets": 19892646
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": true,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 30017684030,
+          "dropped": 0,
+          "packets": 19923919
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 13.568765416666665,
+          "runnable_s": 19.84070925,
+          "sample_seconds": 6.174299,
+          "wait_s": 6.271943833333332
+        },
+        "window_s": 6.000161875
+      }
+    },
+    {
+      "control": {
+        "arm": "extra/3-nicoff",
+        "bytes": 6101609808,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 332.772,
+        "fresh_p99_ms": 407.444,
+        "mib_s": 969.5280310507045,
+        "nic_bytes_at_end": 7002358134439,
+        "nic_bytes_at_start": 6995384890719,
+        "nic_drops_per_million_sent": 42.68705706761153,
+        "nic_qdisc": {
+          "bytes": 6973243720,
+          "dropped": 197,
+          "packets": 4614982
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": false,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 6980373420,
+          "dropped": 0,
+          "packets": 4619756
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 3.764215416666666,
+          "runnable_s": 29.02258708333333,
+          "sample_seconds": 6.886853,
+          "wait_s": 25.258371666666665
+        },
+        "window_s": 6.001836333
+      },
+      "first": "trial",
+      "trial": {
+        "arm": "extra/3-bothoff",
+        "bytes": 7997202808,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 160.677,
+        "fresh_p99_ms": 225.455,
+        "mib_s": 1271.0929511387371,
+        "nic_bytes_at_end": 6995384890719,
+        "nic_bytes_at_start": 6986576145223,
+        "nic_drops_per_million_sent": 309.1218663775827,
+        "nic_qdisc": {
+          "bytes": 8808745496,
+          "dropped": 1807,
+          "packets": 5845591
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": false,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 8865750376,
+          "dropped": 0,
+          "packets": 5883823
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 4.299114208333333,
+          "runnable_s": 21.436151499999998,
+          "sample_seconds": 6.446156,
+          "wait_s": 17.137037291666665
+        },
+        "window_s": 6.000133125
+      }
+    },
+    {
+      "control": {
+        "arm": "extra/4-nicoff",
+        "bytes": 12208365976,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 190.781,
+        "fresh_p99_ms": 291.559,
+        "mib_s": 1940.282539164453,
+        "nic_bytes_at_end": 7125205976044,
+        "nic_bytes_at_start": 7111873696834,
+        "nic_drops_per_million_sent": 19.375903288181437,
+        "nic_qdisc": {
+          "bytes": 13332279210,
+          "dropped": 171,
+          "packets": 8825395
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": false,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 13338924176,
+          "dropped": 0,
+          "packets": 8829834
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 6.7274570833333325,
+          "runnable_s": 23.779104249999996,
+          "sample_seconds": 6.19738,
+          "wait_s": 17.051647166666665
+        },
+        "window_s": 6.000572
+      },
+      "first": "control",
+      "trial": {
+        "arm": "extra/4-bothoff",
+        "bytes": 14584952232,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 84.563,
+        "fresh_p99_ms": 158.993,
+        "mib_s": 2318.2108632705194,
+        "nic_bytes_at_end": 7141000285516,
+        "nic_bytes_at_start": 7125205976044,
+        "nic_drops_per_million_sent": 136.14016770331634,
+        "nic_qdisc": {
+          "bytes": 15794309472,
+          "dropped": 1427,
+          "packets": 10481844
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": false,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 15843541254,
+          "dropped": 0,
+          "packets": 10514863
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 7.485705291666666,
+          "runnable_s": 20.741369416666664,
+          "sample_seconds": 6.198876,
+          "wait_s": 13.255664125
+        },
+        "window_s": 6.000012583
+      }
+    },
+    {
+      "control": {
+        "arm": "extra/5-nicoff",
+        "bytes": 9528204488,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 255.33,
+        "fresh_p99_ms": 343.669,
+        "mib_s": 1514.4010094019975,
+        "nic_bytes_at_end": 7163116313502,
+        "nic_bytes_at_start": 7152318059600,
+        "nic_drops_per_million_sent": 61.70436696216669,
+        "nic_qdisc": {
+          "bytes": 10798253902,
+          "dropped": 441,
+          "packets": 7146982
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": false,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 10818676118,
+          "dropped": 0,
+          "packets": 7160566
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 5.7738543333333325,
+          "runnable_s": 26.440901166666663,
+          "sample_seconds": 6.964152,
+          "wait_s": 20.66704683333333
+        },
+        "window_s": 6.000262708
+      },
+      "first": "trial",
+      "trial": {
+        "arm": "extra/5-bothoff",
+        "bytes": 10349834272,
+        "clean": true,
+        "errors": [],
+        "fresh_p95_ms": 318.343,
+        "fresh_p99_ms": 556.252,
+        "mib_s": 1644.7867179602517,
+        "nic_bytes_at_end": 7152318059600,
+        "nic_bytes_at_start": 7141000285516,
+        "nic_drops_per_million_sent": 208.08108106309064,
+        "nic_qdisc": {
+          "bytes": 11317774084,
+          "dropped": 1563,
+          "packets": 7511495
+        },
+        "offered": 240,
+        "passing_delivery_and_p95": false,
+        "qdisc_headers": [
+          "qdisc fq 8001: root refcnt 2 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us ",
+          "qdisc fq 8002: root refcnt 5 limit 10000p flow_limit 100p buckets 1024 orphan_mask 1023 nopacing bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1 weights 589824 196608 65536 quantum 3028b initial_quantum 15140b low_rate_threshold 550Kbit refill_delay 40ms timer_slack 10us horizon 10s horizon_drop offload_horizon 0us "
+        ],
+        "reopens": 0,
+        "service_qdisc": {
+          "bytes": 11369484698,
+          "dropped": 0,
+          "packets": 7546162
+        },
+        "stderr": "",
+        "vm_process_whole_invocation": {
+          "cpu_s": 5.215338624999999,
+          "runnable_s": 21.321369374999996,
+          "sample_seconds": 6.251195,
+          "wait_s": 16.10603075
+        },
+        "window_s": 6.001003666
+      }
+    }
+  ],
+  "control": "Service fq pacing enabled with NIC fq pacing disabled.",
+  "date": "2026-11-24",
+  "evidence_tier": "Source/fixture replay of raw historical VM measurements; no new VM or peer timing.",
+  "fixed_client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "method": "Read both qdiscs before and after every invocation, require identical effective policy except the one service setting, pair by recorded block and infer order from monotone disjoint NIC byte counters. Exact percentile bootstrap of the paired median resamples entire clean blocks. Drops are local fq counters over the complete invocation. p95/p99 are client-recorded fresh request latencies from the scheduled arrival, summarized as medians of trials. Shared-host block variability limits inference. These conditional controls differ from the revised stock control.",
+  "next_check": "Retain service pacing in the revised stock worker baseline; compare two versus four workers with both qdiscs fixed after the baseline qualifies.",
+  "platform": {
+    "containerd": "2.4.2",
+    "cores": 18,
+    "guest_kernel": "6.18.35",
+    "host": "Gamma",
+    "macOS": "26.5.1 (25F80)",
+    "memory_GiB": 128,
+    "model": "Apple M5 Max",
+    "orbstack": "2.2.5",
+    "service_config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "service_cpus": "0-3",
+    "service_memory_MiB": 1024,
+    "service_pids": 512,
+    "vm_memory_MiB": 4096,
+    "vm_vcpus": 4
+  },
+  "preliminary": "No additional nicoff/bothoff client attempts found in extra.",
+  "recording_source_base": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "setting": "pacing",
+  "source_archive": "gamma-mixed-scheduler.json.gz",
+  "source_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "stable_direction": "231.07",
+  "summary": {
+    "attempted_pairs": 6,
+    "common_clean_pairs": 6,
+    "control": {
+      "clean": 6,
+      "fresh_p95_ms": 126.1995,
+      "fresh_p99_ms": 193.6485,
+      "mib_s": 2809.84019870409,
+      "nic_drops_per_million_sent": 14.108725502371367,
+      "nic_qdisc_drops": 997,
+      "offered": 1440,
+      "p95_and_delivery_pass": 3,
+      "reopens": 0,
+      "service_qdisc_drops": 0
+    },
+    "control_first_pairs": 3,
+    "joint_tail_and_delivery_pass": 3,
+    "paired_throughput_change": {
+      "bootstrap_95_pct": [
+        2.500108998649686,
+        25.29115300460286
+      ],
+      "increases": 6,
+      "median_pct": 6.234187801175873,
+      "n": 6
+    },
+    "trial": {
+      "clean": 6,
+      "fresh_p95_ms": 62.7595,
+      "fresh_p99_ms": 110.94149999999999,
+      "mib_s": 3069.791979860961,
+      "nic_drops_per_million_sent": 108.83801715235435,
+      "nic_qdisc_drops": 8716,
+      "offered": 1440,
+      "p95_and_delivery_pass": 3,
+      "reopens": 0,
+      "service_qdisc_drops": 0
+    }
+  },
+  "trial": "Service fq pacing disabled with NIC fq pacing still disabled.",
+  "verdict": "Throughput rose in all six paired blocks. NIC fq drops rose in every block and only three trials in each arm met the 75 ms guardrail. Reject pacing removal as a loss-safe tuning.",
+  "workload": "32 original bulk sockets, 8 MiB bodies, 240 fresh requests at 40/s over six seconds."
+}

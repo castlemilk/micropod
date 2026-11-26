@@ -1,0 +1,22 @@
+--- PublishedTCP.c
++++ PublishedTCP.c
+@@ -862,6 +862,19 @@
+         enum bulk_poll poll = n <= 2 && capacity > 2 ? SPARSE_FLAT_BULK : FLAT_BULK;
+         for (int i = 0; i < n; ++i) if (bulk[i]) service_polled_event(&events[i], poll);
+         serviced += n;
++        // A single classified bulk read can use one more normal-sized turn.
++        // A truncated one-event poll says nothing about other ready sockets.
++        if (n == 1 && capacity > 1 && serviced < budget && bulk[0] &&
++            events[0].filter == EVFILT_READ && !(events[0].flags & (EV_EOF | EV_ERROR)) &&
++            events[0].data >= (intptr_t)(2 * mp_tcp_relay_read_bytes(r))) {
++            struct endpoint *src = events[0].udata;
++            struct endpoint *dst = opposite(src);
++            if (src->pair->listener && !src->pair->retry_pending &&
++                !src->pair->guest.connecting && !src->eof && !dst->pending) {
++                pump(src, dst);
++                ++serviced;
++            }
++        }
+     }
+ }
+ 

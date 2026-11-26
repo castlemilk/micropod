@@ -20,16 +20,24 @@ final class RuntimeEngineTests: XCTestCase {
 
     private func registry(_ extra: [String: String] = [:]) -> EngineRegistry {
         EngineRegistry(
-            environment: ["MICROPOD_RUNTIMES_CONFIG": configURL.path, "DOCKER_HOST": "unix:///nonexistent.sock"]
-                .merging(extra) { _, new in new },
+            environment: [
+                "MICROPOD_RUNTIMES_CONFIG": configURL.path, "DOCKER_HOST": "unix:///nonexistent.sock",
+                // Never the developer's real machine or CI worker: an empty,
+                // uninstalled hvf root and a CI home with no session.
+                "MICROPOD_HVF_ROOT": "/nonexistent/micropod-hvf",
+                "MICROPOD_CI_HOME": "/nonexistent/micropod-ci",
+            ]
+            .merging(extra) { _, new in new },
             sandbox: SandboxEngine(root: FileManager.default.temporaryDirectory.appendingPathComponent("sbx-\(UUID())"))
         )
     }
 
-    private func apple(_ containers: RecordingContainers = RecordingContainers(ids: ["web"])) -> AppleEngine {
+    private func apple(
+        _ containers: any ContainerServing = RecordingContainers(ids: ["web"]), stats: any StatsSampling = NoStats()
+    ) -> AppleEngine {
         AppleEngine(
             services: RuntimeServices(
-                kind: .cli, containers: containers, logs: NoLogs(), stats: NoStats(),
+                kind: .cli, containers: containers, logs: NoLogs(), stats: stats,
                 volumes: VolumeService(
                     client: ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/true"))),
                 api: nil, health: nil, exitCodes: nil))
@@ -72,6 +80,17 @@ final class RuntimeEngineTests: XCTestCase {
         XCTAssertNil(registry().config.engines["docker"]?.endpoint, "empty endpoint restores the default")
     }
 
+    func testChangingDockerEndpointPreservesTheConfiguredAPIPin() throws {
+        let reg = registry(["DOCKER_HOST": "unix:///private/tmp/original.sock", "DOCKER_API_VERSION": "1.44"])
+        try reg.update("docker", enabled: true, endpoint: "unix:///private/tmp/alternate.sock")
+        let changed = try XCTUnwrap((reg.engine("docker") as? DockerEngine)?.client)
+        XCTAssertEqual(changed.apiVersion, "v1.44")
+        try reg.update("docker", enabled: nil, endpoint: "")
+        let original = try XCTUnwrap((reg.engine("docker") as? DockerEngine)?.client)
+        XCTAssertEqual(original.endpoint, .unix("/private/tmp/original.sock"))
+        XCTAssertEqual(original.apiVersion, "v1.44")
+    }
+
     func testUpdateValidation() {
         let reg = registry()
         XCTAssertThrowsError(try reg.update("apple", enabled: false, endpoint: nil)) {
@@ -101,13 +120,141 @@ final class RuntimeEngineTests: XCTestCase {
 
     func testDescribeReportsEveryEngine() async {
         let response = await registry().describe(apple: apple())
-        XCTAssertEqual(response.runtimes.map(\.name), ["apple", "docker", "sandbox"])
+        XCTAssertEqual(response.runtimes.map(\.name), ["apple", "docker", "sandbox", "ci", "hvf"])
         XCTAssertEqual(response.default, "apple")
         let docker = response.runtimes[1]
         XCTAssertFalse(docker.available)
         XCTAssertEqual(docker.reason, "Docker socket not found")
         XCTAssertTrue(response.runtimes[0].capabilities.contains("volumes"))
         XCTAssertFalse(response.runtimes[2].capabilities.contains("ports"))
+        let hvf = response.runtimes[4]
+        XCTAssertEqual(hvf.name, "hvf")
+        XCTAssertEqual(hvf.kind, "microvm")
+        XCTAssertEqual(hvf.capabilities, HVFEngine.supportedCapabilities)
+        XCTAssertFalse(hvf.capabilities.contains("copy"), "the guest engine has no archive API")
+        XCTAssertFalse(hvf.capabilities.contains("export"))
+        XCTAssertFalse(hvf.available, "nothing installed under the test root")
+        XCTAssertTrue(hvf.reason.contains("not installed"), hvf.reason)
+        XCTAssertEqual(hvf.endpoint, "unix:///nonexistent/micropod-hvf/run/docker.sock")
+        XCTAssertFalse(hvf.enabled, "hvf is opt-in like docker")
+    }
+
+    func testStoppedAppleRuntimeIsBestEffortOnlyWhenAnotherEngineIsDefault() async throws {
+        let failing = apple(FailingContainers())
+        do {
+            _ = try await RuntimeRouter(apple: failing, registry: registry()).list()
+            XCTFail("apple is the default: its failure is the listing's failure")
+        } catch {}
+        let router = RuntimeRouter(apple: failing, registry: registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"]))
+        let listed = try await router.list()
+        XCTAssertEqual(listed, [], "the default engine's (empty) listing survives a stopped Apple runtime")
+    }
+
+    /// Only "the Apple runtime is down" is tolerated when Apple is not the
+    /// default; every other Apple failure is still the caller's answer.
+    private static let runtimeDown: [(String, any Error)] = [
+        ("runtimeNotRunning", MicropodError.runtimeNotRunning),
+        ("transport", MicropodError.transport("com.apple.container.apiserver: connection invalidated")),
+        ("cliUnavailable", MicropodError.cliUnavailable("/usr/local/bin/container")),
+        (
+            "cli runtime-down output",
+            MicropodError.cliFailure(
+                command: "container list", exitCode: 1,
+                stderr: "Error: apiserver is not running and not registered with launchd")
+        ),
+    ]
+    private static let realFailures: [(String, any Error)] = [
+        ("internal", MicropodError.message("internal: decode failed")),
+        ("timeout", MicropodError.cliTimeout(command: "container list")),
+        ("cli failure", MicropodError.cliFailure(command: "container list", exitCode: 1, stderr: "Error: boom")),
+        ("decode", MicropodError.decode("bad json")),
+        ("cancellation", CancellationError()),
+    ]
+
+    func testANonDefaultAppleRuntimeToleratesOnlyBeingDown() async throws {
+        let others = registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"])
+        for (name, error) in Self.runtimeDown {
+            let router = RuntimeRouter(
+                apple: apple(FailingContainers(error: error), stats: FailingStats(error)), registry: others)
+            let listed = try await router.list()
+            XCTAssertEqual(listed, [], name)
+            let stats = try await router.snapshot(ids: [])
+            XCTAssertEqual(stats.containers, [], name)
+            XCTAssertFalse(stats.sampledAt.isEmpty, name)
+        }
+        for (name, error) in Self.realFailures {
+            let router = RuntimeRouter(
+                apple: apple(FailingContainers(error: error), stats: FailingStats(error)), registry: others)
+            do {
+                _ = try await router.list()
+                XCTFail("list swallowed \(name)")
+            } catch {}
+            do {
+                _ = try await router.snapshot(ids: [])
+                XCTFail("snapshot swallowed \(name)")
+            } catch {}
+        }
+    }
+
+    func testAnAppleDefaultSurfacesEveryAppleFailureAsBefore() async throws {
+        for (name, error) in Self.runtimeDown + Self.realFailures {
+            let router = RuntimeRouter(
+                apple: apple(FailingContainers(error: error), stats: FailingStats(error)), registry: registry())
+            do {
+                _ = try await router.list()
+                XCTFail("list swallowed \(name)")
+            } catch {}
+            do {
+                _ = try await router.snapshot(ids: [])
+                XCTFail("snapshot swallowed \(name)")
+            } catch {}
+        }
+    }
+
+    func testNativeCIReportsItsDockerSocketWithoutStartingWorker() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let environment = ["MICROPOD_CI_HOME": root.path, "MICROPOD_CI_ENGINE": "containerd"]
+        let registered = registry(environment)
+        let engine = try XCTUnwrap(registered.engine("ci") as? DockerEngine)
+        let dockerSocket = root.appendingPathComponent("docker.sock").path
+        XCTAssertEqual(engine.client?.endpoint, .unix(dockerSocket))
+        XCTAssertFalse(engine.capabilities.contains("restart"))
+        XCTAssertTrue(DockerEngine(endpoint: nil, environment: [:]).capabilities.contains("restart"))
+        let probe = await engine.probe()
+        XCTAssertEqual(probe.endpoint, "unix://" + dockerSocket)
+        XCTAssertEqual(probe.reason, "CI worker is stopped")
+        XCTAssertFalse(probe.available)
+        let runtimes = await registered.describe(apple: apple()).runtimes
+        let info = try XCTUnwrap(runtimes.first { $0.name == "ci" })
+        XCTAssertFalse(info.available)
+        XCTAssertFalse(info.capabilities.contains("restart"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
+    }
+
+    func testNativeDockerRestartFeatureNeedsLiveWorkerIdentity() throws {
+        let worker = UUID()
+        let instance = UUID()
+        func reply(_ capabilities: Any?, workerID: UUID? = nil, instanceID: UUID? = nil, status: Int = 200)
+            throws -> DockerClient.Response
+        {
+            var info: [String: Any] = [
+                "ID": (workerID ?? worker).uuidString,
+                "Labels": ["io.micropod.instance=" + (instanceID ?? instance).uuidString],
+            ]
+            info["MicropodCapabilities"] = capabilities
+            return DockerClient.Response(status: status, body: try JSONSerialization.data(withJSONObject: info))
+        }
+        XCTAssertTrue(try CIWorker.attestedDockerRestart(reply(["restart"]), worker: worker, instance: instance))
+        for capabilities in [nil, ["other"], "restart", ["restart", true] as [Any]] as [Any?] {
+            XCTAssertFalse(try CIWorker.attestedDockerRestart(reply(capabilities), worker: worker, instance: instance))
+        }
+        for untrusted in [
+            try reply(["restart"], workerID: UUID()),
+            try reply(["restart"], instanceID: UUID()),
+            try reply(["restart"], status: 503),
+        ] {
+            XCTAssertThrowsError(try CIWorker.attestedDockerRestart(untrusted, worker: worker, instance: instance))
+        }
     }
 
     // MARK: Routing
@@ -218,6 +365,14 @@ final class RuntimeEngineTests: XCTestCase {
         XCTAssertEqual(try DockerClient.Endpoint.parse("unix:///var/run/docker.sock"), .unix("/var/run/docker.sock"))
         XCTAssertEqual(try DockerClient.Endpoint.parse("/tmp/d.sock"), .unix("/tmp/d.sock"))
         XCTAssertEqual(try DockerClient.Endpoint.parse("tcp://127.0.0.1:2375"), .tcp(host: "127.0.0.1", port: 2375))
+        for (url, host) in [("tcp://[::1]:2375", "::1"), ("tcp://[fe80::1%25lo0]:2375", "fe80::1%lo0")] {
+            let endpoint = try DockerClient.Endpoint.parse(url)
+            XCTAssertEqual(endpoint, .tcp(host: host, port: 2375))
+            XCTAssertEqual(endpoint.description, url)
+        }
+        XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://::1:2375"))
+        XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://host:65536"))
+        XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://[name]:2375"))
         XCTAssertThrowsError(try DockerClient.Endpoint.parse("tcp://nohost"))
         XCTAssertThrowsError(try DockerClient.Endpoint.parse("ssh://box"))
     }
@@ -271,6 +426,27 @@ final class RuntimeEngineTests: XCTestCase {
 
 // MARK: - Fakes
 
+/// An Apple runtime whose every call fails (by default: it is not running).
+struct FailingContainers: ContainerServing {
+    var error: any Error = MicropodError.runtimeNotRunning
+    private var down: any Error { error }
+    func list() async throws -> [Micropod_V1_Container] { throw down }
+    func inspect(_ id: String) async throws -> Data { throw down }
+    func create(_ request: ContainerRunRequest) async throws -> String { throw down }
+    func run(_ request: ContainerRunRequest) async throws -> String { throw down }
+    func exec(_ request: ContainerExecRequest) async throws -> String { throw down }
+    func start(_ id: String) async throws { throw down }
+    func stop(_ id: String, timeout: Int) async throws { throw down }
+    func restart(_ id: String) async throws { throw down }
+    func stopAll() async throws { throw down }
+    func kill(_ id: String, signal: String) async throws { throw down }
+    func delete(_ id: String, force: Bool) async throws { throw down }
+    func deleteAll(force: Bool) async throws { throw down }
+    func prune() async throws -> String { throw down }
+    func export(_ id: String, to outputPath: String) async throws { throw down }
+    func copy(from: String, to: String) async throws { throw down }
+}
+
 actor RecordingContainers: ContainerServing {
     let ids: [String]
     var ran: [String] = []
@@ -313,4 +489,11 @@ struct NoLogs: LogStreaming {
 struct NoStats: StatsSampling {
     func snapshot() async throws -> Micropod_V1_StatsSnapshot { .init() }
     func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot { .init() }
+}
+
+struct FailingStats: StatsSampling {
+    let error: any Error
+    init(_ error: any Error) { self.error = error }
+    func snapshot() async throws -> Micropod_V1_StatsSnapshot { throw error }
+    func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot { throw error }
 }

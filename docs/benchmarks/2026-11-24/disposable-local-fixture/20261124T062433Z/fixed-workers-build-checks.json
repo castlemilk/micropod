@@ -1,0 +1,43 @@
+{
+  "recorded_utc": "2026-11-24T07:00:21.387284+00:00",
+  "scope": "offline admission fixtures and signed binary verification; zero traffic",
+  "inputs": {
+    "receiver.py": "e2f1ec2074f8161451adb709df77b80a92ab1722f88859ce6ec60cb870459be1",
+    "build_fixed_workers.py": "a067014a33708afd04a505b99454f41c2cacf420118bea3d27b689191a370cd0",
+    "check_worker_controls.py": "b2c1797f68bd40053756070c85a94c49646955fb2d5db7ac2a0984ad172c130d"
+  },
+  "fixed_build_receipt_sha256": "b9a47c6797865ada9daefc6118d06394d5674adbe8df049bb38a43a284e4fcc9",
+  "stock_build_receipt_sha256": "ef153af3fbd785bca99558a1909f8820eb17cd462e063916866c374125608dbe",
+  "test_command": "python3 -B check_worker_controls.py",
+  "build_check_command": "python3 -B build_fixed_workers.py verify",
+  "count": 27,
+  "cases": [
+    "at-floor: admit, idle gate True",
+    "below-floor: reject, idle gate False",
+    "at-pair-limit: admit, idle gate True",
+    "over-pair-limit: reject, idle gate False",
+    "ambient-below-floor: admit, idle gate False",
+    "ambient-mismatched-starts: admit, idle gate False",
+    "missing-observation: reject, idle gate None",
+    "abbreviated-explicit: admit",
+    "abbreviated-wrong-boot: reject",
+    "abbreviated-duplicate-boot: reject",
+    "abbreviated-missing-tx: reject",
+    "abbreviated-unmarked: reject",
+    "abbreviated-wrong-scheduler: reject",
+    "stock-two: admit",
+    "stock-four-also-changes-budget: reject",
+    "stock-live-read-conflict: reject",
+    "fixed-two: admit",
+    "fixed-four: admit",
+    "fixed-four-missing-live-callback: reject",
+    "fixed-four-live-24: reject",
+    "fixed-four-float-count: reject",
+    "fixed-bad-live-read: reject",
+    "fixed-missing-seal: reject",
+    "fixed-mapping-mismatch: reject",
+    "fixed-no-vnode: reject",
+    "fixed-wrong-kernel: reject",
+    "fixed-binary-in-stock-baseline: reject"
+  ]
+}

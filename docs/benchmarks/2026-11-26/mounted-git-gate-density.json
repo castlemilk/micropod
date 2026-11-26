@@ -1,0 +1,293 @@
+{
+  "passed": true,
+  "guest_sha256": "9a9594fc5d3ad3f096c1d2078ae252039eae5ba0266a0fb9addca4407696d4f5",
+  "fixture": {
+    "files": 1058,
+    "bytes": 19326482,
+    "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+  },
+  "head": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+  "image": {
+    "config_digest": "sha256:d9d3ac08dc24430f0625da6a8de591b30c0e97b810762c50bb3cca170e6f91f4",
+    "manifest_digest": "sha256:35eb2e419ed6d35c02909caf06903568ddbe62ba919fd01923dc77cbe2be97c7"
+  },
+  "driver_sha256": "4465fbe16d561408aba36f41b599423290e2bcd23aff49f20742c90681fc11e8",
+  "helper_sha256": "ab073a3afec42e06954841b696a7fcc499ffde5cd29b7eacc506c1fccb65064c",
+  "limits": {
+    "guest_vcpus": 4,
+    "cpus_per_job": 0.5,
+    "memory_mib": 256
+  },
+  "rounds": 4,
+  "waves": 16,
+  "job_count": 128,
+  "min_eight_way_overlap_ms": 80.154505,
+  "max_start_skew_ms": 5.8559,
+  "load": {
+    "class": "ambient",
+    "pre_idle_pct": [
+      88.30022075055187,
+      86.63721700717835
+    ],
+    "post_idle_pct": [
+      90.37078029883786,
+      89.8783185840708
+    ],
+    "whole_driver_idle_pct": 65.96642552402152,
+    "complete_scored_intervals_idle_pct": 62.82734132268087
+  },
+  "timing": {
+    "start_utc": "2026-11-25T18:44:47.248+00:00",
+    "last_measured_result_utc": "2026-11-25T18:44:53.342+00:00",
+    "driver_exit_utc": "2026-11-25T18:44:54.054+00:00",
+    "recovery_compile_artifacts": {
+      "receipts/image-tag/recovery/test-build.log": {
+        "created_utc": "2026-11-25T18:44:57.843+00:00",
+        "modified_utc": "2026-11-25T18:44:57.843+00:00",
+        "size": 0
+      },
+      "receipts/image-tag/recovery/engine-build.log": {
+        "created_utc": "2026-11-25T18:44:58.743+00:00",
+        "modified_utc": "2026-11-25T18:44:58.743+00:00",
+        "size": 0
+      },
+      "home/image-recovery/job.image-recovery": {
+        "created_utc": "2026-11-25T18:44:59.340+00:00",
+        "modified_utc": "2026-11-25T18:44:59.344+00:00",
+        "size": 23496689
+      }
+    },
+    "earliest_artifact_after_last_scored_result_ms": 4500.716209411621
+  },
+  "summary": {
+    "hvf/stock": {
+      "wave_median": {
+        "guest_to_last_ms": 349.99656300000004,
+        "host_to_last_ms": 355.6392505,
+        "host_with_startup_ms": 462.0292295,
+        "overlap_ms": 318.957417,
+        "start_skew_ms": 1.1266045
+      },
+      "guest_job_ms": {
+        "count": 32,
+        "min": 315.504,
+        "p10": 319.7360417,
+        "p50": 335.5270835,
+        "p90": 351.58300420000006,
+        "max": 360.880375
+      },
+      "job_cpu_usage_usec": {
+        "count": 32,
+        "min": 51553,
+        "p10": 52061.1,
+        "p50": 53490.5,
+        "p90": 55990.8,
+        "max": 60385
+      },
+      "job_cpu_throttled_usec": {
+        "count": 32,
+        "min": 0,
+        "p10": 0.0,
+        "p50": 0.0,
+        "p90": 0.0,
+        "max": 0
+      }
+    },
+    "hvf/helper": {
+      "wave_median": {
+        "guest_to_last_ms": 318.5265005,
+        "host_to_last_ms": 324.230271,
+        "host_with_startup_ms": 435.8353955,
+        "overlap_ms": 262.3476875,
+        "start_skew_ms": 4.359187
+      },
+      "guest_job_ms": {
+        "count": 32,
+        "min": 244.497459,
+        "p10": 266.1037042,
+        "p50": 292.0218545,
+        "p90": 315.7882456,
+        "max": 325.674709
+      },
+      "job_cpu_usage_usec": {
+        "count": 32,
+        "min": 80020,
+        "p10": 80840.9,
+        "p50": 84568.5,
+        "p90": 90840.4,
+        "max": 93414
+      },
+      "job_cpu_throttled_usec": {
+        "count": 32,
+        "min": 0,
+        "p10": 0.0,
+        "p50": 0.0,
+        "p90": 0.0,
+        "max": 11654
+      }
+    },
+    "orbstack/stock": {
+      "wave_median": {
+        "guest_to_last_ms": 138.6205885,
+        "host_to_last_ms": 150.966417,
+        "host_with_startup_ms": 278.8222295,
+        "overlap_ms": 92.445128,
+        "start_skew_ms": 1.427705
+      },
+      "guest_job_ms": {
+        "count": 32,
+        "min": 80.933783,
+        "p10": 101.468511,
+        "p50": 125.80832849999999,
+        "p90": 137.35245620000003,
+        "max": 142.997305
+      },
+      "job_cpu_usage_usec": {
+        "count": 32,
+        "min": 59107,
+        "p10": 60879.8,
+        "p50": 62786.5,
+        "p90": 67073.0,
+        "max": 69144
+      },
+      "job_cpu_throttled_usec": {
+        "count": 32,
+        "min": 0,
+        "p10": 0.0,
+        "p50": 0.0,
+        "p90": 33111.0,
+        "max": 42361
+      }
+    },
+    "orbstack/helper": {
+      "wave_median": {
+        "guest_to_last_ms": 214.716017,
+        "host_to_last_ms": 221.7851875,
+        "host_with_startup_ms": 351.07291699999996,
+        "overlap_ms": 187.99339099999997,
+        "start_skew_ms": 2.113797
+      },
+      "guest_job_ms": {
+        "count": 32,
+        "min": 182.046972,
+        "p10": 196.6442591,
+        "p50": 203.75851699999998,
+        "p90": 217.91609949999997,
+        "max": 225.833223
+      },
+      "job_cpu_usage_usec": {
+        "count": 32,
+        "min": 99258,
+        "p10": 99874.3,
+        "p50": 102284.5,
+        "p90": 106988.0,
+        "max": 110270
+      },
+      "job_cpu_throttled_usec": {
+        "count": 32,
+        "min": 0,
+        "p10": 0.0,
+        "p50": 6358.5,
+        "p90": 39819.5,
+        "max": 47406
+      }
+    }
+  },
+  "pairs": {
+    "hvf": {
+      "guest_to_last_ms": {
+        "median_saving_ms": 31.892604000000006,
+        "helper_wins": 4,
+        "saving_ms": [
+          67.34816699999999,
+          20.16850000000005,
+          35.796708000000024,
+          27.988499999999988
+        ]
+      },
+      "host_to_last_ms": {
+        "median_saving_ms": 32.167479499999985,
+        "helper_wins": 4,
+        "saving_ms": [
+          67.11883399999999,
+          19.92704100000003,
+          36.168124999999975,
+          28.166833999999994
+        ]
+      },
+      "host_with_startup_ms": {
+        "median_saving_ms": 30.949084,
+        "helper_wins": 4,
+        "saving_ms": [
+          67.65045900000001,
+          9.509833000000015,
+          32.510334,
+          29.387833999999998
+        ]
+      }
+    },
+    "orbstack": {
+      "guest_to_last_ms": {
+        "median_saving_ms": -74.101296,
+        "helper_wins": 0,
+        "saving_ms": [
+          -72.88967099999999,
+          -74.314438,
+          -73.88815400000001,
+          -88.218242
+        ]
+      },
+      "host_to_last_ms": {
+        "median_saving_ms": -73.76337499999998,
+        "helper_wins": 0,
+        "saving_ms": [
+          -73.13145799999998,
+          -74.39529199999998,
+          -67.152041,
+          -78.989959
+        ]
+      },
+      "host_with_startup_ms": {
+        "median_saving_ms": -73.95474999999999,
+        "helper_wins": 0,
+        "saving_ms": [
+          -70.67454100000003,
+          -71.85037499999999,
+          -80.25179199999997,
+          -76.059125
+        ]
+      }
+    }
+  },
+  "cleanup": {
+    "containers": {
+      "hvf": {
+        "removed": [
+          "2b53596e97dd",
+          "85f4368a9cff",
+          "c52391d2611c",
+          "e8f84e8cad91",
+          "4a00332fcec6",
+          "57fc2301d892",
+          "60e563fb018c",
+          "701d89fd5fd2"
+        ],
+        "remaining": []
+      },
+      "orbstack": {
+        "removed": [
+          "3d8599d5bce8",
+          "c0f5b12bb076",
+          "d4bcb5444416",
+          "f67defdb5387",
+          "72fbb98f1c19",
+          "acf0b5489799",
+          "cfd7cffc4e51",
+          "ca7e9c07d2ca"
+        ],
+        "remaining": []
+      }
+    },
+    "workspace_removed": true
+  }
+}

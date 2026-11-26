@@ -1,0 +1,458 @@
+{
+  "date": "2026-11-24",
+  "evidence_tier": "offline replay of archived VM observations",
+  "archive": "gamma-mixed-scheduler.json.gz",
+  "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "paired_interval": "Median within-block change. Nearest-rank 2.5th and 97.5th percentiles of every ordered paired bootstrap resample of the complete blocks.",
+  "stable_id": "231.08",
+  "recording_source_base": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "archive_revision": "816121afd30fba52bda7828418cd963d4216166b",
+  "fixed_client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "platform": {
+    "host": "Gamma",
+    "model": "Apple M5 Max",
+    "macOS": "26.5.1 (25F80)",
+    "cores": 18,
+    "memory_GiB": 128,
+    "vm_vcpus": 4,
+    "vm_memory_MiB": 4096,
+    "guest_kernel": "6.18.35",
+    "service_cpus": "0-3",
+    "service_memory_MiB": 1024,
+    "service_pids": 512,
+    "orbstack": "2.2.5",
+    "containerd": "2.4.2",
+    "service_config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889"
+  },
+  "full_invocation_units": "Retransmitted TCP segments divided by bytes through the service qdisc / 2^30. This is not payload GiB or a packet-loss ratio. Counters include warmup and drain.",
+  "blocks": [
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245109965517000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 3605.0105247825386,
+        "scored_bytes": 22681418272,
+        "fresh_p95_ms": 70.633,
+        "fresh_p99_ms": 170.636,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 55,
+          "nic_packets": 16188576,
+          "nic_drops": 55,
+          "service_qdisc_bytes": 24445223422,
+          "service_qdisc_packets": 16190547,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 50261
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 2207.6843759789467
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245116695025000,
+        "clean": true,
+        "meets_75ms_and_delivery": false,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 2868.9911933834696,
+        "scored_bytes": 18051812024,
+        "fresh_p95_ms": 261.156,
+        "fresh_p99_ms": 502.379,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 12928300,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 19518551380,
+          "service_qdisc_packets": 12928754,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 35003
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 1925.5622168755435
+      }
+    },
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245179230249000,
+        "clean": true,
+        "meets_75ms_and_delivery": false,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 1191.5396459414071,
+        "scored_bytes": 7500652648,
+        "fresh_p95_ms": 227.43,
+        "fresh_p99_ms": 315.692,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 135,
+          "nic_packets": 5589488,
+          "nic_drops": 135,
+          "service_qdisc_bytes": 8453334772,
+          "service_qdisc_packets": 5592747,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 39049
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 4960.000475109067
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245171400916000,
+        "clean": true,
+        "meets_75ms_and_delivery": false,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 1341.3683460852046,
+        "scored_bytes": 8439492456,
+        "fresh_p95_ms": 347.863,
+        "fresh_p99_ms": 521.062,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 6236311,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 9420838974,
+          "service_qdisc_packets": 6236311,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 34831
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 3969.869517455994
+      }
+    },
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245214482454000,
+        "clean": true,
+        "meets_75ms_and_delivery": false,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 2825.540219634899,
+        "scored_bytes": 17776814928,
+        "fresh_p95_ms": 89.446,
+        "fresh_p99_ms": 123.872,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 112,
+          "nic_packets": 12770961,
+          "nic_drops": 112,
+          "service_qdisc_bytes": 19288929486,
+          "service_qdisc_packets": 12773665,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 51564
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 2870.3730527358307
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245186570214000,
+        "clean": false,
+        "meets_75ms_and_delivery": false,
+        "original_socket_reopens": 0,
+        "failed_fresh": 1,
+        "offered_fresh": 240,
+        "mib_s": 1997.835494812978,
+        "scored_bytes": 12571833544,
+        "fresh_p95_ms": 124.682,
+        "fresh_p99_ms": 176.187,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 9157719,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 13832300486,
+          "service_qdisc_packets": 9157719,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 39829
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 3091.7534759587206
+      }
+    },
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245221208857000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 5100.418393342001,
+        "scored_bytes": 32090610880,
+        "fresh_p95_ms": 30.513,
+        "fresh_p99_ms": 40.291,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 75,
+          "nic_packets": 22576080,
+          "nic_drops": 75,
+          "service_qdisc_bytes": 34060947610,
+          "service_qdisc_packets": 22577893,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 9727
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 306.6352363896549
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245248820528000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 5673.506212630062,
+        "scored_bytes": 35694853904,
+        "fresh_p95_ms": 31.411,
+        "fresh_p99_ms": 44.266,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 25192532,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 37960678588,
+          "service_qdisc_packets": 25192532,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 23067
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 652.4646970362004
+      }
+    },
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245274815506000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 5282.911538000574,
+        "scored_bytes": 33238907288,
+        "fresh_p95_ms": 48.594,
+        "fresh_p99_ms": 74.714,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 324,
+          "nic_packets": 23455958,
+          "nic_drops": 324,
+          "service_qdisc_bytes": 35405299318,
+          "service_qdisc_packets": 23464579,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 63612
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 1929.170667215993
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245281384476000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 5615.390369633265,
+        "scored_bytes": 35329169360,
+        "fresh_p95_ms": 26.728,
+        "fresh_p99_ms": 49.382,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 24914404,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 37562097524,
+          "service_qdisc_packets": 24914404,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 27000
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 771.8160368833613
+      }
+    },
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245294341131000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 4089.6279165801984,
+        "scored_bytes": 25729751080,
+        "fresh_p95_ms": 48.285,
+        "fresh_p99_ms": 74.62,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 277,
+          "nic_packets": 18149332,
+          "nic_drops": 277,
+          "service_qdisc_bytes": 27423210150,
+          "service_qdisc_packets": 18156121,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 76647
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 3001.0742409064023
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245287759777000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 4562.223027020399,
+        "scored_bytes": 28710644296,
+        "fresh_p95_ms": 51.999,
+        "fresh_p99_ms": 108.746,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 20331843,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 30657429698,
+          "service_qdisc_packets": 20331843,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 38486
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 1347.9286504295517
+      }
+    },
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245335406412000,
+        "clean": false,
+        "meets_75ms_and_delivery": false,
+        "original_socket_reopens": 0,
+        "failed_fresh": 215,
+        "offered_fresh": 240,
+        "mib_s": 436.73474946203686,
+        "scored_bytes": 2748457408,
+        "fresh_p95_ms": 25.015,
+        "fresh_p99_ms": 70.693,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 56,
+          "nic_packets": 2207078,
+          "nic_drops": 56,
+          "service_qdisc_bytes": 3328239970,
+          "service_qdisc_packets": 2208978,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 9839
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 3174.2139694139905
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245353045653000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 4304.913639978296,
+        "scored_bytes": 27084306600,
+        "fresh_p95_ms": 55.609,
+        "fresh_p99_ms": 114.285,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 19083246,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 28798692056,
+          "service_qdisc_packets": 19083246,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 16639
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 620.3750564364173
+      }
+    },
+    {
+      "ordinary": {
+        "begin_epoch_ns": 1795245379046601000,
+        "clean": true,
+        "meets_75ms_and_delivery": false,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 3737.7734633470045,
+        "scored_bytes": 23518592692,
+        "fresh_p95_ms": 75.024,
+        "fresh_p99_ms": 137.447,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 385,
+          "nic_packets": 16671351,
+          "nic_drops": 385,
+          "service_qdisc_bytes": 25186764560,
+          "service_qdisc_packets": 16680625,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 47763
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 2036.193676942522
+      },
+      "f256": {
+        "begin_epoch_ns": 1795245372456202000,
+        "clean": true,
+        "meets_75ms_and_delivery": true,
+        "original_socket_reopens": 0,
+        "failed_fresh": 0,
+        "offered_fresh": 240,
+        "mib_s": 4486.357971559296,
+        "scored_bytes": 28226249680,
+        "fresh_p95_ms": 59.481,
+        "fresh_p99_ms": 80.307,
+        "whole_invocation": {
+          "nic_flow_limit_drops": 0,
+          "nic_packets": 19911453,
+          "nic_drops": 0,
+          "service_qdisc_bytes": 30034716148,
+          "service_qdisc_packets": 19911453,
+          "service_qdisc_drops": 0,
+          "service_retransmitted_segments": 33073
+        },
+        "retransmitted_segments_per_service_qdisc_gib": 1182.3605447164089
+      }
+    }
+  ],
+  "summary": {
+    "mib_s": {
+      "n": 6,
+      "median_pct": 11.396019122172785,
+      "increases": 5,
+      "bootstrap_95_pct": [
+        -7.06154411329668,
+        16.300964832399025
+      ]
+    },
+    "retransmitted_segments_per_service_qdisc_gib": {
+      "n": 6,
+      "median_pct": -30.947560593852973,
+      "increases": 1,
+      "bootstrap_95_pct": [
+        -57.53873417430012,
+        50.001468458594836
+      ]
+    },
+    "ordinary": {
+      "attempted": 8,
+      "clean": 7,
+      "delivery_and_tail_pass": 4,
+      "all_fresh_errors": 215,
+      "all_offered_fresh": 1920,
+      "nic_per_flow_drops_each": [
+        55,
+        135,
+        112,
+        75,
+        324,
+        277,
+        56,
+        385
+      ],
+      "clean_median_p95_ms": 70.633,
+      "clean_median_p99_ms": 123.872
+    },
+    "f256": {
+      "attempted": 8,
+      "clean": 7,
+      "delivery_and_tail_pass": 5,
+      "all_fresh_errors": 1,
+      "all_offered_fresh": 1920,
+      "nic_per_flow_drops_each": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "clean_median_p95_ms": 55.609,
+      "clean_median_p99_ms": 108.746
+    },
+    "both_pass_delivery_and_tail": 3
+  },
+  "interpretation": "256 eliminated the observed NIC per-flow drops. Client failures and >75 ms fresh tails persisted. Select no policy for the revised worker from this historical comparison."
+}

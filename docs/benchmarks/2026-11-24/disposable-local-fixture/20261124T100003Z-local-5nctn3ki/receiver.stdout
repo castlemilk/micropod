@@ -1,0 +1,5 @@
+[idle] warmup B waiting at 1.0s, 0.00% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup B waiting at 17.1s, 44.18% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup B waiting at 33.2s, 69.41% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup B waiting at 49.2s, 0.00% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup B host idle admission timed out after 60.00s (30 observations, 0/2 consecutive eligible, last 54.40%, floor 90%, paired gap unpaired, limit 5 pp)

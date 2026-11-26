@@ -1,0 +1,29 @@
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -9993,8 +9993,16 @@
+ 		return sched_balance_find_dst_cpu(sd, p, cpu, prev_cpu, sd_flag);
+ 
+ 	/* Fast path */
+-	if (wake_flags & WF_TTWU)
++	if (wake_flags & WF_TTWU) {
++		if (sched_feat(SYNC_COLOCATE) && sync && want_affine &&
++		    new_cpu == cpu && p->last_wakee == current) {
++			struct rq *rq = cpu_rq(cpu);
++
++			if ((rq->nr_running - cfs_h_nr_delayed(rq)) == 1)
++				return cpu;
++		}
+ 		return select_idle_sibling(p, prev_cpu, new_cpu);
++	}
+ 
+ 	return new_cpu;
+ }
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -144,3 +144,6 @@
+ 
+ /* Bound the deadline displacement of an eligible next buddy. */
+ SCHED_FEAT(BOUNDED_BUDDY, false)
++
++/* Keep reciprocal 1:1 WF_SYNC wakeups co-located on the waker's vCPU. */
++SCHED_FEAT(SYNC_COLOCATE, false)

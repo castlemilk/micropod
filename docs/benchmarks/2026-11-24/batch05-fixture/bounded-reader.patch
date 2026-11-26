@@ -1,0 +1,39 @@
+--- a/guest/runner/docker_dns_linux.go
++++ b/guest/runner/docker_dns_linux.go
+@@ -116,9 +116,10 @@
+ 				defer c.Close()
+ 				stop := context.AfterFunc(ctx, func() { c.Close() })
+ 				defer stop()
++				var scratch [512]byte
+ 				for {
+ 					c.SetDeadline(time.Now().Add(5 * time.Second))
+-					req, err := readDNS(c)
++					req, err := readDNSWithBuffer(c, scratch[:])
+ 					if err != nil {
+ 						return
+ 					}
+@@ -133,6 +134,10 @@
+ 	return d, nil
+ }
+ func readDNS(r io.Reader) ([]byte, error) {
++	return readDNSWithBuffer(r, nil)
++}
++
++func readDNSWithBuffer(r io.Reader, scratch []byte) ([]byte, error) {
+ 	var h [2]byte
+ 	if _, err := io.ReadFull(r, h[:]); err != nil {
+ 		return nil, err
+@@ -141,7 +146,12 @@
+ 	if length < 12 {
+ 		return nil, errors.New("invalid DNS frame")
+ 	}
+-	b := make([]byte, length)
++	var b []byte
++	if int(length) <= len(scratch) {
++		b = scratch[:length]
++	} else {
++		b = make([]byte, length)
++	}
+ 	_, err := io.ReadFull(r, b)
+ 	return b, err
+ }

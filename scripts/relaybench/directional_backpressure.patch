@@ -1,0 +1,59 @@
+--- a/Sources/CPublishedTCP/include/PublishedTCP.h
++++ b/Sources/CPublishedTCP/include/PublishedTCP.h
+@@ -24,6 +24,9 @@
+     mp_tcp_handoff_stats handoff;
+     // Count each newly allocated unwritten suffix once, across both directions.
+     uint64_t pending_allocations, pending_copy_bytes;
++    // Subset incurred forwarding guest data to the host client. The upload
++    // subset is the existing total minus the matching download counter.
++    uint64_t download_blocked_writes, download_pending_allocations, download_pending_copy_bytes;
+     // Positive guest reads only. Disjoint counts: <=128, (128,256), =256, >256 KiB.
+     uint64_t guest_reads_by_size[4], guest_read_bytes, guest_full_cap_reads;
+     // Subset of full-cap reads whose EVFILT_READ data hinted at more than the cap.
+--- a/Sources/CPublishedTCP/PublishedTCP.c
++++ b/Sources/CPublishedTCP/PublishedTCP.c
+@@ -440,6 +440,9 @@
+         sum->blocked_writes += one->blocked_writes;
+         sum->pending_allocations += one->pending_allocations;
+         sum->pending_copy_bytes += one->pending_copy_bytes;
++        sum->download_blocked_writes += one->download_blocked_writes;
++        sum->download_pending_allocations += one->download_pending_allocations;
++        sum->download_pending_copy_bytes += one->download_pending_copy_bytes;
+         if (l->profile) {
+             for (unsigned i = 0; i < 4; ++i) sum->guest_reads_by_size[i] += one->guest_reads_by_size[i];
+             sum->guest_read_bytes += one->guest_read_bytes;
+@@ -715,7 +718,10 @@
+         }
+     }
+     if ((size_t)sent < count) {
+-        if (l->profile) ++l->stats.blocked_writes;
++        if (l->profile) {
++            ++l->stats.blocked_writes;
++            if (dst == &p->client) ++l->stats.download_blocked_writes;
++        }
+         size_t remaining = count - (size_t)sent;
+         if (!dst->pending) {
+             dst->pending = malloc(remaining);
+@@ -724,6 +730,10 @@
+             if (l->profile) {
+                 ++l->stats.pending_allocations;
+                 l->stats.pending_copy_bytes += remaining;
++                if (dst == &p->client) {
++                    ++l->stats.download_pending_allocations;
++                    l->stats.download_pending_copy_bytes += remaining;
++                }
+             }
+             dst->length = remaining;
+             struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
+--- a/Sources/MicropodRuntime/NativeLoopbackRelay.swift
++++ b/Sources/MicropodRuntime/NativeLoopbackRelay.swift
+@@ -242,6 +242,9 @@
+             "upload_bytes": stats.upload_bytes, "download_bytes": stats.download_bytes,
+             "reads": stats.reads, "writes": stats.writes, "blocked_writes": stats.blocked_writes,
+             "pending_allocations": stats.pending_allocations, "pending_copy_bytes": stats.pending_copy_bytes,
++            "download_blocked_writes": stats.download_blocked_writes,
++            "download_pending_allocations": stats.download_pending_allocations,
++            "download_pending_copy_bytes": stats.download_pending_copy_bytes,
+             "bulk_directions": stats.bulk_directions, "guest_read_supply": guestReadSupply,
+             "handoff": handoffBuckets(stats.handoff),
+             // Array indices match the data owner indices used at accept.

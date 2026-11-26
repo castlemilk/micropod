@@ -1,0 +1,518 @@
+{
+  "date": "2026-11-24",
+  "tier": "Offline replay of raw historical VM measurements",
+  "archive": "gamma-vnic.json.gz",
+  "archive_sha256": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f",
+  "script_sha256": "07280d6e4c6802eb8420ec3c0df9071a27ba6bdc48927c173305c196b470a812",
+  "direction": "231.08",
+  "archive_revision": "4f887ba5d28f47fa37d4bd0a2d89cd0914d74754",
+  "source_revision": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "image_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "client_sha256": "6e2531ef4bed59edd55144630a7bff68a3e1f63fae606d276a4cf3913a48abbd",
+  "original_driver_sha256": "316e5ff95c8c59acb285807f09e146d960690b8b5de6a35020abd3b3af461bce",
+  "socket_probe_sha256": "e6d5f5155af43f80bca576eec3555042c07c72e5178f4d849caab97e57b68fdb",
+  "fixture": "One four-CPU service and Reno gateway route with 20 ms retransmission floor. Uncapped TCP control versus locked 256-segment congestion-window ceiling. Kernel socket clamp proved on a separate pre-timing diagnostic after refreshing destination metrics. 8 rotated blocks, three synchronized bursts and 32 established streams overlapping 160 closed-loop fresh requests per arm per block.",
+  "limits": "Intervals use 10000 whole-block bootstrap resamples with seed 7317. TCP counters bracket full burst and mixed invocations. OutSegs and RetransSegs are service-namespace segments. Retransmission is not a direct packet-loss measurement; the scored mixed interval is a subset. No end-to-end packet drop instrument or host CPU/runnable samples in these arms.",
+  "verdict": "The verified 256-segment cap cut retransmissions per 1000 outgoing segments, but throughput fell in all eight pairs. The unconstrained arm already met the historical 75 ms p95 threshold in all eight.",
+  "next_check": "Keep the uncapped throughput control. Test a ceiling separately only when targeting a stricter tail/recovery objective with an open-loop workload and explicitly measured delivery.",
+  "probes": {
+    "control": {
+      "@clamp": {
+        "4294967295": 50558
+      },
+      "@initial_ssthresh": {
+        "2147483647": 96
+      },
+      "@peak_cwnd": 6508
+    },
+    "candidate": {
+      "@clamp": {
+        "256": 54274
+      },
+      "@initial_ssthresh": {
+        "2147483647": 96
+      },
+      "@peak_cwnd": 256
+    }
+  },
+  "paired": {
+    "mib_s": {
+      "control_median": 4535.445901056378,
+      "candidate_median": 4004.1267530312234,
+      "candidate_higher": 0,
+      "paired_median_pct": -11.89053558546636,
+      "paired_bootstrap_ci95_pct": [
+        -16.451596529232294,
+        -10.137910091083924
+      ]
+    },
+    "p95_ms": {
+      "control_median": 29.3417295,
+      "candidate_median": 9.9114585,
+      "candidate_higher": 0,
+      "paired_median_pct": -65.68324457913636,
+      "paired_bootstrap_ci95_pct": [
+        -73.39965048687561,
+        -63.503434564717175
+      ]
+    },
+    "p99_ms": {
+      "control_median": 36.847750000000005,
+      "candidate_median": 13.781811999999999,
+      "candidate_higher": 0,
+      "paired_median_pct": -61.7495275475807,
+      "paired_bootstrap_ci95_pct": [
+        -75.46024732747495,
+        -45.31868936849156
+      ]
+    },
+    "retrans_per_1000_out": {
+      "control_median": 5.935971452713531,
+      "candidate_median": 1.6033313437609944,
+      "candidate_higher": 0,
+      "paired_median_pct": -70.84665741408035,
+      "paired_bootstrap_ci95_pct": [
+        -83.35325710890231,
+        -64.09781792348062
+      ]
+    }
+  },
+  "all_attempt_deltas": {
+    "control": {
+      "out_segments": 123486726,
+      "retrans_segments": 667277,
+      "timeouts": 32,
+      "loss_probes": 147,
+      "spurious_rtos": 0,
+      "listen_drops": 0,
+      "tx_bytes": 179103319226,
+      "tx_drops": 0,
+      "rx_drops": 0
+    },
+    "candidate": {
+      "out_segments": 33108498,
+      "retrans_segments": 48559,
+      "timeouts": 0,
+      "loss_probes": 45,
+      "spurious_rtos": 0,
+      "listen_drops": 0,
+      "tx_bytes": 48009899342,
+      "tx_drops": 0,
+      "rx_drops": 0
+    }
+  },
+  "passes_75ms": {
+    "control": 8,
+    "candidate": 8
+  },
+  "rows": [
+    {
+      "block": 0,
+      "relative_order": [
+        "reno20ss128",
+        "flight256"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 12869220,
+          "retrans_segments": 81158,
+          "timeouts": 3,
+          "loss_probes": 66,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 18681053272,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 6.306365109928962,
+        "mib_s": 3111.8691262026286,
+        "mixed_s": 5.183852542,
+        "mixed_bytes": 16915073000,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 54.741292,
+        "p99_ms": 121.549375
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 4187753,
+          "retrans_segments": 3702,
+          "timeouts": 0,
+          "loss_probes": 3,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 6069153054,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 0.8840062916795713,
+        "mib_s": 3009.5121161920774,
+        "mixed_s": 1.520588125,
+        "mixed_bytes": 4798523256,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 14.561375,
+        "p99_ms": 29.827916
+      }
+    },
+    {
+      "block": 1,
+      "relative_order": [
+        "flight256",
+        "reno20ss128"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 13541344,
+          "retrans_segments": 98534,
+          "timeouts": 4,
+          "loss_probes": 14,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 19672352232,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 7.2765303060021225,
+        "mib_s": 3940.2838566770274,
+        "mixed_s": 3.994424167,
+        "mixed_bytes": 16503710744,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 37.152708,
+        "p99_ms": 49.827125
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 4071670,
+          "retrans_segments": 5094,
+          "timeouts": 0,
+          "loss_probes": 42,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 5903196408,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 1.2510837076678611,
+        "mib_s": 3540.821421953616,
+        "mixed_s": 1.230708208,
+        "mixed_bytes": 4569398496,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 13.395208,
+        "p99_ms": 27.246125
+      }
+    },
+    {
+      "block": 2,
+      "relative_order": [
+        "flight256",
+        "reno20ss128"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 15258711,
+          "retrans_segments": 87376,
+          "timeouts": 2,
+          "loss_probes": 5,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 22142582778,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 5.726302831215559,
+        "mib_s": 4604.684296416614,
+        "mixed_s": 3.5007068329999997,
+        "mixed_bytes": 16902677888,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 28.107167,
+        "p99_ms": 32.653833
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 4309725,
+          "retrans_segments": 7886,
+          "timeouts": 0,
+          "loss_probes": 0,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 6251619132,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 1.8298151274153223,
+        "mib_s": 4104.842921873145,
+        "mixed_s": 1.051498541,
+        "mixed_bytes": 4525901840,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 8.877375,
+        "p99_ms": 13.022208
+      }
+    },
+    {
+      "block": 3,
+      "relative_order": [
+        "flight256",
+        "reno20ss128"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 13355570,
+          "retrans_segments": 57215,
+          "timeouts": 5,
+          "loss_probes": 13,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 19344442290,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 4.283980391701739,
+        "mib_s": 4466.207505696141,
+        "mixed_s": 3.511115541,
+        "mixed_bytes": 16443108840,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 28.888417,
+        "p99_ms": 33.2115
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 4199494,
+          "retrans_segments": 6459,
+          "timeouts": 0,
+          "loss_probes": 0,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 6089993762,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 1.538042440351147,
+        "mib_s": 3027.0230382607383,
+        "mixed_s": 1.44516425,
+        "mixed_bytes": 4587043400,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 16.631125,
+        "p99_ms": 22.364625
+      }
+    },
+    {
+      "block": 4,
+      "relative_order": [
+        "reno20ss128",
+        "flight256"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 13395051,
+          "retrans_segments": 75391,
+          "timeouts": 4,
+          "loss_probes": 12,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 19437106084,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 5.628272710570494,
+        "mib_s": 4416.485242021118,
+        "mixed_s": 3.723707125,
+        "mixed_bytes": 17244563768,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 29.795042,
+        "p99_ms": 40.484
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 4071831,
+          "retrans_segments": 7140,
+          "timeouts": 0,
+          "loss_probes": 0,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 5906194938,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 1.7535108898183642,
+        "mib_s": 3907.3744781978116,
+        "mixed_s": 1.117597416,
+        "mixed_bytes": 4578996776,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 10.874167,
+        "p99_ms": 14.541416
+      }
+    },
+    {
+      "block": 5,
+      "relative_order": [
+        "reno20ss128",
+        "flight256"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 13168848,
+          "retrans_segments": 80931,
+          "timeouts": 5,
+          "loss_probes": 13,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 19117531102,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 6.145640074211503,
+        "mib_s": 4908.387063673178,
+        "mixed_s": 3.130566334,
+        "mixed_bytes": 16112451632,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 25.107416,
+        "p99_ms": 28.101541
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 3961956,
+          "retrans_segments": 6611,
+          "timeouts": 0,
+          "loss_probes": 0,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 5745939086,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 1.6686202471708418,
+        "mib_s": 4100.879027864635,
+        "mixed_s": 1.012780625,
+        "mixed_bytes": 4355041080,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 8.94875,
+        "p99_ms": 11.201917
+      }
+    },
+    {
+      "block": 6,
+      "relative_order": [
+        "reno20ss128",
+        "flight256"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 28741471,
+          "retrans_segments": 98304,
+          "timeouts": 2,
+          "loss_probes": 13,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 41604662460,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 3.4202842297111378,
+        "mib_s": 4857.991864024254,
+        "mixed_s": 7.673509875,
+        "mixed_bytes": 39088657312,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 37.0235,
+        "p99_ms": 1151.987458
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 3967488,
+          "retrans_segments": 6816,
+          "timeouts": 0,
+          "loss_probes": 0,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 5754552288,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 1.7179636082075107,
+        "mib_s": 4262.714843778438,
+        "mixed_s": 1.001363292,
+        "mixed_bytes": 4475874096,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 8.652167,
+        "p99_ms": 11.224375
+      }
+    },
+    {
+      "block": 7,
+      "relative_order": [
+        "flight256",
+        "reno20ss128"
+      ],
+      "control": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 13156511,
+          "retrans_segments": 88368,
+          "timeouts": 7,
+          "loss_probes": 11,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 19103589008,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 6.71667435234159,
+        "mib_s": 5254.617055776214,
+        "mixed_s": 3.050895375,
+        "mixed_bytes": 16810022664,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 23.698041,
+        "p99_ms": 26.579167
+      },
+      "candidate": {
+        "route": "route ready\nunicast 10.88.0.1 dev eth0 table main src 10.88.0.42 uid 0 \n    cache ssthresh 128 cwnd lock 256 rto_min lock 20ms congctl reno \nbbr",
+        "counters": {
+          "out_segments": 4338581,
+          "retrans_segments": 4851,
+          "timeouts": 0,
+          "loss_probes": 0,
+          "spurious_rtos": 0,
+          "listen_drops": 0,
+          "tx_bytes": 6289250674,
+          "tx_drops": 0,
+          "rx_drops": 0
+        },
+        "retrans_per_1000_out": 1.1181075102666056,
+        "mib_s": 4560.738610927947,
+        "mixed_s": 0.91261975,
+        "mixed_bytes": 4364404136,
+        "fresh": 160,
+        "reopens": 0,
+        "p95_ms": 7.818375,
+        "p99_ms": 9.73825
+      }
+    }
+  ]
+}

@@ -1,0 +1,560 @@
+{
+  "schema": 1,
+  "completed_at": "2026-11-23T05:18:24.836537+00:00",
+  "platform": {
+    "machine": "arm64",
+    "darwin_release": "25.5.0"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "source_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "c877f1efe9b46a9e80385bf6f8b1a00add0b1671cf8d0d8d8ec02d2d0842990f",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "039b653ac1ae9472a1ce71251b82e485b06d198b8745437326f7933942f545db",
+    "scripts/relaybench/short_ready_set.c": "4f49901aea2d3d7855f2935c1492da083d03ced1707cae8fef87240467a76212",
+    "scripts/relaybench/check_short_ready_set.py": "9b8a5ebe94f14722b23f80b66230d67b6150ac2f0a1ac611c4bf68fb51debc6b"
+  },
+  "method": "One single-threaded fixture process at a time. One unscored warmup per arm. Six paired blocks with alternating arm order. Each arm handles 256 waves of 4096 bytes per stream in each profile. The 1024-byte read cap forces four reads. Thread CPU covers outer readiness polls and relay callbacks. Payload setup, comparison and the extra final wave are untimed.",
+  "integrity": "Every wave passed an exact ordered byte comparison on each stream. The extra wave sent data followed immediately by a half-close and required all bytes before EOF.",
+  "scope": "Anonymous local UNIX socket pairs with a kqueue watching the data owner's kqueue. The fixture models an early return after an underfilled poll by suppressing the next kernel poll within that callback. Counts cover actual kernel calls. The outer watcher models level-triggered readiness, excluding libdispatch, an accept path, the guest network, and any inference about live throughput or latency.",
+  "counter_summary_ranges": [
+    {
+      "streams": 1,
+      "read_cap": 0,
+      "stock": {
+        "inner_polls": [
+          512,
+          512
+        ],
+        "empty_inner_polls": [
+          256,
+          256
+        ],
+        "callback_deliveries": [
+          256,
+          256
+        ]
+      },
+      "yield-short": {
+        "inner_polls": [
+          512,
+          512
+        ],
+        "empty_inner_polls": [
+          256,
+          256
+        ],
+        "callback_deliveries": [
+          512,
+          512
+        ]
+      },
+      "paired_cpu_change_percent": {
+        "min": -3.39,
+        "median": 0.65,
+        "max": 23.23
+      }
+    },
+    {
+      "streams": 16,
+      "read_cap": 0,
+      "stock": {
+        "inner_polls": [
+          512,
+          512
+        ],
+        "empty_inner_polls": [
+          256,
+          256
+        ],
+        "callback_deliveries": [
+          256,
+          256
+        ]
+      },
+      "yield-short": {
+        "inner_polls": [
+          512,
+          512
+        ],
+        "empty_inner_polls": [
+          256,
+          256
+        ],
+        "callback_deliveries": [
+          512,
+          512
+        ]
+      },
+      "paired_cpu_change_percent": {
+        "min": -5.59,
+        "median": -0.66,
+        "max": 1.53
+      }
+    },
+    {
+      "streams": 16,
+      "read_cap": 1024,
+      "stock": {
+        "inner_polls": [
+          1280,
+          1280
+        ],
+        "empty_inner_polls": [
+          256,
+          256
+        ],
+        "callback_deliveries": [
+          256,
+          256
+        ]
+      },
+      "yield-short": {
+        "inner_polls": [
+          1280,
+          1280
+        ],
+        "empty_inner_polls": [
+          256,
+          256
+        ],
+        "callback_deliveries": [
+          1280,
+          1280
+        ]
+      },
+      "paired_cpu_change_percent": {
+        "min": -1.02,
+        "median": 2.97,
+        "max": 7.95
+      }
+    }
+  ],
+  "blocks": [
+    {
+      "order": [
+        "stock",
+        "yield-short"
+      ],
+      "stock": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 3615698
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 10291125
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 22690404
+        }
+      ],
+      "yield-short": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 3589285
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 10410118
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 1280,
+          "owner_cpu_ns": 23359047
+        }
+      ]
+    },
+    {
+      "order": [
+        "yield-short",
+        "stock"
+      ],
+      "yield-short": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 4068709
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 10311082
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 1280,
+          "owner_cpu_ns": 23719657
+        }
+      ],
+      "stock": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 3301638
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 10532950
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 23030247
+        }
+      ]
+    },
+    {
+      "order": [
+        "stock",
+        "yield-short"
+      ],
+      "stock": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 3992299
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 10591961
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 23867195
+        }
+      ],
+      "yield-short": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 4178572
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 10753706
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 1280,
+          "owner_cpu_ns": 23624746
+        }
+      ]
+    },
+    {
+      "order": [
+        "yield-short",
+        "stock"
+      ],
+      "yield-short": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 3452371
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 9715500
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 1280,
+          "owner_cpu_ns": 23319629
+        }
+      ],
+      "stock": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 3383419
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 10290711
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 22513753
+        }
+      ]
+    },
+    {
+      "order": [
+        "stock",
+        "yield-short"
+      ],
+      "stock": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 3559423
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 10016876
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 22081203
+        }
+      ],
+      "yield-short": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 3498206
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 9549168
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 1280,
+          "owner_cpu_ns": 22507330
+        }
+      ]
+    },
+    {
+      "order": [
+        "yield-short",
+        "stock"
+      ],
+      "yield-short": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 3266455
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 512,
+          "owner_cpu_ns": 9998250
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 1280,
+          "owner_cpu_ns": 23034040
+        }
+      ],
+      "stock": [
+        {
+          "streams": 1,
+          "read_cap": 0,
+          "bytes": 1048576,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 3381082
+        },
+        {
+          "streams": 16,
+          "read_cap": 0,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 512,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 9920589
+        },
+        {
+          "streams": 16,
+          "read_cap": 1024,
+          "bytes": 16777216,
+          "waves": 256,
+          "inner_polls": 1280,
+          "empty_inner_polls": 256,
+          "callback_deliveries": 256,
+          "owner_cpu_ns": 21338169
+        }
+      ]
+    }
+  ]
+}

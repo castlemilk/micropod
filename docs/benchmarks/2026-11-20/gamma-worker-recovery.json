@@ -1,0 +1,261 @@
+{
+  "hardware": "Gamma, Apple M5 Max, 18 CPU cores, 128 GiB",
+  "worker_resources": {
+    "vcpus": 4,
+    "memory_mib": 4096,
+    "disk_gib": 32
+  },
+  "cache_scope": "gamma-qualification",
+  "initial_binary_sha256": "52b47cdb4a40cd67a1593d7e6e29d1aa6a34623c04e99af328c297cb62ae868f",
+  "bootstrap_image": "host image store already warm; new private ext4 disk",
+  "cold_start": {
+    "callers": 16,
+    "seconds": [
+      7.8038,
+      7.8088,
+      7.8078,
+      7.8175,
+      7.808,
+      7.8175,
+      7.8133,
+      7.8043,
+      7.8036,
+      7.8135,
+      7.8177,
+      7.8074,
+      7.8032,
+      7.8138,
+      7.8024,
+      7.8041
+    ],
+    "identical_status": {
+      "boot": "7E7C665B-57D7-4784-9B3A-DBB5F70E5ABF",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+      "endpoint": "unix:///tmp/mpci-pair.hUaXl6/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.68.2",
+      "instance": "7C0CD227-1FA1-4DBD-855A-783DF0CA2843",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD"
+    }
+  },
+  "scoped_caches_and_clean_restart": {
+    "first": {
+      "boot": "7E7C665B-57D7-4784-9B3A-DBB5F70E5ABF",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+      "endpoint": "unix:///tmp/mpci-pair.hUaXl6/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.68.2",
+      "instance": "7C0CD227-1FA1-4DBD-855A-783DF0CA2843",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD"
+    },
+    "cli_caches": {
+      "clients": 16,
+      "seed": {
+        "boot": "7e7c665b-57d7-4784-9b3a-dbb5f70e5abf",
+        "cold": {
+          "npm_cache_add_seconds": 0.28708624999998733,
+          "go_download_seconds": 0.004151874999990923,
+          "go_cold_build_seconds": 5.952287044000002,
+          "go_cold_compiler_or_assembler_invocations": 107
+        },
+        "lock": {
+          "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+          "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+          "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+        },
+        "versions": {
+          "go": "go version go1.26.11 linux/arm64",
+          "npm": "11.19.1",
+          "node": "v24.22.3"
+        },
+        "payload_inodes": [
+          237675,
+          344119
+        ],
+        "cache_sizes": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "verified": "seed"
+      },
+      "warm_seconds": {
+        "npm": 5.054986,
+        "go": 2.600794
+      },
+      "after": {
+        "npm_content": {
+          "files": 1,
+          "logical_bytes": 221
+        },
+        "go_modules": {
+          "files": 9,
+          "logical_bytes": 626
+        },
+        "go_build": {
+          "files": 438,
+          "logical_bytes": 33085592
+        }
+      },
+      "empty_scope_verified": true
+    },
+    "stop_seconds": 0.5463,
+    "restart_seconds": [
+      1.0283,
+      1.0268,
+      1.0251,
+      1.0158,
+      1.0211,
+      1.021,
+      1.017,
+      0.9884,
+      1.0057,
+      1.0052,
+      1.0038,
+      1.0004,
+      0.9975,
+      0.9771,
+      0.995,
+      0.9924
+    ],
+    "restarted": {
+      "boot": "BDC31926-BD01-4F2C-84A9-8BDF77CA1D21",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+      "endpoint": "unix:///tmp/mpci-pair.hUaXl6/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.68.2",
+      "instance": "8C3B27ED-B2B1-400E-A77B-7B4DD680FAE6",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD"
+    },
+    "restart_audit": {
+      "boot": "bdc31926-bd01-4f2c-84a9-8bdf77ca1d21",
+      "payload_inodes": [
+        237675,
+        344119
+      ],
+      "cache_sizes": {
+        "npm_content": {
+          "files": 1,
+          "logical_bytes": 221
+        },
+        "go_modules": {
+          "files": 9,
+          "logical_bytes": 626
+        },
+        "go_build": {
+          "files": 438,
+          "logical_bytes": 33085592
+        }
+      },
+      "verified": "audit"
+    },
+    "passed": true
+  },
+  "abrupt_supervisor_recovery": {
+    "revision": "f20e0b1536f09e698e06212002c46774305ab438",
+    "executable_sha256": "350cd74c56a3d1e1e10ff84b5ef78a365118bed863a7e1cb666d89d9675cdc9a",
+    "method": "SIGKILL of idle private supervisor after guest sync",
+    "before": {
+      "boot": "BDC31926-BD01-4F2C-84A9-8BDF77CA1D21",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+      "endpoint": "unix:///tmp/mpci-pair.hUaXl6/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.68.2",
+      "instance": "8C3B27ED-B2B1-400E-A77B-7B4DD680FAE6",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD"
+    },
+    "after": {
+      "boot": "1F118734-DE26-47BC-B401-D5251FEC489D",
+      "cgroupDriver": "cgroupfs",
+      "cpus": 4,
+      "daemon": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+      "endpoint": "unix:///tmp/mpci-pair.hUaXl6/docker.sock",
+      "engineVersion": "29.9.3",
+      "guestAddress": "192.168.69.2",
+      "instance": "0FEF4A6B-5F16-464B-81AE-CE8BED4CBB76",
+      "memoryBytes": 4118708224,
+      "storageDriver": "overlayfs",
+      "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD"
+    },
+    "simultaneous_recovery_seconds": [
+      1.398086,
+      1.397907,
+      1.397762,
+      1.397471,
+      1.39392,
+      1.404563,
+      1.403667,
+      1.401783,
+      1.402468,
+      1.397503,
+      1.399174,
+      1.397117,
+      1.396845,
+      1.396427,
+      1.394496,
+      1.38981
+    ],
+    "restart_audit": {
+      "boot": "1f118734-de26-47bc-b401-d5251fec489d",
+      "payload_inodes": [
+        237675,
+        344119
+      ],
+      "cache_sizes": {
+        "npm_content": {
+          "files": 1,
+          "logical_bytes": 221
+        },
+        "go_modules": {
+          "files": 9,
+          "logical_bytes": 626
+        },
+        "go_build": {
+          "files": 438,
+          "logical_bytes": 33085592
+        }
+      },
+      "verified": "audit"
+    },
+    "offline_jobs": {
+      "npm": {
+        "boot": "1f118734-de26-47bc-b401-d5251fec489d",
+        "verified": "npm"
+      },
+      "go": {
+        "boot": "1f118734-de26-47bc-b401-d5251fec489d",
+        "verified": "go"
+      }
+    },
+    "kernel_messages": [
+      "[    0.092573] EXT4-fs (vda): mounted filesystem 0e89ee09-05cb-4a50-a959-38e557eff26c ro without journal. Quota mode: disabled.",
+      "[    0.201559] EXT4-fs (vdb): recovery complete"
+    ],
+    "passed": true
+  }
+}

@@ -9,6 +9,8 @@ public protocol SharedFSClient: Sendable {
     /// Live shared mount — all containers mounting the same src share one
     /// view directory, with bidirectional FSEvents sync for live writes.
     func mountShared(src: URL, readonly: Bool) async throws -> MountInfo
+    /// Acquire the same live view when the container only needs its mount path.
+    func bindShared(src: URL, readonly: Bool) async throws -> SharedBind
     func unmount(id: ViewID) async throws
     func inspect(id: ViewID) async throws -> MountInfo
     func sync(id: ViewID) async throws -> SyncResult
@@ -21,6 +23,22 @@ public protocol SharedFSClient: Sendable {
     func setCacheKeepEnabled(_ enabled: Bool) async throws
 }
 
+public struct SharedBind: Sendable {
+    public let id: ViewID
+    public let viewPath: String
+
+    public init(id: ViewID, viewPath: String) {
+        self.id = id
+        self.viewPath = viewPath
+    }
+}
+
+extension SharedFSClient {
+    public func bindShared(src: URL, readonly: Bool) async throws -> SharedBind {
+        try await mountShared(src: src, readonly: readonly).bind
+    }
+}
+
 public struct MountInfo: Codable, Sendable, Hashable {
     public let id: ViewID
     public let src: String
@@ -28,6 +46,8 @@ public struct MountInfo: Codable, Sendable, Hashable {
     public let sizeBytes: UInt64
     public let readonly: Bool
     public let createdAt: Date
+
+    public var bind: SharedBind { SharedBind(id: id, viewPath: viewPath) }
 }
 
 public struct SyncResult: Codable, Sendable {

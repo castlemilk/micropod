@@ -1,0 +1,211 @@
+{
+  "experiment": "Standard versus Interactive launchd role, four-vCPU native worker, offline implementation",
+  "base": "2b7fde8ec336c266fc96a1288953303ac5cd69e7",
+  "validation_utc": "2026-11-23T03:09:37+00:00",
+  "admission": {
+    "source": "Cuttlefish fleet summary, cuttlefish project",
+    "observations": [
+      {
+        "observed_at": "2026-11-23T02:40:34.800564776Z",
+        "runners": [
+          {
+            "name": "Gamma-128GB.local",
+            "leases": 1,
+            "capacity": 6,
+            "seen": "2026-11-23T02:40:34.770707Z"
+          },
+          {
+            "name": "Gamma-128GB Linux CI (isolated VM)",
+            "leases": 1,
+            "capacity": 1,
+            "seen": "2026-11-23T02:40:34.311529Z"
+          }
+        ]
+      },
+      {
+        "observed_at": "2026-11-23T03:07:36.05968737Z",
+        "runners": [
+          {
+            "name": "Gamma-128GB.local",
+            "leases": 2,
+            "capacity": 6,
+            "seen": "2026-11-23T03:07:34.903053Z"
+          },
+          {
+            "name": "Gamma-128GB Linux CI (isolated VM)",
+            "leases": 1,
+            "capacity": 1,
+            "seen": "2026-11-23T03:07:34.690283Z"
+          }
+        ]
+      }
+    ],
+    "owner_handoff_received": false,
+    "live_fixture_checks": 0,
+    "live_timed_attempts": 0
+  },
+  "benchmark_verdict": "awaiting first live measurement",
+  "dry_plan": {
+    "mode": "host-role",
+    "seed": 34205,
+    "arms": {
+      "A": {
+        "engine": "Micropod",
+        "vcpus": 4,
+        "relay_workers": 2,
+        "callback_events": 128,
+        "process_type": "Standard"
+      },
+      "B": {
+        "engine": "Micropod",
+        "vcpus": 4,
+        "relay_workers": 2,
+        "callback_events": 128,
+        "process_type": "Interactive"
+      }
+    },
+    "order": {
+      "warmup": [
+        "AB",
+        "BA",
+        "AB"
+      ],
+      "scored": [
+        "BA",
+        "AB",
+        "AB",
+        "BA"
+      ]
+    }
+  },
+  "holdout_scored_pairs": 16,
+  "artifact_build": {
+    "command": "python3 -B scripts/relaybench/build_host_role_tools.py NEW_DIRECTORY",
+    "toolchains": [
+      "Apple clang 21.0.0 (clang-2100.1.1.101)",
+      "go1.27.2 darwin/arm64"
+    ],
+    "linux_guest_arch": "arm64",
+    "sha256": {
+      "fixed": "bf306205c4b1a196868abdf9d14e6eb15540593f4420701d183a670925af812b",
+      "rusage": "e1201164a75e97543ae4d75e0361b5d79a40e80aa11fcb2b97ba01881fd0ba0c",
+      "netbench": "67f097898d66e4d79a34d634687acad83a16d37549b5628ca0c96ee4f91d1605"
+    },
+    "exit_code": 0
+  },
+  "python_tests": {
+    "command": "python3 -B -m unittest discover -s scripts/relaybench -p 'test_*.py' -v",
+    "results_by_python_version": {
+      "3.15.0": {
+        "exit_code": 0,
+        "tests_passed": 21
+      },
+      "3.9.6": {
+        "exit_code": 0,
+        "tests_passed": 21
+      }
+    }
+  },
+  "swift_tests": {
+    "compiler": "Apple Swift 6.3.3",
+    "suite": "CIWorkerTests",
+    "tests_discovered": 15,
+    "tests_passed": 14,
+    "tests_failing": 1,
+    "assertion_failures_in_that_test": 2,
+    "failure": "testRunRejectsAWorkerWithAPendingStopBeforeConnectingOrLaunching",
+    "reason": "The macOS boot identity is unavailable",
+    "same_failure_reproduced_on_unmodified_base": true,
+    "suite_excluding_that_test": {
+      "exit_code": 0,
+      "tests_passed": 14
+    },
+    "new_test": "testLaunchProcessTypeOnlyChangesTheRenderedJobRole",
+    "new_test_passed": true
+  },
+  "cli_smoke": {
+    "checks": [
+      {
+        "arguments": [
+          "ci",
+          "launch-agent"
+        ],
+        "exit_code": 0
+      },
+      {
+        "arguments": [
+          "ci",
+          "launch-agent",
+          "--process-type",
+          "Standard"
+        ],
+        "exit_code": 0
+      },
+      {
+        "arguments": [
+          "ci",
+          "launch-agent",
+          "--process-type",
+          "Interactive"
+        ],
+        "exit_code": 0
+      },
+      {
+        "arguments": [
+          "ci",
+          "launch-agent",
+          "--process-type",
+          "wrong"
+        ],
+        "exit_code": 2
+      },
+      {
+        "arguments": [
+          "ci",
+          "launch-agent",
+          "--process-type"
+        ],
+        "exit_code": 2
+      },
+      {
+        "arguments": [
+          "ci",
+          "status",
+          "--process-type",
+          "Standard"
+        ],
+        "exit_code": 2
+      }
+    ],
+    "job_differences": [
+      "ProcessType"
+    ],
+    "implicit_equals_interactive": true,
+    "worker_directory_created": false
+  },
+  "go_tests": {
+    "command": "go test -p 2 -count=1 -v scripts/netbench/offered/main.go scripts/netbench/offered/main_test.go",
+    "subtests": [
+      "distinct",
+      "missing",
+      "repeated_address",
+      "repeated_identity"
+    ],
+    "exit_code": 0
+  },
+  "format_checks": {
+    "swift_format_lint_strict": 0,
+    "gofmt_changed_files": []
+  },
+  "verified_source_sha256": {
+    "Sources/MicropodCLI/CICommands.swift": "0dd8d406152b0aed30bb82e2403d7cbe77989c338b077e275cc0bc169e0559c1",
+    "Sources/MicropodRuntime/CIWorkerService.swift": "ffa13acf89c4b90f8923557b6a9db839d1f6fa394b418b33a087cbbeca1e2cc6",
+    "Tests/MicropodRuntimeTests/CIWorkerTests.swift": "89149d5461845c7b5ff9b96540aa3ec6f96c4af2d88705bbb7467c8b900eaef9",
+    "scripts/netbench/main.go": "cc60a4f14dfd59d93852df5f8347d2fa3dece17ff5e46dfdb42f0a4c0e379d21",
+    "scripts/netbench/offered/main.go": "a5d7770ba57d88d25628fe9c8ec6793f1a7871bb2a05959883be9c477ad046cc",
+    "scripts/relaybench/build_host_role_tools.py": "223ce82d299140b29189b725fc9e9543ab0fec853484c7f781d0a3b1cb765ffe",
+    "scripts/relaybench/gamma_pilot.py": "880853959a5b166018ea777593508d09a7b11bcd47422a8a4289442ba9041707",
+    "scripts/relaybench/host_role.py": "be21f062ce6fcde8ea1740a3d2eb7f5019656f625095b99f5b2c2c202cf55225",
+    "scripts/relaybench/test_host_role.py": "c1f2a220be72189bcbc0c33500640447d57cb4b9cd8fb088dcfce20ca3a51091"
+  }
+}

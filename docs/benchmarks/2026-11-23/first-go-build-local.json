@@ -1,0 +1,54 @@
+{
+  "scope": "one local Go CLI checkout; runtime startup and OS file-cache state unmeasured",
+  "host_os": "Darwin",
+  "host_arch": "arm64",
+  "go_version": "go version go1.27.2 darwin/arm64",
+  "flags": [
+    "go",
+    "build",
+    "-x",
+    "-trimpath",
+    "-buildvcs=false",
+    "-o",
+    "app",
+    "."
+  ],
+  "gomaxprocs": "2",
+  "goflags": "-p=2",
+  "cold": {
+    "npm_cache_add_seconds": 0.35244812502060086,
+    "go_download_seconds": 0.013227000017650425,
+    "go_cold_build_seconds": 3.7015399580122903,
+    "go_cold_input": {
+      "initial_empty_roots": {
+        "go-mod-cache": {
+          "device": 16777230,
+          "inode": 1190695003
+        },
+        "go-build-cache": {
+          "device": 16777230,
+          "inode": 1190695004
+        }
+      },
+      "prebuild_cache_empty": true,
+      "prebuild_output_absent": true,
+      "prebuild_module_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3",
+      "build_goproxy": "off"
+    },
+    "go_cold_compiler_or_assembler_invocations": 106,
+    "product_sha256": "e09954ef4af8641c9961ed1696ca2f03b3c8d8eab06bc5cd25a18fe1c4a20670"
+  },
+  "subsequent_builds": {
+    "changed_main": {
+      "build_seconds": 0.17543908301740885,
+      "compile_or_asm": 1,
+      "product_sha256": "72e93a357abe3507af1611b7798dd24d9e57fec8ffa5ee5d9cee523327fd33e2"
+    },
+    "unchanged_warm": {
+      "build_seconds": 0.17148658307269216,
+      "compile_or_asm": 0,
+      "product_sha256": "e09954ef4af8641c9961ed1696ca2f03b3c8d8eab06bc5cd25a18fe1c4a20670"
+    }
+  },
+  "mixed_cache_seed_rejected": true
+}

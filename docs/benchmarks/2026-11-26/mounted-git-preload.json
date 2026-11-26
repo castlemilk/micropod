@@ -1,0 +1,604 @@
+{
+  "passed": true,
+  "engines": {
+    "hvf": {
+      "name": "mp-git-preload-b69380015db641c8bee49cfbb128bd7c",
+      "remaining_ids": [],
+      "git": "git version 2.39.5\ncpu: aarch64\nno commit associated with this build\nsizeof-long: 8\nsizeof-size_t: 8\nshell-path: /bin/sh\n",
+      "git_sha256": "54af380ba6ca1b36305358e99427a31ae4b0af5dc5cb6d0198c6f2f16e97651d",
+      "index_sha256": "33751966f87e844749efb1a82ba2f52d8b4cb9a599c8835cefcf5b4e760b4119",
+      "config_sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+      "git_environment": {
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0"
+      },
+      "resolved_config": {
+        "stock": [
+          "local\tfile:.git/config\tcore.repositoryformatversion 0",
+          "local\tfile:.git/config\tcore.filemode true",
+          "local\tfile:.git/config\tcore.bare false",
+          "local\tfile:.git/config\tcore.logallrefupdates true",
+          "local\tfile:.git/config\tcore.ignorecase true",
+          "local\tfile:.git/config\tcore.precomposeunicode true"
+        ],
+        "preload-off": [
+          "local\tfile:.git/config\tcore.repositoryformatversion 0",
+          "local\tfile:.git/config\tcore.filemode true",
+          "local\tfile:.git/config\tcore.bare false",
+          "local\tfile:.git/config\tcore.logallrefupdates true",
+          "local\tfile:.git/config\tcore.ignorecase true",
+          "local\tfile:.git/config\tcore.precomposeunicode true",
+          "command\tcommand line:\tcore.preloadindex false"
+        ]
+      },
+      "mount": [
+        "92",
+        "101",
+        "0:33",
+        "/mp-git-field-qsse5cas",
+        "/git-preload-check",
+        "ro,relatime",
+        "-",
+        "virtiofs",
+        "workspace",
+        "rw"
+      ],
+      "untraced": [
+        {
+          "order": [
+            "stock",
+            "preload-off"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 158537084,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 166367708,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "preload-off",
+            "stock"
+          ],
+          "calls": {
+            "preload-off": {
+              "ns": 170380375,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 157097333,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "stock",
+            "preload-off"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 156699625,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 153947875,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "preload-off",
+            "stock"
+          ],
+          "calls": {
+            "preload-off": {
+              "ns": 153893417,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 158154458,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "stock",
+            "preload-off"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 158850042,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 153007709,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "preload-off",
+            "stock"
+          ],
+          "calls": {
+            "preload-off": {
+              "ns": 153297834,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 157583417,
+              "status_hex": ""
+            }
+          }
+        }
+      ],
+      "trace2": {
+        "stock": {
+          "ns": 155684458,
+          "status_hex": "",
+          "trace2": {
+            "counts": {
+              "read/cache_nr": 1058,
+              "preload/sum_lstat": 1058,
+              "refresh/sum_lstat": 1058,
+              "refresh/sum_scan": 1058
+            },
+            "regions_s": {
+              "preload": 0.002922,
+              "refresh": 0.128529,
+              "untracked": 0.020407
+            }
+          }
+        },
+        "preload-off": {
+          "ns": 154787625,
+          "status_hex": "",
+          "trace2": {
+            "counts": {
+              "read/cache_nr": 1058,
+              "refresh/sum_lstat": 1058,
+              "refresh/sum_scan": 1058
+            },
+            "regions_s": {
+              "refresh": 0.130709,
+              "untracked": 0.020236
+            }
+          }
+        }
+      },
+      "private_clean_control": {
+        "refresh_ns": 131882583,
+        "trace2": {
+          "stock": {
+            "ns": 42001500,
+            "status_hex": "",
+            "trace2": {
+              "counts": {
+                "read/cache_nr": 1058,
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_s": {
+                "preload": 0.018012,
+                "refresh": 1e-05,
+                "untracked": 0.020254
+              }
+            }
+          },
+          "preload-off": {
+            "ns": 30692125,
+            "status_hex": "",
+            "trace2": {
+              "counts": {
+                "read/cache_nr": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 0
+              },
+              "regions_s": {
+                "refresh": 0.006124,
+                "untracked": 0.020991
+              }
+            }
+          }
+        }
+      },
+      "median_ms": {
+        "stock": 157.8689375,
+        "preload-off": 153.920646
+      },
+      "edits": {
+        "same_inode_exact_mtime": {
+          "before": {
+            "inode": 18932,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630004005899599
+          },
+          "after": {
+            "inode": 18932,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630004006013013
+          },
+          "digest": "2d222bf2f6127164c57c1430f06f0acd07994bc979fbb76a2647d2426edc2d4c",
+          "status": {
+            "stock": {
+              "ns": 168201541,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "preload-off": {
+              "ns": 154440209,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "replaced_inode_exact_mtime": {
+          "before": {
+            "inode": 18932,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630004006013013
+          },
+          "after": {
+            "inode": 24093,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630004373298618
+          },
+          "digest": "2b7c9b963e08968871a8209e0c553f0b1a84b404818c5d5a49646afce384143b",
+          "status": {
+            "stock": {
+              "ns": 167943250,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "preload-off": {
+              "ns": 156496209,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "restored": {
+          "before": {
+            "inode": 24093,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630004373298618
+          },
+          "after": {
+            "inode": 24094,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630004742198519
+          },
+          "digest": "4ab300585002c44a9e537caf9ebdbb50597314441a44b120fab8d32aa3274e33",
+          "status": {
+            "stock": {
+              "ns": 169166167,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 153994917,
+              "status_hex": ""
+            }
+          }
+        }
+      }
+    },
+    "orbstack": {
+      "name": "mp-git-preload-d7247d62e1d94c408707aa226b1c1829",
+      "remaining_ids": [],
+      "git": "git version 2.39.5\ncpu: aarch64\nno commit associated with this build\nsizeof-long: 8\nsizeof-size_t: 8\nshell-path: /bin/sh\n",
+      "git_sha256": "54af380ba6ca1b36305358e99427a31ae4b0af5dc5cb6d0198c6f2f16e97651d",
+      "index_sha256": "33751966f87e844749efb1a82ba2f52d8b4cb9a599c8835cefcf5b4e760b4119",
+      "config_sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+      "git_environment": {
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0"
+      },
+      "resolved_config": {
+        "stock": [
+          "local\tfile:.git/config\tcore.repositoryformatversion 0",
+          "local\tfile:.git/config\tcore.filemode true",
+          "local\tfile:.git/config\tcore.bare false",
+          "local\tfile:.git/config\tcore.logallrefupdates true",
+          "local\tfile:.git/config\tcore.ignorecase true",
+          "local\tfile:.git/config\tcore.precomposeunicode true"
+        ],
+        "preload-off": [
+          "local\tfile:.git/config\tcore.repositoryformatversion 0",
+          "local\tfile:.git/config\tcore.filemode true",
+          "local\tfile:.git/config\tcore.bare false",
+          "local\tfile:.git/config\tcore.logallrefupdates true",
+          "local\tfile:.git/config\tcore.ignorecase true",
+          "local\tfile:.git/config\tcore.precomposeunicode true",
+          "command\tcommand line:\tcore.preloadindex false"
+        ]
+      },
+      "mount": [
+        "274",
+        "265",
+        "0:37",
+        "/private/tmp/mp-gamma3.26gaZ4/home/share/baseline/mp-git-field-qsse5cas",
+        "/git-preload-check",
+        "ro,relatime",
+        "-",
+        "virtiofs",
+        "mac",
+        "rw"
+      ],
+      "untraced": [
+        {
+          "order": [
+            "stock",
+            "preload-off"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 48470626,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 48787618,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "preload-off",
+            "stock"
+          ],
+          "calls": {
+            "preload-off": {
+              "ns": 49552933,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 50502078,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "stock",
+            "preload-off"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 66643537,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 61680527,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "preload-off",
+            "stock"
+          ],
+          "calls": {
+            "preload-off": {
+              "ns": 50095505,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 49059028,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "stock",
+            "preload-off"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 49746596,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 49441979,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "preload-off",
+            "stock"
+          ],
+          "calls": {
+            "preload-off": {
+              "ns": 48068093,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 48947114,
+              "status_hex": ""
+            }
+          }
+        }
+      ],
+      "trace2": {
+        "stock": {
+          "ns": 48555582,
+          "status_hex": "",
+          "trace2": {
+            "counts": {
+              "read/cache_nr": 1058,
+              "preload/sum_lstat": 1058,
+              "refresh/sum_lstat": 1058,
+              "refresh/sum_scan": 1058
+            },
+            "regions_s": {
+              "preload": 0.000667,
+              "refresh": 0.041646,
+              "untracked": 0.004886
+            }
+          }
+        },
+        "preload-off": {
+          "ns": 48746160,
+          "status_hex": "",
+          "trace2": {
+            "counts": {
+              "read/cache_nr": 1058,
+              "refresh/sum_lstat": 1058,
+              "refresh/sum_scan": 1058
+            },
+            "regions_s": {
+              "refresh": 0.041881,
+              "untracked": 0.005512
+            }
+          }
+        }
+      },
+      "private_clean_control": {
+        "refresh_ns": 47715602,
+        "trace2": {
+          "stock": {
+            "ns": 7142542,
+            "status_hex": "",
+            "trace2": {
+              "counts": {
+                "read/cache_nr": 1058,
+                "preload/sum_lstat": 1058,
+                "refresh/sum_lstat": 0,
+                "refresh/sum_scan": 0
+              },
+              "regions_s": {
+                "preload": 0.000326,
+                "refresh": 1.2e-05,
+                "untracked": 0.005528
+              }
+            }
+          },
+          "preload-off": {
+            "ns": 7068628,
+            "status_hex": "",
+            "trace2": {
+              "counts": {
+                "read/cache_nr": 1058,
+                "refresh/sum_lstat": 1058,
+                "refresh/sum_scan": 0
+              },
+              "regions_s": {
+                "refresh": 0.000834,
+                "untracked": 0.005085
+              }
+            }
+          }
+        }
+      },
+      "median_ms": {
+        "stock": 49.402812,
+        "preload-off": 49.497456
+      },
+      "edits": {
+        "same_inode_exact_mtime": {
+          "before": {
+            "inode": 24094,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630007011937078
+          },
+          "after": {
+            "inode": 24094,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630007012353152
+          },
+          "digest": "2d222bf2f6127164c57c1430f06f0acd07994bc979fbb76a2647d2426edc2d4c",
+          "status": {
+            "stock": {
+              "ns": 60716133,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "preload-off": {
+              "ns": 53320138,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "replaced_inode_exact_mtime": {
+          "before": {
+            "inode": 24094,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630007012353152
+          },
+          "after": {
+            "inode": 24095,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630007268991866
+          },
+          "digest": "2b7c9b963e08968871a8209e0c553f0b1a84b404818c5d5a49646afce384143b",
+          "status": {
+            "stock": {
+              "ns": 55913578,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "preload-off": {
+              "ns": 51120564,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "restored": {
+          "before": {
+            "inode": 24095,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630007268991866
+          },
+          "after": {
+            "inode": 24096,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630007438551433
+          },
+          "digest": "4ab300585002c44a9e537caf9ebdbb50597314441a44b120fab8d32aa3274e33",
+          "status": {
+            "stock": {
+              "ns": 50788072,
+              "status_hex": ""
+            },
+            "preload-off": {
+              "ns": 49333689,
+              "status_hex": ""
+            }
+          }
+        }
+      }
+    }
+  },
+  "source": {
+    "files": 1058,
+    "bytes": 19326482,
+    "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+  },
+  "commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+  "preparation_ns": 588768000,
+  "host_index_sha256": "33751966f87e844749efb1a82ba2f52d8b4cb9a599c8835cefcf5b4e760b4119",
+  "host_config_sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda"
+}

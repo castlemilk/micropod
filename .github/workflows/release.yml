@@ -29,6 +29,14 @@ on:
         description: "Draft-only signed qualification version (vX.Y.Z)"
         required: false
         type: string
+      hvf_run_id:
+        description: "Successful same-commit Actions run containing the micropod-hvf-runtime artifact"
+        required: false
+        type: string
+      hvf_payload_sha256:
+        description: "SHA-256 of micropod-hvf-runtime.tgz inside that artifact"
+        required: false
+        type: string
       publication_version:
         description: "Publish frozen qualified assets using their reviewed channel policy (vX.Y.Z); no rebuild"
         required: false
@@ -202,6 +210,27 @@ jobs:
           restore-keys: |
             swiftpm-release-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
 
+      - name: Fetch qualified native runtime
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_RUN: ${{ inputs.hvf_run_id }}
+          REQUESTED_SHA256: ${{ inputs.hvf_payload_sha256 }}
+          CONFIGURED_RUN: ${{ vars.MICROPOD_HVF_RUN_ID }}
+          CONFIGURED_SHA256: ${{ vars.MICROPOD_HVF_PAYLOAD_SHA256 }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$REQUESTED_RUN$REQUESTED_SHA256" ]]; then
+            run_id="$REQUESTED_RUN"
+            digest="$REQUESTED_SHA256"
+          else
+            run_id="$CONFIGURED_RUN"
+            digest="$CONFIGURED_SHA256"
+          fi
+          if [[ -z "$run_id$digest" ]]; then exit 0; fi
+          destination="$RUNNER_TEMP/micropod-hvf-distribution"
+          bash scripts/fetch_hvf_distribution.sh "$run_id" "$digest" "$destination"
+          echo "MICROPOD_HVF_DISTRIBUTION=$destination" >> "$GITHUB_ENV"
+
       - name: Build + package app
         timeout-minutes: 25
         run: |
@@ -264,10 +293,24 @@ jobs:
       - name: Repack tarball with signed binaries
         if: env.DMG_ASSET == 'Micropod.dmg'
         run: |
-          cp dist/Micropod.app/Contents/MacOS/micropod-cli dist/micropod
-          cp dist/Micropod.app/Contents/MacOS/MicropodMCP dist/micropod-mcp-bin
+          bundle="$PWD/dist/Micropod.app/Contents"
+          cp "$bundle/MacOS/micropod-cli" dist/micropod
+          cp "$bundle/MacOS/MicropodMCP" dist/micropod-mcp-bin
           codesign --verify --strict dist/micropod dist/micropod-mcp-bin
-          tar -czf "dist/Micropod.${VERSION#v}.tgz" -C dist Micropod.app micropod-mcp micropod-mcp-bin micropod
+          members=(-C dist Micropod.app micropod-mcp micropod-mcp-bin micropod)
+          # Use the final bundle's bytes for the optional headless engine payload.
+          for helper in micropod-vmm micropod-oci; do
+            if [ -f "$bundle/MacOS/$helper" ]; then
+              codesign --verify --strict "$bundle/MacOS/$helper"
+              members+=(-C "$bundle/MacOS" "$helper")
+            fi
+          done
+          for resource in mp-hvf-init.cpio vmlinux-hvf micropod-oci-tools; do
+            if [ -e "$bundle/Resources/$resource" ]; then
+              members+=(-C "$bundle/Resources" "$resource")
+            fi
+          done
+          tar -czf "dist/Micropod.${VERSION#v}.tgz" "${members[@]}"
 
       - name: Upload release assets
         env:

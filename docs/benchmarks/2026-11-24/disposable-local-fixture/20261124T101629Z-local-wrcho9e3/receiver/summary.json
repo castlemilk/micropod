@@ -1,0 +1,22 @@
+{
+  "evidence": "ambient local VM diagnostic",
+  "schedule_complete": true,
+  "results": {
+    "A": {
+      "admission_attempts": 4,
+      "first_attempts": 4,
+      "clean": 4,
+      "clean_median_MiB_s": 6413.481467993227
+    },
+    "B": {
+      "admission_attempts": 4,
+      "first_attempts": 4,
+      "clean": 4,
+      "clean_median_MiB_s": 5774.648544476291
+    }
+  },
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "idle_wait_seconds": 0,
+  "idle_policy": "first observation"
+}

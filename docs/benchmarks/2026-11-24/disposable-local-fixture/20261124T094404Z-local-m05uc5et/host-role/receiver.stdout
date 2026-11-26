@@ -1,0 +1,23 @@
+[idle] warmup B waiting at 1.0s, 90.22% idle (floor 90%), 1/2 consecutive eligible
+[idle] warmup B ready at 3.0s, 92.26% idle (floor 90%), 2/2 consecutive eligible
+[idle] warmup A waiting at 1.0s, 89.97% idle (floor 90%, paired gap 2.29/5 pp), 0/2 consecutive eligible
+[idle] warmup A waiting at 17.1s, 90.30% idle (floor 90%, paired gap 1.96/5 pp), 1/2 consecutive eligible
+[idle] warmup A ready at 19.1s, 90.42% idle (floor 90%, paired gap 1.84/5 pp), 2/2 consecutive eligible
+[idle] warmup A waiting at 1.0s, 80.10% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup A waiting at 17.1s, 88.83% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup A ready at 31.1s, 90.48% idle (floor 90%), 2/2 consecutive eligible
+[idle] warmup B waiting at 1.0s, 85.74% idle (floor 90%, paired gap 4.74/5 pp), 0/2 consecutive eligible
+[idle] warmup B ready at 13.1s, 92.29% idle (floor 90%, paired gap 1.81/5 pp), 2/2 consecutive eligible
+[idle] warmup B waiting at 1.0s, 85.56% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup B ready at 11.1s, 90.59% idle (floor 90%), 2/2 consecutive eligible
+[idle] warmup A waiting at 1.0s, 93.29% idle (floor 90%, paired gap 2.70/5 pp), 1/2 consecutive eligible
+[idle] warmup A ready at 15.1s, 91.27% idle (floor 90%, paired gap 0.68/5 pp), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 93.84% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored A ready at 3.0s, 90.61% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 90.07% idle (floor 90%, paired gap 0.54/5 pp), 1/2 consecutive eligible
+[idle] scored B ready at 3.0s, 91.66% idle (floor 90%, paired gap 1.05/5 pp), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 90.63% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored B waiting at 17.5s, 80.02% idle (floor 90%), 0/2 consecutive eligible
+[idle] scored B waiting at 33.7s, 86.99% idle (floor 90%), 0/2 consecutive eligible
+[idle] scored B waiting at 49.9s, 78.67% idle (floor 90%), 0/2 consecutive eligible
+[idle] scored B host idle admission timed out after 60.00s (28 observations, 0/2 consecutive eligible, last 89.46%, floor 90%, paired gap unpaired, limit 5 pp)

@@ -1,0 +1,6 @@
+[package]
+name = "vmm-fdt"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

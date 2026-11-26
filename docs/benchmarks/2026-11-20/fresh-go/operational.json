@@ -1,0 +1,24 @@
+{
+  "tool_sha256": {
+    "go": "2c77b9243b17c9d5ecd5983acbdeaee36d470a9b62a2952f1279c319cc9b97fb",
+    "compile": "fcd8ab38428db95acaa3e732570798c354ccbf8521394396acc29549c3e69d68",
+    "link": "5e859e890df2721a8f8ac99dad225194ac001c8d4dd769c4ac4c9cb56cb570b5"
+  },
+  "ignored": true,
+  "closed_stdin_same_id": true,
+  "single_job_write_isolated": true,
+  "edited_snapshot_changed": true,
+  "staged_prestart": "created 0 0001-01-01T00:00:00Z",
+  "staged_exit": 41,
+  "staged_streams": [
+    "staged-out",
+    "staged-err"
+  ],
+  "runtime_verification": "Verified micropod-crun 1.31 on worker 52A19168-0202-4593-A1DC-E4FB227CAFC3.",
+  "default_runtime": "runc",
+  "context": "desktop-linux",
+  "boot": "9766C3AB-C139-4627-9D71-934E70289868",
+  "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+  "cli_sha256": "ad12bd06de7fa6e23480e92c1878a69f38a15861fc11ba8483f2c9e9ffa7c145",
+  "passed": true
+}

@@ -56,6 +56,24 @@ final class ArgParserTests: XCTestCase {
         }
     }
 
+    func testInteractiveExecPreservesGuestArgumentsAndOptionValues() throws {
+        let globals = GlobalArguments([
+            "--no-color", "exec", "-ti", "-e", "--json", "--cli", "/host/container", "web", "sh",
+            "-c", "printf", "--cli", "/guest/bin", "--json", "--no-color", "--", "-it",
+        ])
+        XCTAssertFalse(globals.json)
+        XCTAssertTrue(globals.noColor)
+        XCTAssertEqual(globals.cliPath, "/host/container")
+        let parsed = try parseArgs(
+            Array(globals.arguments.dropFirst()), boolFlags: ["--interactive", "--tty"], valueFlags: ["--env"],
+            aliases: ["-t": "--tty", "-i": "--interactive", "-e": "--env"], commandName: "exec", passthroughAfter: 2)
+        XCTAssertTrue(parsed.has("--tty") && parsed.has("--interactive"))
+        XCTAssertEqual(parsed.values("--env"), ["--json"])
+        XCTAssertEqual(
+            parsed.positionals,
+            ["web", "sh", "-c", "printf", "--cli", "/guest/bin", "--json", "--no-color", "--", "-it"])
+    }
+
     func testMissingValueErrorUsesTheSpellingGiven() {
         XCTAssertThrowsError(
             try parseArgs(["-n"], boolFlags: [], valueFlags: ["--tail"], aliases: ["-n": "--tail"], commandName: "logs")

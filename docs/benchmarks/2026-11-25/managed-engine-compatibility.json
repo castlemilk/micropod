@@ -1,0 +1,856 @@
+{
+  "schema": 1,
+  "qualified_at_utc": "2026-11-25T09:44:14.783476+00:00",
+  "host": "Gamma-128GB.local",
+  "source_checkout": "2e9b37c1e68334c443d71b729f0bd6334d824ddd",
+  "outer_checkout": "f43553d4544af0d54756eca542462d4235b5859d",
+  "source_sha256": {
+    "Sources/MicropodRuntime/CIWorker.swift": "a97d0d240e6eb47b3214ee9929c53725811c2e972027f38f1c58257e5be0df6f",
+    "Sources/MicropodRuntime/CIWorkerService.swift": "e418db018a96ce5c032616e008ad5ae2fc78a471c46ccafcca005d265af60ce5",
+    "Sources/MicropodRuntime/Engines/DockerEngine.swift": "ff0e5420dd13ed6d4c8e66dbdf85be9a3200b8c03b59824cd85bad520de96be0",
+    "Sources/MicropodRuntime/HVFWorker.swift": "c1e8578be81e6e538f6a2a30791a655e9187c89b21cde81edfa050b03a6eff6f",
+    "Tests/MicropodRuntimeTests/CIWorkerServiceTests.swift": "07d8e958ed87a3912f007b0446f1e04f74c2490b92b1e8e1d1e185579e1ef0b6",
+    "Tests/MicropodRuntimeTests/HVFWorkerTests.swift": "4377294c4ef0b4d484b39124a3574874b591cf1d694c9b2192a4d21e788be317",
+    "Tests/MicropodRuntimeTests/RuntimeEngineTests.swift": "30b7662a63be88ebfe25b2d695e31ee71a6df14810aa9c9d06017d642b90a1e0",
+    "guest/runner/docker_engine_linux.go": "266b03f44afe3cfb00457751058277f6d9a819aea9bfeec69a93ad5d1251ed71",
+    "guest/runner/docker_http_linux.go": "5bc74aa12fb494f862cb609f2d8d99e771e0b7cc4d0ae4e624575337d31e0f52",
+    "guest/runner/docker_http_linux_test.go": "47b63fde26dc6a1a20548f01a4f9254e6c3aab36aa84c7f958b0c3e124bd7699",
+    "guest/runner/docker_image_delete_linux.go": "1dbd9ba5edf2420b5b100f5a15f5d1eeacb7aaf1a336ccec78e24289e2e9af7a",
+    "guest/runner/docker_image_delete_linux_test.go": "b2360ed3d70c01dcbc27f25980d8c50add5b688af119be203af464ecdd5346e4",
+    "guest/runner/docker_image_transfer_linux.go": "4bf0a61823e855ec785ab727cf90bed547e8ea4dd7ef370a61534f5e0690d82e",
+    "guest/runner/docker_ports.go": "cdb2fa62cf023c52ab8170cb45ed975f96014649345c62fdba2d29cde4885b23",
+    "guest/runner/docker_ports_linux.go": "cf529dab81afecc4ac18348f6563a149725603128c3ed99d6d8b988eedd5229f",
+    "guest/runner/docker_ports_test.go": "f8f1c923dfb85ee297bd0063cfa220cc5fa9cf23ab9afc81100163e3982818dc",
+    "guest/runner/go.mod": "5c97fbb226ff104b4ba5e806df87fb7cdc189f8460937756660c8aacd036fcf5",
+    "guest/runner/go.sum": "86727dc8e56c7328abad85b97e34fab8fd5157f631bb79f55d522bc2789c5bf9",
+    "guest/runner/main_linux.go": "980b2519cca8634ad42313ce294f5dae0ab4a79e2d72e13fa7fcd5fc9f1f17c3",
+    "scripts/qualify_ci_build.py": "2b46c5f06a23ffb189d52fac493e38cd354e3fd76d9164db4f6c4cb1355d4873",
+    "scripts/qualify_native_worker.sh": "4d2bcd0d4a4dd99de0fb7a1abd5b4646b83aed06290b45e9ca7f7e89a6eb532c"
+  },
+  "tested_vmm_source_sha256": {
+    "guest-init/main.go": "2dad50451151464d92c1a0d4f92ab3d7b179c6f6849b19d6778333fa7c702e6f",
+    "guest-init/boot_clock.go": "8e578abd719d71935421ec4f8503155e289d92913edcc641961079c35e6db69d",
+    "guest-init/boot_clock_linux_arm64.go": "82cb88352b6a17668e7e9c0517e656163fa9c9ab8e5d89398d1241a7196bc924",
+    "crates/vmm-core/src/lib.rs": "9ef57c47dfdc13e0f2cd96ac68bb88825243e4d9c9f62576a6c54cd4ea161de5",
+    "crates/vmm-core/src/disk.rs": "8e65800897953d47ac1a81c37ac42c6bd501b1bd18cb4a7579072e5cf46726b6",
+    "crates/vmm-core/src/boot_clock.rs": "8d3ed1fe833a475e90098cdfc379ff79bf5a700adea92a8a8ec48128bbf3ae7e",
+    "crates/vmm-net/src/egress.rs": "901ff78e3f131cc9b977812106891ef588a416aa655695633ff5a6349c9ac7e6",
+    "crates/vmm-net/src/lib.rs": "9a13b891f17a1d897dd7881c5e76960c9887c01abd973bc2cfdd9d8ca6dc2cd0"
+  },
+  "vmm_linked_libraries": [
+    "/usr/lib/libiconv.2.dylib",
+    "/System/Library/Frameworks/Hypervisor.framework/Versions/A/Hypervisor",
+    "/usr/lib/libSystem.B.dylib"
+  ],
+  "build_qualification": {
+    "clients": 8,
+    "resident_containers": 32,
+    "client_flags": [
+      "--network=none",
+      "--cpus=1",
+      "--memory=128m"
+    ],
+    "input": "Dockerfile with compiler and worker stages, Alpine 3.23, apk gcc musl-dev, EXPOSE 9090/tcp",
+    "commands": [
+      "micropod ci docker buildx build --load --progress plain --provenance=false -t <tag> -t <alias> <context> (twice)",
+      "cc -O2 -DSLOT=<i> /src/main.c -o /tmp/check",
+      "verify each executable prints 3*i+7 for i=0 through 31"
+    ]
+  },
+  "client": {
+    "docker": "Docker version 29.7.2, build a7dcaa6fdb",
+    "compose": "Docker Compose version v5.5.0",
+    "buildx": "github.com/docker/buildx v0.37.2 2d379c0c3f22da0d2759d132a0ec81ca949098f0"
+  },
+  "qualification": "Private source-built foreground worker with 4 vCPUs, 4096 MiB, a fresh 6 GiB ext4 on APFS, and a matched containerd runner. No client context switch or installed runtime replacement.",
+  "before": {
+    "wrong_backend": {
+      "runner-endpoint": {
+        "code": 0,
+        "message": "",
+        "endpoint": "unix:///tmp/mp-core-hvf-s1lyy5la/home/oci.sock"
+      },
+      "runner-docker-endpoint": {
+        "code": 0,
+        "message": "",
+        "endpoint": "unix:///tmp/mp-core-hvf-s1lyy5la/home/docker.sock"
+      }
+    },
+    "ports": {
+      "port": "127.0.0.1:63947",
+      "ps": "",
+      "inspect": {
+        "80/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "63947"
+          }
+        ]
+      }
+    },
+    "clock": {
+      "host_before": 1795597392.827569,
+      "guest": 1,
+      "host_after": 1795597392.840439
+    },
+    "buildkit_cleanup_failure": "AssertionError((['docker', '--host', 'unix:///private/tmp/mp-core-hvf-h_kpknz_/home/docker.sock', 'image', 'rm', 'micropod-qa/buildkit:mpci2ea424e2c9'], 1, '', 'Error response from daemon: unsupported image operation\\n'))"
+  },
+  "repeatable_ci_gate": {
+    "command": "bash scripts/qualify_native_worker.sh --buildx-ci",
+    "checked_at": "2026-11-25T09:43:27.512159+00:00",
+    "checks": {
+      "check": "buildx-ci",
+      "passed": true,
+      "run": "mpcid9194e13dbf145e3bac396edda03579b",
+      "builds": [
+        {
+          "attempt": "initial",
+          "seconds": 9.75,
+          "cached_steps": 0,
+          "image_id": "sha256:43d38df0bb9891b140e2983bdce1b5c880d53c89bfe5ec97d384baab0c74cac9"
+        },
+        {
+          "attempt": "repeat",
+          "seconds": 1.13,
+          "cached_steps": 3,
+          "image_id": "sha256:43d38df0bb9891b140e2983bdce1b5c880d53c89bfe5ec97d384baab0c74cac9"
+        }
+      ],
+      "expose_9090": "127.0.0.1:50366",
+      "parallel_compiles": {
+        "running": 32,
+        "ready": 32,
+        "exit_zero": 32,
+        "verified_outputs": 32
+      },
+      "tag_removal": {
+        "primary_removed": true,
+        "alias_preserved": true,
+        "in_use_conflict": true,
+        "final_alias_removed": true
+      },
+      "cleanup": {
+        "containers": 0,
+        "volumes": 0,
+        "tags": 0
+      }
+    },
+    "container_restart_probe": {
+      "container_id": "958f24a5acb71ae32fb38d4d81fa25785563a4e9b277e3346702c7354ae98514",
+      "marker_written_and_verified": true,
+      "stop": 0,
+      "start": 0,
+      "start_error": "",
+      "read_after_start": 1,
+      "read_error": "cat: can't open '/root/ci-restart-marker': No such file or directory",
+      "marker_survived": false,
+      "restart": 1,
+      "restart_error": "Error response from daemon: unsupported container operation: restart"
+    },
+    "stop": {
+      "supervisor_exit": 0,
+      "receipt": "4743D582-FCC3-4FEB-9133-85E1EA0F1437",
+      "cli_exit": 0,
+      "state_before_parent_wait": "Z"
+    }
+  },
+  "orbstack_reference": {
+    "published_port_gate": "Matched the test container response over HTTP on 127.0.0.1:35397.\nVerified that docker ps agreed with docker port on 127.0.0.1:35397->8080/tcp, then removed the test container.",
+    "port_wire_lifecycle": {
+      "created": {
+        "ports": {},
+        "ps": ""
+      },
+      "running": {
+        "ports": {
+          "80/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "35398"
+            }
+          ],
+          "81/udp": null
+        },
+        "ps": "81/udp, 127.0.0.1:35398->80/tcp"
+      },
+      "stopped": {
+        "ports": {},
+        "ps": ""
+      },
+      "remaining": ""
+    },
+    "none_network_lifecycle": {
+      "created": [
+        {},
+        ""
+      ],
+      "running": [
+        {},
+        ""
+      ],
+      "stopped": [
+        {},
+        ""
+      ],
+      "leftovers": ""
+    }
+  },
+  "hvf": {
+    "checked_at": "2026-11-25T09:33:55.870921+00:00",
+    "artifact_sha256": {
+      "micropod-after": "45d9fab8757f06a596a561109036f0b787035fda58feaedcfbb144d5777459f0",
+      "tools/runner/bin/job": "384aca06cb15ab844c167d231fbbee9e54114352953dcaea7a707d8745ac6ca2",
+      "micropod-vmm": "37c36ae7e9afadc5633930951ac29050cd8134f9011fc1afe1a99a701be0452d",
+      "mp-hvf-init.cpio": "ec69fb1a98deaa4076e8daee9f265b28990234b87348e9424b4305416236b111",
+      "Image": "988bf8e5f360b04cb6c81b450f1eb616e71cfe4263850dc918d87367a917822d"
+    },
+    "checks": {
+      "attested_docker_endpoint": "unix:///tmp/mp-core-hvf-zjv_6dyb/home/docker.sock",
+      "runner_status": {
+        "boot": "04E05EF5-96FF-49F5-8280-3894265A8709",
+        "cgroupDriver": "cgroupfs",
+        "cpuSizingSource": "fixed",
+        "cpus": 4,
+        "daemon": "containerd",
+        "endpoint": "unix:///tmp/mp-core-hvf-zjv_6dyb/home/oci.sock",
+        "engine": "containerd",
+        "engineVersion": "v2.4.2",
+        "guestAddress": "10.42.0.2",
+        "instance": "ED2180E3-C273-4A22-B7CA-34C89A8A24A0",
+        "kataPrerequisitesPresent": false,
+        "memoryBytes": 4246290432,
+        "publishedAddress": "10.43.0.2",
+        "storageDriver": "overlayfs",
+        "vmm": "hvf",
+        "worker": "9F608036-98F9-48D9-9B43-4E560C06323C"
+      },
+      "disk_holders": [
+        "/tmp/mp-core-compat-qQoIkglu/micropod-vmm"
+      ],
+      "wrong_backend": {
+        "runner-endpoint": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM vz, but the active worker uses hvf at /tmp/mp-core-hvf-zjv_6dyb/home",
+          "endpoint": ""
+        },
+        "runner-docker-endpoint": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM vz, but the active worker uses hvf at /tmp/mp-core-hvf-zjv_6dyb/home",
+          "endpoint": ""
+        },
+        "runner-start": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM vz, but the active worker uses hvf at /tmp/mp-core-hvf-zjv_6dyb/home",
+          "endpoint": ""
+        },
+        "runner-stop": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM vz, but the active worker uses hvf at /tmp/mp-core-hvf-zjv_6dyb/home",
+          "endpoint": ""
+        }
+      },
+      "disk_lock_contended": true,
+      "alpine_missing_before_pull": {
+        "code": 1,
+        "message": "Error response from daemon: No such image"
+      },
+      "cold_public_pull": {
+        "code": 0,
+        "stdout": "Downloaded docker.io/library/alpine:3.23\ndocker.io/library/alpine:3.23",
+        "stderr": "",
+        "seconds": 5.43
+      },
+      "stock_cli_gate": {
+        "code": 0,
+        "stdout": "Matched the test container response over HTTP on 127.0.0.1:49771.\nVerified that docker ps agreed with docker port on 127.0.0.1:49771->8080/tcp, then removed the test container.",
+        "stderr": ""
+      },
+      "wall_clock": {
+        "host_before": 1795599245.9955509,
+        "guest": 1795599245,
+        "host_after": 1795599246.007801
+      },
+      "ports": {
+        "port": "127.0.0.1:49773",
+        "ps": "81/udp, 127.0.0.1:49773->80/tcp",
+        "inspect": {
+          "80/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "49773"
+            }
+          ],
+          "81/udp": null
+        }
+      },
+      "linux_test_stdout": "=== RUN   TestDockerContainerListAndInspectReportEffectivePorts\n--- PASS: TestDockerContainerListAndInspectReportEffectivePorts (0.00s)\n=== RUN   TestPublishAllPortsUsesImageDefaults\n--- PASS: TestPublishAllPortsUsesImageDefaults (0.00s)\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unused_tag_default\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/alias_preserves_retained_image\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unrelated_container\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/last_tag_of_retained_image\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/forced_untag_preserves_config_ID\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/force_cannot_drop_retained_data\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/concurrent_retag_wins\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/missing_tag\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/pinned_image\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_digest\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_image_ID\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_short_image_ID\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_variant\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_image_name\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_force_option\n--- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unused_tag_default (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/alias_preserves_retained_image (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unrelated_container (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/last_tag_of_retained_image (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/forced_untag_preserves_config_ID (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/force_cannot_drop_retained_data (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/concurrent_retag_wins (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/missing_tag (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/pinned_image (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_digest (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_image_ID (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_short_image_ID (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_variant (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_image_name (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_force_option (0.00s)\n=== RUN   TestDockerImageStatusDoesNotResurrectDeletedTag\n--- PASS: TestDockerImageStatusDoesNotResurrectDeletedTag (0.00s)\n=== RUN   TestDockerPortSummaryWireShape\n--- PASS: TestDockerPortSummaryWireShape (0.00s)\n=== RUN   TestMergeImageExposedPorts\n--- PASS: TestMergeImageExposedPorts (0.00s)\nPASS",
+      "ci_catalog": {
+        "name": "ci",
+        "kind": "container",
+        "description": "Micropod CI \u2014 one persistent Linux worker for trusted jobs",
+        "available": true,
+        "version": "v2.4.2",
+        "endpoint": "unix:///tmp/mp-core-hvf-zjv_6dyb/home/docker.sock",
+        "default": true,
+        "capabilities": [
+          "run",
+          "create",
+          "start",
+          "stop",
+          "kill",
+          "delete",
+          "exec",
+          "logs",
+          "stats",
+          "ports",
+          "volumes"
+        ],
+        "enabled": true
+      },
+      "micropod_lifecycle": {
+        "name": "mp-api-047162a46d",
+        "run": "{\"id\":\"mp-api-047162a46d\"}",
+        "inspected_id": "4f34e9877edbee64387bab1f4ad7a92909cc45409908991fafff0b8039e923eb",
+        "reported_running": true,
+        "listed_with_ci_runtime": true,
+        "rm": "Deleted mp-api-047162a46d"
+      },
+      "compose": {
+        "state": "running",
+        "service": "web",
+        "publishers": [
+          {
+            "URL": "127.0.0.1",
+            "TargetPort": 8080,
+            "PublishedPort": 49775,
+            "Protocol": "tcp"
+          }
+        ],
+        "port": "127.0.0.1:49775"
+      },
+      "guest_dns_https": {
+        "code": 0,
+        "stdout": "es (1.34.9-r0)\n(3/9) Installing libunistring (1.4.1-r0)\n(4/9) Installing libidn2 (2.3.8-r0)\n(5/9) Installing nghttp2-libs (1.69.0-r0)\n(6/9) Installing libpsl (0.21.5-r3)\n(7/9) Installing zstd-libs (1.6.0-r1)\n(8/9) Installing libcurl (8.23.0-r0)\n(9/9) Installing curl (8.23.0-r0)\nExecuting busybox-1.37.0-r30.trigger\nOK: 13.5 MiB in 25 packages\nDNS-APK-HTTPS-OK",
+        "stderr": "",
+        "seconds": 1.49
+      },
+      "buildx_attempts": [
+        {
+          "exit": 0,
+          "seconds": 8.73,
+          "cached_steps": 0,
+          "image_id": "sha256:60f8c5084ce99cb554016e1720aa9af0b8b473581b0f7503e0f79ca779c8addc"
+        },
+        {
+          "exit": 0,
+          "seconds": 1.23,
+          "cached_steps": 3,
+          "image_id": "sha256:60f8c5084ce99cb554016e1720aa9af0b8b473581b0f7503e0f79ca779c8addc"
+        }
+      ],
+      "dockerfile_expose_publish_all": {
+        "port": "127.0.0.1:49793",
+        "ps": "127.0.0.1:49793->9090/tcp"
+      },
+      "parallel_compiles": {
+        "simultaneously_running": 32,
+        "at_barrier": 32,
+        "exit_zero": 32,
+        "outputs": [
+          [
+            0,
+            7
+          ],
+          [
+            1,
+            10
+          ],
+          [
+            2,
+            13
+          ],
+          [
+            3,
+            16
+          ],
+          [
+            4,
+            19
+          ],
+          [
+            5,
+            22
+          ],
+          [
+            6,
+            25
+          ],
+          [
+            7,
+            28
+          ],
+          [
+            8,
+            31
+          ],
+          [
+            9,
+            34
+          ],
+          [
+            10,
+            37
+          ],
+          [
+            11,
+            40
+          ],
+          [
+            12,
+            43
+          ],
+          [
+            13,
+            46
+          ],
+          [
+            14,
+            49
+          ],
+          [
+            15,
+            52
+          ],
+          [
+            16,
+            55
+          ],
+          [
+            17,
+            58
+          ],
+          [
+            18,
+            61
+          ],
+          [
+            19,
+            64
+          ],
+          [
+            20,
+            67
+          ],
+          [
+            21,
+            70
+          ],
+          [
+            22,
+            73
+          ],
+          [
+            23,
+            76
+          ],
+          [
+            24,
+            79
+          ],
+          [
+            25,
+            82
+          ],
+          [
+            26,
+            85
+          ],
+          [
+            27,
+            88
+          ],
+          [
+            28,
+            91
+          ],
+          [
+            29,
+            94
+          ],
+          [
+            30,
+            97
+          ],
+          [
+            31,
+            100
+          ]
+        ]
+      },
+      "image_removal": {
+        "untag": "Untagged: micropod-qa/buildkit:mpci3a74d3c435",
+        "retained_alias_id": "sha256:60f8c5084ce99cb554016e1720aa9af0b8b473581b0f7503e0f79ca779c8addc",
+        "retained_container_conflict": "Error response from daemon: image is used by retained container 0c531e1bc6c7ab5bd947afc6c8106ad879de591f8997a04fca2e0d23b9b22b17 (use --force to remove only its tag)",
+        "final_untag": "Untagged: micropod-qa/buildkit:mpci3a74d3c435-alias"
+      },
+      "compile_cleanup": {
+        "containers": "",
+        "volumes": "",
+        "tags_absent": true
+      },
+      "stop": {
+        "supervisor_exit": 0,
+        "receipt": "ED2180E3-C273-4A22-B7CA-34C89A8A24A0",
+        "cli_exit": 0,
+        "state_before_parent_wait": "Z"
+      },
+      "disk_lock_reacquired_after_stop": true
+    }
+  },
+  "vz": {
+    "checked_at": "2026-11-25T09:34:30.288614+00:00",
+    "artifact_sha256": {
+      "micropod-after": "45d9fab8757f06a596a561109036f0b787035fda58feaedcfbb144d5777459f0",
+      "tools/runner/bin/job": "384aca06cb15ab844c167d231fbbee9e54114352953dcaea7a707d8745ac6ca2",
+      "micropod-vmm": "37c36ae7e9afadc5633930951ac29050cd8134f9011fc1afe1a99a701be0452d",
+      "mp-hvf-init.cpio": "ec69fb1a98deaa4076e8daee9f265b28990234b87348e9424b4305416236b111",
+      "Image": "988bf8e5f360b04cb6c81b450f1eb616e71cfe4263850dc918d87367a917822d"
+    },
+    "checks": {
+      "attested_docker_endpoint": "unix:///tmp/mp-core-vz-86eld0pb/home/docker.sock",
+      "runner_status": {
+        "boot": "86C20F75-720A-47C0-906B-2926B78D7D77",
+        "cgroupDriver": "cgroupfs",
+        "cpuSizingSource": "fixed",
+        "cpus": 4,
+        "daemon": "containerd",
+        "endpoint": "unix:///tmp/mp-core-vz-86eld0pb/home/oci.sock",
+        "engine": "containerd",
+        "engineVersion": "v2.4.2",
+        "guestAddress": "192.168.65.2",
+        "instance": "144E61B6-37A8-400F-9167-8ADC8F27C9D7",
+        "kataPrerequisitesPresent": false,
+        "memoryBytes": 4246323200,
+        "publishedAddress": "192.168.129.2",
+        "publishedRelayCallbackEvents": 128,
+        "publishedRelayReadBytes": 262144,
+        "publishedRelayWorkers": 2,
+        "storageDriver": "overlayfs",
+        "vmm": "vz",
+        "worker": "E533263E-6F63-4C5E-946E-4211E5A62041"
+      },
+      "disk_holders": [
+        "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+      ],
+      "wrong_backend": {
+        "runner-endpoint": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM hvf, but the active worker uses vz at /tmp/mp-core-vz-86eld0pb/home",
+          "endpoint": ""
+        },
+        "runner-docker-endpoint": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM hvf, but the active worker uses vz at /tmp/mp-core-vz-86eld0pb/home",
+          "endpoint": ""
+        },
+        "runner-start": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM hvf, but the active worker uses vz at /tmp/mp-core-vz-86eld0pb/home",
+          "endpoint": ""
+        },
+        "runner-stop": {
+          "code": 1,
+          "message": "micropod ci: Requested VMM hvf, but the active worker uses vz at /tmp/mp-core-vz-86eld0pb/home",
+          "endpoint": ""
+        }
+      },
+      "disk_lock_contended": true,
+      "stock_cli_gate": {
+        "code": 0,
+        "stdout": "Matched the test container response over HTTP on 127.0.0.1:49819.\nVerified that docker ps agreed with docker port on 127.0.0.1:49819->8080/tcp, then removed the test container.",
+        "stderr": ""
+      },
+      "wall_clock": {
+        "host_before": 1795599275.453496,
+        "guest": 1795599275,
+        "host_after": 1795599275.468126
+      },
+      "ports": {
+        "port": "127.0.0.1:49822",
+        "ps": "81/udp, 127.0.0.1:49822->80/tcp",
+        "inspect": {
+          "80/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "49822"
+            }
+          ],
+          "81/udp": null
+        }
+      },
+      "linux_test_stdout": "=== RUN   TestDockerContainerListAndInspectReportEffectivePorts\n--- PASS: TestDockerContainerListAndInspectReportEffectivePorts (0.00s)\n=== RUN   TestPublishAllPortsUsesImageDefaults\n--- PASS: TestPublishAllPortsUsesImageDefaults (0.00s)\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unused_tag_default\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/alias_preserves_retained_image\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unrelated_container\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/last_tag_of_retained_image\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/forced_untag_preserves_config_ID\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/force_cannot_drop_retained_data\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/concurrent_retag_wins\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/missing_tag\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/pinned_image\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_digest\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_image_ID\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_short_image_ID\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_variant\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_image_name\n=== RUN   TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_force_option\n--- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unused_tag_default (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/alias_preserves_retained_image (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unrelated_container (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/last_tag_of_retained_image (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/forced_untag_preserves_config_ID (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/force_cannot_drop_retained_data (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/concurrent_retag_wins (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/missing_tag (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/pinned_image (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_digest (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_image_ID (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_short_image_ID (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/unsupported_variant (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_image_name (0.00s)\n    --- PASS: TestDockerImageRemoveOnlyDeletesTheRequestedTag/invalid_force_option (0.00s)\n=== RUN   TestDockerImageStatusDoesNotResurrectDeletedTag\n--- PASS: TestDockerImageStatusDoesNotResurrectDeletedTag (0.00s)\n=== RUN   TestDockerPortSummaryWireShape\n--- PASS: TestDockerPortSummaryWireShape (0.00s)\n=== RUN   TestMergeImageExposedPorts\n--- PASS: TestMergeImageExposedPorts (0.00s)\nPASS",
+      "ci_catalog": {
+        "name": "ci",
+        "kind": "container",
+        "description": "Micropod CI \u2014 one persistent Linux worker for trusted jobs",
+        "available": true,
+        "version": "v2.4.2",
+        "endpoint": "unix:///tmp/mp-core-vz-86eld0pb/home/docker.sock",
+        "default": true,
+        "capabilities": [
+          "run",
+          "create",
+          "start",
+          "stop",
+          "kill",
+          "delete",
+          "exec",
+          "logs",
+          "stats",
+          "ports",
+          "volumes"
+        ],
+        "enabled": true
+      },
+      "micropod_lifecycle": {
+        "name": "mp-api-5178d1de3d",
+        "run": "{\"id\":\"mp-api-5178d1de3d\"}",
+        "inspected_id": "ad5ca8a952927b73c03942ba9a348bcc9cdb87c3021bf52b2c54fb2aa63afc02",
+        "reported_running": true,
+        "listed_with_ci_runtime": true,
+        "rm": "Deleted mp-api-5178d1de3d"
+      },
+      "compose": {
+        "state": "running",
+        "service": "web",
+        "publishers": [
+          {
+            "URL": "127.0.0.1",
+            "TargetPort": 8080,
+            "PublishedPort": 49824,
+            "Protocol": "tcp"
+          }
+        ],
+        "port": "127.0.0.1:49824"
+      },
+      "stop": {
+        "supervisor_exit": 0,
+        "receipt": "144E61B6-37A8-400F-9167-8ADC8F27C9D7",
+        "cli_exit": 0,
+        "state_before_parent_wait": "Z"
+      },
+      "disk_lock_reacquired_after_stop": true
+    }
+  },
+  "hygiene": {
+    "worker_volumes": [
+      {
+        "arm": "after-hvf",
+        "uuid": "E819BF18-9A6B-4910-9990-DD8CCF32501C",
+        "scope": "/private/tmp/mp-core-hvf-zjv_6dyb",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "after-vz",
+        "uuid": "186F9BEB-95DF-4155-97AD-FEC91F24B013",
+        "scope": "/private/tmp/mp-core-vz-86eld0pb",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "before-hvf",
+        "uuid": "7767C3A8-3B42-41DF-AB35-E35DF974B3D1",
+        "scope": "/private/tmp/mp-core-hvf-s1lyy5la",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "duplicate-vz-lock",
+        "uuid": "10702DD9-5AF8-4004-B53C-417D8B2F6520",
+        "scope": "/private/tmp/mp-core-vz-kzzllafm",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": false,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "first-vz",
+        "uuid": "DA5DC7A0-C28F-4F1E-845D-7408E7EA80FC",
+        "scope": "/private/tmp/mp-core-vz-nu90pkho",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "missing-image-delete-hvf",
+        "uuid": "92164984-A2B2-460B-85CD-F83447C9CEDA",
+        "scope": "/private/tmp/mp-core-hvf-h_kpknz_",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "no-client-plugin-hvf",
+        "uuid": "AB08DECD-219A-4758-B2D6-93E8B3359ED8",
+        "scope": "/private/tmp/mp-core-hvf-q7xj9te8",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "online-hvf",
+        "uuid": "3386F3D4-B658-4931-9408-E9E8DD465D97",
+        "scope": "/private/tmp/mp-core-hvf-t0guikcx",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "path-spelling-hvf",
+        "uuid": "97629753-C1D2-4836-975A-D80720D9DBFA",
+        "scope": "/private/tmp/mp-core-hvf-px0r1ev9",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": false,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "reusable-ci-gate-hvf",
+        "uuid": "FE6D8690-99AF-4DDB-962B-A929AC3DFC03",
+        "scope": "/private/tmp/mp-core-hvf-dwpttb9h",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "uninitialized-clock-hvf",
+        "uuid": "BCEABA37-9415-48BB-A118-1F20192A6B5D",
+        "scope": "/private/tmp/mp-core-hvf-r2b_a1iv",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      },
+      {
+        "arm": "unreaped-hvf",
+        "uuid": "1BD1C354-FDA4-45D6-8786-19ADB184423A",
+        "scope": "/private/tmp/mp-core-hvf-69qyij_2",
+        "mounted_read_only": true,
+        "spotlight": "Indexing and searching disabled.",
+        "fsevents_journal_files": 0,
+        "fsevents_journal_bytes": 0,
+        "raw_disk_inode_and_size_unchanged": true,
+        "live_policy_verified": true,
+        "no_log_and_spotlight_markers_persisted": true,
+        "ejected": true,
+        "image_removed": true,
+        "disk_holders_at_retirement": [],
+        "scope_removed": true
+      }
+    ],
+    "worker_volume_count": 12,
+    "original_and_preserved_baseline_pairs_verified": 24,
+    "baseline_manifest_sha256": "8e7826379b6ae9afd581d179a64b5a0aa11c1efa18f6ba30cd0ea13669f0163e"
+  },
+  "verification": {
+    "swift_xctest": 59,
+    "swift_testing": 14,
+    "rust_workspace": 16,
+    "go_runner": "go test -race ./... on macOS, Linux arm64 go vet, targeted Linux tests on the running guest",
+    "shell": "bash -n and ShellCheck warning level passed"
+  },
+  "full_run_receipts": {
+    "file": "managed-engine-compatibility-receipts.json.gz",
+    "sha256": "27cc25179651ad123beeea1a58d1a954bf78eabf0dcf8cad9acbc973c38ae36b",
+    "runs": 12
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "DEFAULT_HVF_BIN": {
+    "source": "/Users/benebsworth/projects/micropod/vmm/target/release/micropod-vmm",
+    "sha256": "1d64e6a99e3a3aa36d2e8ebf62fa7e5d77c47815bdf2a260d32075cc7f89b09a"
+  },
+  "DEFAULT_HVF_INITRD": {
+    "source": "/Users/benebsworth/projects/micropod/vmm/target/mp-hvf-init.cpio",
+    "sha256": "91edc7bcd517c20e793fb11e6be203edbbb515ec537a7868f2287edf5dc688cf"
+  },
+  "tuning_driver_sha256": "e7cde3f5a8eb8559809be1863319090cbd65eaa1e3ffae33d4e9c818d0d3da3d",
+  "drive_helper_sha256": "bc9020cb7d1d802a2ecb3b32b557a39b809a3f712b6014588549ae8538f2af39",
+  "host": "Gamma-128GB.local",
+  "host_os": "25F80",
+  "host_boot": "{ sec = 1795502410, usec = 869544 } Tue Nov 24 17:40:10 2026",
+  "checked_utc": "2026-11-25T08:35:21.994286+00:00",
+  "args": [
+    "--driver",
+    "ipvlan",
+    "--skip-published",
+    "--skip-control",
+    "--use-auth-binary",
+    "--rebuild-runner",
+    "--include-hvf",
+    "--rounds",
+    "3",
+    "--label",
+    "protected-worker-drive-qualification",
+    "--out",
+    "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/gamma-ci-concurrency/sibling-tuning-worker-drives-final.json"
+  ],
+  "result_sha256": "7c9820c56a859bb933de0688dd635206cbe9260fbdf048e3408fb7d1c57a96e4",
+  "drives": {
+    "micropod-vz-tuned": {
+      "uuid": "A2FC1178-B355-4C57-9B89-4879DA9F5E26",
+      "raw_bytes": 17314086912,
+      "raw_allocated_before": 150716416,
+      "provision_to_ready_s": 3.3458,
+      "scope_removed": true
+    },
+    "micropod-hvf": {
+      "uuid": "EA7DDA76-0AB6-4925-AA95-3B1337AC88F7",
+      "raw_bytes": 4294967296,
+      "raw_allocated_before": 25133056,
+      "provision_to_ready_s": 5.7237,
+      "scope_removed": true
+    }
+  },
+  "baseline_files_and_copies": 24
+}

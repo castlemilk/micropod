@@ -1,0 +1,261 @@
+{
+  "date": "2026-11-24",
+  "direction": "231.08",
+  "tier": "offline raw replay of archived VM measurements",
+  "source": "gamma-published-scheduling.json.gz",
+  "archive_sha256": "4ba4e71da88a7196bf132151f30c54c3c091e8fd7eeaac30ba98f689397dfe30",
+  "archive_revision": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "study_baseline": "56b59864d3545cba23cf102cf46cf119f119da08",
+  "linux": "Linux mp-6ecb4932-b01a-4f8e-a91f-76bfa3d40b8c 6.18.35 #1 SMP Mon Jun 15 12:55:27 UTC 2026 aarch64 Linux",
+  "image": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "interface": "eth0",
+  "analysis_base": "a3b561c6a97320d4ca9aff60885ae6393ccaa613",
+  "analyzer_sha256": "4a65e9b648c2f615f5146c9055de1c4a39a51cc4e4f328f06ab4a7f350e1e54f",
+  "workload": "32 streams delivering a fixed 6 GiB; a second process starts 240 closed-loop fresh requests 40 ms after starting the bulk client. The workloads may finish at different times. Six blocks rotate three root qdiscs; compare only stock and fq_codel. One separately instrumented run per arm supplies 360 queue observations.",
+  "method": "Use median within-block percentage changes and 10,000 whole-block bootstrap draws with seed 7317. Progress samples are endpoints of adjacent qdisc reads that have increasing bytes. Samples are correlated and do not establish duration at a queue depth. Queue samples and drop deltas came from separate instrumented runs. Transport loss, NIC drops and per-process CPU in scored arms are unmeasured. Historical eth0 and workloads differ from the revised eth1 four-vCPU stock.",
+  "control": "restore",
+  "candidate": "fq_codel",
+  "rows": [
+    {
+      "block": 1,
+      "order": [
+        "restore",
+        "fq_codel"
+      ],
+      "restore": {
+        "kind": "pfifo_fast",
+        "mib_s": 2953.3549924524405,
+        "bytes": 6442450944,
+        "elapsed_s": 2.080345917,
+        "setup_us": 1795223374665419,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 18.903083,
+        "p99_ms": 34.313625
+      },
+      "fq_codel": {
+        "kind": "fq_codel",
+        "mib_s": 3721.1694898740684,
+        "bytes": 6442450944,
+        "elapsed_s": 1.651093834,
+        "setup_us": 1795223378779212,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 9.590875,
+        "p99_ms": 13.298083
+      }
+    },
+    {
+      "block": 2,
+      "order": [
+        "fq_codel",
+        "restore"
+      ],
+      "restore": {
+        "kind": "pfifo_fast",
+        "mib_s": 2881.39348015551,
+        "bytes": 6442450944,
+        "elapsed_s": 2.132301625,
+        "setup_us": 1795223391428942,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 15.695625,
+        "p99_ms": 26.709958
+      },
+      "fq_codel": {
+        "kind": "fq_codel",
+        "mib_s": 1548.7383571126836,
+        "bytes": 6442450944,
+        "elapsed_s": 3.967100041,
+        "setup_us": 1795223387315022,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 30.593166,
+        "p99_ms": 50.913167
+      }
+    },
+    {
+      "block": 3,
+      "order": [
+        "fq_codel",
+        "restore"
+      ],
+      "restore": {
+        "kind": "pfifo_fast",
+        "mib_s": 2003.88216815127,
+        "bytes": 6442450944,
+        "elapsed_s": 3.066048542,
+        "setup_us": 1795223398088832,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 23.290667,
+        "p99_ms": 54.709125
+      },
+      "fq_codel": {
+        "kind": "fq_codel",
+        "mib_s": 1998.4080877630968,
+        "bytes": 6442450944,
+        "elapsed_s": 3.074447125,
+        "setup_us": 1795223394840971,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 23.450625,
+        "p99_ms": 47.79025
+      }
+    },
+    {
+      "block": 4,
+      "order": [
+        "fq_codel",
+        "restore"
+      ],
+      "restore": {
+        "kind": "pfifo_fast",
+        "mib_s": 1007.8049316788344,
+        "bytes": 6442450944,
+        "elapsed_s": 6.096417875,
+        "setup_us": 1795223409360477,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 62.573208,
+        "p99_ms": 140.358833
+      },
+      "fq_codel": {
+        "kind": "fq_codel",
+        "mib_s": 3321.2513320149023,
+        "bytes": 6442450944,
+        "elapsed_s": 1.849905167,
+        "setup_us": 1795223405295659,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 11.51825,
+        "p99_ms": 18.076416
+      }
+    },
+    {
+      "block": 5,
+      "order": [
+        "restore",
+        "fq_codel"
+      ],
+      "restore": {
+        "kind": "pfifo_fast",
+        "mib_s": 1225.687346636806,
+        "bytes": 6442450944,
+        "elapsed_s": 5.012697583,
+        "setup_us": 1795223416775853,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 28.630208,
+        "p99_ms": 65.111334
+      },
+      "fq_codel": {
+        "kind": "fq_codel",
+        "mib_s": 984.9750161992921,
+        "bytes": 6442450944,
+        "elapsed_s": 6.237721667,
+        "setup_us": 1795223423160160,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 60.396334,
+        "p99_ms": 107.431791
+      }
+    },
+    {
+      "block": 6,
+      "order": [
+        "restore",
+        "fq_codel"
+      ],
+      "restore": {
+        "kind": "pfifo_fast",
+        "mib_s": 3648.2893319178115,
+        "bytes": 6442450944,
+        "elapsed_s": 1.684076958,
+        "setup_us": 1795223436304436,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 11.852083,
+        "p99_ms": 23.208834
+      },
+      "fq_codel": {
+        "kind": "fq_codel",
+        "mib_s": 4035.3593105210307,
+        "bytes": 6442450944,
+        "elapsed_s": 1.522541,
+        "setup_us": 1795223438205296,
+        "fresh_completed": 240,
+        "reopens": 0,
+        "p95_ms": 8.591375,
+        "p99_ms": 10.552
+      }
+    }
+  ],
+  "summary": {
+    "restore": {
+      "mib_s": 2442.6378241533903,
+      "p95_ms": 21.096874999999997,
+      "p99_ms": 44.511375,
+      "clean": 6,
+      "p95_at_most_75ms": 6,
+      "fresh_completed": 1440,
+      "reopens": 0
+    },
+    "fq_codel": {
+      "mib_s": 2659.829709889,
+      "p95_ms": 17.4844375,
+      "p99_ms": 32.933333,
+      "clean": 6,
+      "p95_at_most_75ms": 6,
+      "fresh_completed": 1440,
+      "reopens": 0
+    }
+  },
+  "paired": {
+    "mib_s": {
+      "median_pct": 5.168227831268596,
+      "ci95_pct": [
+        -32.94466798023452,
+        127.77551873850669
+      ],
+      "higher": 3
+    },
+    "p95_ms": {
+      "median_pct": -13.412448532715365,
+      "ci95_pct": [
+        -65.4276336664208,
+        102.9342123668948
+      ],
+      "higher": 3
+    },
+    "p99_ms": {
+      "median_pct": -33.59060490875611,
+      "ci95_pct": [
+        -74.18337841098077,
+        77.80599681057546
+      ],
+      "higher": 2
+    }
+  },
+  "separate_profiles": {
+    "restore": {
+      "kind": "pfifo_fast",
+      "samples": 360,
+      "intervals_with_tx_progress": 131,
+      "qdisc_drop_delta": 0,
+      "nonzero_backlog_ends": 1,
+      "max_backlog_bytes": 68130
+    },
+    "fq_codel": {
+      "kind": "fq_codel",
+      "samples": 360,
+      "intervals_with_tx_progress": 185,
+      "qdisc_drop_delta": 0,
+      "nonzero_backlog_ends": 6,
+      "max_backlog_bytes": 4307764
+    }
+  },
+  "driver_sha256": "1d1bbba868b7f2cc8bb96cb8ad01ff59859f263b009536f2928d28bfbf539a32",
+  "client_path_hash_at_reconciliation": "bbda57ec8e4e5d2fe0ec7c195285a9fe82b5d8ca0e89c73e57cb97e86df1e21a",
+  "verdict": "Replacing pfifo_fast with fq_codel did not consistently protect fresh tails or reduce observed backlog. Retain stock. If repeated, align queue occupancy sampling with the scored interval and compare distributions over independent runs."
+}

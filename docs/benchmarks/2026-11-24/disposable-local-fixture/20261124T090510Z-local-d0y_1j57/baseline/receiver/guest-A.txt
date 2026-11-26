@@ -1,0 +1,457 @@
+release=7.3.5-micropod
+boot=1d7bc69f-d9b6-4a71-8d59-9f5c78cb8035
+machine=aarch64
+cmdline=console=hvc0 tsc=reliable panic=0 rcupdate.rcu_expedited=1 psi=1 init=/sbin/vminitd ro rootfstype=ext4 root=/dev/vda
+config_sha256=a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c
+# CONFIG_HZ_PERIODIC is not set
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_BPF_JIT=y
+CONFIG_PREEMPT_BUILD=y
+CONFIG_PREEMPT=y
+# CONFIG_PREEMPT_LAZY is not set
+# CONFIG_PREEMPT_RT is not set
+CONFIG_PREEMPT_COUNT=y
+CONFIG_PREEMPTION=y
+# CONFIG_PREEMPT_DYNAMIC is not set
+# CONFIG_SCHED_CLASS_EXT is not set
+CONFIG_PSI=y
+CONFIG_PREEMPT_RCU=y
+CONFIG_FAIR_GROUP_SCHED=y
+CONFIG_CFS_BANDWIDTH=y
+CONFIG_CGROUP_BPF=y
+# CONFIG_HZ_100 is not set
+CONFIG_HZ_250=y
+# CONFIG_HZ_300 is not set
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=250
+# CONFIG_XDP_SOCKETS is not set
+CONFIG_NET_CLS_BPF=y
+CONFIG_RPS=y
+CONFIG_RFS_ACCEL=y
+CONFIG_BPF_STREAM_PARSER=y
+CONFIG_VIRTIO_NET=y
+CONFIG_DEBUG_INFO_BTF=y
+# CONFIG_PREEMPT_TRACER is not set
+/sys/fs/cgroup/cgroup.controllers
+cpuset cpu io memory hugetlb pids
+/proc/self/cgroup
+0::/init
+virtio_nic=eth0
+ethtool -i eth0
+driver: virtio_net
+version: 1.0.0
+firmware-version: 
+expansion-rom-version: 
+bus-info: 0000:00:01.0
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+ethtool -l eth0
+Channel parameters for eth0:
+Pre-set maximums:
+RX:		0
+TX:		0
+Other:		0
+Combined:	1
+Current hardware settings:
+RX:		0
+TX:		0
+Other:		0
+Combined:	1
+ethtool -k eth0
+Features for eth0:
+rx-checksumming: on [fixed]
+tx-checksumming: on
+	tx-checksum-ipv4: off [fixed]
+	tx-checksum-ip-generic: on
+	tx-checksum-ipv6: off [fixed]
+	tx-checksum-fcoe-crc: off [fixed]
+	tx-checksum-sctp: off [fixed]
+scatter-gather: on
+	tx-scatter-gather: on
+	tx-scatter-gather-fraglist: off [fixed]
+tcp-segmentation-offload: on
+	tx-tcp-segmentation: on
+	tx-tcp-ecn-segmentation: off [fixed]
+	tx-tcp-mangleid-segmentation: off
+	tx-tcp6-segmentation: on
+	tx-tcp-accecn-segmentation: off [fixed]
+generic-segmentation-offload: on
+generic-receive-offload: on
+large-receive-offload: off [fixed]
+rx-vlan-offload: off [fixed]
+tx-vlan-offload: off [fixed]
+ntuple-filters: off [fixed]
+receive-hashing: off [fixed]
+highdma: on [fixed]
+rx-vlan-filter: off [fixed]
+vlan-challenged: off [fixed]
+tx-gso-robust: on [fixed]
+tx-fcoe-segmentation: off [fixed]
+tx-gre-segmentation: off [fixed]
+tx-gre-csum-segmentation: off [fixed]
+tx-ipxip4-segmentation: off [fixed]
+tx-ipxip6-segmentation: off [fixed]
+tx-udp_tnl-segmentation: off [fixed]
+tx-udp_tnl-csum-segmentation: off [fixed]
+tx-gso-partial: off [fixed]
+tx-tunnel-remcsum-segmentation: off [fixed]
+tx-sctp-segmentation: off [fixed]
+tx-esp-segmentation: off [fixed]
+tx-udp-segmentation: off [fixed]
+tx-gso-list: off [fixed]
+tx-nocache-copy: off
+loopback: off [fixed]
+rx-fcs: off [fixed]
+rx-all: off [fixed]
+tx-vlan-stag-hw-insert: off [fixed]
+rx-vlan-stag-hw-parse: off [fixed]
+rx-vlan-stag-filter: off [fixed]
+l2-fwd-offload: off [fixed]
+hw-tc-offload: off [fixed]
+esp-hw-offload: off [fixed]
+esp-tx-csum-hw-offload: off [fixed]
+rx-udp_tunnel-port-offload: off [fixed]
+tls-hw-tx-offload: off [fixed]
+tls-hw-rx-offload: off [fixed]
+rx-gro-hw: on [fixed]
+rx-gro-list: off
+macsec-hw-offload: off [fixed]
+rx-udp-gro-forwarding: off
+hsr-tag-ins-offload: off [fixed]
+hsr-tag-rm-offload: off [fixed]
+hsr-fwd-offload: off [fixed]
+hsr-dup-offload: off [fixed]
+ethtool -g eth0
+Ring parameters for eth0:
+Pre-set maximums:
+RX:		256
+RX Mini:	0
+RX Jumbo:	0
+TX:		256
+Current hardware settings:
+RX:		256
+RX Mini:	0
+RX Jumbo:	0
+TX:		256
+ethtool -c eth0
+Coalesce parameters for eth0:
+Adaptive RX: off  TX: off
+stats-block-usecs: 0
+sample-interval: 0
+pkt-rate-low: 0
+pkt-rate-high: 0
+
+rx-usecs: 0
+rx-frames: 1
+rx-usecs-irq: 0
+rx-frames-irq: 0
+
+tx-usecs: 0
+tx-frames: 1
+tx-usecs-irq: 0
+tx-frames-irq: 0
+
+rx-usecs-low: 0
+rx-frames-low: 0
+tx-usecs-low: 0
+tx-frames-low: 0
+
+rx-usecs-high: 0
+rx-frames-high: 0
+tx-usecs-high: 0
+tx-frames-high: 0
+ethtool -S eth0
+NIC statistics:
+     rx_drops: 0
+     rx_xdp_packets: 0
+     rx_xdp_tx: 0
+     rx_xdp_redirects: 0
+     rx_xdp_drops: 0
+     rx_kicks: 1
+     tx_xdp_tx: 0
+     tx_xdp_tx_drops: 0
+     tx_kicks: 4
+     tx_tx_timeouts: 0
+     rx0_drops: 0
+     rx0_xdp_packets: 0
+     rx0_xdp_tx: 0
+     rx0_xdp_redirects: 0
+     rx0_xdp_drops: 0
+     rx0_kicks: 1
+     tx0_xdp_tx: 0
+     tx0_xdp_tx_drops: 0
+     tx0_kicks: 4
+     tx0_tx_timeouts: 0
+/sys/class/net/eth0/queues/rx-0
+/sys/class/net/eth0/queues/rx-0/rps_cpus 0
+/sys/class/net/eth0/queues/rx-0/rps_flow_cnt 0
+/sys/class/net/eth0/queues/tx-0
+/sys/class/net/eth0/queues/tx-0/xps_cpus 
+eth0/collisions 0
+eth0/multicast 0
+eth0/rx_bytes 86
+eth0/rx_compressed 0
+eth0/rx_crc_errors 0
+eth0/rx_dropped 0
+eth0/rx_errors 0
+eth0/rx_fifo_errors 0
+eth0/rx_frame_errors 0
+eth0/rx_length_errors 0
+eth0/rx_missed_errors 0
+eth0/rx_nohandler 0
+eth0/rx_over_errors 0
+eth0/rx_packets 1
+eth0/tx_aborted_errors 0
+eth0/tx_bytes 416
+eth0/tx_carrier_errors 0
+eth0/tx_compressed 0
+eth0/tx_dropped 0
+eth0/tx_errors 0
+eth0/tx_fifo_errors 0
+eth0/tx_heartbeat_errors 0
+eth0/tx_packets 4
+eth0/tx_window_errors 0
+virtio_nic=eth1
+ethtool -i eth1
+driver: virtio_net
+version: 1.0.0
+firmware-version: 
+expansion-rom-version: 
+bus-info: 0000:00:02.0
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+ethtool -l eth1
+Channel parameters for eth1:
+Pre-set maximums:
+RX:		0
+TX:		0
+Other:		0
+Combined:	1
+Current hardware settings:
+RX:		0
+TX:		0
+Other:		0
+Combined:	1
+ethtool -k eth1
+Features for eth1:
+rx-checksumming: on [fixed]
+tx-checksumming: on
+	tx-checksum-ipv4: off [fixed]
+	tx-checksum-ip-generic: on
+	tx-checksum-ipv6: off [fixed]
+	tx-checksum-fcoe-crc: off [fixed]
+	tx-checksum-sctp: off [fixed]
+scatter-gather: on
+	tx-scatter-gather: on
+	tx-scatter-gather-fraglist: off [fixed]
+tcp-segmentation-offload: on
+	tx-tcp-segmentation: on
+	tx-tcp-ecn-segmentation: off [fixed]
+	tx-tcp-mangleid-segmentation: off
+	tx-tcp6-segmentation: on
+	tx-tcp-accecn-segmentation: off [fixed]
+generic-segmentation-offload: on
+generic-receive-offload: on
+large-receive-offload: off [fixed]
+rx-vlan-offload: off [fixed]
+tx-vlan-offload: off [fixed]
+ntuple-filters: off [fixed]
+receive-hashing: off [fixed]
+highdma: on [fixed]
+rx-vlan-filter: off [fixed]
+vlan-challenged: off [fixed]
+tx-gso-robust: on [fixed]
+tx-fcoe-segmentation: off [fixed]
+tx-gre-segmentation: off [fixed]
+tx-gre-csum-segmentation: off [fixed]
+tx-ipxip4-segmentation: off [fixed]
+tx-ipxip6-segmentation: off [fixed]
+tx-udp_tnl-segmentation: off [fixed]
+tx-udp_tnl-csum-segmentation: off [fixed]
+tx-gso-partial: off [fixed]
+tx-tunnel-remcsum-segmentation: off [fixed]
+tx-sctp-segmentation: off [fixed]
+tx-esp-segmentation: off [fixed]
+tx-udp-segmentation: off [fixed]
+tx-gso-list: off [fixed]
+tx-nocache-copy: off
+loopback: off [fixed]
+rx-fcs: off [fixed]
+rx-all: off [fixed]
+tx-vlan-stag-hw-insert: off [fixed]
+rx-vlan-stag-hw-parse: off [fixed]
+rx-vlan-stag-filter: off [fixed]
+l2-fwd-offload: off [fixed]
+hw-tc-offload: off [fixed]
+esp-hw-offload: off [fixed]
+esp-tx-csum-hw-offload: off [fixed]
+rx-udp_tunnel-port-offload: off [fixed]
+tls-hw-tx-offload: off [fixed]
+tls-hw-rx-offload: off [fixed]
+rx-gro-hw: on [fixed]
+rx-gro-list: off
+macsec-hw-offload: off [fixed]
+rx-udp-gro-forwarding: off
+hsr-tag-ins-offload: off [fixed]
+hsr-tag-rm-offload: off [fixed]
+hsr-fwd-offload: off [fixed]
+hsr-dup-offload: off [fixed]
+ethtool -g eth1
+Ring parameters for eth1:
+Pre-set maximums:
+RX:		256
+RX Mini:	0
+RX Jumbo:	0
+TX:		256
+Current hardware settings:
+RX:		256
+RX Mini:	0
+RX Jumbo:	0
+TX:		256
+ethtool -c eth1
+Coalesce parameters for eth1:
+Adaptive RX: off  TX: off
+stats-block-usecs: 0
+sample-interval: 0
+pkt-rate-low: 0
+pkt-rate-high: 0
+
+rx-usecs: 0
+rx-frames: 1
+rx-usecs-irq: 0
+rx-frames-irq: 0
+
+tx-usecs: 0
+tx-frames: 1
+tx-usecs-irq: 0
+tx-frames-irq: 0
+
+rx-usecs-low: 0
+rx-frames-low: 0
+tx-usecs-low: 0
+tx-frames-low: 0
+
+rx-usecs-high: 0
+rx-frames-high: 0
+tx-usecs-high: 0
+tx-frames-high: 0
+ethtool -S eth1
+NIC statistics:
+     rx_drops: 0
+     rx_xdp_packets: 0
+     rx_xdp_tx: 0
+     rx_xdp_redirects: 0
+     rx_xdp_drops: 0
+     rx_kicks: 1
+     tx_xdp_tx: 0
+     tx_xdp_tx_drops: 0
+     tx_kicks: 3
+     tx_tx_timeouts: 0
+     rx0_drops: 0
+     rx0_xdp_packets: 0
+     rx0_xdp_tx: 0
+     rx0_xdp_redirects: 0
+     rx0_xdp_drops: 0
+     rx0_kicks: 1
+     tx0_xdp_tx: 0
+     tx0_xdp_tx_drops: 0
+     tx0_kicks: 3
+     tx0_tx_timeouts: 0
+/sys/class/net/eth1/queues/rx-0
+/sys/class/net/eth1/queues/rx-0/rps_cpus 0
+/sys/class/net/eth1/queues/rx-0/rps_flow_cnt 0
+/sys/class/net/eth1/queues/tx-0
+/sys/class/net/eth1/queues/tx-0/xps_cpus 
+eth1/collisions 0
+eth1/multicast 0
+eth1/rx_bytes 196
+eth1/rx_compressed 0
+eth1/rx_crc_errors 0
+eth1/rx_dropped 0
+eth1/rx_errors 0
+eth1/rx_fifo_errors 0
+eth1/rx_frame_errors 0
+eth1/rx_length_errors 0
+eth1/rx_missed_errors 0
+eth1/rx_nohandler 0
+eth1/rx_over_errors 0
+eth1/rx_packets 2
+eth1/tx_aborted_errors 0
+eth1/tx_bytes 306
+eth1/tx_carrier_errors 0
+eth1/tx_compressed 0
+eth1/tx_dropped 0
+eth1/tx_errors 0
+eth1/tx_fifo_errors 0
+eth1/tx_heartbeat_errors 0
+eth1/tx_packets 3
+eth1/tx_window_errors 0
+/proc/interrupts
+            CPU0       CPU1       CPU2       CPU3       
+  11:        207        336        251        261  GICv3      27 Level     arch_timer
+  13:          5          0          0          0  GICv3      65 Level     virtio0
+  14:          1          0          0          4  GICv3      66 Level     virtio1
+  15:        131          0          0          0  GICv3      69 Level     virtio2
+  16:         52          0          0          0  GICv3      70 Level     virtio3
+  17:        103          0          0          0  GICv3      71 Level     virtio4
+  18:       1723          0          0          0  GICv3      72 Level     virtio5
+  19:        171          0          0          0  GICv3      73 Level     virtio6
+  20:          3          0          0          0  GICv3      74 Level     virtio7
+  21:          0          0          0          0  GICv3      36 Level     rtc-pl031
+IPI0:         61         57        111         50  Rescheduling interrupts
+IPI1:        544        811       1088       1113  Function call interrupts
+IPI2:          0          0          0          0  CPU stop interrupts
+IPI3:          0          0          0          0  CPU stop NMIs
+IPI4:          0          0          0          0  Timer broadcast interrupts
+IPI5:          2          4          0          1  IRQ work interrupts
+IPI6:          0          0          0          0  CPU backtrace interrupts
+IPI7:          0          0          0          0  KGDB roundup interrupts
+ Err:          0
+/proc/net/softnet_stat
+00000001 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000001 00000000 00000000
+00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000002 00000000 00000000
+00000002 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000003 00000000 00000000
+/proc/net/netstat
+TcpExt: SyncookiesSent SyncookiesRecv SyncookiesFailed EmbryonicRsts PruneCalled RcvPruned OfoPruned OutOfWindowIcmps LockDroppedIcmps ArpFilter TW TWRecycled TWKilled PAWSActive PAWSEstab BeyondWindow TSEcrRejected PAWSOldAck PAWSTimewait DelayedACKs DelayedACKLocked DelayedACKLost ListenOverflows ListenDrops TCPHPHits TCPPureAcks TCPHPAcks TCPRenoRecovery TCPSackRecovery TCPSACKReneging TCPSACKReorder TCPRenoReorder TCPTSReorder TCPFullUndo TCPPartialUndo TCPDSACKUndo TCPLossUndo TCPLostRetransmit TCPRenoFailures TCPSackFailures TCPLossFailures TCPFastRetrans TCPSlowStartRetrans TCPTimeouts TCPLossProbes TCPLossProbeRecovery TCPRenoRecoveryFail TCPSackRecoveryFail TCPRcvCollapsed TCPBacklogCoalesce TCPDSACKOldSent TCPDSACKOfoSent TCPDSACKRecv TCPDSACKOfoRecv TCPAbortOnData TCPAbortOnClose TCPAbortOnMemory TCPAbortOnTimeout TCPAbortOnLinger TCPAbortFailed TCPMemoryPressures TCPMemoryPressuresChrono TCPSACKDiscard TCPDSACKIgnoredOld TCPDSACKIgnoredNoUndo TCPSpuriousRTOs TCPMD5NotFound TCPMD5Unexpected TCPMD5Failure TCPSackShifted TCPSackMerged TCPSackShiftFallback TCPBacklogDrop PFMemallocDrop TCPMinTTLDrop TCPDeferAcceptDrop IPReversePathFilter TCPTimeWaitOverflow TCPReqQFullDoCookies TCPReqQFullDrop TCPRetransFail TCPRcvCoalesce TCPOFOQueue TCPOFODrop TCPOFOMerge TCPChallengeACK TCPSYNChallenge TCPFastOpenActive TCPFastOpenActiveFail TCPFastOpenPassive TCPFastOpenPassiveFail TCPFastOpenListenOverflow TCPFastOpenCookieReqd TCPFastOpenBlackhole TCPSpuriousRtxHostQueues BusyPollRxPackets TCPAutoCorking TCPFromZeroWindowAdv TCPToZeroWindowAdv TCPWantZeroWindowAdv TCPSynRetrans TCPOrigDataSent TCPHystartTrainDetect TCPHystartTrainCwnd TCPHystartDelayDetect TCPHystartDelayCwnd TCPACKSkippedSynRecv TCPACKSkippedPAWS TCPACKSkippedSeq TCPACKSkippedFinWait2 TCPACKSkippedTimeWait TCPACKSkippedChallenge TCPWinProbe TCPKeepAlive TCPMTUPFail TCPMTUPSuccess TCPDelivered TCPDeliveredCE TCPAckCompressed TCPZeroWindowDrop TCPRcvQDrop TCPWqueueTooBig TCPFastOpenPassiveAltKey TcpTimeoutRehash TcpDuplicateDataRehash TCPDSACKRecvSegs TCPDSACKIgnoredDubious TCPMigrateReqSuccess TCPMigrateReqFailure TCPPLBRehash TCPAORequired TCPAOBad TCPAOKeyNotFound TCPAOGood TCPAODroppedIcmps
+TcpExt: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+IpExt: InNoRoutes InTruncatedPkts InMcastPkts OutMcastPkts InBcastPkts OutBcastPkts InOctets OutOctets InMcastOctets OutMcastOctets InBcastOctets OutBcastOctets InCsumErrors InNoECTPkts InECT1Pkts InECT0Pkts InCEPkts ReasmOverlaps
+IpExt: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+/proc/net/snmp
+Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates OutTransmits
+Ip: 1 64 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Icmp: InMsgs InErrors InCsumErrors InDestUnreachs InTimeExcds InParmProbs InSrcQuenchs InRedirects InEchos InEchoReps InTimestamps InTimestampReps InAddrMasks InAddrMaskReps OutMsgs OutErrors OutRateLimitGlobal OutRateLimitHost OutDestUnreachs OutTimeExcds OutParmProbs OutSrcQuenchs OutRedirects OutEchos OutEchoReps OutTimestamps OutTimestampReps OutAddrMasks OutAddrMaskReps
+Icmp: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens AttemptFails EstabResets CurrEstab InSegs OutSegs RetransSegs InErrs OutRsts InCsumErrors
+Tcp: 1 200 120000 -1 0 0 0 0 0 0 0 0 0 0 0
+Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors IgnoredMulti MemErrors
+Udp: 0 0 0 0 0 0 0 0 0
+/proc/stat
+cpu  5 0 16 511 16 0 4 0 0 0
+cpu0 1 0 3 131 1 0 2 0 0 0
+cpu1 0 0 3 132 2 0 0 0 0 0
+cpu2 1 0 4 126 4 0 1 0 0 0
+cpu3 3 0 5 121 8 0 0 0 0 0
+intr 7148 0 283 3581 0 0 0 7 0 0 0 0 1055 0 5 5 131 52 103 1752 171 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ctxt 12937
+btime 1795511111
+processes 279
+procs_running 1
+procs_blocked 0
+softirq 1066 0 110 1 14 155 0 1 329 0 456
+/proc/pressure/cpu
+some avg10=0.00 avg60=0.00 avg300=0.00 total=8528
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+/proc/pressure/io
+some avg10=0.00 avg60=0.00 avg300=0.00 total=56730
+full avg10=0.00 avg60=0.00 avg300=0.00 total=56431
+/proc/pressure/memory
+some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0

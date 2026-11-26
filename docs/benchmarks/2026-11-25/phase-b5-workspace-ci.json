@@ -1,0 +1,177 @@
+{
+  "label": "phase-b5-workspace-ci",
+  "timestamp_utc": "2026-11-25T11:58:02Z",
+  "rounds": 3,
+  "kernel": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261125-b5-16k/full-16k/Image",
+  "idle_poll_us": 150,
+  "arms": {
+    "orbstack": {
+      "engine": "orbstack",
+      "scan_1000_files": {
+        "stat_pass1_ms": 3.87,
+        "stat_pass2_ms": 2.75,
+        "stat_pass3_50ms_pause_ms": 3.31,
+        "read_pass1_ms": 13.21,
+        "read_pass2_ms": 12.32,
+        "read_pass3_50ms_pause_ms": 12.04,
+        "sha256": "7abb3845da315dc21913c9381b11af08bd9e88072abbe12de13e708b9a2a8d56"
+      },
+      "host_edit_visibility": {
+        "size": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 5.22,
+          "all_observed": true
+        },
+        "held": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 78.33,
+          "all_observed": true
+        },
+        "replace": {
+          "statuses": [
+            "old-handle-changed",
+            "old-handle-changed",
+            "old-handle-changed"
+          ],
+          "median_ms": 3.04,
+          "all_observed": false
+        },
+        "unlink": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 96.43,
+          "all_observed": true
+        }
+      },
+      "tar_extract_1000_ms": 80.0,
+      "rm_rf_1000_ms": 30.0,
+      "seq_64m_write_mibs": 3200.0,
+      "seq_64m_read_mibs": 6400.0,
+      "published_upload_64m_mibs": 1806.3,
+      "boot_s": null
+    },
+    "micropod-vz-tuned": {
+      "engine": "micropod-vz-tuned",
+      "scan_1000_files": {
+        "stat_pass1_ms": 7.86,
+        "stat_pass2_ms": 8.0,
+        "stat_pass3_50ms_pause_ms": 9.05,
+        "read_pass1_ms": 86.35,
+        "read_pass2_ms": 86.71,
+        "read_pass3_50ms_pause_ms": 88.14,
+        "sha256": "7abb3845da315dc21913c9381b11af08bd9e88072abbe12de13e708b9a2a8d56"
+      },
+      "host_edit_visibility": {
+        "size": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 1003.6,
+          "all_observed": true
+        },
+        "held": {
+          "statuses": [
+            "timeout",
+            "timeout",
+            "timeout"
+          ],
+          "median_ms": 1801.14,
+          "all_observed": false
+        },
+        "replace": {
+          "statuses": [
+            "old-handle-changed",
+            "old-handle-changed",
+            "old-handle-changed"
+          ],
+          "median_ms": 2.69,
+          "all_observed": false
+        },
+        "unlink": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 1003.95,
+          "all_observed": true
+        }
+      },
+      "tar_extract_1000_ms": 310.0,
+      "rm_rf_1000_ms": 70.0,
+      "seq_64m_write_mibs": 2133.3,
+      "seq_64m_read_mibs": 6400.0,
+      "published_upload_64m_mibs": 2274.7,
+      "boot_s": 0.6817
+    },
+    "micropod-hvf": {
+      "engine": "micropod-hvf",
+      "scan_1000_files": {
+        "stat_pass1_ms": 5.26,
+        "stat_pass2_ms": 4.81,
+        "stat_pass3_50ms_pause_ms": 5.19,
+        "read_pass1_ms": 57.34,
+        "read_pass2_ms": 48.23,
+        "read_pass3_50ms_pause_ms": 55.9,
+        "sha256": "7abb3845da315dc21913c9381b11af08bd9e88072abbe12de13e708b9a2a8d56"
+      },
+      "host_edit_visibility": {
+        "size": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 24.08,
+          "all_observed": true
+        },
+        "held": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 24.18,
+          "all_observed": true
+        },
+        "replace": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 1.47,
+          "all_observed": true
+        },
+        "unlink": {
+          "statuses": [
+            "observed",
+            "observed",
+            "observed"
+          ],
+          "median_ms": 21.6,
+          "all_observed": true
+        }
+      },
+      "tar_extract_1000_ms": 220.0,
+      "rm_rf_1000_ms": 50.0,
+      "seq_64m_write_mibs": 3200.0,
+      "seq_64m_read_mibs": 6400.0,
+      "published_upload_64m_mibs": 1855.6,
+      "boot_s": 0.2776
+    }
+  }
+}

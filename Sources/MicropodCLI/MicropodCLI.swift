@@ -6,8 +6,10 @@ struct Services {
     let client: ContainerCLIClient
     let system: SystemService
     let containers: any ContainerServing
-    let images: ImageService
-    let volumes: VolumeService
+    /// Apple's image and volume services, routed like `containers` across
+    /// the enabled engines that keep their own (pass-through when none do).
+    let images: ImageRouter
+    let volumes: VolumeRouter
     let networks: NetworkService
     let registry: RegistryService
     let machines: MachineService
@@ -22,8 +24,8 @@ struct Services {
         runtime = await RuntimeBackendResolver.resolve(client: client)
         system = SystemService(client: client)
         containers = runtime.containers
-        images = ImageService(client: client)
-        volumes = VolumeService(client: client)
+        images = ImageRouter(apple: ImageService(client: client), registry: runtime.router?.registry)
+        volumes = VolumeRouter(apple: VolumeService(client: client), registry: runtime.router?.registry)
         networks = NetworkService(client: client)
         registry = RegistryService(client: client)
         machines = MachineService(client: client)
@@ -49,7 +51,7 @@ struct MicropodCLI {
         #if canImport(Darwin)
             setvbuf(stdout, nil, _IOLBF, 8192)
         #endif
-        var args = Array(CommandLine.arguments.dropFirst())
+        let args = Array(CommandLine.arguments.dropFirst())
         if args.first == "update" {
             let json = args.contains("--json")
             exit(await UpdateCommands.main(Array(args.dropFirst()).filter { $0 != "--json" }, json: json))
@@ -58,27 +60,35 @@ struct MicropodCLI {
             let json = args.contains("--json")
             exit(await StorageCommands.main(Array(args.dropFirst()).filter { $0 != "--json" }, json: json))
         }
+        if args.first == "ci" {
+            exit(await CICommands.main(Array(args.dropFirst())))
+        }
+        if args.first == "telemetry" {
+            exit(await TelemetryCommands.main(Array(args.dropFirst())))
+        }
+        if args.first == "config" {
+            exit(await TelemetryCommands.mainConfigAlias(Array(args.dropFirst())))
+        }
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
-        if ProcessInfo.processInfo.environment["NO_COLOR"] != nil { Ansi.enabled = false }
-        args.removeAll(where: { $0 == "--no-color" })
-        jsonOutput = args.contains("--json")
-        args.removeAll(where: { $0 == "--json" })
-        if jsonOutput || !isTTY() { Ansi.enabled = false }
-        var cliPath: String?
-        if let idx = args.firstIndex(of: "--cli"), idx + 1 < args.count {
-            cliPath = args[idx + 1]
-            args.removeSubrange(idx...idx + 1)
+        // Global flags may come before the command (`micropod --json machine status`).
+        if let machine = MachineCommands.route(args) {
+            exit(await MachineCommands.main(machine.args, json: machine.json))
+        }
+        let globals = GlobalArguments(args)
+        jsonOutput = globals.json
+        if globals.noColor || ProcessInfo.processInfo.environment["NO_COLOR"] != nil || jsonOutput || !isTTY() {
+            Ansi.enabled = false
         }
 
-        guard let command = args.first else {
+        guard let command = globals.arguments.first else {
             print(helpText)
             exit(ExitCode.usage)
         }
-        let rest = Array(args.dropFirst())
+        let rest = Array(globals.arguments.dropFirst())
 
-        let services = await Services(cliPath: cliPath)
+        let services = await Services(cliPath: globals.cliPath)
         do {
             try await dispatch(command, rest, services)
             UpdateNotice.run(json: jsonOutput)
@@ -168,6 +178,17 @@ struct MicropodCLI {
 
         Usage: micropod <command> [flags] [args]
 
+        CI worker:
+          ci runner-start|status|health|stop manage the dedicated HVF/containerd CI worker
+          ci docker|run|snapshot|job         run builds, compose stacks, cached & native OCI jobs
+
+        Observability & configuration:
+          telemetry init|show|set|validate   manage YAML config (~/.micropod/observability.yaml)
+          telemetry enable|disable <target>  toggle prometheus, otlp, or tracing (live on VM!)
+          telemetry health|metrics           live engine/workload health, Prometheus & OTLP metrics
+          telemetry trace status|enable|dump on-demand distributed tracing & bottleneck breakdown
+          config init|show|set|validate      alias for telemetry YAML configuration management
+
         Containers:
           ps [-a] [-s] [--json]              list containers (add -a for stopped, -s for stats)
           run <image> [args…]                create+start a container (default detached; -a to attach)
@@ -188,7 +209,7 @@ struct MicropodCLI {
           system logs [--last 5m] [-f]       backing apiserver logs (the debug surface)
           stats [--json]                     one-shot resource snapshot
 
-        Images:
+        Images (--runtime r on each picks an engine; listings merge every enabled one):
           images [--json]                    list local images
           pull|push <ref> [--platform p]     registry transfer (streams progress)
           build <ctx> [--tag t]…             build via BuildKit shim
@@ -197,7 +218,7 @@ struct MicropodCLI {
           save <ref> -o <path> / load -i <path>
 
         Resources:
-          volumes / volume create|rm|prune   named volumes
+          volumes / volume create|rm|prune   named volumes (--runtime r, as for images)
           networks / network create|rm|prune networks
           registry ls|login|logout           registry credentials
 
@@ -209,13 +230,17 @@ struct MicropodCLI {
           build-cache stats|inspect        content-addressed build contexts
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
           sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
-          runtime ls|use|enable|disable      execution engines: apple VMs, docker, sandbox micro-VMs
+          runtime ls|use|enable|disable      execution engines: apple, docker, sandbox, ci, hvf
           machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
+          machine install|start|stop|restart|status|logs|serve|docker-endpoint|buildkit-endpoint
+                                             the shared hvf Linux machine behind --runtime hvf
+                                             (`micropod machine help`)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
           update [status|check|apply|cli]    keep the app and this CLI current
           storage [show|volumes|set <dir>]  where runtime data lives; move it to another volume
+          storage dev-volume                create and manage a development APFS volume
           metrics [id] [--range 1h] [--machine]  recorded resource history (peak/avg/now + sparkline)
           status / version                   runtime + version info
 

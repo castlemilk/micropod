@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-11-24T02:41:42.835135155Z",
+  "project": "cuttlefish",
+  "source": "Cuttlefish read-only runners_list",
+  "rigs": [
+    {
+      "name": "Gamma-128GB.local",
+      "state": "busy",
+      "snapshot_freshness": "fresh",
+      "leased_slots": 1,
+      "capacity": 6,
+      "sampled_at": "2026-11-24T02:41:39.951812Z"
+    },
+    {
+      "name": "Gamma-128GB Linux CI (isolated VM)",
+      "state": "online",
+      "snapshot_freshness": "fresh",
+      "leased_slots": 1,
+      "capacity": 1,
+      "sampled_at": "2026-11-24T02:41:38.679350626Z"
+    }
+  ],
+  "warm_ci_revision": "ad0646d6292076b6ddf7647f2dc806d785d8f8fb",
+  "stock_verifier_revision": "a5f0e19e1b416cf35552221d072383d4ec63b5f0",
+  "observer_revision": "e7040b8825111bd589202a21f700b40e9cfa7f6c",
+  "stock_receipt_available_for_reuse": false,
+  "owner_release_observed": false,
+  "mode_and_scope": "baseline first, guest-tx-trace separately on the same stock direct-Reno serving scope",
+  "effective_disk_clearance_observed": false,
+  "preflight": "not started",
+  "live_attaches": 0,
+  "scored_runs": 0
+}

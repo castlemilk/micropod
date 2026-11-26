@@ -1,0 +1,59 @@
+--- a/Sources/CPublishedTCP/PublishedTCP.c
++++ b/Sources/CPublishedTCP/PublishedTCP.c
+@@ -56,6 +56,8 @@
+ #if MICROPOD_BENCH_512K_READS
+     unsigned read_bytes;
+ #endif
++    char *spare_suffix;
++    size_t spare_suffix_bytes;
+     char scratch[CHUNK];
+ };
+ 
+@@ -476,6 +478,7 @@
+ void mp_tcp_relay_destroy(mp_tcp_relay *r) {
+     close(r->kq);
+     if (r->bulk.fd >= 0) close(r->bulk.fd);
++    free(r->spare_suffix);
+     free(r);
+ }
+ 
+@@ -718,13 +721,18 @@
+         if (l->profile) ++l->stats.blocked_writes;
+         size_t remaining = count - (size_t)sent;
+         if (!dst->pending) {
+-            dst->pending = malloc(remaining);
++            // The serial owner can reuse one completed suffix of exactly this size.
++            if (r->spare_suffix && r->spare_suffix_bytes == remaining) {
++                dst->pending = r->spare_suffix;
++                r->spare_suffix = NULL;
++                r->spare_suffix_bytes = 0;
++            } else {
++                dst->pending = malloc(remaining);
++                if (l->profile && dst->pending) ++l->stats.pending_allocations;
++            }
+             if (!dst->pending) { retire(p); return; }
+             memcpy(dst->pending, r->scratch + sent, remaining);
+-            if (l->profile) {
+-                ++l->stats.pending_allocations;
+-                l->stats.pending_copy_bytes += remaining;
+-            }
++            if (l->profile) l->stats.pending_copy_bytes += remaining;
+             dst->length = remaining;
+             struct kevent changes[] = { filter_change(&src->watch, EVFILT_READ, EV_DISABLE),
+                                         filter_change(&dst->watch, EVFILT_WRITE, EV_ADD | EV_ENABLE) };
+@@ -736,7 +744,14 @@
+         return;
+     }
+     if (dst->pending) {
+-        free(dst->pending);
++        // offset grows by the same number of bytes removed from length on each retry.
++        size_t allocation_size = dst->offset + dst->length;
++        if (!r->spare_suffix && allocation_size <= 64 * 1024) {
++            r->spare_suffix = dst->pending;
++            r->spare_suffix_bytes = allocation_size;
++        } else {
++            free(dst->pending);
++        }
+         dst->pending = NULL;
+         dst->offset = dst->length = 0;
+         struct kevent changes[] = { filter_change(&dst->watch, EVFILT_WRITE, EV_DISABLE),

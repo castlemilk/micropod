@@ -1,0 +1,73 @@
+{
+  "direction": "236.01",
+  "date": "2026-11-24",
+  "tier": "source/fixture; archived native Images",
+  "control_revision": "4dc985b50bbd1e5942020618df4d8dcc2de47483",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "inputs": {
+    "full": {
+      "Image": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+      "config": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c"
+    },
+    "lazy": {
+      "Image": "3955ba50110de136beed489a4957141442afd2ba565358186b7abd20f5dfabe8",
+      "config": "3aa9201c06ae0e243516c7604c38ea48d6ce7784a44ed3d7afc89ec5487068f4"
+    }
+  },
+  "control_verifier_sha256": "e17d36887a605a49dec355cf7b3ad5edafe37b83029a5e3648028a8e2d82bdb7",
+  "candidate_verifier_sha256": "886a7c9b89b80e56689b8b659ca1ecfecc017665659aa4ad1d2be39219956f32",
+  "changed_variable": "Require an available in-image compressed kernel config to match its sidecar.",
+  "workload": "All four pairings of two genuine 4 KiB AArch64 Linux 7.3.5 Image/config builds. Fresh content-valid manifests identify the exact supplied files in every pairing.",
+  "observations": [
+    {
+      "image": "full",
+      "config": "full",
+      "control": {
+        "accepted": true,
+        "embedded_config_verified": null
+      },
+      "candidate": {
+        "accepted": true,
+        "embedded_config_verified": true
+      }
+    },
+    {
+      "image": "full",
+      "config": "lazy",
+      "control": {
+        "accepted": true,
+        "embedded_config_verified": null
+      },
+      "candidate": {
+        "accepted": false,
+        "error": "embedded kernel config differs from sidecar"
+      }
+    },
+    {
+      "image": "lazy",
+      "config": "full",
+      "control": {
+        "accepted": true,
+        "embedded_config_verified": null
+      },
+      "candidate": {
+        "accepted": false,
+        "error": "embedded kernel config differs from sidecar"
+      }
+    },
+    {
+      "image": "lazy",
+      "config": "lazy",
+      "control": {
+        "accepted": true,
+        "embedded_config_verified": null
+      },
+      "candidate": {
+        "accepted": true,
+        "embedded_config_verified": true
+      }
+    }
+  ],
+  "vm_boots": 0,
+  "limitation": "No 16 KiB candidate Image or running guest was tested. Images built without an embedded config can establish page-header and digest identity only."
+}

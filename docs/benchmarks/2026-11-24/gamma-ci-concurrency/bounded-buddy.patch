@@ -1,0 +1,53 @@
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1190,6 +1190,7 @@
+ 	struct sched_entity *se = __pick_first_entity(cfs_rq);
+ 	struct sched_entity *curr = cfs_rq->curr;
+ 	struct sched_entity *best = NULL;
++	struct sched_entity *buddy = NULL;
+ 
+ 	/*
+ 	 * We can safely skip eligibility check if there is only one entity
+@@ -1205,13 +1206,15 @@
+ 	    cfs_rq->next && entity_eligible(cfs_rq, cfs_rq->next)) {
+ 		/* ->next will never be delayed */
+ 		WARN_ON_ONCE(cfs_rq->next->sched_delayed);
+-		return cfs_rq->next;
++		if (!sched_feat(BOUNDED_BUDDY))
++			return cfs_rq->next;
++		buddy = cfs_rq->next;
+ 	}
+ 
+ 	if (curr && (!curr->on_rq || !entity_eligible(cfs_rq, curr)))
+ 		curr = NULL;
+ 
+-	if (curr && protect && protect_slice(curr))
++	if (!buddy && curr && protect && protect_slice(curr))
+ 		return curr;
+ 
+ 	/* Pick the leftmost entity if it's eligible */
+@@ -1252,6 +1255,15 @@
+ 	if (!best || (curr && entity_before(curr, best)))
+ 		best = curr;
+ 
++	/*
++	 * Compare eligible entities on the same runqueue. Permit a wakeup
++	 * handoff within a quarter base slice of the earliest deadline,
++	 * expressed in the competing entity's weighted virtual time.
++	 */
++	if (buddy && best &&
++	    vruntime_cmp(buddy->deadline, "<=", best->deadline +
++			 calc_delta_fair(READ_ONCE(sysctl_sched_base_slice) / 4, best)))
++		return buddy;
+ 	return best;
+ }
+ 
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -142,3 +142,6 @@
+  */
+ SCHED_FEAT(NI_RANDOM, true)
+ SCHED_FEAT(NI_RATE, true)
++
++/* Bound the deadline displacement of an eligible next buddy. */
++SCHED_FEAT(BOUNDED_BUDDY, false)

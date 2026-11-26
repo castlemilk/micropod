@@ -1,0 +1,538 @@
+{
+  "base": "dc019c8cc218c2b10a1b9e26abb76c8bf29a33e7",
+  "utc": "2026-11-23T09:55:26.805963+00:00",
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-DMICROPOD_BENCH_512K_READS=1",
+    "-DRELAY_SOURCE=\"PublishedTCP.c\""
+  ],
+  "binary": {
+    "sanitized": {
+      "sha256": "16587f8c0f1f6119b3cc59411ffab8443dbf3b00c85afa11b0f910e10d0e170f",
+      "extra_flags": [
+        "-O1",
+        "-fsanitize=address,undefined",
+        "-fno-sanitize-recover=all"
+      ]
+    },
+    "timed": {
+      "sha256": "6ccd583a8486dcd29320d619e5b0341891baf9d2528642752a138aabcf79d26e",
+      "extra_flags": []
+    }
+  },
+  "inputs_sha256": {
+    "ready_queue_timing.c": "dabebb2a27e686a55b1ad9e261e08bd637cc010ca330fb8586191958c305573e",
+    "ready_queue_timing.py": "60ab4f4ee748c2d4a4892456ab44561e79ba224c13eb50fca47899b98f683982",
+    "gamma_contrasts.py": "f6879bbeb2eb42fe9ac4800e1569953aa9cd0228bb7a4d3225f1e9fc8baa8d1c",
+    "Sources/CPublishedTCP/PublishedTCP.c": "7453a16f8097d21d89eebc0e0121e870511a6a81486015942a45770babbd945e",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "9aadfce77b524b1448742366bbcbd8cfb42d7eaaf450c988b82c7e3097c23cc6",
+    "scripts/relaybench/filter_work.c": "24673c51511b00f28ec9378b07bf3c7e273d55cba8986ba87e35e9a94e365a3b"
+  },
+  "blocks": [
+    {
+      "index": 0,
+      "runs": [
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10880512,
+          "wall_ns": 27487959
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 9442088,
+          "wall_ns": 44371333
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5882750,
+          "wall_ns": 14781625
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4233667,
+          "wall_ns": 11380833
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "runs": [
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 11058343,
+          "wall_ns": 27185167
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10628325,
+          "wall_ns": 27170834
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4992666,
+          "wall_ns": 13384041
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5859668,
+          "wall_ns": 16542792
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "runs": [
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4902000,
+          "wall_ns": 17457792
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 6578625,
+          "wall_ns": 15795666
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 11895386,
+          "wall_ns": 30073875
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 13320963,
+          "wall_ns": 32857000
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "runs": [
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4578958,
+          "wall_ns": 12314208
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5596417,
+          "wall_ns": 14845750
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10076257,
+          "wall_ns": 68443500
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 12752760,
+          "wall_ns": 38059458
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "runs": [
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 11907342,
+          "wall_ns": 97851333
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10503709,
+          "wall_ns": 59545250
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4152917,
+          "wall_ns": 11842000
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 6573584,
+          "wall_ns": 45632875
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "runs": [
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 13271091,
+          "wall_ns": 68695833
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 11726585,
+          "wall_ns": 46478250
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5468456,
+          "wall_ns": 14902250
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 6169583,
+          "wall_ns": 17130250
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "runs": [
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5460834,
+          "wall_ns": 17155625
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4830166,
+          "wall_ns": 14041292
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10632897,
+          "wall_ns": 40544834
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10292288,
+          "wall_ns": 41651917
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "runs": [
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5404959,
+          "wall_ns": 15141250
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5788709,
+          "wall_ns": 20326667
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10291790,
+          "wall_ns": 37596041
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10545748,
+          "wall_ns": 42005375
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "runs": [
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10899511,
+          "wall_ns": 64946417
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 9593415,
+          "wall_ns": 30174208
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4146376,
+          "wall_ns": 11578375
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5161750,
+          "wall_ns": 14713375
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "runs": [
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 9915539,
+          "wall_ns": 58204166
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 10514883,
+          "wall_ns": 37222250
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4152210,
+          "wall_ns": 12535584
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5309958,
+          "wall_ns": 23289709
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "runs": [
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 4015583,
+          "wall_ns": 11902708
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5082083,
+          "wall_ns": 22315500
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 8897078,
+          "wall_ns": 77237417
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 12447450,
+          "wall_ns": 37775292
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "runs": [
+        {
+          "arm": "nested",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5662875,
+          "wall_ns": 14609833
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 524288,
+          "waves": 4,
+          "verified_bytes": 33554432,
+          "owner_ns": 5618041,
+          "wall_ns": 14214208
+        },
+        {
+          "arm": "nested",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 13476894,
+          "wall_ns": 38516459
+        },
+        {
+          "arm": "flat",
+          "piece_bytes": 4096,
+          "waves": 512,
+          "verified_bytes": 33554432,
+          "owner_ns": 11988161,
+          "wall_ns": 40029500
+        }
+      ]
+    }
+  ],
+  "method": "One background thread. 16 staged local AF_UNIX flows. The two-worker drain argument and 512 KiB read cap are identical. Flat uses create_data and nested uses create. A 16 KiB classification wave and one full workload wave precede timing in every process. Each timed wave queues one 4 or 512 KiB write per flow, calls the native drain once, and reads and compares every byte with its flow- and wave-tagged input. 32 MiB verified per sample. Both FINs and retirement checked. Owner CPU covers drains. Wall throughput includes producers, consumers and byte comparison on the same thread. No VM, network, dispatch or fresh marker. Setup, classification and teardown excluded. One timed binary for both arms. ASan/UBSan qualifies all four cells; one untimed sample per cell. 12 matched pairs per size with alternating AB/BA. Intervals resample the within-block ratios (10,000 draws, seed 7317).",
+  "summary_by_piece_kib": {
+    "4": {
+      "owner_cpu_s_per_gib": {
+        "median_by_arm": {
+          "flat": 0.3485,
+          "nested": 0.3327
+        },
+        "nested_paired_median_change_pct": -2.806,
+        "paired_bootstrap_95_change_pct": [
+          -11.886,
+          12.201
+        ],
+        "nested_faster_blocks": 7
+      },
+      "verified_mib_s": {
+        "median_by_arm": {
+          "flat": 794.3301,
+          "nested": 799.5428
+        },
+        "nested_paired_median_change_pct": -1.355,
+        "paired_bootstrap_95_change_pct": [
+          -34.195,
+          38.03
+        ],
+        "nested_faster_blocks": 5
+      }
+    },
+    "512": {
+      "owner_cpu_s_per_gib": {
+        "median_by_arm": {
+          "flat": 0.1769,
+          "nested": 0.1639
+        },
+        "nested_paired_median_change_pct": -8.997,
+        "paired_bootstrap_95_change_pct": [
+          -16.488,
+          25.524
+        ],
+        "nested_faster_blocks": 7
+      },
+      "verified_mib_s": {
+        "median_by_arm": {
+          "flat": 2044.9381,
+          "nested": 2182.5988
+        },
+        "nested_paired_median_change_pct": 17.754,
+        "paired_bootstrap_95_change_pct": [
+          -12.008,
+          26.741
+        ],
+        "nested_faster_blocks": 8
+      }
+    }
+  }
+}

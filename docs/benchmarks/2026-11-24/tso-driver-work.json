@@ -1,0 +1,292 @@
+{
+  "id": "231.01",
+  "date": "2026-11-24",
+  "tier": "offline replay of archived VM first attempts",
+  "source": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "readbacks_sha256": "1ade90ef711545a7ad913c8bd8725cd7fe999dd3da985944f978cd72d0265fc0",
+  "boot": "F9796107-C413-486E-88AA-864386E5B923",
+  "vm": "4 4116488192 \"7.3.5-micropod\" \"micropod\"",
+  "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "client": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+  "workload": "32 bulk streams, 240 fixed arrivals in six seconds, all first attempts. Host process counters span setup and drain. Interface byte and packet counters are driver-reported. No on-wire capture.",
+  "comparison": "Guest TCP segmentation on, then off, then restored; GSO/GRO both on. Two attempts per sequential phase on one boot; no paired interval.",
+  "summary": {
+    "original": {
+      "attempts": 2,
+      "clean": 2,
+      "pass_75ms": 2,
+      "fresh_errors": 0,
+      "reopens": 0,
+      "medians": {
+        "p95_ms": 27.838,
+        "p99_ms": 40.324,
+        "throughput_mib_s": 6025.529304003982,
+        "bytes_per_tx_packet": 63828.586821676945,
+        "tx_kicks_per_interface_gib": 72.39476696823056
+      }
+    },
+    "software-tso": {
+      "attempts": 2,
+      "clean": 2,
+      "pass_75ms": 2,
+      "fresh_errors": 0,
+      "reopens": 0,
+      "medians": {
+        "p95_ms": 10.3895,
+        "p99_ms": 16.680500000000002,
+        "throughput_mib_s": 516.3988227946651,
+        "bytes_per_tx_packet": 1512.8517208678118,
+        "tx_kicks_per_interface_gib": 4064.4597536838965
+      }
+    },
+    "original-repeat": {
+      "attempts": 2,
+      "clean": 1,
+      "pass_75ms": 1,
+      "fresh_errors": 145,
+      "reopens": 25,
+      "medians": {
+        "p95_ms": 24.424,
+        "p99_ms": 34.876,
+        "throughput_mib_s": 6314.8824252476015,
+        "bytes_per_tx_packet": 63788.163386446184,
+        "tx_kicks_per_interface_gib": 73.67420444296893
+      }
+    }
+  },
+  "rows": [
+    {
+      "block": 1,
+      "arm": "original",
+      "epoch_ns": 1795258831253604000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 5583.858053944371,
+      "p95_ms": 33.609,
+      "p99_ms": 52.535,
+      "tx_interface": {
+        "bytes": 35731125064,
+        "packets": 559692,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 2388,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63840.69285249744,
+      "tx_kicks_per_interface_gib": 71.7608379562442,
+      "process": {
+        "vmm": {
+          "cpu_s": 13.345532791666665,
+          "runnable_s": 23.539926499999996,
+          "observer_s": 6.129566,
+          "cpu_s_per_scored_gib": 0.40788176533026754
+        },
+        "relay": {
+          "cpu_s": 8.195699541666666,
+          "runnable_s": 8.754790624999998,
+          "observer_s": 6.129566,
+          "cpu_s_per_scored_gib": 0.2504865447754063
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "original",
+      "epoch_ns": 1795258837700390000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 6467.200554063594,
+      "p95_ms": 22.067,
+      "p99_ms": 28.113,
+      "tx_interface": {
+        "bytes": 41256652850,
+        "packets": 646489,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 2806,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63816.480790856454,
+      "tx_kicks_per_interface_gib": 73.02869598021692,
+      "process": {
+        "vmm": {
+          "cpu_s": 15.736149499999998,
+          "runnable_s": 23.096441125,
+          "observer_s": 6.10023,
+          "cpu_s_per_scored_gib": 0.41526468777072517
+        },
+        "relay": {
+          "cpu_s": 9.615225291666667,
+          "runnable_s": 10.041973208333332,
+          "observer_s": 6.10023,
+          "cpu_s_per_scored_gib": 0.25373828131139314
+        }
+      }
+    },
+    {
+      "block": 1,
+      "arm": "software-tso",
+      "epoch_ns": 1795258844116193000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 562.3634487091304,
+      "p95_ms": 10.041,
+      "p99_ms": 14.072,
+      "tx_interface": {
+        "bytes": 4210319972,
+        "packets": 2782930,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 16493,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 1512.909046221069,
+      "tx_kicks_per_interface_gib": 4206.14680618198,
+      "process": {
+        "vmm": {
+          "cpu_s": 9.825703958333332,
+          "runnable_s": 16.382178166666666,
+          "observer_s": 7.10505,
+          "cpu_s_per_scored_gib": 2.981394455811989
+        },
+        "relay": {
+          "cpu_s": 3.8613732083333328,
+          "runnable_s": 4.788576083333333,
+          "observer_s": 7.10505,
+          "cpu_s_per_scored_gib": 1.171649046619424
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "software-tso",
+      "epoch_ns": 1795258851583229000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 470.43419688019986,
+      "p95_ms": 10.738,
+      "p99_ms": 19.289,
+      "tx_interface": {
+        "bytes": 3648962952,
+        "packets": 2412068,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 13331,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 1512.7943955145543,
+      "tx_kicks_per_interface_gib": 3922.7727011858137,
+      "process": {
+        "vmm": {
+          "cpu_s": 8.665251208333332,
+          "runnable_s": 17.568231249999997,
+          "observer_s": 7.233747,
+          "cpu_s_per_scored_gib": 3.143587288716925
+        },
+        "relay": {
+          "cpu_s": 3.5823560416666664,
+          "runnable_s": 4.6181927499999995,
+          "observer_s": 7.233747,
+          "cpu_s_per_scored_gib": 1.2996102069622089
+        }
+      }
+    },
+    {
+      "block": 1,
+      "arm": "original-repeat",
+      "epoch_ns": 1795258859286482000,
+      "clean": true,
+      "fresh_errors": 0,
+      "bulk_errors": 0,
+      "bulk_reopens": 0,
+      "throughput_mib_s": 6314.8824252476015,
+      "p95_ms": 24.424,
+      "p99_ms": 34.876,
+      "tx_interface": {
+        "bytes": 40341356806,
+        "packets": 632427,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 2768,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63788.163386446184,
+      "tx_kicks_per_interface_gib": 73.67420444296893,
+      "process": {
+        "vmm": {
+          "cpu_s": 15.522359541666665,
+          "runnable_s": 22.771829041666663,
+          "observer_s": 6.096804,
+          "cpu_s_per_scored_gib": 0.41947782082372687
+        },
+        "relay": {
+          "cpu_s": 9.735218958333332,
+          "runnable_s": 10.255993749999998,
+          "observer_s": 6.096804,
+          "cpu_s_per_scored_gib": 0.2630855459134033
+        }
+      }
+    },
+    {
+      "block": 2,
+      "arm": "original-repeat",
+      "epoch_ns": 1795258865559123000,
+      "clean": false,
+      "fresh_errors": 145,
+      "bulk_errors": 32,
+      "bulk_reopens": 25,
+      "throughput_mib_s": 2414.495965858958,
+      "p95_ms": 40.864,
+      "p99_ms": 68.719,
+      "tx_interface": {
+        "bytes": 15537670182,
+        "packets": 246212,
+        "errors": 0,
+        "dropped": 0,
+        "carrier": 0,
+        "collisions": 0,
+        "tx0_kicks": 1333,
+        "tx0_tx_timeouts": 0
+      },
+      "bytes_per_tx_packet": 63106.87611489285,
+      "tx_kicks_per_interface_gib": 92.11791952245984,
+      "process": {
+        "vmm": {
+          "cpu_s": 42.354771125,
+          "runnable_s": 52.22750754166666,
+          "observer_s": 32.517041,
+          "cpu_s_per_scored_gib": null
+        },
+        "relay": {
+          "cpu_s": 4.045101458333333,
+          "runnable_s": 4.348135333333333,
+          "observer_s": 32.517041,
+          "cpu_s_per_scored_gib": null
+        }
+      }
+    }
+  ],
+  "verdict": "Retain TSO for the candidate control. Disabling it sharply reduced receiver throughput and changed guest packet geometry and notification work on this archived boot. The restored arm still lost delivery once. Repeat only within a separately qualified live comparison.",
+  "uncertainty": "Short single-guest screen; no independent-boot interval.",
+  "benchmark_snapshot": "ad0646d6292076b6ddf7647f2dc806d785d8f8fb",
+  "replay_base": "2ccda8507355b8220258db2ce8160f3113d3e1ff"
+}

@@ -1,0 +1,1 @@
+Pre-listen TCP_FASTOPEN install failed with EINVAL before any traffic or first attempt. macOS tcp(4) requires a listener. Corrected setup installs the option after listen(2). The window run had already completed. Initial fixture SHA-256 897c94209c1031f5be321b78e4ea35ee5b7f68c90f737ce37039fd0920d2296a; only the Fast Open listener setup moved.

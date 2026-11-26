@@ -1,0 +1,12 @@
+{
+  "timing_requested": true,
+  "error": "host idle admission timed out after 60.00s (28 observations, 0/2 consecutive eligible, last 89.46%, floor 90%, paired gap unpaired, limit 5 pp)",
+  "error_kind": "host_idle_timeout",
+  "full_preflight_passed": true,
+  "timed_first_attempts": 8,
+  "scored_complete": false,
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "idle_wait_seconds": 60,
+  "idle_policy": "two consecutive qualifying samples"
+}

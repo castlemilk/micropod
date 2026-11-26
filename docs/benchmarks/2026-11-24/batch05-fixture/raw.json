@@ -1,0 +1,587 @@
+{
+  "issue": 231,
+  "direction": "231.14",
+  "revision": "7d9b565173a901cb18942e00384838da96e0ba98",
+  "tier": "source/fixture",
+  "go": "go version go1.27.2 darwin/arm64",
+  "control_sha256": "8c35dfcae6324973ae6d47ba2da45cd26b50e60630a78a6971d058caef9a9c62",
+  "candidate_sha256": "62d559fef3cdc07507e9e6d05306fd510bde7584ce3be81a55cc2115e403cbdb",
+  "patch_sha256": "96748ee6ff1712178541c45a50bd48ae3761fa4c0fc72f15b8cbff972d9b4142",
+  "fixture_sha256": "eb99d7e0487f7aed06fe03d62bd12ee433bd873a2026fdfb4f9afe71ed5f1cce",
+  "reproduce_sha256": "3ae41d83c1e13b655af0513b8d5147bca64a9c5d68a9226a24c690a5289cc869",
+  "cells": [
+    {
+      "name": "fresh",
+      "pattern_bytes": [
+        25
+      ],
+      "read_chunk_limit_bytes": 64,
+      "wire_bytes_per_stream": 27,
+      "wire_sha256": "34f8f37a6ffd4a799eaec58d7668f6601ef149487a4041b285752bee2f9741c8",
+      "samples": [
+        {
+          "pair": 1,
+          "arm": "control",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 12544
+        },
+        {
+          "pair": 1,
+          "arm": "candidate",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 73984
+        },
+        {
+          "pair": 2,
+          "arm": "candidate",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 73984
+        },
+        {
+          "pair": 2,
+          "arm": "control",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 12544
+        },
+        {
+          "pair": 3,
+          "arm": "control",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 12544
+        },
+        {
+          "pair": 3,
+          "arm": "candidate",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 73984
+        },
+        {
+          "pair": 4,
+          "arm": "candidate",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 73984
+        },
+        {
+          "pair": 4,
+          "arm": "control",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 12544
+        },
+        {
+          "pair": 5,
+          "arm": "control",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 12544
+        },
+        {
+          "pair": 5,
+          "arm": "candidate",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 73984
+        },
+        {
+          "pair": 6,
+          "arm": "candidate",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 73984
+        },
+        {
+          "pair": 6,
+          "arm": "control",
+          "streams": 128,
+          "delivered_queries": 128,
+          "allocations": 512,
+          "allocated_bytes": 12544
+        }
+      ]
+    },
+    {
+      "name": "persistent_short",
+      "pattern_bytes": [
+        25
+      ],
+      "read_chunk_limit_bytes": 64,
+      "wire_bytes_per_stream": 864,
+      "wire_sha256": "97673c7091891ab3a4775d2cf0b636559d0a7b2f07d44e96f967811574644f84",
+      "samples": [
+        {
+          "pair": 1,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 73728
+        },
+        {
+          "pair": 1,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 2,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 2,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 73728
+        },
+        {
+          "pair": 3,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 73728
+        },
+        {
+          "pair": 3,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 4,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 4,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 73728
+        },
+        {
+          "pair": 5,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 73728
+        },
+        {
+          "pair": 5,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 6,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 6,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 73728
+        }
+      ]
+    },
+    {
+      "name": "persistent_fragmented_edns",
+      "pattern_bytes": [
+        25,
+        96,
+        512,
+        25
+      ],
+      "read_chunk_limit_bytes": 3,
+      "wire_bytes_per_stream": 5328,
+      "wire_sha256": "fe05984331509278efed5d35a827f3e6450c520c3b3636fc665062f5c5dfde50",
+      "samples": [
+        {
+          "pair": 1,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 352256
+        },
+        {
+          "pair": 1,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 2,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 2,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 352256
+        },
+        {
+          "pair": 3,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 352256
+        },
+        {
+          "pair": 3,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 4,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 4,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 352256
+        },
+        {
+          "pair": 5,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 352256
+        },
+        {
+          "pair": 5,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 6,
+          "arm": "candidate",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 2240,
+          "allocated_bytes": 40960
+        },
+        {
+          "pair": 6,
+          "arm": "control",
+          "streams": 64,
+          "delivered_queries": 2048,
+          "allocations": 4224,
+          "allocated_bytes": 352256
+        }
+      ]
+    },
+    {
+      "name": "persistent_mixed_size",
+      "pattern_bytes": [
+        25,
+        513,
+        96,
+        4096
+      ],
+      "read_chunk_limit_bytes": 64,
+      "wire_bytes_per_stream": 37904,
+      "wire_sha256": "b07817965f363e243a9c33be25007567f9b6cf142958e4312d346515c737650b",
+      "samples": [
+        {
+          "pair": 1,
+          "arm": "control",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 2112,
+          "allocated_bytes": 1232896
+        },
+        {
+          "pair": 1,
+          "arm": "candidate",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 1632,
+          "allocated_bytes": 1216512
+        },
+        {
+          "pair": 2,
+          "arm": "candidate",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 1632,
+          "allocated_bytes": 1216512
+        },
+        {
+          "pair": 2,
+          "arm": "control",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 2112,
+          "allocated_bytes": 1232896
+        },
+        {
+          "pair": 3,
+          "arm": "control",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 2112,
+          "allocated_bytes": 1232896
+        },
+        {
+          "pair": 3,
+          "arm": "candidate",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 1632,
+          "allocated_bytes": 1216512
+        },
+        {
+          "pair": 4,
+          "arm": "candidate",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 1632,
+          "allocated_bytes": 1216512
+        },
+        {
+          "pair": 4,
+          "arm": "control",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 2112,
+          "allocated_bytes": 1232896
+        },
+        {
+          "pair": 5,
+          "arm": "control",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 2112,
+          "allocated_bytes": 1232896
+        },
+        {
+          "pair": 5,
+          "arm": "candidate",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 1632,
+          "allocated_bytes": 1216512
+        },
+        {
+          "pair": 6,
+          "arm": "candidate",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 1632,
+          "allocated_bytes": 1216512
+        },
+        {
+          "pair": 6,
+          "arm": "control",
+          "streams": 32,
+          "delivered_queries": 1024,
+          "allocations": 2112,
+          "allocated_bytes": 1232896
+        }
+      ]
+    },
+    {
+      "name": "oversize_only",
+      "pattern_bytes": [
+        65535
+      ],
+      "read_chunk_limit_bytes": 1024,
+      "wire_bytes_per_stream": 131074,
+      "wire_sha256": "68f2b45a509031326ca09d9c24afa685ec2ab2e381e50c0ac7236846557dbb4f",
+      "samples": [
+        {
+          "pair": 1,
+          "arm": "control",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 48,
+          "allocated_bytes": 1049120
+        },
+        {
+          "pair": 1,
+          "arm": "candidate",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 56,
+          "allocated_bytes": 1053216
+        },
+        {
+          "pair": 2,
+          "arm": "candidate",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 56,
+          "allocated_bytes": 1053216
+        },
+        {
+          "pair": 2,
+          "arm": "control",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 48,
+          "allocated_bytes": 1049120
+        },
+        {
+          "pair": 3,
+          "arm": "control",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 48,
+          "allocated_bytes": 1049120
+        },
+        {
+          "pair": 3,
+          "arm": "candidate",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 56,
+          "allocated_bytes": 1053216
+        },
+        {
+          "pair": 4,
+          "arm": "candidate",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 56,
+          "allocated_bytes": 1053216
+        },
+        {
+          "pair": 4,
+          "arm": "control",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 48,
+          "allocated_bytes": 1049120
+        },
+        {
+          "pair": 5,
+          "arm": "control",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 48,
+          "allocated_bytes": 1049120
+        },
+        {
+          "pair": 5,
+          "arm": "candidate",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 56,
+          "allocated_bytes": 1053216
+        },
+        {
+          "pair": 6,
+          "arm": "candidate",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 56,
+          "allocated_bytes": 1053216
+        },
+        {
+          "pair": 6,
+          "arm": "control",
+          "streams": 8,
+          "delivered_queries": 16,
+          "allocations": 48,
+          "allocated_bytes": 1049120
+        }
+      ]
+    }
+  ],
+  "faults": [
+    {
+      "frame_hex": "",
+      "control_error": "EOF",
+      "candidate_error": "EOF"
+    },
+    {
+      "frame_hex": "00",
+      "control_error": "unexpected EOF",
+      "candidate_error": "unexpected EOF"
+    },
+    {
+      "frame_hex": "0000",
+      "control_error": "invalid DNS frame",
+      "candidate_error": "invalid DNS frame"
+    },
+    {
+      "frame_hex": "000b",
+      "control_error": "invalid DNS frame",
+      "candidate_error": "invalid DNS frame"
+    },
+    {
+      "frame_hex": "00190001",
+      "control_error": "unexpected EOF",
+      "candidate_error": "unexpected EOF"
+    },
+    {
+      "frame_hex": "ffff0001",
+      "control_error": "unexpected EOF",
+      "candidate_error": "unexpected EOF"
+    }
+  ]
+}

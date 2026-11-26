@@ -1,0 +1,357 @@
+{
+  "direction": "237.05",
+  "base": "a60d203b16b24abd857e1b5c9e817636b241f850",
+  "linux": "7.3.5",
+  "dev_c_sha256": "8b3c43e8becfd552ead597c2e009edf16b126924a7cbe4c5c961e74563b76274",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "fixture_sha256": {
+    "rfs_flow.c": "93ba1522fab6bd628025f13d5fbfc8bda8e6e43360fe28426c987fbdfe5dc6da",
+    "rfs_flow.inc": "2fe96717d91d02259049dfced5c1e246cffb8a6023f7634fb3c36e41e60c2e7a",
+    "rfs_flow.py": "745408dcd8c19579b3693ca92933a54ac086abad35569aa697246f23ab124085"
+  },
+  "constants": {
+    "online_cpus": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "one_rx_queue": true,
+    "hash_map_cpus": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "flow_hash": "0x11223344",
+    "new_reader_cpu": 3,
+    "post_migration_arrivals": 64,
+    "hardware_steering": false
+  },
+  "attempts": [
+    {
+      "rfs": 0,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 64,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 64,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 64,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 58,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000003333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 62,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0033333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 34,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000003333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 0,
+      "post_migration_cpu3_packets": 54,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 64,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 64,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 0,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 64,
+      "in_order_packets": 64,
+      "post_migration_cpu_sequence": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 58,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000003333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 8,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 62,
+      "in_order_packets": 72,
+      "post_migration_cpu_sequence": "0033333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 1,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 2,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 34,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000003333333333333333333333333333333333"
+    },
+    {
+      "rfs": 0,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 0,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "rfs": 1,
+      "pending_at_migration": 32,
+      "drain_per_cpu_per_arrival": 4,
+      "counter_wrap": 1,
+      "post_migration_cpu3_packets": 54,
+      "in_order_packets": 96,
+      "post_migration_cpu_sequence": "0000000000333333333333333333333333333333333333333333333333333333"
+    }
+  ]
+}

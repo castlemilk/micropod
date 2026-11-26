@@ -1,0 +1,590 @@
+{
+  "passed": true,
+  "engines": {
+    "hvf": {
+      "name": "mp-git-preload-fc69c2ba3eb84cfcbc611327d7a006c0",
+      "remaining_ids": [],
+      "git_sha256": "54af380ba6ca1b36305358e99427a31ae4b0af5dc5cb6d0198c6f2f16e97651d",
+      "index_sha256": "5282f0c646f57a41b3fb0202b260a027c6b204883e02d747ed2c97b81e63732f",
+      "config_sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+      "mount": [
+        "92",
+        "101",
+        "0:33",
+        "/mp-git-field-m7tg02p8",
+        "/git-preload-check",
+        "ro,relatime",
+        "-",
+        "virtiofs",
+        "workspace",
+        "rw"
+      ],
+      "untraced": [
+        {
+          "order": [
+            "stock",
+            "shards-2",
+            "shards-4"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 179186667,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 130510667,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 108116792,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "stock",
+            "shards-4",
+            "shards-2"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 167757375,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 100123042,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 131981542,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-4",
+            "stock",
+            "shards-2"
+          ],
+          "calls": {
+            "shards-4": {
+              "ns": 100668083,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 165222000,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 130954500,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-4",
+            "shards-2",
+            "stock"
+          ],
+          "calls": {
+            "shards-4": {
+              "ns": 102253666,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 131927416,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 166264625,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-2",
+            "shards-4",
+            "stock"
+          ],
+          "calls": {
+            "shards-2": {
+              "ns": 123470583,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 118201750,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 166992125,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-2",
+            "stock",
+            "shards-4"
+          ],
+          "calls": {
+            "shards-2": {
+              "ns": 135589084,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 167114708,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 97821375,
+              "status_hex": ""
+            }
+          }
+        }
+      ],
+      "trace2": {
+        "stock": {
+          "ns": 166072416,
+          "status_hex": "",
+          "trace2": {
+            "counts": {
+              "read/cache_nr": 1058,
+              "preload/sum_lstat": 1058,
+              "refresh/sum_lstat": 1058,
+              "refresh/sum_scan": 1058
+            },
+            "regions_s": {
+              "preload": 0.009346,
+              "refresh": 0.132582,
+              "untracked": 0.020563
+            }
+          }
+        },
+        "shards-2": {
+          "ns": 125762625,
+          "status_hex": "",
+          "scans_by_process": [
+            529,
+            529
+          ],
+          "stats_by_process": [
+            529,
+            529
+          ]
+        },
+        "shards-4": {
+          "ns": 119043250,
+          "status_hex": "",
+          "scans_by_process": [
+            265,
+            265,
+            265,
+            263
+          ],
+          "stats_by_process": [
+            265,
+            265,
+            265,
+            263
+          ]
+        }
+      },
+      "median_ms": {
+        "stock": 167.0534165,
+        "shards-2": 131.440958,
+        "shards-4": 101.4608745
+      },
+      "edits": {
+        "same_inode_exact_mtime": {
+          "before": {
+            "inode": 35446,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630363154527507
+          },
+          "after": {
+            "inode": 35446,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630363154621797
+          },
+          "digest": "2d222bf2f6127164c57c1430f06f0acd07994bc979fbb76a2647d2426edc2d4c",
+          "status": {
+            "stock": {
+              "ns": 176703792,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-2": {
+              "ns": 323993959,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-4": {
+              "ns": 257929708,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "replaced_inode_exact_mtime": {
+          "before": {
+            "inode": 35446,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630363154621797
+          },
+          "after": {
+            "inode": 40608,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630363970140042
+          },
+          "digest": "2b7c9b963e08968871a8209e0c553f0b1a84b404818c5d5a49646afce384143b",
+          "status": {
+            "stock": {
+              "ns": 168417750,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-2": {
+              "ns": 284439541,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-4": {
+              "ns": 264430459,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "restored": {
+          "before": {
+            "inode": 40608,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630363970140042
+          },
+          "after": {
+            "inode": 40609,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630364734850842
+          },
+          "digest": "4ab300585002c44a9e537caf9ebdbb50597314441a44b120fab8d32aa3274e33",
+          "status": {
+            "stock": {
+              "ns": 175131375,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 135905958,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 101791042,
+              "status_hex": ""
+            }
+          }
+        }
+      }
+    },
+    "orbstack": {
+      "name": "mp-git-preload-ebffbf2a1aaa4d24bf99bf80b25aa642",
+      "remaining_ids": [],
+      "git_sha256": "54af380ba6ca1b36305358e99427a31ae4b0af5dc5cb6d0198c6f2f16e97651d",
+      "index_sha256": "5282f0c646f57a41b3fb0202b260a027c6b204883e02d747ed2c97b81e63732f",
+      "config_sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda",
+      "mount": [
+        "274",
+        "265",
+        "0:37",
+        "/private/tmp/mp-gamma3.26gaZ4/home/share/candidate/mp-git-field-m7tg02p8",
+        "/git-preload-check",
+        "ro,relatime",
+        "-",
+        "virtiofs",
+        "mac",
+        "rw"
+      ],
+      "untraced": [
+        {
+          "order": [
+            "stock",
+            "shards-2",
+            "shards-4"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 50388413,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 56584644,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 47320234,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "stock",
+            "shards-4",
+            "shards-2"
+          ],
+          "calls": {
+            "stock": {
+              "ns": 49805843,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 47376358,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 55551584,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-4",
+            "stock",
+            "shards-2"
+          ],
+          "calls": {
+            "shards-4": {
+              "ns": 48213630,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 50481536,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 61231744,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-4",
+            "shards-2",
+            "stock"
+          ],
+          "calls": {
+            "shards-4": {
+              "ns": 45419278,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 60564426,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 50222291,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-2",
+            "shards-4",
+            "stock"
+          ],
+          "calls": {
+            "shards-2": {
+              "ns": 55983991,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 45799311,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 50360330,
+              "status_hex": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "shards-2",
+            "stock",
+            "shards-4"
+          ],
+          "calls": {
+            "shards-2": {
+              "ns": 55929492,
+              "status_hex": ""
+            },
+            "stock": {
+              "ns": 50751113,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 49166525,
+              "status_hex": ""
+            }
+          }
+        }
+      ],
+      "trace2": {
+        "stock": {
+          "ns": 50346455,
+          "status_hex": "",
+          "trace2": {
+            "counts": {
+              "read/cache_nr": 1058,
+              "preload/sum_lstat": 1058,
+              "refresh/sum_lstat": 1058,
+              "refresh/sum_scan": 1058
+            },
+            "regions_s": {
+              "preload": 0.000741,
+              "refresh": 0.042565,
+              "untracked": 0.005572
+            }
+          }
+        },
+        "shards-2": {
+          "ns": 58041943,
+          "status_hex": "",
+          "scans_by_process": [
+            529,
+            529
+          ],
+          "stats_by_process": [
+            529,
+            529
+          ]
+        },
+        "shards-4": {
+          "ns": 47670142,
+          "status_hex": "",
+          "scans_by_process": [
+            265,
+            263,
+            265,
+            265
+          ],
+          "stats_by_process": [
+            265,
+            263,
+            265,
+            265
+          ]
+        }
+      },
+      "median_ms": {
+        "stock": 50.3743715,
+        "shards-2": 56.2843175,
+        "shards-4": 47.348296
+      },
+      "edits": {
+        "same_inode_exact_mtime": {
+          "before": {
+            "inode": 40609,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630367008962540
+          },
+          "after": {
+            "inode": 40609,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630367009069287
+          },
+          "digest": "2d222bf2f6127164c57c1430f06f0acd07994bc979fbb76a2647d2426edc2d4c",
+          "status": {
+            "stock": {
+              "ns": 51487137,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-2": {
+              "ns": 109913362,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-4": {
+              "ns": 95443866,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "replaced_inode_exact_mtime": {
+          "before": {
+            "inode": 40609,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630367009069287
+          },
+          "after": {
+            "inode": 40610,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630367357550744
+          },
+          "digest": "2b7c9b963e08968871a8209e0c553f0b1a84b404818c5d5a49646afce384143b",
+          "status": {
+            "stock": {
+              "ns": 55310298,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-2": {
+              "ns": 104471239,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            },
+            "shards-4": {
+              "ns": 96288805,
+              "status_hex": "204d206d61696e5f6c696e75782e676f00"
+            }
+          }
+        },
+        "restored": {
+          "before": {
+            "inode": 40610,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630367357550744
+          },
+          "after": {
+            "inode": 40611,
+            "size": 15619,
+            "mtime_ns": 0,
+            "ctime_ns": 1795630367683172606
+          },
+          "digest": "4ab300585002c44a9e537caf9ebdbb50597314441a44b120fab8d32aa3274e33",
+          "status": {
+            "stock": {
+              "ns": 50012380,
+              "status_hex": ""
+            },
+            "shards-2": {
+              "ns": 56621226,
+              "status_hex": ""
+            },
+            "shards-4": {
+              "ns": 45769354,
+              "status_hex": ""
+            }
+          }
+        }
+      }
+    }
+  },
+  "source": {
+    "files": 1058,
+    "bytes": 19326482,
+    "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+  },
+  "commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+  "preparation_ns": 612175041,
+  "host_index_sha256": "5282f0c646f57a41b3fb0202b260a027c6b204883e02d747ed2c97b81e63732f",
+  "host_config_sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda"
+}

@@ -1,0 +1,81 @@
+{
+  "round": "mp-gamma8.MEb28U",
+  "retained": {
+    "control/vmm": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/micropod-vmm-f0747277714e",
+      "sha256": "f0747277714ef1520de32e7e5d398a0b88aded8a52c8f8076dc7daaafde1d3c4",
+      "bytes": 1536544,
+      "ready_receipt": "control-ready.json",
+      "strict_signature": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/micropod-vmm-f0747277714e: valid on disk\n/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/micropod-vmm-f0747277714e: satisfies its Designated Requirement\n"
+    },
+    "control/kernel": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/Image-61b4e143b260",
+      "sha256": "61b4e143b26039e4642f48b3819e0233f22b44f5c3e88e109cbc9c17508cc85f",
+      "bytes": 24238592,
+      "ready_receipt": "control-ready.json"
+    },
+    "control/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/runner-job-55f2ae080a60",
+      "sha256": "55f2ae080a601a84fd10123f6a717e880a0da6f1f2d9f827f7bf249fa79ca4d0",
+      "bytes": 27716920,
+      "ready_receipt": "control-ready.json"
+    },
+    "compact-on/kernel": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/Image-92a0c68ab8a3",
+      "sha256": "92a0c68ab8a3fd2b7b82881af45a28c8185d1127d3ef483126311857042d2f50",
+      "bytes": 24238592,
+      "ready_receipt": "compact-on-ready.json"
+    },
+    "compact2-on/kernel": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/Image-9dbe1ac482d1",
+      "sha256": "9dbe1ac482d1b3bb6bf0698dea0bf04159a9b0605fe06e464df7aaeb283e0459",
+      "bytes": 24238592,
+      "ready_receipt": "compact2-on-ready.json"
+    },
+    "coalesce-on/vmm": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/micropod-vmm-d256db0c6f12",
+      "sha256": "d256db0c6f1202604f84455ac57e2c5ef4aa3bce7c67bdf991c8ac61a46f31e8",
+      "bytes": 1553440,
+      "ready_receipt": "coalesce-on-ready.json",
+      "strict_signature": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/micropod-vmm-d256db0c6f12: valid on disk\n/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/micropod-vmm-d256db0c6f12: satisfies its Designated Requirement\n"
+    },
+    "testcontainers/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/runner-job-e7b6d60a49fe",
+      "sha256": "e7b6d60a49fe8e8c1b9895cd9e63313f175adc220ef8efb9d22e1174e0fd72f7",
+      "bytes": 27721285,
+      "ready_receipt": "testcontainers-ready.json"
+    },
+    "testcontainers-ryuk/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/runner-job-d5a08b48f07f",
+      "sha256": "d5a08b48f07feb9a71d68837b7ebe3c17f08d4cf4567af13c0e47dd15f07a77a",
+      "bytes": 27719597,
+      "ready_receipt": "testcontainers-ryuk-ready.json"
+    },
+    "tc-create-conflict/job": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/runner-job-0b20a6f006ca",
+      "sha256": "0b20a6f006ca61efa323287777e51466833b21c649982d287948d4b1bf506af8",
+      "bytes": 27719653,
+      "ready_receipt": "tc-create-conflict-ready.json"
+    }
+  },
+  "baseline_manifest": {
+    "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma7-bmjh3u/manifest.json",
+    "sha256": "d346b1a72ad1cad38c322c47af6d5d17566184fa23a557c765bdcab90a850ee5"
+  },
+  "verified_test_executables": {
+    "testcontainers-ryuk": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/runner-linux-tests-07d4c2c47c8c",
+      "sha256": "07d4c2c47c8cb2df0eb9d342c2e982c07071db5273823716675425e8c9f2cced",
+      "bytes": 30871059,
+      "successful_exit_receipt": "testcontainers-ryuk-linux-exit.log",
+      "successful_exit_receipt_sha256": "49d57dc8a7015ea373b271b2a957560efd45795edda53ea440ddf88570d42889"
+    },
+    "tc-create-conflict": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-hvf-gamma8-meb28u/runner-linux-tests-2060b1dc775b",
+      "sha256": "2060b1dc775b81c735332385c525cb49171a2d05556c0c91fa1a487693ed8481",
+      "bytes": 30872742,
+      "successful_exit_receipt": "tc-create-conflict-linux-exit.log",
+      "successful_exit_receipt_sha256": "49d57dc8a7015ea373b271b2a957560efd45795edda53ea440ddf88570d42889"
+    }
+  }
+}

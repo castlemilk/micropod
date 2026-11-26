@@ -2,8 +2,8 @@ import Foundation
 import MicropodCore
 
 /// Minimal Docker Engine API client: HTTP/1.1 over a unix or TCP socket,
-/// one connection per request (`Connection: close`). Enough for the
-/// container lifecycle — no TLS, no hijacked attach.
+/// one connection per request. Attached exec upgrades its connection to
+/// the Docker multiplexed byte stream.
 public struct DockerClient: Sendable {
     public enum Endpoint: Sendable, Equatable, CustomStringConvertible {
         case unix(String)
@@ -14,12 +14,17 @@ public struct DockerClient: Sendable {
             if raw.hasPrefix("unix://") { return .unix(String(raw.dropFirst(7))) }
             if raw.hasPrefix("/") { return .unix(raw) }
             if raw.hasPrefix("tcp://") {
-                let rest = raw.dropFirst(6).split(separator: "/").first.map(String.init) ?? ""
-                let parts = rest.split(separator: ":")
-                guard parts.count == 2, let port = UInt16(parts[1]), !parts[0].isEmpty else {
+                guard let url = URLComponents(string: raw), url.user == nil, url.password == nil,
+                    let authorityHost = url.host, !authorityHost.isEmpty,
+                    let number = url.port, let port = UInt16(exactly: number)
+                else {
                     throw MicropodError.message("invalidArgument: docker endpoint '\(raw)' — want tcp://host:port")
                 }
-                return .tcp(host: String(parts[0]), port: port)
+                let host = authorityHost.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+                guard !host.utf8.contains(0), host == authorityHost || host.contains(":") else {
+                    throw MicropodError.message("invalidArgument: docker: invalid TCP hostname")
+                }
+                return .tcp(host: host, port: port)
             }
             throw MicropodError.message(
                 "invalidArgument: docker endpoint '\(raw)' — want unix:///path/docker.sock or tcp://host:port")
@@ -28,7 +33,10 @@ public struct DockerClient: Sendable {
         public var description: String {
             switch self {
             case .unix(let path): return "unix://\(path)"
-            case .tcp(let host, let port): return "tcp://\(host):\(port)"
+            case .tcp(let host, let port):
+                let encoded = host.replacingOccurrences(of: "%", with: "%25")
+                let authority = encoded.contains(":") && !encoded.hasPrefix("[") ? "[\(encoded)]" : encoded
+                return "tcp://\(authority):\(port)"
             }
         }
     }
@@ -49,9 +57,33 @@ public struct DockerClient: Sendable {
     }
 
     public let endpoint: Endpoint
-    static let apiVersion = "v1.43"
+    /// Path prefix naming the Engine API version. Docker Engine accepts
+    /// older versions; micropod's guest engine only serves 1.44 and later.
+    public let apiVersion: String
+    public static let defaultAPIVersion = "v1.43"
+    private let negotiation: DockerAPINegotiation?
 
-    public init(endpoint: Endpoint) { self.endpoint = endpoint }
+    public init(endpoint: Endpoint, apiVersion: String = DockerClient.defaultAPIVersion) {
+        self.endpoint = endpoint
+        self.apiVersion = apiVersion
+        negotiation = nil
+    }
+
+    /// The external Docker adapter negotiates once per endpoint. The native
+    /// machine uses the explicitly versioned initializer above.
+    init(endpoint: Endpoint, environment: [String: String]) throws {
+        self.endpoint = endpoint
+        if let version = environment["DOCKER_API_VERSION"], !version.isEmpty {
+            guard DockerAPINegotiation.minor(version) != nil else {
+                throw MicropodError.message("invalidArgument: invalid DOCKER_API_VERSION '\(version)'")
+            }
+            apiVersion = "v" + version
+            negotiation = nil
+        } else {
+            apiVersion = Self.defaultAPIVersion
+            negotiation = DockerAPINegotiation()
+        }
+    }
 
     /// `DOCKER_HOST`, else the stock socket.
     public static func defaultEndpoint(environment: [String: String]) -> String {
@@ -71,23 +103,76 @@ public struct DockerClient: Sendable {
         _ method: String, _ path: String, query: [String: String] = [:], json body: Any? = nil,
         timeout: Duration = .seconds(120)
     ) async throws -> Response {
+        try await request(method, path, query: query, json: body, timeout: timeout, detachedExec: false)
+    }
+
+    func startDetachedExec(_ path: String, tty: Bool) async throws {
+        try check(
+            try await request("POST", path, query: [:], json: ["Detach": true, "Tty": tty], detachedExec: true))
+    }
+
+    private func request(
+        _ method: String, _ path: String, query: [String: String], json body: Any?,
+        timeout: Duration = .seconds(120), detachedExec: Bool
+    ) async throws -> Response {
         let payload = try body.map { try JSONSerialization.data(withJSONObject: $0) }
-        let endpoint = self.endpoint
-        let head = Self.head(method, path, query: query, bodyLength: payload?.count)
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global().async {
-                do {
-                    let socket = try Socket.connect(endpoint, timeout: timeout)
-                    defer { socket.close() }
-                    try socket.write(Data(head.utf8) + (payload ?? Data()))
-                    var reader = HTTPReader(socket: socket)
-                    let (status, headers) = try reader.readHead()
-                    let body = try reader.readBody(headers: headers)
-                    continuation.resume(returning: Response(status: status, body: body))
-                } catch {
-                    continuation.resume(throwing: error)
+        return try await withRequestSocket(method, path, query: query, length: payload?.count, timeout: timeout) {
+            socket, head in
+            try socket.write(head + (payload ?? Data()))
+            var reader = HTTPReader(socket: socket)
+            let (status, headers) = try reader.readHead()
+            let successful = (200..<300).contains(status)
+            if detachedExec {
+                // An attached response may be a 101 upgrade or a 200 stream.
+                // Detect it at the headers, before waiting for EOF.
+                let mediaType = headers["content-type"]?.lowercased().split(separator: ";", maxSplits: 1)
+                    .first?.trimmingCharacters(in: .whitespaces)
+                let attached =
+                    mediaType == "application/vnd.docker.raw-stream"
+                    || mediaType == "application/vnd.docker.multiplexed-stream"
+                if status == 101 || (successful && attached) {
+                    throw MicropodError.unsupported(
+                        "docker engine returned an attached stream for detached exec")
                 }
             }
+            let noBody = method.uppercased() == "HEAD" || status == 204 || status == 304
+            let body = noBody || (detachedExec && successful) ? Data() : try reader.readBody(headers: headers)
+            if status == 400 { negotiation?.invalidate() }
+            return Response(status: status, body: body)
+        }
+    }
+
+    func withRequestSocket<T: Sendable>(
+        _ method: String, _ path: String, query: [String: String] = [:], length: Int?, timeout: Duration?,
+        upgrade: Bool = false, perform: @escaping @Sendable (Socket, Data) throws -> T
+    ) async throws -> T {
+        try Task.checkCancellation()
+        let box = SocketBox()
+        return try await withTaskCancellationHandler {
+            let value = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
+                DispatchQueue.global().async {
+                    let result = Result {
+                        try box.checkCancellation()
+                        let head = try requestHead(
+                            method, path, query: query, length: length, upgrade: upgrade, cancellation: box)
+                        try box.checkCancellation()
+                        let socket = try Socket.connect(endpoint, timeout: timeout, cancellation: box)
+                        box.set(socket)
+                        defer { box.close() }
+                        try box.checkCancellation()
+                        return try perform(socket, Data(head.utf8))
+                    }
+                    if box.cancelled {
+                        continuation.resume(throwing: CancellationError())
+                    } else {
+                        continuation.resume(with: result)
+                    }
+                }
+            }
+            try Task.checkCancellation()
+            return value
+        } onCancel: {
+            box.cancel()
         }
     }
 
@@ -97,22 +182,25 @@ public struct DockerClient: Sendable {
         -> AsyncThrowingStream<Data, Error>
     {
         let endpoint = self.endpoint
-        let head = Self.head(method, path, query: query, bodyLength: nil)
         return AsyncThrowingStream { continuation in
             let box = SocketBox()
             DispatchQueue.global().async {
                 do {
-                    let socket = try Socket.connect(endpoint, timeout: nil)
+                    let head = try requestHead(method, path, query: query, length: nil, cancellation: box)
+                    let socket = try Socket.connect(endpoint, timeout: nil, cancellation: box)
                     box.set(socket)
-                    defer { socket.close() }
+                    defer { box.close() }
                     try socket.write(Data(head.utf8))
                     var reader = HTTPReader(socket: socket)
                     let (status, headers) = try reader.readHead()
                     guard (200..<300).contains(status) else {
+                        if status == 400 { negotiation?.invalidate() }
                         let body = try reader.readBody(headers: headers)
                         throw DockerClient.error(status: status, Response(status: status, body: body).message)
                     }
-                    try reader.readBody(headers: headers) { continuation.yield($0) }
+                    if method.uppercased() != "HEAD" && status != 204 {
+                        try reader.readBody(headers: headers) { continuation.yield($0) }
+                    }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: box.cancelled ? CancellationError() : error)
@@ -122,14 +210,27 @@ public struct DockerClient: Sendable {
         }
     }
 
-    static func head(_ method: String, _ path: String, query: [String: String], bodyLength: Int?) -> String {
-        var target = "/\(apiVersion)\(path)"
+    /// Called on the blocking I/O queue because a new external endpoint may need a handshake.
+    func requestHead(
+        _ method: String, _ path: String, query: [String: String] = [:], length: Int?, upgrade: Bool = false,
+        cancellation: SocketBox? = nil
+    ) throws -> String {
+        let version = try negotiation?.version(endpoint, cancellation: cancellation) ?? apiVersion
+        return Self.head(method, path, query: query, bodyLength: length, apiVersion: version, upgrade: upgrade)
+    }
+
+    static func head(
+        _ method: String, _ path: String, query: [String: String], bodyLength: Int?,
+        apiVersion: String = defaultAPIVersion, upgrade: Bool = false
+    ) -> String {
+        var target = apiVersion.isEmpty ? path : "/\(apiVersion)\(path)"
         if !query.isEmpty {
             var comps = URLComponents()
             comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
             target += "?" + (comps.percentEncodedQuery ?? "")
         }
-        var head = "\(method) \(target) HTTP/1.1\r\nHost: docker\r\nUser-Agent: micropod\r\nConnection: close\r\n"
+        var head = "\(method) \(target) HTTP/1.1\r\nHost: docker\r\nUser-Agent: micropod\r\n"
+        head += upgrade ? "Connection: Upgrade\r\nUpgrade: tcp\r\n" : "Connection: close\r\n"
         if let bodyLength {
             head += "Content-Type: application/json\r\nContent-Length: \(bodyLength)\r\n"
         }
@@ -188,20 +289,33 @@ public struct DockerClient: Sendable {
 final class SocketBox: @unchecked Sendable {
     private let lock = NSLock()
     private var socket: Socket?
-    private(set) var cancelled = false
+    private var didCancel = false
+
+    var cancelled: Bool { lock.withLock { didCancel } }
+
+    func checkCancellation() throws {
+        if cancelled { throw CancellationError() }
+    }
 
     func set(_ socket: Socket) {
         lock.lock()
         defer { lock.unlock() }
         self.socket = socket
-        if cancelled { socket.shutdown() }
+        if didCancel { socket.shutdown() }
     }
 
     func cancel() {
         lock.lock()
         defer { lock.unlock() }
-        cancelled = true
+        didCancel = true
         socket?.shutdown()
+    }
+
+    func close() {
+        lock.withLock {
+            socket?.close()
+            socket = nil
+        }
     }
 }
 
@@ -210,7 +324,9 @@ final class Socket: @unchecked Sendable {
 
     private init(fd: Int32) { self.fd = fd }
 
-    static func connect(_ endpoint: DockerClient.Endpoint, timeout: Duration?) throws -> Socket {
+    static func connect(_ endpoint: DockerClient.Endpoint, timeout: Duration?, cancellation: SocketBox? = nil) throws
+        -> Socket
+    {
         let fd: Int32
         switch endpoint {
         case .unix(let path):
@@ -238,21 +354,8 @@ final class Socket: @unchecked Sendable {
                 throw err
             }
         case .tcp(let host, let port):
-            var hints = addrinfo(
-                ai_flags: 0, ai_family: AF_UNSPEC, ai_socktype: SOCK_STREAM, ai_protocol: 0,
-                ai_addrlen: 0, ai_canonname: nil, ai_addr: nil, ai_next: nil)
-            var result: UnsafeMutablePointer<addrinfo>?
-            guard getaddrinfo(host, String(port), &hints, &result) == 0, let info = result else {
-                throw MicropodError.message("unavailable: docker: cannot resolve \(host)")
-            }
-            defer { freeaddrinfo(result) }
-            fd = Darwin.socket(info.pointee.ai_family, info.pointee.ai_socktype, info.pointee.ai_protocol)
-            guard fd >= 0 else { throw Self.posix("socket") }
-            guard Darwin.connect(fd, info.pointee.ai_addr, info.pointee.ai_addrlen) == 0 else {
-                let err = Self.posix("connect \(host):\(port)")
-                Darwin.close(fd)
-                throw err
-            }
+            fd = try DockerTCPConnection.connect(
+                host: host, port: port, timeout: timeout ?? .seconds(120), cancellation: cancellation)
         }
         var one: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
@@ -271,19 +374,26 @@ final class Socket: @unchecked Sendable {
         try data.withUnsafeBytes { raw in
             var sent = 0
             while sent < raw.count {
-                let n = Darwin.write(fd, raw.baseAddress! + sent, raw.count - sent)
-                guard n > 0 else { throw Self.posix("write") }
-                sent += n
+                let count = Darwin.write(fd, raw.baseAddress! + sent, raw.count - sent)
+                if count < 0 && errno == EINTR { continue }
+                guard count > 0 else { throw Self.posix("write") }
+                sent += count
             }
         }
     }
 
     /// Up to `max` bytes; empty at EOF.
     func read(max: Int = 65536) throws -> Data {
-        var buffer = [UInt8](repeating: 0, count: max)
-        let n = Darwin.read(fd, &buffer, max)
-        guard n >= 0 else { throw Self.posix("read") }
-        return Data(buffer[0..<n])
+        guard let buffer = malloc(max) else { throw POSIXError(.ENOMEM) }
+        while true {
+            let n = Darwin.read(fd, buffer, max)
+            if n < 0, errno == EINTR { continue }
+            if n > 0 { return Data(bytesNoCopy: buffer, count: n, deallocator: .free) }
+            let error = n < 0 ? Self.posix("read") : nil
+            free(buffer)
+            if let error { throw error }
+            return Data()
+        }
     }
 
     func shutdown() { Darwin.shutdown(fd, SHUT_RDWR) }
@@ -294,6 +404,7 @@ final class Socket: @unchecked Sendable {
 /// Content-Length, chunked, or read-to-EOF body.
 struct HTTPReader {
     let socket: Socket
+    private static let headerLimit = 1_048_576
     private var buffer = Data()
     private var eof = false
 
@@ -313,22 +424,31 @@ struct HTTPReader {
     private mutating func line() throws -> String? {
         while true {
             if let range = buffer.range(of: Data("\r\n".utf8)) {
+                guard range.lowerBound - buffer.startIndex <= Self.headerLimit else {
+                    throw MicropodError.message("internal: docker: oversized HTTP line")
+                }
                 let line = String(decoding: buffer[buffer.startIndex..<range.lowerBound], as: UTF8.self)
                 buffer.removeSubrange(buffer.startIndex..<range.upperBound)
                 return line
+            }
+            guard buffer.count <= Self.headerLimit else {
+                throw MicropodError.message("internal: docker: oversized HTTP line")
             }
             guard try fill() else { return nil }
         }
     }
 
-    private mutating func take(_ count: Int) throws -> Data {
-        while buffer.count < count {
-            guard try fill() else { break }
+    private mutating func consume(_ count: Int, emit: (Data) throws -> Void) throws {
+        var remaining = count
+        while remaining > 0 {
+            if buffer.isEmpty, try !fill() {
+                throw MicropodError.message("unavailable: docker: truncated response body")
+            }
+            let length = min(remaining, buffer.count)
+            try emit(buffer.prefix(length))
+            buffer.removeFirst(length)
+            remaining -= length
         }
-        let n = min(count, buffer.count)
-        let out = Data(buffer.prefix(n))
-        buffer.removeFirst(n)
-        return out
     }
 
     mutating func readHead() throws -> (Int, [String: String]) {
@@ -337,39 +457,68 @@ struct HTTPReader {
         guard parts.count >= 2, let code = Int(parts[1]) else {
             throw MicropodError.message("internal: docker: bad status line '\(status)'")
         }
+        return (code, try readFields())
+    }
+
+    private mutating func readFields() throws -> [String: String] {
         var headers: [String: String] = [:]
-        while let line = try line(), !line.isEmpty {
+        var headerBytes = 0
+        while true {
+            guard let line = try line() else {
+                throw MicropodError.message("unavailable: docker: truncated HTTP headers")
+            }
+            if line.isEmpty { break }
+            headerBytes += line.utf8.count + 2
+            guard headerBytes <= Self.headerLimit else {
+                throw MicropodError.message("internal: docker: oversized HTTP headers")
+            }
             guard let colon = line.firstIndex(of: ":") else { continue }
             headers[line[..<colon].lowercased()] = line[line.index(after: colon)...]
                 .trimmingCharacters(in: .whitespaces)
         }
-        return (code, headers)
+        return headers
     }
 
-    mutating func readBody(headers: [String: String]) throws -> Data {
+    mutating func readBody(headers: [String: String], limit: Int = .max) throws -> Data {
         var out = Data()
-        try readBody(headers: headers) { out.append($0) }
+        try readBody(headers: headers) { chunk in
+            guard chunk.count <= limit - out.count else {
+                throw MicropodError.message("internal: docker: oversized response body")
+            }
+            out.append(chunk)
+        }
         return out
     }
 
-    mutating func readBody(headers: [String: String], chunk emit: (Data) -> Void) throws {
+    mutating func readBody(headers: [String: String], chunk emit: (Data) throws -> Void) throws {
         if headers["transfer-encoding"]?.lowercased().contains("chunked") == true {
-            while let sizeLine = try line() {
-                let size = Int(sizeLine.split(separator: ";").first ?? "", radix: 16) ?? 0
-                if size == 0 { return }
-                emit(try take(size))
-                _ = try line()
+            while true {
+                guard let sizeLine = try line(), let size = Int(sizeLine.prefix { $0 != ";" }, radix: 16), size >= 0
+                else {
+                    throw MicropodError.message("unavailable: docker: invalid HTTP chunk length")
+                }
+                if size == 0 {
+                    _ = try readFields()
+                    return
+                }
+                try consume(size, emit: emit)
+                guard try line() == "" else {
+                    throw MicropodError.message("unavailable: docker: incomplete HTTP chunk")
+                }
             }
-        } else if let length = headers["content-length"].flatMap(Int.init) {
-            if length > 0 { emit(try take(length)) }
+        } else if let lengthHeader = headers["content-length"] {
+            guard let length = Int(lengthHeader), length >= 0 else {
+                throw MicropodError.message("unavailable: docker: invalid Content-Length")
+            }
+            try consume(length, emit: emit)
         } else {
             if !buffer.isEmpty {
-                emit(buffer)
+                try emit(buffer)
                 buffer.removeAll()
             }
-            while try fill() {
-                emit(buffer)
-                buffer.removeAll()
+            while !eof {
+                let chunk = try socket.read()
+                if chunk.isEmpty { eof = true } else { try emit(chunk) }
             }
         }
     }

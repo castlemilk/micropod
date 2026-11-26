@@ -1,0 +1,2009 @@
+{
+  "micropod": [
+    {
+      "engine": "micropod",
+      "ref": "default/default/ohwear2hchnkc8d6ddtauvhzg",
+      "context": "node",
+      "started": "2026-11-20T00:43:49.552838964Z",
+      "completed": "2026-11-20T00:43:49.640714047Z",
+      "run": "eb5d40396c7d01784caa496bbf7066d5fb1a3a212944e292df9ac0249913df83",
+      "steps": [
+        {
+          "digest": "sha256:418b3725c1a5bd8a309a1d0a6ee6e1e6a98418342b8b53b6bf2864294751eae3",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:49.610098255Z",
+          "completed": "2026-11-20T00:43:49.610098255Z"
+        },
+        {
+          "digest": "sha256:203ce5cdcde4199e31a5370196f05b42ffb840ad07fe1b42aeb3fb63c4e8ee7b",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:49.610098255Z",
+          "completed": "2026-11-20T00:43:49.610098255Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:49.610098255Z",
+          "completed": "2026-11-20T00:43:49.610098255Z"
+        },
+        {
+          "digest": "sha256:ca51ced97da7bb1cd33c3216fbc52367d7847bd0e63fb49b6b38a4617ba489de",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:49.610098255Z",
+          "completed": "2026-11-20T00:43:49.610135755Z"
+        },
+        {
+          "digest": "sha256:12bce908d0fb261b6cbf5513365262abd95600fae1ae3f82da5aee5c48ff0d08",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:49.610098255Z",
+          "completed": "2026-11-20T00:43:49.610098255Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/nj5j67lzwl5blesnky2u60skh",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:43:49.606361339Z",
+      "completed": "2026-11-20T00:43:51.28437509Z",
+      "run": "d5746a1c55948b2a47afaa135dea3adf590b9916e5891aa36737ca487e85a848",
+      "steps": [
+        {
+          "digest": "sha256:3cc86ebeba0e2a4ae15627532f354f1d9415ec2fe71eae50ff58f05fda76fe1b",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:51.262927965Z",
+          "completed": "2026-11-20T00:43:51.262943881Z"
+        },
+        {
+          "digest": "sha256:e00dfa0c53ccedd2e1249eeefa1810f5a14ba3cadff882021d581774f86b1ba8",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:51.262927965Z",
+          "completed": "2026-11-20T00:43:51.262927965Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:51.262927965Z",
+          "completed": "2026-11-20T00:43:51.262927965Z"
+        },
+        {
+          "digest": "sha256:6718adc7be35fc2777eae037e4a8f49b786c92bb54ef2a3cd932fed5c528822c",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:51.262927965Z",
+          "completed": "2026-11-20T00:43:51.262927965Z"
+        },
+        {
+          "digest": "sha256:2167d3ce0d8356d99d50c75746149e68bd07971320be264ff17159512cefd21f",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:51.262927965Z",
+          "completed": "2026-11-20T00:43:51.262927965Z"
+        },
+        {
+          "digest": "sha256:e13a1ecd48a97dbd1d68b5521776f3ef1a7961195c8ce69c10e687f8194225a8",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:51.262927965Z",
+          "completed": "2026-11-20T00:43:51.262927965Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/9axd4q40txfw0uka1pjyhdtca",
+      "context": "node",
+      "started": "2026-11-20T00:43:50.073919881Z",
+      "completed": "2026-11-20T00:43:50.119213131Z",
+      "run": "9ed19897a61822727daf82fe6cda293e860e03076a2b77f71961234b97631618",
+      "steps": [
+        {
+          "digest": "sha256:cbe7bbd1d0ddf5f43e9accfde8cd71c498ea83f7e88df2caac26ae3261568272",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:50.099416422Z",
+          "completed": "2026-11-20T00:43:50.099416422Z"
+        },
+        {
+          "digest": "sha256:3e789a08e3d0320f39a41131c9f176ab371aa821cf5ffbfb6b862f039f4facf5",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:50.099416422Z",
+          "completed": "2026-11-20T00:43:50.099416422Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:50.099416422Z",
+          "completed": "2026-11-20T00:43:50.099416422Z"
+        },
+        {
+          "digest": "sha256:3b8a6dd2058477ec66a148220e157b397215725608d188401c9eb40f63abab60",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:50.099416422Z",
+          "completed": "2026-11-20T00:43:50.099436089Z"
+        },
+        {
+          "digest": "sha256:54ceb7e2d95d809edb52b7fae2beeb6fb501ab5849fc6c50188c2335ad765f72",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:50.099416422Z",
+          "completed": "2026-11-20T00:43:50.099416422Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/7m4nbcfl8vn76s527puwqvmv7",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:43:51.528807131Z",
+      "completed": "2026-11-20T00:43:53.628740382Z",
+      "run": "0cbc9a9619c72acc384eaccc090e62eae6c39dbf82583a75c53b246205e9746c",
+      "steps": [
+        {
+          "digest": "sha256:135ad7efd7f3e3777d2e6901ffd6be38395b358dc8d889bd09b344c95a48aab3",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:53.613963674Z",
+          "completed": "2026-11-20T00:43:53.613963674Z"
+        },
+        {
+          "digest": "sha256:ce1aee68ac62e296122555d7816cc902924bee6a7e4af8782e1e919564e66d17",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:53.613963674Z",
+          "completed": "2026-11-20T00:43:53.613963674Z"
+        },
+        {
+          "digest": "sha256:54a4039beaeeeb75adfde72d758c51bb446eb0a0908628277fa482b3179e8746",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:53.613963674Z",
+          "completed": "2026-11-20T00:43:53.613972257Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:53.613963674Z",
+          "completed": "2026-11-20T00:43:53.613963674Z"
+        },
+        {
+          "digest": "sha256:b0b1ce1ffd204589b2e84bfa0c92904d173444fd27afc2aa27e917983279252f",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:53.613963674Z",
+          "completed": "2026-11-20T00:43:53.613963674Z"
+        },
+        {
+          "digest": "sha256:2090595aedce0d113356e9d1f5ff3de229f6d1d5bd8792999932c0760d02d08c",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:43:53.613963674Z",
+          "completed": "2026-11-20T00:43:53.613963674Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/pugadlpqxn74lgsmcezgflm8h",
+      "context": "node",
+      "started": "2026-11-20T00:47:07.759781303Z",
+      "completed": "2026-11-20T00:47:07.84916097Z",
+      "run": "4c4de0ae82951b364d1267be098ad6d275e6cda013f18d47f63a36ac97eebe38",
+      "steps": [
+        {
+          "digest": "sha256:184be793a3e8c1f0888b633ccd8a4a54c42a7859d1468f38e96f31971f47d2fb",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:07.813428845Z",
+          "completed": "2026-11-20T00:47:07.813428845Z"
+        },
+        {
+          "digest": "sha256:efeaa5d248f1fc74e173e310b95f62230ae78c535a7bc7623b1ce6436c55162a",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:07.813428845Z",
+          "completed": "2026-11-20T00:47:07.813428845Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:07.813428845Z",
+          "completed": "2026-11-20T00:47:07.813428845Z"
+        },
+        {
+          "digest": "sha256:11cb4d07552918a4934cba6972fef1505941230fb7e79ca592a44e7cb82e7dca",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:07.813428845Z",
+          "completed": "2026-11-20T00:47:07.813444303Z"
+        },
+        {
+          "digest": "sha256:e368d28abe43f286aa49efb94c39a7da8926b496006cddf1de1ef13e282fdc0c",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:07.813428845Z",
+          "completed": "2026-11-20T00:47:07.813428845Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/i0dfplgsrt26lj1mqk9i3d9b7",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:47:07.789798303Z",
+      "completed": "2026-11-20T00:47:08.827213428Z",
+      "run": "1edcf426cfd9faf0663228729ae273f09e5672671e812dce928c93a1ac0f4401",
+      "steps": [
+        {
+          "digest": "sha256:fe438ae2c71bc71754e79e4710cdd0a4d504dd85adb0d3e49659ea38d719dc33",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.801664637Z",
+          "completed": "2026-11-20T00:47:08.801683012Z"
+        },
+        {
+          "digest": "sha256:c3288bf9bd87d779c1edbe321c342cb355efcbf135151930a8d8bf01ee9e234b",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.801664637Z",
+          "completed": "2026-11-20T00:47:08.801664637Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.801664637Z",
+          "completed": "2026-11-20T00:47:08.801664637Z"
+        },
+        {
+          "digest": "sha256:a588ae9540f45bb60218a36d6630464f2c4794dc80a23a3aa01fa984cb9e89d9",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.801664637Z",
+          "completed": "2026-11-20T00:47:08.801664637Z"
+        },
+        {
+          "digest": "sha256:3fe9b49f6e10f03955df4f86db07e5e9fcd683bcbda6ba70c9f71396b97affba",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.801664637Z",
+          "completed": "2026-11-20T00:47:08.801664637Z"
+        },
+        {
+          "digest": "sha256:e5d20ff9f9786e5440ec73f46262ee7aa857c42a85b90d7169eac20952c064d3",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.801664637Z",
+          "completed": "2026-11-20T00:47:08.801664637Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/t2e50xk7cmsdsh3a0npoaucto",
+      "context": "node",
+      "started": "2026-11-20T00:47:08.258661303Z",
+      "completed": "2026-11-20T00:47:08.45432172Z",
+      "run": "6220379227d5df44cfb2b5228c7b050c812abead5c42d322b6ae80046533a06b",
+      "steps": [
+        {
+          "digest": "sha256:73b3a48f4f5f0070d5f6a0d5922290699224a0efc70ceaa0b9f426421f608e27",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.31111172Z",
+          "completed": "2026-11-20T00:47:08.31111172Z"
+        },
+        {
+          "digest": "sha256:fe993da61deaf0a73f5de0a629aae78ed61d8a2209c55b95faa19cb21bda528b",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.31111172Z",
+          "completed": "2026-11-20T00:47:08.31111172Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.31111172Z",
+          "completed": "2026-11-20T00:47:08.31111172Z"
+        },
+        {
+          "digest": "sha256:daa4585a2848aee1f19784f6ceff1a97443357f9620a1ea8969a4db9758beea8",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.31111172Z",
+          "completed": "2026-11-20T00:47:08.31112772Z"
+        },
+        {
+          "digest": "sha256:d3d4bc019d8cb37249334e472a8d13406369559a759d767fe197c1f3a1320964",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:08.31111172Z",
+          "completed": "2026-11-20T00:47:08.31111172Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/eeriiary2v8so7pd2fcygoshl",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:47:09.102077637Z",
+      "completed": "2026-11-20T00:47:10.537864263Z",
+      "run": "97977a2ae53e1e6367c9eb9719b2ce6c17b663ef91eb35f4d5441a9214796f3a",
+      "steps": [
+        {
+          "digest": "sha256:af5dec4968b1876d48854ddddc237e80836b07ef8789b1c76ab4ba1c2f91e177",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:10.507841929Z",
+          "completed": "2026-11-20T00:47:10.507841929Z"
+        },
+        {
+          "digest": "sha256:f4abd52ad6a8ea40a99fc9917fea1550395bc4fb0d4fdc1f2e676786f71f7a2a",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:10.507841929Z",
+          "completed": "2026-11-20T00:47:10.507841929Z"
+        },
+        {
+          "digest": "sha256:8018fec302468107be66b2b3070e84c0038f2a6997ff068290bb5529729420fb",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:10.507841929Z",
+          "completed": "2026-11-20T00:47:10.507858138Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:10.507841929Z",
+          "completed": "2026-11-20T00:47:10.507841929Z"
+        },
+        {
+          "digest": "sha256:1c7c7fde8873bd22abd13a550c40963860890808b192d8b1213043f09865bb02",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:10.507841929Z",
+          "completed": "2026-11-20T00:47:10.507841929Z"
+        },
+        {
+          "digest": "sha256:2341a3ad916b4fd64f52e36b393104e8b81ab0f82bff85a81f3c0ef9004a8790",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:10.507841929Z",
+          "completed": "2026-11-20T00:47:10.507841929Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/9axaak76qxh1tga413mcj0r8o",
+      "context": "node",
+      "started": "2026-11-20T00:47:20.351368919Z",
+      "completed": "2026-11-20T00:47:20.433256669Z",
+      "run": "fe7db6f640ee63680318364a3ba84533159b40377d4a565d493c42d2887d708b",
+      "steps": [
+        {
+          "digest": "sha256:592c09c08d9ad52e1a830fce798242a2d00bfdcaebaf0fe8de3a48ab2a68b1c4",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.385934044Z",
+          "completed": "2026-11-20T00:47:20.385934044Z"
+        },
+        {
+          "digest": "sha256:f6db89f0a0b24815a239a11ee55983aac0326d2033fa4b3750054488c193ef0f",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.385934044Z",
+          "completed": "2026-11-20T00:47:20.385934044Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.385934044Z",
+          "completed": "2026-11-20T00:47:20.385934044Z"
+        },
+        {
+          "digest": "sha256:74877d113ef1969153aeac52d9388c7f47f27c9d7f19c86ea3710584f6fe7c2c",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.385934044Z",
+          "completed": "2026-11-20T00:47:20.385951753Z"
+        },
+        {
+          "digest": "sha256:06fda422f2685df7a152d5f8b4e581f21de036f0d4412d8e8e6aa45943715534",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.385934044Z",
+          "completed": "2026-11-20T00:47:20.385934044Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/4w31kxlnc2egd0453mcrl3dt9",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:47:20.407472419Z",
+      "completed": "2026-11-20T00:47:20.896053544Z",
+      "run": "d3ce98e36d365885ab060d603da6707679c6609916f0aba811c2dbd752126c2f",
+      "steps": [
+        {
+          "digest": "sha256:8bd6d8acb0f795c1118981544374e788a6655f649c37d539c63a252c3fbe7e8e",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.868721044Z",
+          "completed": "2026-11-20T00:47:20.868750211Z"
+        },
+        {
+          "digest": "sha256:b088e0368c8a1ad3af9a25bc4b7766ed632e6cf791a8bbb880a45ba696812af0",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.868721044Z",
+          "completed": "2026-11-20T00:47:20.868721044Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.868721044Z",
+          "completed": "2026-11-20T00:47:20.868721044Z"
+        },
+        {
+          "digest": "sha256:7edfb7dcb799a9d22f6d097802aaf191930e779af543906cfc7ca7894e239e17",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.868721044Z",
+          "completed": "2026-11-20T00:47:20.868721044Z"
+        },
+        {
+          "digest": "sha256:2b8c25596d52ad731d4bc157340cdfccb15245c82da00c5e354b3eb66e2e14bc",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.868721044Z",
+          "completed": "2026-11-20T00:47:20.868721044Z"
+        },
+        {
+          "digest": "sha256:cff530a3b22f8345647c94a3d8a5c068f3a9e3d14954427df69b9befd9f82313",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.868721044Z",
+          "completed": "2026-11-20T00:47:20.868721044Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/nru2pspsxnfd4fa9e1fggm27p",
+      "context": "node",
+      "started": "2026-11-20T00:47:20.832372836Z",
+      "completed": "2026-11-20T00:47:20.894163794Z",
+      "run": "60013444ed2bbcbea77220735353f06def2620dde3d1583b4f5a252bbbae59a4",
+      "steps": [
+        {
+          "digest": "sha256:baeb998bf8eb8b9e3544483ec850000b041a2b7ddbe5dce92a442d0f2a4fa2c6",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.863636294Z",
+          "completed": "2026-11-20T00:47:20.863636294Z"
+        },
+        {
+          "digest": "sha256:941169cf61eae185802a3d3d88503d7d8e6f4482f698244e0df605b19a9dd5c6",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.863636294Z",
+          "completed": "2026-11-20T00:47:20.863636294Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.863636294Z",
+          "completed": "2026-11-20T00:47:20.863636294Z"
+        },
+        {
+          "digest": "sha256:3f0dba486662afafcae9ab5832c38cb65f1e7587e87d0f8c312aeaacb52a7a0e",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.863636294Z",
+          "completed": "2026-11-20T00:47:20.864035961Z"
+        },
+        {
+          "digest": "sha256:ea0e851998493a8aaccef5d2c2eeb85f398623d745b3954fb1c59f913b0eb902",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:20.863636294Z",
+          "completed": "2026-11-20T00:47:20.863636294Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/puq67gtendtgzti8fmtq0oiye",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:47:21.27163517Z",
+      "completed": "2026-11-20T00:47:22.132517337Z",
+      "run": "3b2210f44c9f96fd048b67f0b2778dfe680cb6b40b4205e6b2e79fd1937b9fb7",
+      "steps": [
+        {
+          "digest": "sha256:0ddcda028c0c52efdcae9724c326d84e56b98a1eff10f47833476baa6f44d1f4",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:22.107599503Z",
+          "completed": "2026-11-20T00:47:22.107599503Z"
+        },
+        {
+          "digest": "sha256:51dd0e326f27b827b85d0f3f5ae5759db2b9c7b4cde1123be811e8d35fe302e5",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:22.107599503Z",
+          "completed": "2026-11-20T00:47:22.107599503Z"
+        },
+        {
+          "digest": "sha256:e67eaea566a25d1f24461eceb9dfe34c776d96c5b5b72a1d9a05f2b75adb9270",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:22.107599503Z",
+          "completed": "2026-11-20T00:47:22.107634712Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:22.107599503Z",
+          "completed": "2026-11-20T00:47:22.107599503Z"
+        },
+        {
+          "digest": "sha256:20f524a9ef785487ed0fb64f785e3e5fb93ad18b38c67dbd48017e36bed09365",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:22.107599503Z",
+          "completed": "2026-11-20T00:47:22.107599503Z"
+        },
+        {
+          "digest": "sha256:d52cf155f32f9572200df5e3810d183692c1c2ca7183bee6aec01cb8666c137a",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:22.107599503Z",
+          "completed": "2026-11-20T00:47:22.107599503Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/7dvbstrv26un1jhcs1xe7bndk",
+      "context": "node",
+      "started": "2026-11-20T00:49:48.883943Z",
+      "completed": "2026-11-20T00:49:49.051280125Z",
+      "run": "38df01900410d2984d500257640f04c3ba0db1145c571b14790268cddc30cee0",
+      "steps": [
+        {
+          "digest": "sha256:c0d2b4a2e90b603ef090e16cfac76a23677eb38f3d34b3b03ef44071ae9ef205",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:48.968130541Z",
+          "completed": "2026-11-20T00:49:48.968130541Z"
+        },
+        {
+          "digest": "sha256:223e36629a0b97e412e6a45335def0b04fe0936bfdd9791325fa472ff78d9b40",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:48.968130541Z",
+          "completed": "2026-11-20T00:49:48.968130541Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:48.968130541Z",
+          "completed": "2026-11-20T00:49:48.968130541Z"
+        },
+        {
+          "digest": "sha256:41892a53dcf324f06ecf4c79b0002d99fe912581682433aa9c68ca4cb0532960",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:48.968130541Z",
+          "completed": "2026-11-20T00:49:48.968154333Z"
+        },
+        {
+          "digest": "sha256:668c17a15659903213d2f2d2e010d0591461d9896e95e76a8daae32670866b1b",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:48.968130541Z",
+          "completed": "2026-11-20T00:49:48.968130541Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/nhujmwqw3kfk03qtffq8oyiok",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:49:48.93346575Z",
+      "completed": "2026-11-20T00:49:50.406379042Z",
+      "run": "26d9f24d4fb63f3ff4da107c7f61515a13b7a62c44c6226dcfd4c7e6b8fd7f43",
+      "steps": [
+        {
+          "digest": "sha256:9be286399dcfe5d2df87a973cbeb43d839075e2662aac54251173fedec5ff42f",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:50.363222Z",
+          "completed": "2026-11-20T00:49:50.36326475Z"
+        },
+        {
+          "digest": "sha256:da65fde779ff63e1540f442ee02e54e6327490894b380b34396153e402fb8824",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:50.363222Z",
+          "completed": "2026-11-20T00:49:50.363222Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:50.363222Z",
+          "completed": "2026-11-20T00:49:50.363222Z"
+        },
+        {
+          "digest": "sha256:575e81afbe9b19cef2c7f499e3db31b71348d0e16b17bc8cb6db421201cf9712",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:50.363222Z",
+          "completed": "2026-11-20T00:49:50.363222Z"
+        },
+        {
+          "digest": "sha256:8c6391e2794836e081fe815cb2f20311af9ff9e8d523dea3cda6f78ea6c22b28",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:50.363222Z",
+          "completed": "2026-11-20T00:49:50.363222Z"
+        },
+        {
+          "digest": "sha256:773723be91a988739f74b611903a7c2a26bd67f08b05e74e83f5880c639f5fa4",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:50.363222Z",
+          "completed": "2026-11-20T00:49:50.363222Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/akyipvs1vlqeinxu29eb4gu09",
+      "context": "node",
+      "started": "2026-11-20T00:49:49.6022795Z",
+      "completed": "2026-11-20T00:49:49.695749584Z",
+      "run": "6f20667ef77389cedca6f00d3ea5d466bfa09caea98610679f56d49fa0cefcf0",
+      "steps": [
+        {
+          "digest": "sha256:5ab3c351a990b77ffbb4c7367959ea32426fb051f4bed7c40116345856eff7c1",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:49.65345675Z",
+          "completed": "2026-11-20T00:49:49.65345675Z"
+        },
+        {
+          "digest": "sha256:47cac700f45095abbf2dc646c0494368f6cef7f65a0e0462a6c83b6be0cc2761",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:49.65345675Z",
+          "completed": "2026-11-20T00:49:49.65345675Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:49.65345675Z",
+          "completed": "2026-11-20T00:49:49.65345675Z"
+        },
+        {
+          "digest": "sha256:01582579892ba0b01d4171182999d63fb6ef615524a1cdca5c272c07a541163d",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:49.65345675Z",
+          "completed": "2026-11-20T00:49:49.653501292Z"
+        },
+        {
+          "digest": "sha256:f530a8a9cfaa542eee7269d57c755ae8355240000b884f955358cb8474be1344",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:49.65345675Z",
+          "completed": "2026-11-20T00:49:49.65345675Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "micropod",
+      "ref": "default/default/xxy9540tginfnkfx2n36o5vji",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:49:50.753935376Z",
+      "completed": "2026-11-20T00:49:52.57724721Z",
+      "run": "30cfa5cfd00d656d404111d28018d54f0f1f2781f0bf77526c4b40f6614aead7",
+      "steps": [
+        {
+          "digest": "sha256:83d8cc0eb76c88c00373e8ccb5cc52106c5b9109ed940b7a19bb4f99c479958d",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:52.49215321Z",
+          "completed": "2026-11-20T00:49:52.49215321Z"
+        },
+        {
+          "digest": "sha256:10d31f05dde6628d6465c50977e6fe4bc7d833e45af66dd0bfdd1f31f3a3aff1",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:52.49215321Z",
+          "completed": "2026-11-20T00:49:52.49215321Z"
+        },
+        {
+          "digest": "sha256:db4296a9afd387923569269216cb4cb9c1d4ad17ea0895fde9ca073b77a2b727",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:52.49215321Z",
+          "completed": "2026-11-20T00:49:52.492189043Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:52.49215321Z",
+          "completed": "2026-11-20T00:49:52.49215321Z"
+        },
+        {
+          "digest": "sha256:b6326090048576a11940af3202c873813cc53c750ff5dc849ba96648d7dd8c32",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:52.49215321Z",
+          "completed": "2026-11-20T00:49:52.49215321Z"
+        },
+        {
+          "digest": "sha256:abd8dd4a74201437af5c18d39a721ce266de2f4d7afcb86928a86655bc4f704d",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:52.49215321Z",
+          "completed": "2026-11-20T00:49:52.49215321Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    }
+  ],
+  "orbstack": [
+    {
+      "engine": "orbstack",
+      "ref": "default/default/qufekon3bqsl02q0c9r2ahrh7",
+      "context": "node",
+      "started": "2026-11-20T00:44:03.342791872Z",
+      "completed": "2026-11-20T00:44:22.407525295Z",
+      "run": "28511028eb3f1010ae7c46d9a3d83c46bb4947b09704a3f6a79d8e2644dc6d8b",
+      "steps": [
+        {
+          "digest": "sha256:092686cdbd7510d5c6fb5db4f3352d15a5cc97c7487c1b7b48d43b74036621c2",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:10.236148848Z",
+          "completed": "2026-11-20T00:44:10.236148848Z"
+        },
+        {
+          "digest": "sha256:03cca1a516bc35fc3c622d6365bd83271fca6c66b5f755bed8d5ee610684f154",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:10.236148848Z",
+          "completed": "2026-11-20T00:44:10.236148848Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:10.236148848Z",
+          "completed": "2026-11-20T00:44:10.236148848Z"
+        },
+        {
+          "digest": "sha256:9545afcefcc2f6cdbb0b4e4687dc83fcfd1f41d4bd79ee59154eea095e38537e",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:10.236148848Z",
+          "completed": "2026-11-20T00:44:10.236220475Z"
+        },
+        {
+          "digest": "sha256:90661f10e639d03cba5c2d3e4275284bae62dcfc9d664556ab05c7fa802d1125",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:10.236148848Z",
+          "completed": "2026-11-20T00:44:10.236148848Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/qslyf0n8zmgcuzz0ax8g5j1dz",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:44:03.43498732Z",
+      "completed": "2026-11-20T00:44:44.476332617Z",
+      "run": "bc2f8dfb642ee4707272127064d37831104969481942c83912d53249544c52a9",
+      "steps": [
+        {
+          "digest": "sha256:2b37e55bfa24e9f00e997f281fab5783eba4971e90787a5fa6dbd14ed41474e4",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:14.927893997Z",
+          "completed": "2026-11-20T00:44:14.927935956Z"
+        },
+        {
+          "digest": "sha256:e9a0aced2d47305ded1e1e17e2df5b021d318127131d636a742d4af13ac4b1a1",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:14.927893997Z",
+          "completed": "2026-11-20T00:44:14.927893997Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:14.927893997Z",
+          "completed": "2026-11-20T00:44:14.927893997Z"
+        },
+        {
+          "digest": "sha256:c10aa8cadc5ddc6d101a974d4c07ccd108c5a7a3b787b4dda9b88060ec04039b",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:14.927893997Z",
+          "completed": "2026-11-20T00:44:14.927893997Z"
+        },
+        {
+          "digest": "sha256:3ea9d814917c52118a9ecf8e033203d3b190a772829b9891d8deeb8d9ddb1e72",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:14.927893997Z",
+          "completed": "2026-11-20T00:44:14.927893997Z"
+        },
+        {
+          "digest": "sha256:e804fb7cb44974c067e20dde716547a1123431a17a60fdd880ab616ec9a68c1e",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:14.927893997Z",
+          "completed": "2026-11-20T00:44:14.927893997Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/hjnlcp10cpwglqnghvqwl9a13",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:44:47.393355895Z",
+      "completed": "2026-11-20T00:45:25.21562732Z",
+      "run": "3b99011cbe473551b886559335e935bd42f0346045110565b4d1616ba68c8f55",
+      "steps": [
+        {
+          "digest": "sha256:491a24520636a132ec2f5cc21969cf7fbdd06d463fd7eb67b04d6cc23cdd54a6",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:12.599835847Z",
+          "completed": "2026-11-20T00:45:12.599884765Z"
+        },
+        {
+          "digest": "sha256:35736d57bf15221c38a5300891763fd56ea33dfade04cb2497230b5126b39920",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:12.599835847Z",
+          "completed": "2026-11-20T00:45:12.599835847Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:12.599835847Z",
+          "completed": "2026-11-20T00:45:12.599835847Z"
+        },
+        {
+          "digest": "sha256:7ab6042d094db2354d6077ca9bd063f863fa1c500387e6bcbc2f2c2c41fbd748",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:12.599835847Z",
+          "completed": "2026-11-20T00:45:12.599835847Z"
+        },
+        {
+          "digest": "sha256:069460c95ad2c990698d774e4e6334984b67953c7d51f03531889a355202b8d9",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:12.599835847Z",
+          "completed": "2026-11-20T00:45:12.599835847Z"
+        },
+        {
+          "digest": "sha256:0861e3b8eb9667821e16292cf2d49e8660d9f506db99d9a29adf85ff44a8f493",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:12.599835847Z",
+          "completed": "2026-11-20T00:45:12.599835847Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/0cu4wjh4p80xemx06hgigm012",
+      "context": "node",
+      "started": "2026-11-20T00:44:48.478026397Z",
+      "completed": "2026-11-20T00:45:11.484183676Z",
+      "run": "508897d834d1c402c7f3cdc5326ce4ad98512a8c3ce05d1c1e1dda6d882c94b5",
+      "steps": [
+        {
+          "digest": "sha256:1146122cf75c0d6991a9352876c5e74abf3a0f6067f892e6e098369eeab38b53",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:59.461913733Z",
+          "completed": "2026-11-20T00:44:59.461913733Z"
+        },
+        {
+          "digest": "sha256:ae5b2159244b5df8bc81c06dc37983a8c4760fbc9dac7393e304abe4459a93d2",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:59.461913733Z",
+          "completed": "2026-11-20T00:44:59.461913733Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:59.461913733Z",
+          "completed": "2026-11-20T00:44:59.461913733Z"
+        },
+        {
+          "digest": "sha256:761a3016ddfaa4af0b6e5c8680ab4ede59efbef50fb72d1367237d197a1b84fd",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:59.461913733Z",
+          "completed": "2026-11-20T00:44:59.461987485Z"
+        },
+        {
+          "digest": "sha256:35910559b567d2e5d5c26e019d05ebc3c71215a93f32df8ab310265baaef30e4",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:44:59.461913733Z",
+          "completed": "2026-11-20T00:44:59.461913733Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/e2t2lbmxvyw45idpn7c87tw87",
+      "context": "node",
+      "started": "2026-11-20T00:45:38.405212661Z",
+      "completed": "2026-11-20T00:45:46.63789448Z",
+      "run": "f46d51311f9e9f2027b5f4ddc8318c7d544a44525a7b6a6ec2fab05a592fb777",
+      "steps": [
+        {
+          "digest": "sha256:4a8396c9a485c502361ebade15f72e5964e11ce873deb8e006cc453856ff76bb",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:44.111915754Z",
+          "completed": "2026-11-20T00:45:44.111915754Z"
+        },
+        {
+          "digest": "sha256:62fe08c2c59fb92b23f4f678e420b42a83e7b3f50888b0c23cf3e6a8b6ce4d45",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:44.111915754Z",
+          "completed": "2026-11-20T00:45:44.111915754Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:44.111915754Z",
+          "completed": "2026-11-20T00:45:44.111915754Z"
+        },
+        {
+          "digest": "sha256:b1e874c4b070edd8ceaeea52021635392e45b592c6eee2af714c7ba9abd78043",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:44.111915754Z",
+          "completed": "2026-11-20T00:45:44.111992881Z"
+        },
+        {
+          "digest": "sha256:bfde23b22f626d7ce9dc3d13e10b5d4c6c92b2f83be10a69187d808c04ee294c",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:44.111915754Z",
+          "completed": "2026-11-20T00:45:44.111915754Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/z56rrpxsyhkqjgr3aetb584hr",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:45:38.603387123Z",
+      "completed": "2026-11-20T00:45:57.372806481Z",
+      "run": "bf5fafc11a57d7e7a007bba0664d2a771706a25f9075901f094b2c24e25efc8c",
+      "steps": [
+        {
+          "digest": "sha256:8f31104f1b26c7c2ef755aad0b08b4298852114d99d280cd9d0c345432248b80",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:50.389233852Z",
+          "completed": "2026-11-20T00:45:50.389299145Z"
+        },
+        {
+          "digest": "sha256:85a22981ad96b6c1785ea36c3c333dbb78c5578fe79991dff728d60e0d11aaa5",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:50.389233852Z",
+          "completed": "2026-11-20T00:45:50.389233852Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:50.389233852Z",
+          "completed": "2026-11-20T00:45:50.389233852Z"
+        },
+        {
+          "digest": "sha256:e47fc30fb5523650626d5ac624501fda8ea24fd98e2ae1caa71820516cb32c28",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:50.389233852Z",
+          "completed": "2026-11-20T00:45:50.389233852Z"
+        },
+        {
+          "digest": "sha256:cdb4f4132f98493fe8e3c7e421c5d8ed05788e4bc9035e0cf2b488812ace3dee",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:50.389233852Z",
+          "completed": "2026-11-20T00:45:50.389233852Z"
+        },
+        {
+          "digest": "sha256:a030217241e63e68b733b5f9d988584f1b92fb8d6d70cf3a6a930ea11bb7348d",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:45:50.389233852Z",
+          "completed": "2026-11-20T00:45:50.389233852Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/n6401bbzvahg4k1wmzo4z9hcd",
+      "context": "node",
+      "started": "2026-11-20T00:46:02.810894497Z",
+      "completed": "2026-11-20T00:46:24.737486807Z",
+      "run": "695119f87af4ee2e6f660aca8cee018d144f400f2fafd2f4c068b54a3842cd4c",
+      "steps": [
+        {
+          "digest": "sha256:189e3483843b32d69466b082bbae7245158db5971430c979583d8c8534b965a1",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:15.768038632Z",
+          "completed": "2026-11-20T00:46:15.768038632Z"
+        },
+        {
+          "digest": "sha256:7eb3db6cafa2c9228aafc150342be33d0ab4266ad3fde49e403482044c77a1e3",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:15.768038632Z",
+          "completed": "2026-11-20T00:46:15.768038632Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:15.768038632Z",
+          "completed": "2026-11-20T00:46:15.768038632Z"
+        },
+        {
+          "digest": "sha256:8786e4de7902f363acb5b10099aa90e2d3aa57e4a290f2332147b04881f2bce2",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:15.768038632Z",
+          "completed": "2026-11-20T00:46:15.768159593Z"
+        },
+        {
+          "digest": "sha256:ffc1b24578b6f45ab59be01cbdefa953aa5091d0d47f009d73f526b221cb3708",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:15.768038632Z",
+          "completed": "2026-11-20T00:46:15.768038632Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/o41dyakjs8zi5fe7xzihw6i5h",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:46:03.286891122Z",
+      "completed": "2026-11-20T00:46:40.946212435Z",
+      "run": "140fb6667d6c4adaa7a3722b1547a408081be0f7dd0a0414cab5738926213eb6",
+      "steps": [
+        {
+          "digest": "sha256:e6955fa6325febc6560e2b758f7c8c923fd90f89e08a171c416c2472f21f4953",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:30.292480046Z",
+          "completed": "2026-11-20T00:46:30.292480046Z"
+        },
+        {
+          "digest": "sha256:8f4eab3a51ab31dbab371ea3ad923a4ba5201f76b3e6615bd4e79bfbcaeac6fa",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:30.292480046Z",
+          "completed": "2026-11-20T00:46:30.292480046Z"
+        },
+        {
+          "digest": "sha256:2e487b5a4de8ec628ddd2e25f56ad4b6174e9b42d50d8c9dedbbe58a1c461a83",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:30.292480046Z",
+          "completed": "2026-11-20T00:46:30.292585382Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:30.292480046Z",
+          "completed": "2026-11-20T00:46:30.292480046Z"
+        },
+        {
+          "digest": "sha256:c3e688598a33cacd8d61e90d87e2e1db2dd185930985fadf67af8e8bb6575e62",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:30.292480046Z",
+          "completed": "2026-11-20T00:46:30.292480046Z"
+        },
+        {
+          "digest": "sha256:569a652d3cf00720d9537b9c7ff6647fd6972f77c2eb46c09b06b3a2b1329db3",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:46:30.292480046Z",
+          "completed": "2026-11-20T00:46:30.292480046Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/wyrymoy27iugw9gpq6mnasjtq",
+      "context": "node",
+      "started": "2026-11-20T00:47:32.884371465Z",
+      "completed": "2026-11-20T00:47:43.518418929Z",
+      "run": "8221070059e7412622d83e373a3af047ee3271ea3714b91c4bb513fa68121dcf",
+      "steps": [
+        {
+          "digest": "sha256:3dfd757dd81e675ba7ec043d5151ac4630514bbf1ad48bf9e7c0f94225541ff9",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:40.447633712Z",
+          "completed": "2026-11-20T00:47:40.447633712Z"
+        },
+        {
+          "digest": "sha256:62d7527ae3f5bca6ff4a42e64e1987343603d3a48e9d7a5e0e21a796700c08cd",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:40.447633712Z",
+          "completed": "2026-11-20T00:47:40.447633712Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:40.447633712Z",
+          "completed": "2026-11-20T00:47:40.447633712Z"
+        },
+        {
+          "digest": "sha256:c72e1c9fb4d2937efdebd6238f2c965543646fba87c880913a4485a182c8e344",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:40.447633712Z",
+          "completed": "2026-11-20T00:47:40.447700797Z"
+        },
+        {
+          "digest": "sha256:72334e0becbe759a7b18bdb5fe63ef00be92c9e12e8e0ecb7ebc0178a106cff2",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:40.447633712Z",
+          "completed": "2026-11-20T00:47:40.447633712Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/fga7opf28vs5qzkgvk1j5esen",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:47:33.067476206Z",
+      "completed": "2026-11-20T00:47:45.47175981Z",
+      "run": "a9bf8ebd393f8ed1acc6bcd3f41d238469f05c2508571b259f0d15f462d705e1",
+      "steps": [
+        {
+          "digest": "sha256:59aa449a25e6db279c412275747ff9392e533aaa0460a520b1d5bb5505463faf",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:44.345687193Z",
+          "completed": "2026-11-20T00:47:44.345724444Z"
+        },
+        {
+          "digest": "sha256:9e67ee1f789f3d9246d15990623f93237074a2fa11d4fd52d488eaff968365ec",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:44.345687193Z",
+          "completed": "2026-11-20T00:47:44.345687193Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:44.345687193Z",
+          "completed": "2026-11-20T00:47:44.345687193Z"
+        },
+        {
+          "digest": "sha256:06a26911de949f26a310bfa496c8e50361cf8f27510c639fce0656c65f48b3fa",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:44.345687193Z",
+          "completed": "2026-11-20T00:47:44.345687193Z"
+        },
+        {
+          "digest": "sha256:a1ab2a97178396fe27d43c3c5eca6ff36ddaca3af853a25ea3f927129277b84a",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:44.345687193Z",
+          "completed": "2026-11-20T00:47:44.345687193Z"
+        },
+        {
+          "digest": "sha256:369e6612313596f840462a36f51b3e9181eed55bcc9af4d6af0b3e7d16a4b32d",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:44.345687193Z",
+          "completed": "2026-11-20T00:47:44.345687193Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/0sl0t1pepguhf26if4vo3w6ey",
+      "context": "node",
+      "started": "2026-11-20T00:47:53.439954385Z",
+      "completed": "2026-11-20T00:48:00.855182237Z",
+      "run": "fd14f4d88f6484b0531a57d4824d88f6239a6ad2f3e19059bea5534edf2e7b49",
+      "steps": [
+        {
+          "digest": "sha256:dbea36bdf6ac79cf851afb5c1c9a5f0bf7e193a12c50eab104c2a57bcb909b7f",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:55.398241505Z",
+          "completed": "2026-11-20T00:47:55.398241505Z"
+        },
+        {
+          "digest": "sha256:b6405b8969789eaa359bf869248a01e36900544749a129095e72495f86e3d580",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:55.398241505Z",
+          "completed": "2026-11-20T00:47:55.398241505Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:55.398241505Z",
+          "completed": "2026-11-20T00:47:55.398241505Z"
+        },
+        {
+          "digest": "sha256:29bf39db66bfe6feb282aebbd905d8c5e388b7271a66bd571e7264e585cdbbf6",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:55.398241505Z",
+          "completed": "2026-11-20T00:47:55.398468093Z"
+        },
+        {
+          "digest": "sha256:4b137d4bea56297634cf893f69faa31099fd1150f0dcbb6c63d3ed778c8950e7",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:47:55.398241505Z",
+          "completed": "2026-11-20T00:47:55.398241505Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/gghmdvovqtd98qws0iul6c0ky",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:47:54.335155624Z",
+      "completed": "2026-11-20T00:48:17.593369817Z",
+      "run": "ea8d15ba667ef9b7e64c38d1899f4831832f7d083c95bccffa5b4ca291592880",
+      "steps": [
+        {
+          "digest": "sha256:26f6fb2355727c13c1d3b75e98f4df3cfed2b03b1b2594c530dc91dd4c42ca1c",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:13.944943603Z",
+          "completed": "2026-11-20T00:48:13.944943603Z"
+        },
+        {
+          "digest": "sha256:2c082a5fbf956c082fc009c290a1a4adf579dd20387b377854a91b5975f7a223",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:13.944943603Z",
+          "completed": "2026-11-20T00:48:13.944943603Z"
+        },
+        {
+          "digest": "sha256:588663a2e915f7706d835fb4d1c52ba83d8597adc1f5f712978dbc7f610a9d8d",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:13.944943603Z",
+          "completed": "2026-11-20T00:48:13.94504573Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:13.944943603Z",
+          "completed": "2026-11-20T00:48:13.944943603Z"
+        },
+        {
+          "digest": "sha256:1cf6f08288a4b0d70a63dc835bd6efdc59bc768ff5c68629707ed904b32d83ca",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:13.944943603Z",
+          "completed": "2026-11-20T00:48:13.944943603Z"
+        },
+        {
+          "digest": "sha256:ef22aeef72ac15533c7f3f032a7cd0f0099af128d54f9c720d1dbb7fd79bd3f6",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:13.944943603Z",
+          "completed": "2026-11-20T00:48:13.944943603Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/nc6dmntj0wii8d0b2avryax5x",
+      "context": "node",
+      "started": "2026-11-20T00:48:34.416934773Z",
+      "completed": "2026-11-20T00:48:43.788822665Z",
+      "run": "9537fc5f5796ab6be83f8809302f95fff8e4e47d169f2eeb104ac58dbc9c8819",
+      "steps": [
+        {
+          "digest": "sha256:d9f04eba52440e4a645bc894f5d0895a6d735e28abe8ae91356dd8baa01080c5",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:41.804215942Z",
+          "completed": "2026-11-20T00:48:41.804215942Z"
+        },
+        {
+          "digest": "sha256:63726d99ff5ef8dd11889ac431ed27df3818152e759c2c761c7ef54ad75e9aef",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:41.804215942Z",
+          "completed": "2026-11-20T00:48:41.804215942Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:41.804215942Z",
+          "completed": "2026-11-20T00:48:41.804215942Z"
+        },
+        {
+          "digest": "sha256:5b8d0a8c45f5ad4f0db47269d1aa68c474a949ffe4dda6815344aa889cc07237",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:41.804215942Z",
+          "completed": "2026-11-20T00:48:41.804260568Z"
+        },
+        {
+          "digest": "sha256:d4e923eab33d4e82eb495f5d407ac2ad3e07f202fbfca91be0cac8ab331f2db4",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:41.804215942Z",
+          "completed": "2026-11-20T00:48:41.804215942Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/0a6asgwkwg7cthoiie78k6rvz",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:48:34.489516354Z",
+      "completed": "2026-11-20T00:48:55.956874434Z",
+      "run": "dde6e14fdc7107a9932db51009f909d19fc52690e97a9c4366968f25d25bc224",
+      "steps": [
+        {
+          "digest": "sha256:a9c9fedcdb5712dd418f62a21b7ab77f5ad68ed43a41d9258877ff0c7c320958",
+          "position": "checks 2/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:47.438869083Z",
+          "completed": "2026-11-20T00:48:47.438939168Z"
+        },
+        {
+          "digest": "sha256:f6c96de6cae2c9050855123f322a615a9475fa2b97be5348e2a641a5bd0c325b",
+          "position": "source 5/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:47.438869083Z",
+          "completed": "2026-11-20T00:48:47.438869083Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "source 2/5",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:47.438869083Z",
+          "completed": "2026-11-20T00:48:47.438869083Z"
+        },
+        {
+          "digest": "sha256:7134443c82df15a2136754b58742b65d42c2cb2bcaa849075b2aebe396c9636b",
+          "position": "source 3/5",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:47.438869083Z",
+          "completed": "2026-11-20T00:48:47.438869083Z"
+        },
+        {
+          "digest": "sha256:e9f794ec238ef77a59c36c6d9bf76e5e90ee22fd5b57ce5cb78ba53f9f800a72",
+          "position": "source 4/5",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:47.438869083Z",
+          "completed": "2026-11-20T00:48:47.438869083Z"
+        },
+        {
+          "digest": "sha256:22135ad843c254472d7b517bd26e28d0c63dee5eba8947c7cd8fa7a0588f2320",
+          "position": "checks 1/2",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:48:47.438869083Z",
+          "completed": "2026-11-20T00:48:47.438869083Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/d36bp8qizl0kiybztt6bpfg14",
+      "context": "node",
+      "started": "2026-11-20T00:49:01.67848131Z",
+      "completed": "2026-11-20T00:49:19.541088395Z",
+      "run": "3eaffd3a48885fe950edb332f214e6312514b3400cfe56f9bc9699fc47ea855b",
+      "steps": [
+        {
+          "digest": "sha256:ec81522c1f36192aa2c74b29c1f7059f9f92480de466c1df21ff8e4c6b62461c",
+          "position": "stage-0 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:13.744500568Z",
+          "completed": "2026-11-20T00:49:13.744500568Z"
+        },
+        {
+          "digest": "sha256:2a5002e58666441083775134f2454f63f7acc77c0116b0afdbe5f968df2cc3ec",
+          "position": "stage-0 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:13.744500568Z",
+          "completed": "2026-11-20T00:49:13.744500568Z"
+        },
+        {
+          "digest": "sha256:36df2d0cbc83fdb52d138f4f49c8d6ab23f6a259ed8e8fa09338ad0699797167",
+          "position": "stage-0 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:13.744500568Z",
+          "completed": "2026-11-20T00:49:13.744500568Z"
+        },
+        {
+          "digest": "sha256:a239c3ab893bfd7bab58a2942e4315b664f2e7b0dc26a21ad84cacd35b213ed2",
+          "position": "stage-0 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:13.744500568Z",
+          "completed": "2026-11-20T00:49:13.744596862Z"
+        },
+        {
+          "digest": "sha256:78d5f1a52a17e55e3bcfc3919323ca14cbf0c0d969238e05c165dac30f021580",
+          "position": "stage-0 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:13.744500568Z",
+          "completed": "2026-11-20T00:49:13.744500568Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 5,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "engine": "orbstack",
+      "ref": "default/default/yzgmix8z6p6xdvad5u06bijof",
+      "context": "ci/samples/go-app",
+      "started": "2026-11-20T00:49:02.951156638Z",
+      "completed": "2026-11-20T00:49:33.975141181Z",
+      "run": "6b9546fc7e53bc9959b33f3d605d3508a37341b6ee48f76b2acb38652278adbc",
+      "steps": [
+        {
+          "digest": "sha256:b8dbbb323904ec574ba18a97f77d5afeda2f54d093e02e127c24061b47ca02d2",
+          "position": "stage-1 2/2",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:21.995849421Z",
+          "completed": "2026-11-20T00:49:21.995900214Z"
+        },
+        {
+          "digest": "sha256:7c8caf6800f37691f9186417e43f80c96af865456e9cbb9fdc4349fb1b694bb2",
+          "position": "build 5/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:21.995849421Z",
+          "completed": "2026-11-20T00:49:21.995849421Z"
+        },
+        {
+          "digest": "sha256:0b85cbc48e80e5a52c5a133f0cf87f7c0b366c376fa5b9ce12262eacf4819a23",
+          "position": "build 2/6",
+          "operation": "WORKDIR",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:21.995849421Z",
+          "completed": "2026-11-20T00:49:21.995849421Z"
+        },
+        {
+          "digest": "sha256:0d9a22f1fc6ce579f5b87909885ccc1744b1a183736a264f2f8236cf166cd4d7",
+          "position": "build 3/6",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:21.995849421Z",
+          "completed": "2026-11-20T00:49:21.995849421Z"
+        },
+        {
+          "digest": "sha256:d6f2966411b96a9a0dbd1f91981ffe77457537e3b0869b04f1491feedaca2d3f",
+          "position": "build 4/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:21.995849421Z",
+          "completed": "2026-11-20T00:49:21.995849421Z"
+        },
+        {
+          "digest": "sha256:413f6d735e569a066537b3cfcd8102e8d2c2a45b5486a425ce15d914d63b6fb1",
+          "position": "build 6/6",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T00:49:21.995849421Z",
+          "completed": "2026-11-20T00:49:21.995849421Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 6,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    }
+  ],
+  "qualification": {
+    "seed": {
+      "run": "4b588681ba38d8b680a0faea53682dcdf8f81248f6ac4f460f3e97527b44a4b6",
+      "steps": [
+        {
+          "digest": "sha256:6637784ca85df0c113b8db82982e44bbdc43eea6c032232040cbcae97578a35b",
+          "position": "stage-0 3/3",
+          "operation": "RUN",
+          "outcome": "executed",
+          "started": "2026-11-20T01:11:38.123389834Z",
+          "completed": "2026-11-20T01:11:38.1566025Z"
+        },
+        {
+          "digest": "sha256:2ef488e066ddadc8544e40b3219eadae86fc4bdf2d3e66eb4b26ac51dfbe7013",
+          "position": "stage-0 2/3",
+          "operation": "COPY",
+          "outcome": "executed",
+          "started": "2026-11-20T01:11:38.103021042Z",
+          "completed": "2026-11-20T01:11:38.122589875Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 0,
+        "executed": 2,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    "repeat": {
+      "run": "decb41445a86ff9d57d66d6cc666257f4eda1779ac7a30339f1fa903fdd734c0",
+      "steps": [
+        {
+          "digest": "sha256:3ca447aae777660f99c3a08bd1109c6b8438e9a13ffb10952bd1dfc01d9e268d",
+          "position": "stage-0 3/3",
+          "operation": "RUN",
+          "outcome": "cached",
+          "started": "2026-11-20T01:11:38.801259875Z",
+          "completed": "2026-11-20T01:11:38.801279792Z"
+        },
+        {
+          "digest": "sha256:ede8e33287215ed7a8283aa565d194fc6a15b8d9a4e538196e716394bb5308a6",
+          "position": "stage-0 2/3",
+          "operation": "COPY",
+          "outcome": "cached",
+          "started": "2026-11-20T01:11:38.801259875Z",
+          "completed": "2026-11-20T01:11:38.801259875Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 2,
+        "executed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    "edit": {
+      "run": "aaffa6421e8ac9214f92d37cc056a79378fda3545db7e0a98ea8ba6e8b7f37cc",
+      "steps": [
+        {
+          "digest": "sha256:5cb01e61fca5dbce5f45b738693b381080f36090549267269b26ef9fc18c1e98",
+          "position": "stage-0 3/3",
+          "operation": "RUN",
+          "outcome": "executed",
+          "started": "2026-11-20T01:11:48.059565503Z",
+          "completed": "2026-11-20T01:11:48.089249628Z"
+        },
+        {
+          "digest": "sha256:a1f3805cf3a166c2efc8af0268f3763a397ec1cef53e92b0e05ac23238c17c4d",
+          "position": "stage-0 2/3",
+          "operation": "COPY",
+          "outcome": "executed",
+          "started": "2026-11-20T01:11:48.044400795Z",
+          "completed": "2026-11-20T01:11:48.05889442Z"
+        }
+      ],
+      "outcomes": {
+        "cached": 0,
+        "executed": 2,
+        "failed": 0,
+        "pending": 0
+      }
+    }
+  }
+}

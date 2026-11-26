@@ -1,0 +1,361 @@
+{
+  "checkout_files": 1317,
+  "image": "micropod-qa/checkout:gamma9-gfjfu0",
+  "orbstack": {
+    "micro": {
+      "lstat_warm_us": 0.76,
+      "open_read_16k_warm_us": 8.88,
+      "lstat_after_100ms_us": 6.44,
+      "open_read_16k_after_100ms_us": 12.3,
+      "readdir_100ent_us": 77.28
+    },
+    "single_1058": {
+      "prime": {
+        "git_status": 74.48,
+        "go_build": 9311.51,
+        "go_test": 2802.35,
+        "total_ms": 12188.34
+      },
+      "warm_median": {
+        "total_ms": 664.83,
+        "git_status": 64.81,
+        "go_build": 352.84,
+        "go_test": 243.81
+      },
+      "edited_median": {
+        "total_ms": 1361.59,
+        "git_status": 67.82,
+        "go_build": 621.0,
+        "go_test": 674.08
+      },
+      "edit_vis_median_ms": 29.02,
+      "warm_samples": [
+        {
+          "git_status": 75.748125,
+          "go_build": 352.837858,
+          "go_test": 276.100474,
+          "total_ms": 704.686457
+        },
+        {
+          "git_status": 64.810737,
+          "go_build": 358.038987,
+          "go_test": 241.98059,
+          "total_ms": 664.830314
+        },
+        {
+          "git_status": 59.449607,
+          "go_build": 328.784479,
+          "go_test": 243.81419,
+          "total_ms": 632.048276
+        },
+        {
+          "git_status": 67.635262,
+          "go_build": 355.904635,
+          "go_test": 242.625678,
+          "total_ms": 666.165575
+        },
+        {
+          "git_status": 63.491101,
+          "go_build": 350.971549,
+          "go_test": 249.283904,
+          "total_ms": 663.746554
+        }
+      ]
+    },
+    "git8_1058": {
+      "warmup": {
+        "wave_ms": 173.28,
+        "job_p50_ms": 166.44,
+        "overlap_ms": 136.81
+      },
+      "wave_median_ms": 169.14,
+      "job_p50_median_ms": 148.19,
+      "waves": [
+        {
+          "wave_ms": 184.76,
+          "job_p50_ms": 170.28,
+          "overlap_ms": 155.84
+        },
+        {
+          "wave_ms": 185.25,
+          "job_p50_ms": 168.9,
+          "overlap_ms": 116.05
+        },
+        {
+          "wave_ms": 162.69,
+          "job_p50_ms": 141.23,
+          "overlap_ms": 110.05
+        },
+        {
+          "wave_ms": 169.14,
+          "job_p50_ms": 140.04,
+          "overlap_ms": 97.3
+        },
+        {
+          "wave_ms": 160.12,
+          "job_p50_ms": 148.19,
+          "overlap_ms": 119.55
+        }
+      ]
+    },
+    "edits": {
+      "complete": false,
+      "median_observed_ms": {
+        "size": 1.398,
+        "held": 98.786,
+        "replace": null,
+        "unlink": 13.967
+      },
+      "scan_pass1_ms": {
+        "stat_ms": 3.795,
+        "read_ms": 8.683
+      },
+      "scan_pass2_ms": {
+        "stat_ms": 2.581,
+        "read_ms": 5.486
+      },
+      "scan_pass3_after50ms_ms": {
+        "stat_ms": 2.01,
+        "read_ms": 6.239
+      }
+    }
+  },
+  "hvf_baseline": {
+    "micro": {
+      "lstat_warm_us": 1.71,
+      "open_read_16k_warm_us": 51.32,
+      "lstat_after_100ms_us": 22.99,
+      "open_read_16k_after_100ms_us": 56.52,
+      "readdir_100ent_us": 130.25
+    },
+    "single_1058": {
+      "prime": {
+        "git_status": 167.75,
+        "go_build": 8990.35,
+        "go_test": 2573.89,
+        "total_ms": 11731.99
+      },
+      "warm_median": {
+        "total_ms": 704.27,
+        "git_status": 144.34,
+        "go_build": 323.37,
+        "go_test": 239.6
+      },
+      "edited_median": {
+        "total_ms": 1338.49,
+        "git_status": 145.14,
+        "go_build": 589.95,
+        "go_test": 603.58
+      },
+      "edit_vis_median_ms": 17.65,
+      "warm_samples": [
+        {
+          "git_status": 144.337875,
+          "go_build": 315.537834,
+          "go_test": 244.398167,
+          "total_ms": 704.273876
+        },
+        {
+          "git_status": 147.027583,
+          "go_build": 323.368334,
+          "go_test": 238.776042,
+          "total_ms": 709.171959
+        },
+        {
+          "git_status": 143.920417,
+          "go_build": 318.08225,
+          "go_test": 236.675959,
+          "total_ms": 698.678626
+        },
+        {
+          "git_status": 109.901584,
+          "go_build": 333.156417,
+          "go_test": 240.78475,
+          "total_ms": 683.842751
+        },
+        {
+          "git_status": 148.76525,
+          "go_build": 326.342626,
+          "go_test": 239.602333,
+          "total_ms": 714.710209
+        }
+      ]
+    },
+    "git8_1058": {
+      "warmup": {
+        "wave_ms": 368.92,
+        "job_p50_ms": 353.55,
+        "overlap_ms": 302.55
+      },
+      "wave_median_ms": 396.59,
+      "job_p50_median_ms": 381.6,
+      "waves": [
+        {
+          "wave_ms": 390.95,
+          "job_p50_ms": 377.3,
+          "overlap_ms": 350.69
+        },
+        {
+          "wave_ms": 396.59,
+          "job_p50_ms": 385.49,
+          "overlap_ms": 367.82
+        },
+        {
+          "wave_ms": 397.28,
+          "job_p50_ms": 375.07,
+          "overlap_ms": 336.8
+        },
+        {
+          "wave_ms": 443.78,
+          "job_p50_ms": 428.54,
+          "overlap_ms": 405.54
+        },
+        {
+          "wave_ms": 390.42,
+          "job_p50_ms": 381.6,
+          "overlap_ms": 344.43
+        }
+      ]
+    },
+    "edits": {
+      "complete": true,
+      "median_observed_ms": {
+        "size": 22.98,
+        "held": 24.222,
+        "replace": 1.448,
+        "unlink": 21.862
+      },
+      "scan_pass1_ms": {
+        "stat_ms": 3.504,
+        "read_ms": 23.839
+      },
+      "scan_pass2_ms": {
+        "stat_ms": 2.778,
+        "read_ms": 23.586
+      },
+      "scan_pass3_after50ms_ms": {
+        "stat_ms": 3.286,
+        "read_ms": 24.114
+      }
+    }
+  },
+  "hvf_candidate": {
+    "micro": {
+      "lstat_warm_us": 1.25,
+      "open_read_16k_warm_us": 11.42,
+      "lstat_after_100ms_us": 1.33,
+      "open_read_16k_after_100ms_us": 12.91,
+      "readdir_100ent_us": 6.98
+    },
+    "single_1058": {
+      "prime": {
+        "git_status": 117.39,
+        "go_build": 8539.51,
+        "go_test": 2231.88,
+        "total_ms": 10888.77
+      },
+      "warm_median": {
+        "total_ms": 515.85,
+        "git_status": 59.64,
+        "go_build": 269.1,
+        "go_test": 187.22
+      },
+      "edited_median": {
+        "total_ms": 1138.18,
+        "git_status": 50.15,
+        "go_build": 534.49,
+        "go_test": 555.98
+      },
+      "edit_vis_median_ms": 17.26,
+      "warm_samples": [
+        {
+          "git_status": 59.604833,
+          "go_build": 272.760791,
+          "go_test": 190.804458,
+          "total_ms": 523.170082
+        },
+        {
+          "git_status": 60.524833,
+          "go_build": 268.098625,
+          "go_test": 187.223125,
+          "total_ms": 515.846583
+        },
+        {
+          "git_status": 59.331542,
+          "go_build": 269.767667,
+          "go_test": 188.899459,
+          "total_ms": 517.9986680000001
+        },
+        {
+          "git_status": 61.264667,
+          "go_build": 269.095,
+          "go_test": 185.403708,
+          "total_ms": 515.763375
+        },
+        {
+          "git_status": 59.638959,
+          "go_build": 266.39225,
+          "go_test": 184.282709,
+          "total_ms": 510.313918
+        }
+      ]
+    },
+    "git8_1058": {
+      "warmup": {
+        "wave_ms": 142.18,
+        "job_p50_ms": 106.44,
+        "overlap_ms": 94.62
+      },
+      "wave_median_ms": 133.04,
+      "job_p50_median_ms": 103.99,
+      "waves": [
+        {
+          "wave_ms": 133.82,
+          "job_p50_ms": 98.75,
+          "overlap_ms": 84.37
+        },
+        {
+          "wave_ms": 133.04,
+          "job_p50_ms": 99.12,
+          "overlap_ms": 89.14
+        },
+        {
+          "wave_ms": 130.58,
+          "job_p50_ms": 106.1,
+          "overlap_ms": 84.82
+        },
+        {
+          "wave_ms": 139.62,
+          "job_p50_ms": 114.05,
+          "overlap_ms": 61.85
+        },
+        {
+          "wave_ms": 130.93,
+          "job_p50_ms": 103.99,
+          "overlap_ms": 72.04
+        }
+      ]
+    },
+    "edits": {
+      "complete": true,
+      "median_observed_ms": {
+        "size": 1.411,
+        "held": 1.326,
+        "replace": 1.439,
+        "unlink": 1.396
+      },
+      "scan_pass1_ms": {
+        "stat_ms": 2.957,
+        "read_ms": 17.573
+      },
+      "scan_pass2_ms": {
+        "stat_ms": 7.869,
+        "read_ms": 7.468
+      },
+      "scan_pass3_after50ms_ms": {
+        "stat_ms": 0.54,
+        "read_ms": 7.005
+      }
+    }
+  }
+}

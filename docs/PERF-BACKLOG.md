@@ -5,6 +5,10 @@ cuttlefish-on-micropod validation. Each item records the measured evidence
 and the expected payoff so the next session can pick them up in order.
 Status as of 2026-09-09 (Apple `container` v1.3.1, 18-core arm64).
 
+## Persistent worker for trusted CI, 20 November 2026
+
+The Go and Node CI pipelines now share one running Linux kernel on Apple Silicon. The Gamma measurements cover whole container lifecycles, offline package caches, concurrent cold starts, clean restart and journal recovery. The full warm pipeline took 13.02 s on Micropod and 21.66 s on OrbStack. [Physical Mac results and raw Ubuntu comparison](benchmarks/2026-11-20/gamma-ci-worker.md)
+
 ## How to read the numbers
 
 `task bench` = core runtime budgets (18/18 pass), `task bench-shim` =

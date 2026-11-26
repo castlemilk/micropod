@@ -1,0 +1,4032 @@
+{
+  "host": "Gamma-128GB.local",
+  "date_utc": "2026-11-25",
+  "date_melbourne": "2026-11-26",
+  "measurement": "Ambient host load. The two quiet admission attempts each observed 90 samples.",
+  "quiet_admission": {
+    "baseline-quiet": {
+      "samples": 90,
+      "min_idle_pct": 7.21,
+      "max_idle_pct": 87.52,
+      "threshold_pct": 90
+    },
+    "metadata-quiet": {
+      "samples": 90,
+      "min_idle_pct": 0.0,
+      "max_idle_pct": 87.34,
+      "threshold_pct": 90
+    }
+  },
+  "native_exec": {
+    "managed-final": {
+      "passed": true,
+      "docker": {
+        "client_version": "29.7.2",
+        "engine_version": "micropod",
+        "engine_api": "1.47"
+      },
+      "image": {
+        "reference": "alpine:3.23",
+        "id": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856"
+      },
+      "checks": [
+        "interactive_pty",
+        "stdin_eof_binary_backpressure",
+        "plain_attached_early_output",
+        "concurrent_and_repeated_execs",
+        "exec_environment_and_workdir"
+      ],
+      "failures": {},
+      "cleanup": {
+        "remaining_container_ids": [],
+        "container_name_removed": true
+      },
+      "interactive_pty": {
+        "exec_id": "adcb5f4c5c9f0ff24849e6bf1aeb52b8f8d0293ab020307bf28c26c307d7d98c",
+        "initial_rows_columns": [
+          31,
+          97
+        ],
+        "cli_resize_rows_columns": [
+          42,
+          113
+        ],
+        "api_resize_rows_columns": [
+          49,
+          131
+        ],
+        "ctrl_d_eof": true,
+        "running_inspect": {
+          "running": true,
+          "exit_code": 0
+        },
+        "finished_inspect": {
+          "running": false,
+          "exit_code": 37
+        }
+      },
+      "stdin_eof_binary_backpressure": {
+        "stdin_bytes": 4194312,
+        "stdin_sha256": "eabd5ee2d07987eca2cf875cd50f15a77156a7d180b006b8bf4d62c070054e95",
+        "stdout_bytes": 6291494,
+        "stderr_bytes": 1048606,
+        "exit_code": 23,
+        "empty_stdin_exit_code": 0
+      },
+      "plain_attached_early_output": {
+        "stdout_ready_ms": 20.018,
+        "stderr_ready_ms": 20.028,
+        "marker_written_ms": 42.916,
+        "finished_ms": 72.858,
+        "exit_code": 41,
+        "missing_command_exit_code": 127,
+        "permission_denied_exit_code": 126
+      },
+      "concurrent_and_repeated_execs": {
+        "overlapping_exit_codes": [
+          0,
+          17,
+          29,
+          0
+        ],
+        "repeated_exit_codes": [
+          0,
+          19,
+          0
+        ]
+      },
+      "exec_environment_and_workdir": {
+        "process_modes": [
+          "attached",
+          "stdin",
+          "tty",
+          "stdin_and_tty",
+          "detached"
+        ],
+        "inherited": [
+          "/usr",
+          "uid=65534 gid=65534",
+          "MP_EXEC_KEEP=inherited",
+          "MP_EXEC_OVERRIDE=original",
+          "MP_EXEC_UNSET=container"
+        ],
+        "overrides": [
+          "/tmp",
+          "uid=65534 gid=65534",
+          "MP_EXEC_CLIENT_EMPTY=",
+          "MP_EXEC_COPY=cli value=a",
+          "MP_EXEC_EMPTY=",
+          "MP_EXEC_KEEP=inherited",
+          "MP_EXEC_NEW=last=a",
+          "MP_EXEC_OVERRIDE=last"
+        ],
+        "detached": {
+          "exec_id": "04dbc630e868e3d0070fe2eb7cbb0adc54deb512868f52642ea050233b6217e3",
+          "running_without_streams": true,
+          "relative_file": [
+            "/tmp",
+            "detached value"
+          ],
+          "exit_code": 39
+        },
+        "workdir_rejections": {
+          "relative": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 128,
+            "working_dir": "relative",
+            "message": "OCI runtime exec failed: exec failed: Cwd must be an absolute path"
+          },
+          "missing": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 127,
+            "working_dir": "/tmp/mp-exec-c399414c83224280bc9055b5c45fd466-missing",
+            "message": "OCI runtime exec failed: chdir to `/tmp/mp-exec-c399414c83224280bc9055b5c45fd466-missing`: No such file or directory"
+          },
+          "regular_file": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 127,
+            "working_dir": "/etc/alpine-release",
+            "message": "OCI runtime exec failed: chdir to `/etc/alpine-release`: Not a directory"
+          }
+        },
+        "detached_workdir_rejection_exit_code": 1
+      },
+      "other_native_checks": {
+        "archive_checks": [
+          "created_directory_roundtrip_and_head",
+          "live_named_volume_and_tar_streams",
+          "live_workspace_and_readonly_mount",
+          "created_root_visible_after_start",
+          "relative_symlink_and_hardlink",
+          "follow_symlink_download",
+          "archive_owner_mode_and_mtime_roundtrip",
+          "stopped_retained_root",
+          "stopped_named_volume",
+          "readonly_created_running_stopped",
+          "live_readonly_auto_remove",
+          "readonly_layered_image",
+          "native_stop_during_copy"
+        ],
+        "restart_passed": true,
+        "events_listener_released": true,
+        "linux_test_functions": 26,
+        "before_and_after": {
+          "tasks": [],
+          "exec_fifo_files": []
+        }
+      }
+    },
+    "vz-final": {
+      "passed": true,
+      "docker": {
+        "client_version": "29.7.2",
+        "engine_version": "micropod",
+        "engine_api": "1.47"
+      },
+      "image": {
+        "reference": "alpine:3.23",
+        "id": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856"
+      },
+      "checks": [
+        "interactive_pty",
+        "stdin_eof_binary_backpressure",
+        "plain_attached_early_output",
+        "concurrent_and_repeated_execs",
+        "exec_environment_and_workdir"
+      ],
+      "failures": {},
+      "cleanup": {
+        "remaining_container_ids": [],
+        "container_name_removed": true
+      },
+      "interactive_pty": {
+        "exec_id": "c6edde072d2ed1131ad9a4e6edc4dab796cd4d715f102dfe749ff306ad6d728e",
+        "initial_rows_columns": [
+          31,
+          97
+        ],
+        "cli_resize_rows_columns": [
+          42,
+          113
+        ],
+        "api_resize_rows_columns": [
+          49,
+          131
+        ],
+        "ctrl_d_eof": true,
+        "running_inspect": {
+          "running": true,
+          "exit_code": 0
+        },
+        "finished_inspect": {
+          "running": false,
+          "exit_code": 37
+        }
+      },
+      "stdin_eof_binary_backpressure": {
+        "stdin_bytes": 4194312,
+        "stdin_sha256": "eabd5ee2d07987eca2cf875cd50f15a77156a7d180b006b8bf4d62c070054e95",
+        "stdout_bytes": 6291494,
+        "stderr_bytes": 1048606,
+        "exit_code": 23,
+        "empty_stdin_exit_code": 0
+      },
+      "plain_attached_early_output": {
+        "stdout_ready_ms": 14.092,
+        "stderr_ready_ms": 14.097,
+        "marker_written_ms": 29.711,
+        "finished_ms": 66.165,
+        "exit_code": 41,
+        "missing_command_exit_code": 127,
+        "permission_denied_exit_code": 126
+      },
+      "concurrent_and_repeated_execs": {
+        "overlapping_exit_codes": [
+          0,
+          17,
+          29,
+          0
+        ],
+        "repeated_exit_codes": [
+          0,
+          19,
+          0
+        ]
+      },
+      "exec_environment_and_workdir": {
+        "process_modes": [
+          "attached",
+          "stdin",
+          "tty",
+          "stdin_and_tty",
+          "detached"
+        ],
+        "inherited": [
+          "/usr",
+          "uid=65534 gid=65534",
+          "MP_EXEC_KEEP=inherited",
+          "MP_EXEC_OVERRIDE=original",
+          "MP_EXEC_UNSET=container"
+        ],
+        "overrides": [
+          "/tmp",
+          "uid=65534 gid=65534",
+          "MP_EXEC_CLIENT_EMPTY=",
+          "MP_EXEC_COPY=cli value=a",
+          "MP_EXEC_EMPTY=",
+          "MP_EXEC_KEEP=inherited",
+          "MP_EXEC_NEW=last=a",
+          "MP_EXEC_OVERRIDE=last"
+        ],
+        "detached": {
+          "exec_id": "8f6bff2abd231d13af621dd23dd06bccdb5348b65b5a46cd52d61432e8056dfd",
+          "running_without_streams": true,
+          "relative_file": [
+            "/tmp",
+            "detached value"
+          ],
+          "exit_code": 39
+        },
+        "workdir_rejections": {
+          "relative": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 128,
+            "working_dir": "relative",
+            "message": "OCI runtime exec failed: exec failed: Cwd must be an absolute path"
+          },
+          "missing": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 127,
+            "working_dir": "/tmp/mp-exec-3b961763898a42e39dfae0230769da48-missing",
+            "message": "OCI runtime exec failed: chdir to `/tmp/mp-exec-3b961763898a42e39dfae0230769da48-missing`: No such file or directory"
+          },
+          "regular_file": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 127,
+            "working_dir": "/etc/alpine-release",
+            "message": "OCI runtime exec failed: chdir to `/etc/alpine-release`: Not a directory"
+          }
+        },
+        "detached_workdir_rejection_exit_code": 1
+      },
+      "other_native_checks": {
+        "archive_checks": [
+          "created_directory_roundtrip_and_head",
+          "live_named_volume_and_tar_streams",
+          "live_workspace_and_readonly_mount",
+          "created_root_visible_after_start",
+          "relative_symlink_and_hardlink",
+          "follow_symlink_download",
+          "archive_owner_mode_and_mtime_roundtrip",
+          "stopped_retained_root",
+          "stopped_named_volume",
+          "readonly_created_running_stopped",
+          "live_readonly_auto_remove",
+          "readonly_layered_image",
+          "native_stop_during_copy"
+        ],
+        "restart_passed": true,
+        "events_listener_released": true,
+        "linux_test_functions": 26,
+        "before_and_after": {
+          "tasks": [],
+          "exec_fifo_files": []
+        }
+      }
+    },
+    "reference-options": {
+      "passed": true,
+      "docker": {
+        "client_version": "29.7.2",
+        "engine_version": "29.8.2",
+        "engine_api": "1.56"
+      },
+      "image": {
+        "reference": "alpine:3.23",
+        "id": "sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2"
+      },
+      "checks": [
+        "interactive_pty",
+        "stdin_eof_binary_backpressure",
+        "plain_attached_early_output",
+        "concurrent_and_repeated_execs",
+        "exec_environment_and_workdir"
+      ],
+      "failures": {},
+      "cleanup": {
+        "remaining_container_ids": [],
+        "container_name_removed": true
+      },
+      "interactive_pty": {
+        "exec_id": "daccfcea44ff6c5e9f4c90563ab3d4785dbb0fb423b9d72ba1778a10ae18afe2",
+        "initial_rows_columns": [
+          31,
+          97
+        ],
+        "cli_resize_rows_columns": [
+          42,
+          113
+        ],
+        "api_resize_rows_columns": [
+          49,
+          131
+        ],
+        "ctrl_d_eof": true,
+        "running_inspect": {
+          "running": true,
+          "exit_code": null
+        },
+        "finished_inspect": {
+          "running": false,
+          "exit_code": 37
+        }
+      },
+      "stdin_eof_binary_backpressure": {
+        "stdin_bytes": 4194312,
+        "stdin_sha256": "eabd5ee2d07987eca2cf875cd50f15a77156a7d180b006b8bf4d62c070054e95",
+        "stdout_bytes": 6291494,
+        "stderr_bytes": 1048606,
+        "exit_code": 23,
+        "empty_stdin_exit_code": 0
+      },
+      "plain_attached_early_output": {
+        "stdout_ready_ms": 26.304,
+        "stderr_ready_ms": 26.321,
+        "marker_written_ms": 49.279,
+        "finished_ms": 85.862,
+        "exit_code": 41,
+        "missing_command_exit_code": 127,
+        "permission_denied_exit_code": 126
+      },
+      "concurrent_and_repeated_execs": {
+        "overlapping_exit_codes": [
+          0,
+          17,
+          29,
+          0
+        ],
+        "repeated_exit_codes": [
+          0,
+          19,
+          0
+        ]
+      },
+      "exec_environment_and_workdir": {
+        "process_modes": [
+          "attached",
+          "stdin",
+          "tty",
+          "stdin_and_tty",
+          "detached"
+        ],
+        "inherited": [
+          "/usr",
+          "uid=65534 gid=65534",
+          "MP_EXEC_KEEP=inherited",
+          "MP_EXEC_OVERRIDE=original",
+          "MP_EXEC_UNSET=container"
+        ],
+        "overrides": [
+          "/tmp",
+          "uid=65534 gid=65534",
+          "MP_EXEC_CLIENT_EMPTY=",
+          "MP_EXEC_COPY=cli value=a",
+          "MP_EXEC_EMPTY=",
+          "MP_EXEC_KEEP=inherited",
+          "MP_EXEC_NEW=last=a",
+          "MP_EXEC_OVERRIDE=last"
+        ],
+        "detached": {
+          "exec_id": "d8064c63d86029687f041dae2429b640daf087a90876d970bf5d936b2679dcfc",
+          "running_without_streams": true,
+          "relative_file": [
+            "/tmp",
+            "detached value"
+          ],
+          "exit_code": 39
+        },
+        "workdir_rejections": {
+          "relative": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 128,
+            "working_dir": "relative",
+            "message": "OCI runtime exec failed: exec failed: Cwd must be an absolute path"
+          },
+          "missing": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 127,
+            "working_dir": "/tmp/mp-exec-65dae54e776c430c908b6a6a037d5c22-missing",
+            "message": "OCI runtime exec failed: exec failed: unable to start container process: chdir to cwd (\"/tmp/mp-exec-65dae54e776c430c908b6a6a037d5c22-missing\") set in config.json failed: no such file or directory"
+          },
+          "regular_file": {
+            "create_http_status": 201,
+            "start_http_status": 101,
+            "stream_channel": 1,
+            "exit_code": 127,
+            "working_dir": "/etc/alpine-release",
+            "message": "OCI runtime exec failed: exec failed: unable to start container process: chdir to cwd (\"/etc/alpine-release\") set in config.json failed: not a directory: Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
+          }
+        },
+        "detached_workdir_rejection_exit_code": 1
+      }
+    },
+    "old-exec": {
+      "passed": false,
+      "docker": {
+        "client_version": "29.7.2",
+        "engine_version": "micropod",
+        "engine_api": "1.47"
+      },
+      "image": {
+        "reference": "alpine:3.23",
+        "id": "sha256:0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856"
+      },
+      "checks": [],
+      "failures": {
+        "interactive_pty": "RuntimeError: Docker closed its streams while waiting for stdout. Docker exit 1, stdout 0 bytes, sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, tail=b'', stderr 66 bytes, sha256=f27e85c27bc2f5fefa5423efb00055c43ee4e30aad073ee0f791a4863a50a093, tail=b'Error response from daemon: unsupported Docker option ConsoleSize\\n'",
+        "stdin_eof_binary_backpressure": "RuntimeError: Docker closed its streams while waiting for stdout. Docker exit 1, stdout 0 bytes, sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, tail=b'', stderr 66 bytes, sha256=be9cf6ed55046ad3cd567b3dabea6d6cd28ca531c3d4c6ee7a377bc3e7719102, tail=b'Error response from daemon: unsupported Docker option AttachStdin\\n'",
+        "plain_attached_early_output": "RuntimeError: Timed out waiting for stdout. Docker exit None, stdout 0 bytes, sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, tail=b'', stderr 0 bytes, sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, tail=b''",
+        "concurrent_and_repeated_execs": "RuntimeError: Docker closed its streams while waiting for stdout. Docker exit 1, stdout 0 bytes, sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, tail=b'', stderr 66 bytes, sha256=be9cf6ed55046ad3cd567b3dabea6d6cd28ca531c3d4c6ee7a377bc3e7719102, tail=b'Error response from daemon: unsupported Docker option AttachStdin\\n'",
+        "exec_environment_and_workdir": "RuntimeError: docker exec --workdir exited 1\nError response from daemon: unsupported Docker option Env"
+      },
+      "cleanup": {
+        "remaining_container_ids": [],
+        "container_name_removed": true
+      }
+    }
+  },
+  "integrated_artifacts": {
+    "vmm_sha256": "3a5ae9ef85f7160aa69e492434daf7ee24bcc98e745288ff7b74af0891078c7d",
+    "runner_sha256": "e0573601f2d0a4178b830186f7145dbc8f2d3c841e6f82c90f26f81b688d46f0",
+    "kernel_sha256": "5eb46b31203fe4b4d53782f4ba7b216274ad5cd63424df711fc96fd36577e52b",
+    "cli_sha256": "da7fb2d7cef79a504243777b99019d77df103dcb95e59bae78233203973acdb5",
+    "initrd_sha256": "2a109410ad36cb709face54616c3dc6fd7bf7589d52431f257f86fc0c3cf2a2c"
+  },
+  "virtiofs": {
+    "timing": {
+      "fixture_files": 1058,
+      "scored_passes_per_sample": 50,
+      "candidate_wins": 12,
+      "median_scan_ns": {
+        "baseline": 2670259.5,
+        "candidate": 2257892.0
+      },
+      "paired_median_candidate_over_baseline": 0.8559588054073123,
+      "paired_candidate_over_baseline": [
+        0.8509676031528277,
+        0.7644792338665665,
+        0.9290289323239039,
+        0.836542117077182,
+        0.8412913618123925,
+        0.834526548779738,
+        0.8709957170696976,
+        0.8707039935376755,
+        0.8197072815244949,
+        0.866772880028595,
+        0.8609500076617969,
+        0.866361565868488
+      ]
+    },
+    "allocation_calls": {
+      "baseline": 3174,
+      "candidate": 0
+    }
+  },
+  "mounted_runner_by_build": {
+    "base-host": {
+      "idle_pct": 45.74,
+      "sum_of_guest_work": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 851.4167295,
+            "orbstack": 783.92024
+          },
+          "median_paired_ratio": 1.0939672444376822
+        },
+        "incremental": {
+          "pairs": 6,
+          "hvf_wins": 3,
+          "median_ms": {
+            "hvf": 2283.703814,
+            "orbstack": 2168.402696
+          },
+          "median_paired_ratio": 1.0055492305704237
+        }
+      }
+    },
+    "metadata-first": {
+      "idle_pct": 79.54,
+      "sum_of_guest_work": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 1,
+          "median_ms": {
+            "hvf": 872.2560005,
+            "orbstack": 753.601687
+          },
+          "median_paired_ratio": 1.1533561817109739
+        },
+        "incremental": {
+          "pairs": 6,
+          "hvf_wins": 3,
+          "median_ms": {
+            "hvf": 2354.392647,
+            "orbstack": 2232.167861
+          },
+          "median_paired_ratio": 1.0170388610397254
+        }
+      }
+    },
+    "metadata-repeat": {
+      "idle_pct": 79.35,
+      "sum_of_guest_work": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 855.5047915,
+            "orbstack": 730.3871405
+          },
+          "median_paired_ratio": 1.1855079965555093
+        },
+        "incremental": {
+          "pairs": 6,
+          "hvf_wins": 5,
+          "median_ms": {
+            "hvf": 2164.3686465,
+            "orbstack": 2257.4759955
+          },
+          "median_paired_ratio": 0.96141894377849
+        }
+      }
+    },
+    "baseline-repeat": {
+      "idle_pct": 67.61,
+      "sum_of_guest_work": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 782.907833,
+            "orbstack": 663.577176
+          },
+          "median_paired_ratio": 1.2017643074422213
+        },
+        "incremental": {
+          "pairs": 6,
+          "hvf_wins": 5,
+          "median_ms": {
+            "hvf": 2014.321834,
+            "orbstack": 2057.6928265
+          },
+          "median_paired_ratio": 0.9711234209545263
+        }
+      }
+    },
+    "installed-ci": {
+      "idle_pct": 72.2,
+      "sum_of_guest_work": {
+        "warm": {
+          "pairs": 4,
+          "hvf_wins": 1,
+          "median_ms": {
+            "hvf": 897.606334,
+            "orbstack": 825.1655945
+          },
+          "median_paired_ratio": 1.0476354865328692
+        },
+        "incremental": {
+          "pairs": 4,
+          "hvf_wins": 2,
+          "median_ms": {
+            "hvf": 2289.982105,
+            "orbstack": 2301.421161
+          },
+          "median_paired_ratio": 0.9947356796752269
+        }
+      }
+    }
+  },
+  "mutable_git": {
+    "metadata-first": {
+      "host-index": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 216.3603545,
+            "orbstack": 95.40464
+          },
+          "median_paired_ratio": 2.3176289980789884
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 231.202375,
+            "orbstack": 103.262682
+          },
+          "median_paired_ratio": 2.3287375781949553
+        },
+        "git_refresh_file_scans": {
+          "hvf": 1058,
+          "orbstack": 1058
+        }
+      },
+      "guest-index": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 47.302271,
+            "orbstack": 14.928583
+          },
+          "median_paired_ratio": 3.132724172657329
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 45.896687,
+            "orbstack": 20.08653
+          },
+          "median_paired_ratio": 2.2891820361333326
+        },
+        "git_refresh_file_scans": {
+          "hvf": 0,
+          "orbstack": 0
+        }
+      },
+      "guest-clone": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 51.296917,
+            "orbstack": 17.3217705
+          },
+          "median_paired_ratio": 3.209737131422017
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 47.01425,
+            "orbstack": 20.2550055
+          },
+          "median_paired_ratio": 2.356530015727144
+        },
+        "git_refresh_file_scans": {
+          "hvf": 0,
+          "orbstack": 0
+        },
+        "hvf_trace": {
+          "completed_fuse_operations": {
+            "CREATE": 2,
+            "GETATTR": 20,
+            "IOCTL": 4,
+            "LOOKUP": 2676,
+            "OPEN": 1081,
+            "OPENDIR": 184,
+            "READ": 1123,
+            "READDIRPLUS": 369,
+            "RELEASE": 1083,
+            "RELEASEDIR": 184,
+            "RENAME": 2,
+            "WRITE": 3
+          },
+          "operations_with_paired_work": {
+            "CREATE": 2,
+            "GETATTR": 20,
+            "IOCTL": 4,
+            "LOOKUP": 2674,
+            "OPEN": 1081,
+            "OPENDIR": 184,
+            "READ": 1123,
+            "READDIRPLUS": 369,
+            "RELEASE": 1083,
+            "RELEASEDIR": 184,
+            "RENAME": 2,
+            "WRITE": 3
+          },
+          "trace_loss": {
+            "per_cpu": {
+              "cpu0": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu1": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu2": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu3": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              }
+            },
+            "reported_loss_lines": [],
+            "unparsed_lines": []
+          }
+        }
+      }
+    },
+    "metadata-repeat": {
+      "host-index": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 125.0836875,
+            "orbstack": 52.736041
+          },
+          "median_paired_ratio": 2.365436336332218
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 130.4712495,
+            "orbstack": 56.6441255
+          },
+          "median_paired_ratio": 2.2206065060397964
+        },
+        "git_refresh_file_scans": {
+          "hvf": 1058,
+          "orbstack": 1058
+        }
+      },
+      "guest-index": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 28.7490205,
+            "orbstack": 9.1611325
+          },
+          "median_paired_ratio": 3.1388754852235743
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 28.4678335,
+            "orbstack": 11.732752
+          },
+          "median_paired_ratio": 2.430478943203008
+        },
+        "git_refresh_file_scans": {
+          "hvf": 0,
+          "orbstack": 0
+        }
+      },
+      "guest-clone": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 31.3688335,
+            "orbstack": 11.5550275
+          },
+          "median_paired_ratio": 2.7821915173851943
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 29.0615835,
+            "orbstack": 13.744532
+          },
+          "median_paired_ratio": 2.087414728154183
+        },
+        "git_refresh_file_scans": {
+          "hvf": 0,
+          "orbstack": 0
+        },
+        "hvf_trace": {
+          "completed_fuse_operations": {
+            "CREATE": 2,
+            "GETATTR": 19,
+            "IOCTL": 4,
+            "LOOKUP": 1366,
+            "OPEN": 25,
+            "OPENDIR": 184,
+            "READ": 26,
+            "READDIRPLUS": 369,
+            "RELEASE": 27,
+            "RELEASEDIR": 184,
+            "RENAME": 1,
+            "UNLINK": 1,
+            "WRITE": 1
+          },
+          "operations_with_paired_work": {
+            "CREATE": 2,
+            "GETATTR": 19,
+            "IOCTL": 4,
+            "LOOKUP": 1362,
+            "OPEN": 25,
+            "OPENDIR": 184,
+            "READ": 26,
+            "READDIRPLUS": 369,
+            "RELEASE": 27,
+            "RELEASEDIR": 184,
+            "RENAME": 1,
+            "UNLINK": 1,
+            "WRITE": 1
+          },
+          "trace_loss": {
+            "per_cpu": {
+              "cpu0": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu1": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu2": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu3": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              }
+            },
+            "reported_loss_lines": [],
+            "unparsed_lines": []
+          }
+        }
+      }
+    },
+    "baseline-repeat": {
+      "host-index": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 150.871896,
+            "orbstack": 61.052895
+          },
+          "median_paired_ratio": 2.4716008549590347
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 152.9561665,
+            "orbstack": 67.005418
+          },
+          "median_paired_ratio": 2.2345238861693915
+        },
+        "git_refresh_file_scans": {
+          "hvf": 1058,
+          "orbstack": 1058
+        },
+        "hvf_trace": {
+          "completed_fuse_operations": {
+            "CREATE": 1,
+            "GETATTR": 23,
+            "IOCTL": 4,
+            "LOOKUP": 2552,
+            "OPEN": 1085,
+            "OPENDIR": 184,
+            "READ": 1126,
+            "READDIRPLUS": 368,
+            "RELEASE": 1086,
+            "RELEASEDIR": 184,
+            "RENAME": 1,
+            "WRITE": 1
+          },
+          "operations_with_paired_work": {
+            "CREATE": 1,
+            "GETATTR": 23,
+            "IOCTL": 4,
+            "LOOKUP": 2548,
+            "OPEN": 1085,
+            "OPENDIR": 184,
+            "READ": 1126,
+            "READDIRPLUS": 368,
+            "RELEASE": 1086,
+            "RELEASEDIR": 184,
+            "RENAME": 1,
+            "WRITE": 1
+          },
+          "trace_loss": {
+            "per_cpu": {
+              "cpu0": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu1": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu2": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              },
+              "cpu3": {
+                "commit overrun": 0,
+                "dropped events": 0,
+                "overrun": 0
+              }
+            },
+            "reported_loss_lines": [],
+            "unparsed_lines": []
+          }
+        }
+      },
+      "guest-index": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 37.6030205,
+            "orbstack": 12.2780875
+          },
+          "median_paired_ratio": 3.0978479775796917
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 34.454291,
+            "orbstack": 15.699148
+          },
+          "median_paired_ratio": 2.5721908146217647
+        },
+        "git_refresh_file_scans": {
+          "hvf": 0,
+          "orbstack": 0
+        }
+      },
+      "guest-clone": {
+        "warm": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 40.1093545,
+            "orbstack": 13.2482425
+          },
+          "median_paired_ratio": 3.0389638749348755
+        },
+        "changed": {
+          "pairs": 6,
+          "hvf_wins": 0,
+          "median_ms": {
+            "hvf": 40.1001045,
+            "orbstack": 16.16927
+          },
+          "median_paired_ratio": 2.580463924401287
+        },
+        "git_refresh_file_scans": {
+          "hvf": 0,
+          "orbstack": 0
+        }
+      }
+    }
+  },
+  "apfs_coherency": {
+    "observations": 37,
+    "expected_contents_seen": 37,
+    "equal_stat_pairs_with_different_bytes": 12,
+    "mapped_generations": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "reopen_and_first_read": {
+      "inference": "An unchanged valid stamp at OPEN cannot justify retaining guest pages for a later first read on generic mutable shares. The peer changes the bytes after OPEN and before that first read without changing the stat metadata used for Linux automatic invalidation.",
+      "first_read_on_native_fd_measured": true,
+      "guest_keep_cache_variant_tested": false,
+      "same_dev_ino_size_mtime_ctime_birthtime": true,
+      "prior_read": {
+        "kind": "observation",
+        "step": "after-open-prior-cache-fill",
+        "name": "after-open",
+        "peer_pid": 11823,
+        "held_reader": false,
+        "monotonic_ns": 112175553835000,
+        "gen_open": 2,
+        "gen_release": 2,
+        "gen_open_supported": true,
+        "gen_release_supported": true,
+        "dev": 16777259,
+        "ino": 39405,
+        "size": 16384,
+        "nlink": 1,
+        "mode": 33152,
+        "uid": 501,
+        "gid": 20,
+        "mtime": [
+          1600000002,
+          345678901
+        ],
+        "ctime": [
+          1795614578,
+          755884466
+        ],
+        "birthtime": [
+          1600000002,
+          345678901
+        ],
+        "expected_byte": 82,
+        "read_byte": 82,
+        "uniform": true,
+        "hash_fnv64": "3d0ee739486e2325"
+      },
+      "valid_at_open": {
+        "kind": "open_witness",
+        "step": "after-open-reopened-with-no-read",
+        "gen_open": 2,
+        "gen_open_supported": true,
+        "dev": 16777259,
+        "ino": 39405,
+        "size": 16384,
+        "mtime": [
+          1600000002,
+          345678901
+        ],
+        "ctime": [
+          1795614578,
+          755884466
+        ],
+        "birthtime": [
+          1600000002,
+          345678901
+        ]
+      },
+      "first_read_after_ordered_mutation": {
+        "kind": "observation",
+        "step": "after-open-first-read-after-peer-mapped-write",
+        "name": "after-open",
+        "peer_pid": 11823,
+        "held_reader": true,
+        "monotonic_ns": 112175553904041,
+        "gen_open": 0,
+        "gen_release": 0,
+        "gen_open_supported": true,
+        "gen_release_supported": true,
+        "dev": 16777259,
+        "ino": 39405,
+        "size": 16384,
+        "nlink": 1,
+        "mode": 33152,
+        "uid": 501,
+        "gid": 20,
+        "mtime": [
+          1600000002,
+          345678901
+        ],
+        "ctime": [
+          1795614578,
+          755884466
+        ],
+        "birthtime": [
+          1600000002,
+          345678901
+        ],
+        "expected_byte": 83,
+        "read_byte": 83,
+        "uniform": true,
+        "hash_fnv64": "849288fdbbdd6325"
+      }
+    }
+  },
+  "job_local_runner": {
+    "idle_pct": 72.2,
+    "source": {
+      "files": 1058,
+      "bytes": 19326482,
+      "tree_sha256": "d963fc6e9f0a6a636fb0819065d7184a05ac9f6c2c3828b0f69afaf6b30980bd"
+    },
+    "commit": "39a026df8bbd7669d3aff96f5455fe19a5e4f5a7",
+    "cpus": 2,
+    "memory_mib": 1536,
+    "host_wall": {
+      "warm": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 723.484896,
+          "orbstack": 899.584667
+        },
+        "median_paired_ratio": 0.8170935213093709
+      },
+      "incremental": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 2205.7784165,
+          "orbstack": 2670.228
+        },
+        "median_paired_ratio": 0.8360858720388211
+      }
+    },
+    "guest_work": {
+      "warm": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 652.58175,
+          "orbstack": 801.234155
+        },
+        "median_paired_ratio": 0.8410902587887986
+      },
+      "incremental": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 2133.702647,
+          "orbstack": 2568.5715175
+        },
+        "median_paired_ratio": 0.844402806163601
+      }
+    },
+    "transfer_plus_work": {
+      "warm": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 661.1745,
+          "orbstack": 813.3738845
+        },
+        "median_paired_ratio": 0.8395208371748931
+      },
+      "incremental": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 2147.124147,
+          "orbstack": 2593.2677055
+        },
+        "median_paired_ratio": 0.841017048593068
+      }
+    },
+    "host_preparation": {
+      "checkout_and_inventory_ns": 794526333,
+      "bundle_pack_ns": 444975209,
+      "bundle_sha256": "937b82cbc11e91803ab67ebbb0fe398672de9a9d732f5f644163637c9222c754",
+      "bundle_bytes": 3760338,
+      "payload_bytes": 3815901,
+      "total_ns": 1242949875
+    },
+    "initial_by_engine": {
+      "orbstack": {
+        "bundle_bytes": 3760338,
+        "clone_ns": 133755999,
+        "initial_transfer_ns": 26172583,
+        "checkout_ready_wall_ns": 441756333
+      },
+      "hvf": {
+        "bundle_bytes": 3760338,
+        "clone_ns": 137257333,
+        "initial_transfer_ns": 29391292,
+        "checkout_ready_wall_ns": 416531917
+      }
+    },
+    "guest_prime_ns": {
+      "orbstack": 14293598625,
+      "hvf": 16037987966
+    },
+    "timing": {
+      "median_ms": "guest Git status, Go build and uncached Go test subprocess durations",
+      "work_with_transfer_ns": "guest work plus the host Docker CLI time to deliver the edit or reset",
+      "host_wall_ns": "elapsed host time for any copy plus the Docker exec and guest validation",
+      "initial_transfer_ns": "one host Docker CLI copy of the bundle and driver files to each container",
+      "clone_ns": "guest Git bundle clone and checkout",
+      "checkout_ready_wall_ns": "initial transfer, guest clone and checkout validation on the host clock"
+    },
+    "cleanup": {
+      "removed_containers": {
+        "orbstack": "mp-runner-checkout-d351415031524ea7968581cf54faee83-orbstack",
+        "hvf": "mp-runner-checkout-d351415031524ea7968581cf54faee83-hvf"
+      }
+    }
+  },
+  "eight_mounted_jobs": {
+    "idle_pct": 50.2,
+    "jobs": 8,
+    "cpus_per_job": "0.5",
+    "memory_mib_per_job": 384,
+    "commit": "a6c74dccdc296424dc3746e74acc0841d8e37f06",
+    "source_files": 7,
+    "batch_makespan": {
+      "warm": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 408.470042,
+          "orbstack": 465.1766115
+        },
+        "median_paired_ratio": 0.8917501710326428
+      },
+      "incremental": {
+        "pairs": 4,
+        "hvf_wins": 4,
+        "median_ms": {
+          "hvf": 696.1925,
+          "orbstack": 741.307039
+        },
+        "median_paired_ratio": 0.9161322012557032
+      }
+    },
+    "priming_ms": {
+      "orbstack": 18365.460707,
+      "hvf": 18384.4958
+    },
+    "minimum_common_overlap_ms": {
+      "warm": {
+        "hvf": 327.905293,
+        "orbstack": 389.616589
+      },
+      "incremental": {
+        "hvf": 616.482501,
+        "orbstack": 667.244476
+      }
+    },
+    "timing": {
+      "clock": "guest CLOCK_MONOTONIC nanoseconds with verified boot ID and namespace offset",
+      "makespan_ns": "first Git status start through last Go test finish in the same engine",
+      "scored_ns": "per job, sum of Git status, Go build and uncached Go test subprocess durations",
+      "all_jobs_overlap_ns": "time with all workers simultaneously in a measured subprocess",
+      "warm_state": "one unscored prime per fresh isolated guest-local build cache, retained across batches",
+      "incremental_state": "first batch after an atomic host-only main.go edit with a unique revision per pair",
+      "source": "real Micropod guest file helper with its five Linux tests, in one read-only host Git checkout"
+    }
+  },
+  "direct_forks": {
+    "serial": {
+      "rounds": 5,
+      "restore_to_docker_ping_ms_median": 13.98,
+      "restore_to_first_container_ms_median": 157.21,
+      "host_rss_mib_median": 129.94,
+      "restore_to_docker_ping_ms_min": 12.99,
+      "restore_to_docker_ping_ms_max": 15.9
+    },
+    "parallel": {
+      "forks": 8,
+      "all_forks_ready_and_ran_container_wall_ms": 409.43,
+      "restore_to_docker_ping_ms_median": 18.7,
+      "restore_to_first_container_ms_median": 381.97,
+      "host_rss_mib_median": 130.59,
+      "cow_disk_isolation_verified": true
+    },
+    "clean_vmm_exits": 15,
+    "snapshot_save_ms": 233.32,
+    "fresh_restore": {
+      "delay_s": 5.001786958993762,
+      "clock": {
+        "requested_pause_s": 5.0,
+        "host_before_unix_ns": 1795615623007783000,
+        "host_after_unix_ns": 1795615623144424000,
+        "guest_unix_s": 1795615623,
+        "guest_advanced_since_snapshot_s": 10.132465,
+        "outside_host_interval_s": 0.0,
+        "guest_resolution_s": 1,
+        "within_1_5_s": true
+      },
+      "original_volume_verified": true
+    },
+    "timing_scope": "cold and restore clocks start at VMM spawn. Parallel wall ends after all first containers. APFS/image staging, clock checks, and isolation read/write commands are outside timed windows."
+  },
+  "vz_default_kernel_macvlan": {
+    "standalone_resource_discovery": true,
+    "reached_docker_readiness": false,
+    "cause": "Default VZ kernel rejected nft netdev filter egress while configuring macvlan",
+    "shutdown": {
+      "pid": 25849,
+      "process_exit_code": -9,
+      "disk_query_timeouts": 1,
+      "process_group_absent": true,
+      "disk_present": true,
+      "disk_holders": []
+    }
+  },
+  "restore_guard": {
+    "binary_sha256": "b489425ac2c62dd562893885be4d9a37160660331be6cfb3f4ce587931c5a823",
+    "changed_sources": [
+      "Sources/MicropodRuntime/CIWorker.swift",
+      "Sources/MicropodRuntime/HVFWorker.swift",
+      "Tests/MicropodRuntimeTests/HVFWorkerTests.swift"
+    ],
+    "guarded-hvf": {
+      "exec_checks_passed": 5,
+      "archive_checks": 13,
+      "restart": true,
+      "events": true,
+      "health": true,
+      "standalone": true,
+      "shutdown_code": 0,
+      "failed_groups": [],
+      "failed_exec_cases": {}
+    },
+    "guarded-vz": {
+      "exec_checks_passed": 5,
+      "archive_checks": 13,
+      "restart": true,
+      "events": true,
+      "health": false,
+      "standalone": false,
+      "shutdown_code": 0,
+      "failed_groups": [
+        "telemetry"
+      ],
+      "failed_exec_cases": {}
+    },
+    "guarded-vz-final": {
+      "exec_checks_passed": 4,
+      "archive_checks": 13,
+      "restart": true,
+      "events": false,
+      "health": true,
+      "standalone": false,
+      "shutdown_code": 0,
+      "failed_groups": [
+        "exec",
+        "events"
+      ],
+      "failed_exec_cases": {
+        "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-4ee2vwwa/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', 'f6641c383a9a80f4c081db793386950d5962da4525e90f4351268bce7c8e13ea', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-87cb878fdd1f40269faaa812ec8dd376-detached']' timed out after 5 seconds"
+      }
+    },
+    "repeat-hvf": {
+      "rounds": 4,
+      "exec_passes": 4,
+      "event_passes": 4,
+      "cases": [
+        {
+          "round": 1,
+          "test": "exec",
+          "wall_ms": 866.611375,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/01-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d"
+        },
+        {
+          "round": 1,
+          "test": "events",
+          "wall_ms": 988.767458,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/01-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 2,
+          "test": "events",
+          "wall_ms": 975.742917,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/02-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 2,
+          "test": "exec",
+          "wall_ms": 876.655792,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/02-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d"
+        },
+        {
+          "round": 3,
+          "test": "exec",
+          "wall_ms": 873.65125,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/03-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d"
+        },
+        {
+          "round": 3,
+          "test": "events",
+          "wall_ms": 963.797709,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/03-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 4,
+          "test": "events",
+          "wall_ms": 871.081375,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/04-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 4,
+          "test": "exec",
+          "wall_ms": 857.075458,
+          "rc": 0,
+          "raw_file": "repeat-hvf-repeat-cases/04-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d"
+        }
+      ],
+      "host_clock_observations": [
+        {
+          "initial_offset_ns": 1795502403247975542
+        }
+      ],
+      "guest_clock_observations": [
+        "{\"initial_offset_ns\": 1795617036653791375}"
+      ],
+      "detached_probe": null,
+      "errors": {
+        "detachedprobe": "[Errno 2] No such file or directory: '/private/tmp/mp-git-Ypw3sjPL/detached-probe-command.json'"
+      }
+    },
+    "repeat-vz": {
+      "rounds": 6,
+      "exec_passes": 2,
+      "event_passes": 6,
+      "cases": [
+        {
+          "round": 1,
+          "test": "exec",
+          "wall_ms": 5709.536625,
+          "rc": 1,
+          "raw_file": "repeat-vz-repeat-cases/01-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+          "error": "\n",
+          "failed_checks": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-lrua57_d/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '67cddd852cd8158a4262806f457a6205fa81af8b516a5a07aaee84655edeb5ef', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-a8d9815d7a214f53afd39c5aee151678-detached']' timed out after 5 seconds"
+          }
+        },
+        {
+          "round": 1,
+          "test": "events",
+          "wall_ms": 1070.244125,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/01-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 2,
+          "test": "events",
+          "wall_ms": 1097.877792,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/02-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 2,
+          "test": "exec",
+          "wall_ms": 986.964291,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/02-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d"
+        },
+        {
+          "round": 3,
+          "test": "exec",
+          "wall_ms": 5729.797292,
+          "rc": 1,
+          "raw_file": "repeat-vz-repeat-cases/03-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+          "error": "\n",
+          "failed_checks": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-lrua57_d/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '0f2e4bad8f1a31dc547fc8ea295088fc1a42596b4d5cae349952cc3673429e12', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-a60c08c994bb4f7692044ee2388a2520-detached']' timed out after 5 seconds"
+          }
+        },
+        {
+          "round": 3,
+          "test": "events",
+          "wall_ms": 967.310292,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/03-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 4,
+          "test": "events",
+          "wall_ms": 968.162292,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/04-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 4,
+          "test": "exec",
+          "wall_ms": 5686.636042,
+          "rc": 1,
+          "raw_file": "repeat-vz-repeat-cases/04-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+          "error": "\n",
+          "failed_checks": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-lrua57_d/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '1fc7f8df45f0bc23f739715575ccd7805dab595545cb042ddd1af708292caa6a', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-2d05468945b6405c920d7a2fdf181ae0-detached']' timed out after 5 seconds"
+          }
+        },
+        {
+          "round": 5,
+          "test": "exec",
+          "wall_ms": 892.725792,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/05-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d"
+        },
+        {
+          "round": 5,
+          "test": "events",
+          "wall_ms": 967.308292,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/05-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 6,
+          "test": "events",
+          "wall_ms": 1028.420167,
+          "rc": 0,
+          "raw_file": "repeat-vz-repeat-cases/06-events.log",
+          "driver_sha256": "0d3d6ec574d71b84b26031751a131bb13a627e38aa69adacc956c3f36c2b55fe"
+        },
+        {
+          "round": 6,
+          "test": "exec",
+          "wall_ms": 5698.713958,
+          "rc": 1,
+          "raw_file": "repeat-vz-repeat-cases/06-exec.log",
+          "driver_sha256": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+          "error": "\n",
+          "failed_checks": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-lrua57_d/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', 'c573f24bdd25fc6baefbb7ae1f82ab87ac747cbb5064b13a44a7e0e02a10d522', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-5316bb42f33c4322a015b226bdfae81b-detached']' timed out after 5 seconds"
+          }
+        }
+      ],
+      "host_clock_observations": [
+        {
+          "initial_offset_ns": 1795502403247995750
+        }
+      ],
+      "guest_clock_observations": [
+        "{\"initial_offset_ns\": 1795617036406831084}",
+        "{\"wall_ns\": 1795617067319284916, \"mono_ns\": 31584386805, \"offset_ns\": 1795617035734898111, \"step_ns\": -671936931}"
+      ],
+      "detached_probe": null,
+      "errors": {
+        "repeatnative": "(2, 6, 6)",
+        "detachedprobe": "[Errno 2] No such file or directory: '/private/tmp/mp-git-Ypw3sjPL/detached-probe-command.json'"
+      }
+    },
+    "detach-hvf": {
+      "errors": {},
+      "passed": true,
+      "samples": [
+        {
+          "attempt": 1,
+          "idle_replay_stream": false,
+          "cli_ms": 13.228,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 2,
+          "idle_replay_stream": true,
+          "cli_ms": 13.276,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 3,
+          "idle_replay_stream": false,
+          "cli_ms": 13.112,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 4,
+          "idle_replay_stream": true,
+          "cli_ms": 15.16,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 5,
+          "idle_replay_stream": false,
+          "cli_ms": 13.559,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 6,
+          "idle_replay_stream": true,
+          "cli_ms": 13.169,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 7,
+          "idle_replay_stream": false,
+          "cli_ms": 12.537,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 8,
+          "idle_replay_stream": true,
+          "cli_ms": 12.79,
+          "timeout": false,
+          "passed": true
+        }
+      ],
+      "raw_controls": [
+        {
+          "container_id": "28e86a09ae0a0c019bddd70d32890a83e0e685283d753adf39ad273f8fe1ad75",
+          "create": {
+            "status": 201,
+            "headers_ms": 0.509,
+            "body": {
+              "Id": "75a151435559be8a549dcf1ddad78522bbaf7b773a2490836e811d9bd02fe7fa"
+            },
+            "total_ms": 0.584
+          },
+          "start": {
+            "status": 200,
+            "headers_ms": 2.736,
+            "total_ms": 2.778
+          },
+          "inspect": {
+            "status": 200,
+            "headers_ms": 0.323,
+            "body": {
+              "ContainerID": "28e86a09ae0a0c019bddd70d32890a83e0e685283d753adf39ad273f8fe1ad75",
+              "ExitCode": 0,
+              "ID": "75a151435559be8a549dcf1ddad78522bbaf7b773a2490836e811d9bd02fe7fa",
+              "OpenStderr": false,
+              "OpenStdin": false,
+              "OpenStdout": false,
+              "Pid": 740,
+              "ProcessConfig": {
+                "arguments": [],
+                "entrypoint": "/bin/true",
+                "tty": false
+              },
+              "Running": false
+            },
+            "total_ms": 0.34
+          }
+        }
+      ]
+    },
+    "detach-vz": {
+      "errors": {},
+      "passed": true,
+      "samples": [
+        {
+          "attempt": 1,
+          "idle_replay_stream": false,
+          "cli_ms": 15.118,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 2,
+          "idle_replay_stream": true,
+          "cli_ms": 14.887,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 3,
+          "idle_replay_stream": false,
+          "cli_ms": 15.182,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 4,
+          "idle_replay_stream": true,
+          "cli_ms": 14.269,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 5,
+          "idle_replay_stream": false,
+          "cli_ms": 14.7,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 6,
+          "idle_replay_stream": true,
+          "cli_ms": 14.844,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 7,
+          "idle_replay_stream": false,
+          "cli_ms": 14.382,
+          "timeout": false,
+          "passed": true
+        },
+        {
+          "attempt": 8,
+          "idle_replay_stream": true,
+          "cli_ms": 16.351,
+          "timeout": false,
+          "passed": true
+        }
+      ],
+      "raw_controls": [
+        {
+          "container_id": "392f84dc1e155d13dffcee401abc0389f70d6317555d3419c9c020d6e550a452",
+          "create": {
+            "status": 201,
+            "headers_ms": 0.474,
+            "body": {
+              "Id": "c94be57cf83d428bc5da4ecafc601816a4f8ceb268f909d80a4e894fd2fdca59"
+            },
+            "total_ms": 0.497
+          },
+          "start": {
+            "status": 200,
+            "headers_ms": 3.836,
+            "total_ms": 3.861
+          },
+          "inspect": {
+            "status": 200,
+            "headers_ms": 0.441,
+            "body": {
+              "ContainerID": "392f84dc1e155d13dffcee401abc0389f70d6317555d3419c9c020d6e550a452",
+              "ExitCode": 0,
+              "ID": "c94be57cf83d428bc5da4ecafc601816a4f8ceb268f909d80a4e894fd2fdca59",
+              "OpenStderr": false,
+              "OpenStdin": false,
+              "OpenStdout": false,
+              "Pid": 527,
+              "ProcessConfig": {
+                "arguments": [],
+                "entrypoint": "/bin/true",
+                "tty": false
+              },
+              "Running": false
+            },
+            "total_ms": 0.456
+          }
+        }
+      ]
+    },
+    "reference-prospective": {
+      "passed": true,
+      "checks": [
+        "interactive_pty",
+        "stdin_eof_binary_backpressure",
+        "plain_attached_early_output",
+        "concurrent_and_repeated_execs",
+        "exec_environment_and_workdir"
+      ],
+      "cleanup": {
+        "remaining_container_ids": [],
+        "container_name_removed": true
+      }
+    },
+    "reference-prospective-final": {
+      "passed": true,
+      "checks": [
+        "interactive_pty",
+        "stdin_eof_binary_backpressure",
+        "plain_attached_early_output",
+        "concurrent_and_repeated_execs",
+        "exec_environment_and_workdir"
+      ],
+      "cleanup": {
+        "remaining_container_ids": [],
+        "container_name_removed": true
+      }
+    },
+    "qualifier-vz": {
+      "endpoint": "unix:///private/tmp/mp-tune-ws-u03fuat2/home/docker.sock",
+      "driver_sha256": {
+        "original": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+        "prospective": "59b5524d8825acdd4d39fe9ec8d3200ec09a787e2fae12f78112b8a5898e63c4"
+      },
+      "planned_pairs": 8,
+      "rounds": [
+        {
+          "pair": 1,
+          "arm": "original",
+          "elapsed_ms": 1029.808333,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/01-original.log"
+        },
+        {
+          "pair": 1,
+          "arm": "prospective",
+          "elapsed_ms": 770.891917,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/01-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "prospective",
+          "elapsed_ms": 787.351542,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/02-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "original",
+          "elapsed_ms": 1010.979208,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/02-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "original",
+          "elapsed_ms": 1061.136416,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/03-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "prospective",
+          "elapsed_ms": 751.313875,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/03-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "prospective",
+          "elapsed_ms": 795.218292,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/04-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "original",
+          "elapsed_ms": 986.209459,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/04-original.log"
+        },
+        {
+          "pair": 5,
+          "arm": "original",
+          "elapsed_ms": 1020.241583,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/05-original.log"
+        },
+        {
+          "pair": 5,
+          "arm": "prospective",
+          "elapsed_ms": 706.336584,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/05-prospective.log"
+        },
+        {
+          "pair": 6,
+          "arm": "prospective",
+          "elapsed_ms": 738.361125,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/06-prospective.log"
+        },
+        {
+          "pair": 6,
+          "arm": "original",
+          "elapsed_ms": 966.844666,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/06-original.log"
+        },
+        {
+          "pair": 7,
+          "arm": "original",
+          "elapsed_ms": 943.714541,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/07-original.log"
+        },
+        {
+          "pair": 7,
+          "arm": "prospective",
+          "elapsed_ms": 758.902917,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/07-prospective.log"
+        },
+        {
+          "pair": 8,
+          "arm": "prospective",
+          "elapsed_ms": 684.351916,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-ab-cases/08-prospective.log"
+        },
+        {
+          "pair": 8,
+          "arm": "original",
+          "elapsed_ms": 993.006666,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-ab-cases/08-original.log"
+        }
+      ],
+      "passed_by_arm": {
+        "original": 8,
+        "prospective": 0
+      }
+    },
+    "qualifier-hvf": {
+      "endpoint": "unix:///private/tmp/mp-tune-ws-x4up2zkw/home/docker.sock",
+      "driver_sha256": {
+        "original": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+        "prospective": "59b5524d8825acdd4d39fe9ec8d3200ec09a787e2fae12f78112b8a5898e63c4"
+      },
+      "planned_pairs": 4,
+      "rounds": [
+        {
+          "pair": 1,
+          "arm": "original",
+          "elapsed_ms": 853.128167,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-ab-cases/01-original.log"
+        },
+        {
+          "pair": 1,
+          "arm": "prospective",
+          "elapsed_ms": 702.884167,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-hvf-ab-cases/01-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "prospective",
+          "elapsed_ms": 613.787959,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-hvf-ab-cases/02-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "original",
+          "elapsed_ms": 866.956292,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-ab-cases/02-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "original",
+          "elapsed_ms": 871.115041,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-ab-cases/03-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "prospective",
+          "elapsed_ms": 619.180958,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-hvf-ab-cases/03-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "prospective",
+          "elapsed_ms": 624.72075,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "RuntimeError: Docker closed the event subscription socket after its headers"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-hvf-ab-cases/04-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "original",
+          "elapsed_ms": 822.787625,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-ab-cases/04-original.log"
+        }
+      ],
+      "passed_by_arm": {
+        "original": 4,
+        "prospective": 0
+      }
+    },
+    "qualifier-hvf-final": {
+      "endpoint": "unix:///private/tmp/mp-tune-ws-t0wpxilf/home/docker.sock",
+      "driver_sha256": {
+        "original": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+        "prospective": "791edca7415cab2d837fbd882bd3624f9a9b76e6ec6fb87dec3d362e23abf05c"
+      },
+      "planned_pairs": 4,
+      "rounds": [
+        {
+          "pair": 1,
+          "arm": "original",
+          "elapsed_ms": 843.198166,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/01-original.log"
+        },
+        {
+          "pair": 1,
+          "arm": "prospective",
+          "elapsed_ms": 858.926625,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/01-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "prospective",
+          "elapsed_ms": 895.445792,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/02-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "original",
+          "elapsed_ms": 845.477375,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/02-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "original",
+          "elapsed_ms": 892.211042,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/03-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "prospective",
+          "elapsed_ms": 903.605083,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/03-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "prospective",
+          "elapsed_ms": 915.1185,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/04-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "original",
+          "elapsed_ms": 858.384542,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-final-ab-cases/04-original.log"
+        }
+      ],
+      "passed_by_arm": {
+        "original": 4,
+        "prospective": 4
+      },
+      "observer": "Uninstrumented guest bundle. Observer files absent. Each stock fixture verified container deletion."
+    },
+    "qualifier-vz-pinned": {
+      "endpoint": "unix:///private/tmp/mp-tune-ws-c_lh5ccy/home/docker.sock",
+      "driver_sha256": {
+        "original": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+        "prospective": "791edca7415cab2d837fbd882bd3624f9a9b76e6ec6fb87dec3d362e23abf05c"
+      },
+      "planned_pairs": 8,
+      "rounds": [
+        {
+          "pair": 1,
+          "arm": "original",
+          "elapsed_ms": 949.516666,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/01-original.log"
+        },
+        {
+          "pair": 1,
+          "arm": "prospective",
+          "elapsed_ms": 920.680916,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/01-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "prospective",
+          "elapsed_ms": 957.520375,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/02-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "original",
+          "elapsed_ms": 934.671959,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/02-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "original",
+          "elapsed_ms": 5698.258417,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-c_lh5ccy/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '2c27ba6e79ee70374cc19354b02c32b715254a0a7f090755f9b136917926e8ad', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-760cb41368f944e7be72f599b7136878-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/03-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "prospective",
+          "elapsed_ms": 856.246167,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/03-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "prospective",
+          "elapsed_ms": 921.992292,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/04-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "original",
+          "elapsed_ms": 953.961,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/04-original.log"
+        },
+        {
+          "pair": 5,
+          "arm": "original",
+          "elapsed_ms": 916.684041,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/05-original.log"
+        },
+        {
+          "pair": 5,
+          "arm": "prospective",
+          "elapsed_ms": 963.016875,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/05-prospective.log"
+        },
+        {
+          "pair": 6,
+          "arm": "prospective",
+          "elapsed_ms": 997.974167,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/06-prospective.log"
+        },
+        {
+          "pair": 6,
+          "arm": "original",
+          "elapsed_ms": 5744.235291,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-c_lh5ccy/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '2a8b70590f7be12f5ab68c9d2c76cad89e9c3233b5873be59661dfe5a01e7422', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-3f73b4dd1aff4e7dafedae8f5fab754b-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/06-original.log"
+        },
+        {
+          "pair": 7,
+          "arm": "original",
+          "elapsed_ms": 5710.673667,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-c_lh5ccy/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '2bbb67dff8ab28c76b2f105b9421c4a4603d289bbbdbfbd7eea4d11c5eae0860', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-aafedc86597c4a00ab768b5ced9928b6-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/07-original.log"
+        },
+        {
+          "pair": 7,
+          "arm": "prospective",
+          "elapsed_ms": 1003.519833,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/07-prospective.log"
+        },
+        {
+          "pair": 8,
+          "arm": "prospective",
+          "elapsed_ms": 945.584583,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/08-prospective.log"
+        },
+        {
+          "pair": 8,
+          "arm": "original",
+          "elapsed_ms": 5753.587583,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-c_lh5ccy/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', 'e9ccca663e80164c978c2ca0b560df706b9419ae09917bce1c08acfaeaee66be', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-6083ef0f511d4e8ca99857a20af21f29-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-pinned-ab-cases/08-original.log"
+        }
+      ],
+      "passed_by_arm": {
+        "original": 4,
+        "prospective": 8
+      },
+      "observer": "Uninstrumented guest bundle. Observer files absent. Each stock fixture verified container deletion."
+    },
+    "qualifier-vz-audit": {
+      "endpoint": "unix:///private/tmp/mp-tune-ws-au74s98l/home/docker.sock",
+      "driver_sha256": {
+        "original": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+        "prospective": "791edca7415cab2d837fbd882bd3624f9a9b76e6ec6fb87dec3d362e23abf05c"
+      },
+      "planned_pairs": 8,
+      "rounds": [
+        {
+          "pair": 1,
+          "arm": "original",
+          "elapsed_ms": 989.198292,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/01-original.log"
+        },
+        {
+          "pair": 1,
+          "arm": "prospective",
+          "elapsed_ms": 975.2315,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/01-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "prospective",
+          "elapsed_ms": 1009.141917,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/02-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "original",
+          "elapsed_ms": 5772.916375,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-au74s98l/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', 'efbe28392c5b47222fbd3aa3ad94686f8d0c95c8192229ed1c8ee6c48f397f7a', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-a655c3c83a37441b9bc7ef4e0a291641-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/02-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "original",
+          "elapsed_ms": 918.25,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/03-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "prospective",
+          "elapsed_ms": 938.837333,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/03-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "prospective",
+          "elapsed_ms": 914.327833,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/04-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "original",
+          "elapsed_ms": 5740.21825,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-au74s98l/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '6cf7b7b46d907436dd27d744ba423a84be3084702ea8b4df92caa4fc0bc61986', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-c1456d47fcc743e6969860f961f990c4-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/04-original.log"
+        },
+        {
+          "pair": 5,
+          "arm": "original",
+          "elapsed_ms": 6849.374666,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-au74s98l/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '97bd80fef924e61538287215127832c23877709787ebf9811028d70639540e80', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-84a2baaf405e461c93c322d673d26f2c-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/05-original.log"
+        },
+        {
+          "pair": 5,
+          "arm": "prospective",
+          "elapsed_ms": 912.278625,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/05-prospective.log"
+        },
+        {
+          "pair": 6,
+          "arm": "prospective",
+          "elapsed_ms": 947.477209,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/06-prospective.log"
+        },
+        {
+          "pair": 6,
+          "arm": "original",
+          "elapsed_ms": 5632.682542,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-au74s98l/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', '52a54d751408cdfebe360bfade03c27c7d7cd8c75c4b264396827f7d5b0d6ff9', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-91454f94ff3848cf947c2c6414e6405e-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/06-original.log"
+        },
+        {
+          "pair": 7,
+          "arm": "original",
+          "elapsed_ms": 969.60675,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/07-original.log"
+        },
+        {
+          "pair": 7,
+          "arm": "prospective",
+          "elapsed_ms": 1018.757334,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/07-prospective.log"
+        },
+        {
+          "pair": 8,
+          "arm": "prospective",
+          "elapsed_ms": 980.153583,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/08-prospective.log"
+        },
+        {
+          "pair": 8,
+          "arm": "original",
+          "elapsed_ms": 5752.104791,
+          "rc": 1,
+          "passed": false,
+          "failures": {
+            "exec_environment_and_workdir": "TimeoutExpired: Command '['docker', '--host', 'unix:///private/tmp/mp-tune-ws-au74s98l/home/docker.sock', 'exec', '--detach', '-w', '/tmp', '-e', 'MP_EXEC_BACKGROUND=detached value', 'a24ecfee7b105404de3a16a0c4491904054a61b1b358f52513b8d937a430ae5a', '/bin/sh', '-ec', '\\nprintf \\'%s\\\\n%s\\\\n\\' \"$(pwd -P)\" \"$MP_EXEC_BACKGROUND\" >\"$1.tmp\"\\nmv \"$1.tmp\" \"$1\"\\nfor attempt in $(seq 1 100); do\\n    test ! -e \"$1.release\" || exit 39\\n    sleep 0.1\\ndone\\nexit 91\\n', 'sh', 'mp-exec-64d2fba446244844bd824534d7e09656-detached']' timed out after 5 seconds"
+          },
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs"
+          ],
+          "logs": "qualifier-vz-audit-ab-cases/08-original.log"
+        }
+      ],
+      "passed_by_arm": {
+        "original": 3,
+        "prospective": 8
+      }
+    },
+    "qualifier-hvf-audit": {
+      "endpoint": "unix:///private/tmp/mp-tune-ws-x4r12f4l/home/docker.sock",
+      "driver_sha256": {
+        "original": "f8629eca84a61577b12ef5172ea56061025dc004960a62e341f2025e4866459d",
+        "prospective": "791edca7415cab2d837fbd882bd3624f9a9b76e6ec6fb87dec3d362e23abf05c"
+      },
+      "planned_pairs": 4,
+      "rounds": [
+        {
+          "pair": 1,
+          "arm": "original",
+          "elapsed_ms": 879.867875,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/01-original.log"
+        },
+        {
+          "pair": 1,
+          "arm": "prospective",
+          "elapsed_ms": 866.486834,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/01-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "prospective",
+          "elapsed_ms": 817.904375,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/02-prospective.log"
+        },
+        {
+          "pair": 2,
+          "arm": "original",
+          "elapsed_ms": 885.144667,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/02-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "original",
+          "elapsed_ms": 757.890292,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/03-original.log"
+        },
+        {
+          "pair": 3,
+          "arm": "prospective",
+          "elapsed_ms": 850.668167,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/03-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "prospective",
+          "elapsed_ms": 856.609083,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/04-prospective.log"
+        },
+        {
+          "pair": 4,
+          "arm": "original",
+          "elapsed_ms": 882.481417,
+          "rc": 0,
+          "passed": true,
+          "failures": {},
+          "checks": [
+            "interactive_pty",
+            "stdin_eof_binary_backpressure",
+            "plain_attached_early_output",
+            "concurrent_and_repeated_execs",
+            "exec_environment_and_workdir"
+          ],
+          "logs": "qualifier-hvf-audit-ab-cases/04-original.log"
+        }
+      ],
+      "passed_by_arm": {
+        "original": 4,
+        "prospective": 4
+      }
+    },
+    "hardware_regression": {
+      "verified_regression": true,
+      "source_markers_after_rejections": true,
+      "successful_worker_and_job_exits_zero": true,
+      "private_scope_removed": true,
+      "source_disk_digest_unchanged": true,
+      "restored_session_ready_ms": 212.602
+    },
+    "rejections": {
+      "x": {
+        "case": "different-workspace",
+        "fresh_disk_created": false,
+        "live_session_left": false,
+        "output": "micropod ci: HVF warm snapshot workspace \"/private/tmp/mp-git-Ypw3sjPL/home/mr-4nrpn5rj/w0\" differs from the configured workspace \"/private/tmp/mp-git-Ypw3sjPL/home/mr-4nrpn5rj/wx\". Use the captured workspace or take a new snapshot.\n",
+        "persisted_manifest": false,
+        "rc": 1,
+        "sockets_observed": [],
+        "wall_ms": 25.217
+      },
+      "y": {
+        "case": "omitted-workspace",
+        "fresh_disk_created": false,
+        "live_session_left": false,
+        "output": "micropod ci: HVF warm snapshot workspace \"/private/tmp/mp-git-Ypw3sjPL/home/mr-4nrpn5rj/w0\" differs from the configured workspace none. Use the captured workspace or take a new snapshot.\n",
+        "persisted_manifest": false,
+        "rc": 1,
+        "sockets_observed": [],
+        "wall_ms": 20.039
+      }
+    },
+    "swift_test_count": 26
+  },
+  "rolled_back_before_worker_creation": {
+    "name": "targeted-vz",
+    "reason": "owned APFS image is not mounted at /private/tmp/mp-tune-ws-2bxvvxd2/home",
+    "directory_absent": true
+  },
+  "managed_snapshot_original": {
+    "identity_collisions": {
+      "boot": {
+        "all_distinct": false,
+        "values": {
+          "0": "94974f51-41cf-4c89-a5bd-087171c6e547",
+          "1": "94974f51-41cf-4c89-a5bd-087171c6e547",
+          "2": "94974f51-41cf-4c89-a5bd-087171c6e547"
+        }
+      },
+      "instance": {
+        "all_distinct": false,
+        "values": {
+          "0": "d9857474-1e64-4242-a916-43f9be293207",
+          "1": "d9857474-1e64-4242-a916-43f9be293207",
+          "2": "d9857474-1e64-4242-a916-43f9be293207"
+        }
+      },
+      "worker": {
+        "all_distinct": false,
+        "values": {
+          "0": "ed844b56-801e-46fd-9627-9d91fe31a0e6",
+          "1": "ed844b56-801e-46fd-9627-9d91fe31a0e6",
+          "2": "ed844b56-801e-46fd-9627-9d91fe31a0e6"
+        }
+      }
+    },
+    "parallel_restore": {
+      "confirmed_overlapping_spawn_to_ready_windows": true,
+      "earliest_spawn_to_all_sessions_ready_ms": 168.425,
+      "forks": 2,
+      "spawn_spread_ms": 0.05,
+      "storage_route": "Fresh target disks are created by the VMM's native APFS clonefile path from the same-volume snapshot. The measured interval includes cloning and guest readiness, while the original cold provisioning, snapshot save, snapshot hashing and image loads are outside it."
+    },
+    "same_name_rootfs_and_named_volume_isolation": true,
+    "host_workspace_isolation": true,
+    "per_job_identity_ready": false,
+    "per_job_workspace_api_ready": false,
+    "all_worker_and_job_exits_zero": true,
+    "distinct_vmm_pids_and_raw_disk_inodes": true,
+    "private_scope_removed": true,
+    "forks": [
+      {
+        "role": "0",
+        "docker_ping_ms": 967.061,
+        "session_ms": 1313.258,
+        "accepts_configured_workspace": true,
+        "physical_private_workspace_seen": true,
+        "vmm_exit": 0,
+        "supervisor_exit": 0
+      },
+      {
+        "role": "1",
+        "docker_ping_ms": 137.041,
+        "session_ms": 166.695,
+        "accepts_configured_workspace": false,
+        "physical_private_workspace_seen": true,
+        "vmm_exit": 0,
+        "supervisor_exit": 0
+      },
+      {
+        "role": "2",
+        "docker_ping_ms": 137.145,
+        "session_ms": 168.425,
+        "accepts_configured_workspace": false,
+        "physical_private_workspace_seen": true,
+        "vmm_exit": 0,
+        "supervisor_exit": 0
+      }
+    ]
+  },
+  "outer_hvf_machine": {
+    "source": "1db09e63a621a82520169d20613761da83ade14f",
+    "provenance": {
+      "docker": {
+        "path": "/opt/homebrew/bin/docker",
+        "resolved": "/opt/homebrew/Cellar/docker/29.7.2/bin/docker",
+        "sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8"
+      },
+      "harness": {
+        "files": {
+          "ci_benchmark_store.py": "b74a08d90cf912ebec9fbfafc9147bea0e429ae5ab03fa58ffb29806ad08150a",
+          "qualify_docker_exec.py": "791edca7415cab2d837fbd882bd3624f9a9b76e6ec6fb87dec3d362e23abf05c",
+          "qualify_docker_restart.py": "b4f62a9a744b804e4d3f1ad0fe8cc69e56f69c25b3480f3fb7bc8494db7ebf24",
+          "qualify_engine_api.py": "886e0f47bfc1339ba285e70586f069dc1b105004d4ec78fe613ea798938528ac",
+          "test_qualify_docker_exec.py": "f05bd6e6e7d5bad94ba9573e7f2b04c3fae57b369b15b5615e403107f634a307"
+        },
+        "path": "/private/tmp/mp-git-Ypw3sjPL/home/artifacts/exec-prospective-harness"
+      },
+      "installed_cli": {
+        "app_version": "0.13.3",
+        "entitlements": {
+          "com.apple.security.virtualization": true
+        },
+        "path": "/Applications/Micropod.app/Contents/MacOS/micropod-cli",
+        "sha256": "78313f588a0a07c484b41ceed1278a5b22ca3bef6182f00d60ee3f0e7947ccb1"
+      },
+      "kernel": {
+        "path": "/private/tmp/mp-git-Ypw3sjPL/home/artifacts/Image",
+        "sha256": "5eb46b31203fe4b4d53782f4ba7b216274ad5cd63424df711fc96fd36577e52b"
+      },
+      "root_cli": {
+        "build_artifact": {
+          "allocated_bytes": 96317440,
+          "device": 16777232,
+          "inode": 1227562404,
+          "logical_bytes": 96313536,
+          "mode": "0o755",
+          "mtime_ns": 1795616708525100702
+        },
+        "entitlements": {
+          "com.apple.security.get-task-allow": true
+        },
+        "path": "/Users/benebsworth/projects/micropod/.build/debug/micropod",
+        "sha256": "c9d54a9a157e38b2fbab32026bcf610f608c7a404e8dee064998013a9c04bf90"
+      },
+      "root_initrd": {
+        "build_artifact": {
+          "allocated_bytes": 2297856,
+          "device": 16777232,
+          "inode": 1226533153,
+          "logical_bytes": 2294272,
+          "mode": "0o644",
+          "mtime_ns": 1795615931405696330
+        },
+        "path": "/Users/benebsworth/projects/micropod/vmm/target/mp-hvf-init.cpio",
+        "sha256": "bb75ca9e847b2823f614ff417ba6f1c8cef9dd362091c2c14ff0285c30f7c541"
+      },
+      "root_vmm": {
+        "build_artifact": {
+          "allocated_bytes": 1433600,
+          "device": 16777232,
+          "inode": 1227549622,
+          "logical_bytes": 1430656,
+          "mode": "0o755",
+          "mtime_ns": 1795615931228185928
+        },
+        "entitlements": {
+          "com.apple.security.hypervisor": true
+        },
+        "path": "/Users/benebsworth/projects/micropod/vmm/target/release/micropod-vmm",
+        "sha256": "e2b248df683440061a5dc41535a52fa8f15f95149be4b2955564278917df1230"
+      },
+      "seed": {
+        "path": "/private/tmp/mp-git-Ypw3sjPL/home/artifacts/minimal.tar",
+        "sha256": "4abc74637486dd07c24b5e49fa35d8bf86771b8157f81e1aae2245e163e44672",
+        "tags": [
+          "alpine:3.23",
+          "registry.k8s.io/pause:3.10.2"
+        ]
+      },
+      "tools": {
+        "files": {
+          "crun-1.31-arm64": "f54fd58603ae031aa7a255af550bcffb035f28058aa1a971e6691b53f7f5a32e",
+          "executor": "1ac9d8da5177be9e001614d7bbf8037d0ecbce63b8551ec7f25edc7a9823ef65",
+          "runner/10-micropod-private.conflist": "de30e409aacc7c013dcc819fa4737e818e75e8edf8aaadf721d3158b48532f6b",
+          "runner/10-micropod.conflist": "4f637b960ba7886d9d5d1a0b042fa50dbb5948b039f6edefd910acaebcf86902",
+          "runner/bin/buildkitd": "f2a9107e88004fd611d731d7145b7af20db42462a30424daecdf0e8b01cc1aa7",
+          "runner/bin/containerd": "f19fa4eb5b1a3e05e75d67b402abb497ebf8290aa1124a60ee9ab32f294beb7c",
+          "runner/bin/containerd-shim-runc-v2": "95eeaaf3e9e002b76664e3f817c11de6786171c7d427c5e0d43bb586ead19ce2",
+          "runner/bin/ctr": "820d3c1ca185d9e0d5204e6937a591b46b0cc8a7928642370872d5ff82f26987",
+          "runner/bin/job": "e0573601f2d0a4178b830186f7145dbc8f2d3c841e6f82c90f26f81b688d46f0",
+          "runner/buildkitd.toml": "51a62a9edc40ac4a4d0c959d9dbf1ffce6714826fc90ca25c99d2dfe7a5aa710",
+          "runner/cni/bridge": "35132ed8c8487372ae808e47cf751978879882834c6d5875a1a6c626a0bc05ba",
+          "runner/cni/host-local": "b1d68ea8f0bbd89bf66d1ae413f20fcf78e954a85397d1638d1ee864807cf405",
+          "runner/cni/loopback": "4234e86e220b3e011796e167f049827ddcbd882e21e1cd88b25521d1753b9f64",
+          "runner/cni/macvlan": "cd7112010782a4a6468a406778bfa6ed26c502cb7971ceb589402fbdca14706c",
+          "runner/containerd.toml": "c3f5783dc17c14b3de0e606478dc8db9f09ecb8170b36f55695f149a0d384096",
+          "runner/network-apks/busybox-1.37.0-r30.apk": "d3c919f1f142e41ba83c7dbcc392388f23f840dda6867719e660ebb9cc681254",
+          "runner/network-apks/busybox-binsh-1.37.0-r30.apk": "311c832f7b05a545b8d18dbddff23b1d6d0c6085970735398064f91ed55cd575",
+          "runner/network-apks/gmp-6.3.0-r4.apk": "dc1b69ae15ad58a9f933b750fd4463defc32f7467f1ce9b57d80f893a6635377",
+          "runner/network-apks/iproute2-minimal-6.17.0-r0.apk": "cb59fda34bb6683b09cf510985d0d00aebfb78e00c5fd872fa4cd7095175a4a9",
+          "runner/network-apks/iptables-1.8.11-r1.apk": "23aa1819e5e9acd6393de443c1a46643fec285ef89087b0cd9c50e04dd172fc0",
+          "runner/network-apks/jansson-2.14.1-r0.apk": "3f2782a46b59b8ecfb8a15750026be0097b414c9e788074020a6c698e3b74b90",
+          "runner/network-apks/libcap2-2.78-r0.apk": "b92145d3ceaf2ba81106241e2939eafc7aacb9c32590e4b1be37171fd2f61112",
+          "runner/network-apks/libelf-0.194-r0.apk": "a92cb7309a0096234fbdd4e19a499e56337d9bb1fe18eb9d5ef6a89a4b46dbc6",
+          "runner/network-apks/libmnl-1.0.5-r2.apk": "e4d193a3cb4a44defd722292edde361e941b891ed93fcea94bbcf13b0972c5bb",
+          "runner/network-apks/libncursesw-6.5_p20251123-r0.apk": "7fe332c8af8b97579e89df56466f83f4abda5040a18e1842c07d684320bbef4b",
+          "runner/network-apks/libnftnl-1.3.0-r0.apk": "4d993ea759533e96474ff351ebdd5c831dce6032b0f6a4e4787f72080b47faa6",
+          "runner/network-apks/libxtables-1.8.11-r1.apk": "3521023467bac07f7ed9feab95ac8ada63fc9c20b03bbcb63f4ea631fa43d900",
+          "runner/network-apks/musl-1.2.5-r24.apk": "d7043c549029c98d438e9bc94213b006e5c88540eb58d1f5b0f0d1d56dbf9c98",
+          "runner/network-apks/ncurses-terminfo-base-6.5_p20251123-r0.apk": "6952a6b39abaf7bbc498cb085f0f59bf23619b53b3f7328b08fe50c0198a2bd4",
+          "runner/network-apks/nftables-1.1.5-r2.apk": "4c1dc50e0d15620c41a514f63d7630f61b1e24beea5de7d96525b9631fa56cbc",
+          "runner/network-apks/readline-8.3.1-r0.apk": "70d288a6c3d8daf19b10fb220120d2ebd6f154011c96ca5bc84923b658cb21f7",
+          "runner/network-apks/zlib-1.4-r0.apk": "c9bc3c75104ffba5785277b38eb83bf90ea83539e3bb26c617864fb78dcb4462",
+          "runner/network-apks/zstd-libs-1.5.7-r2.apk": "50a998e56e4bf31504996e49c1b4a23eed5e0cd4e24b8a1356a54daf1a6eabbe",
+          "runner/published-ports.sh": "c9a662c397afba2d501d9eee58fa8743871ace2926ece009df5766b07ea58d9b",
+          "runner/rootless.sh": "a96c476b1ca1d5662399b72a1e2365aeeb6c36fc619500233fa8ca9fed8cf03d",
+          "runner/start.sh": "236e9718b902e4810d3f604d3dfc9e9dbb2d771640485726faeb6bc6283c8384",
+          "service": "54341f0843e6ef16ef438e9e9829c9ee8b257b62219e2a8c78d841fe4ab6dfb1"
+        },
+        "path": "/private/tmp/mp-git-Ypw3sjPL/home/artifacts/guard-standalone/micropod-oci-tools"
+      }
+    },
+    "original_cli_operations": {
+      "native CLI noninteractive run": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "run",
+          "--runtime",
+          "hvf",
+          "--name",
+          "outer-proof-0v7a7ud9",
+          "alpine:3.23",
+          "--",
+          "/bin/sh",
+          "-ec",
+          "printf \"micropod machine canary\\n\"; exec sleep 900"
+        ],
+        "exit": 0,
+        "seconds": 0.064,
+        "stderr": "",
+        "stdout": "outer-proof-0v7a7ud9\n"
+      },
+      "native CLI noninteractive exec": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "exec",
+          "outer-proof-0v7a7ud9",
+          "--",
+          "cat",
+          "/etc/alpine-release"
+        ],
+        "exit": 0,
+        "seconds": 0.019,
+        "stderr": "",
+        "stdout": "3.23.8\n"
+      },
+      "native CLI container logs": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "logs",
+          "-n",
+          "5",
+          "outer-proof-0v7a7ud9"
+        ],
+        "exit": 0,
+        "seconds": 0.017,
+        "stderr": "",
+        "stdout": "micropod machine canary\n"
+      },
+      "native CLI detached exec boundary": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "exec",
+          "-d",
+          "outer-proof-0v7a7ud9",
+          "--",
+          "true"
+        ],
+        "exit": 1,
+        "seconds": 0.015,
+        "stderr": "error: runtime 'hvf' does not support detached exec\n",
+        "stdout": ""
+      },
+      "native CLI exec exit status boundary": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "exec",
+          "outer-proof-0v7a7ud9",
+          "--",
+          "/bin/sh",
+          "-c",
+          "printf \"native-command-out\\n\"; printf \"native-command-err\\n\" >&2; exit 23"
+        ],
+        "exit": 1,
+        "seconds": 0.019,
+        "stderr": "error: `hvf exec outer-proof-0v7a7ud9` failed (exit 23): native-command-err\n",
+        "stdout": ""
+      },
+      "native CLI interactive exec boundary": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "exec",
+          "-i",
+          "-t",
+          "outer-proof-0v7a7ud9",
+          "--",
+          "true"
+        ],
+        "exit": 1,
+        "seconds": 0.018,
+        "stderr": "error: runtime 'hvf' does not support interactive exec (stdin or a TTY)\n",
+        "stdout": ""
+      },
+      "native CLI copy boundary": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "cp",
+          "outer-proof-0v7a7ud9:/etc/alpine-release",
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/native-copy"
+        ],
+        "exit": 1,
+        "seconds": 0.015,
+        "stderr": "error: runtime 'hvf' does not support copy\n",
+        "stdout": ""
+      },
+      "native CLI export boundary": {
+        "command": [
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/micropod",
+          "export",
+          "outer-proof-0v7a7ud9",
+          "-o",
+          "/private/tmp/mp-git-Ypw3sjPL/home/outer-machine-0v7a7ud9/export.tar"
+        ],
+        "exit": 1,
+        "seconds": 0.015,
+        "stderr": "error: runtime 'hvf' does not support export\n",
+        "stdout": ""
+      }
+    },
+    "stock_docker_exec_checks": [
+      "interactive_pty",
+      "stdin_eof_binary_backpressure",
+      "plain_attached_early_output",
+      "concurrent_and_repeated_execs",
+      "exec_environment_and_workdir"
+    ],
+    "stock_docker_copy_roundtrip": true,
+    "retirement": {
+      "clean_shutdown": true,
+      "scope_removed": true,
+      "defaults_unchanged": true,
+      "base_input_unchanged": true,
+      "socket_removed": true,
+      "supervisor_lock_released": true,
+      "outside_processes_unchanged": true
+    },
+    "outer-adapter-stock": {
+      "client_sha256": "adb33a6b552536d8219b2d8c32f3c44def98058e76e97c8031498471c8dfdac8",
+      "attached_guest_status_and_utf8_streams": true,
+      "detached_release_gate": {
+        "exec_id": "826ed2e2488f666fadc82bb928331ab7f27bac186e8a9c6c643bb5f92605ac73",
+        "running_without_streams": true,
+        "relative_file": [
+          "/tmp",
+          "detached value"
+        ],
+        "exit_code": 39
+      },
+      "immediate_exit": {
+        "exec_id": "9a4aafa295092469331c2bf628561ba5dd425e02eea209d3b608f1c7585427ee",
+        "client_exit": 0,
+        "guest_exit": 71
+      },
+      "rejected_start": {
+        "cli_exit": 1,
+        "workdir_in_error": true
+      },
+      "owned_container_removed": true
+    },
+    "outer-adapter-final": {
+      "client_sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4",
+      "attached_guest_status_and_utf8_streams": true,
+      "detached_release_gate": {
+        "exec_id": "aa2b2de4551214e71c0e7c590755aec798a565766775e3cd95f4d0c2e71162ba",
+        "running_without_streams": true,
+        "relative_file": [
+          "/tmp",
+          "detached value"
+        ],
+        "exit_code": 39
+      },
+      "immediate_exit": {
+        "exec_id": "249c14bfbea699b0ad0f7853d29640c793ec157aed2ba1a89fe5731f4c4e033e",
+        "client_exit": 0,
+        "guest_exit": 71
+      },
+      "rejected_start": {
+        "cli_exit": 1,
+        "workdir_in_error": true
+      },
+      "owned_container_removed": true
+    },
+    "corrected_build": {
+      "base": "1db09e63a621a82520169d20613761da83ade14f",
+      "sha256": {
+        "SwiftProtobuf_SwiftProtobuf.bundle/PrivacyInfo.xcprivacy": "a07418e5fe128e224cd37964bc21c503b7aa2f575e7b4927468478ad873214fe",
+        "micropod": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4",
+        "swift-crypto_Crypto.bundle/PrivacyInfo.xcprivacy": "42fb8a30dd8d7ba0900e1bf17fe64ed8c12cfdb8a9c791ab6b4e1eceb0f299c0",
+        "swift-crypto_CryptoBoringWrapper.bundle/PrivacyInfo.xcprivacy": "42fb8a30dd8d7ba0900e1bf17fe64ed8c12cfdb8a9c791ab6b4e1eceb0f299c0",
+        "swift-crypto__CryptoExtras.bundle/PrivacyInfo.xcprivacy": "42fb8a30dd8d7ba0900e1bf17fe64ed8c12cfdb8a9c791ab6b4e1eceb0f299c0",
+        "swift-nio-ssl_NIOSSL.bundle/PrivacyInfo.xcprivacy": "42fb8a30dd8d7ba0900e1bf17fe64ed8c12cfdb8a9c791ab6b4e1eceb0f299c0",
+        "swift-nio_NIOPosix.bundle/PrivacyInfo.xcprivacy": "982f20d820bc4460acc9d4116c3e6c8ec837f717dc82edbb7308f7400515c909",
+        "swift-nio__NIOFileSystem.bundle/PrivacyInfo.xcprivacy": "982f20d820bc4460acc9d4116c3e6c8ec837f717dc82edbb7308f7400515c909"
+      },
+      "source_patch_sha256": "01544c39b249368b1f85776557b137a6484760330dd5b6d08c29f5713ac7cda6",
+      "strict_codesign": {
+        "returncode": 0,
+        "output": "/private/tmp/mp-git-Ypw3sjPL/home/artifacts/outer-detached-standalone/micropod: valid on disk\n/private/tmp/mp-git-Ypw3sjPL/home/artifacts/outer-detached-standalone/micropod: satisfies its Designated Requirement\n"
+      },
+      "source_manifest_sha256": "bf5e7e0b5bc8ff3d9e868f281a8e60fb880d1e2b3bd1f9445d2fd5f01eefce69"
+    },
+    "retained_cli": {
+      "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-exec-49c9db5e9245/micropod",
+      "sha256": "49c9db5e92453832a58fb95b6dbe5a749e4b2426850c822db331e5c2411a2bc4",
+      "strict_codesign": true
+    },
+    "swift_tests": {
+      "selected_tests": 72,
+      "failures": 0,
+      "docker_exec_cases": [
+        "testAttachedExecStillCollectsBothStreamsAndInspectsTheExitCode",
+        "testDetachedDockerExecAcceptsJSONAcknowledgement",
+        "testDetachedExecPropagatesStartRejectionFromAnOlderGuest",
+        "testDetachedExecRejectsAttachedResponsesWithoutWaitingForEOF",
+        "testDetachedHVFExecReturnsLaunchSuccessForAnAlreadyExitedProcess"
+      ]
+    }
+  },
+  "vz_detached_trace": {
+    "recorded": {
+      "original": 6,
+      "prospective": 2
+    },
+    "passed": {
+      "original": 5,
+      "prospective": 2
+    },
+    "id": "310c2215aa71442152dca5d1f353ff197964cc32708dcab70cc701f239cd53bb",
+    "cli_deadline_s": 5,
+    "cli_elapsed_ms": 5004.572,
+    "guest_inspect_immediately_after_deadline": {
+      "Running": false,
+      "Pid": 0
+    },
+    "containerd_events_by_deadline": [],
+    "correlated_engine_events": [
+      {
+        "action": "exec_create",
+        "possible_ms_since_cli_start": [
+          -23.388,
+          22.1
+        ]
+      },
+      {
+        "action": "exec_start",
+        "possible_ms_since_cli_start": [
+          5018.396,
+          5063.885
+        ]
+      }
+    ],
+    "unresolved": "Delay between guest exec-create and native start. Its cause within the guest handler or transport remains unknown.",
+    "group_checks_clean": true,
+    "owned_worker_retired": true
+  },
+  "protected_volumes": [
+    {
+      "name": "base-host",
+      "uuid": "6C4A6999-92C9-45F1-90D8-2E189C66C1FC",
+      "image": "/private/tmp/mp-tune-ws-fesi1gfp/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "metadata-first",
+      "uuid": "4703D50E-2A08-4936-A620-9E27F7111E36",
+      "image": "/private/tmp/mp-tune-ws-twk_zbdi/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "verified_after_holder_query_timeout_s": 15.883302291986183
+    },
+    {
+      "name": "tty-first",
+      "uuid": "1A4C5D70-BBA8-47AB-9AD4-14AA320CA9A2",
+      "image": "/private/tmp/mp-tune-ws-uzeyjy45/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "verified_after_holder_query_timeout_s": 15.396403584003565
+    },
+    {
+      "name": "metadata-quiet",
+      "uuid": "8FBC2838-760F-4C4E-9DA6-A045D5FDB7A6",
+      "image": "/private/tmp/mp-tune-ws-2r5mkeh0/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "verified_after_holder_query_timeout_s": 12.238166916999035
+    },
+    {
+      "name": "baseline-quiet",
+      "uuid": "691F130E-87B9-4530-82C6-CB46FE592586",
+      "image": "/private/tmp/mp-tune-ws-cv3mn_u6/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "metadata-repeat",
+      "uuid": "156BF44B-B692-4AE2-9D8F-CD1E487557F4",
+      "image": "/private/tmp/mp-tune-ws-5hwdh80x/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "baseline-repeat",
+      "uuid": "45B63129-CCD0-4372-8181-01F127AAFFC1",
+      "image": "/private/tmp/mp-tune-ws-6b9rf8vd/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "managed-final",
+      "uuid": "E91FE1EF-537E-4F9E-9CCE-D87C2C13F067",
+      "image": "/private/tmp/mp-tune-ws-p4s_8ky5/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "vz-final",
+      "uuid": "57352F4C-14B0-4281-8DAD-D150DD4DBCA6",
+      "image": "/private/tmp/mp-tune-ws-ar9borq5/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "installed-ci",
+      "uuid": "D3308FC1-0528-4546-8C4A-C48262B72C69",
+      "image": "/private/tmp/mp-tune-ws-h0k1i0a5/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "old-exec",
+      "uuid": "BE2E2936-F871-4089-9B3A-8FE2133F2EB0",
+      "image": "/private/tmp/mp-tune-ws-lq9ve6o6/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "direct-forks",
+      "uuid": "D3C00965-A25B-4951-BCFA-9DF7FE934E68",
+      "image": "/private/tmp/mp-sf-3lkx64kh/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true
+    },
+    {
+      "name": "direct-forks-vz",
+      "uuid": "16855468-CBCC-40DD-8A0A-52B4434EE6D4",
+      "image": "/private/tmp/mp-tune-vz-cold-u3n2ujde/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "installed-dense",
+      "uuid": "150C9B71-312D-4D21-BD65-92DA6F3F163E",
+      "image": "/private/tmp/mp-tune-ws-rqsxfzwa/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "installed-dense-final",
+      "uuid": "BEFFF3A2-0DB9-4660-9B0A-510B2126E15E",
+      "image": "/private/tmp/mp-tune-ws-270ui563/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "guarded-hvf",
+      "uuid": "DD0D6EA1-778C-456A-A7EB-CECAF0A7833D",
+      "image": "/private/tmp/mp-tune-ws-w24jh4yn/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "guarded-vz",
+      "uuid": "F1E66B0D-A706-4393-BA18-1498BB11E42A",
+      "image": "/private/tmp/mp-tune-ws-wigvk5i8/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "guarded-vz-final",
+      "uuid": "C9E0EFD8-2291-41AA-BCEC-F066A56A6311",
+      "image": "/private/tmp/mp-tune-ws-4ee2vwwa/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "repeat-vz",
+      "uuid": "EDD999E6-3001-42B8-A7B9-3391E7AF08AB",
+      "image": "/private/tmp/mp-tune-ws-lrua57_d/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "repeat-hvf",
+      "uuid": "FFB735C2-B493-46C2-8E76-2AAE06C3FEB1",
+      "image": "/private/tmp/mp-tune-ws-euayxxq1/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "targeted-hvf",
+      "uuid": "EF77F7EC-9C05-47EE-B42C-16AB7225D486",
+      "image": "/private/tmp/mp-tune-ws-d8_fbsv0/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "detach-vz",
+      "uuid": "D2E56450-4690-46E3-B219-D535053FDF40",
+      "image": "/private/tmp/mp-tune-ws-x0wz5g0q/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "detach-hvf",
+      "uuid": "AD55117E-6501-418A-8459-B91CCE0FDBFA",
+      "image": "/private/tmp/mp-tune-ws-ql7h76w2/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "qualifier-vz",
+      "uuid": "FED25143-21AA-4241-A531-7056F2C409AE",
+      "image": "/private/tmp/mp-tune-ws-u03fuat2/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "qualifier-hvf",
+      "uuid": "D8FB4426-F776-41E2-9DC5-AA7833D6422F",
+      "image": "/private/tmp/mp-tune-ws-x4up2zkw/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "qualifier-vz-final",
+      "uuid": "C1591599-2DCB-4048-B8EE-5EF4B51E523D",
+      "image": "/private/tmp/mp-tune-ws-y76kz868/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": false,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": -9
+    },
+    {
+      "name": "qualifier-hvf-final",
+      "uuid": "FED9BE5B-FDCA-4947-B3F3-84A74A2A2ECD",
+      "image": "/private/tmp/mp-tune-ws-t0wpxilf/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "qualifier-vz-pinned",
+      "uuid": "A49CDECC-0269-461C-919E-982F9B3D4B7F",
+      "image": "/private/tmp/mp-tune-ws-c_lh5ccy/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "qualifier-vz-audit",
+      "uuid": "9ACC854B-FB10-48ED-9166-700E0B992998",
+      "image": "/private/tmp/mp-tune-ws-au74s98l/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "qualifier-hvf-audit",
+      "uuid": "27A86902-D70F-4ED3-B9AF-F602155830F7",
+      "image": "/private/tmp/mp-tune-ws-x4r12f4l/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "vz-trace",
+      "uuid": "AB91B202-C876-45C4-BABE-EF1ADB80D943",
+      "image": "/private/tmp/mp-tune-vztrace-xtg_rhx9/worker.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true,
+      "shutdown_code": 0
+    },
+    {
+      "name": "fixture",
+      "uuid": "E48AD253-AAD0-4505-88D4-D1A0FC1E3AEE",
+      "image": "/private/tmp/mp-git-Ypw3sjPL/fixture.sparseimage",
+      "spotlight_disabled": true,
+      "no_log_marker": true,
+      "verified_at_worker_readiness": true,
+      "journal_files": 0,
+      "verified_on_read_only_remount": true,
+      "image_removed": true
+    }
+  ],
+  "preservation_and_cleanup": {
+    "protected_volume_count": 32,
+    "staging_mount_restored_empty": true,
+    "all_backing_images_absent": true,
+    "no_owned_disk_images_attached": true,
+    "original_baseline_files": 24,
+    "verified_copies": 24,
+    "qualified_host_binaries": 2,
+    "qualified_tool_files": 37,
+    "orbstack_image_removed": "micropod-qa/checkout:mp-git-ypw3sjpl",
+    "private_host_replay_directory_absent": true,
+    "private_staging_directory_removed": true
+  },
+  "evidence": {
+    "sources": {
+      "path": "managed-ci-git-and-exec-sources.tar.gz",
+      "manifest_entries": 2179,
+      "bytes": 8100061,
+      "sha256": "052718b726d6d494c64e772615107df563472151042d6862b991d3d6f623b9e7"
+    },
+    "raw": {
+      "path": "managed-ci-git-and-exec-receipts.tar.gz",
+      "manifest_entries": 429,
+      "bytes": 1881760,
+      "sha256": "8d7f7a4c913785ec8fb34da605a848d0b04c37def248f2dd7cd763d6c1c53001"
+    }
+  }
+}

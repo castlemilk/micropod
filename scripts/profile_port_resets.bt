@@ -1,0 +1,11 @@
+// Run inside the private worker with the leased guest port and the container
+// port. This observes the kernel's reset call site and never captures a payload.
+BEGIN { printf("reset probe ready\n"); }
+tracepoint:tcp:tcp_send_reset
+{
+    $src = args.saddr[2] * 256 + args.saddr[3];
+    $dst = args.daddr[2] * 256 + args.daddr[3];
+    if ($src == $1 || $dst == $1 || $src == $2 || $dst == $2) {
+        @reset_stacks[args.reason, kstack(10)] = count();
+    }
+}

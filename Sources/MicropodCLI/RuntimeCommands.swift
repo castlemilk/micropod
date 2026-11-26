@@ -105,7 +105,7 @@ enum RuntimeCommands {
     }
 
     static func requireName(_ args: [String]) throws -> String {
-        guard args.count > 1 else { throw UsageError(message: "missing <name> (apple, docker, sandbox)") }
+        guard args.count > 1 else { throw UsageError(message: "missing <name> (apple, docker, sandbox, ci, hvf)") }
         return args[1]
     }
 

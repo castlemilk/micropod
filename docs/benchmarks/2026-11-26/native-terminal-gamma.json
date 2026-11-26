@@ -1,0 +1,1665 @@
+{
+  "host": "Gamma-128GB.local",
+  "local_date": "2026-11-26",
+  "release": {
+    "path": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod",
+    "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+    "bundles": [
+      "SwiftProtobuf_SwiftProtobuf.bundle",
+      "swift-crypto_CCryptoBoringSSL.bundle",
+      "swift-crypto_CCryptoBoringSSLShims.bundle",
+      "swift-crypto_Crypto.bundle",
+      "swift-crypto_CryptoBoringWrapper.bundle",
+      "swift-crypto__CryptoExtras.bundle",
+      "swift-nio-ssl_NIOSSL.bundle",
+      "swift-nio_NIOPosix.bundle",
+      "swift-nio__NIOFileSystem.bundle"
+    ],
+    "entitlements": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"https://www.apple.com/DTDs/PropertyList-1.0.dtd\"><plist version=\"1.0\"><dict><key>com.apple.security.virtualization</key><true/></dict></plist>\n",
+    "signing": "ad hoc",
+    "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0"
+  },
+  "source_archive": {
+    "source_archive": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-26/native-terminal-sources.tar.gz",
+    "sha256": "9e536320ae32e72bbd35ae88ae14772652eca6d66c96de3489cddaeb95e52248",
+    "verified_package_files": 600,
+    "runner_files": 77,
+    "runner_overlay": [
+      "docker_exec_stream_linux.go",
+      "docker_http_linux.go",
+      "docker_http_linux_test.go"
+    ]
+  },
+  "production_source_check": {
+    "product_sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+    "effective_files": 600,
+    "changed_after_release_build": [
+      "Tests/MicropodRuntimeTests/DockerExecTests.swift"
+    ],
+    "built_manifest_sha256": "1d98bd7cd8cb2e69a44800b469d809bd2dacfe61e1260a2c944061bf9e450c0f",
+    "qualified_manifest_sha256": "174d4540887133c9142cf642084da3665a9b70ad9cf60b39aeea3b4d7bd79d88",
+    "production_package_files_unchanged": true
+  },
+  "xctest": {
+    "total": 372,
+    "failed": 0,
+    "suites": {
+      "ArgParserTests": "8",
+      "BuildContextCacheTests": "13",
+      "ContainerNameTests": "6",
+      "CreateKnobsTests": "9",
+      "DefaultNetworkNameTests": "1",
+      "DockerExecTests": "22",
+      "DockerLogTailTests": "2",
+      "DockerMapperTests": "8",
+      "DockerTCPConnectionTests": "6",
+      "EndpointNetworkAttachTests": "3",
+      "EventsHubReconcileTests": "6",
+      "ExecExitCodeTests": "5",
+      "HVFMachineTests": "56",
+      "HealthSupervisionTests": "7",
+      "NetworkSupportTests": "9",
+      "PortBindingHostIPTests": "3",
+      "PreStartArchivesHostFilesTests": "2",
+      "PreStartArchivesTests": "9",
+      "ReadThroughCacheTests": "9",
+      "RuntimeEngineTests": "21",
+      "RyukInterceptTests": "7",
+      "ShimAddressMappingTests": "5",
+      "ShimConnectionTests": "6",
+      "ShimFilterTests": "4",
+      "ShimGatewayMappingTests": "4",
+      "ShimHeadMethodTests": "3",
+      "ShimHijackAfterCloseTests": "1",
+      "ShimParserTests": "13",
+      "ShimPruneTests": "14",
+      "ShimRequestFramingTests": "7",
+      "ShimServerTests": "38",
+      "ShimStartSettleTests": "6",
+      "ShimStatePersistenceTests": "4",
+      "ShimTCPAdmissionTests": "8",
+      "ShimVolumeOptionsTests": "7",
+      "ShimWaitTests": "6",
+      "ShimWellKnownIntegrationTests": "6",
+      "StdcopyFramingTests": "3",
+      "WellKnownCacheCoverageTests": "6",
+      "WellKnownCacheTests": "19",
+      "MicropodPackageTests.xctest": "372",
+      "Selected tests": "372"
+    }
+  },
+  "case_groups": {
+    "corrected_pid1_guest": {
+      "endpoint": "unix:///tmp/mpg2-pid1-corrected-zpwgj1uh/home/outer-machine-lmm7ihgj/machine/run/docker.sock",
+      "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod",
+      "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+      "cases": {
+        "docker": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 34.667
+          }
+        },
+        "micropod": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "host_signal": {
+            "passed": true,
+            "host_exit": 143,
+            "host_terminal_restored": true
+          },
+          "broken_output": {
+            "passed": true,
+            "host_exit": 141,
+            "host_terminal_restored": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 41.076
+          }
+        }
+      },
+      "containers": [
+        "d8851e5a566aca11607f7f6978d786e8f61e4cea7c5bdeba4e1271f293b5e800",
+        "1d6a973666f1eced2914c68bd0f517481596c82d7fbe5c6e106e6f65fa19e407",
+        "c24584efee34b079efedca7f6c204992ff2650808ee62ccc070b48e8099ed994",
+        "74dfdea30be37b7bc37a5d035e4f67e5089c7c77d5fa88a40f27644625f96791",
+        "f50bdaa97065edd62996c8df89cadeb84342e3f9f4c56dceb806d428bc184793",
+        "f50fb842eb0dc68e49a35da6e32e74a44a250940292bd69c9b8a08e05bc24ef7",
+        "895b5eb1bc9e1158e4a1bdf6738cffac274be7984bed48a60dbcc0dfd93984e0",
+        "cb4c829004aca7a1039500b7f8f8a994af889d87c666336456a8bf16e6bfdd07"
+      ],
+      "removed": 8,
+      "remaining": [],
+      "worker_artifact_sha256": {
+        "cli": "3892941149a6ca89abfb56a57dc9aef0315c567283b450294017c0cd29f8b493",
+        "initrd": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615",
+        "job": "3fbb8701a71b3bf246eaf8b1f6db84f34835b54ed83d33f3f796e0da76493ac7",
+        "kernel": "5eb46b31203fe4b4d53782f4ba7b216274ad5cd63424df711fc96fd36577e52b",
+        "vmm": "6d8c2c3a7eb1e1058990d871f5fdaf5269a4b1df82e1f240098a1726d63b3585"
+      }
+    },
+    "live_reads_guest": {
+      "endpoint": "unix:///tmp/mpg2-live-reads-5nwl4_hk/home/outer-machine-0izex1pr/machine/run/docker.sock",
+      "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod",
+      "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+      "cases": {
+        "docker": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 28.477
+          }
+        },
+        "micropod": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "host_signal": {
+            "passed": true,
+            "host_exit": 143,
+            "host_terminal_restored": true
+          },
+          "broken_output": {
+            "passed": true,
+            "host_exit": 141,
+            "host_terminal_restored": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 27.878
+          }
+        }
+      },
+      "observer_control": {
+        "exited_in_raw_mode_detected": true
+      },
+      "containers": [
+        "07d1647db120958740466ebbeb4a98cf898c0439e7cc83e041c1c37e205ffb54",
+        "468ce8cc88c5b52806415caa26986892cb968d0cdb689c52abe37a76ad403100",
+        "334032cb7f20a4ad7e2dc428de23c63b6eae92d4ea61cf9ae48f508145d231e8",
+        "24dc3faf8afb880b2c379942152d4cc3bd0143be01a0779ea1f3d766337f4e11",
+        "f602b55f0e5bb18ba83f912eec9d7b5dd9144425e11e54ece78d2df272b77895",
+        "8a689aa8b4bbea4e0e101c79ed1b8ba0ae83e34747167854c09e04e02ad12921",
+        "e9b7b57a93e1e6ec49fa3c21571a8a9afc88689530b7903ca3dcdf1f81d27f85",
+        "b32ba284fd3a5059d9cdf5e67ca5254328ad03b8430cb3f50feba3e214cbb8cc"
+      ],
+      "removed": 8,
+      "remaining": [],
+      "worker_artifact_sha256": {
+        "cli": "3892941149a6ca89abfb56a57dc9aef0315c567283b450294017c0cd29f8b493",
+        "initrd": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615",
+        "job": "6732db0c47c503887279d615e67c8fdc6e98ca030442e860375cecaea5831626",
+        "kernel": "5eb46b31203fe4b4d53782f4ba7b216274ad5cd63424df711fc96fd36577e52b",
+        "vmm": "400ee99ae3b957c5233737618fc776e52d9e956eb200831746debc05d45711ca"
+      }
+    },
+    "orbstack": {
+      "endpoint": "unix:///Users/benebsworth/.orbstack/run/docker.sock",
+      "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod",
+      "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+      "cases": {
+        "docker": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 266,
+            "resize_notifications": 2,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 48.148
+          }
+        },
+        "micropod": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "host_signal": {
+            "passed": true,
+            "host_exit": 143,
+            "host_terminal_restored": true
+          },
+          "broken_output": {
+            "passed": true,
+            "host_exit": 141,
+            "host_terminal_restored": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 55.263
+          }
+        }
+      },
+      "observer_control": {
+        "exited_in_raw_mode_detected": true
+      },
+      "containers": [
+        "97f9a20b343c95d163b42b9540cd031bc06da5f7bf932c3d7c494f04b9ece1f3",
+        "ee40fedabd9e1b8c45c51f38e365230143c978742e10f5672b0e71cb319d3292",
+        "bf6be1b14cd2f33d5805a93d74c9f5e7cc3ca90bb0eea23450e9f28c2e7a3b86",
+        "7121e62d786fbc45021730d9328770a5391b9a3528801da176fa4198de63f76e",
+        "179389ee625ced7548ebbff5a773e3064aff5b015bc29c1927d2e1eddac00783",
+        "8461f58a2be9d56501beebbef82b919d0ccc6ebf043ec08651ca41cc84f8148e",
+        "2afa15d71aea42651424d7519f831fb997811750c53a106dcbceb9dfeb19531e",
+        "ff721cf3eb54e0c764a3c9cfddfb59ae7de02d18a840aabc1cb03587bd851276"
+      ],
+      "removed": 8,
+      "remaining": []
+    },
+    "combined_guest": {
+      "endpoint": "unix:///tmp/mpg2-combined-su10opbj/home/outer-machine-1p79qnn6/machine/run/docker.sock",
+      "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod",
+      "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+      "cases": {
+        "docker": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 29.431
+          }
+        },
+        "micropod": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "host_signal": {
+            "passed": true,
+            "host_exit": 143,
+            "host_terminal_restored": true
+          },
+          "broken_output": {
+            "passed": true,
+            "host_exit": 141,
+            "host_terminal_restored": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 26.809
+          }
+        }
+      },
+      "observer_control": {
+        "exited_in_raw_mode_detected": true
+      },
+      "containers": [
+        "760e09013ef64489d69a7c420fb76e2d2f798c434083ae108cf4c0e105d7a1b5",
+        "6213baca741fdd85b822d15dbbf2e1e846082c63665f1229cbc125ab74524bae",
+        "5faf58bed6e95bf7cd9732136b8a831d5a4cbcbca38ec2ab6148aa2ac270b50d",
+        "4fd82343c1653687992958ad14946882ad74058b6471f30f4eadf7e7a227ccda",
+        "77ac2ba92ff472cb5a18edceaab465905ccfe6f21288fda7c86f54c44711d003",
+        "2bd5413f225d2ad630ae3037f0425362c86543d1925b5d71528161f31d9d41b5",
+        "ab31ec198a974fd1a977bd73dedcd155a074e9f47121f1ef7816249a72e56f5d",
+        "be8b359934292a48865e5454554c8e4afb74118fe22f0e9dbbcecdfe2ebe20d1"
+      ],
+      "removed": 8,
+      "remaining": [],
+      "worker_artifact_sha256": {
+        "cli": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+        "initrd": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615",
+        "job": "89d4b15421acfa0c1b7f94e2bad6809847b71690aa2f63e1e05de71e9129a348",
+        "kernel": "dba972178942b384b9eefd10dc1d92c0b9f063d5bcb2a9604e388400283f0ab6",
+        "vmm": "08ad6edf752eb6b9de7f4ca0a395423b37fbdf96ce1129086237a14b29d4ce31"
+      }
+    },
+    "large_log_guest": {
+      "endpoint": "unix:///tmp/mpg2-combined-logs-mkz_nxr6/home/outer-machine-5nce9_i7/machine/run/docker.sock",
+      "binary": "/Users/benebsworth/projects/micropod/.build/qualified/micropod-tty-31c78102d9a1/micropod",
+      "sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+      "cases": {
+        "docker": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 29.214
+          }
+        },
+        "micropod": {
+          "interactive": {
+            "passed": true,
+            "initial": [
+              31,
+              97
+            ],
+            "resized": [
+              42,
+              113
+            ],
+            "guest_exit": 37,
+            "bytes": 86,
+            "resize_notifications": 1,
+            "host_terminal_restored": true
+          },
+          "guest_signal": {
+            "passed": true,
+            "guest_exit": 42,
+            "host_terminal_restored": true
+          },
+          "nonterminal": {
+            "passed": true,
+            "raw_pty_bytes_hex": "0100000000000001fffe",
+            "tty_only_exit": 26,
+            "nonterminal_rejected": true
+          },
+          "argv": {
+            "passed": true,
+            "guest_argv": [
+              "--json",
+              "--no-color",
+              "--cli",
+              "guest-argument",
+              "--",
+              "-it"
+            ]
+          },
+          "detached_tty": {
+            "passed": true,
+            "acknowledged": true,
+            "guest_tty": true
+          },
+          "host_signal": {
+            "passed": true,
+            "host_exit": 143,
+            "host_terminal_restored": true
+          },
+          "broken_output": {
+            "passed": true,
+            "host_exit": 141,
+            "host_terminal_restored": true
+          },
+          "eight_terminals": {
+            "passed": true,
+            "jobs": [
+              {
+                "guest": "job-0",
+                "initial_size": [
+                  30,
+                  88
+                ],
+                "exit": 20
+              },
+              {
+                "guest": "job-1",
+                "initial_size": [
+                  31,
+                  89
+                ],
+                "exit": 21
+              },
+              {
+                "guest": "job-2",
+                "initial_size": [
+                  32,
+                  90
+                ],
+                "exit": 22
+              },
+              {
+                "guest": "job-3",
+                "initial_size": [
+                  33,
+                  91
+                ],
+                "exit": 23
+              },
+              {
+                "guest": "job-4",
+                "initial_size": [
+                  34,
+                  92
+                ],
+                "exit": 24
+              },
+              {
+                "guest": "job-5",
+                "initial_size": [
+                  35,
+                  93
+                ],
+                "exit": 25
+              },
+              {
+                "guest": "job-6",
+                "initial_size": [
+                  36,
+                  94
+                ],
+                "exit": 26
+              },
+              {
+                "guest": "job-7",
+                "initial_size": [
+                  37,
+                  95
+                ],
+                "exit": 27
+              }
+            ],
+            "wall_ms": 28.899
+          }
+        }
+      },
+      "observer_control": {
+        "exited_in_raw_mode_detected": true
+      },
+      "containers": [
+        "f33904cc098673fc1733b3787af3f8014d0a478f8e0d9b1940f963c87ca7fe1a",
+        "3df036c8612907af70b0a251fede42b56cc72c90bd7efb7b0d90f553718843ca",
+        "f5f32d6796aff35a0144ca5d7a7e4a8a46559af44df9da92a92972f6ac071ffc",
+        "d11b81a6cd873c37543dcc9ed82ab51682ca22315fa65afddec1724d5a17ed9c",
+        "54ca158b6c60650c6a883feccfa493aeef20cbe533b4ba205141aac60f59203f",
+        "f98615262b084fcedec2fc13135604536e8caf23a1186cd86a4ca32f8f7c2f6d",
+        "d332311281baf81c31693ea63f86e61e2e3881e3d4151670f0d48791e5367349",
+        "d461592509e6f9976eac106e53cb69446a51b45894813febb3d3bf585f453aae"
+      ],
+      "removed": 8,
+      "remaining": [],
+      "worker_artifact_sha256": {
+        "cli": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+        "initrd": "50afc24231a7649990c0b8c6352cf583f51ce2ec4515ad88522a7ab6b9fc9615",
+        "job": "dda4c5e3bd239a60c557101942ec37645e29a6b63d6572db0689607f01d06c09",
+        "kernel": "dba972178942b384b9eefd10dc1d92c0b9f063d5bcb2a9604e388400283f0ab6",
+        "vmm": "08ad6edf752eb6b9de7f4ca0a395423b37fbdf96ce1129086237a14b29d4ce31"
+      }
+    }
+  },
+  "binary_density": {
+    "schema": 1,
+    "run": "e02a5d7830ef40c4",
+    "label": "micropod.qa.exec-density=e02a5d7830ef40c4",
+    "image": "alpine:3.23",
+    "jobs": 8,
+    "bytes_per_job_each_direction": 2097152,
+    "endpoints": {
+      "hvf": {
+        "host": "unix:///private/tmp/mpg2-live-reads-5nwl4_hk/home/outer-machine-0izex1pr/machine/run/docker.sock",
+        "names": [
+          "mp-stream-e02a5d7830ef40c4-0",
+          "mp-stream-e02a5d7830ef40c4-1",
+          "mp-stream-e02a5d7830ef40c4-2",
+          "mp-stream-e02a5d7830ef40c4-3",
+          "mp-stream-e02a5d7830ef40c4-4",
+          "mp-stream-e02a5d7830ef40c4-5",
+          "mp-stream-e02a5d7830ef40c4-6",
+          "mp-stream-e02a5d7830ef40c4-7"
+        ],
+        "provision_ms": 406.089,
+        "busybox_and_release": "dd10691d81c84f0182f5af5f1583d566ddc0b9d0d9fc46b41b99b83c398306dd  /bin/busybox\ne3b966ee67a8a9ab92a5eaac0c5f1838e7848e1272cbeb9a43ffc879c71e2dcc  /etc/alpine-release\n",
+        "server": "{\"Platform\":{\"Name\":\"Micropod\"},\"Version\":\"micropod\",\"ApiVersion\":\"1.47\",\"MinAPIVersion\":\"1.44\",\"Os\":\"linux\",\"Arch\":\"arm64\",\"Components\":[{\"Name\":\"Engine\",\"Version\":\"micropod\",\"Details\":{\"ApiVersion\":\"1.47\",\"Arch\":\"arm64\",\"MinAPIVersion\":\"1.44\",\"Os\":\"linux\"}}]}"
+      },
+      "orb": {
+        "host": "unix:///Users/benebsworth/.orbstack/run/docker.sock",
+        "names": [
+          "mp-stream-e02a5d7830ef40c4-0",
+          "mp-stream-e02a5d7830ef40c4-1",
+          "mp-stream-e02a5d7830ef40c4-2",
+          "mp-stream-e02a5d7830ef40c4-3",
+          "mp-stream-e02a5d7830ef40c4-4",
+          "mp-stream-e02a5d7830ef40c4-5",
+          "mp-stream-e02a5d7830ef40c4-6",
+          "mp-stream-e02a5d7830ef40c4-7"
+        ],
+        "provision_ms": 1112.144,
+        "busybox_and_release": "dd10691d81c84f0182f5af5f1583d566ddc0b9d0d9fc46b41b99b83c398306dd  /bin/busybox\ne3b966ee67a8a9ab92a5eaac0c5f1838e7848e1272cbeb9a43ffc879c71e2dcc  /etc/alpine-release\n",
+        "server": "{\"Platform\":{\"Name\":\"Docker Engine - Community\"},\"Version\":\"29.8.2\",\"ApiVersion\":\"1.56\",\"MinAPIVersion\":\"1.40\",\"Os\":\"linux\",\"Arch\":\"arm64\",\"Components\":[{\"Name\":\"Engine\",\"Version\":\"29.8.2\",\"Details\":{\"ApiVersion\":\"1.56\",\"Arch\":\"arm64\",\"BuildTime\":\"Wed Sep 30 19:32:49 2026\",\"Experimental\":\"true\",\"GitCommit\":\"8af9fe3\",\"GoVersion\":\"go1.26.8\",\"KernelVersion\":\"7.2.12-orbstack-00394-gbecdd6130068\",\"MinAPIVersion\":\"1.40\",\"Module\":\"github.com/moby/moby/v2\",\"ModuleVersion\":\"v2.0.0+unknown\",\"Os\":\"linux\"}},{\"Name\":\"containerd\",\"Version\":\"v2.3.6\",\"Details\":{\"GitCommit\":\"ee2735368117d2eb259779949d5e75cdafec9761\"}},{\"Name\":\"runc\",\"Version\":\"1.5.2\",\"Details\":{\"GitCommit\":\"29dd3dc2b13b4123162e5fe132504bb4b15569f1\"}},{\"Name\":\"docker-init\",\"Version\":\"0.19.0\",\"Details\":{\"GitCommit\":\"de40ad0\"}}],\"GitCommit\":\"8af9fe3\",\"GoVersion\":\"go1.26.8\",\"KernelVersion\":\"7.2.12-orbstack-00394-gbecdd6130068\",\"Experimental\":true,\"BuildTime\":\"2026-09-30T19:32:49.000000000+00:00\"}"
+      }
+    },
+    "warmup": {
+      "hvf-micropod": {
+        "ms": 720.155,
+        "all_ready_ms": 21.323,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      },
+      "orb-micropod": {
+        "ms": 799.825,
+        "all_ready_ms": 56.174,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      },
+      "hvf-docker": {
+        "ms": 810.875,
+        "all_ready_ms": 22.515,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      },
+      "orb-docker": {
+        "ms": 888.916,
+        "all_ready_ms": 52.938,
+        "jobs": 8,
+        "bytes_each_direction": 16777216
+      }
+    },
+    "rounds": [
+      {
+        "hvf-micropod": {
+          "ms": 752.009,
+          "all_ready_ms": 22.467,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-micropod": {
+          "ms": 827.414,
+          "all_ready_ms": 56.266,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-docker": {
+          "ms": 834.184,
+          "all_ready_ms": 39.506,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-docker": {
+          "ms": 741.965,
+          "all_ready_ms": 24.328,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      },
+      {
+        "orb-micropod": {
+          "ms": 807.973,
+          "all_ready_ms": 51.838,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-docker": {
+          "ms": 760.793,
+          "all_ready_ms": 24.719,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-micropod": {
+          "ms": 693.823,
+          "all_ready_ms": 23.939,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-docker": {
+          "ms": 859.907,
+          "all_ready_ms": 54.177,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      },
+      {
+        "hvf-docker": {
+          "ms": 750.957,
+          "all_ready_ms": 23.649,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-docker": {
+          "ms": 829.113,
+          "all_ready_ms": 47.659,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-micropod": {
+          "ms": 767.475,
+          "all_ready_ms": 43.679,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-micropod": {
+          "ms": 695.967,
+          "all_ready_ms": 23.265,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      },
+      {
+        "orb-docker": {
+          "ms": 845.388,
+          "all_ready_ms": 49.816,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-micropod": {
+          "ms": 697.731,
+          "all_ready_ms": 24.582,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "hvf-docker": {
+          "ms": 752.386,
+          "all_ready_ms": 24.255,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        },
+        "orb-micropod": {
+          "ms": 767.256,
+          "all_ready_ms": 51.837,
+          "jobs": 8,
+          "bytes_each_direction": 16777216
+        }
+      }
+    ],
+    "integrity_32_mib": {
+      "hvf-micropod": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      },
+      "hvf-docker": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      },
+      "orb-micropod": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      },
+      "orb-docker": {
+        "bytes": 33554432,
+        "sha256": "83ee47245398adee79bd9c0a8bc57b821e92aba10f5f9ade8a5d1fae4d8c4302"
+      }
+    },
+    "cleanup": {
+      "hvf": {
+        "removed": 8,
+        "remaining": []
+      },
+      "orb": {
+        "removed": 8,
+        "remaining": []
+      }
+    },
+    "cli_sha256": "31c78102d9a1ab7a07912cbbd89f2e3dd265889eae62663336d0fb1e595f0259",
+    "median_ms": {
+      "hvf-micropod": 696.8489999999999,
+      "orb-micropod": 787.7239999999999,
+      "hvf-docker": 751.6714999999999,
+      "orb-docker": 839.7860000000001
+    }
+  },
+  "paired_density": {
+    "micropod": {
+      "median_wave_ms": {
+        "hvf": 696.8489999999999,
+        "orbstack": 787.7239999999999
+      },
+      "hvf_wins": 4,
+      "pairs": 4
+    },
+    "docker": {
+      "median_wave_ms": {
+        "hvf": 751.6714999999999,
+        "orbstack": 839.7860000000001
+      },
+      "hvf_wins": 4,
+      "pairs": 4
+    }
+  },
+  "original_benchmark": {
+    "manifest": "bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T101312Z-local-iad8j2_g/preserved/manifest.json",
+    "manifest_sha256": "8e7826379b6ae9afd581d179a64b5a0aa11c1efa18f6ba30cd0ea13669f0163e",
+    "results": {
+      "source": {
+        "files": 24,
+        "matched": 24
+      },
+      "preserved": {
+        "files": 24,
+        "matched": 24
+      }
+    },
+    "previous_artifacts": {
+      "benchmarks/2026-11-26/core-engine-sources.tar.gz": "9e92d3bbd192a4adb194c5b6b1f4fbcd4b2a94909e95ed757d4c76dbc82a0503",
+      "benchmarks/2026-11-26/mounted-ci-gamma-receipts.tar.gz": "774763ef36286b0d1c747c81a6c24354654e190d29a69b1f041cdcd7565f6eb0",
+      "benchmarks/2026-11-26/mounted-ci-gamma.json": "a421bb49b422f344539857a0e8e6fe4599f4da840bbddba5ab9446fe1cc54b13"
+    }
+  },
+  "raw_receipts": "core-pid1-and-mutable-gamma-receipts.tar.gz"
+}

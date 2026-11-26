@@ -1,0 +1,7 @@
+**24 November 2026 · 230.11 · Timing the native relay’s 512 KiB receive-buffer request**
+
+Local/host-only Darwin 25.5.0 arm64 on one private TCP loopback listener. Both arms ran the real bounded relay dial at `7d9b565173a901cb18942e00384838da96e0ba98`. Changed only when the dialing socket requested 524,288 bytes, from before connect to after accept. Sixteen counterbalanced pairs (eight per order). On all 32 first attempts the receiver byte-verified 32 × 16 KiB and both endpoints reached EOF.
+
+Both endpoints agreed on a negotiated window scale of 3 under stock and 6 with the later request. Actual receive buffers were 538,956 and 524,288 B. The sender’s initial advertised credit fell from 524,280 to 408,320 B, a 115,960 B reduction. All sixteen pairs agreed, with zero sender-reported retransmissions. This single-kernel fixture measured socket state. Wire loss, elapsed throughput, fresh p95/p99, CPU/GiB and runnable time were unmeasured.
+
+Preserve the pre-connect setting for both worker counts. A later window-size comparison needs effective buffers and both endpoints’ handshake state on the real publication path. Raw-verified local report `230.11-native-window.md`, first attempts `window.jsonl` SHA-256 `951ea8eee782ee2bb31fd68d0c2fe7f612863a14458a199282bc031a639db0a3`. Original fixed-work harness SHA-256 `897c94209c1031f5be321b78e4ea35ee5b7f68c90f737ce37039fd0920d2296a`. Reproduction in `batch05-tcp-control/reproduce.md`.

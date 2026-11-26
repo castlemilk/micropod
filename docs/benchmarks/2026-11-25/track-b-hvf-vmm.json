@@ -1,0 +1,152 @@
+{
+  "cold_boot_5_rounds": {
+    "rounds": 5,
+    "ipa_granule": "16KiB",
+    "median_boot_to_init_ms": 87.68,
+    "median_total_wall_ms": 88.09,
+    "median_host_phys_mib": 152.14,
+    "wfi_exits": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "raw_init_ms": [
+      92.9,
+      95.87,
+      87.68,
+      81.88,
+      84.88
+    ]
+  },
+  "hardware_benchmark": {
+    "vmm_stats": {
+      "exit_reason": "poweroff",
+      "ipa_granule": "16KiB",
+      "num_vcpus": 4,
+      "vcpus_started": 4,
+      "memory_mib": 1024,
+      "boot_to_first_uart_ms": 94.72,
+      "boot_to_init_ms": 94.77,
+      "total_wall_ms": 37321.88,
+      "mmio_exits": 802354,
+      "wfi_exits": 0,
+      "blk_read_ops": 245,
+      "blk_write_ops": 4096,
+      "blk_read_bytes": 81805312,
+      "blk_write_bytes": 67108864,
+      "balloon_kicks": 2,
+      "balloon_ranges": 33,
+      "balloon_reclaimed_bytes": 1023410176,
+      "net_tx_packets": 1727,
+      "net_tx_bytes": 153429,
+      "net_rx_packets": 4818,
+      "net_rx_bytes": 37776369,
+      "host_phys_footprint_mib": 504.66,
+      "host_peak_footprint_mib": 504.91
+    },
+    "topology": {
+      "TOPO_L1D": "128K",
+      "TOPO_L1I": "192K",
+      "TOPO_L2": "16384K",
+      "TOPO_L2_SHARED": "0-3",
+      "TOPO_CLUSTER": "0-3",
+      "ETH0_MTU": "9000",
+      "VIRTIO_NET_PING": "PING 10.42.0.1 (10.42.0.1): 56 data bytes|64 bytes from 10.42.0.1: seq=0 ttl=64 time=0.095 ms|64 bytes from 10.42.0.1: seq=1 ttl=64 time=0.086 ms|64 bytes from 10.42.0.1: seq=2 ttl=64 time=0.153 ms||--- 10.42.0.1 ping statistics ---|3 packets transmitted, 3 packets received, 0% packet loss|round-trip min/avg/max = 0.086/0.111/0.153 ms|",
+      "BLK_WRITE": "67108864 bytes (64.0MB) copied, 0.048479 seconds, 1.3GB/s",
+      "BLK_READ": "67108864 bytes (64.0MB) copied, 0.012216 seconds, 5.1GB/s"
+    },
+    "quiet_unrestricted": [
+      {
+        "p50_us": 43.54,
+        "p95_us": 64.67
+      },
+      {
+        "p50_us": 42.33,
+        "p95_us": 56.54
+      },
+      {
+        "p50_us": 44.96,
+        "p95_us": 64.75
+      }
+    ],
+    "quiet_pinned_cpu0": [
+      {
+        "p50_us": 11.71,
+        "p95_us": 16.54
+      },
+      {
+        "p50_us": 11.79,
+        "p95_us": 16.38
+      },
+      {
+        "p50_us": 11.62,
+        "p95_us": 15.46
+      }
+    ],
+    "quiet_cross_cpu_0_1": [
+      {
+        "p50_us": 31.33,
+        "p95_us": 45.0
+      },
+      {
+        "p50_us": 31.71,
+        "p95_us": 41.88
+      },
+      {
+        "p50_us": 31.62,
+        "p95_us": 39.46
+      }
+    ],
+    "virtio_net_http_rounds": [
+      {
+        "complete": true,
+        "p50_us": 37.29,
+        "p95_us": 90.83
+      },
+      {
+        "complete": true,
+        "p50_us": 36.29,
+        "p95_us": 49.62
+      },
+      {
+        "complete": true,
+        "p50_us": 33.25,
+        "p95_us": 46.38
+      }
+    ],
+    "bulk_6gib_mib_s": 13523.6,
+    "virtio_net_bulk_err": "1970/01/01 00:00:33 GET /data after 1433600 bytes: context deadline exceeded (Client.Timeout or context cancellation while reading body)",
+    "medians": {
+      "quiet_unrestricted_p50_us": 43.54,
+      "quiet_unrestricted_p95_us": 64.67,
+      "quiet_pinned_cpu0_p50_us": 11.71,
+      "quiet_pinned_cpu0_p95_us": 16.38,
+      "quiet_cross_cpu_0_1_p50_us": 31.62,
+      "quiet_cross_cpu_0_1_p95_us": 41.88,
+      "virtio_net_http_p50_us": 36.29,
+      "virtio_net_http_p95_us": 49.62
+    }
+  },
+  "virtio_net_bulk_zero_vmnet": {
+    "VNET_BULK_1": {
+      "bytes": 134217728,
+      "elapsed_s": 0.033341917,
+      "iterations": 16,
+      "mib_s": 3839.011416170222,
+      "mode": "bulk",
+      "reopened_connections": 0,
+      "streams": 1
+    },
+    "VNET_BULK_4": {
+      "bytes": 268435456,
+      "elapsed_s": 2.312292876,
+      "iterations": 8,
+      "mib_s": 110.71261891480222,
+      "mode": "bulk",
+      "reopened_connections": 0,
+      "streams": 4
+    }
+  }
+}

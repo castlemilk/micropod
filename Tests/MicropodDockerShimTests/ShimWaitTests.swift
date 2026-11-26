@@ -241,7 +241,7 @@ final class ShimWaitTests: XCTestCase {
         try next.writeRaw(Data("GET /_ping HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n".utf8))
         let ping = try RawHTTPClient.parseResponse(try next.readUntilClose(timeout: 5))
         XCTAssertEqual(ping.status, 200)
-        XCTAssertEqual(String(decoding: ping.body, as: UTF8.self), "OK\n")
+        XCTAssertEqual(String(decoding: ping.body, as: UTF8.self), "OK")
     }
 
     /// dockerd answers a wait on a container it does not have with 404,

@@ -1,0 +1,193 @@
+{
+  "archive_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+  "guest": "4 4116488192 \"7.3.5-micropod\" \"micropod\"",
+  "id": "231.01",
+  "image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "limits": "One sequential change after earlier watchdogs. No common clean pair or matched throughput interval; successful-request tails exclude failures. IRQ mask request unchanged and raw IRQ counters measure observed delivery.",
+  "readbacks_sha256": "0855463378443a2ab07bd4bc04905d433bddc0aa53baa26ee6b74448667dde48",
+  "rows": [
+    {
+      "after": {
+        "gso_ipv4_max_size": 65536,
+        "gso_max_size": 65536,
+        "irq_cpus": [
+          4606,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 12
+      },
+      "arm": "all-cpus",
+      "before": {
+        "gso_ipv4_max_size": 65536,
+        "gso_max_size": 65536,
+        "irq_cpus": [
+          3109,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 8
+      },
+      "bulk_reopens": 15,
+      "clean": false,
+      "delivered_bytes": 2014439232,
+      "end_ns": 1795259049582695000,
+      "fresh_errors": 224,
+      "irq_delta": [
+        1497,
+        0,
+        0,
+        0
+      ],
+      "mib_s": 320.1298166036407,
+      "pass_delivery_and_tail": false,
+      "round": 1,
+      "start_ns": 1795259022847295000,
+      "success_p95_ms": 22.496,
+      "success_p99_ms": 40.155,
+      "tx_timeout_delta": 4
+    },
+    {
+      "after": {
+        "gso_ipv4_max_size": 65536,
+        "gso_max_size": 65536,
+        "irq_cpus": [
+          7932,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 12
+      },
+      "arm": "all-cpus",
+      "before": {
+        "gso_ipv4_max_size": 65536,
+        "gso_max_size": 65536,
+        "irq_cpus": [
+          4606,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 12
+      },
+      "bulk_reopens": 4,
+      "clean": false,
+      "delivered_bytes": 20680657000,
+      "end_ns": 1795259080726227000,
+      "fresh_errors": 98,
+      "irq_delta": [
+        3326,
+        0,
+        0,
+        0
+      ],
+      "mib_s": 3286.4989913814707,
+      "pass_delivery_and_tail": false,
+      "round": 2,
+      "start_ns": 1795259049773019000,
+      "success_p95_ms": 25.706,
+      "success_p99_ms": 39.907,
+      "tx_timeout_delta": 0
+    },
+    {
+      "after": {
+        "gso_ipv4_max_size": 16384,
+        "gso_max_size": 16384,
+        "irq_cpus": [
+          13665,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 12
+      },
+      "arm": "small-gso",
+      "before": {
+        "gso_ipv4_max_size": 16384,
+        "gso_max_size": 16384,
+        "irq_cpus": [
+          7933,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 12
+      },
+      "bulk_reopens": 0,
+      "clean": true,
+      "delivered_bytes": 1127571176,
+      "end_ns": 1795259089259404000,
+      "fresh_errors": 0,
+      "irq_delta": [
+        5732,
+        0,
+        0,
+        0
+      ],
+      "mib_s": 179.20649188231178,
+      "pass_delivery_and_tail": true,
+      "round": 1,
+      "start_ns": 1795259081212971000,
+      "success_p95_ms": 28.987,
+      "success_p99_ms": 52.162,
+      "tx_timeout_delta": 0
+    },
+    {
+      "after": {
+        "gso_ipv4_max_size": 16384,
+        "gso_max_size": 16384,
+        "irq_cpus": [
+          20610,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 12
+      },
+      "arm": "small-gso",
+      "before": {
+        "gso_ipv4_max_size": 16384,
+        "gso_max_size": 16384,
+        "irq_cpus": [
+          13665,
+          0,
+          0,
+          43289
+        ],
+        "tso": "on",
+        "tx_timeouts": 12
+      },
+      "bulk_reopens": 0,
+      "clean": true,
+      "delivered_bytes": 1336337472,
+      "end_ns": 1795259096537489000,
+      "fresh_errors": 0,
+      "irq_delta": [
+        6945,
+        0,
+        0,
+        0
+      ],
+      "mib_s": 212.39975775572603,
+      "pass_delivery_and_tail": false,
+      "round": 2,
+      "start_ns": 1795259089435137000,
+      "success_p95_ms": 212.885,
+      "success_p99_ms": 420.231,
+      "tx_timeout_delta": 0
+    }
+  ],
+  "source": "b30c57f8c97d112fb57dfd5588b6e8da9601e583",
+  "tier": "offline replay of archived VM measurements",
+  "work": "Two sequential blocks per arm on same 4-vCPU Reno guest. 32 bulk streams with 240 fresh offers every 25 ms over 6s."
+}

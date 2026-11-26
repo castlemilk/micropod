@@ -1,0 +1,209 @@
+{
+  "date": "2026-11-24",
+  "stable_id": "231.08",
+  "tier": "source/fixture",
+  "micropod_base": "ad9d174eda5eb499e0e15675829e21a00d836f84",
+  "linux": "7.3.5",
+  "archive_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "sch_fq_sha256": "29b796533fff2d9b2a71b3e6f4150580ccf7b07d7d87bca3d768079958331038",
+  "scheduler_functions": [
+    "void fq_flow_set_detached",
+    "bool fq_flow_is_detached",
+    "void fq_flow_add_tail",
+    "struct fq_flow *fq_classify",
+    "struct sk_buff *fq_peek",
+    "void fq_erase_head",
+    "void fq_dequeue_skb",
+    "void flow_queue_add",
+    "bool fq_packet_beyond_horizon",
+    "int fq_enqueue",
+    "struct fq_flow_head *fq_pband_head_select",
+    "struct sk_buff *fq_dequeue"
+  ],
+  "extracted_scheduler_sha256": "441acf0e1e48ab927a5c1d9369a099022a8cba5b651ab69907d5070583da92ff",
+  "local_sha256": {
+    "refill.c": "411d7e20c65febe9711dbfa7b3968675dbd32f695d233a4128d68c12fa468322",
+    "fq_shim.h": "d431c8af77a27f4b9b8bf5f4c1e5537b9b7c6bcc97566b6323f02459bed080ab",
+    "reproduce.py": "c6961ce6bcf56dbeafd74157d5946168abd2830e683624ad3bc9ef90be113e95"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "fixture": "250 Hz ticks, one eligible band, no pacing delay. One old bulk flow with 64 1514 B SKBs. A 15000 B transmission leaves the recurring flow with 140 B credit after real dequeue/detachment. Its six SKBs return before a separate new 256 B response.",
+  "rows": [
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 4,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFORROORROOROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 1514
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 4,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFORROORROOROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 1514
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 4,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    },
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 4,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 8,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RRFORROORROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 2,
+      "bytes_ahead_of_short": 3028
+    },
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 8,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFORROORROOROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 1514
+    },
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 8,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 8,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    },
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 40,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFORROORROOROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 1514
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 40,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RRFORROORROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 2,
+      "bytes_ahead_of_short": 3028
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 40,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    },
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 40,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 140,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 44,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RRFORROORROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 2,
+      "bytes_ahead_of_short": 3028
+    },
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 44,
+      "recurring_skb_bytes": 1514,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RRFORROORROOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+      "packets_ahead_of_short": 2,
+      "bytes_ahead_of_short": 3028
+    },
+    {
+      "refill_delay_ms": 40,
+      "idle_ms": 44,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    },
+    {
+      "refill_delay_ms": 4,
+      "idle_ms": 44,
+      "recurring_skb_bytes": 64512,
+      "credit_before_bytes": 140,
+      "credit_on_return_bytes": 3028,
+      "warm_background_dequeues": 3,
+      "subsequent_dequeue_order": "RFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOROOOOOOOOOOOOOOOOOOOORRRR",
+      "packets_ahead_of_short": 1,
+      "bytes_ahead_of_short": 64512
+    }
+  ]
+}

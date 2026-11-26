@@ -1,0 +1,203 @@
+{
+  "control_commit": "62a3be76fdac738368dff3b0854cebe191332d1b",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "go": "go version go1.27.2 darwin/arm64",
+  "method": "In-memory directory and byte streams. Reference dnsmessage encodings determine each name's record capacity. The production handler, framed writer and reader verify complete fitting replies; the candidate verifies question-only TC replies when a whole RRset cannot fit.",
+  "driver_sha256": "b6aac4ec14ff3272ff9f93c2ab4aceceeb10dd5f32bc221b590e5037b44da75c",
+  "fixture_sha256": "85cf1b43a7ba23c2badc62a48fee758574fa4af436dddd136f4d36db95f44e62",
+  "base": {
+    "source_sha256": {
+      "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+      "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+      "guest/runner/docker_dns_answer.go": "e1b01b5cc099cb56292ce2c301e887ef539566a830a146b93066d88f0acdab5b",
+      "guest/runner/docker_dns_directory.go": "6178cda21f4f4b0d2cedf7b0f90327cc976fb3f31dc45fba7b52f3aeca6701b5",
+      "guest/runner/docker_dns_linux.go": "4b053289d99557c84fa90b71f3101ae0eda16e18aac99af5c910aa8852e4379b",
+      "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+    },
+    "ordinary_replies_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631",
+    "boundary_tests_exit_code": 1,
+    "failing_boundary_subtests": [
+      "TestSendDNSFrameLimitBeforeWriting/65536",
+      "TestServiceTCPFrameBudget/longest/4080",
+      "TestServiceTCPFrameBudget/ordinary/4095",
+      "TestServiceTCPFrameBudget/root/4368"
+    ],
+    "observations": [
+      {
+        "answers_offered": 4367,
+        "answers_sent": 4367,
+        "full_message_bytes": 65522,
+        "max_fitting_answers": 4367,
+        "name": "root",
+        "prefix_bytes_declared": 65522,
+        "truncated": false,
+        "wire_bytes": 65522,
+        "wire_sha256": "177f08061a2b0608069eb7c8987b8e60047a9999e35bdaf87f864c4719a3f693"
+      },
+      {
+        "answers_offered": 4368,
+        "answers_sent": 4368,
+        "full_message_bytes": 65537,
+        "max_fitting_answers": 4367,
+        "name": "root",
+        "prefix_bytes_declared": 1,
+        "truncated": false,
+        "wire_bytes": 65537,
+        "wire_sha256": "b324da3076e9143ca7d53b9fa324517cfa0c9716bf4ebfb008ee5ff4a59190e4"
+      },
+      {
+        "answers_offered": 4094,
+        "answers_sent": 4094,
+        "full_message_bytes": 65535,
+        "max_fitting_answers": 4094,
+        "name": "ordinary",
+        "prefix_bytes_declared": 65535,
+        "truncated": false,
+        "wire_bytes": 65535,
+        "wire_sha256": "bbbdbd6390f071cd29a95afa21d541710930583a7d230ca815fba2a5c7924446"
+      },
+      {
+        "answers_offered": 4095,
+        "answers_sent": 4095,
+        "full_message_bytes": 65551,
+        "max_fitting_answers": 4094,
+        "name": "ordinary",
+        "prefix_bytes_declared": 15,
+        "truncated": false,
+        "wire_bytes": 65551,
+        "wire_sha256": "6828a3d1d71dbcb443328557b34459bc1a00911e881b42972b9d5cbea2aa3300"
+      },
+      {
+        "answers_offered": 4079,
+        "answers_sent": 4079,
+        "full_message_bytes": 65535,
+        "max_fitting_answers": 4079,
+        "name": "longest",
+        "prefix_bytes_declared": 65535,
+        "truncated": false,
+        "wire_bytes": 65535,
+        "wire_sha256": "6a1b96163c2302b2138bd9443af948e40eb40f33cb5d6cc3befb1cbdab9eeb5d"
+      },
+      {
+        "answers_offered": 4080,
+        "answers_sent": 4080,
+        "full_message_bytes": 65551,
+        "max_fitting_answers": 4079,
+        "name": "longest",
+        "prefix_bytes_declared": 15,
+        "truncated": false,
+        "wire_bytes": 65551,
+        "wire_sha256": "b56b0bbfd400842a7be92b6112fcb2c25ae7e01f1e1eb62f360684b9c5e68496"
+      },
+      {
+        "direct_send_bytes": 65535,
+        "rejected": false,
+        "writer_bytes": 65537
+      },
+      {
+        "direct_send_bytes": 65536,
+        "rejected": false,
+        "writer_bytes": 65538
+      },
+      {
+        "reply_absent": true,
+        "unrepresentable_answer_count": 65536
+      }
+    ]
+  },
+  "candidate": {
+    "source_sha256": {
+      "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+      "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+      "guest/runner/docker_dns_answer.go": "753ff17ecc24c58317becf1e74e9cb64ada85a8f4e75b8a05269985c0872d508",
+      "guest/runner/docker_dns_directory.go": "6178cda21f4f4b0d2cedf7b0f90327cc976fb3f31dc45fba7b52f3aeca6701b5",
+      "guest/runner/docker_dns_linux.go": "8c35dfcae6324973ae6d47ba2da45cd26b50e60630a78a6971d058caef9a9c62",
+      "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+    },
+    "ordinary_replies_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631",
+    "boundary_tests_exit_code": 0,
+    "failing_boundary_subtests": [],
+    "observations": [
+      {
+        "answers_offered": 4367,
+        "answers_sent": 4367,
+        "full_message_bytes": 65522,
+        "max_fitting_answers": 4367,
+        "name": "root",
+        "prefix_bytes_declared": 65522,
+        "truncated": false,
+        "wire_bytes": 65522,
+        "wire_sha256": "177f08061a2b0608069eb7c8987b8e60047a9999e35bdaf87f864c4719a3f693"
+      },
+      {
+        "answers_offered": 4368,
+        "answers_sent": 0,
+        "full_message_bytes": 65537,
+        "max_fitting_answers": 4367,
+        "name": "root",
+        "prefix_bytes_declared": 17,
+        "truncated": true,
+        "wire_bytes": 17,
+        "wire_sha256": "a57351467c32058c11c1e2b197da23fe0078c58a00070acd3e83ff624c2d3e13"
+      },
+      {
+        "answers_offered": 4094,
+        "answers_sent": 4094,
+        "full_message_bytes": 65535,
+        "max_fitting_answers": 4094,
+        "name": "ordinary",
+        "prefix_bytes_declared": 65535,
+        "truncated": false,
+        "wire_bytes": 65535,
+        "wire_sha256": "bbbdbd6390f071cd29a95afa21d541710930583a7d230ca815fba2a5c7924446"
+      },
+      {
+        "answers_offered": 4095,
+        "answers_sent": 0,
+        "full_message_bytes": 65551,
+        "max_fitting_answers": 4094,
+        "name": "ordinary",
+        "prefix_bytes_declared": 31,
+        "truncated": true,
+        "wire_bytes": 31,
+        "wire_sha256": "0511b3df718938deeea8a2e14b31c1820262383f34a8e663fce1e1241814cae9"
+      },
+      {
+        "answers_offered": 4079,
+        "answers_sent": 4079,
+        "full_message_bytes": 65535,
+        "max_fitting_answers": 4079,
+        "name": "longest",
+        "prefix_bytes_declared": 65535,
+        "truncated": false,
+        "wire_bytes": 65535,
+        "wire_sha256": "6a1b96163c2302b2138bd9443af948e40eb40f33cb5d6cc3befb1cbdab9eeb5d"
+      },
+      {
+        "answers_offered": 4080,
+        "answers_sent": 0,
+        "full_message_bytes": 65551,
+        "max_fitting_answers": 4079,
+        "name": "longest",
+        "prefix_bytes_declared": 271,
+        "truncated": true,
+        "wire_bytes": 271,
+        "wire_sha256": "90ccd3895c00602f1395b948cc08a6677290f293ea21ebf6edcf16675e158a76"
+      },
+      {
+        "direct_send_bytes": 65535,
+        "rejected": false,
+        "writer_bytes": 65537
+      },
+      {
+        "direct_send_bytes": 65536,
+        "rejected": true,
+        "writer_bytes": 0
+      },
+      {
+        "reply_absent": true,
+        "unrepresentable_answer_count": 65536
+      }
+    ]
+  }
+}

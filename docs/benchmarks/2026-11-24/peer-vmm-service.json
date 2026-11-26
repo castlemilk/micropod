@@ -1,0 +1,1129 @@
+{
+  "date": "2026-11-24",
+  "stable_id": "228.02",
+  "issue": 228,
+  "analysis": "peer-vmm-service",
+  "tier": "Local raw-verified accounting replay of archived VM peer timings. No new timed holdout.",
+  "revision": {
+    "supporting_checkout": "2ccda8507355b8220258db2ce8160f3113d3e1ff",
+    "replay_sha256": "7340366444078dc26201bfaf9ec328a0da681c6210c59d0f0d9df45d5d450495",
+    "input": "docs/benchmarks/2026-11-21/gamma-vcpu-priority.json.gz",
+    "input_sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+    "recorded_source_base": "b30c57f8c9",
+    "installed_host_package_sha256": "a41976076b67e466c02aab5494334229f03c343a4191c915b71327a22aca6eb2",
+    "fixture_image": "sha256:80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+    "client_sha256": "a1e2609f9d052b2765dc717fac1b227a8247aa9e73364bf3962168c30c8ffc53",
+    "source_timestamp": "2026-11-21T12:10:54.166449+00:00"
+  },
+  "workload": "Four vCPUs and nominal 4 GiB per VM, same image, four-CPU service quota, 32 downloads and 240 fresh GETs per arm spaced 25 ms apart over six seconds. A is Micropod. B is OrbStack.",
+  "method": "Control is the observed Micropod/OrbStack rate ratio in each pair. Replace only the ratio of whole-VMM host CPU-s/wall-s with its common-clean median. Hold each pair's scored bytes per bracket CPU-s and bracket-to-score durations at their measured values. The three factors multiply to the observed ratio. Compare sample standard deviations of log ratios.",
+  "limits": "This is an accounting identity using total host VMM CPU across setup, score and drain. A change in service can reflect CPU availability, guest demand, blocking or thread mix. These data do not identify a QoS effect, a kernel bottleneck or an achievable speedup. The two VMM process boundaries differ. Orders alternated. One failed first attempt has a valid bulk rate and remains visible in the all-attempt sensitivity.",
+  "next_check": "During a separately admitted diagnostic on the revised fixture, align scored bytes with per-vCPU on-CPU, runnable off-CPU and blocked time plus effective QoS and host core placement. Separate runnable starvation from reduced runnable demand.",
+  "guardrail_units": "Fresh p95/p99 are medians of per-attempt percentiles on each arm's clean attempts. All first attempts contribute failures and reopens. Process CPU-s/GiB uses scored payload and whole-invocation CPU. Runnable and wait use thread-seconds per bracket second.",
+  "guardrails": {
+    "Micropod": {
+      "mib_s": 2709.8300097735155,
+      "p50_ms": null,
+      "p95_ms": 35.208,
+      "p99_ms": 58.147,
+      "cpu_s_per_gib": 0.9559387517431498,
+      "invocation_cpu_s_per_bulk_gib": null,
+      "wait_s_per_s": 2.216796908908357,
+      "runnable_s_per_s": 4.6802944275905,
+      "clean": 16,
+      "offered": 3840,
+      "known_fresh_failures": 0,
+      "unknown_fresh_failure_counts": 0,
+      "bulk_reopens": 0
+    },
+    "OrbStack": {
+      "mib_s": 3010.383519887246,
+      "p50_ms": null,
+      "p95_ms": 220.325,
+      "p99_ms": 1027.418,
+      "cpu_s_per_gib": 1.073912669733817,
+      "invocation_cpu_s_per_bulk_gib": null,
+      "wait_s_per_s": 6.284536455313783,
+      "runnable_s_per_s": 8.845424208154038,
+      "clean": 15,
+      "offered": 3840,
+      "known_fresh_failures": 1,
+      "unknown_fresh_failure_counts": 0,
+      "bulk_reopens": 0
+    }
+  },
+  "observed_paired_bootstrap_ci95": [
+    0.7090052427711508,
+    1.2586594205448958
+  ],
+  "primary_common_clean": {
+    "pairs": 15,
+    "fixed_relative_vmm_cores": 0.5641213523149122,
+    "observed_median_ratio": 0.8540445809525004,
+    "service_fixed_median_ratio": 0.8712488673032179,
+    "observed_log_ratio_sd": 0.35806056859091207,
+    "service_fixed_log_ratio_sd": 0.05569533234236085,
+    "observed_wins": 7,
+    "service_fixed_above_one": 0
+  },
+  "by_order_at_common_reference": {
+    "AB": {
+      "pairs": 8,
+      "fixed_relative_vmm_cores": 0.5641213523149122,
+      "observed_median_ratio": 0.9806779634627679,
+      "service_fixed_median_ratio": 0.880873865316171,
+      "observed_log_ratio_sd": 0.41300717747368887,
+      "service_fixed_log_ratio_sd": 0.05935129255718934,
+      "observed_wins": 4,
+      "service_fixed_above_one": 0
+    },
+    "BA": {
+      "pairs": 7,
+      "fixed_relative_vmm_cores": 0.5641213523149122,
+      "observed_median_ratio": 0.8540445809525004,
+      "service_fixed_median_ratio": 0.8709073974938341,
+      "observed_log_ratio_sd": 0.2999642470781541,
+      "service_fixed_log_ratio_sd": 0.05319783231960913,
+      "observed_wins": 3,
+      "service_fixed_above_one": 0
+    }
+  },
+  "all_first_attempts_at_common_reference": {
+    "pairs": 16,
+    "fixed_relative_vmm_cores": 0.5641213523149122,
+    "observed_median_ratio": 0.8266490686693966,
+    "service_fixed_median_ratio": 0.8710781323985259,
+    "observed_log_ratio_sd": 0.34831685378527644,
+    "service_fixed_log_ratio_sd": 0.05988039035883598,
+    "observed_wins": 7,
+    "service_fixed_above_one": 0
+  },
+  "leave_one_two_pair_block_out_refitting_reference": [
+    {
+      "omitted_pairs": [
+        1,
+        2
+      ],
+      "pairs": 13,
+      "fixed_relative_vmm_cores": 0.6894244521820015,
+      "observed_median_ratio": 1.1173812254569129,
+      "service_fixed_median_ratio": 1.0882972050252377,
+      "observed_log_ratio_sd": 0.345336128323655,
+      "service_fixed_log_ratio_sd": 0.05879022539851529,
+      "observed_wins": 7,
+      "service_fixed_above_one": 12
+    },
+    {
+      "omitted_pairs": [
+        3,
+        4
+      ],
+      "pairs": 13,
+      "fixed_relative_vmm_cores": 0.5055033128128539,
+      "observed_median_ratio": 0.7804111168275599,
+      "service_fixed_median_ratio": 0.7807171043941726,
+      "observed_log_ratio_sd": 0.3619672085162194,
+      "service_fixed_log_ratio_sd": 0.05728119320221526,
+      "observed_wins": 5,
+      "service_fixed_above_one": 0
+    },
+    {
+      "omitted_pairs": [
+        5,
+        6
+      ],
+      "pairs": 13,
+      "fixed_relative_vmm_cores": 0.6894244521820015,
+      "observed_median_ratio": 1.1173812254569129,
+      "service_fixed_median_ratio": 1.0882972050252377,
+      "observed_log_ratio_sd": 0.3684192418913203,
+      "service_fixed_log_ratio_sd": 0.05878042850509337,
+      "observed_wins": 7,
+      "service_fixed_above_one": 12
+    },
+    {
+      "omitted_pairs": [
+        7,
+        8
+      ],
+      "pairs": 13,
+      "fixed_relative_vmm_cores": 0.5055033128128539,
+      "observed_median_ratio": 0.7804111168275599,
+      "service_fixed_median_ratio": 0.7807171043941726,
+      "observed_log_ratio_sd": 0.3091775783501889,
+      "service_fixed_log_ratio_sd": 0.04566742579354739,
+      "observed_wins": 6,
+      "service_fixed_above_one": 0
+    },
+    {
+      "omitted_pairs": [
+        9,
+        10
+      ],
+      "pairs": 13,
+      "fixed_relative_vmm_cores": 0.5641213523149122,
+      "observed_median_ratio": 0.8540445809525004,
+      "service_fixed_median_ratio": 0.8712488673032179,
+      "observed_log_ratio_sd": 0.37647056675833457,
+      "service_fixed_log_ratio_sd": 0.05842603642076642,
+      "observed_wins": 6,
+      "service_fixed_above_one": 0
+    },
+    {
+      "omitted_pairs": [
+        11,
+        12
+      ],
+      "pairs": 14,
+      "fixed_relative_vmm_cores": 0.534812332563883,
+      "observed_median_ratio": 0.8172278488900302,
+      "service_fixed_median_ratio": 0.8258211215046961,
+      "observed_log_ratio_sd": 0.36348696167651434,
+      "service_fixed_log_ratio_sd": 0.05667546149845886,
+      "observed_wins": 6,
+      "service_fixed_above_one": 0
+    },
+    {
+      "omitted_pairs": [
+        13,
+        14
+      ],
+      "pairs": 13,
+      "fixed_relative_vmm_cores": 0.5055033128128539,
+      "observed_median_ratio": 0.7804111168275599,
+      "service_fixed_median_ratio": 0.7804111168275599,
+      "observed_log_ratio_sd": 0.3711181735595973,
+      "service_fixed_log_ratio_sd": 0.05891714034932386,
+      "observed_wins": 5,
+      "service_fixed_above_one": 0
+    },
+    {
+      "omitted_pairs": [
+        15,
+        16
+      ],
+      "pairs": 13,
+      "fixed_relative_vmm_cores": 0.6894244521820015,
+      "observed_median_ratio": 1.1173812254569129,
+      "service_fixed_median_ratio": 1.0647713840113622,
+      "observed_log_ratio_sd": 0.356159034538536,
+      "service_fixed_log_ratio_sd": 0.05017878492996185,
+      "observed_wins": 7,
+      "service_fixed_above_one": 13
+    }
+  ],
+  "scored_first_attempts": [
+    {
+      "pair": 1,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 0.7090052427711508,
+      "relative_vmm_cores": 0.45907089393233697,
+      "relative_payload_per_cpu_s": 1.810427937729959,
+      "relative_bracket_over_score": 0.8530774170431215,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 4069.293054335416,
+          "p95_ms": 13.55,
+          "p99_ms": 23.045,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 25602671952,
+          "score_s": 6.000209458,
+          "counter_s": 6.148727,
+          "vmm_cores": 2.2942399296634894,
+          "score_bytes_per_vmm_cpu_s": 1814935713.1084585,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.34174480512849614,
+              "runnable_s_per_s": 1.482218446734313,
+              "wait_s_per_s": 0.15695526624183076
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.5916142463035187,
+              "runnable_s_per_s": 3.279957406901732,
+              "wait_s_per_s": 0.9857174772382423
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 5739.440005310204,
+          "p95_ms": 205.959,
+          "p99_ms": 1009.262,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 36109452060,
+          "score_s": 6.000002958,
+          "counter_s": 7.207453,
+          "vmm_cores": 4.997572183266405,
+          "score_bytes_per_vmm_cpu_s": 1002489894.9494513,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.0710749598669436,
+              "runnable_s_per_s": 9.908593923539978,
+              "wait_s_per_s": 4.911021740273575
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.8712488673032179
+    },
+    {
+      "pair": 2,
+      "order": "BA",
+      "common_clean": true,
+      "rate_ratio": 0.5776675484606989,
+      "relative_vmm_cores": 0.3872537029933139,
+      "relative_payload_per_cpu_s": 2.2070731588420593,
+      "relative_bracket_over_score": 0.6758738793987674,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 3433.9523440331063,
+          "p95_ms": 24.804,
+          "p99_ms": 38.453,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 21604771472,
+          "score_s": 6.000058708,
+          "counter_s": 6.154845,
+          "vmm_cores": 2.005991194741703,
+          "score_bytes_per_vmm_cpu_s": 1749860928.1798313,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.3538358540507915,
+              "runnable_s_per_s": 1.3367631584006854,
+              "wait_s_per_s": 0.18002643310540992
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6136155203584571,
+              "runnable_s_per_s": 3.3825312281083706,
+              "wait_s_per_s": 1.3765400333666675
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 5944.5131601792455,
+          "p95_ms": 208.664,
+          "p99_ms": 4007.797,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 37399732592,
+          "score_s": 6.000014375,
+          "counter_s": 9.106432,
+          "vmm_cores": 5.180043933050105,
+          "score_bytes_per_vmm_cpu_s": 792842285.7980365,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.3542943448320541,
+              "runnable_s_per_s": 9.748728453690752,
+              "wait_s_per_s": 4.568684520640649
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.841501568886782
+    },
+    {
+      "pair": 3,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 1.305468423312647,
+      "relative_vmm_cores": 0.889758675261372,
+      "relative_payload_per_cpu_s": 1.9367003511797254,
+      "relative_bracket_over_score": 0.7575855965564119,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 3811.0250961640354,
+          "p95_ms": 17.985,
+          "p99_ms": 25.36,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 23977522936,
+          "score_s": 6.000156708,
+          "counter_s": 6.161323,
+          "vmm_cores": 2.1900351664190736,
+          "score_bytes_per_vmm_cpu_s": 1776966538.290895,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.34690421621877665,
+              "runnable_s_per_s": 1.4377520393482586,
+              "wait_s_per_s": 0.1804487648188546
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6042555112111093,
+              "runnable_s_per_s": 3.2832772211963777,
+              "wait_s_per_s": 1.0932420547773045
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 2919.2778837909373,
+          "p95_ms": 1013.622,
+          "p99_ms": 1057.949,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 18366817016,
+          "score_s": 6.000100833,
+          "counter_s": 8.132765,
+          "vmm_cores": 2.461381077038375,
+          "score_bytes_per_vmm_cpu_s": 917522701.5415524,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.1702618607648398,
+              "runnable_s_per_s": 8.74591753235216,
+              "wait_s_per_s": 6.284536455313783
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.8276880381606981
+    },
+    {
+      "pair": 4,
+      "order": "BA",
+      "common_clean": true,
+      "rate_ratio": 1.261215744615861,
+      "relative_vmm_cores": 0.7916016351663943,
+      "relative_payload_per_cpu_s": 1.881023840257557,
+      "relative_bracket_over_score": 0.847009733696912,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 2556.217408074395,
+          "p95_ms": 41.631,
+          "p99_ms": 63.355,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 16084294744,
+          "score_s": 6.00073325,
+          "counter_s": 6.186181,
+          "vmm_cores": 1.5434047341431918,
+          "score_bytes_per_vmm_cpu_s": 1684610767.0261695,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.36924432811863467,
+              "runnable_s_per_s": 1.030420558876847,
+              "wait_s_per_s": 0.13630559521833152
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6373827385037246,
+              "runnable_s_per_s": 3.641482429412696,
+              "wait_s_per_s": 2.098077695269504
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 2026.7883738265282,
+          "p95_ms": 220.325,
+          "p99_ms": 1045.444,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 12873116948,
+          "score_s": 6.057248583,
+          "counter_s": 7.372339,
+          "vmm_cores": 1.9497240348913236,
+          "score_bytes_per_vmm_cpu_s": 895581826.7542565,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.1989321264941544,
+              "runnable_s_per_s": 9.053106681384746,
+              "wait_s_per_s": 7.103382646493421
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.8987838071658429
+    },
+    {
+      "pair": 5,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 0.6749446016707904,
+      "relative_vmm_cores": 0.45249275726121985,
+      "relative_payload_per_cpu_s": 1.8436242321064689,
+      "relative_bracket_over_score": 0.8090662559179566,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 2500.378450314961,
+          "p95_ms": 55.994,
+          "p99_ms": 92.913,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 15731703992,
+          "score_s": 6.0002605,
+          "counter_s": 6.188097,
+          "vmm_cores": 1.4500438637812776,
+          "score_bytes_per_vmm_cpu_s": 1753224429.6450253,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.35613647586052205,
+              "runnable_s_per_s": 0.9683599686085507,
+              "wait_s_per_s": 0.12515095513208663
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6124383198432846,
+              "runnable_s_per_s": 3.6911873984306753,
+              "wait_s_per_s": 2.2411435346493973
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 3704.568410689416,
+          "p95_ms": 1008.422,
+          "p99_ms": 3013.201,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 23308217792,
+          "score_s": 6.00028025,
+          "counter_s": 7.648468,
+          "vmm_cores": 3.2045681185216868,
+          "score_bytes_per_vmm_cpu_s": 950966253.9214102,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.1291061271336513,
+              "runnable_s_per_s": 9.48160546661109,
+              "wait_s_per_s": 6.2770373480894035
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.8414513941321988
+    },
+    {
+      "pair": 6,
+      "order": "BA",
+      "common_clean": true,
+      "rate_ratio": 0.7804111168275599,
+      "relative_vmm_cores": 0.5055033128128539,
+      "relative_payload_per_cpu_s": 1.568129283819054,
+      "relative_bracket_over_score": 0.9845042064506118,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 2455.041846296845,
+          "p95_ms": 38.394,
+          "p99_ms": 59.105,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 15446610456,
+          "score_s": 6.000319583,
+          "counter_s": 6.18057,
+          "vmm_cores": 1.3952947300977094,
+          "score_bytes_per_vmm_cpu_s": 1791177853.3310478,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.34679504636813224,
+              "runnable_s_per_s": 0.9233321522124981,
+              "wait_s_per_s": 0.11613860722662579
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.5994613108928104,
+              "runnable_s_per_s": 3.7653537146789584,
+              "wait_s_per_s": 2.370058984581249
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 3145.831464160591,
+          "p95_ms": 214.662,
+          "p99_ms": 1041.291,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 19802258524,
+          "score_s": 6.003152291,
+          "counter_s": 6.280814,
+          "vmm_cores": 2.760208874465422,
+          "score_bytes_per_vmm_cpu_s": 1142238635.4323905,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 0.9400328361275739,
+              "runnable_s_per_s": 9.078755018855835,
+              "wait_s_per_s": 6.318546144390413
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.8709073974938341
+    },
+    {
+      "pair": 7,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 2.0453716978386045,
+      "relative_vmm_cores": 1.155161552046559,
+      "relative_payload_per_cpu_s": 1.8420450066587704,
+      "relative_bracket_over_score": 0.9612343445022311,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 3118.8546527245658,
+          "p95_ms": 25.867,
+          "p99_ms": 37.158,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 19628173624,
+          "score_s": 6.001845917,
+          "counter_s": 6.213376,
+          "vmm_cores": 1.7522770699321377,
+          "score_bytes_per_vmm_cpu_s": 1802808003.7596133,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.3479952765357902,
+              "runnable_s_per_s": 1.1458324280283911,
+              "wait_s_per_s": 0.12200741727739207
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.5955941075038476,
+              "runnable_s_per_s": 3.5614152971481734,
+              "wait_s_per_s": 1.8091382272160361
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 1524.8351465996805,
+          "p95_ms": 224.569,
+          "p99_ms": 1034.257,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 9594908288,
+          "score_s": 6.000922541,
+          "counter_s": 6.462961,
+          "vmm_cores": 1.5169108310674728,
+          "score_bytes_per_vmm_cpu_s": 978699215.948948,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.0971111517228493,
+              "runnable_s_per_s": 8.560115808373283,
+              "wait_s_per_s": 7.043204977305809
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.9988540963185173
+    },
+    {
+      "pair": 8,
+      "order": "BA",
+      "common_clean": true,
+      "rate_ratio": 0.8540445809525004,
+      "relative_vmm_cores": 0.5641213523149122,
+      "relative_payload_per_cpu_s": 1.5374039968090807,
+      "relative_bracket_over_score": 0.9847364129030566,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 1561.921229438398,
+          "p95_ms": 54.667,
+          "p99_ms": 77.796,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 9828302584,
+          "score_s": 6.000942667,
+          "counter_s": 6.232955,
+          "vmm_cores": 1.0122571944874728,
+          "score_bytes_per_vmm_cpu_s": 1557735276.537345,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.38208446219965986,
+              "runnable_s_per_s": 0.6691371775773556,
+              "wait_s_per_s": 0.10803231238901398
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6892967246570912,
+              "runnable_s_per_s": 3.977577576232568,
+              "wait_s_per_s": 2.965320381745095
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 1828.8521047653226,
+          "p95_ms": 97.728,
+          "p99_ms": 1012.834,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 11512726698,
+          "score_s": 6.003433375,
+          "counter_s": 6.332194,
+          "vmm_cores": 1.7943961708479976,
+          "score_bytes_per_vmm_cpu_s": 1013224422.3187023,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.0597275394752204,
+              "runnable_s_per_s": 8.798015696981698,
+              "wait_s_per_s": 7.0036195261337
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.8540445809525004
+    },
+    {
+      "pair": 9,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 0.7304802693259016,
+      "relative_vmm_cores": 0.4826572924855709,
+      "relative_payload_per_cpu_s": 1.6864884708161854,
+      "relative_bracket_over_score": 0.8974003631475052,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 1759.3318610989334,
+          "p95_ms": 40.253,
+          "p99_ms": 57.482,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 11075480728,
+          "score_s": 6.003643625,
+          "counter_s": 6.221806,
+          "vmm_cores": 1.0391270771434102,
+          "score_bytes_per_vmm_cpu_s": 1713079265.9960856,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.35745897480400685,
+              "runnable_s_per_s": 0.6847993572927218,
+              "wait_s_per_s": 0.09218460845612993
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6267905083631159,
+              "runnable_s_per_s": 3.982502936714302,
+              "wait_s_per_s": 2.943375859570892
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 2408.4591124171934,
+          "p95_ms": 611.578,
+          "p99_ms": 1027.418,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 15166154360,
+          "score_s": 6.00532175,
+          "counter_s": 6.935082,
+          "vmm_cores": 2.152929404199306,
+          "score_bytes_per_vmm_cpu_s": 1015766959.3596637,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.057074965971411,
+              "runnable_s_per_s": 8.845424208154038,
+              "wait_s_per_s": 6.692494803954732
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.8537724878233516
+    },
+    {
+      "pair": 10,
+      "order": "BA",
+      "common_clean": true,
+      "rate_ratio": 1.1173812254569129,
+      "relative_vmm_cores": 0.6894244521820015,
+      "relative_payload_per_cpu_s": 1.69021571629561,
+      "relative_bracket_over_score": 0.9588983064958363,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 2854.0611513491435,
+          "p95_ms": 25.852,
+          "p99_ms": 47.628,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 17957940036,
+          "score_s": 6.000581375,
+          "counter_s": 6.234193,
+          "vmm_cores": 1.5466775598167501,
+          "score_bytes_per_vmm_cpu_s": 1862415122.3054056,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.3344417441905567,
+              "runnable_s_per_s": 1.0067797133753584,
+              "wait_s_per_s": 0.10956397377067621
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.576531950981401,
+              "runnable_s_per_s": 3.6363241133749513,
+              "wait_s_per_s": 2.0896465535582016
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 2554.2411903171883,
+          "p95_ms": 212.768,
+          "p99_ms": 1018.498,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 16080233580,
+          "score_s": 6.003859708,
+          "counter_s": 6.504964,
+          "vmm_cores": 2.243432989534351,
+          "score_bytes_per_vmm_cpu_s": 1101880135.3872151,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 0.9744633644953341,
+              "runnable_s_per_s": 8.721117775081716,
+              "wait_s_per_s": 6.477684785547365
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.9142968543704106
+    },
+    {
+      "pair": 11,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 1.2308756575996342,
+      "relative_vmm_cores": 0.7609258027719705,
+      "relative_payload_per_cpu_s": 1.705301407998929,
+      "relative_bracket_over_score": 0.948572917759523,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 2352.5679547807304,
+          "p95_ms": 70.946,
+          "p99_ms": 137.975,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 14806474208,
+          "score_s": 6.002187584,
+          "counter_s": 6.190314,
+          "vmm_cores": 1.350834727446782,
+          "score_bytes_per_vmm_cpu_s": 1770666450.1339073,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.3547197636503279,
+              "runnable_s_per_s": 0.904739633024539,
+              "wait_s_per_s": 0.11456243711277542
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6064054717469786,
+              "runnable_s_per_s": 3.719956996527155,
+              "wait_s_per_s": 2.369122269080373
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 1911.2961900380258,
+          "p95_ms": 211.109,
+          "p99_ms": 1018.916,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 12027776456,
+          "score_s": 6.00146725,
+          "counter_s": 6.52514,
+          "vmm_cores": 1.7752515718692112,
+          "score_bytes_per_vmm_cpu_s": 1038330492.092703,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.0341041047883774,
+              "runnable_s_per_s": 8.550730099277562,
+              "wait_s_per_s": 6.77547852740835
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.9125242408223276
+    },
+    {
+      "pair": 12,
+      "order": "BA",
+      "common_clean": false,
+      "rate_ratio": 0.7992535563862927,
+      "relative_vmm_cores": 0.570962576497752,
+      "relative_payload_per_cpu_s": 2.659533687267266,
+      "relative_bracket_over_score": 0.5263461348988133,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 2428.0905633132024,
+          "p95_ms": 47.69,
+          "p99_ms": 76.564,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 15276286048,
+          "score_s": 6.000024,
+          "counter_s": 6.253108,
+          "vmm_cores": 1.3936945435773695,
+          "score_bytes_per_vmm_cpu_s": 1752888341.5773351,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.34816203104313204,
+              "runnable_s_per_s": 0.9065126827064769,
+              "wait_s_per_s": 0.11437004606349353
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6125557450132816,
+              "runnable_s_per_s": 3.757875696906775,
+              "wait_s_per_s": 2.3641811533294055
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": false,
+          "mib_s": 3037.947775035818,
+          "p95_ms": 211.82,
+          "p99_ms": 1014.075,
+          "fresh_failed": 1,
+          "bulk_reopens": 0,
+          "score_bytes": 19113427336,
+          "score_s": 6.000098125,
+          "counter_s": 11.880367,
+          "vmm_cores": 2.4409560292483667,
+          "score_bytes_per_vmm_cpu_s": 659096122.7411523,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.6291126391919195,
+              "runnable_s_per_s": 8.935146188385145,
+              "wait_s_per_s": 6.494190159136777
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.7896769694377923
+    },
+    {
+      "pair": 13,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 1.2586594205448958,
+      "relative_vmm_cores": 0.7973470642817254,
+      "relative_payload_per_cpu_s": 2.408581914658729,
+      "relative_bracket_over_score": 0.6553893955888366,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 3789.0475767591847,
+          "p95_ms": 36.96,
+          "p99_ms": 70.455,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 23857611920,
+          "score_s": 6.004778583,
+          "counter_s": 6.19612,
+          "vmm_cores": 2.006985554400711,
+          "score_bytes_per_vmm_cpu_s": 1918504857.4554029,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.329875392946226,
+              "runnable_s_per_s": 1.2964493371120422,
+              "wait_s_per_s": 0.1135243641719872
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.5596763645540888,
+              "runnable_s_per_s": 3.3521258801206772,
+              "wait_s_per_s": 1.3451403257199668
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 3010.383519887246,
+          "p95_ms": 199.292,
+          "p99_ms": 1016.814,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 18939721106,
+          "score_s": 6.000008125,
+          "counter_s": 9.446594,
+          "vmm_cores": 2.517079003995161,
+          "score_bytes_per_vmm_cpu_s": 796528798.036431,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.3480263697269237,
+              "runnable_s_per_s": 8.734561044788558,
+              "wait_s_per_s": 6.2174820407933975
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.890498863329124
+    },
+    {
+      "pair": 14,
+      "order": "BA",
+      "common_clean": true,
+      "rate_ratio": 1.1467680198462595,
+      "relative_vmm_cores": 0.7109628024684965,
+      "relative_payload_per_cpu_s": 2.251695881994578,
+      "relative_bracket_over_score": 0.7163396007984714,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 3593.862795953447,
+          "p95_ms": 22.326,
+          "p99_ms": 48.403,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 22614941528,
+          "score_s": 6.001144208,
+          "counter_s": 6.144274,
+          "vmm_cores": 1.861766940786386,
+          "score_bytes_per_vmm_cpu_s": 1976967729.7647867,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.32000303320164597,
+              "runnable_s_per_s": 1.2288931667652407,
+              "wait_s_per_s": 0.1319626479331271
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.5431256200260539,
+              "runnable_s_per_s": 3.5286333327040205,
+              "wait_s_per_s": 1.6668663919176347
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 3133.9056668455537,
+          "p95_ms": 1012.452,
+          "p99_ms": 1097.207,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 19716844264,
+          "score_s": 6.000004459,
+          "counter_s": 8.575691,
+          "vmm_cores": 2.6186559048128015,
+          "score_bytes_per_vmm_cpu_s": 877990560.6140586,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.2229537220184177,
+              "runnable_s_per_s": 8.599764686600762,
+              "wait_s_per_s": 5.981108781787962
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.9099158548113092
+    },
+    {
+      "pair": 15,
+      "order": "AB",
+      "common_clean": true,
+      "rate_ratio": 0.684747730750259,
+      "relative_vmm_cores": 0.4269578352079221,
+      "relative_payload_per_cpu_s": 1.94571014926776,
+      "relative_bracket_over_score": 0.8242661584925877,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 3193.1309856249977,
+          "p95_ms": 28.863,
+          "p99_ms": 58.812,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 20095626880,
+          "score_s": 6.001846875,
+          "counter_s": 6.15429,
+          "vmm_cores": 1.6784737489350245,
+          "score_bytes_per_vmm_cpu_s": 1945400611.734946,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.3249027666535677,
+              "runnable_s_per_s": 1.120997372022876,
+              "wait_s_per_s": 0.13295142494097614
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.5519386688392249,
+              "runnable_s_per_s": 3.6662768302002884,
+              "wait_s_per_s": 1.9878030812652636
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 4663.222442703641,
+          "p95_ms": 222.863,
+          "p99_ms": 1015.488,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 29349573408,
+          "score_s": 6.002273042,
+          "counter_s": 7.466917,
+          "vmm_cores": 3.9312400675763053,
+          "score_bytes_per_vmm_cpu_s": 999840912.8240758,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.073912669733817,
+              "runnable_s_per_s": 9.14775059885269,
+              "wait_s_per_s": 5.216510531276384
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.9047282518595554
+    },
+    {
+      "pair": 16,
+      "order": "BA",
+      "common_clean": true,
+      "rate_ratio": 0.651155400960701,
+      "relative_vmm_cores": 0.46679136381084285,
+      "relative_payload_per_cpu_s": 1.645409204775347,
+      "relative_bracket_over_score": 0.8477892631438042,
+      "arms": {
+        "Micropod": {
+          "clean": true,
+          "mib_s": 2565.5988681978874,
+          "p95_ms": 33.456,
+          "p99_ms": 40.636,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 16143304824,
+          "score_s": 6.00072575,
+          "counter_s": 6.196321,
+          "vmm_cores": 1.5340075855764517,
+          "score_bytes_per_vmm_cpu_s": 1698365002.4463358,
+          "processes": {
+            "relay": {
+              "cpu_s_per_gib": 0.3625539708646347,
+              "runnable_s_per_s": 1.009248734047187,
+              "wait_s_per_s": 0.12955533076266812
+            },
+            "vmm": {
+              "cpu_s_per_gib": 0.6322208844702849,
+              "runnable_s_per_s": 3.6911230806688886,
+              "wait_s_per_s": 2.157115495092437
+            }
+          }
+        },
+        "OrbStack": {
+          "clean": true,
+          "mib_s": 3940.0715473029272,
+          "p95_ms": 1009.858,
+          "p99_ms": 1017.119,
+          "fresh_failed": 0,
+          "bulk_reopens": 0,
+          "score_bytes": 24789011768,
+          "score_s": 6.000054458,
+          "counter_s": 7.307981,
+          "vmm_cores": 3.2862809908327164,
+          "score_bytes_per_vmm_cpu_s": 1032183968.2902583,
+          "processes": {
+            "vmm": {
+              "cpu_s_per_gib": 1.040262062758618,
+              "runnable_s_per_s": 8.896682556144212,
+              "wait_s_per_s": 5.610401565311495
+            }
+          }
+        }
+      },
+      "service_fixed_ratio_at_common_reference": 0.7869268667660322
+    }
+  ]
+}

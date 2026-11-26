@@ -1,0 +1,28 @@
+{
+  "source": "Cuttlefish runners-list for the cuttlefish project; projection of every row matching either Gamma benchmark runner name",
+  "project": "cuttlefish",
+  "serverTime": "2026-11-23T05:11:27.179422582Z",
+  "truncated": false,
+  "rigs": [
+    {
+      "name": "Gamma-128GB.local",
+      "state": "busy",
+      "connectionState": "online",
+      "snapshotFreshness": "fresh",
+      "acceptingWork": true,
+      "leasedSlots": 4,
+      "capacity": 6,
+      "lastSeenAt": "2026-11-23T05:11:21.172035Z"
+    },
+    {
+      "name": "Gamma-128GB Linux CI (isolated VM)",
+      "state": "online",
+      "connectionState": "online",
+      "snapshotFreshness": "fresh",
+      "acceptingWork": true,
+      "leasedSlots": 1,
+      "capacity": 1,
+      "lastSeenAt": "2026-11-23T05:11:21.115594Z"
+    }
+  ]
+}

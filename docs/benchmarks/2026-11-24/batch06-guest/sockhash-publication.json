@@ -1,0 +1,230 @@
+{
+  "id": "234.03",
+  "tier": "source/fixture",
+  "base": "17bcd4355234b11da3a7a1da2ded52f4dc20f5d1",
+  "archive": "gamma-mixed-scheduler.json.gz",
+  "archive_sha256": "9e3b184de862aafacff47312878441e940d030e8cfc8342c0e479d064f4724c8",
+  "archived_micropod_revision": "692ace081c989f80fb2bce27a5a13af13098b77c",
+  "archived_socket_program_binary": "2425ebe036cdd0e72b0b8eee185f390556c986be5a4dfdf63c9892b9712d5c29",
+  "archived_maps_go_sha256": "7a34557fbb25499bcde8a3c49c2394c372cdc2953cd8f4fdfeb94613558ac9d2",
+  "input_verdict_block_sha256": "3db28506c93778dedfa6b7e850a74716a027546d5601c82fd9080d44b3513c30",
+  "kernel_helper_file": "linux-7.3.5/net/core/sock_map.c",
+  "kernel_helper_file_sha256": "3c489dd5864c8df12b06fbe81ca2dacd47d55c2b2d4f5c6f4e9a5eb691044c8a",
+  "kernel_helper_sha256": "32a3d75d81d1be04e4ea5d79108391c085a7c5a99ed1570662aad55f9af8e810",
+  "go": "go version go1.27.2 darwin/arm64",
+  "fixture_sha256": {
+    "sockhash_publication.py": "092ac101048ac166fdde3f9a0397a911076a75724592b19a4e9795d68972720f",
+    "sockhash_helper.c": "7930ad241fe8db67683872a3c4b91a6f625a7e2786ec0b1585c776fa57a0f5e1",
+    "sockhash_register.go.in": "c9353fed78c6ee440f8790704712b1153a585ac801ae700efbb344e6e70dbd1e"
+  },
+  "workload": "One independently assessed 64-byte arrival per direction at each of the five boundaries of four registration operations, ten arrival cases per arm.",
+  "limits": "Source/fixture. Original Go registration function executes with instrumented map writes, verdict control flow is modeled from verified archived branch instructions, pinned C redirect helper executes with in-memory socket lookup. Frames were never put on a wire. No guaranteed userspace fallback ordering, FIN coverage or observed cause of the historical EOFs.",
+  "arms": {
+    "original": {
+      "register_sha256": "7e5d1973aeeb923c7467aaecf9e49eaaa9574d39fb8b85c2915dd8625cfcc766",
+      "operations": [
+        {
+          "Map": "peers",
+          "Key": 11,
+          "Value": 22
+        },
+        {
+          "Map": "peers",
+          "Key": 22,
+          "Value": 11
+        },
+        {
+          "Map": "socks",
+          "Key": 22,
+          "Value": 222
+        },
+        {
+          "Map": "socks",
+          "Key": 11,
+          "Value": 111
+        }
+      ],
+      "arrivals": [
+        {
+          "completed_updates": 0,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 0,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 1,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 1,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 2,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 2,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 3,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 3,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "verdict_drop"
+        },
+        {
+          "completed_updates": 4,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "verdict_redirect"
+        },
+        {
+          "completed_updates": 4,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "verdict_redirect"
+        }
+      ],
+      "counts": {
+        "ordinary_socket": 7,
+        "verdict_pass_to_socket": 0,
+        "verdict_drop": 1,
+        "verdict_redirect": 2
+      }
+    },
+    "targets_first": {
+      "register_sha256": "521068253fc7b1f93a1ed29a2cd423f53ce7b0c9d60ddbce66a847dd77fd02b0",
+      "operations": [
+        {
+          "Map": "socks",
+          "Key": 22,
+          "Value": 222
+        },
+        {
+          "Map": "socks",
+          "Key": 11,
+          "Value": 111
+        },
+        {
+          "Map": "peers",
+          "Key": 11,
+          "Value": 22
+        },
+        {
+          "Map": "peers",
+          "Key": 22,
+          "Value": 11
+        }
+      ],
+      "arrivals": [
+        {
+          "completed_updates": 0,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 0,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 1,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "ordinary_socket"
+        },
+        {
+          "completed_updates": 1,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "verdict_pass_to_socket"
+        },
+        {
+          "completed_updates": 2,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "verdict_pass_to_socket"
+        },
+        {
+          "completed_updates": 2,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "verdict_pass_to_socket"
+        },
+        {
+          "completed_updates": 3,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "verdict_redirect"
+        },
+        {
+          "completed_updates": 3,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "verdict_pass_to_socket"
+        },
+        {
+          "completed_updates": 4,
+          "origin_cookie": 11,
+          "destination_cookie": 22,
+          "frame_bytes": 64,
+          "verdict": "verdict_redirect"
+        },
+        {
+          "completed_updates": 4,
+          "origin_cookie": 22,
+          "destination_cookie": 11,
+          "frame_bytes": 64,
+          "verdict": "verdict_redirect"
+        }
+      ],
+      "counts": {
+        "ordinary_socket": 3,
+        "verdict_pass_to_socket": 4,
+        "verdict_drop": 0,
+        "verdict_redirect": 3
+      }
+    }
+  }
+}

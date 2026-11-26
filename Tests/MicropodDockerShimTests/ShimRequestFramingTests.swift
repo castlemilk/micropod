@@ -42,7 +42,7 @@ final class ShimRequestFramingTests: XCTestCase {
         let response = try client.readUntilClose(timeout: 10)
         XCTAssertEqual(statuses(response).count, 2, String(decoding: response, as: UTF8.self))
         XCTAssertTrue(statuses(response).allSatisfy { $0.hasPrefix("HTTP/1.1 200") }, "\(statuses(response))")
-        XCTAssertTrue(String(decoding: response, as: UTF8.self).hasSuffix("OK\n"))
+        XCTAssertTrue(String(decoding: response, as: UTF8.self).hasSuffix("OK"))
     }
 
     /// A chunked binary body, delivered in small pieces.

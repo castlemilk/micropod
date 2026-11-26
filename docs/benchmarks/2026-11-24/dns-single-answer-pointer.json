@@ -1,0 +1,1784 @@
+{
+  "scope": "Native Go DNS parser, directory, encoder and metrics; empty upstream, internal network. Per-op means within fixed-work blocks, with setup excluded.",
+  "base_commit": "0031b82c68ef87d5a2900ec94c6d06795c35b65c",
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "arch": "arm64",
+  "go": "go version go1.27.2 darwin/arm64",
+  "gomaxprocs": 1,
+  "iterations_per_cell": 50000,
+  "pairs": 8,
+  "read_work": "A, AAAA or alternating A/AAAA; UDP, legacy 512-byte cap, mixed-case IN name. The 256-record A response is truncated.",
+  "publish_work": "One remove then add of the middle member, with its unique name and one shared alias. At count 1, removal empties the alias.",
+  "verification": "Each binary verified 60 mixed-case A/AAAA/ANY replies on UDP and TCP across publication, withdrawal and re-addition. Checked ordered addresses, truncation, authority, per-directory counters and wire digest.",
+  "row_units": [
+    "ns/op",
+    "B/op",
+    "allocs/op"
+  ],
+  "fixture_sha256": "63773237135530d687ef0e0932ca47adde65d7610835a32943df10dc04aa2d74",
+  "driver_sha256": "1ef97dc823d0bb80d0f0ca305b8e1d01405f6595e25032c6850442c2ae128d36",
+  "source": {
+    "base": {
+      "files": {
+        "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+        "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+        "guest/runner/docker_dns_answer.go": "8eec5ea965c4bc7d49ab84c70e187201d1487b21913bcc9d927ae7cf73b82e46",
+        "guest/runner/docker_dns_directory.go": "6178cda21f4f4b0d2cedf7b0f90327cc976fb3f31dc45fba7b52f3aeca6701b5",
+        "guest/runner/docker_dns_linux.go": "4b053289d99557c84fa90b71f3101ae0eda16e18aac99af5c910aa8852e4379b",
+        "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+      },
+      "binary": "65b196c0bf0045d9d9c7ce12009fadd62e7647858ecbca4eb53fde5295227508",
+      "verified_response_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631"
+    },
+    "candidate": {
+      "files": {
+        "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+        "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+        "guest/runner/docker_dns_answer.go": "e1b01b5cc099cb56292ce2c301e887ef539566a830a146b93066d88f0acdab5b",
+        "guest/runner/docker_dns_directory.go": "6178cda21f4f4b0d2cedf7b0f90327cc976fb3f31dc45fba7b52f3aeca6701b5",
+        "guest/runner/docker_dns_linux.go": "4b053289d99557c84fa90b71f3101ae0eda16e18aac99af5c910aa8852e4379b",
+        "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+      },
+      "binary": "a0ba714e19b7a037fba04c05715fa86096cf04af8bfc554ce6aa6d0c3b1699e7",
+      "verified_response_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631"
+    }
+  },
+  "summary": {
+    "lookup/0/A": {
+      "base": [
+        123.4,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        123.69999999999999,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.094138543516874,
+        0.8021978021978022,
+        0.9495026778882938,
+        0.9251887439945095,
+        0.9926410466067049,
+        1.0407315045719037,
+        1.060189165950129,
+        0.9622489959839358
+      ],
+      "median_paired_ratio": 0.9774450212953203,
+      "paired_ratio_ci95": [
+        0.9251887439945095,
+        1.060189165950129
+      ],
+      "median_paired_change_pct": -2.26,
+      "faster_pairs": 5
+    },
+    "lookup/0/AAAA": {
+      "base": [
+        122.75,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        118.5,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1374885426214483,
+        0.8161911081619111,
+        0.8046928916494133,
+        0.994007490636704,
+        0.9382022471910113,
+        0.9924812030075187,
+        0.9776674937965261,
+        0.9295774647887324
+      ],
+      "median_paired_ratio": 0.9579348704937687,
+      "paired_ratio_ci95": [
+        0.8161911081619111,
+        0.994007490636704
+      ],
+      "median_paired_change_pct": -4.21,
+      "faster_pairs": 7
+    },
+    "lookup/0/alternating": {
+      "base": [
+        122.30000000000001,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        121.9,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1746765249537892,
+        0.8582140422631221,
+        0.9681020733652312,
+        0.9504876219054763,
+        0.9300864100549883,
+        1.0515463917525774,
+        1.0222222222222221,
+        0.9773489932885906
+      ],
+      "median_paired_ratio": 0.9727255333269109,
+      "paired_ratio_ci95": [
+        0.9300864100549883,
+        1.0515463917525774
+      ],
+      "median_paired_change_pct": -2.73,
+      "faster_pairs": 5
+    },
+    "lookup/1/A": {
+      "base": [
+        261.04999999999995,
+        328.0,
+        6.0
+      ],
+      "candidate": [
+        133.45,
+        56.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.5903563941299791,
+        0.5011308562197092,
+        0.47466762486525327,
+        0.4094854308741475,
+        0.48067894546767787,
+        0.5440456769983687,
+        0.5840745446844557,
+        0.5462356792144026
+      ],
+      "median_paired_ratio": 0.5225882666090389,
+      "paired_ratio_ci95": [
+        0.47466762486525327,
+        0.5840745446844557
+      ],
+      "median_paired_change_pct": -47.74,
+      "faster_pairs": 8
+    },
+    "lookup/1/AAAA": {
+      "base": [
+        121.1,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        126.0,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.095115681233933,
+        0.9890185312285519,
+        1.0432050274941085,
+        0.8105670103092784,
+        1.1118942731277532,
+        1.0781928757602086,
+        0.9867439933719966,
+        1.011522633744856
+      ],
+      "median_paired_ratio": 1.0273638306194823,
+      "paired_ratio_ci95": [
+        0.9867439933719966,
+        1.095115681233933
+      ],
+      "median_paired_change_pct": 2.74,
+      "faster_pairs": 3
+    },
+    "lookup/1/alternating": {
+      "base": [
+        194.45,
+        184.0,
+        4.0
+      ],
+      "candidate": [
+        128.85,
+        48.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.6951476793248946,
+        0.711354961832061,
+        0.6199756394640681,
+        0.549694856146469,
+        0.6712179137083562,
+        0.6284704694598687,
+        0.6897274633123689,
+        0.6898249452954047
+      ],
+      "median_paired_ratio": 0.6804726885103625,
+      "paired_ratio_ci95": [
+        0.6199756394640681,
+        0.6951476793248946
+      ],
+      "median_paired_change_pct": -31.95,
+      "faster_pairs": 8
+    },
+    "publish/1": {
+      "base": [
+        226.4,
+        176.0,
+        4.0
+      ],
+      "candidate": [
+        209.45,
+        176.0,
+        4.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.9760956175298805,
+        1.0951961216394888,
+        0.9681353265145555,
+        0.7377284127552848,
+        0.9155930697467792,
+        0.8838983050847458,
+        0.8797789037309995,
+        0.966896551724138
+      ],
+      "median_paired_ratio": 0.9412448107354586,
+      "paired_ratio_ci95": [
+        0.8797789037309995,
+        0.9760956175298805
+      ],
+      "median_paired_change_pct": -5.88,
+      "faster_pairs": 7
+    },
+    "lookup/8/A": {
+      "base": [
+        399.85,
+        432.0,
+        5.0
+      ],
+      "candidate": [
+        409.0,
+        432.0,
+        5.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1231513847808552,
+        0.9191399859780324,
+        1.0971360381861575,
+        0.8528730793517154,
+        1.0017313875834777,
+        1.0483055134041477,
+        0.9514365624205441,
+        1.0923524741995239
+      ],
+      "median_paired_ratio": 1.0250184504938127,
+      "paired_ratio_ci95": [
+        0.9191399859780324,
+        1.0971360381861575
+      ],
+      "median_paired_change_pct": 2.5,
+      "faster_pairs": 3
+    },
+    "lookup/8/AAAA": {
+      "base": [
+        129.9,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        131.5,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.064464141821112,
+        0.7902829028290284,
+        1.0260936300844203,
+        0.9525471039776692,
+        1.01003861003861,
+        0.9859778597785978,
+        1.0254668930390491,
+        1.0908333333333333
+      ],
+      "median_paired_ratio": 1.0177527515388296,
+      "paired_ratio_ci95": [
+        0.9525471039776692,
+        1.064464141821112
+      ],
+      "median_paired_change_pct": 1.78,
+      "faster_pairs": 3
+    },
+    "lookup/8/alternating": {
+      "base": [
+        281.4,
+        236.0,
+        3.0
+      ],
+      "candidate": [
+        292.5,
+        236.0,
+        3.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.17982799061767,
+        1.1265866209262434,
+        1.2083911234396671,
+        0.8313492063492064,
+        0.9992823824901328,
+        0.966209081309398,
+        1.0128359406337746,
+        1.1103920822230682
+      ],
+      "median_paired_ratio": 1.0616140114284214,
+      "paired_ratio_ci95": [
+        0.966209081309398,
+        1.17982799061767
+      ],
+      "median_paired_change_pct": 6.16,
+      "faster_pairs": 3
+    },
+    "publish/8": {
+      "base": [
+        242.2,
+        152.0,
+        3.0
+      ],
+      "candidate": [
+        242.3,
+        152.0,
+        3.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.0463203463203463,
+        0.8748180494905385,
+        0.9763716459751703,
+        0.8315754779169414,
+        0.9721559268098647,
+        1.0551694178974804,
+        0.9820512820512821,
+        1.0268427780144866
+      ],
+      "median_paired_ratio": 0.9792114640132262,
+      "paired_ratio_ci95": [
+        0.8748180494905385,
+        1.0463203463203463
+      ],
+      "median_paired_change_pct": -2.08,
+      "faster_pairs": 5
+    },
+    "lookup/256/A": {
+      "base": [
+        135.55,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        134.55,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.01,
+        0.8750826173165895,
+        1.0207253886010363,
+        0.9167794316644113,
+        1.0145482388973968,
+        1.0799360511590728,
+        1.0347490347490347,
+        0.9823529411764705
+      ],
+      "median_paired_ratio": 1.0122741194486984,
+      "paired_ratio_ci95": [
+        0.9167794316644113,
+        1.0347490347490347
+      ],
+      "median_paired_change_pct": 1.23,
+      "faster_pairs": 3
+    },
+    "lookup/256/AAAA": {
+      "base": [
+        127.5,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        127.5,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1033634126333058,
+        0.7963659147869674,
+        1.0806324110671937,
+        0.9254287844891872,
+        1.0047132757266302,
+        0.9937353171495693,
+        1.0250403877221326,
+        1.04839968774395
+      ],
+      "median_paired_ratio": 1.0148768317243815,
+      "paired_ratio_ci95": [
+        0.9254287844891872,
+        1.0806324110671937
+      ],
+      "median_paired_change_pct": 1.49,
+      "faster_pairs": 3
+    },
+    "lookup/256/alternating": {
+      "base": [
+        128.5,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        130.8,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.9928057553956835,
+        1.0169753086419755,
+        1.0115473441108545,
+        0.9374120956399439,
+        1.011773940345369,
+        1.02,
+        1.0292207792207793,
+        1.0235849056603772
+      ],
+      "median_paired_ratio": 1.0143746244936722,
+      "paired_ratio_ci95": [
+        0.9928057553956835,
+        1.0235849056603772
+      ],
+      "median_paired_change_pct": 1.44,
+      "faster_pairs": 2
+    },
+    "publish/256": {
+      "base": [
+        629.6,
+        152.0,
+        3.0
+      ],
+      "candidate": [
+        675.7,
+        152.0,
+        3.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1687552213868004,
+        0.891360136869119,
+        1.094042891183479,
+        0.8837708228167592,
+        1.034337443421258,
+        1.02699698269017,
+        0.9946949602122015,
+        1.1198565818678503
+      ],
+      "median_paired_ratio": 1.030667213055714,
+      "paired_ratio_ci95": [
+        0.891360136869119,
+        1.1198565818678503
+      ],
+      "median_paired_change_pct": 3.07,
+      "faster_pairs": 3
+    }
+  },
+  "blocks": [
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            112.6,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            109.1,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            108.2,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            238.5,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            116.7,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            189.6,
+            184,
+            4
+          ],
+          "publish/1": [
+            225.9,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            371.9,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            124.1,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            255.8,
+            236,
+            3
+          ],
+          "publish/8": [
+            231.0,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            140.0,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            121.9,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            139.0,
+            40,
+            2
+          ],
+          "publish/256": [
+            598.5,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            123.2,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            124.1,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            127.1,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            140.8,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            127.8,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            131.8,
+            48,
+            2
+          ],
+          "publish/1": [
+            220.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            417.7,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            132.1,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            301.8,
+            236,
+            3
+          ],
+          "publish/8": [
+            241.7,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            141.4,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            134.5,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            138.0,
+            40,
+            2
+          ],
+          "publish/256": [
+            699.5,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            124.1,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            123.0,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            125.9,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            155.1,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            144.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            149.1,
+            48,
+            2
+          ],
+          "publish/1": [
+            248.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            393.3,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            128.5,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            328.4,
+            236,
+            3
+          ],
+          "publish/8": [
+            240.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            132.4,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            127.1,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            131.8,
+            40,
+            2
+          ],
+          "publish/256": [
+            729.4,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            154.7,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            150.7,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            146.7,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            309.5,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            145.7,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            209.6,
+            184,
+            4
+          ],
+          "publish/1": [
+            226.9,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            427.9,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            162.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            291.5,
+            236,
+            3
+          ],
+          "publish/8": [
+            274.8,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            151.3,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            159.6,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            129.6,
+            40,
+            2
+          ],
+          "publish/256": [
+            818.3,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            130.7,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            144.9,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            125.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            278.3,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            127.3,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            246.3,
+            184,
+            4
+          ],
+          "publish/1": [
+            254.2,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            419.0,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            130.3,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            288.4,
+            236,
+            3
+          ],
+          "publish/8": [
+            249.7,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            135.1,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            126.5,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            129.9,
+            40,
+            2
+          ],
+          "publish/256": [
+            629.5,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            124.1,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            116.6,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            121.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            132.1,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            132.8,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            152.7,
+            48,
+            2
+          ],
+          "publish/1": [
+            246.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            459.7,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            133.7,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            348.5,
+            236,
+            3
+          ],
+          "publish/8": [
+            243.8,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            137.9,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            136.7,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            131.4,
+            40,
+            2
+          ],
+          "publish/256": [
+            688.7,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            134.8,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            132.7,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            126.7,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            132.1,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            125.8,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            126.1,
+            48,
+            2
+          ],
+          "publish/1": [
+            205.9,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            405.2,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            136.5,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            293.3,
+            236,
+            3
+          ],
+          "publish/8": [
+            252.3,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            135.5,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            124.1,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            133.3,
+            40,
+            2
+          ],
+          "publish/256": [
+            700.3,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            145.7,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            133.5,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            133.3,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            322.6,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            155.2,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            229.4,
+            184,
+            4
+          ],
+          "publish/1": [
+            279.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            475.1,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            143.3,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            352.8,
+            236,
+            3
+          ],
+          "publish/8": [
+            303.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            147.8,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            134.1,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            142.2,
+            40,
+            2
+          ],
+          "publish/256": [
+            792.4,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            122.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            124.6,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            127.3,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            276.9,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            113.5,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            183.1,
+            184,
+            4
+          ],
+          "publish/1": [
+            225.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            404.3,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            129.5,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            278.7,
+            236,
+            3
+          ],
+          "publish/8": [
+            251.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            130.6,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            127.3,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            127.4,
+            40,
+            2
+          ],
+          "publish/256": [
+            640.7,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            121.4,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            116.9,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            118.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            133.1,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            126.2,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            122.9,
+            48,
+            2
+          ],
+          "publish/1": [
+            206.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            405.0,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            130.8,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            278.5,
+            236,
+            3
+          ],
+          "publish/8": [
+            244.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            132.5,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            127.9,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            128.9,
+            40,
+            2
+          ],
+          "publish/256": [
+            662.7,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            125.2,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            118.8,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            122.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            133.4,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            124.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            124.5,
+            48,
+            2
+          ],
+          "publish/1": [
+            208.6,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            414.5,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            133.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            274.5,
+            236,
+            3
+          ],
+          "publish/8": [
+            242.9,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            135.1,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            126.9,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            127.5,
+            40,
+            2
+          ],
+          "publish/256": [
+            646.7,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            120.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            119.7,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            116.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            245.2,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            115.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            198.1,
+            184,
+            4
+          ],
+          "publish/1": [
+            236.0,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            395.4,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            135.5,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            284.1,
+            236,
+            3
+          ],
+          "publish/8": [
+            230.2,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            125.1,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            127.7,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            125.0,
+            40,
+            2
+          ],
+          "publish/256": [
+            629.7,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            116.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            120.9,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            117.0,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            236.1,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            120.7,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            190.8,
+            184,
+            4
+          ],
+          "publish/1": [
+            217.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            393.3,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            117.8,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            249.3,
+            236,
+            3
+          ],
+          "publish/8": [
+            234.0,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            129.5,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            123.8,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            123.2,
+            40,
+            2
+          ],
+          "publish/256": [
+            603.2,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            123.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            118.2,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            119.6,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            137.9,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            119.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            131.6,
+            48,
+            2
+          ],
+          "publish/1": [
+            191.0,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            374.2,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            120.8,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            252.5,
+            236,
+            3
+          ],
+          "publish/8": [
+            229.8,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            134.0,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            126.9,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            126.8,
+            40,
+            2
+          ],
+          "publish/256": [
+            600.0,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            119.8,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            112.2,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            116.5,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            133.5,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            122.9,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            126.1,
+            48,
+            2
+          ],
+          "publish/1": [
+            210.3,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            412.8,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            130.9,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            291.7,
+            236,
+            3
+          ],
+          "publish/8": [
+            241.0,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            133.6,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            134.3,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            130.2,
+            40,
+            2
+          ],
+          "publish/256": [
+            655.9,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            124.5,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            120.7,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            119.2,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            244.4,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            121.5,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            182.8,
+            184,
+            4
+          ],
+          "publish/1": [
+            217.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            377.9,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            120.0,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            262.7,
+            236,
+            3
+          ],
+          "publish/8": [
+            234.7,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            136.0,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            128.1,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            127.2,
+            40,
+            2
+          ],
+          "publish/256": [
+            585.7,
+            152,
+            3
+          ]
+        }
+      }
+    }
+  ],
+  "sampling_driver_sha256": "6d1a82c2761fb04fbb778db056d5c5b2efeccfc2f3e4930bb6dd52b887c73385",
+  "interval_method": "Within-pair candidate/base ns/op; median with a 10,000-resample paired block bootstrap (seed 23114, sorted indices 249 and 9749).",
+  "analysis_note": "The summary and intervals were recomputed from the original raw timed blocks after the run."
+}

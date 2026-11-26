@@ -1,0 +1,1901 @@
+{
+  "scope": "Native Go DNS parser, directory, encoder and metrics; empty upstream, internal network. Per-op means within fixed-work blocks, with setup excluded.",
+  "base_commit": "405d7c7982268a9df95d56e5bb7b36e5c606639c",
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "arch": "arm64",
+  "go": "go version go1.27.2 darwin/arm64",
+  "gomaxprocs": 1,
+  "iterations_per_cell": 50000,
+  "pairs": 8,
+  "read_work": "A, AAAA or alternating A/AAAA; UDP, legacy 512-byte cap, mixed-case IN name. The 256-record A response is truncated.",
+  "publish_work": "One remove then add of the middle member, with its unique name and one shared alias. At count 1, removal empties the alias.",
+  "verification": "Each binary verified 60 mixed-case A/AAAA/ANY replies on UDP and TCP across publication, withdrawal and re-addition. Checked ordered addresses, truncation, authority, per-directory counters and wire digest.",
+  "row_units": [
+    "ns/op",
+    "B/op",
+    "allocs/op"
+  ],
+  "fixture_sha256": "63773237135530d687ef0e0932ca47adde65d7610835a32943df10dc04aa2d74",
+  "driver_sha256": "6c3053fdb5c56907f5b9d3ee5243d594b3e931597384b6aeddc1b63e001c11ca",
+  "source": {
+    "base": {
+      "files": {
+        "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+        "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+        "guest/runner/docker_dns_answer.go": "4052eb2320b322faed97ce77091d703eb27bfe47c7ff2c681e036fc5ca1e3dfc",
+        "guest/runner/docker_dns_directory.go": "63b16e654a3628f91bd213c7d5db535ff11b659a6fbb3df24f577bab9b17d33e",
+        "guest/runner/docker_dns_linux.go": "4d05d1bb874a342761bc2c164f26d1015ce0c2cc59a42908cd516799dcd29298",
+        "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+      },
+      "binary": "3fb2f11f45eedb0e558fb73b7283ebf3a625508fc76eb437df2ae369391aa33a",
+      "verified_response_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631"
+    },
+    "candidate": {
+      "files": {
+        "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+        "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+        "guest/runner/docker_dns_answer.go": "8eec5ea965c4bc7d49ab84c70e187201d1487b21913bcc9d927ae7cf73b82e46",
+        "guest/runner/docker_dns_directory.go": "6178cda21f4f4b0d2cedf7b0f90327cc976fb3f31dc45fba7b52f3aeca6701b5",
+        "guest/runner/docker_dns_linux.go": "4b053289d99557c84fa90b71f3101ae0eda16e18aac99af5c910aa8852e4379b",
+        "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+      },
+      "binary": "65b196c0bf0045d9d9c7ce12009fadd62e7647858ecbca4eb53fde5295227508",
+      "verified_response_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631"
+    }
+  },
+  "summary": {
+    "lookup/0/A": {
+      "base": [
+        109.05,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        112.85,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": 3.03,
+      "faster_pairs": 0
+    },
+    "lookup/0/AAAA": {
+      "base": [
+        107.2,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        109.65,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": 2.77,
+      "faster_pairs": 2
+    },
+    "lookup/0/alternating": {
+      "base": [
+        106.65,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        109.15,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": 1.49,
+      "faster_pairs": 1
+    },
+    "lookup/1/A": {
+      "base": [
+        211.2,
+        328.0,
+        6.0
+      ],
+      "candidate": [
+        209.9,
+        328.0,
+        6.0
+      ],
+      "median_paired_change_pct": -0.24,
+      "faster_pairs": 5
+    },
+    "lookup/1/AAAA": {
+      "base": [
+        109.15,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        112.1,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": 1.52,
+      "faster_pairs": 4
+    },
+    "lookup/1/alternating": {
+      "base": [
+        167.3,
+        184.0,
+        4.0
+      ],
+      "candidate": [
+        168.05,
+        184.0,
+        4.0
+      ],
+      "median_paired_change_pct": 0.01,
+      "faster_pairs": 4
+    },
+    "publish/1": {
+      "base": [
+        202.6,
+        176.0,
+        4.0
+      ],
+      "candidate": [
+        201.0,
+        176.0,
+        4.0
+      ],
+      "median_paired_change_pct": 0.98,
+      "faster_pairs": 3
+    },
+    "lookup/8/A": {
+      "base": [
+        389.0,
+        624.0,
+        6.0
+      ],
+      "candidate": [
+        343.9,
+        432.0,
+        5.0
+      ],
+      "median_paired_change_pct": -11.87,
+      "faster_pairs": 7
+    },
+    "lookup/8/AAAA": {
+      "base": [
+        116.6,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        118.25,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": 0.35,
+      "faster_pairs": 3
+    },
+    "lookup/8/alternating": {
+      "base": [
+        264.35,
+        332.0,
+        4.0
+      ],
+      "candidate": [
+        238.2,
+        236.0,
+        3.0
+      ],
+      "median_paired_change_pct": -10.44,
+      "faster_pairs": 8
+    },
+    "publish/8": {
+      "base": [
+        209.55,
+        152.0,
+        3.0
+      ],
+      "candidate": [
+        210.3,
+        152.0,
+        3.0
+      ],
+      "median_paired_change_pct": 0.05,
+      "faster_pairs": 4
+    },
+    "lookup/256/A": {
+      "base": [
+        963.85,
+        6832.0,
+        6.0
+      ],
+      "candidate": [
+        121.9,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": -87.26,
+      "faster_pairs": 8
+    },
+    "lookup/256/AAAA": {
+      "base": [
+        116.75,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        115.9,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": -0.48,
+      "faster_pairs": 5
+    },
+    "lookup/256/alternating": {
+      "base": [
+        531.85,
+        3436.0,
+        4.0
+      ],
+      "candidate": [
+        117.0,
+        40.0,
+        2.0
+      ],
+      "median_paired_change_pct": -77.46,
+      "faster_pairs": 8
+    },
+    "publish/256": {
+      "base": [
+        560.4,
+        152.0,
+        3.0
+      ],
+      "candidate": [
+        576.1,
+        152.0,
+        3.0
+      ],
+      "median_paired_change_pct": 8.86,
+      "faster_pairs": 2
+    }
+  },
+  "blocks": [
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            110.1,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            108.4,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            105.3,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            214.7,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            112.4,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            168.6,
+            184,
+            4
+          ],
+          "publish/1": [
+            208.0,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            391.7,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            116.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            263.5,
+            332,
+            4
+          ],
+          "publish/8": [
+            207.6,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            889.3,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            114.8,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            510.0,
+            3436,
+            4
+          ],
+          "publish/256": [
+            538.7,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            113.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            112.2,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            110.3,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            211.0,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            112.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            167.3,
+            184,
+            4
+          ],
+          "publish/1": [
+            199.6,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            344.5,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            114.7,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            229.3,
+            236,
+            3
+          ],
+          "publish/8": [
+            207.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            120.4,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            113.8,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            114.8,
+            40,
+            2
+          ],
+          "publish/256": [
+            577.1,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            113.8,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            108.0,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            108.0,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            205.9,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            107.3,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            164.5,
+            184,
+            4
+          ],
+          "publish/1": [
+            200.9,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            338.5,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            114.5,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            229.2,
+            236,
+            3
+          ],
+          "publish/8": [
+            205.5,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            119.0,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            114.1,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            113.4,
+            40,
+            2
+          ],
+          "publish/256": [
+            494.4,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            108.8,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            106.7,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            107.0,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            206.0,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            110.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            166.7,
+            184,
+            4
+          ],
+          "publish/1": [
+            198.6,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            383.4,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            114.0,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            258.4,
+            332,
+            4
+          ],
+          "publish/8": [
+            203.5,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            893.9,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            113.0,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            597.0,
+            3436,
+            4
+          ],
+          "publish/256": [
+            582.7,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            110.0,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            105.1,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            105.6,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            208.7,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            108.6,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            164.8,
+            184,
+            4
+          ],
+          "publish/1": [
+            198.6,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            383.4,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            118.0,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            260.0,
+            332,
+            4
+          ],
+          "publish/8": [
+            211.5,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            967.7,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            119.0,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            583.0,
+            3436,
+            4
+          ],
+          "publish/256": [
+            520.0,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            112.4,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            109.1,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.5,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            207.8,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            112.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            168.8,
+            184,
+            4
+          ],
+          "publish/1": [
+            200.2,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            341.9,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            118.3,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            238.3,
+            236,
+            3
+          ],
+          "publish/8": [
+            211.3,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            121.4,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            115.4,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            116.8,
+            40,
+            2
+          ],
+          "publish/256": [
+            575.1,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            111.7,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            107.3,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            107.9,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            206.4,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            108.2,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            164.8,
+            184,
+            4
+          ],
+          "publish/1": [
+            201.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            336.5,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            114.9,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            238.1,
+            236,
+            3
+          ],
+          "publish/8": [
+            209.0,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            121.1,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            117.7,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            115.8,
+            40,
+            2
+          ],
+          "publish/256": [
+            573.6,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            108.6,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            107.7,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            107.7,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            205.3,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            108.4,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            167.9,
+            184,
+            4
+          ],
+          "publish/1": [
+            187.9,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            382.5,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            114.1,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            268.0,
+            332,
+            4
+          ],
+          "publish/8": [
+            206.6,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            991.4,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            117.0,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            578.2,
+            3436,
+            4
+          ],
+          "publish/256": [
+            579.8,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            109.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            117.8,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.0,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            215.1,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            109.5,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            172.7,
+            184,
+            4
+          ],
+          "publish/1": [
+            202.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            390.4,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            115.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            268.0,
+            332,
+            4
+          ],
+          "publish/8": [
+            207.1,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            1031.0,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            116.5,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            508.7,
+            3436,
+            4
+          ],
+          "publish/256": [
+            547.3,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            111.0,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            109.0,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            108.8,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            209.3,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            117.3,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            195.2,
+            184,
+            4
+          ],
+          "publish/1": [
+            245.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            417.8,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            119.2,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            250.6,
+            236,
+            3
+          ],
+          "publish/8": [
+            224.5,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            124.6,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            116.4,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            117.2,
+            40,
+            2
+          ],
+          "publish/256": [
+            704.1,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            111.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            129.3,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            144.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            268.9,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            121.6,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            172.4,
+            184,
+            4
+          ],
+          "publish/1": [
+            214.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            383.8,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            120.7,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            262.5,
+            236,
+            3
+          ],
+          "publish/8": [
+            219.8,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            129.7,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            120.6,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            124.9,
+            40,
+            2
+          ],
+          "publish/256": [
+            579.8,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            107.9,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            105.9,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            106.0,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            210.8,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            108.8,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            177.0,
+            184,
+            4
+          ],
+          "publish/1": [
+            203.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            453.7,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            146.4,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            328.1,
+            332,
+            4
+          ],
+          "publish/8": [
+            228.0,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            1275.0,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            125.4,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            538.6,
+            3436,
+            4
+          ],
+          "publish/256": [
+            573.5,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            107.0,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            105.2,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            106.3,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            212.5,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            108.7,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            165.0,
+            184,
+            4
+          ],
+          "publish/1": [
+            207.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            426.9,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            119.4,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            263.3,
+            332,
+            4
+          ],
+          "publish/8": [
+            212.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            960.0,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            113.6,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            525.1,
+            3436,
+            4
+          ],
+          "publish/256": [
+            580.8,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            113.4,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            110.2,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            107.0,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            225.1,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            112.3,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            168.9,
+            184,
+            4
+          ],
+          "publish/1": [
+            200.8,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            343.3,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            118.3,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            237.7,
+            236,
+            3
+          ],
+          "publish/8": [
+            209.3,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            124.2,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            117.1,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            118.5,
+            40,
+            2
+          ],
+          "publish/256": [
+            724.8,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            114.8,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            110.6,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.5,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            210.5,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            110.0,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            167.2,
+            184,
+            4
+          ],
+          "publish/1": [
+            206.7,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            350.1,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            118.2,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            240.7,
+            236,
+            3
+          ],
+          "publish/8": [
+            214.8,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            122.4,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            115.4,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            117.5,
+            40,
+            2
+          ],
+          "publish/256": [
+            573.3,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            110.2,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            108.4,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            107.3,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            211.6,
+            328,
+            6
+          ],
+          "lookup/1/AAAA": [
+            110.4,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            165.9,
+            184,
+            4
+          ],
+          "publish/1": [
+            209.3,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            387.6,
+            624,
+            6
+          ],
+          "lookup/8/AAAA": [
+            116.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            265.2,
+            332,
+            4
+          ],
+          "publish/8": [
+            214.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            917.9,
+            6832,
+            6
+          ],
+          "lookup/256/AAAA": [
+            117.1,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            518.3,
+            3436,
+            4
+          ],
+          "publish/256": [
+            500.8,
+            152,
+            3
+          ]
+        }
+      }
+    }
+  ],
+  "supplemental": {
+    "method": "No socket or VM. Cold process per arm/round, Go 1.27.2, 1 Go CPU, 8 alternating balanced pairs, 100000 requests per cell, exact IN A query on internal network via UDP with one empty OPT record advertising 1232 bytes. Same build inputs and fixture as primary; added Go benchmark body below.",
+    "bench_function": "package main\n\nimport (\n  \"context\"\n  \"fmt\"\n  \"testing\"\n  \"golang.org/x/net/dns/dnsmessage\"\n)\n\nfunc BenchmarkEDNS(b *testing.B) {\n  for _,count:=range []int{1,8,256} {\n    b.Run(fmt.Sprintf(\"%d\",count),func(b *testing.B) {\n      n,_:=setup(count)\n      e:=new(dockerEngine)\n      var msg dnsmessage.Message\n      if err:=msg.Unpack(query(b,dnsmessage.TypeA));err!=nil {b.Fatal(err)}\n      msg.Additionals = []dnsmessage.Resource{{Header:dnsmessage.ResourceHeader{Name:dnsmessage.MustNewName(\".\"),Type:dnsmessage.TypeOPT,Class:1232},Body:&dnsmessage.OPTResource{}}}\n      packet,err:=msg.Pack()\n      if err!=nil {b.Fatal(err)}\n      b.ReportAllocs()\n      b.ResetTimer()\n      for i:=0;i<b.N;i++ {\n        if e.dnsReply(context.Background(),n,nil,packet,\"udp\")==nil {b.Fatal(\"no response\")}\n      }\n    })\n  }\n}\n",
+    "summary": {
+      "1": {
+        "base": [
+          210.45,
+          328.0,
+          6.0
+        ],
+        "candidate": [
+          214.9,
+          328.0,
+          6.0
+        ],
+        "paired_pct": 2.1147170615640754,
+        "wins": 1
+      },
+      "8": {
+        "base": [
+          390.35,
+          624.0,
+          6.0
+        ],
+        "candidate": [
+          348.3,
+          432.0,
+          5.0
+        ],
+        "paired_pct": -11.150312676200047,
+        "wins": 7
+      },
+      "256": {
+        "base": [
+          937.2,
+          6832.0,
+          6.0
+        ],
+        "candidate": [
+          131.6,
+          40.0,
+          2.0
+        ],
+        "paired_pct": -85.9532827643595,
+        "wins": 8
+      }
+    },
+    "blocks": [
+      {
+        "base": {
+          "1": [
+            209.8,
+            328,
+            6
+          ],
+          "8": [
+            387.3,
+            624,
+            6
+          ],
+          "256": [
+            928.7,
+            6832,
+            6
+          ]
+        },
+        "candidate": {
+          "1": [
+            218.0,
+            328,
+            6
+          ],
+          "8": [
+            388.6,
+            432,
+            5
+          ],
+          "256": [
+            144.4,
+            40,
+            2
+          ]
+        }
+      },
+      {
+        "candidate": {
+          "1": [
+            233.1,
+            328,
+            6
+          ],
+          "8": [
+            368.5,
+            432,
+            5
+          ],
+          "256": [
+            137.1,
+            40,
+            2
+          ]
+        },
+        "base": {
+          "1": [
+            220.8,
+            328,
+            6
+          ],
+          "8": [
+            465.1,
+            624,
+            6
+          ],
+          "256": [
+            959.2,
+            6832,
+            6
+          ]
+        }
+      },
+      {
+        "base": {
+          "1": [
+            261.2,
+            328,
+            6
+          ],
+          "8": [
+            413.7,
+            624,
+            6
+          ],
+          "256": [
+            955.1,
+            6832,
+            6
+          ]
+        },
+        "candidate": {
+          "1": [
+            218.4,
+            328,
+            6
+          ],
+          "8": [
+            353.6,
+            432,
+            5
+          ],
+          "256": [
+            132.1,
+            40,
+            2
+          ]
+        }
+      },
+      {
+        "candidate": {
+          "1": [
+            214.7,
+            328,
+            6
+          ],
+          "8": [
+            349.5,
+            432,
+            5
+          ],
+          "256": [
+            131.2,
+            40,
+            2
+          ]
+        },
+        "base": {
+          "1": [
+            211.9,
+            328,
+            6
+          ],
+          "8": [
+            390.5,
+            624,
+            6
+          ],
+          "256": [
+            949.1,
+            6832,
+            6
+          ]
+        }
+      },
+      {
+        "base": {
+          "1": [
+            210.7,
+            328,
+            6
+          ],
+          "8": [
+            392.4,
+            624,
+            6
+          ],
+          "256": [
+            941.6,
+            6832,
+            6
+          ]
+        },
+        "candidate": {
+          "1": [
+            214.8,
+            328,
+            6
+          ],
+          "8": [
+            347.1,
+            432,
+            5
+          ],
+          "256": [
+            131.5,
+            40,
+            2
+          ]
+        }
+      },
+      {
+        "candidate": {
+          "1": [
+            215.0,
+            328,
+            6
+          ],
+          "8": [
+            346.9,
+            432,
+            5
+          ],
+          "256": [
+            131.7,
+            40,
+            2
+          ]
+        },
+        "base": {
+          "1": [
+            210.2,
+            328,
+            6
+          ],
+          "8": [
+            390.2,
+            624,
+            6
+          ],
+          "256": [
+            911.3,
+            6832,
+            6
+          ]
+        }
+      },
+      {
+        "base": {
+          "1": [
+            207.4,
+            328,
+            6
+          ],
+          "8": [
+            383.8,
+            624,
+            6
+          ],
+          "256": [
+            923.0,
+            6832,
+            6
+          ]
+        },
+        "candidate": {
+          "1": [
+            214.6,
+            328,
+            6
+          ],
+          "8": [
+            340.8,
+            432,
+            5
+          ],
+          "256": [
+            130.4,
+            40,
+            2
+          ]
+        }
+      },
+      {
+        "candidate": {
+          "1": [
+            213.0,
+            328,
+            6
+          ],
+          "8": [
+            343.8,
+            432,
+            5
+          ],
+          "256": [
+            129.8,
+            40,
+            2
+          ]
+        },
+        "base": {
+          "1": [
+            209.3,
+            328,
+            6
+          ],
+          "8": [
+            384.8,
+            624,
+            6
+          ],
+          "256": [
+            932.8,
+            6832,
+            6
+          ]
+        }
+      }
+    ],
+    "additional_verification": {
+      "cases": 540,
+      "wire_sha256": "a8fe73daf77b311b47c2131a4dbc93aa49a95d3bdd132ca3f97c25a098a58287",
+      "record_count_boundary_cases": 4,
+      "boundary_wire_sha256": "438547ba3bf31b7b4e70cf7361db2d3ba11486ccc48a6309ff1e128740c02453",
+      "fixture": "package main\n\nimport (\n  \"context\"\n  \"crypto/sha256\"\n  \"fmt\"\n  \"net/netip\"\n  \"testing\"\n  \"golang.org/x/net/dns/dnsmessage\"\n)\n\nfunc TestEDNSBoundary(t *testing.T) {\n  h := sha256.New()\n  total := 0\n  for _, n := range []int{0,1,8,9,30,31,64,254,255,256} {\n    network, members := setup(n)\n    engine := new(dockerEngine)\n    for _, transport := range []string{\"udp\",\"tcp\"} {\n      for _, advertised := range []int{0,100,512,513,1048,1049,1050,4096,65000} {\n        for _, typ := range []dnsmessage.Type{dnsmessage.TypeA,dnsmessage.TypeALL,dnsmessage.TypeAAAA} {\n          var msg dnsmessage.Message\n          if err := msg.Unpack(query(t,typ)); err != nil { t.Fatal(err) }\n          if advertised != 0 {\n            msg.Additionals = []dnsmessage.Resource{{Header:dnsmessage.ResourceHeader{Name:dnsmessage.MustNewName(\".\"),Type:dnsmessage.TypeOPT,Class:dnsmessage.Class(advertised)},Body:&dnsmessage.OPTResource{}}}\n          }\n          wire,err := msg.Pack()\n          if err!=nil { t.Fatal(err) }\n          actual:=engine.dnsReply(context.Background(),network,nil,wire,transport)\n          var reply dnsmessage.Message\n          if err:=reply.Unpack(actual); err!=nil { t.Fatal(err) }\n          limit:=min(4096,max(512,advertised))\n          num:=n\n          if typ==dnsmessage.TypeAAAA {num=0}\n          tc:=num>0 && transport==\"udp\" && 25+16*num>limit\n          if tc {num=0}\n          code:=dnsmessage.RCodeSuccess\n          if n==0 {code=dnsmessage.RCodeNameError}\n          if len(reply.Answers)!=num || reply.Truncated!=tc || !reply.Authoritative || reply.RCode!=code ||\n             len(reply.Questions)!=1 || reply.Questions[0]!=msg.Questions[0] || reply.ID!=msg.ID {\n             t.Fatalf(\"%d %s %d %d %d answers tc %v rcode %v\",n,transport,advertised,typ,len(reply.Answers),reply.Truncated,reply.RCode)\n          }\n          for i,a:=range reply.Answers {\n            bytes:=a.Body.(*dnsmessage.AResource).A\n            if fmt.Sprintf(\"%d.%d.%d.%d\",bytes[0],bytes[1],bytes[2],bytes[3])!=members[i].IP {\n              t.Fatalf(\"unordered or wrong address at %d\",i)\n            }\n          }\n          fmt.Fprintf(h,\"%d:\",len(actual));h.Write(actual);total++\n        }\n      }\n    }\n  }\n  t.Logf(\"verified %d replies %x\",total,h.Sum(nil))\n}\n\nfunc TestMaxRecordCount(t *testing.T) {\n  h:=sha256.New()\n  for _,count:=range []int{65535,65536} {\n    n:=&workerNetwork{Internal:true}\n    rows:=make([]netip.Addr,count)\n    for i:=range rows {rows[i]=netip.AddrFrom4([4]byte{10,byte(i>>16),byte(i>>8),byte(i)})}\n    n.services.records=map[string][]netip.Addr{\"web.svc\":rows}\n    engine:=new(dockerEngine)\n    for _,transport:=range []string{\"udp\",\"tcp\"} {\n      wire:=engine.dnsReply(context.Background(),n,nil,query(t,dnsmessage.TypeA),transport)\n      if count==65536 {\n        if wire!=nil {t.Fatalf(\"unexpected unrepresentable %s reply\",transport)}\n        continue\n      }\n      var reply dnsmessage.Message\n      if err:=reply.Unpack(wire);err!=nil {t.Fatal(err)}\n      expected:=count\n      if transport==\"udp\" {expected=0}\n      if len(reply.Answers)!=expected || reply.Truncated!=(transport==\"udp\"){t.Fatalf(\"unexpected boundary response\")}\n      fmt.Fprintf(h,\"%d:\",len(wire));h.Write(wire)\n    }\n  }\n  t.Logf(\"verified 4 record-count boundaries %x\",h.Sum(nil))\n}\n"
+    }
+  }
+}

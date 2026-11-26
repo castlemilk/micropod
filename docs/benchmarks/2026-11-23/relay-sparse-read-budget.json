@@ -1,0 +1,2264 @@
+{
+  "base": "04d4899a20c352f4022185f1cf616ab4fa1401e1",
+  "completed_utc": "2026-11-23T11:59:27.911833+00:00",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "inputs_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "530edafeaeabbe7d753a296e6788a1770ce29dc5e426a13db6e27354a56ad701",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "7e66f2bbfd1141001c20e1826b3c10752ade66bbe124a7f2bc8c91c8308672d4",
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "sparse_read_budget.patch": "bb4ecb28ddff32517fd49f8a89fbe2a8f1e4ba38cb6df86b77d60bc43e0a9009",
+    "sparse_read_budget.c": "abd64618dec2981fa03005d06276dfcc8942bd94945ffba53e91aa7fa6c397ba",
+    "sparse_read_budget.py": "0440d0df3db523464410df51018048839ebbf235d46696356d8a57540c9799f7",
+    "candidate PublishedTCP.c": "350a1fcb35711f646fe9cab0624b3f7dc43718446c40f5fc181f4cce2bbd1146"
+  },
+  "binaries": {
+    "timed": {
+      "sha256": "31e8910927a1287278318bfb8e132e09ff31af049b38e361441b7d825a2f4492",
+      "extra_flags": [
+        "-DCOUNT_IO=0"
+      ]
+    },
+    "counted": {
+      "sha256": "480ac38f190a8d3d4eb2e8bd7779889562a4b085e3315e7f41c6320896fe11d3",
+      "extra_flags": [
+        "-DCOUNT_IO=1"
+      ]
+    },
+    "sanitized": {
+      "sha256": "e34dcbaaa87559fe8cf697cd71f95b4c3160983217c1500c3b4e50969611de95",
+      "extra_flags": [
+        "-DCOUNT_IO=1",
+        "-O1",
+        "-fsanitize=address,undefined",
+        "-fno-sanitize-recover=all"
+      ]
+    }
+  },
+  "flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-DMICROPOD_BENCH_512K_READS=1",
+    "-DRELAY_SOURCE=\"PublishedTCP.c\""
+  ],
+  "seed": 24017,
+  "qualification": [
+    {
+      "ready": 1,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 524288,
+          "reads": 2,
+          "large_reads": 0,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "512": {
+          "bytes": 524288,
+          "reads": 1,
+          "large_reads": 1,
+          "writes": 1,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "sparse": {
+          "bytes": 524288,
+          "reads": 1,
+          "large_reads": 1,
+          "writes": 1,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "one-large": {
+          "bytes": 524288,
+          "reads": 1,
+          "large_reads": 1,
+          "writes": 1,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        }
+      }
+    },
+    {
+      "ready": 2,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 1048576,
+          "reads": 4,
+          "large_reads": 0,
+          "writes": 4,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 262144
+        },
+        "512": {
+          "bytes": 1048576,
+          "reads": 2,
+          "large_reads": 2,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 524288
+        },
+        "sparse": {
+          "bytes": 1048576,
+          "reads": 2,
+          "large_reads": 2,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 524288
+        },
+        "one-large": {
+          "bytes": 1048576,
+          "reads": 3,
+          "large_reads": 1,
+          "writes": 3,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 262144
+        }
+      }
+    },
+    {
+      "ready": 3,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 1572864,
+          "reads": 6,
+          "large_reads": 0,
+          "writes": 6,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 524288
+        },
+        "512": {
+          "bytes": 1572864,
+          "reads": 3,
+          "large_reads": 3,
+          "writes": 3,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 1048576
+        },
+        "sparse": {
+          "bytes": 1572864,
+          "reads": 6,
+          "large_reads": 0,
+          "writes": 6,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 524288
+        },
+        "one-large": {
+          "bytes": 1572864,
+          "reads": 6,
+          "large_reads": 0,
+          "writes": 6,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 524288
+        }
+      }
+    },
+    {
+      "ready": 8,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 4194304,
+          "reads": 16,
+          "large_reads": 0,
+          "writes": 16,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 1835008
+        },
+        "512": {
+          "bytes": 4194304,
+          "reads": 8,
+          "large_reads": 8,
+          "writes": 8,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 3670016
+        },
+        "sparse": {
+          "bytes": 4194304,
+          "reads": 16,
+          "large_reads": 0,
+          "writes": 16,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 1835008
+        },
+        "one-large": {
+          "bytes": 4194304,
+          "reads": 16,
+          "large_reads": 0,
+          "writes": 16,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 1835008
+        }
+      }
+    },
+    {
+      "ready": 16,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 3932160
+        },
+        "512": {
+          "bytes": 8388608,
+          "reads": 16,
+          "large_reads": 16,
+          "writes": 16,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 7864320
+        },
+        "sparse": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 3932160
+        },
+        "one-large": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 3932160
+        }
+      }
+    },
+    {
+      "ready": 2,
+      "kib": 512,
+      "marker_after": 0,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 1048576,
+          "reads": 4,
+          "large_reads": 0,
+          "writes": 4,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "512": {
+          "bytes": 1048576,
+          "reads": 2,
+          "large_reads": 2,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "sparse": {
+          "bytes": 1048576,
+          "reads": 4,
+          "large_reads": 0,
+          "writes": 4,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "one-large": {
+          "bytes": 1048576,
+          "reads": 4,
+          "large_reads": 0,
+          "writes": 4,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        }
+      }
+    },
+    {
+      "ready": 2,
+      "kib": 512,
+      "marker_after": 2,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 1048576,
+          "reads": 4,
+          "large_reads": 0,
+          "writes": 4,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "512": {
+          "bytes": 1048576,
+          "reads": 2,
+          "large_reads": 2,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "sparse": {
+          "bytes": 1048576,
+          "reads": 2,
+          "large_reads": 2,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "one-large": {
+          "bytes": 1048576,
+          "reads": 3,
+          "large_reads": 1,
+          "writes": 3,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        }
+      }
+    },
+    {
+      "ready": 2,
+      "kib": 128,
+      "marker_after": 1,
+      "first_budget": 0,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 262144,
+          "reads": 2,
+          "large_reads": 0,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 131072
+        },
+        "512": {
+          "bytes": 262144,
+          "reads": 2,
+          "large_reads": 0,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 131072
+        },
+        "sparse": {
+          "bytes": 262144,
+          "reads": 2,
+          "large_reads": 0,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 131072
+        },
+        "one-large": {
+          "bytes": 262144,
+          "reads": 2,
+          "large_reads": 0,
+          "writes": 2,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 131072
+        }
+      }
+    },
+    {
+      "ready": 1,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 0,
+      "pressured": true,
+      "arms": {
+        "256": {
+          "bytes": 524288,
+          "reads": 2,
+          "large_reads": 0,
+          "writes": 4,
+          "partial_writes": 2,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "512": {
+          "bytes": 524288,
+          "reads": 1,
+          "large_reads": 1,
+          "writes": 4,
+          "partial_writes": 3,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "sparse": {
+          "bytes": 524288,
+          "reads": 1,
+          "large_reads": 1,
+          "writes": 4,
+          "partial_writes": 3,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "one-large": {
+          "bytes": 524288,
+          "reads": 1,
+          "large_reads": 1,
+          "writes": 4,
+          "partial_writes": 3,
+          "bulk_bytes_ahead_of_marker": 0
+        }
+      }
+    },
+    {
+      "ready": 16,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 1,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "512": {
+          "bytes": 8388608,
+          "reads": 16,
+          "large_reads": 16,
+          "writes": 16,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "sparse": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        },
+        "one-large": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0
+        }
+      }
+    },
+    {
+      "ready": 16,
+      "kib": 512,
+      "marker_after": 1,
+      "first_budget": 2,
+      "pressured": false,
+      "arms": {
+        "256": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 262144
+        },
+        "512": {
+          "bytes": 8388608,
+          "reads": 16,
+          "large_reads": 16,
+          "writes": 16,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 524288
+        },
+        "sparse": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 262144
+        },
+        "one-large": {
+          "bytes": 8388608,
+          "reads": 32,
+          "large_reads": 0,
+          "writes": 32,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 262144
+        }
+      }
+    }
+  ],
+  "method": "One pinned native relay owner on a background thread, 16 classified AF_UNIX streams, flat queue, 24 events per poll, 128 per callback, one binary per instrumentation mode and equal 512 KiB scratch. Adaptive policy uses 512 KiB on previously bulk-classified guest downloads only when 1 or 2 events return with capacity >2, an ordinary read hint exceeds 256 KiB, and no EOF/error is present. The one-large arm grants only the first eligible read in the sparse poll a larger quantum. All other reads use 256 KiB in both adaptive arms. Each timed sample warms a full wave, then verifies 88 MiB with 2 ready, 16 ready, or a repeating [1,2,3,16,2,1,16,3] wave. Half-closes, reverse data and retirement are verified. Wall rates include local producer, relay, consumer and byte comparison on the same thread. Owner CPU covers relay drains. Untimed builds check exact reads, writes, and bulk bytes ahead of a one-byte reply. Timed samples have no marker or I/O hooks. Four balanced arm orders occur three times per schedule, with the arm order and schedule order randomized across blocks. Intervals bootstrap 12 within-block changes. No live VM, TCP, dispatch or peer measurements.",
+  "summary": {
+    "two-ready": {
+      "mib_s": {
+        "medians": {
+          "256": 3086.8535332664737,
+          "512": 2854.766178246079,
+          "sparse": 3274.150882699939,
+          "one-large": 2968.4595329225976
+        },
+        "sparse_vs_256": {
+          "paired_pct": -0.33473962733970297,
+          "ci95_pct": [
+            -7.722224081606388,
+            11.847112654465318
+          ]
+        },
+        "sparse_vs_512": {
+          "paired_pct": -2.364971631168844,
+          "ci95_pct": [
+            -13.546921610871598,
+            39.52633880180181
+          ]
+        },
+        "one-large_vs_256": {
+          "paired_pct": 1.694312838812706,
+          "ci95_pct": [
+            -31.124584679129747,
+            14.541376029508779
+          ]
+        },
+        "one-large_vs_512": {
+          "paired_pct": 0.494081922248496,
+          "ci95_pct": [
+            -29.92910561637928,
+            29.4362086342422
+          ]
+        }
+      },
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.10053257309090909,
+          "512": 0.1003495389090909,
+          "sparse": 0.10567513018181818,
+          "one-large": 0.10227997672727274
+        },
+        "sparse_vs_256": {
+          "paired_pct": -0.31494204337410014,
+          "ci95_pct": [
+            -8.147539349552357,
+            23.500943139552398
+          ]
+        },
+        "sparse_vs_512": {
+          "paired_pct": -0.391717713997225,
+          "ci95_pct": [
+            -10.686146634394355,
+            15.898249006093955
+          ]
+        },
+        "one-large_vs_256": {
+          "paired_pct": 2.685846082780341,
+          "ci95_pct": [
+            -10.225157329777511,
+            7.7416775476260025
+          ]
+        },
+        "one-large_vs_512": {
+          "paired_pct": -0.20849842802497798,
+          "ci95_pct": [
+            -5.269834157550984,
+            13.452055725416677
+          ]
+        }
+      }
+    },
+    "sixteen-ready": {
+      "mib_s": {
+        "medians": {
+          "256": 2201.120002730173,
+          "512": 2071.947488784158,
+          "sparse": 2021.8624428735002,
+          "one-large": 2125.497985441075
+        },
+        "sparse_vs_256": {
+          "paired_pct": -2.1814555143212844,
+          "ci95_pct": [
+            -27.156361189610116,
+            14.755608900601947
+          ]
+        },
+        "sparse_vs_512": {
+          "paired_pct": -9.19591133876122,
+          "ci95_pct": [
+            -26.919159793299997,
+            13.260233150014411
+          ]
+        },
+        "one-large_vs_256": {
+          "paired_pct": -2.5726890200161168,
+          "ci95_pct": [
+            -11.546246258593694,
+            32.90199108788063
+          ]
+        },
+        "one-large_vs_512": {
+          "paired_pct": 0.9756939982946355,
+          "ci95_pct": [
+            -14.932157791955452,
+            15.219891494137572
+          ]
+        }
+      },
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.15806667636363636,
+          "512": 0.16408267054545456,
+          "sparse": 0.17119635781818182,
+          "one-large": 0.1687536930909091
+        },
+        "sparse_vs_256": {
+          "paired_pct": 1.8755089886346,
+          "ci95_pct": [
+            -10.531473972972154,
+            24.57404851197147
+          ]
+        },
+        "sparse_vs_512": {
+          "paired_pct": 4.9324932661912735,
+          "ci95_pct": [
+            -5.424335290664806,
+            16.745613253760027
+          ]
+        },
+        "one-large_vs_256": {
+          "paired_pct": 2.367050396651149,
+          "ci95_pct": [
+            -10.788912605656071,
+            19.450736517758273
+          ]
+        },
+        "one-large_vs_512": {
+          "paired_pct": 4.035279100292688,
+          "ci95_pct": [
+            -9.061804828030995,
+            13.057690380376119
+          ]
+        }
+      }
+    },
+    "alternating": {
+      "mib_s": {
+        "medians": {
+          "256": 1876.4322371585959,
+          "512": 1669.4351078880268,
+          "sparse": 2200.981767891847,
+          "one-large": 1895.5121652899097
+        },
+        "sparse_vs_256": {
+          "paired_pct": 7.318529198370355,
+          "ci95_pct": [
+            -29.343428003220104,
+            80.05609203577424
+          ]
+        },
+        "sparse_vs_512": {
+          "paired_pct": 4.614769406832092,
+          "ci95_pct": [
+            -8.281860320665924,
+            138.40966340868377
+          ]
+        },
+        "one-large_vs_256": {
+          "paired_pct": 0.7524631951349448,
+          "ci95_pct": [
+            -13.393419549474567,
+            68.76179835491511
+          ]
+        },
+        "one-large_vs_512": {
+          "paired_pct": 19.228828269073684,
+          "ci95_pct": [
+            -5.174767056428086,
+            76.91132811859158
+          ]
+        }
+      },
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.1627980509090909,
+          "512": 0.18141043781818184,
+          "sparse": 0.15526331345454544,
+          "one-large": 0.16450327272727272
+        },
+        "sparse_vs_256": {
+          "paired_pct": 0.5120187755725594,
+          "ci95_pct": [
+            -18.263640153693473,
+            23.556018697816306
+          ]
+        },
+        "sparse_vs_512": {
+          "paired_pct": -7.053318872155723,
+          "ci95_pct": [
+            -20.298791040699648,
+            2.8818452490972923
+          ]
+        },
+        "one-large_vs_256": {
+          "paired_pct": 3.6459234129761264,
+          "ci95_pct": [
+            -9.388636213654404,
+            5.478192241540647
+          ]
+        },
+        "one-large_vs_512": {
+          "paired_pct": -11.576598443365382,
+          "ci95_pct": [
+            -18.220174101707016,
+            -1.8285338337765187
+          ]
+        }
+      }
+    }
+  },
+  "blocks": [
+    {
+      "two-ready": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8830787,
+          "wall_ns": 27838208
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10920712,
+          "wall_ns": 110425500
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10595963,
+          "wall_ns": 55197833
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11923335,
+          "wall_ns": 97414583
+        }
+      },
+      "alternating": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 20617711,
+          "wall_ns": 241222625
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17442707,
+          "wall_ns": 76662500
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13821500,
+          "wall_ns": 47012750
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13585042,
+          "wall_ns": 43785834
+        }
+      },
+      "sixteen-ready": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14642541,
+          "wall_ns": 47455375
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13582624,
+          "wall_ns": 39209458
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13524294,
+          "wall_ns": 38288958
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13214583,
+          "wall_ns": 37569625
+        }
+      }
+    },
+    {
+      "two-ready": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9222498,
+          "wall_ns": 39165708
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10934040,
+          "wall_ns": 85031583
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8854417,
+          "wall_ns": 29026250
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9063208,
+          "wall_ns": 29831709
+        }
+      },
+      "sixteen-ready": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12836625,
+          "wall_ns": 37920333
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14440290,
+          "wall_ns": 43961375
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15534708,
+          "wall_ns": 40429500
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17038459,
+          "wall_ns": 64381666
+        }
+      },
+      "alternating": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14666791,
+          "wall_ns": 50677250
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 16167330,
+          "wall_ns": 67194125
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15011876,
+          "wall_ns": 42813375
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14571000,
+          "wall_ns": 39121792
+        }
+      }
+    },
+    {
+      "sixteen-ready": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13723082,
+          "wall_ns": 40582416
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 16420916,
+          "wall_ns": 64322375
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15597251,
+          "wall_ns": 53984125
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13932166,
+          "wall_ns": 46398375
+        }
+      },
+      "two-ready": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10247960,
+          "wall_ns": 73904208
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8762536,
+          "wall_ns": 37975167
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11036791,
+          "wall_ns": 84575041
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11238336,
+          "wall_ns": 87811167
+        }
+      },
+      "alternating": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 16198832,
+          "wall_ns": 58219000
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 19729082,
+          "wall_ns": 191293417
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 16957084,
+          "wall_ns": 97030250
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11855373,
+          "wall_ns": 36201083
+        }
+      }
+    },
+    {
+      "alternating": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13195539,
+          "wall_ns": 40084250
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14157460,
+          "wall_ns": 47145208
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12843876,
+          "wall_ns": 44939541
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 19711956,
+          "wall_ns": 96615292
+        }
+      },
+      "sixteen-ready": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12414834,
+          "wall_ns": 33829042
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12830337,
+          "wall_ns": 32571792
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14634959,
+          "wall_ns": 37233584
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14818876,
+          "wall_ns": 51911542
+        }
+      },
+      "two-ready": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8124415,
+          "wall_ns": 26401167
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9800918,
+          "wall_ns": 28236709
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9366957,
+          "wall_ns": 28096875
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9909749,
+          "wall_ns": 26126000
+        }
+      }
+    },
+    {
+      "alternating": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13339915,
+          "wall_ns": 47174583
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14739581,
+          "wall_ns": 104739084
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13307797,
+          "wall_ns": 36811542
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11777540,
+          "wall_ns": 34358250
+        }
+      },
+      "sixteen-ready": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14628376,
+          "wall_ns": 38942500
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12979541,
+          "wall_ns": 42789084
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14269543,
+          "wall_ns": 41080458
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13465000,
+          "wall_ns": 42977208
+        }
+      },
+      "two-ready": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10039836,
+          "wall_ns": 48130875
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8528082,
+          "wall_ns": 44533583
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7591418,
+          "wall_ns": 24988083
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7813500,
+          "wall_ns": 21473041
+        }
+      }
+    },
+    {
+      "alternating": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12622125,
+          "wall_ns": 40945291
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11938000,
+          "wall_ns": 36069167
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 18085669,
+          "wall_ns": 120789750
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14682418,
+          "wall_ns": 51714875
+        }
+      },
+      "two-ready": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7546800,
+          "wall_ns": 42366292
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10583779,
+          "wall_ns": 26713459
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10664208,
+          "wall_ns": 28784541
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9380088,
+          "wall_ns": 24967333
+        }
+      },
+      "sixteen-ready": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14746041,
+          "wall_ns": 39852083
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15564083,
+          "wall_ns": 46121834
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13736375,
+          "wall_ns": 38122500
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11362002,
+          "wall_ns": 32089125
+        }
+      }
+    },
+    {
+      "two-ready": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8907038,
+          "wall_ns": 81650458
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8354338,
+          "wall_ns": 26225625
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7837833,
+          "wall_ns": 26445792
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9008292,
+          "wall_ns": 24038291
+        }
+      },
+      "sixteen-ready": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13077249,
+          "wall_ns": 34823542
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17484000,
+          "wall_ns": 76594291
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13425458,
+          "wall_ns": 41826541
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14402793,
+          "wall_ns": 38500750
+        }
+      },
+      "alternating": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13378085,
+          "wall_ns": 38591709
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14531084,
+          "wall_ns": 39732292
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15186293,
+          "wall_ns": 37479042
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14159415,
+          "wall_ns": 46782834
+        }
+      }
+    },
+    {
+      "sixteen-ready": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12654415,
+          "wall_ns": 31635041
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12476584,
+          "wall_ns": 31231959
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15050292,
+          "wall_ns": 37579583
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14275417,
+          "wall_ns": 43671166
+        }
+      },
+      "two-ready": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8719495,
+          "wall_ns": 24590375
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7369039,
+          "wall_ns": 24041125
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8198078,
+          "wall_ns": 22579583
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8672333,
+          "wall_ns": 29915333
+        }
+      },
+      "alternating": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 18559164,
+          "wall_ns": 78968417
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 16494916,
+          "wall_ns": 61558917
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13041290,
+          "wall_ns": 44640042
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15222749,
+          "wall_ns": 50402875
+        }
+      }
+    },
+    {
+      "alternating": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10710663,
+          "wall_ns": 29751708
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17313083,
+          "wall_ns": 64671958
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14116540,
+          "wall_ns": 45727333
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12950501,
+          "wall_ns": 39880584
+        }
+      },
+      "sixteen-ready": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14601748,
+          "wall_ns": 37059625
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13643416,
+          "wall_ns": 34989833
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12432583,
+          "wall_ns": 35107667
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10418584,
+          "wall_ns": 27341583
+        }
+      },
+      "two-ready": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7584326,
+          "wall_ns": 25722125
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7252253,
+          "wall_ns": 23063083
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8256876,
+          "wall_ns": 22604125
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10468377,
+          "wall_ns": 26964458
+        }
+      }
+    },
+    {
+      "alternating": {
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17311745,
+          "wall_ns": 113081583
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11803707,
+          "wall_ns": 33657625
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11078910,
+          "wall_ns": 31440250
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 11595958,
+          "wall_ns": 36935500
+        }
+      },
+      "two-ready": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7893123,
+          "wall_ns": 26046834
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7192289,
+          "wall_ns": 19629208
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8130994,
+          "wall_ns": 21657292
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8144416,
+          "wall_ns": 22465541
+        }
+      },
+      "sixteen-ready": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17614374,
+          "wall_ns": 66411166
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14874250,
+          "wall_ns": 49062250
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13523168,
+          "wall_ns": 42255500
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13485625,
+          "wall_ns": 39469584
+        }
+      }
+    },
+    {
+      "alternating": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12610329,
+          "wall_ns": 37907167
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12055625,
+          "wall_ns": 31230750
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 12998210,
+          "wall_ns": 34896875
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 18560040,
+          "wall_ns": 75545583
+        }
+      },
+      "two-ready": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 9332126,
+          "wall_ns": 26790500
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 10428123,
+          "wall_ns": 38992375
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8512083,
+          "wall_ns": 22592917
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 7555457,
+          "wall_ns": 24281541
+        }
+      },
+      "sixteen-ready": {
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15865793,
+          "wall_ns": 57311625
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 20241751,
+          "wall_ns": 90443709
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17774667,
+          "wall_ns": 92303875
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 18440375,
+          "wall_ns": 72003167
+        }
+      }
+    },
+    {
+      "alternating": {
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 13813044,
+          "wall_ns": 45113292
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 15993626,
+          "wall_ns": 53749250
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14534877,
+          "wall_ns": 47923958
+        },
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 16089838,
+          "wall_ns": 65574333
+        }
+      },
+      "two-ready": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8527087,
+          "wall_ns": 31203500
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8452288,
+          "wall_ns": 29460625
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8441830,
+          "wall_ns": 37586916
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 8516500,
+          "wall_ns": 31254375
+        }
+      },
+      "sixteen-ready": {
+        "sparse": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14678333,
+          "wall_ns": 47941792
+        },
+        "one-large": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 18063372,
+          "wall_ns": 71659792
+        },
+        "512": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 17975000,
+          "wall_ns": 75919625
+        },
+        "256": {
+          "bytes": 92274688,
+          "reads": 0,
+          "large_reads": 0,
+          "writes": 0,
+          "partial_writes": 0,
+          "bulk_bytes_ahead_of_marker": 0,
+          "owner_ns": 14206710,
+          "wall_ns": 45892708
+        }
+      }
+    }
+  ]
+}

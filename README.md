@@ -77,6 +77,23 @@ task bench     # performance benchmark (real runtime)
 task ci        # Go + Node CI pipelines on micropod (below)
 ```
 
+For an HVF build, point `MICROPOD_HVF_DISTRIBUTION` at the qualified payload
+directory before running `task package`. It contains the entitled
+`micropod-vmm`, `vmlinux-hvf`, `mp-hvf-init.cpio` and `micropod-oci-tools/`.
+The app and standalone tarball carry the same runtime. On a fresh machine,
+`micropod machine install --disk-image default` discovers those bundled
+resources. Use `--disk-from <ext4>` to clone an existing worker disk.
+
+For a hosted HVF release, select the successful build of the release commit
+using the qualification workflow's `hvf_run_id` and `hvf_payload_sha256`.
+The run's `micropod-hvf-runtime` artifact contains `micropod-hvf-runtime.tgz`
+with the same four entries at its root. Tag builds can select the pair using
+the repository variables `MICROPOD_HVF_RUN_ID` and `MICROPOD_HVF_PAYLOAD_SHA256`.
+The workflow checks the source commit, archive digest, VMM signature and
+hypervisor entitlement before packaging. The headless `micropod update cli`
+command updates the CLI and MCP binaries. Extract the complete HVF tarball
+when updating a standalone distribution's companion runtime. The [Gamma qualification report](docs/benchmarks/2026-11-26/workspace-reply-wait-and-native-network.md) records the tested package, Docker API coverage and CI timings.
+
 Released Micropod 0.12.6 uses an externally installed Apple `container` CLI and
 service. This branch adds an administrator-approved installer and dedicated
 runtime account, with rig coordination. Physical qualification is pending under
@@ -230,9 +247,9 @@ sections are load-aware — the runtime degrades under heavy VM churn, so
 benchmarks run against a quiet runtime and self-clean every container they
 create.
 
-## Runtimes: apple VMs, Docker, sandbox micro-VMs
+## Container runtimes
 
-micropod drives three execution engines behind one API. Pick one per
+Micropod drives five execution engines behind one API in this source tree. Pick one per
 container (`RunContainerRequest.runtime`, `micropod run --runtime`) or set a
 default; `ListContainers` merges every enabled engine and stamps each
 container's `runtime`, and id-based calls route to the engine that owns it.
@@ -241,7 +258,9 @@ container's `runtime`, and id-based calls route to the engine that owns it.
 |---|---|---|---|
 | `apple` | vm | Apple container runtime — one micro-VM per container | default; volumes, networks, ports |
 | `docker` | container | any Docker Engine socket (Docker Desktop, OrbStack, colima, `tcp://`) | **opt-in** so an existing Docker Desktop's containers don't appear until asked |
+| `hvf` | microvm | containerd and crun in a shared Hypervisor.framework machine | opt in with `micropod runtime enable hvf` after installing the machine assets |
 | `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; tcp ports, bind mounts; no named volumes; can't restart — run a new one |
+| `ci` | container | one Micropod-owned Linux VM per trusted runner account | `micropod ci start` keeps the kernel, Docker engine, BuildKit and named volumes warm |
 
 ```bash
 micropod runtime ls                        # availability, enabled, default
@@ -251,13 +270,33 @@ micropod runtime endpoint docker unix://$HOME/.orbstack/run/docker.sock
 micropod run --runtime docker nginx
 ```
 
+For trusted CI, `micropod ci endpoint` starts or joins the account's worker and prints its Docker URI.
+`task ci` runs the Go and npm pipelines concurrently on that kernel. [CI worker operation and benchmarks](docs/ci-worker.md)
+
 Same over the API (Connect `SystemService.ListRuntimes / SetDefaultRuntime /
 UpdateRuntime`, REST `GET /v1/runtimes`, `PUT /v1/runtimes/default`,
 `PATCH /v1/runtimes/{name}`), the SDKs, and the MCP tools `runtimes`,
 `runtime_set_default`, `runtime_update` (+ `run`'s `runtime` argument).
-Settings persist in `~/.micropod/runtimes.json`; `MICROPOD_DEFAULT_RUNTIME`
+Settings persist in `~/.micropod/runtimes.json`. `MICROPOD_DEFAULT_RUNTIME`
 overrides the default per process. `Ping.features` includes `runtime` on
 servers that honour the field.
+
+On the Docker, CI and HVF runtimes, `micropod exec` streams binary stdout and stderr as the process runs and returns its exit code.
+Use `micropod exec -i build-1 -- sha256sum < artifact.tar` to send a file on stdin.
+Use `micropod exec -it build-1 sh` from a terminal for an interactive shell. The guest receives terminal resizes and control characters. With `-t`, its stdout and stderr share the PTY.
+The Docker adapter negotiates API 1.43 through 1.47 and accepts an explicit `DOCKER_API_VERSION` pin.
+`micropod machine help` lists the assets for the shared machine. `micropod machine docker-endpoint` prints the Unix socket for stock Docker clients.
+
+Volumes and images route the same way: `micropod volume ls` and `micropod images` merge every enabled engine
+that keeps its own (Docker, the CI worker, the hvf machine) and name the runtime once more than one is listed; `volume create`
+and `pull` take `--runtime` or the default runtime; `volume rm`, `rmi`, `tag` and `image inspect` go to the engine
+that has the name. The hvf guest engine lists, creates, inspects and removes volumes, and lists, inspects and pulls
+(linux/arm64) images; volume prune, volume sizes, image removal, tagging, save, load, push and build are refused as
+unsupported. A tool bundle built from this tree (`ci/build-runner-tools.sh`) also serves networks, `docker save`
+and `docker load` to stock Docker clients on `micropod machine docker-endpoint`; micropod's own save, load and network
+commands stay with Apple. `micropod machine status --json` reports the installed bundle's `capabilities` (BuildKit, the engine's
+Docker API range, the published-port path); `micropod machine buildkit-endpoint` prints the BuildKit socket for a
+remote `docker buildx` builder, and fails when the tool bundle ships no `runner/bin/buildkitd`.
 
 Sandbox VMs are owned by the process that boots them: long-lived sandbox
 containers live in the API daemon; the CLI's `run --runtime sandbox` runs in
@@ -366,6 +405,11 @@ volume, such as an external drive on a rig whose internal disk is full:
 Storage Location**. The default paths become symlinks, so every
 `container system start` follows them. Keep the drive connected. See
 [docs/storage-location.md](docs/storage-location.md).
+
+Use `micropod storage dev-volume plan --projects "$HOME/projects"` to plan a
+separate APFS workspace for repositories and shared npm, pnpm and Go caches. The CLI can
+migrate and restore the trees, preserve hard links and reapply volume indexing
+settings. [Development volumes and live-rig benchmarks](docs/development-volume.md).
 
 ## Metrics history
 
@@ -880,23 +924,9 @@ containers. See [`docs/agent/micropod-skill.md`](docs/agent/micropod-skill.md).
 
 ## CI pipelines on micropod
 
-`task ci` (`ci/`, `task ci-go` / `task ci-npm` individually) runs two
-self-contained CI pipelines against an isolated temp shim (own socket +
-state; your launchd shim is untouched) using the stock `docker` CLI with
-`DOCKER_BUILDKIT=0`, exactly like cuttlefish's `dev-up-micropod` target:
+The default `task ci` runs the Go and npm pipelines concurrently on a persistent Micropod Linux worker. The Go job runs vet, race tests, Testcontainers PostgreSQL and the built HTTP service. The npm job tests the package, runs the built image and verifies a source edit in a fresh build context. Each job cleans up its own containers and tags. The engine keeps downloaded layers and BuildKit package caches ready for the next job. [CI worker setup and measurements](docs/ci-worker.md)
 
-- **Go** (`ci/samples/go-app`): deps-first image build with Go cache mounts
-  → `go vet` + unit tests in parallel → `-race` leg → **testcontainers-go
-  (v0.40.0, same as cuttlefish) Postgres integration** — Ryuk reaper,
-  port wait, exec `pg_isready` — → run the built image + exec health check.
-- **Node** (`ci/samples/node-app`): deps-first image build with npm cache
-  mount concurrent with host `npm ci` + `node --test` → run the image and
-  assert its output → source-change rebuild proving layer re-use.
-
-Warm steady state on this box: Go **~13 s**, Node **~3.5 s** end to end.
-The Go integration is also the live proof for the compat shims above
-(DinD redirect, name aliasing, label normalization, 127 mapping, 404
-pull-flow): it fails without any one of them.
+`task ci-shim` exercises both pipelines against the isolated temporary Apple Docker shim, including its Ryuk redirection and legacy builder integration. The historical shim measurements were about 13 seconds for Go and 3.5 seconds for Node.
 
 `task ci-matrix` (`ci/cache-matrix.sh`) validates the intelligent
 build cache across a family of related builds — three Go services (two

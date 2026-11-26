@@ -1,0 +1,179 @@
+{
+  "branch": "integration/native-engine-convergence-20261126",
+  "qualified_source_commit": "041776a41d5961be34f986201ab45eedc3341097",
+  "merged_heads": {
+    "managed_hvf_machine": "b04ba2b5c1a14a8049be8f669488746f2521ba8c",
+    "host_scheduling": "2e9b37c1e68334c443d71b729f0bd6334d824ddd"
+  },
+  "go_linux_arm64": {
+    "qualified_runner": "4d0fb3989ee4e81f6b3f295c9d24b397a158635576019102bd6e558f90fbc812",
+    "qualified_test": "af86b440fba8e3d1f9ade8772974e9afbc9d33b4a1b57e0a3b617c658e65b9f6",
+    "reproduced_runner_and_test_byte_for_byte": true,
+    "focused": 60,
+    "full_success": 593,
+    "environment_skips": 5,
+    "convergence_verification_in_raw": "convergence-runner/"
+  },
+  "swift": {
+    "release_build_succeeded": true,
+    "fresh_merged_cli_sha256": "0a0e6fb206e3400f1c551d1092263be96bdf3bc9584fb511192bc73dc2cc1387",
+    "xctest_pass": 85,
+    "swift_testing_pass": 32,
+    "product_command": "swift build -c release --product micropod",
+    "unit_filter": "HVFMachineTests|HVFWorkerTests|CIWorkerServiceTests|RuntimeEngineTests"
+  },
+  "rust": {
+    "workspace_pass": 104,
+    "hardware_skip": 1,
+    "focused_reruns_passed": 20,
+    "parallel_library_runs_passed": 3,
+    "test_ring_diagnostics": {
+      "pre_fix": {
+        "serial": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "parallel_library": {
+          "exit": 101,
+          "ring_avail": 4,
+          "ring_used": 4,
+          "delivered": [
+            {
+              "code": 2,
+              "nodeid": 2
+            },
+            {
+              "code": 2,
+              "nodeid": 2
+            },
+            {
+              "code": 3,
+              "nodeid": 1,
+              "name": "held.new"
+            },
+            {
+              "code": 2,
+              "nodeid": 1
+            }
+          ],
+          "pending": [
+            {
+              "code": 3,
+              "nodeid": 1,
+              "name": "held.txt"
+            },
+            {
+              "code": 2,
+              "nodeid": 1
+            },
+            {
+              "code": 3,
+              "nodeid": 1,
+              "name": "held.txt"
+            },
+            {
+              "code": 2,
+              "nodeid": 1
+            },
+            {
+              "code": 2,
+              "nodeid": 2
+            }
+          ]
+        }
+      },
+      "fixed": {
+        "targeted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "parallel_lib": [
+          0,
+          0,
+          0
+        ],
+        "release_sha256": "c129d373975c77b6ecfec625f2ac3a80a98668a26f1841be4aef603c08adc098",
+        "source_before": "72d01749a57e7b1171ba89d20a279fd861f21ab670a4ab66ddcc7f44b8e7ba83",
+        "source_after": "bb6ea348f1d4daf37438f2dbb0476e38fbd76c1b632af04cbf48c5107a95e212",
+        "only_one_test_changed": true,
+        "workspace": {
+          "passed": 104,
+          "failed": 0,
+          "ignored": 1
+        }
+      }
+    }
+  },
+  "release_policy_node_tests_passed": 24,
+  "checkout_driver_python_tests_passed": 7,
+  "stock_qa_mock_tests_passed": 12,
+  "stock_qa_cli_load_checks": 21,
+  "benchmarks": {
+    "scorecard_sha256": "907a7e6ccae2266db97ea029113cf849b5331b2bbf1766c01e6a7199a605e9b8",
+    "raw_sha256": "94ec24150e4dd6056a32b6687bd2ad3d9761abb751a991653158eadfd0fc8b8e",
+    "verified_raw_entries": 907,
+    "verified_worker_volumes": 17,
+    "verified_hub_volumes": 1,
+    "standalone_sha256": "f351455b4830a1a105b2440b461c93a1d649b61da355fbcff217fcaf66bf8085"
+  },
+  "historical_evidence_transfer": {
+    "initial_files_copied": 912,
+    "additional_raw_files": 14,
+    "files_copied": 926,
+    "source_payload_bytes_copied": 115330107,
+    "unaltered_destinations": 913,
+    "markdown_prose_link_edits": 13,
+    "markdown_links_rebased": 33,
+    "reports_checked": 30,
+    "link_occurrences_checked": 650,
+    "remaining_missing_links": [],
+    "qualified_manifests": [
+      {
+        "path": "docs/benchmarks/2026-11-26/gamma7-qualified-runtime-manifest.json",
+        "sha256": "d346b1a72ad1cad38c322c47af6d5d17566184fa23a557c765bdcab90a850ee5",
+        "bytes": 3838,
+        "verified_by": "docs/benchmarks/2026-11-26/workspace-completion-transport-and-image-load-gamma.json"
+      },
+      {
+        "path": "docs/benchmarks/2026-11-26/gamma8-qualified-runtime-manifest.json",
+        "sha256": "1529b9eb4a243cfab40ff4a96a1eb0324701837e4b5946727b4d3e41ae5d29b6",
+        "bytes": 4619,
+        "verified_by": "docs/benchmarks/2026-11-26/mounted-checkout-concurrency-and-native-compat-gamma.json"
+      }
+    ]
+  },
+  "companion_work": {
+    "active_cache_worktree_snapshot": "004cf57ba0d21af0af8caae383494b546fe98853",
+    "current_ci_runner_source_files": 118,
+    "current_ci_runner_crossbuild_sha256": "e6abfdf15e489418ecd23a28895603b44bcf0fdb62fa25ea9995de934aca4862",
+    "current_ci_runner_vet": true
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "source_revision": "fd8ebe14bc0112b31daef908417deac25d70f4e4",
+  "worker_executable_sha256": "a0a669cf533cad3945b81df9ff58653d791d2aa669d81bde4567faa611b1f633",
+  "started_utc": "2026-11-19T22:52:45+00:00",
+  "rounds": 3,
+  "worker": {
+    "boot": "1E166B46-EA70-4F08-93B1-124E4F4C4AAF",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+    "endpoint": "unix:///tmp/mpci-pair.hUaXl6/docker.sock",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.69.2",
+    "instance": "E3D6F1AD-0813-4346-A70A-12D1EF9AD655",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD"
+  },
+  "peer": {
+    "ID": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+    "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+    "OperatingSystem": "OrbStack",
+    "NCPU": 4,
+    "MemTotal": 4180480000,
+    "Name": "orbstack",
+    "ServerVersion": "29.8.2"
+  },
+  "cache_reused_on_current_build": true,
+  "pipeline_seconds": {
+    "worker": {
+      "first": 21.45,
+      "warm_1": 13.484,
+      "warm_2": 12.067,
+      "warm_3": 13.02,
+      "warm": 13.02
+    },
+    "orbstack": {
+      "first": 125.432,
+      "warm_1": 21.127,
+      "warm_2": 33.769,
+      "warm_3": 21.656,
+      "warm": 21.656
+    }
+  },
+  "pipeline_stages_seconds": {
+    "worker": {
+      "first": {
+        "node-image": 7.473,
+        "node-edit": 0.646,
+        "go-checks": 10.339,
+        "go-image": 2.196,
+        "postgres": 10.903
+      },
+      "warm_1": {
+        "node-image": 1.148,
+        "node-edit": 0.577,
+        "go-checks": 2.239,
+        "go-image": 1.785,
+        "postgres": 11.049
+      },
+      "warm_2": {
+        "node-image": 0.624,
+        "go-checks": 1.097,
+        "node-edit": 0.616,
+        "go-image": 1.028,
+        "postgres": 10.785
+      },
+      "warm_3": {
+        "node-image": 1.116,
+        "node-edit": 0.519,
+        "go-checks": 2.152,
+        "go-image": 1.623,
+        "postgres": 10.714
+      }
+    },
+    "orbstack": {
+      "first": {
+        "node-image": 8.88,
+        "node-edit": 1.59,
+        "go-checks": 61.914,
+        "go-image": 6.572,
+        "postgres": 63.068
+      },
+      "warm_1": {
+        "node-image": 6.187,
+        "go-checks": 8.28,
+        "node-edit": 2.166,
+        "go-image": 3.211,
+        "postgres": 12.579
+      },
+      "warm_2": {
+        "node-image": 1.754,
+        "go-checks": 7.41,
+        "node-edit": 8.362,
+        "go-image": 15.041,
+        "postgres": 23.825
+      },
+      "warm_3": {
+        "node-image": 7.77,
+        "go-checks": 8.389,
+        "node-edit": 2.71,
+        "go-image": 3.56,
+        "postgres": 12.943
+      }
+    }
+  },
+  "pipelines": [
+    "Go vet, race and Testcontainers PostgreSQL",
+    "npm tests, source edit and rebuild"
+  ],
+  "passed": true,
+  "finished_utc": "2026-11-19T22:57:09+00:00"
+}

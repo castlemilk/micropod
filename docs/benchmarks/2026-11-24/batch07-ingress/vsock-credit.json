@@ -1,0 +1,107 @@
+{
+  "stable_id": "232.04",
+  "date": "2026-11-24",
+  "base": "a60d203b16b24abd857e1b5c9e817636b241f850",
+  "tier": "source/fixture",
+  "kernel": "Linux 7.3.5",
+  "kernel_member": "net/vmw_vsock/virtio_transport_common.c",
+  "kernel_sha256": "fc75cae32ca8ed49e55a59523601d2a8ddab1a52bc0aab8b99750a4ab3d77614",
+  "original_functions_sha256": "fdd509df40286d6004d427f0e48e5dab7c5ab1497480faf75b494695c59aeb4c",
+  "fixture_sha256": "33b3c470b5fe01b6ccf55d1dd199f48b66c3a21f8b968d995aeab9d9a0a725db",
+  "reproducer_sha256": "e810376453b88d1347a0276111ee45203079b59e0d699097376c9651af5a2078",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "attempts": [
+    {
+      "arm": "control",
+      "functions_sha256": "fdd509df40286d6004d427f0e48e5dab7c5ab1497480faf75b494695c59aeb4c",
+      "cases": [
+        {
+          "credit_window": 65536,
+          "packet_bytes": 4096,
+          "read_bytes": 4096,
+          "verified_bytes": 1048576,
+          "credit_messages": 256,
+          "first_credit_after_read_bytes": 4096,
+          "max_bytes_between_updates": 4096,
+          "receiver_bytes_read_while_sender_credit_exhausted": 983040
+        },
+        {
+          "credit_window": 262144,
+          "packet_bytes": 4096,
+          "read_bytes": 4096,
+          "verified_bytes": 1048576,
+          "credit_messages": 6,
+          "first_credit_after_read_bytes": 200704,
+          "max_bytes_between_updates": 200704,
+          "receiver_bytes_read_while_sender_credit_exhausted": 802816
+        },
+        {
+          "credit_window": 262144,
+          "packet_bytes": 16384,
+          "read_bytes": 4096,
+          "verified_bytes": 1048576,
+          "credit_messages": 5,
+          "first_credit_after_read_bytes": 212992,
+          "max_bytes_between_updates": 212992,
+          "receiver_bytes_read_while_sender_credit_exhausted": 851968
+        },
+        {
+          "credit_window": 262144,
+          "packet_bytes": 16384,
+          "read_bytes": 65536,
+          "verified_bytes": 1048576,
+          "credit_messages": 4,
+          "first_credit_after_read_bytes": 262144,
+          "max_bytes_between_updates": 262144,
+          "receiver_bytes_read_while_sender_credit_exhausted": 786432
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "functions_sha256": "c5f40489f1cc9c3502572c139336c432ee752a880775bb2e035e06bfd4ad9547",
+      "cases": [
+        {
+          "credit_window": 65536,
+          "packet_bytes": 4096,
+          "read_bytes": 4096,
+          "verified_bytes": 1048576,
+          "credit_messages": 256,
+          "first_credit_after_read_bytes": 4096,
+          "max_bytes_between_updates": 4096,
+          "receiver_bytes_read_while_sender_credit_exhausted": 983040
+        },
+        {
+          "credit_window": 262144,
+          "packet_bytes": 4096,
+          "read_bytes": 4096,
+          "verified_bytes": 1048576,
+          "credit_messages": 256,
+          "first_credit_after_read_bytes": 4096,
+          "max_bytes_between_updates": 4096,
+          "receiver_bytes_read_while_sender_credit_exhausted": 786432
+        },
+        {
+          "credit_window": 262144,
+          "packet_bytes": 16384,
+          "read_bytes": 4096,
+          "verified_bytes": 1048576,
+          "credit_messages": 64,
+          "first_credit_after_read_bytes": 16384,
+          "max_bytes_between_updates": 16384,
+          "receiver_bytes_read_while_sender_credit_exhausted": 786432
+        },
+        {
+          "credit_window": 262144,
+          "packet_bytes": 16384,
+          "read_bytes": 65536,
+          "verified_bytes": 1048576,
+          "credit_messages": 16,
+          "first_credit_after_read_bytes": 65536,
+          "max_bytes_between_updates": 65536,
+          "receiver_bytes_read_while_sender_credit_exhausted": 786432
+        }
+      ]
+    }
+  ]
+}

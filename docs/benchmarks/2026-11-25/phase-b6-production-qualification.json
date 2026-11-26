@@ -1,0 +1,72 @@
+{
+  "label": "phase-b6-production-qualification",
+  "timestamp_utc": "2026-11-25T12:23:49Z",
+  "kernel": "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-kernel-pages/20261125-b5-16k/full-16k/Image",
+  "idle_poll_us": 150,
+  "all_gates_passed": true,
+  "gates": {
+    "gate1_graceful_shutdown_and_persistence": {
+      "pass": true,
+      "cold_boot_ms": 274.59,
+      "graceful_sigterm_exit_reason": "poweroff",
+      "graceful_sigterm_shutdown_ms": 46.1,
+      "reboot_ms": 204.34,
+      "persisted_container_verified": true,
+      "snapshot_wall_ms": 145.98
+    },
+    "gate2_restore_clock_resync_and_tls": {
+      "pass": true,
+      "pause_before_restore_s": 5.0,
+      "restore_to_docker_ping_ms": 24.92,
+      "guest_clock_drift_vs_host_s": 0.335,
+      "guest_clock_advanced_past_snapshot_s": 4.9,
+      "live_tls_https_ok": true
+    },
+    "gate3_cross_workspace_fork_and_posix_visibility": {
+      "pass": true,
+      "cross_workspace_isolation_ok": true,
+      "host_edit_visibility": {
+        "size_ms": 37.28,
+        "held_ms": 16.18,
+        "replace_ms": 16.67,
+        "unlink_ms": 36.72,
+        "passed": 4
+      }
+    },
+    "gate4_snapshot_integrity_and_validation": {
+      "pass": true,
+      "crc32_corruption_rejected": true,
+      "device_count_mismatch_rejected": true,
+      "slot_device_id_mismatch_rejected": true
+    },
+    "gate5_egress_isolation_and_dns_fd_hygiene": {
+      "pass": true,
+      "loopback_blocked": true,
+      "link_local_metadata_blocked": true,
+      "dns_churn_ok": 200,
+      "dns_churn_total": 200,
+      "host_fds_before": 25,
+      "host_fds_peak": 225,
+      "host_fds_after_gc": 24,
+      "host_fd_delta_after_gc": -1
+    },
+    "gate6_concurrency_oom_published_tcp_and_idle_cpu": {
+      "pass": true,
+      "concurrent_24_ok": 24,
+      "concurrent_24_wall_ms": 517.6,
+      "oom_killed": true,
+      "oom_exit_code": 137,
+      "published_tcp_ok": true,
+      "idle_host_cpu_pct": 1.66,
+      "restored_fork_graceful_exit_reason": "poweroff",
+      "restored_fork_graceful_shutdown_ms": 49.8
+    },
+    "gate7_signing_and_packaging_readiness": {
+      "pass": true,
+      "vmm_binary": "/Users/benebsworth/projects/micropod/vmm/target/release/micropod-vmm",
+      "codesign_strict_ok": true,
+      "hypervisor_entitlement_ok": true,
+      "initrd_bytes": 2163200
+    }
+  }
+}

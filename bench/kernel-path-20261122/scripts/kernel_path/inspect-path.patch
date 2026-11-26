@@ -1,0 +1,19 @@
+--- a/scripts/relaybench/gamma_pilot.py
++++ b/scripts/relaybench/gamma_pilot.py
+@@ -66 +66 @@
+-def inspect(scope, cpus, orb):
++def inspect(scope, cpus, orb, published_path="macvlan", release="7.3.5-micropod"):
+@@ -121,4 +121,9 @@
+-    reno_routes = [route for route in routes.get("mppub0", []) if route.get("Congctl") == "reno"]
+-    require(state["release"].strip() == "7.3.5-micropod" and config["memoryMiB"] == 4096
+-            and config["publishedPath"] == "macvlan"
+-            and "mppub0" in state["interfaces"] and len(reno_routes) == 1,
++    interface = "mppub0" if published_path == "macvlan" else "eth0"
++    require(published_path in ("bridge", "macvlan"), "unknown publication path")
++    reno_routes = [r for r in routes.get(interface, []) if r.get("Congctl") == "reno"
++                   and r.get("Dst", {}).get("Mask") == "/////w=="]
++    direct = state["interfaces"].get("mppub0")
++    require((direct is not None and direct["addr"] == "[]") if published_path == "macvlan" else direct is None,
++            "service interface does not match selected path")
++    require(state["release"].strip() == release and config["memoryMiB"] == 4096
++            and (config.get("publishedPath") or "bridge") == published_path and len(reno_routes) == 1,

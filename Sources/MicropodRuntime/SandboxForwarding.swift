@@ -64,28 +64,63 @@ public final class SandboxForwarding: @unchecked Sendable {
     /// `targetHost:targetPort`. Throws when the address can't be bound
     /// (port in use, address not configured).
     func listen(on listenHost: String, _ listenPort: UInt16, to targetHost: String, _ targetPort: UInt16) throws {
+        do {
+            track(try Self.relay(on: listenHost, port: listenPort, to: targetHost, port: targetPort).wait())
+        } catch {
+            throw MicropodError.message("unavailable: listening on \(listenHost):\(listenPort): \(error)")
+        }
+    }
+
+    static func relay(
+        on listenHost: String, port listenPort: UInt16, to targetHost: String, port targetPort: UInt16,
+        clients: NativePortClients? = nil, source: String? = nil
+    )
+        -> EventLoopFuture<Channel>
+    {
         let group = MultiThreadedEventLoopGroup.singleton
+        // The native broker already verified the VM's numeric address. Reuse
+        // it for every incoming connection on this listener.
+        let numericTarget = try? SocketAddress(ipAddress: targetHost, port: Int(targetPort))
+        let sourceAddress: SocketAddress?
+        do { sourceAddress = try source.map { try SocketAddress(ipAddress: $0, port: 0) } } catch {
+            return group.next().makeFailedFuture(error)
+        }
+        let allocator = AdaptiveRecvByteBufferAllocator(minimum: 1024, initial: 4096, maximum: 262144)
+        let watermark = ChannelOptions.Types.WriteBufferWaterMark(low: 131072, high: 524288)
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
             .childChannelOption(.allowRemoteHalfClosure, value: true)
             .childChannelInitializer { inbound in
+                guard clients?.track(inbound) != false else {
+                    return inbound.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel)
+                }
                 // Runs before the accepted channel is registered, so no byte
                 // is read until the glue is in place. A refused upstream (the
                 // guest isn't listening) fails the future, closing the client.
-                ClientBootstrap(group: inbound.eventLoop)
+                let client = ClientBootstrap(group: inbound.eventLoop)
                     .channelOption(.allowRemoteHalfClosure, value: true)
-                    .connect(host: targetHost, port: Int(targetPort))
-                    .flatMap { outbound in
-                        let (a, b) = GlueHandler.matchedPair()
-                        return inbound.pipeline.addHandler(a).and(outbound.pipeline.addHandler(b)).map { _ in }
+                if let sourceAddress { _ = client.bind(to: sourceAddress) }
+                if clients != nil {
+                    _ = client.channelOption(.recvAllocator, value: allocator)
+                        .channelOption(.writeBufferWaterMark, value: watermark)
+                }
+                let connection =
+                    numericTarget.map { client.connect(to: $0) }
+                    ?? client.connect(host: targetHost, port: Int(targetPort))
+                return connection.flatMap { outbound in
+                    guard clients?.track(outbound) != false else {
+                        outbound.close(promise: nil)
+                        return inbound.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel)
                     }
+                    let (a, b) = GlueHandler.matchedPair()
+                    return inbound.pipeline.addHandler(a).and(outbound.pipeline.addHandler(b)).map { _ in }
+                }
             }
-        do {
-            let channel = try bootstrap.bind(host: listenHost, port: Int(listenPort)).wait()
-            lock.withLock { listeners.append(channel) }
-        } catch {
-            throw MicropodError.message("unavailable: listening on \(listenHost):\(listenPort): \(error)")
+        if clients != nil {
+            _ = bootstrap.childChannelOption(.recvAllocator, value: allocator)
+                .childChannelOption(.writeBufferWaterMark, value: watermark)
         }
+        return bootstrap.bind(host: listenHost, port: Int(listenPort))
     }
 
     /// Close `channel` with the rest on `stop()`.

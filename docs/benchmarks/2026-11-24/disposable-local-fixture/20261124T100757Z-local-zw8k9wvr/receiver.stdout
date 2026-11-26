@@ -1,0 +1,44 @@
+[idle] warmup B waiting at 1.0s, 92.28% idle (floor 90%), 1/2 consecutive eligible
+[idle] warmup B ready at 11.1s, 93.51% idle (floor 90%), 2/2 consecutive eligible
+[idle] warmup A waiting at 1.0s, 87.77% idle (floor 90%, paired gap 5.74/5 pp), 0/2 consecutive eligible
+[idle] warmup A ready at 5.0s, 90.32% idle (floor 90%, paired gap 3.19/5 pp), 2/2 consecutive eligible
+[idle] warmup A waiting at 1.0s, 94.15% idle (floor 90%), 1/2 consecutive eligible
+[idle] warmup A ready at 3.0s, 92.71% idle (floor 90%), 2/2 consecutive eligible
+[idle] warmup B waiting at 1.0s, 89.64% idle (floor 90%, paired gap 3.07/5 pp), 0/2 consecutive eligible
+[idle] warmup B ready at 5.0s, 91.52% idle (floor 90%, paired gap 1.19/5 pp), 2/2 consecutive eligible
+[idle] warmup B waiting at 1.0s, 90.26% idle (floor 90%), 1/2 consecutive eligible
+[idle] warmup B ready at 17.1s, 92.17% idle (floor 90%), 2/2 consecutive eligible
+[idle] warmup A waiting at 1.0s, 91.90% idle (floor 90%, paired gap 0.27/5 pp), 1/2 consecutive eligible
+[idle] warmup A ready at 3.0s, 90.92% idle (floor 90%, paired gap 1.25/5 pp), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 90.46% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored A ready at 3.0s, 91.67% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 92.86% idle (floor 90%, paired gap 1.19/5 pp), 1/2 consecutive eligible
+[idle] scored B ready at 7.0s, 90.20% idle (floor 90%, paired gap 1.47/5 pp), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 90.11% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored B ready at 3.0s, 92.02% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 87.24% idle (floor 90%, paired gap 4.78/5 pp), 0/2 consecutive eligible
+[idle] scored A ready at 9.0s, 90.44% idle (floor 90%, paired gap 1.58/5 pp), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 88.42% idle (floor 90%), 0/2 consecutive eligible
+[idle] scored A ready at 5.0s, 91.55% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 90.63% idle (floor 90%, paired gap 0.92/5 pp), 1/2 consecutive eligible
+[idle] scored B ready at 3.0s, 92.06% idle (floor 90%, paired gap 0.51/5 pp), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 90.42% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored B ready at 3.0s, 93.44% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 91.52% idle (floor 90%, paired gap 1.92/5 pp), 1/2 consecutive eligible
+[idle] scored A ready at 3.0s, 90.76% idle (floor 90%, paired gap 2.68/5 pp), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 87.72% idle (floor 90%), 0/2 consecutive eligible
+[idle] scored A ready at 13.1s, 91.82% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 91.20% idle (floor 90%, paired gap 0.62/5 pp), 1/2 consecutive eligible
+[idle] scored B ready at 3.0s, 92.62% idle (floor 90%, paired gap 0.80/5 pp), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 90.88% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored B ready at 3.0s, 91.72% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 90.12% idle (floor 90%, paired gap 1.60/5 pp), 1/2 consecutive eligible
+[idle] scored A ready at 9.0s, 90.37% idle (floor 90%, paired gap 1.35/5 pp), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 84.64% idle (floor 90%), 0/2 consecutive eligible
+[idle] scored A ready at 7.0s, 95.34% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 86.09% idle (floor 90%, paired gap 9.25/5 pp), 0/2 consecutive eligible
+[idle] scored B ready at 11.0s, 92.26% idle (floor 90%, paired gap 3.08/5 pp), 2/2 consecutive eligible
+[idle] scored B waiting at 1.0s, 92.27% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored B ready at 3.0s, 90.10% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 91.67% idle (floor 90%, paired gap 1.57/5 pp), 1/2 consecutive eligible
+[idle] scored A ready at 7.0s, 92.52% idle (floor 90%, paired gap 2.42/5 pp), 2/2 consecutive eligible

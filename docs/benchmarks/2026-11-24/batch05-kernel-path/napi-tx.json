@@ -1,0 +1,97 @@
+{
+  "date": "2026-11-24",
+  "id": "231.03",
+  "tier": "source/fixture",
+  "linux": "7.3.5",
+  "stock_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+  "linux_tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "driver_file_sha256": "d5f3d5c926e9460d0e79b636352021754fca00d8f16b328d40de5bcecc5deace",
+  "procedures": [
+    "virtnet_coal_params_supported",
+    "virtnet_should_update_vq_weight",
+    "virtnet_set_per_queue_coalesce",
+    "virtnet_get_per_queue_coalesce"
+  ],
+  "functions_sha256": "abc35441939c83cb463c56968d479decf4f693cc80189c365c28dcb8f8a11462",
+  "fixture_sha256": "aafce4c65cb87898f6036ed49e415401ccd3dedeebb1b3c4769ad7e2637e1d35",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "stdout": "0 0 0 0 0 0\n0 0 1 0 64 1\n0 64 1 0 64 1\n0 64 0 0 0 0\n1 0 0 0 0 0\n1 0 1 -16 0 0\n1 64 1 0 64 1\n1 64 0 -16 64 1\n",
+  "observations": [
+    {
+      "interface_up": false,
+      "initial_weight": 0,
+      "requested_tx_frames": 0,
+      "changes_weight": false,
+      "driver_return": 0,
+      "effective_weight": 0,
+      "readback_tx_frames": 0
+    },
+    {
+      "interface_up": false,
+      "initial_weight": 0,
+      "requested_tx_frames": 1,
+      "changes_weight": true,
+      "driver_return": 0,
+      "effective_weight": 64,
+      "readback_tx_frames": 1
+    },
+    {
+      "interface_up": false,
+      "initial_weight": 64,
+      "requested_tx_frames": 1,
+      "changes_weight": false,
+      "driver_return": 0,
+      "effective_weight": 64,
+      "readback_tx_frames": 1
+    },
+    {
+      "interface_up": false,
+      "initial_weight": 64,
+      "requested_tx_frames": 0,
+      "changes_weight": true,
+      "driver_return": 0,
+      "effective_weight": 0,
+      "readback_tx_frames": 0
+    },
+    {
+      "interface_up": true,
+      "initial_weight": 0,
+      "requested_tx_frames": 0,
+      "changes_weight": false,
+      "driver_return": 0,
+      "effective_weight": 0,
+      "readback_tx_frames": 0
+    },
+    {
+      "interface_up": true,
+      "initial_weight": 0,
+      "requested_tx_frames": 1,
+      "changes_weight": true,
+      "driver_return": -16,
+      "effective_weight": 0,
+      "readback_tx_frames": 0
+    },
+    {
+      "interface_up": true,
+      "initial_weight": 64,
+      "requested_tx_frames": 1,
+      "changes_weight": false,
+      "driver_return": 0,
+      "effective_weight": 64,
+      "readback_tx_frames": 1
+    },
+    {
+      "interface_up": true,
+      "initial_weight": 64,
+      "requested_tx_frames": 0,
+      "changes_weight": true,
+      "driver_return": -16,
+      "effective_weight": 64,
+      "readback_tx_frames": 1
+    }
+  ],
+  "assumptions": [
+    "One TX queue; VQ_NOTF_COAL absent. The setting path is driver code; the net device, selected feature and ethtool request structs are modeled. No sysfs, socket, interface or VM was accessed.",
+    "Each row runs once. These deterministic syscall-handler return and queue-state checks have no sampling interval, throughput, loss, fresh latency or process CPU measurements."
+  ]
+}

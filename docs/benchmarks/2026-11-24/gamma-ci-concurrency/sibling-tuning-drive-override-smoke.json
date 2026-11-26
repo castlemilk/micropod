@@ -1,0 +1,474 @@
+{
+  "checked_utc": "2026-11-25T08:38:11.787193+00:00",
+  "host": "Gamma-128GB.local",
+  "driver_sha256": "f28447e1ab9305ef5fe774db0aed24d6d2c00fa0866f313a50c1106d9e4210b2",
+  "helper_sha256": "bc9020cb7d1d802a2ecb3b32b557a39b809a3f712b6014588549ae8538f2af39",
+  "native_vmm": "vz",
+  "boot_s": 1.7584,
+  "disk_holders_at_readiness": {
+    "41024": "/System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+  },
+  "overridden_home_unused": true,
+  "overridden_workspace_unused": true,
+  "existing_destination_preserved": true,
+  "copy_test": {
+    "source": "/private/tmp/mp-volume-path-check-78pite00/seed.bin",
+    "device": 16777232,
+    "inode": 1226634155,
+    "bytes": 3775,
+    "mtime_ns": 1795595890046288394,
+    "ctime_ns": 1795595890046288394,
+    "source_sha256": "1647f1d1eac869892db8941b56f41933de9d2886b8f3d141dc5df0d32036019a",
+    "private_copy_sha256": "1647f1d1eac869892db8941b56f41933de9d2886b8f3d141dc5df0d32036019a",
+    "private_inode": 38
+  },
+  "baseline_files_and_copies": 24,
+  "drive": {
+    "created": {
+      "schema": "micropod-worker-apfs-v1",
+      "image": "/private/tmp/mp-tune-disk-path-twjhrzz_/worker.sparseimage",
+      "mount": "/private/tmp/mp-tune-disk-path-twjhrzz_/home",
+      "size_gib": 32,
+      "disabled": true,
+      "volume_name": "MicropodCI-b75841949d04",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226634128
+      },
+      "image_identity": {
+        "dev": 16777232,
+        "ino": 1226634130,
+        "format": "SPRS"
+      },
+      "spotlight_apply": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-i",
+          "off",
+          "/private/tmp/mp-tune-disk-path-twjhrzz_/home"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T08:38:07.167204+00:00",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-tune-disk-path-twjhrzz_/home:\n\tIndexing disabled.\n",
+        "stderr": "2026-11-25 19:38:07.152 mdutil[40996:28624841] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-tune-disk-path-twjhrzz_/home -> kMDConfigSearchLevelFSSearchOnly\n"
+      },
+      "seed_identity": {
+        "volume": {
+          "device": "/dev/disk14s1",
+          "uuid": "34372131-2387-48A8-B286-DFDE540BCDAE",
+          "name": "MicropodCI-b75841949d04",
+          "dev": 16777259,
+          "fs": "apfs",
+          "snapshot": false
+        },
+        "container": {
+          "device": "/dev/disk14",
+          "uuid": "A1A000C7-6081-4BEF-A59A-F90B51339A98"
+        },
+        "backing": {
+          "image_device": "/dev/disk13",
+          "partition_device": "/dev/disk13s2",
+          "partition_uuid": "35743F9C-F932-45EC-B739-D5DA82FD64C9"
+        }
+      },
+      "seed_detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk13"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T08:38:07.322707+00:00",
+        "stdout": "\"disk13\" ejected.\n",
+        "stderr": ""
+      },
+      "remounted": true,
+      "volume": {
+        "device": "/dev/disk14s1",
+        "uuid": "34372131-2387-48A8-B286-DFDE540BCDAE",
+        "name": "MicropodCI-b75841949d04",
+        "dev": 16777259,
+        "fs": "apfs",
+        "snapshot": false
+      },
+      "container": {
+        "device": "/dev/disk14",
+        "uuid": "A1A000C7-6081-4BEF-A59A-F90B51339A98"
+      },
+      "backing": {
+        "image_device": "/dev/disk13",
+        "partition_device": "/dev/disk13s2",
+        "partition_uuid": "35743F9C-F932-45EC-B739-D5DA82FD64C9"
+      },
+      "markers": {
+        "no_log": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.fseventsd/no_log",
+          "name": "no_log",
+          "dev": 16777259,
+          "ino": 18,
+          "mode": 33188,
+          "size": 0,
+          "mtime_ns": 1795595887145521666
+        },
+        "metadata_never_index": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.metadata_never_index",
+          "name": ".metadata_never_index",
+          "dev": 16777259,
+          "ino": 19,
+          "mode": 33188,
+          "size": 0,
+          "mtime_ns": 1795595887145567956
+        }
+      },
+      "fsevents": {
+        "journal": [],
+        "journal_files": 0,
+        "journal_bytes": 0,
+        "directory_present": true,
+        "identity_file": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.fseventsd/fseventsd-uuid",
+          "name": "fseventsd-uuid",
+          "dev": 16777259,
+          "ino": 17,
+          "mode": 33152,
+          "size": 36,
+          "mtime_ns": 1795595887241259000
+        }
+      },
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-tune-disk-path-twjhrzz_/home"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T08:38:07.870777+00:00",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-tune-disk-path-twjhrzz_/home:\n\tIndexing and searching disabled.\n",
+        "stderr": "",
+        "disabled": true
+      },
+      "observed_at": "2026-11-25T08:38:07.870803+00:00"
+    },
+    "volume_setup_s": 2.532,
+    "live": {
+      "schema": "micropod-worker-apfs-v1",
+      "image": "/private/tmp/mp-tune-disk-path-twjhrzz_/worker.sparseimage",
+      "mount": "/private/tmp/mp-tune-disk-path-twjhrzz_/home",
+      "size_gib": 32,
+      "disabled": true,
+      "volume_name": "MicropodCI-b75841949d04",
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226634128
+      },
+      "image_identity": {
+        "dev": 16777232,
+        "ino": 1226634130,
+        "format": "SPRS"
+      },
+      "spotlight_apply": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-i",
+          "off",
+          "/private/tmp/mp-tune-disk-path-twjhrzz_/home"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T08:38:07.167204+00:00",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-tune-disk-path-twjhrzz_/home:\n\tIndexing disabled.\n",
+        "stderr": "2026-11-25 19:38:07.152 mdutil[40996:28624841] mdutil disabling Spotlight: /System/Volumes/Data/private/tmp/mp-tune-disk-path-twjhrzz_/home -> kMDConfigSearchLevelFSSearchOnly\n"
+      },
+      "seed_identity": {
+        "volume": {
+          "device": "/dev/disk14s1",
+          "uuid": "34372131-2387-48A8-B286-DFDE540BCDAE",
+          "name": "MicropodCI-b75841949d04",
+          "dev": 16777259,
+          "fs": "apfs",
+          "snapshot": false
+        },
+        "container": {
+          "device": "/dev/disk14",
+          "uuid": "A1A000C7-6081-4BEF-A59A-F90B51339A98"
+        },
+        "backing": {
+          "image_device": "/dev/disk13",
+          "partition_device": "/dev/disk13s2",
+          "partition_uuid": "35743F9C-F932-45EC-B739-D5DA82FD64C9"
+        }
+      },
+      "seed_detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk13"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T08:38:07.322707+00:00",
+        "stdout": "\"disk13\" ejected.\n",
+        "stderr": ""
+      },
+      "remounted": true,
+      "volume": {
+        "device": "/dev/disk14s1",
+        "uuid": "34372131-2387-48A8-B286-DFDE540BCDAE",
+        "name": "MicropodCI-b75841949d04",
+        "dev": 16777259,
+        "fs": "apfs",
+        "snapshot": false
+      },
+      "container": {
+        "device": "/dev/disk14",
+        "uuid": "A1A000C7-6081-4BEF-A59A-F90B51339A98"
+      },
+      "backing": {
+        "image_device": "/dev/disk13",
+        "partition_device": "/dev/disk13s2",
+        "partition_uuid": "35743F9C-F932-45EC-B739-D5DA82FD64C9"
+      },
+      "markers": {
+        "no_log": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.fseventsd/no_log",
+          "name": "no_log",
+          "dev": 16777259,
+          "ino": 18,
+          "mode": 33188,
+          "size": 0,
+          "mtime_ns": 1795595887145521666
+        },
+        "metadata_never_index": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.metadata_never_index",
+          "name": ".metadata_never_index",
+          "dev": 16777259,
+          "ino": 19,
+          "mode": 33188,
+          "size": 0,
+          "mtime_ns": 1795595887145567956
+        }
+      },
+      "fsevents": {
+        "journal": [],
+        "journal_files": 0,
+        "journal_bytes": 0,
+        "directory_present": true,
+        "identity_file": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.fseventsd/fseventsd-uuid",
+          "name": "fseventsd-uuid",
+          "dev": 16777259,
+          "ino": 17,
+          "mode": 33152,
+          "size": 36,
+          "mtime_ns": 1795595887241259000
+        }
+      },
+      "spotlight": {
+        "argv": [
+          "/usr/bin/mdutil",
+          "-s",
+          "-v",
+          "/private/tmp/mp-tune-disk-path-twjhrzz_/home"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T08:38:09.871456+00:00",
+        "stdout": "/System/Volumes/Data/private/tmp/mp-tune-disk-path-twjhrzz_/home:\n\tIndexing and searching disabled.\n",
+        "stderr": "",
+        "disabled": true
+      },
+      "observed_at": "2026-11-25T08:38:09.871483+00:00",
+      "journal_unchanged": true
+    },
+    "raw_disk": {
+      "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/worker.ext4",
+      "inode": 27,
+      "device": 16777259,
+      "bytes": 17314086912,
+      "allocated_bytes": 150716416
+    },
+    "provision_to_ready_s": 4.2906,
+    "shutdown": {
+      "pid": 41018,
+      "process_group_absent": true,
+      "disk_present": true,
+      "disk_holders": []
+    },
+    "detached": {
+      "schema": "micropod-worker-apfs-v1",
+      "image": "/private/tmp/mp-tune-disk-path-twjhrzz_/worker.sparseimage",
+      "mount": "/private/tmp/mp-tune-disk-path-twjhrzz_/home",
+      "image_identity": {
+        "dev": 16777232,
+        "ino": 1226634130,
+        "format": "SPRS"
+      },
+      "volume": {
+        "device": "/dev/disk14s1",
+        "uuid": "34372131-2387-48A8-B286-DFDE540BCDAE",
+        "name": "MicropodCI-b75841949d04",
+        "dev": 16777259,
+        "fs": "apfs",
+        "snapshot": false
+      },
+      "container": {
+        "device": "/dev/disk14",
+        "uuid": "A1A000C7-6081-4BEF-A59A-F90B51339A98"
+      },
+      "backing": {
+        "image_device": "/dev/disk13",
+        "partition_device": "/dev/disk13s2",
+        "partition_uuid": "35743F9C-F932-45EC-B739-D5DA82FD64C9"
+      },
+      "detach": {
+        "argv": [
+          "/usr/bin/hdiutil",
+          "detach",
+          "/dev/disk13"
+        ],
+        "returncode": 0,
+        "observed_at": "2026-11-25T08:38:11.069473+00:00",
+        "stdout": "\"disk13\" ejected.\n",
+        "stderr": ""
+      },
+      "detached": true,
+      "image_absent": true,
+      "removed_image": true,
+      "mountpoint_identity": {
+        "dev": 16777232,
+        "ino": 1226634128
+      },
+      "mount_restored": true,
+      "observed_at": "2026-11-25T08:38:11.785666+00:00",
+      "persisted_policy": {
+        "volume": {
+          "device": "/dev/disk14s1",
+          "uuid": "34372131-2387-48A8-B286-DFDE540BCDAE",
+          "name": "MicropodCI-b75841949d04",
+          "dev": 16777259,
+          "fs": "apfs",
+          "snapshot": false
+        },
+        "container": {
+          "device": "/dev/disk14",
+          "uuid": "A1A000C7-6081-4BEF-A59A-F90B51339A98"
+        },
+        "backing": {
+          "image_device": "/dev/disk13",
+          "partition_device": "/dev/disk13s2",
+          "partition_uuid": "35743F9C-F932-45EC-B739-D5DA82FD64C9"
+        },
+        "markers": {
+          "no_log": {
+            "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.fseventsd/no_log",
+            "name": "no_log",
+            "dev": 16777259,
+            "ino": 18,
+            "mode": 33188,
+            "size": 0,
+            "mtime_ns": 1795595887145521666
+          },
+          "metadata_never_index": {
+            "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.metadata_never_index",
+            "name": ".metadata_never_index",
+            "dev": 16777259,
+            "ino": 19,
+            "mode": 33188,
+            "size": 0,
+            "mtime_ns": 1795595887145567956
+          }
+        },
+        "fsevents": {
+          "journal": [],
+          "journal_files": 0,
+          "journal_bytes": 0,
+          "directory_present": true,
+          "identity_file": {
+            "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/.fseventsd/fseventsd-uuid",
+            "name": "fseventsd-uuid",
+            "dev": 16777259,
+            "ino": 17,
+            "mode": 33152,
+            "size": 36,
+            "mtime_ns": 1795595887241259000
+          }
+        },
+        "spotlight": {
+          "argv": [
+            "/usr/bin/mdutil",
+            "-s",
+            "-v",
+            "/private/tmp/mp-tune-disk-path-twjhrzz_/home"
+          ],
+          "returncode": 0,
+          "observed_at": "2026-11-25T08:38:11.673672+00:00",
+          "stdout": "/System/Volumes/Data/private/tmp/mp-tune-disk-path-twjhrzz_/home:\n\tIndexing and searching disabled.\n",
+          "stderr": "",
+          "disabled": true
+        },
+        "observed_at": "2026-11-25T08:38:11.673698+00:00",
+        "attach": {
+          "argv": [
+            "/usr/bin/hdiutil",
+            "attach",
+            "-readonly",
+            "-noautoopen",
+            "-owners",
+            "off",
+            "-mountpoint",
+            "/private/tmp/mp-tune-disk-path-twjhrzz_/home",
+            "-plist",
+            "/private/tmp/mp-tune-disk-path-twjhrzz_/worker.sparseimage"
+          ],
+          "returncode": 0,
+          "observed_at": "2026-11-25T08:38:11.336720+00:00",
+          "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk13</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk13s2</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EFI</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk13s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>C12A7328-F81F-11D2-BA4B-00A0C93EC93B</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>msdos</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk14s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/private/tmp/mp-tune-disk-path-twjhrzz_/home</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk14</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+          "stderr": ""
+        },
+        "detach": {
+          "argv": [
+            "/usr/bin/hdiutil",
+            "detach",
+            "/dev/disk13"
+          ],
+          "returncode": 0,
+          "observed_at": "2026-11-25T08:38:11.772132+00:00",
+          "stdout": "\"disk13\" ejected.\n",
+          "stderr": ""
+        },
+        "image_identity": {
+          "dev": 16777232,
+          "ino": 1226634130,
+          "format": "SPRS"
+        },
+        "mounted_read_only": true,
+        "mount_flags": 3,
+        "mount_read_only_bit": 1,
+        "diskutil_writable": {
+          "Writable": false,
+          "WritableMedia": false,
+          "WritableVolume": false
+        },
+        "journal_unchanged": true,
+        "markers_unchanged": true,
+        "raw_disk_before_detach": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/worker.ext4",
+          "name": "worker.ext4",
+          "dev": 16777259,
+          "ino": 27,
+          "mode": 33188,
+          "size": 17314086912,
+          "mtime_ns": 1795595890143392345
+        },
+        "raw_disk": {
+          "path": "/private/tmp/mp-tune-disk-path-twjhrzz_/home/worker.ext4",
+          "name": "worker.ext4",
+          "dev": 16777259,
+          "ino": 27,
+          "mode": 33188,
+          "size": 17314086912,
+          "mtime_ns": 1795595890143392345
+        },
+        "raw_disk_unchanged": true
+      }
+    }
+  }
+}

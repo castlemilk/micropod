@@ -15,6 +15,10 @@ final class SandboxNetworkAnchor: @unchecked Sendable {
     init(network: vmnet_network_ref) throws {
         let startup = self.startup
         let parameters = xpc_dictionary_create(nil, nil, 0)
+        // This attachment pins the bridge and never consumes frames. Match the
+        // virtio peer so this idle member does not limit bridge segmentation.
+        xpc_dictionary_set_bool(parameters, vmnet_enable_tso_key, true)
+        xpc_dictionary_set_bool(parameters, vmnet_enable_checksum_offload_key, true)
         let callbackQueue = queue
         guard
             let interface = vmnet_interface_start_with_network(

@@ -1,0 +1,70 @@
+{
+  "stable_id": "233.03",
+  "date_local": "2026-11-24",
+  "source_revision": "7d9b565173a901cb18942e00384838da96e0ba98",
+  "evidence_tier": "source/fixture",
+  "kernel_version": "7.3.5",
+  "kernel_archive_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "kernel_members": {
+    "net/core/filter.c": "ff0d9a21d2e0513a1797bcbd66002acde76b4797e544fb53a84ee74cf0ea2c73",
+    "drivers/net/netkit.c": "cd7425f0d282bb02838491c474b6fe241a1966f4f9317bc4a043fa7772dd3f0e"
+  },
+  "functions_compiled_unmodified": [
+    "skb_do_redirect",
+    "netkit_xmit"
+  ],
+  "client_fixture": "Identical independent synthetic complete-client receipt in both arms, 32 x 1460 B",
+  "workload": "32 x 1514 byte fixed L2 frames, egress peer redirect to ifindex 17",
+  "changed_variable": "whether the target ifindex resolves in the simulated namespace",
+  "first_attempts": [
+    {
+      "redirect_ifindex_present": true,
+      "submitted_frames": 32,
+      "netdev_tx_success_returns": 32,
+      "source_tx_bytes": 48448,
+      "source_tx_drop_increment": 0,
+      "destination_stub_received_frames": 32,
+      "kernel_called_free_frames": 0,
+      "current_source_tx_qualifier": {
+        "device": "nk",
+        "kind": "netkit",
+        "mode": "l2",
+        "direction": "tx",
+        "client_payload_bytes": 46720,
+        "link_byte_deltas": {
+          "nk": {
+            "rx_bytes": 0,
+            "tx_bytes": 48448
+          }
+        },
+        "other_interfaces_with_traffic": {},
+        "other_interfaces_covering_payload": []
+      }
+    },
+    {
+      "redirect_ifindex_present": false,
+      "submitted_frames": 32,
+      "netdev_tx_success_returns": 32,
+      "source_tx_bytes": 48448,
+      "source_tx_drop_increment": 0,
+      "destination_stub_received_frames": 0,
+      "kernel_called_free_frames": 32,
+      "current_source_tx_qualifier": {
+        "device": "nk",
+        "kind": "netkit",
+        "mode": "l2",
+        "direction": "tx",
+        "client_payload_bytes": 46720,
+        "link_byte_deltas": {
+          "nk": {
+            "rx_bytes": 0,
+            "tx_bytes": 48448
+          }
+        },
+        "other_interfaces_with_traffic": {},
+        "other_interfaces_covering_payload": []
+      }
+    }
+  ],
+  "limitations": "One deterministic pair, userspace device table and endpoint shim. No live kernel, network, throughput, measured latency or statistical interval."
+}

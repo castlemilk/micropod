@@ -1,0 +1,56 @@
+{
+  "object_sha256": "a1efa9cc1f77474b35630e7a60b6a5ae4951296a57176bcc5c1ee8fd8fd948ac",
+  "target_file_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+  "target_btf_sha256": "8902c848bb997484d17005ccea010f548c73411fd85f6d64adc608a3e8f8c034",
+  "programs": {
+    "service_send": {
+      "section": "fexit/tcp_sendmsg",
+      "resolved_relocations": [
+        "CORERelocation(byte_off, Struct:\"sock\"[0:0:0], local_id=52): byte_off=0->14",
+        "CORERelocation(byte_off, Struct:\"sock\"[0:0:1:0], local_id=52): byte_off=8->48",
+        "CORERelocation(byte_off, Struct:\"net\"[0:0:0], local_id=41): byte_off=0->280"
+      ]
+    },
+    "tx_enter": {
+      "section": "raw_tp/net_dev_start_xmit",
+      "resolved_relocations": [
+        "CORERelocation(byte_off, Struct:\"net_device\"[0:0], local_id=37): byte_off=0->224",
+        "CORERelocation(byte_off, Struct:\"net_device\"[0:1:0], local_id=37): byte_off=8->264",
+        "CORERelocation(byte_off, Struct:\"net\"[0:0:0], local_id=41): byte_off=0->280",
+        "CORERelocation(byte_off, Struct:\"sk_buff\"[0:0], local_id=43): byte_off=0->124",
+        "CORERelocation(byte_off, Struct:\"sk_buff\"[0:1], local_id=43): byte_off=4->112",
+        "CORERelocation(byte_off, Struct:\"net_device\"[0:2], local_id=37): byte_off=16->24",
+        "CORERelocation(type_size, Struct:\"netdev_queue\"[0], local_id=45): type_size=4->320",
+        "CORERelocation(byte_off, Struct:\"netdev_queue\"[0:0:0], local_id=45): byte_off=0->128"
+      ]
+    },
+    "tx_exit": {
+      "section": "raw_tp/net_dev_xmit",
+      "resolved_relocations": [
+        "CORERelocation(byte_off, Struct:\"netdev_queue\"[0:0:0], local_id=45): byte_off=0->128"
+      ]
+    }
+  },
+  "target_signatures": {
+    "btf_trace_net_dev_start_xmit": [
+      "void",
+      "void*",
+      "struct sk_buff*",
+      "struct net_device*"
+    ],
+    "btf_trace_net_dev_xmit": [
+      "void",
+      "void*",
+      "struct sk_buff*",
+      "signed32",
+      "struct net_device*",
+      "unsigned32"
+    ],
+    "tcp_sendmsg": [
+      "signed32",
+      "struct sock*",
+      "struct msghdr*",
+      "unsigned64"
+    ]
+  }
+}

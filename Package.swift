@@ -1,5 +1,10 @@
 // swift-tools-version: 6.2
+import Foundation
 import PackageDescription
+
+// The CI service also runs this executable as a standalone launch agent.
+let cliInfoPlist = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+    .appendingPathComponent("signing/micropod-cli-info.plist").path
 
 let package = Package(
     name: "Micropod",
@@ -38,6 +43,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.15.0"),
     ],
     targets: [
+        .target(name: "CPublishedTCP", publicHeadersPath: "include"),
         .target(
             name: "CPtyShim",
             publicHeadersPath: "include"
@@ -75,6 +81,8 @@ let package = Package(
         .target(
             name: "MicropodRuntime",
             dependencies: [
+                "CPtyShim",
+                "CPublishedTCP",
                 "MicropodCore",
                 .product(name: "Containerization", package: "containerization"),
                 .product(name: "ContainerizationOS", package: "containerization"),
@@ -121,6 +129,14 @@ let package = Package(
             ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
+            ],
+            linkerSettings: [
+                .unsafeFlags(
+                    [
+                        "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist",
+                        "-Xlinker", cliInfoPlist,
+                    ],
+                    .when(platforms: [.macOS]))
             ]
         ),
         .executableTarget(

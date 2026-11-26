@@ -1,0 +1,183 @@
+{
+  "arm": "B",
+  "phase": "warmup",
+  "pair": 1,
+  "clean": false,
+  "started": false,
+  "fresh_failed": null,
+  "fixed_sha256": "4f6877088bf57a659e59249437aadd782b121a96fa3e600cf83ad981d170ca53",
+  "idle_observations": [
+    {
+      "elapsed_seconds": 1.0054611249997834,
+      "idle_pct": 71.78,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 3.015401041999212,
+      "idle_pct": 71.75,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 5.020170124998913,
+      "idle_pct": 70.96,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 7.02960258299936,
+      "idle_pct": 67.83,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 9.034726791998764,
+      "idle_pct": 75.03,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 11.046814749999612,
+      "idle_pct": 88.56,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 13.054461999998239,
+      "idle_pct": 88.32,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 15.065222249999351,
+      "idle_pct": 58.48,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 17.06876199999897,
+      "idle_pct": 80.86,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 19.07624104199931,
+      "idle_pct": 75.36,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 21.086618416999045,
+      "idle_pct": 86.08,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 23.095550832998924,
+      "idle_pct": 75.34,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 25.0978768749992,
+      "idle_pct": 77.67,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 27.107971749999706,
+      "idle_pct": 89.51,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 29.119618082999295,
+      "idle_pct": 90.19,
+      "paired_idle_gap_pp": null,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 31.132633416998942,
+      "idle_pct": 89.19,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 33.1375708329997,
+      "idle_pct": 72.1,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 35.14687358299852,
+      "idle_pct": 85.9,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 37.1529521249995,
+      "idle_pct": 90.07,
+      "paired_idle_gap_pp": null,
+      "eligible": true
+    },
+    {
+      "elapsed_seconds": 39.16199012499965,
+      "idle_pct": 14.33,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 41.16539220799859,
+      "idle_pct": 3.17,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 43.17209787499996,
+      "idle_pct": 51.2,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 45.2124404999995,
+      "idle_pct": 79.46,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 47.27672724999866,
+      "idle_pct": 85.68,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 49.33649712499937,
+      "idle_pct": 81.4,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 55.059552624999924,
+      "idle_pct": 72.47,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 57.08627429199987,
+      "idle_pct": 75.15,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    },
+    {
+      "elapsed_seconds": 59.112384041998666,
+      "idle_pct": 86.63,
+      "paired_idle_gap_pp": null,
+      "eligible": false
+    }
+  ],
+  "idle_pct": 86.63,
+  "paired_idle_gap_pp": null,
+  "idle_gate_passed": false,
+  "error": "host idle admission timed out after 60.00s (28 observations, 0/2 consecutive eligible, last 86.63%, floor 90%, paired gap unpaired, limit 5 pp)"
+}

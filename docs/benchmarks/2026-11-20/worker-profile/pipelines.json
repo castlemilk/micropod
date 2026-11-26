@@ -1,0 +1,99 @@
+{
+  "worker": {
+    "boot": "9766C3AB-C139-4627-9D71-934E70289868",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+    "endpoint": "unix:///Users/benebsworth/.micropod/ci/docker.sock",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.69.2",
+    "instance": "B41DFA75-4766-4213-9855-97ABF67A5C04",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+  },
+  "sha256": "afdf8124e2722c1083d57f20a3b275d209971bd622e7e1ecce4a414aa7e4be53",
+  "passed": true,
+  "pipeline_seconds": {
+    "micropod": {
+      "first": 13.15,
+      "warm_1": 12.566,
+      "warm_2": 12.127,
+      "warm_3": 13.591,
+      "warm": 12.566
+    },
+    "orbstack": {
+      "first": 95.167,
+      "warm_1": 89.76,
+      "warm_2": 61.856,
+      "warm_3": 74.464,
+      "warm": 74.464
+    }
+  },
+  "pipeline_stages_seconds": {
+    "micropod": {
+      "first": {
+        "node-image": 0.332,
+        "node-edit": 0.233,
+        "go-checks": 1.95,
+        "go-image": 2.316,
+        "postgres": 11.017
+      },
+      "warm_1": {
+        "node-image": 0.452,
+        "node-edit": 0.379,
+        "go-checks": 1.414,
+        "go-image": 1.689,
+        "postgres": 10.937
+      },
+      "warm_2": {
+        "node-image": 0.443,
+        "go-checks": 0.954,
+        "node-edit": 0.324,
+        "go-image": 1.154,
+        "postgres": 10.944
+      },
+      "warm_3": {
+        "node-image": 0.642,
+        "node-edit": 0.332,
+        "go-checks": 1.983,
+        "go-image": 2.157,
+        "postgres": 11.385
+      }
+    },
+    "orbstack": {
+      "first": {
+        "node-image": 25.754,
+        "go-checks": 44.56,
+        "node-edit": 34.023,
+        "postgres": 40.024,
+        "go-image": 43.361
+      },
+      "warm_1": {
+        "node-image": 13.58,
+        "go-checks": 24.912,
+        "node-edit": 28.428,
+        "postgres": 47.916,
+        "go-image": 50.07
+      },
+      "warm_2": {
+        "node-image": 12.345,
+        "go-checks": 21.827,
+        "node-edit": 16.32,
+        "go-image": 27.494,
+        "postgres": 29.078
+      },
+      "warm_3": {
+        "node-image": 14.546,
+        "go-checks": 28.095,
+        "node-edit": 22.621,
+        "go-image": 35.109,
+        "postgres": 43.907
+      }
+    }
+  },
+  "pipelines": [
+    "Go vet, race and Testcontainers PostgreSQL",
+    "npm tests, source edit and rebuild"
+  ]
+}

@@ -249,16 +249,18 @@ enum ContainerCommands {
         return [(key: String(spec[spec.startIndex..<eq]), value: String(spec[spec.index(after: eq)...]))]
     }
 
+    static let execValueAliases = ["-u": "--user", "-w": "--workdir", "-e": "--env"]
+    static let execValueOptions = Set(execValueAliases.keys).union(execValueAliases.values)
+
     static func exec(_ args: [String], _ services: Services) async throws {
         let parsed = try parseArgs(
             args,
             boolFlags: ["--tty", "--interactive", "--detach"],
-            valueFlags: ["--user", "--workdir", "--env"],
-            aliases: [
-                "-t": "--tty", "-i": "--interactive", "-d": "--detach",
-                "-u": "--user", "-w": "--workdir", "-e": "--env",
-            ],
-            commandName: "exec")
+            valueFlags: Set(execValueAliases.values),
+            aliases: execValueAliases.merging(["-t": "--tty", "-i": "--interactive", "-d": "--detach"]) { _, flag in
+                flag
+            },
+            commandName: "exec", passthroughAfter: 2)
         guard parsed.positionals.count >= 2 else {
             throw UsageError(message: "exec <id> <command> [args…]")
         }
@@ -271,8 +273,20 @@ enum ContainerCommands {
             user: parsed.value("--user"),
             workdir: parsed.value("--workdir"),
             env: parsed.values("--env"))
-        let output = try await services.containers.exec(request)
-        print(output.trimmingCharacters(in: .newlines))
+        if request.detach {
+            let output = try await services.containers.exec(request)
+            if !output.isEmpty {
+                print(output.trimmingCharacters(in: .newlines))
+            }
+            return
+        }
+        let containers = services.containers
+        let attach: @Sendable () async throws -> Int32 = {
+            try await containers.execAttached(
+                request, stdin: .standardInput, stdout: .standardOutput, stderr: .standardError)
+        }
+        MicropodCLI.exitOverride =
+            try await (request.tty && request.interactive ? withTerminalSignals(attach) : attach())
     }
 
     static func logs(_ args: [String], _ services: Services) async throws {

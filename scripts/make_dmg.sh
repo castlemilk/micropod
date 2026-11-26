@@ -36,16 +36,17 @@ if [ -n "$IDENTITY" ]; then
     # Hardened runtime is required for notarization. Sign inside-out:
     # helper binaries first, then the bundle itself.
     for bin in "$APP"/Contents/MacOS/*; do
-        # MicropodAPI and the CLI (`micropod sandbox`) boot micro-VMs in-process.
         entitlements=()
         case "$(basename "$bin")" in
             MicropodAPI | micropod-cli) entitlements=(--entitlements "$ROOT/signing/micropod-cli.entitlements") ;;
+            micropod-vmm) entitlements=(--entitlements "$ROOT/signing/micropod-vmm.entitlements") ;;
         esac
         identifiers=()
         case "$(basename "$bin")" in
             MicropodRuntimeHost) identifiers=(--identifier com.skunkworq.micropod.runtime-authority) ;;
             MicropodAPI) identifiers=(--identifier com.skunkworq.micropod.api) ;;
             micropod-cli) identifiers=(--identifier com.skunkworq.micropod.cli) ;;
+            micropod-vmm) identifiers=(--identifier com.skunkworq.micropod.vmm) ;;
             MicropodMCP) identifiers=(--identifier com.skunkworq.micropod.mcp) ;;
             micropod-docker-shim) identifiers=(--identifier com.skunkworq.micropod.docker-shim) ;;
             micropod-sharedfs) identifiers=(--identifier com.skunkworq.micropod.sharedfs) ;;
@@ -77,6 +78,17 @@ if [ -n "$IDENTITY" ]; then
     bash "$ROOT/scripts/write_runtime_components.sh" "$APP"
     codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
     codesign --verify --deep --strict --verbose=2 "$APP"
+    vmm="$APP/Contents/MacOS/micropod-vmm"
+    if [ -f "$vmm" ]; then
+        if ! codesign --display --entitlements - --xml "$vmm" 2>/dev/null | python3 -c '
+import plistlib, sys
+data = sys.stdin.buffer.read()
+sys.exit(not data or plistlib.loads(data).get("com.apple.security.hypervisor") is not True)
+'; then
+            echo "!! $vmm is missing the signed Hypervisor.framework entitlement" >&2
+            exit 1
+        fi
+    fi
 fi
 
 echo "==> Staging DMG contents"

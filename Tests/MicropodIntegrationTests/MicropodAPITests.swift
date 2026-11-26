@@ -46,8 +46,11 @@ final class MicropodAPITests: XCTestCase {
                 "MICROPOD_VOLUME_POLICY": stateDir.appendingPathComponent("policy.json").path,
                 // Never read or write the developer's real engine config.
                 "MICROPOD_RUNTIMES_CONFIG": stateDir.appendingPathComponent("runtimes.json").path,
-                // Deterministic engine availability: no real Docker daemon.
+                // Deterministic engine availability: no real Docker daemon,
+                // no installed hvf machine, no running CI worker.
                 "DOCKER_HOST": "unix:///nonexistent/docker.sock",
+                "MICROPOD_HVF_ROOT": stateDir.appendingPathComponent("hvf").path,
+                "MICROPOD_CI_HOME": stateDir.appendingPathComponent("ci").path,
                 // Clone images never leave the test's state dir — commit
                 // tests pre-create `<root>/<container>/<volume>.img` here.
                 "MICROPOD_VOLUME_CLONE_ROOT": stateDir.appendingPathComponent("clones").path,
@@ -1239,10 +1242,23 @@ final class MicropodAPITests: XCTestCase {
     func testRuntimeEngineManagement() async throws {
         let list = try await json("POST", "api/micropod.v1.SystemService/ListRuntimes", body: [:])
         let runtimes = try XCTUnwrap(list["runtimes"] as? [[String: Any]])
-        XCTAssertEqual(runtimes.map { $0["name"] as? String }, ["apple", "docker", "sandbox"])
+        XCTAssertEqual(runtimes.map { $0["name"] as? String }, ["apple", "docker", "sandbox", "ci", "hvf"])
         XCTAssertEqual(list["default"] as? String, "apple")
         XCTAssertEqual(runtimes[1]["available"] as? Bool ?? false, false)
         XCTAssertEqual(runtimes[1]["reason"] as? String, "Docker socket not found")
+        // hvf: lifecycle-capable, but nothing is installed under the test root.
+        let hvf = runtimes[4]
+        XCTAssertEqual(hvf["available"] as? Bool ?? false, false)
+        XCTAssertTrue((hvf["reason"] as? String ?? "").contains("not installed"), "\(hvf)")
+        XCTAssertEqual(
+            hvf["capabilities"] as? [String],
+            [
+                "run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports",
+                "volumes", "images",
+            ])
+        let (_, hvfDefault) = try await jsonStatus(
+            "POST", "api/micropod.v1.SystemService/SetDefaultRuntime", body: ["name": "hvf"])
+        XCTAssertEqual(hvfDefault["code"] as? String, "failed_precondition", "an uninstalled machine can't be default")
 
         let ping = try await json("POST", "api/micropod.v1.SystemService/Ping", body: [:])
         XCTAssertEqual(ping["defaultRuntime"] as? String, "apple")

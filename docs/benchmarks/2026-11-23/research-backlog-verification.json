@@ -1,0 +1,351 @@
+{
+  "validated_at": "2026-11-23T03:56:11.914273+00:00",
+  "implementation_tip": "06d4a8ae9d0e03d548155d8db1d5c851099a9414",
+  "previous_local_base": "5ed73417ccf16680200d96dd1791d829eb8c4a85",
+  "issue_tracker": "https://github.com/castlemilk/micropod/issues/227",
+  "experiment_issue_numbers": [
+    228,
+    229,
+    230,
+    231,
+    232,
+    233,
+    234,
+    235,
+    236,
+    237,
+    238,
+    239,
+    240
+  ],
+  "relaybench": {
+    "command": "python3 -B -m unittest discover -s scripts/relaybench -p 'test_*.py' -v",
+    "runs": {
+      "Python 3.15.0": {
+        "tests": 56,
+        "seconds": 2.159,
+        "exit_code": 0
+      },
+      "Python 3.9.6": {
+        "tests": 56,
+        "seconds": 2.354,
+        "exit_code": 0
+      }
+    }
+  },
+  "dry_plans": [
+    {
+      "mode": "host-role",
+      "seed": 34205,
+      "arms": {
+        "A": {
+          "engine": "Micropod",
+          "vcpus": 4,
+          "relay_workers": 2,
+          "callback_events": 128,
+          "process_type": "Standard"
+        },
+        "B": {
+          "engine": "Micropod",
+          "vcpus": 4,
+          "relay_workers": 2,
+          "callback_events": 128,
+          "process_type": "Interactive"
+        }
+      },
+      "order": {
+        "warmup": [
+          "AB",
+          "BA",
+          "AB"
+        ],
+        "scored": [
+          "BA",
+          "AB",
+          "AB",
+          "BA"
+        ]
+      }
+    },
+    {
+      "mode": "workers",
+      "seed": 34202,
+      "arms": {
+        "A": {
+          "engine": "Micropod",
+          "vcpus": 4,
+          "relay_workers": 2,
+          "callback_events": 128
+        },
+        "B": {
+          "engine": "Micropod",
+          "vcpus": 4,
+          "relay_workers": 4,
+          "callback_events": 128
+        }
+      },
+      "order": {
+        "warmup": [
+          "AB",
+          "BA",
+          "BA"
+        ],
+        "scored": [
+          "BA",
+          "AB",
+          "BA",
+          "AB"
+        ]
+      }
+    },
+    {
+      "mode": "size",
+      "seed": 34204,
+      "arms": {
+        "A": {
+          "engine": "Micropod",
+          "vcpus": 4,
+          "relay_workers": 2,
+          "callback_events": 128
+        },
+        "B": {
+          "engine": "Micropod",
+          "vcpus": 6,
+          "relay_workers": 2,
+          "callback_events": 128
+        }
+      },
+      "order": {
+        "warmup": [
+          "AB",
+          "AB",
+          "BA"
+        ],
+        "scored": [
+          "AB",
+          "BA",
+          "AB",
+          "BA"
+        ]
+      }
+    }
+  ],
+  "compiler_config_audit": {
+    "config_sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "compiler": "GCC",
+    "compiler_options": {
+      "CONFIG_CC_IS_GCC": "y",
+      "CONFIG_CC_IS_CLANG": null,
+      "CONFIG_CC_VERSION_TEXT": "\"gcc (Alpine 15.2.0) 15.2.0\"",
+      "CONFIG_GCC_VERSION": "150200",
+      "CONFIG_CLANG_VERSION": "0"
+    },
+    "lto_mode": "none",
+    "lto_options": {
+      "CONFIG_LTO_NONE": "y",
+      "CONFIG_LTO_CLANG_THIN": null,
+      "CONFIG_LTO_CLANG_FULL": null
+    },
+    "profile_options": {
+      "CONFIG_AUTOFDO_CLANG": null,
+      "CONFIG_PROPELLER_CLANG": null
+    },
+    "mitigation_build_options": {
+      "CONFIG_CPU_MITIGATIONS": "y",
+      "CONFIG_UNMAP_KERNEL_AT_EL0": "n",
+      "CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY": "n",
+      "CONFIG_ARM64_PTR_AUTH": "n",
+      "CONFIG_ARM64_BTI": "n",
+      "CONFIG_ARM64_BTI_KERNEL": null,
+      "CONFIG_CFI": null,
+      "CONFIG_SHADOW_CALL_STACK": "n",
+      "CONFIG_STACKPROTECTOR": "y",
+      "CONFIG_STACKPROTECTOR_STRONG": "y",
+      "CONFIG_STACKPROTECTOR_PER_TASK": "y",
+      "CONFIG_VMAP_STACK": "y",
+      "CONFIG_RANDOMIZE_BASE": "y"
+    },
+    "profile_use_verified": false,
+    "runtime_mitigations_verified": false,
+    "recorded_image_sha256": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd",
+    "recorded_release": "7.3.5-micropod"
+  },
+  "kernel_profile_offline_check": {
+    "apple_seed_sha256": "a5dfc1ee37dcd4bc6d727e4de617bc45a40cf32e7ebc52fb6f0472c8fbf60c21",
+    "boots": 0,
+    "existing_control_directory_refused": true,
+    "kernel_builds": 0,
+    "linux_source_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+    "requested_config_differences": {
+      "CONFIG_ARM64_16K_PAGES": [
+        "n",
+        "y"
+      ],
+      "CONFIG_ARM64_4K_PAGES": [
+        "y",
+        "n"
+      ]
+    },
+    "resolved_page_guard_fixture_checks": [
+      "stale",
+      "conflicting"
+    ],
+    "retry_after_fixture_failures": [
+      "copy",
+      "checksum"
+    ]
+  },
+  "kernel_profile_limits": "Pinned upstream scripts/config and original seed were exercised. Linux olddefconfig was modeled. Actual kernel compilations and boots were zero.",
+  "volume_readback_local": {
+    "workload": "micropod-volume-v1",
+    "system": "Darwin",
+    "release": "25.5.0",
+    "volume_device": 16777230,
+    "block_bytes": 4096,
+    "blocks_per_replacement": 64,
+    "rounds": 3,
+    "logical_bytes_written_in_samples": 786432,
+    "median_acknowledged_ns": 660125,
+    "same_boot_readback_verified": true,
+    "crash_survival_tested": false,
+    "samples": [
+      {
+        "round": 1,
+        "sha256": "dda1c10f20c4837df2ad3343899cdf76dd9b084fce0b91f882852252be1801b8",
+        "write_ns": 507375,
+        "file_fsync_ns": 80459,
+        "close_and_replace_ns": 104583,
+        "directory_fsync_ns": 1833,
+        "acknowledged_ns": 694250
+      },
+      {
+        "round": 2,
+        "sha256": "093aacb00576acdd38ec2720e2a572c088da1712f19f1f7581fcb8ac51913de3",
+        "write_ns": 329125,
+        "file_fsync_ns": 75667,
+        "close_and_replace_ns": 96958,
+        "directory_fsync_ns": 2500,
+        "acknowledged_ns": 504250
+      },
+      {
+        "round": 3,
+        "sha256": "2b0df2c5a3823065bf64688d642268ada6d06dd6dbca502b62b319155d6cd812",
+        "write_ns": 424167,
+        "file_fsync_ns": 79208,
+        "close_and_replace_ns": 155375,
+        "directory_fsync_ns": 1375,
+        "acknowledged_ns": 660125
+      }
+    ]
+  },
+  "historical_direct_ingress_replay": {
+    "archive": "docs/benchmarks/2026-11-21/gamma-mixed-path.json.gz",
+    "sha256": "09ebe5510401244cd6d299c1d0cf6dd8f88b256bf14b8c2c14f6db3eff61b74a",
+    "rounds": [
+      {
+        "archived_round": 0,
+        "published": {
+          "mib_s": 2009.0856133965342,
+          "p95_ms": 257.987
+        },
+        "direct": {
+          "mib_s": 2839.1806578144615,
+          "p95_ms": 75.078
+        }
+      },
+      {
+        "archived_round": 1,
+        "published": {
+          "mib_s": 2749.71147195018,
+          "p95_ms": 94.277
+        },
+        "direct": {
+          "mib_s": 1816.668605019828,
+          "p95_ms": 137.88
+        }
+      },
+      {
+        "archived_round": 2,
+        "published": {
+          "mib_s": 2927.4106368932144,
+          "p95_ms": 112.224
+        },
+        "direct": {
+          "mib_s": 3725.0646968999463,
+          "p95_ms": 41.349
+        }
+      },
+      {
+        "archived_round": 3,
+        "published": {
+          "mib_s": 1567.670852608014,
+          "p95_ms": 177.402
+        },
+        "direct": {
+          "mib_s": 2243.82396722793,
+          "p95_ms": 88.682
+        }
+      },
+      {
+        "archived_round": 4,
+        "published": {
+          "mib_s": 3451.146813668171,
+          "p95_ms": 61.864
+        },
+        "direct": {
+          "mib_s": 4406.9242116485775,
+          "p95_ms": 27.769
+        }
+      },
+      {
+        "archived_round": 5,
+        "published": {
+          "mib_s": 4070.1554161488993,
+          "p95_ms": 51.17
+        },
+        "direct": {
+          "mib_s": 3833.6905623580165,
+          "p95_ms": 50.981
+        }
+      }
+    ],
+    "direct_wins": 4,
+    "direct_over_75_ms_p95": 3,
+    "median_direct_over_published_ratio": 1.274711274102053,
+    "paired_bootstrap_interval": [
+      0.8012894144706479,
+      1.422240602775608
+    ]
+  },
+  "admission": {
+    "checked_at": "2026-11-23T03:49:01.794937039Z",
+    "isolated_linux_active_leases": 1,
+    "isolated_linux_capacity": 1,
+    "mac_active_leases": 0,
+    "mac_capacity": 6,
+    "exclusive_release_received": false,
+    "live_benchmark_attempts": 0
+  },
+  "verified_changed_sources": {
+    "ci/build-worker-kernel.sh": "3947b35844c6904d653bdf345d2f8ed9daa052461b682a0399ce5c68820de5b0",
+    "scripts/relaybench/gamma_pilot.py": "820aed688ab89a8d0514d897eb321dc758dd9dd9cf02c88650d6f9acb0dc7fbd",
+    "scripts/relaybench/guest_link_path.py": "0f7269230ce164bc4b33f60eb2c93f808c1f6be8189418a0b7bb130192366843",
+    "scripts/relaybench/guest_nic.py": "fe9fcedf863b7680bd4a8698654b3156be627466a059ea2959bf431dbc7c7844",
+    "scripts/relaybench/guest_nic_capture.sh": "00705d0571a23d6ce4fbc1b0b030e106153bbecaa912cf746978acc9dc2fb84d",
+    "scripts/relaybench/guest_paths.py": "07a66c1451c79e65558a93aac60e4560b9c3f43fcfaf699940b3c357a7127a00",
+    "scripts/relaybench/host_role.py": "1be223ef120f3510df7856e99f5ed8c8fe66dd09a33b8ecb7e2af53195f48bc4",
+    "scripts/relaybench/kernel_candidate.py": "e17d36887a605a49dec355cf7b3ad5edafe37b83029a5e3648028a8e2d82bdb7",
+    "scripts/relaybench/kernel_candidate_profile_check.py": "b89bc553971e50a2b72ed2d048a093279d4c223528803ad92b93b36ff40d7139",
+    "scripts/relaybench/kernel_compiler.py": "f9284181f42f531472b012358c20415bbe50b5467c2616ea5ad4097fee66bb92",
+    "scripts/relaybench/mtu_path.py": "44f5ead11ff64cbbed054d0f88e2c958c5121b5d1c082e457f04eb6874d2c983",
+    "scripts/relaybench/test_guest_link_path.py": "e43e784b65fe52737f0354d38fd65f20940a9eee53a007186c95fff49425cc9f",
+    "scripts/relaybench/test_guest_nic.py": "707c6474023403431313f853d4c35b033943b9e83d8e59b99b067dbc50765dfd",
+    "scripts/relaybench/test_guest_paths.py": "1029bbddeb6e9a8c4015fa47d6704c5c13c5ce9106d21c252078adb16cd4e231",
+    "scripts/relaybench/test_kernel_candidate.py": "2d9ef84c9772cb3c5a10ce49e3bebcea0b84a87de969eac2c9218d3545465516",
+    "scripts/relaybench/test_kernel_compiler.py": "f744be629b096c1c47b81d8b1bca3cd98af2415c15e21d01bf0ec64bd76e6cb3",
+    "scripts/relaybench/test_mtu_path.py": "cbf1cdbf3f4b662c90064dc5fecf900ffccc5f38623f2579e5496b337d2c80c5",
+    "scripts/relaybench/test_pilot_pair_counts.py": "072f9016e2eadc77d1b748a080bc4f60047349463adbea8c6c0c24cf70871324",
+    "scripts/relaybench/test_volume_durability.py": "1e6be6bf56b1c8b8b0f38ba16754bc6ecf880b4a1aaa2a7d22a91b38cd2c0d73",
+    "scripts/relaybench/volume_durability.py": "c1cc465bf8841a8c8406a16174684280cebf44582e8e57f77787d8305e4e514e"
+  }
+}

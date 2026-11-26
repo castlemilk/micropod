@@ -1,0 +1,27 @@
+{
+  "archive": "gamma-direct-macvlan.json.gz",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "record": "records.holdout_workers.full-reno",
+  "worker_boot": "2CE98B61-7054-483A-865B-14BCD495145B",
+  "kernel": "7.3.5-micropod",
+  "gateway": "192.168.128.1",
+  "return_interface": "mppub0",
+  "route_congestion": "reno",
+  "scope_interval_tx_bytes": {
+    "eth0": 420,
+    "mppub0": 269174782145
+  },
+  "runtime_root_qdisc_readback": null,
+  "stock_setup_source_hashes": {
+    "7a4eb51a04b51f6332ed49561b3dd0bb42ffacd9": {
+      "docker_port_direct_linux.go": "2e01b86f7e3170dcb2ca0f7ae5ed048ceebc3950b9feee97018cfc1ad15de3b9",
+      "docker_port_nat_linux.go": "6bd00ace83f05a0ae98a37bdd58d3352e94dbd831b2a91c8c47b77d50ec9ef3a",
+      "docker_engine_linux.go": "935cc6bcd404740ae70cf3a7af174a733b020d7e2fb6978ff3cf1daec686a56c"
+    },
+    "ad9d174eda5eb499e0e15675829e21a00d836f84": {
+      "docker_port_direct_linux.go": "65b5c179ab4a4ad4a9f50087275d13fa2447e2dd7efb8d208763bfd88bb61490",
+      "docker_port_nat_linux.go": "6bd00ace83f05a0ae98a37bdd58d3352e94dbd831b2a91c8c47b77d50ec9ef3a",
+      "docker_engine_linux.go": "935cc6bcd404740ae70cf3a7af174a733b020d7e2fb6978ff3cf1daec686a56c"
+    }
+  }
+}

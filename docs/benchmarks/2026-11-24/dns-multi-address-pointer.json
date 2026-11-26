@@ -1,0 +1,1782 @@
+{
+  "scope": "Native Go DNS parser, directory, encoder and metrics; empty upstream, internal network. Per-op means within fixed-work blocks, with setup excluded.",
+  "base_commit": "4dc985b50bbd1e5942020618df4d8dcc2de47483",
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "arch": "arm64",
+  "go": "go version go1.27.2 darwin/arm64",
+  "gomaxprocs": 1,
+  "iterations_per_cell": 50000,
+  "pairs": 8,
+  "read_work": "A, AAAA or alternating A/AAAA; UDP, legacy 512-byte cap, mixed-case IN name. The 256-record A response is truncated.",
+  "publish_work": "One remove then add of the middle member, with its unique name and one shared alias. At count 1, removal empties the alias.",
+  "verification": "Each binary verified 60 mixed-case A/AAAA/ANY replies on UDP and TCP across publication, withdrawal and re-addition. Checked ordered addresses, truncation, authority, per-directory counters and wire digest.",
+  "row_units": [
+    "ns/op",
+    "B/op",
+    "allocs/op"
+  ],
+  "fixture_sha256": "63773237135530d687ef0e0932ca47adde65d7610835a32943df10dc04aa2d74",
+  "driver_sha256": "1ef97dc823d0bb80d0f0ca305b8e1d01405f6595e25032c6850442c2ae128d36",
+  "source": {
+    "base": {
+      "files": {
+        "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+        "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+        "guest/runner/docker_dns_answer.go": "753ff17ecc24c58317becf1e74e9cb64ada85a8f4e75b8a05269985c0872d508",
+        "guest/runner/docker_dns_directory.go": "6178cda21f4f4b0d2cedf7b0f90327cc976fb3f31dc45fba7b52f3aeca6701b5",
+        "guest/runner/docker_dns_linux.go": "8c35dfcae6324973ae6d47ba2da45cd26b50e60630a78a6971d058caef9a9c62",
+        "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+      },
+      "binary": "4b7c6f08a9f2d9761e04739996cd8b22e56dae9889fdb3d84c3ad27cdd4d35e7",
+      "verified_response_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631"
+    },
+    "candidate": {
+      "files": {
+        "guest/runner/go.mod": "e9ffff29bc4674b7b13e144eba56f7a6e2f08d6767c73e8febd2562ef003c921",
+        "guest/runner/go.sum": "01b586370a93aa4f4fe3897c4e8b6080936db099611e937a9c39121d70b803e6",
+        "guest/runner/docker_dns_answer.go": "e247fa11503d92b53428043894eca88ca633fcafbede4b49a3b54736c81f0863",
+        "guest/runner/docker_dns_directory.go": "6178cda21f4f4b0d2cedf7b0f90327cc976fb3f31dc45fba7b52f3aeca6701b5",
+        "guest/runner/docker_dns_linux.go": "8c35dfcae6324973ae6d47ba2da45cd26b50e60630a78a6971d058caef9a9c62",
+        "guest/runner/docker_network_metrics_linux.go": "6703edca17d1c3f94f3fe4e9fde78607fa608b9f01e61367266260518a741228"
+      },
+      "binary": "20b4f089ea3daa0b259e361384f0e20efe88aab3b744e097d0817a537f387ee0",
+      "verified_response_sha256": "0401c0088c00e157ef6bf3d0c61c6842f989544c1006ad9dd14a1d462c5ff631"
+    }
+  },
+  "interval_method": "Within-pair candidate/base ns/op; median with a 10,000-resample paired block bootstrap (seed 23114, sorted indices 249 and 9749).",
+  "summary": {
+    "lookup/0/A": {
+      "base": [
+        114.94999999999999,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        116.35,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.9797356828193833,
+        1.0598214285714287,
+        0.9018867924528302,
+        0.9624413145539906,
+        0.9973753280839895,
+        0.9801038062283737,
+        0.9902222222222222,
+        0.8531717747683535
+      ],
+      "median_paired_ratio": 0.9799197445238785,
+      "paired_ratio_ci95": [
+        0.9018867924528302,
+        0.9973753280839895
+      ],
+      "median_paired_change_pct": -2.01,
+      "faster_pairs": 7
+    },
+    "lookup/0/AAAA": {
+      "base": [
+        112.44999999999999,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        113.35,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.8977556109725686,
+        1.0764272559852672,
+        0.8411806043569923,
+        0.9947735191637631,
+        1.0481380563124434,
+        0.9990859232175502,
+        0.9880073800738006,
+        0.896414342629482
+      ],
+      "median_paired_ratio": 0.9913904496187819,
+      "paired_ratio_ci95": [
+        0.896414342629482,
+        1.0481380563124434
+      ],
+      "median_paired_change_pct": -0.86,
+      "faster_pairs": 6
+    },
+    "lookup/0/alternating": {
+      "base": [
+        110.15,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        111.6,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.9864743011722272,
+        1.0402193784277878,
+        1.0113438045375218,
+        0.9331235247836349,
+        0.9990834097158571,
+        0.9972527472527473,
+        0.9888785912882299,
+        0.9736842105263159
+      ],
+      "median_paired_ratio": 0.9930656692704886,
+      "paired_ratio_ci95": [
+        0.9736842105263159,
+        1.0113438045375218
+      ],
+      "median_paired_change_pct": -0.69,
+      "faster_pairs": 6
+    },
+    "lookup/1/A": {
+      "base": [
+        124.85,
+        56.0,
+        2.0
+      ],
+      "candidate": [
+        122.05000000000001,
+        56.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.9795918367346939,
+        0.9134396355353076,
+        1.0432389937106916,
+        1.029733959311424,
+        1.0074503311258278,
+        1.0107349298100745,
+        1.0125838926174497,
+        0.9738415545590433
+      ],
+      "median_paired_ratio": 1.009092630467951,
+      "paired_ratio_ci95": [
+        0.9738415545590433,
+        1.029733959311424
+      ],
+      "median_paired_change_pct": 0.91,
+      "faster_pairs": 3
+    },
+    "lookup/1/AAAA": {
+      "base": [
+        112.75,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        115.05,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1852181656277827,
+        1.01183970856102,
+        1.0616966580976863,
+        1.0314410480349345,
+        1.0026501766784452,
+        1.0053859964093357,
+        1.005459508644222,
+        0.9418416801292406
+      ],
+      "median_paired_ratio": 1.0086496086026209,
+      "paired_ratio_ci95": [
+        1.0026501766784452,
+        1.0616966580976863
+      ],
+      "median_paired_change_pct": 0.86,
+      "faster_pairs": 1
+    },
+    "lookup/1/alternating": {
+      "base": [
+        116.4,
+        48.0,
+        2.0
+      ],
+      "candidate": [
+        117.45,
+        48.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.0723514211886305,
+        1.036842105263158,
+        0.8895877009084556,
+        1.0,
+        1.015817223198594,
+        0.9606501283147989,
+        0.9955985915492958,
+        0.9470355731225296
+      ],
+      "median_paired_ratio": 0.9977992957746479,
+      "paired_ratio_ci95": [
+        0.9470355731225296,
+        1.036842105263158
+      ],
+      "median_paired_change_pct": -0.22,
+      "faster_pairs": 4
+    },
+    "publish/1": {
+      "base": [
+        182.85,
+        176.0,
+        4.0
+      ],
+      "candidate": [
+        183.75,
+        176.0,
+        4.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1038100496963004,
+        0.9896004378763,
+        1.0475418692598597,
+        0.9553478712357217,
+        1.0082417582417582,
+        0.9761904761904762,
+        0.9790055248618784,
+        1.0737704918032787
+      ],
+      "median_paired_ratio": 0.9989210980590291,
+      "paired_ratio_ci95": [
+        0.9761904761904762,
+        1.0737704918032787
+      ],
+      "median_paired_change_pct": -0.11,
+      "faster_pairs": 4
+    },
+    "lookup/8/A": {
+      "base": [
+        362.79999999999995,
+        432.0,
+        5.0
+      ],
+      "candidate": [
+        169.14999999999998,
+        168.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.48781869688385265,
+        0.468590831918506,
+        0.4656568294593889,
+        0.5248287671232877,
+        0.44128586609989373,
+        0.4499714122355632,
+        0.42960773777538963,
+        0.46618743343982955
+      ],
+      "median_paired_ratio": 0.46592213144960926,
+      "paired_ratio_ci95": [
+        0.44128586609989373,
+        0.48781869688385265
+      ],
+      "median_paired_change_pct": -53.41,
+      "faster_pairs": 8
+    },
+    "lookup/8/AAAA": {
+      "base": [
+        117.94999999999999,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        118.35,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.0314136125654452,
+        1.0016906170752324,
+        0.9126436781609195,
+        0.9991482112436115,
+        1.3214285714285716,
+        0.9554247266610596,
+        0.9991386735572783,
+        1.137410643367752
+      ],
+      "median_paired_ratio": 1.000419414159422,
+      "paired_ratio_ci95": [
+        0.9554247266610596,
+        1.137410643367752
+      ],
+      "median_paired_change_pct": 0.04,
+      "faster_pairs": 4
+    },
+    "lookup/8/alternating": {
+      "base": [
+        247.0,
+        236.0,
+        3.0
+      ],
+      "candidate": [
+        151.85,
+        104.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.6783772480133835,
+        0.5786430223592907,
+        0.6130385055280214,
+        0.5976781425140112,
+        0.628992628992629,
+        0.5995753715498938,
+        0.5831605143094152,
+        0.6133234090063269
+      ],
+      "median_paired_ratio": 0.6063069385389577,
+      "paired_ratio_ci95": [
+        0.5831605143094152,
+        0.628992628992629
+      ],
+      "median_paired_change_pct": -39.37,
+      "faster_pairs": 8
+    },
+    "publish/8": {
+      "base": [
+        227.6,
+        152.0,
+        3.0
+      ],
+      "candidate": [
+        217.14999999999998,
+        152.0,
+        3.0
+      ],
+      "paired_ns_per_op_ratios": [
+        0.9129464285714286,
+        0.929340801378716,
+        0.9239222316145393,
+        0.9636934110264456,
+        1.0888459681313376,
+        0.9765998089780324,
+        0.93710407239819,
+        1.0131189166314007
+      ],
+      "median_paired_ratio": 0.9503987417123179,
+      "paired_ratio_ci95": [
+        0.9239222316145393,
+        1.0131189166314007
+      ],
+      "median_paired_change_pct": -4.96,
+      "faster_pairs": 6
+    },
+    "lookup/256/A": {
+      "base": [
+        124.8,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        126.8,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.1004081632653062,
+        0.8575478384124735,
+        0.9220116618075802,
+        1.0497512437810945,
+        1.0426929392446633,
+        1.013375295043273,
+        1.0065412919051513,
+        0.9963208241353937
+      ],
+      "median_paired_ratio": 1.0099582934742122,
+      "paired_ratio_ci95": [
+        0.9220116618075802,
+        1.0497512437810945
+      ],
+      "median_paired_change_pct": 1.0,
+      "faster_pairs": 3
+    },
+    "lookup/256/AAAA": {
+      "base": [
+        121.35,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        120.0,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.0813852813852813,
+        0.9716039907904833,
+        0.9111617312072894,
+        1.001727115716753,
+        0.953808752025932,
+        1.0327022375215147,
+        0.9798826487845768,
+        1.0715434083601287
+      ],
+      "median_paired_ratio": 0.990804882250665,
+      "paired_ratio_ci95": [
+        0.953808752025932,
+        1.0715434083601287
+      ],
+      "median_paired_change_pct": -0.92,
+      "faster_pairs": 4
+    },
+    "lookup/256/alternating": {
+      "base": [
+        118.6,
+        40.0,
+        2.0
+      ],
+      "candidate": [
+        118.94999999999999,
+        40.0,
+        2.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.0275624461670974,
+        0.990228013029316,
+        0.9189614476789929,
+        1.0143824027072759,
+        1.0085034013605443,
+        0.9543602281988589,
+        0.9923076923076922,
+        1.0092436974789916
+      ],
+      "median_paired_ratio": 1.0004055468341182,
+      "paired_ratio_ci95": [
+        0.9543602281988589,
+        1.0143824027072759
+      ],
+      "median_paired_change_pct": 0.04,
+      "faster_pairs": 4
+    },
+    "publish/256": {
+      "base": [
+        593.9,
+        152.0,
+        3.0
+      ],
+      "candidate": [
+        620.35,
+        152.0,
+        3.0
+      ],
+      "paired_ns_per_op_ratios": [
+        1.0542207792207792,
+        0.9977452085682075,
+        1.0676758682101515,
+        1.140032414910859,
+        0.9577228327228327,
+        1.017435524881947,
+        1.0782608695652174,
+        1.0863938440013992
+      ],
+      "median_paired_ratio": 1.0609483237154653,
+      "paired_ratio_ci95": [
+        0.9977452085682075,
+        1.0863938440013992
+      ],
+      "median_paired_change_pct": 6.09,
+      "faster_pairs": 2
+    }
+  },
+  "blocks": [
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            113.5,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            120.3,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            110.9,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            122.5,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            112.3,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            116.1,
+            48,
+            2
+          ],
+          "publish/1": [
+            181.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            353.0,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            114.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            239.1,
+            236,
+            3
+          ],
+          "publish/8": [
+            268.8,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            122.5,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            115.5,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            116.1,
+            40,
+            2
+          ],
+          "publish/256": [
+            616.0,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            111.2,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            108.0,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            120.0,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            133.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            124.5,
+            48,
+            2
+          ],
+          "publish/1": [
+            199.9,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            172.2,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            118.2,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            162.2,
+            104,
+            2
+          ],
+          "publish/8": [
+            245.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            134.8,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            124.9,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            119.3,
+            40,
+            2
+          ],
+          "publish/256": [
+            649.4,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            118.7,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            116.9,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            113.8,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            120.3,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            111.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            118.2,
+            48,
+            2
+          ],
+          "publish/1": [
+            180.8,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            165.6,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            118.5,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            150.1,
+            104,
+            2
+          ],
+          "publish/8": [
+            215.7,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            121.0,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            126.6,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            121.6,
+            40,
+            2
+          ],
+          "publish/256": [
+            619.5,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            112.0,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            108.6,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            131.7,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            109.8,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            114.0,
+            48,
+            2
+          ],
+          "publish/1": [
+            182.7,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            353.4,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            118.3,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            259.4,
+            236,
+            3
+          ],
+          "publish/8": [
+            232.1,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            141.1,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            130.3,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            122.8,
+            40,
+            2
+          ],
+          "publish/256": [
+            620.9,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            132.5,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            142.3,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            114.6,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            127.2,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            116.7,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            143.1,
+            48,
+            2
+          ],
+          "publish/1": [
+            185.1,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            382.9,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            130.5,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            262.3,
+            236,
+            3
+          ],
+          "publish/8": [
+            236.6,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            137.2,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            131.7,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            127.1,
+            40,
+            2
+          ],
+          "publish/256": [
+            561.5,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            119.5,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            119.7,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            115.9,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            132.7,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            123.9,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            127.3,
+            48,
+            2
+          ],
+          "publish/1": [
+            193.9,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            178.3,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            119.1,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            160.8,
+            104,
+            2
+          ],
+          "publish/8": [
+            218.6,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            126.5,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            120.0,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            116.8,
+            40,
+            2
+          ],
+          "publish/256": [
+            599.5,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            123.0,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            114.2,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            118.6,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            131.6,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            118.1,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            116.7,
+            48,
+            2
+          ],
+          "publish/1": [
+            184.0,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            183.9,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            117.3,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            149.3,
+            104,
+            2
+          ],
+          "publish/8": [
+            215.0,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            126.6,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            116.0,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            119.9,
+            40,
+            2
+          ],
+          "publish/256": [
+            703.4,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            127.8,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            114.8,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            127.1,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            127.8,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            114.5,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            116.7,
+            48,
+            2
+          ],
+          "publish/1": [
+            192.6,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            350.4,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            117.4,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            249.8,
+            236,
+            3
+          ],
+          "publish/8": [
+            223.1,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            120.6,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            115.8,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            118.2,
+            40,
+            2
+          ],
+          "publish/256": [
+            617.0,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            114.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            110.1,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.1,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            120.8,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            113.2,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            113.8,
+            48,
+            2
+          ],
+          "publish/1": [
+            182.0,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            376.4,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            117.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            244.2,
+            236,
+            3
+          ],
+          "publish/8": [
+            207.1,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            121.8,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            123.4,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            117.6,
+            40,
+            2
+          ],
+          "publish/256": [
+            655.2,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            114.0,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            115.4,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.0,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            121.7,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            113.5,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            115.6,
+            48,
+            2
+          ],
+          "publish/1": [
+            183.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            166.1,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            155.4,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            153.6,
+            104,
+            2
+          ],
+          "publish/8": [
+            225.5,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            127.0,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            117.7,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            118.6,
+            40,
+            2
+          ],
+          "publish/256": [
+            627.5,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            113.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            109.3,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            108.9,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            122.4,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            112.0,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            112.3,
+            48,
+            2
+          ],
+          "publish/1": [
+            180.4,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            157.4,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            113.6,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            141.2,
+            104,
+            2
+          ],
+          "publish/8": [
+            204.5,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            128.8,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            120.0,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            117.1,
+            40,
+            2
+          ],
+          "publish/256": [
+            560.2,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            115.6,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            109.4,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            109.2,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            121.1,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            111.4,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            116.9,
+            48,
+            2
+          ],
+          "publish/1": [
+            184.8,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            349.8,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            118.9,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            235.5,
+            236,
+            3
+          ],
+          "publish/8": [
+            209.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            127.1,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            116.2,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            122.7,
+            40,
+            2
+          ],
+          "publish/256": [
+            550.6,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "base",
+        "candidate"
+      ],
+      "rows": {
+        "base": {
+          "lookup/0/A": [
+            112.5,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            108.4,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            107.9,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            119.2,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            109.9,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            113.6,
+            48,
+            2
+          ],
+          "publish/1": [
+            181.0,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            372.2,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            116.1,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            241.1,
+            236,
+            3
+          ],
+          "publish/8": [
+            221.0,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            122.3,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            119.3,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            117.0,
+            40,
+            2
+          ],
+          "publish/256": [
+            540.5,
+            152,
+            3
+          ]
+        },
+        "candidate": {
+          "lookup/0/A": [
+            111.4,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            107.1,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            106.7,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            120.7,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            110.5,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            113.1,
+            48,
+            2
+          ],
+          "publish/1": [
+            177.2,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            159.9,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            116.0,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            140.6,
+            104,
+            2
+          ],
+          "publish/8": [
+            207.1,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            123.1,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            116.9,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            116.1,
+            40,
+            2
+          ],
+          "publish/256": [
+            582.8,
+            152,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "order": [
+        "candidate",
+        "base"
+      ],
+      "rows": {
+        "candidate": {
+          "lookup/0/A": [
+            119.7,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            112.5,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            118.4,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            130.3,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            116.6,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            119.8,
+            48,
+            2
+          ],
+          "publish/1": [
+            196.5,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            175.1,
+            168,
+            2
+          ],
+          "lookup/8/AAAA": [
+            143.2,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            164.8,
+            104,
+            2
+          ],
+          "publish/8": [
+            239.4,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            135.4,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            133.3,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            120.1,
+            40,
+            2
+          ],
+          "publish/256": [
+            621.2,
+            152,
+            3
+          ]
+        },
+        "base": {
+          "lookup/0/A": [
+            140.3,
+            40,
+            2
+          ],
+          "lookup/0/AAAA": [
+            125.5,
+            40,
+            2
+          ],
+          "lookup/0/alternating": [
+            121.6,
+            40,
+            2
+          ],
+          "lookup/1/A": [
+            133.8,
+            56,
+            2
+          ],
+          "lookup/1/AAAA": [
+            123.8,
+            40,
+            2
+          ],
+          "lookup/1/alternating": [
+            126.5,
+            48,
+            2
+          ],
+          "publish/1": [
+            183.0,
+            176,
+            4
+          ],
+          "lookup/8/A": [
+            375.6,
+            432,
+            5
+          ],
+          "lookup/8/AAAA": [
+            125.9,
+            40,
+            2
+          ],
+          "lookup/8/alternating": [
+            268.7,
+            236,
+            3
+          ],
+          "publish/8": [
+            236.3,
+            152,
+            3
+          ],
+          "lookup/256/A": [
+            135.9,
+            40,
+            2
+          ],
+          "lookup/256/AAAA": [
+            124.4,
+            40,
+            2
+          ],
+          "lookup/256/alternating": [
+            119.0,
+            40,
+            2
+          ],
+          "publish/256": [
+            571.8,
+            152,
+            3
+          ]
+        }
+      }
+    }
+  ]
+}

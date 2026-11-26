@@ -1,0 +1,104 @@
+{
+  "micropod": {
+    "round": 1,
+    "revision": "candidate",
+    "mode": "checked-in",
+    "seconds": 12.961038665962406,
+    "stages": {
+      "node-image": 1.348,
+      "node-unit": 1.686,
+      "node-edit": 0.588,
+      "go-image": 5.875,
+      "go-checks": 10.481,
+      "go-unit": 1.549,
+      "postgres": 2.151
+    },
+    "product_sha256": "029e37f051101c51895434f572587febb174948c631e17ee7c0190e05ebd5766",
+    "postgres": {
+      "722c4d910f4f5be096bee022ee83cdbf79502d77a6a73ba2c3453bcd80db8f1a": [
+        {
+          "action": "start",
+          "ns": 1795158944014943223,
+          "signal": null,
+          "exit": null
+        },
+        {
+          "action": "kill",
+          "ns": 1795158945098844958,
+          "signal": "2",
+          "exit": null
+        },
+        {
+          "action": "die",
+          "ns": 1795158945203347458,
+          "signal": null,
+          "exit": "0"
+        },
+        {
+          "action": "destroy",
+          "ns": 1795158945235996000,
+          "signal": null,
+          "exit": null
+        }
+      ]
+    },
+    "sql": true,
+    "live_node_tests": true,
+    "unit_tests": [
+      "TestGreeting",
+      "TestHelloHandler",
+      "TestHealthHandler"
+    ]
+  },
+  "orbstack": {
+    "round": 1,
+    "revision": "candidate",
+    "mode": "checked-in",
+    "seconds": 14.083957874972839,
+    "stages": {
+      "node-image": 2.531,
+      "node-unit": 1.726,
+      "go-image": 5.867,
+      "node-edit": 1.707,
+      "go-checks": 8.978,
+      "go-unit": 2.673,
+      "postgres": 4.701
+    },
+    "product_sha256": "029e37f051101c51895434f572587febb174948c631e17ee7c0190e05ebd5766",
+    "postgres": {
+      "5def32b605f6950d598f90dbd95b4ba1bb8574492192d371975a330c368c604e": [
+        {
+          "action": "start",
+          "ns": 1795158966146252430,
+          "signal": null,
+          "exit": null
+        },
+        {
+          "action": "kill",
+          "ns": 1795158969126888885,
+          "signal": "2",
+          "exit": null
+        },
+        {
+          "action": "die",
+          "ns": 1795158969362200312,
+          "signal": null,
+          "exit": "0"
+        },
+        {
+          "action": "destroy",
+          "ns": 1795158969457847694,
+          "signal": null,
+          "exit": null
+        }
+      ]
+    },
+    "sql": true,
+    "live_node_tests": true,
+    "unit_tests": [
+      "TestGreeting",
+      "TestHelloHandler",
+      "TestHealthHandler"
+    ]
+  }
+}

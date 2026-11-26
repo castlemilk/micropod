@@ -1,0 +1,1168 @@
+{
+  "scope": "Offline client-side in-memory copies into the production byte counter, no network or VM.",
+  "workload": "Each active stream copies complete 8 MiB responses from one shared read-only memory body. io.Copy's normal buffer and the prescribed reader cap govern write size. Each sample checks the warmup, scored, drain and invocation counts for all 32 slots. Scoring begins after the goroutines reach a barrier and includes the response copy, Go allocation and GC.",
+  "method": "GOMAXPROCS=4. One warmup pair and 16 paired blocks per scenario, balanced randomized arm order, shuffled scenarios per block, seed 34227. One binary, new process per sample. Throughput is logical copy bytes per wall second. CPU is process user plus system time. Relative effects are paired medians with a 10,000-resample block bootstrap.",
+  "go": "go version go1.27.2 darwin/arm64",
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "binary_sha256": "251fa97c0b277833317c662ca7644f924e99ea5328dd156cc7076cf5bd4e7e07",
+  "sources": {
+    "main.go": "4b2ce91bf2667aef6804b51d0e22bd02539e10922c00ddec5060259d05e4f27f",
+    "counter_layout_test.go": "4db0c35c48423deb071623308be1cac55bb0a75fd0e5441edd28dad340eba8fb",
+    "bench_offered_counter_layout.py": "3ac3a3b559e0eaeb95bdc28ea430dd880b8d0d228c7955d0e584dc5e7559212f"
+  },
+  "results": [
+    {
+      "writers": 1,
+      "chunk_bytes": 4096,
+      "per_arm_scored_bytes": 536870912,
+      "per_arm_scored_writes": 131072,
+      "throughput": {
+        "median_change_pct": -0.16407581257635862,
+        "paired_bootstrap95_pct": [
+          -4.598344010154365,
+          1.7827637950821318
+        ]
+      },
+      "cpu_per_byte": {
+        "median_change_pct": 0.7816780352065456,
+        "paired_bootstrap95_pct": [
+          -1.4198473282442725,
+          4.806201550387601
+        ]
+      },
+      "medians": {
+        "8": {
+          "copy_gib_s": 38.05440614469225,
+          "process_cpu_ms_per_gib": 26.128999999999998
+        },
+        "128": {
+          "copy_gib_s": 38.56023576107432,
+          "process_cpu_ms_per_gib": 25.814
+        }
+      },
+      "pairs": [
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 13009625,
+            "cpu_ns": 12900000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 14634791,
+            "cpu_ns": 13049000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 15106791,
+            "cpu_ns": 13488000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13902459,
+            "cpu_ns": 13406000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 14225208,
+            "cpu_ns": 14059000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13571084,
+            "cpu_ns": 13426000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 12722417,
+            "cpu_ns": 12399000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12785083,
+            "cpu_ns": 12517000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 12494458,
+            "cpu_ns": 12297000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12474250,
+            "cpu_ns": 12418000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13311167,
+            "cpu_ns": 13259000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12822917,
+            "cpu_ns": 12816000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12848167,
+            "cpu_ns": 12844000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 12227583,
+            "cpu_ns": 12255000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12959709,
+            "cpu_ns": 12914000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13190750,
+            "cpu_ns": 13100000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13138541,
+            "cpu_ns": 13080000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12815791,
+            "cpu_ns": 12778000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 13239584,
+            "cpu_ns": 13134000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13948375,
+            "cpu_ns": 13906000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 13633833,
+            "cpu_ns": 13519000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13742792,
+            "cpu_ns": 13638000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 12743959,
+            "cpu_ns": 12775000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12595000,
+            "cpu_ns": 12588000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 13766084,
+            "cpu_ns": 13782000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 13139625,
+            "cpu_ns": 13130000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 12527625,
+            "cpu_ns": 12463000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 13327625,
+            "cpu_ns": 13291000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 12277291,
+            "cpu_ns": 12234000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12865875,
+            "cpu_ns": 12864000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 12329000,
+            "cpu_ns": 12321000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12973750,
+            "cpu_ns": 12967000
+          }
+        }
+      ]
+    },
+    {
+      "writers": 1,
+      "chunk_bytes": 32768,
+      "per_arm_scored_bytes": 536870912,
+      "per_arm_scored_writes": 16384,
+      "throughput": {
+        "median_change_pct": -0.16244956629505314,
+        "paired_bootstrap95_pct": [
+          -1.936064598381937,
+          1.020179992681558
+        ]
+      },
+      "cpu_per_byte": {
+        "median_change_pct": -0.41759719890901437,
+        "paired_bootstrap95_pct": [
+          -2.130378394416388,
+          1.5956372450010026
+        ]
+      },
+      "medians": {
+        "8": {
+          "copy_gib_s": 49.56294674973042,
+          "process_cpu_ms_per_gib": 20.107
+        },
+        "128": {
+          "copy_gib_s": 49.670574331940216,
+          "process_cpu_ms_per_gib": 19.779
+        }
+      },
+      "pairs": [
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10243042,
+            "cpu_ns": 10047000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10394167,
+            "cpu_ns": 9554000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 11819625,
+            "cpu_ns": 10436000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 12011541,
+            "cpu_ns": 10547000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 9981708,
+            "cpu_ns": 9388000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10076209,
+            "cpu_ns": 9516000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 9928083,
+            "cpu_ns": 9791000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10274792,
+            "cpu_ns": 10160000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 9825875,
+            "cpu_ns": 9722000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 9297125,
+            "cpu_ns": 9140000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 9851750,
+            "cpu_ns": 9859000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 9834833,
+            "cpu_ns": 9797000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10013333,
+            "cpu_ns": 9982000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10200417,
+            "cpu_ns": 10068000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10157708,
+            "cpu_ns": 10060000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 9907833,
+            "cpu_ns": 9902000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 9721042,
+            "cpu_ns": 9712000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10119875,
+            "cpu_ns": 10081000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10064750,
+            "cpu_ns": 10060000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10314166,
+            "cpu_ns": 10245000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10080375,
+            "cpu_ns": 9795000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10273958,
+            "cpu_ns": 10276000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 9753666,
+            "cpu_ns": 9757000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 9802375,
+            "cpu_ns": 9768000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 9448084,
+            "cpu_ns": 9439000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10096000,
+            "cpu_ns": 10113000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10592667,
+            "cpu_ns": 10597000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10504083,
+            "cpu_ns": 10484000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 10194250,
+            "cpu_ns": 10157000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10222875,
+            "cpu_ns": 10178000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 9506750,
+            "cpu_ns": 9396000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 10360750,
+            "cpu_ns": 10145000
+          }
+        }
+      ]
+    },
+    {
+      "writers": 32,
+      "chunk_bytes": 4096,
+      "per_arm_scored_bytes": 536870912,
+      "per_arm_scored_writes": 131072,
+      "throughput": {
+        "median_change_pct": 61.12756580100505,
+        "paired_bootstrap95_pct": [
+          54.87178742865426,
+          73.89856829384804
+        ]
+      },
+      "cpu_per_byte": {
+        "median_change_pct": -39.2280458254223,
+        "paired_bootstrap95_pct": [
+          -43.128106298813265,
+          -36.20738717204485
+        ]
+      },
+      "medians": {
+        "8": {
+          "copy_gib_s": 100.53054934885719,
+          "process_cpu_ms_per_gib": 38.161
+        },
+        "128": {
+          "copy_gib_s": 165.6823438228609,
+          "process_cpu_ms_per_gib": 22.666
+        }
+      },
+      "pairs": [
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3001125,
+            "cpu_ns": 11214000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 5241125,
+            "cpu_ns": 19718000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 5304875,
+            "cpu_ns": 20322000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3340959,
+            "cpu_ns": 12520000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3294209,
+            "cpu_ns": 11942000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 5380166,
+            "cpu_ns": 20539000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2901625,
+            "cpu_ns": 11045000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4852417,
+            "cpu_ns": 18412000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4627208,
+            "cpu_ns": 17688000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2911417,
+            "cpu_ns": 10888000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2946584,
+            "cpu_ns": 11045000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4586792,
+            "cpu_ns": 17720000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 5354916,
+            "cpu_ns": 20995000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3079333,
+            "cpu_ns": 11518000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3046584,
+            "cpu_ns": 11745000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4284166,
+            "cpu_ns": 16277000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3147125,
+            "cpu_ns": 11834000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4386250,
+            "cpu_ns": 16968000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2890917,
+            "cpu_ns": 11281000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 5814958,
+            "cpu_ns": 22378000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 5326084,
+            "cpu_ns": 20359000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3034708,
+            "cpu_ns": 11537000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4981500,
+            "cpu_ns": 19254000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2946709,
+            "cpu_ns": 11042000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 3448458,
+            "cpu_ns": 12815000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2962583,
+            "cpu_ns": 11385000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4718084,
+            "cpu_ns": 17571000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3125375,
+            "cpu_ns": 11209000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3195708,
+            "cpu_ns": 12412000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4965750,
+            "cpu_ns": 18907000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 5635458,
+            "cpu_ns": 21551000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2971333,
+            "cpu_ns": 11078000
+          }
+        }
+      ]
+    },
+    {
+      "writers": 32,
+      "chunk_bytes": 32768,
+      "per_arm_scored_bytes": 536870912,
+      "per_arm_scored_writes": 16384,
+      "throughput": {
+        "median_change_pct": 7.775187244727455,
+        "paired_bootstrap95_pct": [
+          3.4610565880141886,
+          11.981636958067776
+        ]
+      },
+      "cpu_per_byte": {
+        "median_change_pct": -6.888122243380446,
+        "paired_bootstrap95_pct": [
+          -9.637272630571214,
+          -3.20673288099389
+        ]
+      },
+      "medians": {
+        "8": {
+          "copy_gib_s": 197.0987864092939,
+          "process_cpu_ms_per_gib": 18.905
+        },
+        "128": {
+          "copy_gib_s": 218.70984224604192,
+          "process_cpu_ms_per_gib": 17.490000000000002
+        }
+      },
+      "pairs": [
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2941000,
+            "cpu_ns": 10921000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2936917,
+            "cpu_ns": 11290000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 3076917,
+            "cpu_ns": 11448000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 3431250,
+            "cpu_ns": 11270000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2914500,
+            "cpu_ns": 10871000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2983167,
+            "cpu_ns": 11435000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2222916,
+            "cpu_ns": 8283000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2442250,
+            "cpu_ns": 9378000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2197916,
+            "cpu_ns": 8516000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 4481958,
+            "cpu_ns": 12252000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2595834,
+            "cpu_ns": 9159000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2275125,
+            "cpu_ns": 8714000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2121541,
+            "cpu_ns": 8279000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2559583,
+            "cpu_ns": 9462000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2181208,
+            "cpu_ns": 8372000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2361750,
+            "cpu_ns": 9077000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2514417,
+            "cpu_ns": 9702000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2391125,
+            "cpu_ns": 9063000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2211209,
+            "cpu_ns": 8495000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2440167,
+            "cpu_ns": 9401000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2394500,
+            "cpu_ns": 9348000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2477375,
+            "cpu_ns": 9443000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2447666,
+            "cpu_ns": 9418000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2142875,
+            "cpu_ns": 8387000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2620792,
+            "cpu_ns": 9822000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2956417,
+            "cpu_ns": 9977000
+          }
+        },
+        {
+          "order": [
+            128,
+            8
+          ],
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2234542,
+            "cpu_ns": 8442000
+          },
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2336625,
+            "cpu_ns": 9096000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2464334,
+            "cpu_ns": 9156000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2297250,
+            "cpu_ns": 8776000
+          }
+        },
+        {
+          "order": [
+            8,
+            128
+          ],
+          "8": {
+            "base_mod_128": 0,
+            "wall_ns": 2606709,
+            "cpu_ns": 9937000
+          },
+          "128": {
+            "base_mod_128": 0,
+            "wall_ns": 2339625,
+            "cpu_ns": 9059000
+          }
+        }
+      ]
+    }
+  ],
+  "completed_utc": "2026-11-23T22:48:41.167662+00:00"
+}

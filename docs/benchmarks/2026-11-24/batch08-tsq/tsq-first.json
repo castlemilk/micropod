@@ -1,0 +1,1952 @@
+{
+  "date": "2026-11-24",
+  "direction": "231.08",
+  "tier": "source/fixture",
+  "base": "ad9d174eda5eb499e0e15675829e21a00d836f84",
+  "kernel": "Linux 7.3.5",
+  "tar_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+  "source_sha256": "b55846bf35be5799cc19318c9215aa1b8a9a4881f8e3794cf5dc08b8aa4ea5b7",
+  "function_sha256": "6b32b261322e5118e00329beb09120e66b0287f9b144bdf28904dc8667104395",
+  "ipv4_sha256": "bbe547fe1e0a079d42c3c05ccf9f94f70fa70ac33a37d950882bf36890adfdcc",
+  "sock_sha256": "0b693d70e0d9752caaca9816fadc82802ff8c2c62612b7bd5fb2691045a2e4a0",
+  "fixture_sha256": "d2c16cf390d06f079772ef73e5cb391998fcf230a16307579a2d19e7e8f563fd",
+  "reproducer_sha256": "45b49e921d7e8550f6e00626fd5178684ee587810c6087525c39c3729fd9f476",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "normal_send_factor": 0,
+  "pacing_shift": 10,
+  "tcp_tx_delay": 0,
+  "rows": [
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 128,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 1024,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 4096,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 2048,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 131072,
+      "wmem_second_B": 131072,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 143360,
+      "wmem_second_B": 143360,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194304,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 4194305,
+      "wmem_second_B": 4194305,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291456,
+      "wmem_second_B": 6291456,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 6291457,
+      "wmem_second_B": 6291457,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388608,
+      "wmem_second_B": 8388608,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 8192,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 8388609,
+      "wmem_second_B": 8388609,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        8,
+        4
+      ],
+      "arms": {
+        "8": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 5242880,
+      "wmem_second_B": 5242880,
+      "rtx_entries": 0,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 5242880,
+      "wmem_second_B": 5242880,
+      "rtx_entries": 1,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 5242880,
+      "wmem_second_B": 5242880,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": true,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    },
+    {
+      "rate_MiB_per_s": 6144,
+      "skb_truesize_B": 69632,
+      "wmem_first_B": 5242880,
+      "wmem_second_B": 4194304,
+      "rtx_entries": 3,
+      "first_attempt_order_MiB": [
+        4,
+        8
+      ],
+      "arms": {
+        "4": {
+          "stop": false,
+          "reads": 2,
+          "throttled_bit": true
+        },
+        "8": {
+          "stop": false,
+          "reads": 1,
+          "throttled_bit": false
+        }
+      }
+    }
+  ]
+}

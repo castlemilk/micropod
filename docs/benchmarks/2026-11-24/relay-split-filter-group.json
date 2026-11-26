@@ -1,0 +1,397 @@
+{
+  "direction": "230.03",
+  "control": "38e4fbca6b10e87835278d3b8bf38622333dad04",
+  "system": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "source_fixture": "Darwin AF_UNIX pairs and actual kqueue calls; no IP connection or VM",
+  "files": {
+    "split_filter_group.patch": "1e0c7735d3f87f3f0eab141c38ce3d1ce20bca2b2fb17427459388859de0e228",
+    "split_filter_group.c": "08bb567ba2d75dc7b84c4c7b9e85e9916188e62eb5a69d6899ffb03a26ddd802",
+    "filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "split_filter_group.py": "e588685ca18350474d1345de4593eeea822f9e1789bab1f43f3470f113ddd87d"
+  },
+  "arms": {
+    "control": {
+      "c_sha256": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+      "optimized": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "mixed_queue_submissions": 2,
+          "correctly_routed_events": 2
+        }
+      ],
+      "sanitizer": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 3,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 2,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "mixed_queue_submissions": 2,
+          "correctly_routed_events": 2
+        }
+      ]
+    },
+    "coalesced": {
+      "c_sha256": "3ffc5f84fef054c81e1d08e2b5dd7d230c1ff75885ec4260705c06b2b39560c1",
+      "optimized": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "mixed_queue_submissions": 2,
+          "correctly_routed_events": 2
+        }
+      ],
+      "sanitizer": [
+        {
+          "owner": "split",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "split",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 0,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 0,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "owner": "dedicated",
+          "room_bytes": 16384,
+          "connect_complete": {
+            "syscalls": 1,
+            "filters": 3
+          },
+          "unblocked_bulk": {
+            "syscalls": 0,
+            "filters": 0
+          },
+          "pause_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "first_write_bytes": 16384,
+          "resume_reader": {
+            "syscalls": 1,
+            "filters": 2
+          },
+          "verified_payload_bytes": 131075
+        },
+        {
+          "mixed_queue_submissions": 2,
+          "correctly_routed_events": 2
+        }
+      ]
+    }
+  }
+}

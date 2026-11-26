@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>MICROPOD_CI_CPUS</key>
+		<string>4</string>
+		<key>MICROPOD_CI_DISK_GIB</key>
+		<string>6</string>
+		<key>MICROPOD_CI_ENGINE</key>
+		<string>containerd</string>
+		<key>MICROPOD_CI_HOME</key>
+		<string>/tmp/mp-t-zr_n0upe/a</string>
+		<key>MICROPOD_CI_KERNEL</key>
+		<string>/Users/benebsworth/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image</string>
+		<key>MICROPOD_CI_MEMORY_MIB</key>
+		<string>4096</string>
+		<key>MICROPOD_CI_OCI_TOOLS</key>
+		<string>/private/tmp/mp-t-zr_n0upe/oci</string>
+		<key>MICROPOD_CI_PORT_RELAY</key>
+		<string>kqueue-interactive</string>
+		<key>MICROPOD_CI_PORT_RELAY_WORKERS</key>
+		<string>2</string>
+		<key>MICROPOD_CI_PUBLISHED_PATH</key>
+		<string>macvlan</string>
+		<key>MICROPOD_CI_WORKSPACE</key>
+		<string>/private/tmp/mp-t-zr_n0upe/workspace</string>
+	</dict>
+	<key>KeepAlive</key>
+	<false/>
+	<key>Label</key>
+	<string>dev.micropod.benchmark.mp-t-zr_n0upe.a</string>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/.build/local-published-tcp/fixed-workers-5b8ea1a6/micropod</string>
+		<string>ci</string>
+		<string>serve</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T095144Z-local-sanx5o0e/a/service.stderr</string>
+	<key>StandardOutPath</key>
+	<string>/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/20261124T095144Z-local-sanx5o0e/a/service.stdout</string>
+</dict>
+</plist>

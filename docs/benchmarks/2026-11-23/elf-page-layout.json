@@ -1,0 +1,478 @@
+{
+  "scope": "PT_LOAD file/virtual offset congruence only; no guest boot or runtime ABI test",
+  "page_sizes": [
+    4096,
+    16384
+  ],
+  "images": [
+    {
+      "archive": "orb-image.tar",
+      "config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+      "elf_files": [
+        {
+          "path": "netbench",
+          "layer": "sha256:10c006a76139719b46481f0aae7c28347652a64ada716100689265b4a9b387b7",
+          "sha256": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 65536,
+              "flags": 5,
+              "file_bytes": 2902436,
+              "alignment": 65536
+            },
+            {
+              "offset": 2949120,
+              "vaddr": 3014656,
+              "flags": 4,
+              "file_bytes": 3360792,
+              "alignment": 65536
+            },
+            {
+              "offset": 6356992,
+              "vaddr": 6422528,
+              "flags": 6,
+              "file_bytes": 326240,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        }
+      ]
+    },
+    {
+      "archive": "alpine-probe.tar",
+      "config_sha256": "0afd8daadd431397404442538c18d53bbe815ed278047eccf79fcb929b3ab856",
+      "elf_files": [
+        {
+          "path": "bin/busybox",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "dd10691d81c84f0182f5af5f1583d566ddc0b9d0d9fc46b41b99b83c398306dd",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 851932,
+              "alignment": 65536
+            },
+            {
+              "offset": 902952,
+              "vaddr": 902952,
+              "flags": 6,
+              "file_bytes": 14609,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "lib/ld-musl-aarch64.so.1",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "652a04bcb0326733f762eca799887bbc9e070df0a0d6668238769f6dfcdc77c2",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 662284,
+              "alignment": 65536
+            },
+            {
+              "offset": 719616,
+              "vaddr": 785152,
+              "flags": 6,
+              "file_bytes": 2308,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "sbin/apk",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "cfdb30b52fdaac5f9288961f0507a7251017465956ffb14dd56e30aa94521301",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 102428,
+              "alignment": 65536
+            },
+            {
+              "offset": 127328,
+              "vaddr": 192864,
+              "flags": 6,
+              "file_bytes": 6080,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/bin/getconf",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "4b22a4083e4aa0a837d8e42d20510c106d968fdf14e1e46de9c876ffaaf61744",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 9448,
+              "alignment": 65536
+            },
+            {
+              "offset": 61960,
+              "vaddr": 127496,
+              "flags": 6,
+              "file_bytes": 3584,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/bin/getent",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "c488a82796a118871b0b6b076a277103f5ef11f0e9a279b9138a2258c5d5f342",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 12880,
+              "alignment": 65536
+            },
+            {
+              "offset": 64328,
+              "vaddr": 129864,
+              "flags": 6,
+              "file_bytes": 1424,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/bin/iconv",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "16ceac1b9016595e9e84be2e3287655105eaa1ff7169389f7ee5bc7717abd8ce",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 5064,
+              "alignment": 65536
+            },
+            {
+              "offset": 64768,
+              "vaddr": 130304,
+              "flags": 6,
+              "file_bytes": 776,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/bin/scanelf",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "8aec09cc4082b1c5b3123750ffed2885dd2ece3eda37df26a884bb4f938ef51a",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 54004,
+              "alignment": 65536
+            },
+            {
+              "offset": 58864,
+              "vaddr": 124400,
+              "flags": 6,
+              "file_bytes": 6712,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/bin/ssl_client",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "d7b5e405251b14983b8f96b13f0d66dfe30f304c58aa91bf1ed482a6c4166436",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 5944,
+              "alignment": 65536
+            },
+            {
+              "offset": 64560,
+              "vaddr": 130096,
+              "flags": 6,
+              "file_bytes": 984,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/engines-3/afalg.so",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "4ae4ac40547e07d217498c8b3623cc0b298d2decda73fdb92a294b90146e623c",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 12128,
+              "alignment": 65536
+            },
+            {
+              "offset": 64400,
+              "vaddr": 129936,
+              "flags": 6,
+              "file_bytes": 1432,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/engines-3/capi.so",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "d4f08e06734acc125603cfb478f43fb41d0d557820eae937114be0f9aa4ec536",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 1780,
+              "alignment": 65536
+            },
+            {
+              "offset": 64944,
+              "vaddr": 130480,
+              "flags": 6,
+              "file_bytes": 600,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/engines-3/loader_attic.so",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "b49250d8fc4115cc6947fc5b1834144203c10b399331540916e5709d06db43be",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 38800,
+              "alignment": 65536
+            },
+            {
+              "offset": 63360,
+              "vaddr": 128896,
+              "flags": 6,
+              "file_bytes": 2656,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/engines-3/padlock.so",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "b982046cf499f9b66a46b83d9215f57f7fc00cee5595ca895dd55ae40f46c8b2",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 1780,
+              "alignment": 65536
+            },
+            {
+              "offset": 64944,
+              "vaddr": 130480,
+              "flags": 6,
+              "file_bytes": 600,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/libapk.so.3.0.0",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "4071eef7796f810c172de7fd72bec81bff1328a24b6e853d9c97b449813893fc",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 279012,
+              "alignment": 65536
+            },
+            {
+              "offset": 318664,
+              "vaddr": 384200,
+              "flags": 6,
+              "file_bytes": 9816,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/libcrypto.so.3",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "944332672e26268e1d785342f14f9add9155789ee8575639f52f3464fa03c47f",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 4048080,
+              "alignment": 65536
+            },
+            {
+              "offset": 4060128,
+              "vaddr": 4125664,
+              "flags": 6,
+              "file_bytes": 471080,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/libssl.so.3",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "694a0011841dff870103b41afac87f35d400b78d547960b4ec8a66a636dbbdce",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 799960,
+              "alignment": 65536
+            },
+            {
+              "offset": 812408,
+              "vaddr": 877944,
+              "flags": 6,
+              "file_bytes": 53824,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/libz.so.1.3.2",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "52f010ad74dc519d050c57dd85ecb1264673a23365b3b57dfe184874bb0a8981",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 89144,
+              "alignment": 65536
+            },
+            {
+              "offset": 129640,
+              "vaddr": 195176,
+              "flags": 6,
+              "file_bytes": 1440,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        },
+        {
+          "path": "usr/lib/ossl-modules/legacy.so",
+          "layer": "sha256:4154419d13c4db5f2e910214abf684812a6cc507f3e8d77e793da4ce07adedfd",
+          "sha256": "a8bc7f3702b442de721a229d8152419dc1c01bfd94964c771701494562407775",
+          "segments": [
+            {
+              "offset": 0,
+              "vaddr": 0,
+              "flags": 5,
+              "file_bytes": 74464,
+              "alignment": 65536
+            },
+            {
+              "offset": 116632,
+              "vaddr": 182168,
+              "flags": 6,
+              "file_bytes": 14448,
+              "alignment": 65536
+            }
+          ],
+          "offset_mismatches": {
+            "4096": [],
+            "16384": []
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,264 @@
+{
+  "binaries": {
+    "job-retire": "59a42c3ab7f976fbcb9ea78341be209e87b9d47938e5a8322d248af6b0977360",
+    "mp": "e228f9f803a01d7babe0bc8cd156cf391a6f72345f0e918d9c1d8ccf580293b2",
+    "mp-buffers": "aa880d510b65dd73154b4f4dcfc2d1b482d497a2aafb8bc54e0ec506a68a8196",
+    "netbench": "3f6a908d51b87d00bfddfcfa325aec0797e17dcc58ffac7af52619832fdcb5b4"
+  },
+  "id": "237.05",
+  "kernel_archive_revision": "52d67399aad63ed5935c8a615727379d3f1a3636",
+  "kernel_archive_sha256": "9b1459f8b56a67874e4c21e62c19ed6f9373dbe2ed5a2791e309fe14fc9d7ad5",
+  "limits": "NET_RX softirq entries measure calls, not CPU time or packets. One separate traced transfer per arm cannot establish a causal retransmission effect. Burst receipt has no loaded fresh tail or first-attempt loss ledger. Bootstrap resamples complete pairs.",
+  "medians": {
+    "distribute": {
+      "busiest_share": 0.28497239535844643,
+      "fresh_p95_us": 1062.0,
+      "fresh_p99_us": 2151.0,
+      "rate_mib_s": 3066.923717918722,
+      "total": 15007.0
+    },
+    "restore": {
+      "busiest_share": 0.4832739680326226,
+      "fresh_p95_us": 905.5,
+      "fresh_p99_us": 2441.5,
+      "rate_mib_s": 3373.0180783025335,
+      "total": 9056.5
+    }
+  },
+  "paired_pct": {
+    "busiest_share": {
+      "bootstrap_95_pct": [
+        -44.54959224327182,
+        -38.21654814761642
+      ],
+      "increases": 0,
+      "median_pct": -40.40576648576277,
+      "n": 6
+    },
+    "rate_mib_s": {
+      "bootstrap_95_pct": [
+        -21.33035520070635,
+        41.37359814207239
+      ],
+      "increases": 3,
+      "median_pct": -5.5325908630675045,
+      "n": 6
+    },
+    "total": {
+      "bootstrap_95_pct": [
+        56.3728394925609,
+        81.01072709979259
+      ],
+      "increases": 6,
+      "median_pct": 65.70785422277712,
+      "n": 6
+    }
+  },
+  "pairs": [
+    {
+      "distribute": {
+        "busiest_share": 0.290473017988008,
+        "fresh_p95_us": 1171,
+        "fresh_p99_us": 2161,
+        "rate_mib_s": 3124.3723032303883,
+        "rx_softirqs": [
+          3984,
+          2723,
+          3943,
+          4360
+        ],
+        "total": 15010
+      },
+      "restore": {
+        "busiest_share": 0.4856043956043956,
+        "fresh_p95_us": 1890,
+        "fresh_p99_us": 4228,
+        "rate_mib_s": 2989.1061210086136,
+        "rx_softirqs": [
+          4419,
+          1648,
+          1419,
+          1614
+        ],
+        "total": 9100
+      }
+    },
+    {
+      "distribute": {
+        "busiest_share": 0.281868969019807,
+        "fresh_p95_us": 953,
+        "fresh_p99_us": 1049,
+        "rate_mib_s": 4389.581082387019,
+        "rx_softirqs": [
+          3785,
+          4002,
+          4440,
+          3525
+        ],
+        "total": 15752
+      },
+      "restore": {
+        "busiest_share": 0.5050527484730705,
+        "fresh_p95_us": 760,
+        "fresh_p99_us": 896,
+        "rate_mib_s": 2834.254229770156,
+        "rx_softirqs": [
+          4548,
+          1234,
+          1383,
+          1840
+        ],
+        "total": 9005
+      }
+    },
+    {
+      "distribute": {
+        "busiest_share": 0.2870202372644801,
+        "fresh_p95_us": 1484,
+        "fresh_p99_us": 2141,
+        "rate_mib_s": 2604.8445611410284,
+        "rx_softirqs": [
+          3007,
+          3204,
+          4113,
+          4006
+        ],
+        "total": 14330
+      },
+      "restore": {
+        "busiest_share": 0.48094354046084964,
+        "fresh_p95_us": 4069,
+        "fresh_p99_us": 4895,
+        "rate_mib_s": 3085.960899452969,
+        "rx_softirqs": [
+          4404,
+          1921,
+          1104,
+          1728
+        ],
+        "total": 9157
+      }
+    },
+    {
+      "distribute": {
+        "busiest_share": 0.2686959529574542,
+        "fresh_p95_us": 1877,
+        "fresh_p99_us": 3325,
+        "rate_mib_s": 2990.3849312260527,
+        "rx_softirqs": [
+          3307,
+          3592,
+          3884,
+          3672
+        ],
+        "total": 14455
+      },
+      "restore": {
+        "busiest_share": 0.48773105610204304,
+        "fresh_p95_us": 800,
+        "fresh_p99_us": 3638,
+        "rate_mib_s": 3858.932850709465,
+        "rx_softirqs": [
+          4512,
+          1631,
+          1624,
+          1484
+        ],
+        "total": 9251
+      }
+    },
+    {
+      "distribute": {
+        "busiest_share": 0.2829245534524127,
+        "fresh_p95_us": 875,
+        "fresh_p99_us": 4060,
+        "rate_mib_s": 3009.4751326070555,
+        "rx_softirqs": [
+          3573,
+          3620,
+          3566,
+          4245
+        ],
+        "total": 15004
+      },
+      "restore": {
+        "busiest_share": 0.47542438699656053,
+        "fresh_p95_us": 855,
+        "fresh_p99_us": 957,
+        "rate_mib_s": 3769.0638624438916,
+        "rx_softirqs": [
+          4285,
+          1754,
+          1303,
+          1671
+        ],
+        "total": 9013
+      }
+    },
+    {
+      "distribute": {
+        "busiest_share": 0.2914494577266463,
+        "fresh_p95_us": 878,
+        "fresh_p99_us": 1150,
+        "rate_mib_s": 4680.1800772412535,
+        "rx_softirqs": [
+          4645,
+          2472,
+          4864,
+          4708
+        ],
+        "total": 16689
+      },
+      "restore": {
+        "busiest_share": 0.4571748878923767,
+        "fresh_p95_us": 956,
+        "fresh_p99_us": 1245,
+        "rate_mib_s": 3660.0752571520984,
+        "rx_softirqs": [
+          4078,
+          1323,
+          1652,
+          1867
+        ],
+        "total": 8920
+      }
+    }
+  ],
+  "separate_6gib_profile": {
+    "rps": {
+      "payload_bytes": 6442450944,
+      "retransmit_events_per_payload_gib": 125.5,
+      "rx_calls_by_cpu": {
+        "0": 16399,
+        "1": 13141,
+        "2": 7133,
+        "3": 8151
+      },
+      "service_tcp_retransmit_events": 753,
+      "tx_bytes_by_cpu": {
+        "0": 1915111616,
+        "1": 1759228052,
+        "2": 1328889080,
+        "3": 1451103770
+      }
+    },
+    "stock": {
+      "payload_bytes": 6442450944,
+      "retransmit_events_per_payload_gib": 72.66666666666667,
+      "rx_calls_by_cpu": {
+        "0": 48676
+      },
+      "service_tcp_retransmit_events": 436,
+      "tx_bytes_by_cpu": {
+        "0": 4383812460,
+        "1": 652751172,
+        "2": 736603322,
+        "3": 681037296
+      }
+    }
+  },
+  "separate_profile_archive_sha256": "2d20e203cc135a4a86828b8b365fc7885b225b9b452c276ad1f761fd97556b8f",
+  "separate_profile_source": "47a01af326b712ed25482b86fa1de569f020d73a",
+  "tier": "offline replay of archived VM measurements",
+  "work": "Six archived alternating restore/distribute blocks, 32-stream synchronized bursts; idle fresh separate."
+}

@@ -1,0 +1,12 @@
+--- a/Sources/CPublishedTCP/PublishedTCP.c
++++ b/Sources/CPublishedTCP/PublishedTCP.c
+@@ -766,8 +766,7 @@
+                                 filter_change(&p->client.watch, EVFILT_READ, connected_read_flags) };
+     if (update_stream_filters(r, changes, 3) < 0) { retire(p); return; }
+     connected(p);
+-    // The Mac client can already have sent its first request during connect.
+-    pump(&p->client, &p->guest);
++    // The enabled level-triggered filter will report buffered or future client bytes.
+ }
+ 
+ // A full descriptor table leaves the listener readable. Suspend it briefly so

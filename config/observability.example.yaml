@@ -1,0 +1,33 @@
+# Micropod Engine & Workload Observability Configuration
+# Default path: ~/.micropod/observability.yaml (override via MICROPOD_OBSERVABILITY_CONFIG)
+# Manage with: micropod telemetry show | set <key> <value> | enable|disable <target> | validate
+schema: 1
+service_name: micropod-engine
+
+prometheus:
+  enabled: true
+  # Optional TCP scrape listener exposed directly by micropod-vmm (in addition to
+  # MicropodAPI's unified /metrics endpoint and per-worker Unix telemetry.sock).
+  listen: 127.0.0.1:9464
+  path: /metrics
+
+otlp:
+  enabled: false
+  # OpenTelemetry OTLP/HTTP JSON metrics receiver (e.g. OTel Collector, Grafana Alloy)
+  endpoint: http://127.0.0.1:4318/v1/metrics
+  export_interval_secs: 10
+  headers: {}
+  resource_attributes:
+    deployment.environment: local
+
+tracing:
+  # Off by default (zero hot-path overhead). Enable here, via MICROPOD_TRACE=1,
+  # or dynamically on a live running worker via `micropod telemetry trace enable`.
+  enabled: false
+  endpoint: http://127.0.0.1:4318/v1/traces
+  sample_rate: 1.0
+  slow_op_threshold_ms: 5
+
+health:
+  memory_warn_pct: 90
+  vmm_timeout_ms: 2000

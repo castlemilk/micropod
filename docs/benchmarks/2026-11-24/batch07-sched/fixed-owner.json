@@ -1,0 +1,531 @@
+{
+  "direction": "228.04",
+  "base": "a60d203b16b24abd857e1b5c9e817636b241f850",
+  "darwin": "25.5.0",
+  "machine": "arm64",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "source_sha256": {
+    "scripts/relaybench/filter_work.c": "d09459ebab854c706048e1b87c84a976405ebdce42e5758c7825cfa836698109",
+    "Sources/CPublishedTCP/PublishedTCP.c": "f35e0245ebc1d394f748ea31ef03df180c70ad4a979925037ea063f7a2a08cee",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "e1996e8123fe678ae460b2bd18fb5f4a5af7457e022c26731fb426146c60bdb9",
+    "Sources/MicropodRuntime/NativeLoopbackRelay.swift": "549259065039321394cb9b41c7f0011206f589ccca6b19e95af044ef6bf5db1e"
+  },
+  "fixture_sha256": {
+    "fixed_owner.c": "518d81b558b7e12d5be1c5ea8d4b67cb76bb75fd7b907a293fbbd232eaf015dd",
+    "fixed_owner.py": "3be30fa17859244f45e551bf54962ba5ef4da09d7b94d196fab810835fb27d33"
+  },
+  "attempts": [
+    {
+      "pair": 1,
+      "position": 1,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 1,
+      "position": 2,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 2,
+      "position": 1,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 2,
+      "position": 2,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 3,
+      "position": 1,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 3,
+      "position": 2,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 4,
+      "position": 1,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 4,
+      "position": 2,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 5,
+      "position": 1,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 5,
+      "position": 2,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 6,
+      "position": 1,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 6,
+      "position": 2,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 7,
+      "position": 1,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 7,
+      "position": 2,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 8,
+      "position": 1,
+      "fixed_requested": 1,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 0,
+        "get_default": 0,
+        "basic_policy": 2,
+        "qos": 0,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    },
+    {
+      "pair": 8,
+      "position": 2,
+      "fixed_requested": 0,
+      "set_status": 0,
+      "verified_bytes": 32776,
+      "retired_flows": 8,
+      "initial": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "start": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      },
+      "end": {
+        "timeshare": 1,
+        "get_default": 0,
+        "basic_policy": 1,
+        "qos": 25,
+        "base_pri": 31,
+        "current_pri": 31
+      }
+    }
+  ]
+}

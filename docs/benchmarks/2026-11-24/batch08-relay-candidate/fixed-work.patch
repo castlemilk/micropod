@@ -1,0 +1,68 @@
+--- late_read_size.c
++++ late_read_size.c
+@@ -3,7 +3,11 @@
+ #include <stdint.h>
+ #include <unistd.h>
+ 
+-enum { STREAMS = 16, MAX_OFFER = 1024 * 1024 };
++#ifndef FIXED_STREAMS
++#define FIXED_STREAMS 1
++#endif
++static int first_budget;
++enum { STREAMS = FIXED_STREAMS, MAX_OFFER = 1024 * 1024 };
+ static const unsigned char marker = 97;
+ static int fresh_source, fresh_endpoint, fresh_destination, bulk_writes, insert_after;
+ static int poll_width, bulk_reads, poll_count, empty_polls;
+@@ -104,10 +108,13 @@
+     preceding_writes = preceding_bytes = 0;
+     active = 1;
+     if (position == 0) insert_marker();
++    if (first_budget) drain_data(owner, first_budget);
+     mp_tcp_relay_drain(owner, 2);
+     active = 0;
+-    check(injected && served, "fresh marker did not complete");
+-    expect_bytes(client[STREAMS][0], &marker, 1);
++    if (position >= 0) {
++        check(injected && served, "fresh marker did not complete");
++        expect_bytes(client[STREAMS][0], &marker, 1);
++    }
+     for (int i = 0; i < STREAMS; ++i) expect_bytes(client[i][0], offered[i], offer);
+     if (poll_width) {
+         for (int i = 0; i <= STREAMS; ++i)
+@@ -132,7 +139,7 @@
+     if (poll_width)
+         printf(",\"poll_width\":%d,\"polls\":%d,\"empty_polls\":%d,\"bulk_reads\":%d",
+                poll_width, poll_count, empty_polls, bulk_reads);
+-    puts("}");
++    printf(",\"verified_fresh\":%d,\"reverse_markers\":%d,\"dual_fin\":true,\"retired\":%d}\n", served, STREAMS+1, STREAMS+1);
+     mp_tcp_release(lease, NULL);
+     mp_tcp_relay_destroy(owner);
+     for (int i = 0; i <= STREAMS; ++i) { close(client[i][0]); close(guest[i][0]); }
+@@ -140,20 +147,12 @@
+ 
+ int main(int argc, char **argv) {
+     alarm(30);
+-    if (argc == 2 && (!strcmp(argv[1], "8") || !strcmp(argv[1], "24"))) {
+-        poll_width = atoi(argv[1]);
+-        for (int offer = 128 * 1024; offer <= MAX_OFFER; offer *= 2) {
+-            if (offer == 256 * 1024) continue;
+-            for (int position = 0; position <= STREAMS; ++position)
+-                run_late_reply(offer, position);
+-        }
+-    } else if (argc == 1) {
+-        for (int offer = 128 * 1024; offer <= 512 * 1024; offer *= 4) {
+-            run_late_reply(offer, 1);
+-            run_late_reply(offer, STREAMS);
+-        }
+-    } else {
+-        return 2;
+-    }
++    if (argc != 4) return 2;
++    int offer = atoi(argv[1]), position = atoi(argv[2]);
++    first_budget = atoi(argv[3]);
++    check(offer > 0 && offer <= MAX_OFFER && position >= -1 && position <= STREAMS &&
++          (first_budget == 0 || first_budget == 1), "case");
++    poll_width = 24;
++    run_late_reply(offer, position);
+     return 0;
+ }

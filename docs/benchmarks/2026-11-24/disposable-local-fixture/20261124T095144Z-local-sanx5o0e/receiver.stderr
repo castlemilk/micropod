@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 426, in <module>
+    run(p.parse_args())
+    ~~~^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/receiver.py", line 327, in run
+    await_idle(row, idles.get((phase, i)), ambient_idle, args.idle_wait_seconds,
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               path_pilot.cpu_idle, guard, lambda: write(out, row))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benebsworth/projects/micropod/bench/phase0-host-scheduling/docs/benchmarks/2026-11-24/disposable-local-fixture/local_idle.py", line 89, in await_idle
+    raise IdleTimeout(message)
+local_idle.IdleTimeout: host idle admission timed out after 60.01s (30 observations, 0/2 consecutive eligible, last 85.32%, floor 90%, paired gap unpaired, limit 5 pp)

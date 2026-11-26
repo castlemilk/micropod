@@ -1,0 +1,87 @@
+{
+  "observed_at": "2026-11-23T05:39:51.254940+00:00",
+  "host_macos": "26.5.1",
+  "scope": "read-only local host settings; no socket, workload or power-mode changes",
+  "sysctls": {
+    "kern.ipc.maxsockbuf": {
+      "errno": "EPERM"
+    },
+    "net.inet.tcp.autorcvbufmax": {
+      "errno": "EPERM"
+    },
+    "net.inet.tcp.autosndbufmax": {
+      "errno": "EPERM"
+    },
+    "net.inet.tcp.sendspace": {
+      "errno": "EPERM"
+    },
+    "net.inet.tcp.recvspace": {
+      "errno": "EPERM"
+    },
+    "net.inet.tcp.delayed_ack": {
+      "errno": "EPERM"
+    },
+    "net.inet.tcp.rfc1323": {
+      "errno": "ENOENT"
+    },
+    "net.inet.tcp.slowstart_flightsize": {
+      "errno": "ENOENT"
+    },
+    "net.inet.tcp.msl": {
+      "errno": "EPERM"
+    },
+    "net.inet.ip.portrange.first": {
+      "errno": "EPERM"
+    },
+    "net.inet.ip.portrange.last": {
+      "errno": "EPERM"
+    },
+    "kern.ipc.somaxconn": {
+      "errno": "EPERM"
+    },
+    "kern.maxfiles": {
+      "errno": "EPERM"
+    },
+    "kern.maxfilesperproc": {
+      "value": 65536
+    },
+    "kern.serverperfmode": {
+      "errno": "EPERM"
+    }
+  },
+  "pmset": {
+    "cap": [
+      "Capabilities for AC Power:",
+      " displaysleep",
+      " disksleep",
+      " sleep",
+      " womp",
+      " standby",
+      " powernap",
+      " ttyskeepawake",
+      " hibernatemode",
+      " hibernatefile",
+      " tcpkeepalive",
+      " lowpowermode"
+    ],
+    "custom": [
+      "AC Power:",
+      " Sleep On Power Button 1",
+      " lowpowermode         0",
+      " standby              1",
+      " ttyskeepawake        1",
+      " hibernatemode        3",
+      " powernap             1",
+      " hibernatefile        /var/vm/sleepimage",
+      " displaysleep         10",
+      " womp                 1",
+      " networkoversleep     0",
+      " sleep                0",
+      " tcpkeepalive         1",
+      " disksleep            10"
+    ],
+    "ps": [
+      "Now drawing from 'AC Power'"
+    ]
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "profile": "orbstack",
+  "measured_at": "2026-11-19T11:43:47Z",
+  "system": "Darwin",
+  "arch": "x86_64",
+  "clock": "client",
+  "image": "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "rounds": 3,
+  "server": {
+    "ID": "6c7264bc-cd12-493f-9fc3-fa4db4ee63c7",
+    "Name": "orbstack",
+    "OperatingSystem": "OrbStack",
+    "Architecture": "x86_64",
+    "ServerVersion": "25.0.5",
+    "KernelVersion": "6.7.11-orbstack-00143-ge6b82e26cd22",
+    "NCPU": 4,
+    "MemTotal": 4800716800,
+    "SecurityOptions": [
+      "name=seccomp,profile=builtin",
+      "name=cgroupns"
+    ]
+  },
+  "image_id": "sha256:bf8527eb54c3680e728d5b4b383a8ba730d72dae7236fbc8dff97ed6b224a731",
+  "architecture": "amd64",
+  "image_digests": [
+    "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+  ],
+  "boot_sha256": "b1340378a84f76b0c70ac9dfda12d7bb0fb041becd1b1912be5788360dccef69",
+  "namespaces": [
+    [
+      "pid:[4026532536]",
+      "mnt:[4026532533]"
+    ],
+    [
+      "pid:[4026532656]",
+      "mnt:[4026532653]"
+    ]
+  ],
+  "resource_contract": "1 CPU / 256 MiB",
+  "ownership_check": "overlapping OrbStack containers",
+  "batches": [
+    {
+      "round": 1,
+      "clients": 1,
+      "seconds": 12.936233,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 4,
+      "seconds": 33.258284,
+      "passed": 2,
+      "errors": [
+        "expected exit 23 and one token per stream, got exit 125, stdout='', stderr='docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error running hook #0: error running hook: exit status 2, stdout: , stderr: fatal: systemstack called from unexpected goroutineSIGTRAP: trace trap\\nPC=0x1f3bfb5 m=0 sigcode=128\\n\\ngoroutine 1 [running, locked to thread]:\\n'",
+        "expected exit 23 and one token per stream, got exit 125, stdout='', stderr='docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error running hook #0: error running hook: exit status 2, stdout: , stderr: fatal error: malloc deadlock\\n\\ngoroutine 1 [running, locked to thread]:\\nruntime.throw({0x8b59ac?, 0x1ed5905?})\\n\\t/usr/local/go/src/runtime/panic'"
+      ]
+    },
+    {
+      "round": 1,
+      "clients": 8,
+      "seconds": 51.029764,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 16,
+      "seconds": 70.113616,
+      "passed": 15,
+      "errors": [
+        "expected exit 23 and one token per stream, got exit 125, stdout='', stderr='docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error running hook #0: error running hook: exit status 2, stdout: , stderr: fatal: systemstack called from unexpected goroutineSIGTRAP: trace trap\\nPC=0x1f3bfb5 m=0 sigcode=128\\n\\ngoroutine 1 [running, locked to thread]:\\n'"
+      ]
+    },
+    {
+      "round": 2,
+      "clients": 4,
+      "seconds": 18.137171,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 8,
+      "seconds": 30.118804,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 16,
+      "seconds": 180.230666,
+      "passed": 15,
+      "errors": [
+        "Command '['docker', '--host', 'unix:///Users/runner/.orbstack/run/docker.sock', 'rm', '-f', 'mp-kernel-cdb5e6ae4eb54467a4060b0b87fd8ff5']' timed out after 90 seconds"
+      ]
+    },
+    {
+      "round": 2,
+      "clients": 1,
+      "seconds": 6.305847,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 8,
+      "seconds": 21.815521,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 16,
+      "seconds": 42.80021,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 1,
+      "seconds": 5.83352,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 4,
+      "seconds": 13.208247,
+      "passed": 4,
+      "errors": []
+    }
+  ],
+  "passed": false,
+  "error": "Benchmark containers remain"
+}

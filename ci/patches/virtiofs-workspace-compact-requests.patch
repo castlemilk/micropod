@@ -1,0 +1,225 @@
+diff --git a/fs/fuse/fuse_dev_i.h b/fs/fuse/fuse_dev_i.h
+--- a/fs/fuse/fuse_dev_i.h
++++ b/fs/fuse/fuse_dev_i.h
+@@ -105,6 +105,8 @@
+ 	 * args
+ 	 */
+ 	void *argbuf;
++	/** @argbuf_out_header: Packed virtio reply header offset, or zero */
++	unsigned int argbuf_out_header;
+ #endif
+ 
+ 	/** @chan: fuse_chan this request belongs to */
+diff --git a/fs/fuse/virtio_fs.c b/fs/fuse/virtio_fs.c
+--- a/fs/fuse/virtio_fs.c
++++ b/fs/fuse/virtio_fs.c
+@@ -6,6 +6,7 @@
+ 
+ #include <linux/fs.h>
+ #include <linux/dax.h>
++#include <linux/dma-mapping.h>
+ #include <linux/pci.h>
+ #include <linux/interrupt.h>
+ #include <linux/group_cpus.h>
+@@ -49,6 +50,11 @@
+ MODULE_PARM_DESC(workspace_inline_completion,
+ 		 "Complete synchronous workspace OPEN and direct READ replies in IRQ");
+ 
++static bool workspace_compact_requests __read_mostly;
++module_param(workspace_compact_requests, bool, 0444);
++MODULE_PARM_DESC(workspace_compact_requests,
++		 "Pack small workspace requests into fewer virtqueue descriptors");
++
+ /* The /sys/fs/virtio_fs/ kset */
+ static struct kset *virtio_fs_kset;
+ 
+@@ -70,6 +76,7 @@
+ 	struct work_struct dispatch_work;
+ 	struct fuse_dev *fud;
+ 	bool connected;
++	bool compact_requests;
+ 	long in_flight;
+ 	struct completion in_flight_zero; /* No inflight requests */
+ 	struct kobject *kobj;
+@@ -729,6 +736,13 @@
+ 	return 0;
+ }
+ 
++static void virtio_fs_free_argbuf(struct fuse_req *req)
++{
++	kfree(req->argbuf);
++	req->argbuf = NULL;
++	req->argbuf_out_header = 0;
++}
++
+ /* Copy args out of and free req->argbuf */
+ static void copy_args_from_argbuf(struct fuse_args *args, struct fuse_req *req)
+ {
+@@ -745,7 +759,10 @@
+ 	remaining = req->out.h.len - sizeof(req->out.h);
+ 	num_in = args->in_numargs - args->in_pages;
+ 	num_out = args->out_numargs - args->out_pages;
+-	offset = fuse_len_args(num_in, (struct fuse_arg *)args->in_args);
++	if (req->argbuf_out_header)
++		offset = req->argbuf_out_header + sizeof(req->out.h);
++	else
++		offset = fuse_len_args(num_in, (struct fuse_arg *)args->in_args);
+ 
+ 	for (i = 0; i < num_out; i++) {
+ 		unsigned int argsize = args->out_args[i].size;
+@@ -768,8 +785,7 @@
+ 		args->out_args[args->out_numargs - 1].size = remaining;
+ 
+ out:
+-	kfree(req->argbuf);
+-	req->argbuf = NULL;
++	virtio_fs_free_argbuf(req);
+ }
+ 
+ /* Verify that the server properly follows the FUSE protocol */
+@@ -785,6 +801,8 @@
+ 			pr_warn("virtio-fs: response too short (%u)\n", len);
+ 		return false;
+ 	}
++	if (req->argbuf_out_header)
++		memcpy(oh, req->argbuf + req->argbuf_out_header, sizeof(*oh));
+ 	if (oh->len != len) {
+ 		if (warn)
+ 			pr_warn("virtio-fs: oh.len mismatch (%u != %u)\n", oh->len, len);
+@@ -1147,6 +1165,8 @@
+ 
+ 		snprintf(vq_name, VQ_NAME_LEN, "requests.%u", i - VQ_REQUEST);
+ 		virtio_fs_init_vq(&fs->vqs[i], vq_name, VQ_REQUEST);
++		fs->vqs[i].compact_requests = workspace_compact_requests &&
++					      !strcmp(fs->tag, "workspace");
+ 		vqs_info[i].callback = virtio_fs_vq_done;
+ 		vqs_info[i].name = fs->vqs[i].name;
+ 	}
+@@ -1530,6 +1550,80 @@
+ 		*len_used = len;
+ 
+ 	return total_sgs;
++}
++
++/*
++ * Small input arguments fit next to their FUSE header. The reply
++ * header and fixed result share a second descriptor. Direct reads keep
++ * their destination folios mapped separately. The protocol byte stream
++ * and the caller's original request header stay intact.
++ *
++ * Returns the number of device-writable descriptors. Zero selects the
++ * ordinary layout, including when the larger bounce allocation fails.
++ */
++static unsigned int virtio_fs_pack_request(struct fuse_req *req,
++					   struct scatterlist *sg, gfp_t gfp)
++{
++	struct fuse_args *args = req->args;
++	unsigned int in_len = 0, out_len, out_offset, alignment, nr = 1;
++	unsigned int i, offset;
++	void *buffer;
++
++	if (!test_bit(FR_ISREPLY, &req->flags) || args->in_pages ||
++	    !args->in_numargs || args->in_numargs > ARRAY_SIZE(args->in_args) ||
++	    args->out_numargs > 1 ||
++	    (args->out_pages && !args->out_numargs))
++		return 0;
++
++	switch (req->in.h.opcode) {
++	case FUSE_LOOKUP:
++	case FUSE_GETATTR:
++	case FUSE_OPEN:
++	case FUSE_READ:
++	case FUSE_RELEASE:
++		break;
++	default:
++		return 0;
++	}
++
++	/* LOOKUP supplies a prefix, a non-NUL-terminated name and its NUL. */
++	for (i = 0; i < args->in_numargs; i++) {
++		if (args->in_args[i].size > NAME_MAX + 1 - in_len)
++			return 0;
++		in_len += args->in_args[i].size;
++	}
++	out_len = args->out_numargs && !args->out_pages ? args->out_args[0].size : 0;
++	if (!in_len || out_len > sizeof(struct fuse_entry_out))
++		return 0;
++
++	in_len += sizeof(req->in.h);
++	out_len += sizeof(req->out.h);
++	/* Align the allocation and the boundary between both DMA mappings. */
++	alignment = dma_get_cache_alignment();
++	out_offset = ALIGN(in_len, alignment);
++	buffer = kmalloc(ALIGN(out_offset + out_len, alignment), gfp | __GFP_NOWARN);
++	if (!buffer)
++		return 0;
++
++	memcpy(buffer, &req->in.h, sizeof(req->in.h));
++	offset = sizeof(req->in.h);
++	for (i = 0; i < args->in_numargs; i++) {
++		if (args->in_args[i].size) {
++			memcpy(buffer + offset, args->in_args[i].value, args->in_args[i].size);
++			offset += args->in_args[i].size;
++		}
++	}
++	sg_init_one(&sg[0], buffer, in_len);
++	sg_init_one(&sg[1], buffer + out_offset, out_len);
++	if (args->out_pages) {
++		struct fuse_args_pages *ap = container_of(args, typeof(*ap), args);
++
++		nr += sg_init_fuse_folios(&sg[2], ap->folios, ap->descs, ap->num_folios,
++					  args->out_args[0].size);
++	}
++	req->argbuf = buffer;
++	req->argbuf_out_header = out_offset;
++	return nr;
+ }
+ 
+ /* Add a request to a virtqueue and kick the device */
+@@ -1564,6 +1658,15 @@
+ 		}
+ 	}
+ 
++	if (fsvq->compact_requests) {
++		in_sgs = virtio_fs_pack_request(req, sg, gfp);
++		if (in_sgs) {
++			out_sgs = 1;
++			total_sgs = out_sgs + in_sgs;
++			goto submit;
++		}
++	}
++
+ 	/* Use a bounce buffer since stack args cannot be mapped */
+ 	ret = copy_args_to_argbuf(req, gfp);
+ 	if (ret < 0)
+@@ -1588,6 +1691,7 @@
+ 
+ 	WARN_ON(out_sgs + in_sgs != total_sgs);
+ 
++submit:
+ 	for (i = 0; i < total_sgs; i++)
+ 		sgs[i] = &sg[i];
+ 
+@@ -1606,8 +1710,7 @@
+ 		 * Publish the retry before a completion can free a slot and
+ 		 * check the retry list. The retry needs a fresh bounce buffer.
+ 		 */
+-		kfree(req->argbuf);
+-		req->argbuf = NULL;
++		virtio_fs_free_argbuf(req);
+ 		list_add_tail(&req->list, &fsvq->queued_reqs);
+ 		if (!in_flight)
+ 			inc_in_flight_req(fsvq);
+@@ -1639,10 +1742,8 @@
+ 		virtqueue_notify(vq);
+ 
+ out:
+-	if (ret < 0 && req->argbuf) {
+-		kfree(req->argbuf);
+-		req->argbuf = NULL;
+-	}
++	if (ret < 0)
++		virtio_fs_free_argbuf(req);
+ out_sgs:
+ 	if (sgs != stack_sgs) {
+ 		kfree(sgs);

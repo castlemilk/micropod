@@ -1,0 +1,414 @@
+{
+  "direction": "235.10",
+  "date": "2026-11-24",
+  "tier": "offline replay of archived VM inputs",
+  "analysis_base": "4dc985b50bbd1e5942020618df4d8dcc2de47483",
+  "original_source_revision": "816121afd30fba52bda7828418cd963d4216166b",
+  "archive": "gamma-direct-macvlan.json.gz",
+  "archive_sha256": "cc3b9e5c365383a3353423ce1f7fc443c8d858a1af24bb082117bcec24ffa976",
+  "service_sha256": "11616563078329f6d13d5c3b50628c57b431537c2fbd05dda7d8136d5f4572ba",
+  "image_config_sha256": "80996a25c9c753fcaf3f421a3f61557497b8ab539bdd68076074d181cfa71889",
+  "builds": {
+    "full-reno": {
+      "release": "7.3.5-micropod",
+      "cpus": 4,
+      "service_quota": "400000 100000",
+      "cpuset": "0-3",
+      "service_memory": "1073741824",
+      "guest_visible_bytes": 4116488192,
+      "kernel_config": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+      "image": "7e3713940eec7466d1b47f959244534051b46ea70c50796e292a651112e8a0bd"
+    },
+    "lazy-reno": {
+      "release": "7.3.5-micropod-lazy",
+      "cpus": 4,
+      "service_quota": "400000 100000",
+      "cpuset": "0-3",
+      "service_memory": "1073741824",
+      "guest_visible_bytes": 4116422656,
+      "kernel_config": "3aa9201c06ae0e243516c7604c38ea48d6ce7784a44ed3d7afc89ec5487068f4",
+      "image": "3955ba50110de136beed489a4957141442afd2ba565358186b7abd20f5dfabe8"
+    }
+  },
+  "config_differences": {
+    "CONFIG_LOCALVERSION": [
+      "\"-micropod\"",
+      "\"-micropod-lazy\""
+    ],
+    "CONFIG_PREEMPT": [
+      "y",
+      "n"
+    ],
+    "CONFIG_PREEMPT_LAZY": [
+      "n",
+      "y"
+    ],
+    "CONFIG_PREEMPT_RCU": [
+      "y",
+      null
+    ]
+  },
+  "upstream_rcu": {
+    "archive_sha256": "8f293f83d54f0b7b9be56863ebc5e4ea79d73e530b4ae55c572be97ef39f0990",
+    "member": "linux-7.3.5/kernel/rcu/Kconfig",
+    "line": 19,
+    "member_sha256": "9ba10667a4129ea56c62ac3bc54f82563b9c9bfc9725cd7b1d93ba94d4bebaaf",
+    "rule": "default y if (PREEMPT || PREEMPT_RT || PREEMPT_DYNAMIC)"
+  },
+  "cpu_and_boot": "Full and lazy run separate guests. No new boot or matched peer run.",
+  "method": "Full vs lazy Reno. Retain all 12 original blocks; change only the descriptive eligibility filter to require fresh p95 <= 75 ms in each arm of the pair. The filtered median is conditional on outcomes. It is not the overall treatment effect.",
+  "interval": "Median paired ratio, 10,000 block bootstrap resamples, seed 7317, indices 250 and 9749.",
+  "threshold_us": 75000,
+  "passing_blocks": {
+    "full-reno": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      12
+    ],
+    "lazy-reno": [
+      1,
+      3,
+      5,
+      6,
+      7,
+      12
+    ]
+  },
+  "both_pass": [
+    1,
+    3,
+    5,
+    6,
+    7,
+    12
+  ],
+  "all_attempts": {
+    "pairs": 12,
+    "lazy_wins": 4,
+    "median_lazy_over_full": 0.7964537923425954,
+    "paired_bootstrap_95": [
+      0.5298848277572015,
+      1.176300592427459
+    ],
+    "median_round_p95_ms": {
+      "full-reno": 68.9205,
+      "lazy-reno": 74.705
+    },
+    "median_round_p99_ms": {
+      "full-reno": 113.5195,
+      "lazy-reno": 108.2485
+    }
+  },
+  "conditional": {
+    "pairs": 6,
+    "lazy_wins": 3,
+    "median_lazy_over_full": 0.95608799228704,
+    "paired_bootstrap_95": [
+      0.6399677187414032,
+      1.2654188299439668
+    ],
+    "median_round_p95_ms": {
+      "full-reno": 46.2545,
+      "lazy-reno": 52.0055
+    },
+    "median_round_p99_ms": {
+      "full-reno": 90.8345,
+      "lazy-reno": 78.2325
+    }
+  },
+  "raw": [
+    {
+      "block": 1,
+      "full-reno": {
+        "mib_s": 4388.497146487516,
+        "fresh_p95_us": 46494,
+        "fresh_p99_us": 161487,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 27619533792,
+        "window_s": 6.002063834
+      },
+      "lazy-reno": {
+        "mib_s": 3483.2985756118887,
+        "fresh_p95_us": 50197,
+        "fresh_p99_us": 67370,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 21915075424,
+        "window_s": 6.00001525
+      },
+      "lazy_over_full": 0.7937338134991989
+    },
+    {
+      "block": 2,
+      "full-reno": {
+        "mib_s": 3064.4998118539565,
+        "fresh_p95_us": 71704,
+        "fresh_p99_us": 127630,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 19281019544,
+        "window_s": 6.000265708
+      },
+      "lazy-reno": {
+        "mib_s": 1757.6991247115666,
+        "fresh_p95_us": 157209,
+        "fresh_p99_us": 218445,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 11058665944,
+        "window_s": 6.00009725
+      },
+      "lazy_over_full": 0.5735680315307954
+    },
+    {
+      "block": 3,
+      "full-reno": {
+        "mib_s": 4734.257977179152,
+        "fresh_p95_us": 46015,
+        "fresh_p99_us": 71806,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 29790667416,
+        "window_s": 6.001065958
+      },
+      "lazy-reno": {
+        "mib_s": 3783.494801389628,
+        "fresh_p95_us": 54810,
+        "fresh_p99_us": 72651,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 23804323684,
+        "window_s": 6.000159458
+      },
+      "lazy_over_full": 0.7991737711859919
+    },
+    {
+      "block": 4,
+      "full-reno": {
+        "mib_s": 3957.414141110326,
+        "fresh_p95_us": 66137,
+        "fresh_p99_us": 99711,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 24898153532,
+        "window_s": 6.000061834
+      },
+      "lazy-reno": {
+        "mib_s": 2451.0181341757243,
+        "fresh_p95_us": 158258,
+        "fresh_p99_us": 215955,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 15421100704,
+        "window_s": 6.000244334
+      },
+      "lazy_over_full": 0.6193484044831471
+    },
+    {
+      "block": 5,
+      "full-reno": {
+        "mib_s": 3816.0500660683783,
+        "fresh_p95_us": 61770,
+        "fresh_p99_us": 105386,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 24009141640,
+        "window_s": 6.000157583
+      },
+      "lazy-reno": {
+        "mib_s": 4730.371736964291,
+        "fresh_p95_us": 49398,
+        "fresh_p99_us": 117184,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 29767545176,
+        "window_s": 6.001334541
+      },
+      "lazy_over_full": 1.23959897146683
+    },
+    {
+      "block": 6,
+      "full-reno": {
+        "mib_s": 5073.775129183307,
+        "fresh_p95_us": 33015,
+        "fresh_p99_us": 44492,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 31921528520,
+        "window_s": 6.000017958
+      },
+      "lazy-reno": {
+        "mib_s": 5647.122949014454,
+        "fresh_p95_us": 31626,
+        "fresh_p99_us": 46739,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 35528808136,
+        "window_s": 6.000030833
+      },
+      "lazy_over_full": 1.1130022133880881
+    },
+    {
+      "block": 7,
+      "full-reno": {
+        "mib_s": 5413.949870709939,
+        "fresh_p95_us": 40828,
+        "fresh_p99_us": 79100,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 34069920456,
+        "window_s": 6.001460833
+      },
+      "lazy-reno": {
+        "mib_s": 2632.2712193050147,
+        "fresh_p95_us": 70234,
+        "fresh_p99_us": 125696,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 16561339648,
+        "window_s": 6.000188792
+      },
+      "lazy_over_full": 0.48620162398360756
+    },
+    {
+      "block": 8,
+      "full-reno": {
+        "mib_s": 2357.8720044432403,
+        "fresh_p95_us": 97003,
+        "fresh_p99_us": 146074,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 14834668632,
+        "window_s": 6.00008925
+      },
+      "lazy-reno": {
+        "mib_s": 1056.7383700147334,
+        "fresh_p95_us": 161549,
+        "fresh_p99_us": 199809,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 6648455600,
+        "window_s": 6.000029458
+      },
+      "lazy_over_full": 0.44817461169367373
+    },
+    {
+      "block": 9,
+      "full-reno": {
+        "mib_s": 2059.6753391167836,
+        "fresh_p95_us": 118281,
+        "fresh_p99_us": 153663,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 12958380888,
+        "window_s": 6.000011167
+      },
+      "lazy-reno": {
+        "mib_s": 752.7232466181202,
+        "fresh_p95_us": 272110,
+        "fresh_p99_us": 347111,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 4736637504,
+        "window_s": 6.001155875
+      },
+      "lazy_over_full": 0.365457231206593
+    },
+    {
+      "block": 10,
+      "full-reno": {
+        "mib_s": 2527.90031288565,
+        "fresh_p95_us": 82298,
+        "fresh_p99_us": 121653,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 15905068312,
+        "window_s": 6.000337542
+      },
+      "lazy-reno": {
+        "mib_s": 2520.2130485820717,
+        "fresh_p95_us": 79176,
+        "fresh_p99_us": 99313,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 15857733344,
+        "window_s": 6.000728
+      },
+      "lazy_over_full": 0.9969590318635615
+    },
+    {
+      "block": 11,
+      "full-reno": {
+        "mib_s": 1325.9568228295714,
+        "fresh_p95_us": 170452,
+        "fresh_p99_us": 218755,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 8342370776,
+        "window_s": 6.000123541
+      },
+      "lazy-reno": {
+        "mib_s": 2376.8887184826135,
+        "fresh_p95_us": 80862,
+        "fresh_p99_us": 96253,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 14955023760,
+        "window_s": 6.000374334
+      },
+      "lazy_over_full": 1.7925837987773763
+    },
+    {
+      "block": 12,
+      "full-reno": {
+        "mib_s": 3058.5982797250977,
+        "fresh_p95_us": 74281,
+        "fresh_p99_us": 102569,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 19243667776,
+        "window_s": 6.000196833
+      },
+      "lazy-reno": {
+        "mib_s": 3949.3804311192785,
+        "fresh_p95_us": 53814,
+        "fresh_p99_us": 83814,
+        "arrivals": 240,
+        "reopened": 0,
+        "errors": null,
+        "bytes": 24848072056,
+        "window_s": 6.000173583
+      },
+      "lazy_over_full": 1.2912386884211036
+    }
+  ]
+}

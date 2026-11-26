@@ -80,10 +80,29 @@ Example tools/call (JSON-RPC over stdin/stdout):
 
 ## Runtimes (execution engines)
 
-Three engines behind the same API: `apple` (micro-VM per container, the
+Five engines sit behind the same API: `apple` (micro-VM per container, the
 default), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
 in-process micro-VM; fastest boot; tcp ports and bind mounts, no named
-volumes, not restartable).
+volumes, not restartable), `ci` (opt-in: this account's one persistent Linux
+CI worker for trusted jobs — `micropod ci start|endpoint|status|stop` — whose
+Docker engine, BuildKit and named volumes stay warm between jobs), and `hvf`
+(opt-in: one shared Linux machine on micropod's Hypervisor.framework VMM,
+OrbStack-style — containerd + crun behind a Docker API; named volumes, retained containers and logs survive a
+machine restart). `hvf` is `available` once `micropod machine install` has
+put its assets in `MICROPOD_HVF_ROOT` (default `~/.micropod/hvf`); the first
+`run`/`create`/`start` boots the machine (~2 s), reads never do (a stopped
+machine lists no containers). While it is stopped its containers still route
+to `hvf`: `start`/`restart` of one boots the machine, any other call on one
+fails `failed_precondition` naming the stopped machine. `machine install` is
+refused while the machine runs. Published tcp ports work. Its exec is
+non-interactive, kill is SIGKILL only, and it has no `copy`/`export` (no
+archive API) — trust its `capabilities`. Containers that were running when
+the machine stopped come back as `dead`: `start` them again. Bind mounts work
+only under the machine's workspace (the home directory unless
+`micropod machine install --workspace <dir>` says otherwise). Machine
+control: `micropod machine start|stop|restart|status|logs`;
+`micropod machine docker-endpoint` prints a `DOCKER_HOST` for stock Docker
+clients.
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP

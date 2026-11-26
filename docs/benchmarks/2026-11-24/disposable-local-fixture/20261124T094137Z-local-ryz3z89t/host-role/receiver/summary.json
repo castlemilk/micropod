@@ -1,0 +1,23 @@
+{
+  "schedule_complete": false,
+  "arms": {
+    "A": {
+      "role": "Standard",
+      "admission_attempts": 0,
+      "client_attempts": 0,
+      "clean": 0,
+      "clean_median_MiB_s": null
+    },
+    "B": {
+      "role": "Interactive",
+      "admission_attempts": 0,
+      "client_attempts": 0,
+      "clean": 0,
+      "clean_median_MiB_s": null
+    }
+  },
+  "socket_evidence": "route",
+  "accepted_socket_reno_verified": false,
+  "idle_wait_seconds": 60,
+  "idle_policy": "two consecutive qualifying samples"
+}

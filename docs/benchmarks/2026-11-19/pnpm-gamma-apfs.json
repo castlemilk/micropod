@@ -1,0 +1,185 @@
+{
+  "pnpm": "11.23.0",
+  "system": "Darwin",
+  "arch": "arm64",
+  "fixture_mib": 8,
+  "rows": [
+    {
+      "method": "copy",
+      "workspaces": 1,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 64,
+      "unique_inode_payload_mib": 16.0,
+      "median_install_seconds": 0.393059,
+      "apfs_clone_families": 64,
+      "apfs_private_payload_mib": 16.0
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 1,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.350878,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 8.0
+    },
+    {
+      "method": "auto",
+      "workspaces": 1,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 64,
+      "unique_inode_payload_mib": 16.0,
+      "median_install_seconds": 0.394079,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 0.0
+    },
+    {
+      "method": "auto",
+      "workspaces": 4,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 160,
+      "unique_inode_payload_mib": 40.0,
+      "median_install_seconds": 0.381476,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 0.0
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 4,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.36812,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 8.0
+    },
+    {
+      "method": "copy",
+      "workspaces": 4,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 160,
+      "unique_inode_payload_mib": 40.0,
+      "median_install_seconds": 0.38149,
+      "apfs_clone_families": 160,
+      "apfs_private_payload_mib": 40.0
+    },
+    {
+      "method": "auto",
+      "workspaces": 8,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 288,
+      "unique_inode_payload_mib": 72.0,
+      "median_install_seconds": 0.518348,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 0.0
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 8,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.652934,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 8.0
+    },
+    {
+      "method": "copy",
+      "workspaces": 8,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 288,
+      "unique_inode_payload_mib": 72.0,
+      "median_install_seconds": 0.507259,
+      "apfs_clone_families": 288,
+      "apfs_private_payload_mib": 72.0
+    },
+    {
+      "method": "auto",
+      "workspaces": 16,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 544,
+      "unique_inode_payload_mib": 136.0,
+      "median_install_seconds": 0.487475,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 0.0
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 16,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.53814,
+      "apfs_clone_families": 32,
+      "apfs_private_payload_mib": 8.0
+    },
+    {
+      "method": "copy",
+      "workspaces": 16,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 544,
+      "unique_inode_payload_mib": 136.0,
+      "median_install_seconds": 0.55238,
+      "apfs_clone_families": 544,
+      "apfs_private_payload_mib": 136.0
+    }
+  ],
+  "warm_install_seconds": {
+    "copy": [
+      0.393059,
+      0.36992,
+      0.339886,
+      0.477764,
+      0.536753,
+      1.346364,
+      0.935324,
+      0.586065,
+      0.568007,
+      0.807724,
+      0.618292,
+      1.206715,
+      1.044514,
+      0.494124,
+      0.389553,
+      0.415164
+    ],
+    "hardlink": [
+      0.350878,
+      0.348652,
+      0.385362,
+      0.407076,
+      0.898793,
+      1.426317,
+      1.230826,
+      0.9427,
+      0.698092,
+      0.526183,
+      1.098025,
+      0.724671,
+      0.550097,
+      0.434107,
+      0.406187,
+      0.412998
+    ],
+    "auto": [
+      0.394079,
+      0.380377,
+      0.382576,
+      0.362289,
+      1.110409,
+      1.447366,
+      0.770383,
+      0.642617,
+      0.610107,
+      0.546825,
+      1.382172,
+      1.027755,
+      0.406742,
+      0.428125,
+      0.404627,
+      0.422603
+    ]
+  },
+  "passed": true
+}

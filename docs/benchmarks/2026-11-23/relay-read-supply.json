@@ -1,0 +1,1600 @@
+{
+  "schema": 1,
+  "completed_utc": "2026-11-23T09:35:28.796837+00:00",
+  "base": "dc019c8cc218c2b10a1b9e26abb76c8bf29a33e7",
+  "host": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "flags": [
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-DMICROPOD_BENCH_512K_READS=1"
+  ],
+  "binaries": {
+    "timed": {
+      "sha256": "2fc48d37edb31a10a6d3b3bf37673e24ffd094ba4db42f04a53aaab91901adc4",
+      "extra_flags": []
+    },
+    "counted": {
+      "sha256": "49e796d7633860a2a01d18f9eeccb02725d74ff49508cf06e72377ea99b1802d",
+      "extra_flags": [
+        "-DCOUNT_IO=1"
+      ]
+    },
+    "sanitized": {
+      "sha256": "383f1918c970c8f0969bbf85f4f8e0d49d0c6414591497a3cb69bc45efbb548e",
+      "extra_flags": [
+        "-DCOUNT_IO=1",
+        "-O1",
+        "-fsanitize=address,undefined",
+        "-fno-sanitize-recover=all"
+      ]
+    }
+  },
+  "pinned_sha256": {
+    "Sources/CPublishedTCP/PublishedTCP.c": "7453a16f8097d21d89eebc0e0121e870511a6a81486015942a45770babbd945e",
+    "Sources/CPublishedTCP/include/PublishedTCP.h": "9aadfce77b524b1448742366bbcbd8cfb42d7eaaf450c988b82c7e3097c23cc6",
+    "scripts/relaybench/filter_work.c": "24673c51511b00f28ec9378b07bf3c7e273d55cba8986ba87e35e9a94e365a3b"
+  },
+  "experiment_sha256": {
+    "read_supply.c": "4e8fcbfeeb6aa586670194d09260f45f0d1dcfdc9bee329c74830fa19eb39293",
+    "check_read_supply.py": "fb8db14e4715345b3c976d0f106382ec979027c36279a8472bc557f3c7642a49"
+  },
+  "method": "Single background thread, 16 established streams, 8 waves; each wave writes four 128 KiB pieces per stream and receives/verifies those same four pieces. Roomy 1 MiB sockets at both ends. Queued supplies 512 KiB before the drain. Fragmented supplies and drains each 128 KiB piece. Pressured supplies 512 KiB, with 128 KiB downstream capacity; drain/write progress alternates with 128 KiB consumer reads. Marker cells add one co-ready byte from a small established stream per wave. Counted builds require its write to be serviced first. Both arms verify all bytes, EOF and reverse data/FIN. Thread CPU spans native relay drains only. Wall rate covers producer, drains, consumer and byte checks. One warmup per arm/cell. Twelve randomized pairs per cell, six runs in each arm order. Cell order randomized in each block. Percentiles bootstrap matched pairs. Primary cell is queued/alone. No IP, VM, dispatch timing or concurrent producer/consumer. Both caps use one binary. Actual syscall counts were collected separately from timing with the same code, work and cap in an instrumented build.",
+  "calls_per_64_mib": {
+    "queued/alone": {
+      "256": {
+        "reads": 256,
+        "writes": 256,
+        "partial": 0,
+        "blocked": 0
+      },
+      "512": {
+        "reads": 128,
+        "writes": 128,
+        "partial": 0,
+        "blocked": 0
+      }
+    },
+    "queued/marker": {
+      "256": {
+        "reads": 264,
+        "writes": 264,
+        "partial": 0,
+        "blocked": 0
+      },
+      "512": {
+        "reads": 136,
+        "writes": 136,
+        "partial": 0,
+        "blocked": 0
+      }
+    },
+    "fragmented/alone": {
+      "256": {
+        "reads": 512,
+        "writes": 512,
+        "partial": 0,
+        "blocked": 0
+      },
+      "512": {
+        "reads": 512,
+        "writes": 512,
+        "partial": 0,
+        "blocked": 0
+      }
+    },
+    "fragmented/marker": {
+      "256": {
+        "reads": 520,
+        "writes": 520,
+        "partial": 0,
+        "blocked": 0
+      },
+      "512": {
+        "reads": 520,
+        "writes": 520,
+        "partial": 0,
+        "blocked": 0
+      }
+    },
+    "pressured/alone": {
+      "256": {
+        "reads": 256,
+        "writes": 640,
+        "partial": 256,
+        "blocked": 128
+      },
+      "512": {
+        "reads": 128,
+        "writes": 512,
+        "partial": 384,
+        "blocked": 0
+      }
+    },
+    "pressured/marker": {
+      "256": {
+        "reads": 264,
+        "writes": 648,
+        "partial": 256,
+        "blocked": 128
+      },
+      "512": {
+        "reads": 136,
+        "writes": 520,
+        "partial": 384,
+        "blocked": 0
+      }
+    }
+  },
+  "summary": {
+    "queued/alone": {
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.1842,
+          "512": 0.1872
+        },
+        "median_paired_change_pct": 0.8,
+        "bootstrap_95_pct": [
+          -0.95,
+          6.91
+        ]
+      },
+      "verified_mib_s": {
+        "medians": {
+          "256": 2105.0755,
+          "512": 1937.7542
+        },
+        "median_paired_change_pct": -0.08,
+        "bootstrap_95_pct": [
+          -17.38,
+          6.1
+        ]
+      }
+    },
+    "queued/marker": {
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.2018,
+          "512": 0.2012
+        },
+        "median_paired_change_pct": 1.13,
+        "bootstrap_95_pct": [
+          -3.39,
+          7.39
+        ]
+      },
+      "verified_mib_s": {
+        "medians": {
+          "256": 1763.9045,
+          "512": 1767.3109
+        },
+        "median_paired_change_pct": -3.05,
+        "bootstrap_95_pct": [
+          -9.17,
+          7.43
+        ]
+      }
+    },
+    "fragmented/alone": {
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.1458,
+          "512": 0.1423
+        },
+        "median_paired_change_pct": -2.41,
+        "bootstrap_95_pct": [
+          -8.05,
+          5.34
+        ]
+      },
+      "verified_mib_s": {
+        "medians": {
+          "256": 2513.0201,
+          "512": 2592.5305
+        },
+        "median_paired_change_pct": 2.06,
+        "bootstrap_95_pct": [
+          -9.79,
+          16.49
+        ]
+      }
+    },
+    "fragmented/marker": {
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.1468,
+          "512": 0.1418
+        },
+        "median_paired_change_pct": -5.64,
+        "bootstrap_95_pct": [
+          -11.24,
+          3.57
+        ]
+      },
+      "verified_mib_s": {
+        "medians": {
+          "256": 2633.5939,
+          "512": 2665.8834
+        },
+        "median_paired_change_pct": 5.55,
+        "bootstrap_95_pct": [
+          -5.0,
+          10.52
+        ]
+      }
+    },
+    "pressured/alone": {
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.2823,
+          "512": 0.2723
+        },
+        "median_paired_change_pct": -2.27,
+        "bootstrap_95_pct": [
+          -8.11,
+          4.28
+        ]
+      },
+      "verified_mib_s": {
+        "medians": {
+          "256": 1561.6437,
+          "512": 1737.7589
+        },
+        "median_paired_change_pct": 4.1,
+        "bootstrap_95_pct": [
+          -1.34,
+          12.43
+        ]
+      }
+    },
+    "pressured/marker": {
+      "owner_cpu_s_per_gib": {
+        "medians": {
+          "256": 0.2833,
+          "512": 0.2613
+        },
+        "median_paired_change_pct": -0.55,
+        "bootstrap_95_pct": [
+          -11.94,
+          5.59
+        ]
+      },
+      "verified_mib_s": {
+        "medians": {
+          "256": 1596.5139,
+          "512": 1679.9331
+        },
+        "median_paired_change_pct": -5.1,
+        "bootstrap_95_pct": [
+          -18.1,
+          22.25
+        ]
+      }
+    }
+  },
+  "blocks": [
+    {
+      "fragmented/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8349502,
+          "wall_ns": 22524125,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9008166,
+          "wall_ns": 24419125,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "pressured/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 18962667,
+          "wall_ns": 40667958,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 18605290,
+          "wall_ns": 41119916,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 10160625,
+          "wall_ns": 38752791,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8351461,
+          "wall_ns": 21207459,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "queued/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 13741624,
+          "wall_ns": 36011833,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 13632581,
+          "wall_ns": 38727584,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 22716167,
+          "wall_ns": 58393625,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 14326413,
+          "wall_ns": 30609709,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 13648750,
+          "wall_ns": 38123875,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 14148375,
+          "wall_ns": 43450458,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      }
+    },
+    {
+      "pressured/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 15269418,
+          "wall_ns": 33331541,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 16755373,
+          "wall_ns": 35400708,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9374168,
+          "wall_ns": 26224375,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 7715876,
+          "wall_ns": 22153291,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "pressured/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 15490289,
+          "wall_ns": 32825167,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 16363208,
+          "wall_ns": 47420541,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "fragmented/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8673793,
+          "wall_ns": 23927500,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8835916,
+          "wall_ns": 23776375,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "queued/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11798582,
+          "wall_ns": 39907250,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 12516042,
+          "wall_ns": 34391375,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "queued/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 14093832,
+          "wall_ns": 39633916,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 12820169,
+          "wall_ns": 33743042,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      }
+    },
+    {
+      "pressured/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 19354668,
+          "wall_ns": 43939416,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 18777914,
+          "wall_ns": 44740084,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "queued/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 12472208,
+          "wall_ns": 40718834,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 12542083,
+          "wall_ns": 38165333,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "pressured/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 17599712,
+          "wall_ns": 48607792,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 15307250,
+          "wall_ns": 33864416,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11607541,
+          "wall_ns": 30222334,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11452251,
+          "wall_ns": 30275708,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8314626,
+          "wall_ns": 24023250,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8708586,
+          "wall_ns": 23184375,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "fragmented/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8224998,
+          "wall_ns": 23785708,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 9076999,
+          "wall_ns": 26185542,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      }
+    },
+    {
+      "fragmented/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9436040,
+          "wall_ns": 26539708,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 9249166,
+          "wall_ns": 30772666,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "queued/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 12678250,
+          "wall_ns": 33603916,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11815583,
+          "wall_ns": 31834791,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "fragmented/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 9251835,
+          "wall_ns": 25180334,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8311163,
+          "wall_ns": 22357291,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 12146834,
+          "wall_ns": 40556500,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 12244666,
+          "wall_ns": 36112333,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "pressured/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 16963500,
+          "wall_ns": 36644459,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 16179831,
+          "wall_ns": 40845917,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 18925292,
+          "wall_ns": 41814500,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 14471876,
+          "wall_ns": 30535125,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      }
+    },
+    {
+      "pressured/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 17068879,
+          "wall_ns": 37015500,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 18322541,
+          "wall_ns": 38410708,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 10028293,
+          "wall_ns": 29840750,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8768209,
+          "wall_ns": 24188791,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11330748,
+          "wall_ns": 30411125,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 10790083,
+          "wall_ns": 28754958,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "queued/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 12992210,
+          "wall_ns": 35526125,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 15193751,
+          "wall_ns": 40204166,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "fragmented/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9101793,
+          "wall_ns": 25345083,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 7979709,
+          "wall_ns": 20497250,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 14333705,
+          "wall_ns": 30327917,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 15094834,
+          "wall_ns": 33367542,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      }
+    },
+    {
+      "queued/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11590290,
+          "wall_ns": 30525250,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 13899543,
+          "wall_ns": 48768833,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "fragmented/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9664042,
+          "wall_ns": 28282625,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8925086,
+          "wall_ns": 24913292,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 9140956,
+          "wall_ns": 25051541,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8529790,
+          "wall_ns": 22616667,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "pressured/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 17480628,
+          "wall_ns": 50812833,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 14738042,
+          "wall_ns": 31639042,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 14370291,
+          "wall_ns": 31289292,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 17816043,
+          "wall_ns": 37607958,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11358124,
+          "wall_ns": 29871292,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11297792,
+          "wall_ns": 29773042,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      }
+    },
+    {
+      "queued/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11498665,
+          "wall_ns": 30426792,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 10587916,
+          "wall_ns": 28075750,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8793502,
+          "wall_ns": 23990875,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8433295,
+          "wall_ns": 22431542,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "fragmented/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8195121,
+          "wall_ns": 21627625,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8952628,
+          "wall_ns": 24525750,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 15175081,
+          "wall_ns": 32372625,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 15171664,
+          "wall_ns": 31430250,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "pressured/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 15646664,
+          "wall_ns": 33067292,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 15084794,
+          "wall_ns": 31813791,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "queued/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11632959,
+          "wall_ns": 30672167,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11254000,
+          "wall_ns": 30030708,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      }
+    },
+    {
+      "pressured/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 20690045,
+          "wall_ns": 47872791,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 17996871,
+          "wall_ns": 38785167,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11784417,
+          "wall_ns": 40283333,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8806873,
+          "wall_ns": 23323500,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 16294207,
+          "wall_ns": 34986125,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 18276420,
+          "wall_ns": 43488250,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 10957000,
+          "wall_ns": 27816583,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 10554584,
+          "wall_ns": 27582417,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "fragmented/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9341877,
+          "wall_ns": 24184791,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8416460,
+          "wall_ns": 21621250,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11614291,
+          "wall_ns": 31644750,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11476250,
+          "wall_ns": 30500666,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      }
+    },
+    {
+      "pressured/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 17805545,
+          "wall_ns": 43600625,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 19637999,
+          "wall_ns": 51412208,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 18180164,
+          "wall_ns": 44430208,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 19188085,
+          "wall_ns": 47919459,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 12677501,
+          "wall_ns": 37073125,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 12417665,
+          "wall_ns": 34484917,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "fragmented/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8936663,
+          "wall_ns": 23261125,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 8686625,
+          "wall_ns": 23457334,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11439211,
+          "wall_ns": 29024500,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11520873,
+          "wall_ns": 30378667,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "fragmented/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8865292,
+          "wall_ns": 24463417,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9124917,
+          "wall_ns": 25627250,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      }
+    },
+    {
+      "pressured/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 17032375,
+          "wall_ns": 36341708,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 15779122,
+          "wall_ns": 34797959,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9630042,
+          "wall_ns": 27986083,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8979998,
+          "wall_ns": 26284667,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11370165,
+          "wall_ns": 29665667,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 13025833,
+          "wall_ns": 37526125,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "fragmented/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 9379583,
+          "wall_ns": 26771667,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9227044,
+          "wall_ns": 25590833,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 19508918,
+          "wall_ns": 42380791,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 19739874,
+          "wall_ns": 46689459,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 14501916,
+          "wall_ns": 70395875,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 14103583,
+          "wall_ns": 42582333,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      }
+    },
+    {
+      "pressured/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 17458957,
+          "wall_ns": 38029375,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 19913623,
+          "wall_ns": 41841834,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "pressured/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 19612208,
+          "wall_ns": 47801750,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 18344457,
+          "wall_ns": 42153209,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "queued/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 13401419,
+          "wall_ns": 41807250,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 14583207,
+          "wall_ns": 71964041,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "queued/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 13843165,
+          "wall_ns": 41468625,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 12206209,
+          "wall_ns": 38628250,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "fragmented/alone": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 10646542,
+          "wall_ns": 29511500,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11382750,
+          "wall_ns": 35254334,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 10413877,
+          "wall_ns": 26955709,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 9046584,
+          "wall_ns": 24687709,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      }
+    },
+    {
+      "fragmented/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 7934045,
+          "wall_ns": 20729416,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 8650543,
+          "wall_ns": 23140542,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "fragmented/marker": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 9451792,
+          "wall_ns": 25004625,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 9113667,
+          "wall_ns": 23897292,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      },
+      "queued/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 11919211,
+          "wall_ns": 31227000,
+          "owner_turns": 8,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11089251,
+          "wall_ns": 29134125,
+          "owner_turns": 8,
+          "marker_count": 8
+        }
+      },
+      "queued/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 11247792,
+          "wall_ns": 30173083,
+          "owner_turns": 8,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 13105166,
+          "wall_ns": 38377041,
+          "owner_turns": 8,
+          "marker_count": 0
+        }
+      },
+      "pressured/alone": {
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 15480541,
+          "wall_ns": 32525500,
+          "owner_turns": 32,
+          "marker_count": 0
+        },
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 16389332,
+          "wall_ns": 36390833,
+          "owner_turns": 32,
+          "marker_count": 0
+        }
+      },
+      "pressured/marker": {
+        "512": {
+          "cap": 524288,
+          "bytes": 67108864,
+          "owner_ns": 18254459,
+          "wall_ns": 72757791,
+          "owner_turns": 32,
+          "marker_count": 8
+        },
+        "256": {
+          "cap": 262144,
+          "bytes": 67108864,
+          "owner_ns": 18463251,
+          "wall_ns": 48621417,
+          "owner_turns": 32,
+          "marker_count": 8
+        }
+      }
+    }
+  ]
+}

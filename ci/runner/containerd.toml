@@ -1,0 +1,17 @@
+version = 3
+
+[plugins."io.containerd.cri.v1.runtime".containerd]
+  default_runtime_name = "crun"
+[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.crun]
+  runtime_type = "io.containerd.runc.v2"
+[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.crun.options]
+  BinaryName = "/opt/micropod-oci/crun-1.31-arm64"
+
+[plugins."io.containerd.cri.v1.runtime".cni]
+  bin_dirs = ["/opt/micropod-oci/runner/cni"]
+
+[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.kata]
+  runtime_type = "io.containerd.kata.v2"
+  privileged_without_host_devices = true
+  pod_annotations = []
+  cni_conf_dir = "/etc/cni/micropod-private"

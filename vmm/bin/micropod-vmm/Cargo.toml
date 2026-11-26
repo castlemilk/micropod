@@ -1,0 +1,8 @@
+[package]
+name = "micropod-vmm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vmm-core = { path = "../../crates/vmm-core" }
+vmm-virtio = { path = "../../crates/vmm-virtio" }

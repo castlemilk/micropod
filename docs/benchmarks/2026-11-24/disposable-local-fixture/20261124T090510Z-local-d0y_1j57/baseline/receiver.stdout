@@ -1,0 +1,4 @@
+[idle] warmup A waiting at 1.0s, 77.93% idle (floor 90%), 0/2 consecutive eligible
+[idle] warmup A ready at 5.0s, 92.50% idle (floor 90%), 2/2 consecutive eligible
+[idle] scored A waiting at 1.0s, 90.50% idle (floor 90%), 1/2 consecutive eligible
+[idle] scored A ready at 13.1s, 91.68% idle (floor 90%), 2/2 consecutive eligible
