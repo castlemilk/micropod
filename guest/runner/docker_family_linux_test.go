@@ -1,0 +1,132 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+// familyFixture is delegatedFixture with every container stopped and given a
+// record directory, a network and a volume for each family, and one of the
+// host's each.
+func familyFixture(t *testing.T) (s *dockerEngine, owner, child, other, otherChild *dockerContainer) {
+	t.Helper()
+	needRoot(t)
+	useVolumeStore(t)
+	s, owner, child, other, otherChild = delegatedFixture(t)
+	owner.EngineSocket, other.EngineSocket = true, true
+	for _, d := range []string{"containers", "retired", "networks"} {
+		if err := os.MkdirAll(filepath.Join(engineRoot, d), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir := func(p string) {
+		if err := os.MkdirAll(p, 0700); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.RemoveAll(p) })
+	}
+	for _, c := range []*dockerContainer{owner, child, other, otherChild} {
+		c.Phase = "exited"
+		dir(c.dir())
+		t.Cleanup(func() { os.RemoveAll(filepath.Join(engineRoot, "retired", c.ID)) })
+	}
+	for i, n := range []*workerNetwork{
+		{Name: "app_default", CreatedBy: owner.ID},
+		{Name: "b_default", CreatedBy: other.ID},
+		{Name: "host-net"},
+	} {
+		n.ID, n.Driver = strings.Repeat(string(rune('1'+i)), 64), "bridge"
+		n.Subnet = netip.MustParsePrefix("10.90." + string(rune('1'+i)) + ".0/24")
+		s.namedNetworks[n.ID] = n
+		dir(n.dir())
+	}
+	for _, v := range []struct{ name, by string }{{"app_pgdata", owner.ID}, {"b_data", other.ID}, {"host_data", ""}} {
+		if err := ensureVolumeBy(v.name, nil, v.by); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return s, owner, child, other, otherChild
+}
+
+func (s *dockerEngine) hasNetworkNamed(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n, _ := s.findNetwork(name, true)
+	return n != nil
+}
+
+func hasVolume(name string) bool { _, err := inspectVolume(name); return err == nil }
+
+// Removing a delegated socket's owner removes what its socket created, and
+// nothing of another job's or the host's: a later job of the same compose
+// project then finds its names free.
+func TestRemovingAnOwnerReapsItsFamily(t *testing.T) {
+	s, owner, child, other, otherChild := familyFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := s.remove(ctx, owner, true); err != nil {
+		t.Fatal(err)
+	}
+	// remove answers once the family is gone.
+	s.mu.Lock()
+	_, childLeft := s.containers[child.ID]
+	_, otherLeft := s.containers[other.ID]
+	_, otherChildLeft := s.containers[otherChild.ID]
+	s.mu.Unlock()
+	if childLeft || !otherLeft || !otherChildLeft {
+		t.Fatalf("after its owner's removal: its child left %v, another job's %v and %v", childLeft, otherLeft, otherChildLeft)
+	}
+	if s.hasNetworkNamed("app_default") || !s.hasNetworkNamed("b_default") || !s.hasNetworkNamed("host-net") {
+		t.Fatal("the owner's network outlived it, or another's went with it")
+	}
+	if hasVolume("app_pgdata") || !hasVolume("b_data") || !hasVolume("host_data") {
+		t.Fatal("the owner's volume outlived it, or another's went with it")
+	}
+
+	// Its socket, still answering a request, creates nothing more.
+	gone := withViewer(context.Background(), owner.ID)
+	rec := httptest.NewRecorder()
+	err := s.volumes(rec, httptest.NewRequest("POST", "/volumes/create", strings.NewReader(`{"Name":"late"}`)).WithContext(gone), "/create")
+	var api apiError
+	if !errors.As(err, &api) || api.code != http.StatusForbidden || hasVolume("late") {
+		t.Errorf("a volume created through a removed owner's socket: %v", err)
+	}
+	err = s.createNetwork(httptest.NewRecorder(), httptest.NewRequest("POST", "/networks/create", strings.NewReader(`{"Name":"late"}`)).WithContext(gone))
+	if !errors.As(err, &api) || api.code != http.StatusForbidden || s.hasNetworkNamed("late") {
+		t.Errorf("a network created through a removed owner's socket: %v", err)
+	}
+}
+
+// An engine start reaps a family whose owner it does not find, removed by an
+// engine that stopped before it reaped, and leaves every other alone.
+func TestEngineStartReapsAFamilyWithoutItsOwner(t *testing.T) {
+	s, owner, child, other, otherChild := familyFixture(t)
+	s.mu.Lock()
+	delete(s.containers, owner.ID)
+	s.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	s.reapOrphanFamilies(ctx)
+	s.mu.Lock()
+	_, childLeft := s.containers[child.ID]
+	_, otherLeft := s.containers[other.ID]
+	_, otherChildLeft := s.containers[otherChild.ID]
+	s.mu.Unlock()
+	if childLeft || !otherLeft || !otherChildLeft {
+		t.Fatalf("an orphaned child left %v; another job's %v and %v", childLeft, otherLeft, otherChildLeft)
+	}
+	if s.hasNetworkNamed("app_default") || hasVolume("app_pgdata") {
+		t.Fatal("an orphaned family's network or volume outlived the engine start")
+	}
+	if !s.hasNetworkNamed("b_default") || !hasVolume("b_data") || !s.hasNetworkNamed("host-net") || !hasVolume("host_data") {
+		t.Fatal("an engine start removed a live family's or the host's network or volume")
+	}
+}

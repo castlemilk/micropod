@@ -152,7 +152,10 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		}
 		viewer := viewerOf(r.Context())
 		s.mu.Lock()
-		err = ensureVolumeBy(opts.Name, opts.Labels, viewer)
+		err = s.socketOwnerGoneLocked(viewer)
+		if err == nil {
+			err = ensureVolumeBy(opts.Name, opts.Labels, viewer)
+		}
 		var v volumeInfo
 		if err == nil {
 			v, err = inspectVolume(opts.Name)

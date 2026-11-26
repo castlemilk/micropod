@@ -101,6 +101,9 @@ type dockerContainer struct {
 	// container runs until it has exited: what a child of its delegated
 	// socket is held to by identity (creatorHoldLocked).
 	binds *heldBinds
+	// reaped closes once what c's delegated socket created is gone, after
+	// c's removal (reapFamily); nil for a container that owns no family.
+	reaped chan struct{}
 }
 type dockerEngine struct {
 	buildkitSocket string
@@ -486,6 +489,11 @@ func serveEngine(ctx context.Context, n node) error {
 		return err
 	}
 	if !privateRootless() {
+		// Before the socket opens, so a job of the same project finds the
+		// names free.
+		s.reapOrphanFamilies(ctx)
+	}
+	if !privateRootless() {
 		// Before the socket opens, so no probe of this engine can be swept
 		// and no container of this engine holds a cache unit yet (a unit a
 		// scheduler job still holds is left alone).
@@ -644,9 +652,14 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, c := range s.containers {
-		if c.Name == name {
-			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", "/"+c.Name, c.ID))
+		if c.Name != name {
+			continue
 		}
+		if !seesContainer(viewerOf(ctx), c) {
+			// Names are the machine's; another job's container is not there.
+			return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by another job's container.", "/"+c.Name))
+		}
+		return nil, fail(http.StatusConflict, fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", "/"+c.Name, c.ID))
 	}
 	network, ip, endpoints, err := s.selectNetworkFor(&spec, viewerOf(ctx))
 	if err != nil {
@@ -1467,6 +1480,17 @@ func (s *dockerEngine) removeLocked(c *dockerContainer) (err error) {
 			delete(s.execs, id)
 		}
 	}
+	if c.ownsFamily() {
+		// What its socket created goes with it (docker_family_linux.go);
+		// remove waits for it, a removal on exit does not.
+		c.reaped = make(chan struct{})
+		go func() {
+			defer close(c.reaped)
+			if err := s.reapFamily(context.Background(), c.ID); err != nil {
+				log.Printf("remove what the Docker socket of %.12s created: %v", c.ID, err)
+			}
+		}()
+	}
 	c.signal()
 	if c.Config.HostConfig.AutoRemove {
 		return os.RemoveAll(retired)
@@ -1551,6 +1575,7 @@ func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force boo
 		}
 		if !c.busy() {
 			err := s.removeLocked(c)
+			reaped := c.reaped
 			s.mu.Unlock()
 			if err == nil && c.RootFS != nil {
 				if err := s.reclaimDockerRootFS(context.WithoutCancel(ctx), c, filepath.Join(engineRoot, "retired", c.ID)); err != nil {
@@ -1559,6 +1584,14 @@ func (s *dockerEngine) remove(ctx context.Context, c *dockerContainer, force boo
 				s.mu.Lock()
 				s.containerEvent(c, "destroy", nil)
 				s.mu.Unlock()
+			}
+			if err == nil && reaped != nil {
+				// The next job of the same project may reuse the names
+				// once this answers.
+				select {
+				case <-reaped:
+				case <-ctx.Done():
+				}
 			}
 			return err
 		}

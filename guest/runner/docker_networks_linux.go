@@ -243,7 +243,11 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 			break
 		}
 	}
+	gone := s.socketOwnerGoneLocked(n.CreatedBy)
 	s.mu.Unlock()
+	if gone != nil {
+		return gone
+	}
 	if exists {
 		return fail(409, "network name in use")
 	}
@@ -306,12 +310,51 @@ func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) err
 		return errors.Join(err, os.RemoveAll(n.dir()), syncDir(filepath.Dir(n.dir())))
 	}
 	s.mu.Lock()
-	s.namedNetworks[n.ID] = n
+	gone = s.socketOwnerGoneLocked(n.CreatedBy)
+	if gone == nil {
+		s.namedNetworks[n.ID] = n
+	}
 	s.mu.Unlock()
+	if gone != nil {
+		// Its owner was removed (and its family reaped) while this request
+		// set the network up: nobody would ever remove it.
+		if n.dns != nil {
+			n.dns.close()
+			n.dns = nil
+		}
+		if mark := os.WriteFile(filepath.Join(n.dir(), "removing"), nil, 0600); mark != nil {
+			return errors.Join(gone, mark)
+		}
+		if clean := n.teardown(); clean != nil {
+			return errors.Join(gone, clean)
+		}
+		return errors.Join(gone, os.RemoveAll(n.dir()), syncDir(filepath.Dir(n.dir())))
+	}
 	writeJSON(w, 201, map[string]string{"Id": n.ID, "Warning": ""})
 	return nil
 }
+
+// socketOwnerGoneLocked refuses a create through the delegated socket of
+// owner ("" for the host's) once owner is gone: its family is reaped
+// (docker_family_linux.go), and what it created after would be nobody's.
+// Call with s.mu held.
+func (s *dockerEngine) socketOwnerGoneLocked(owner string) error {
+	if owner != "" && s.containers[owner] == nil {
+		return fail(http.StatusForbidden, "the container this Docker socket belongs to is gone")
+	}
+	return nil
+}
 func (s *dockerEngine) deleteNetwork(w http.ResponseWriter, key string, canRemove func(*workerNetwork) bool) error {
+	if err := s.removeNetwork(key, canRemove); err != nil {
+		return err
+	}
+	w.WriteHeader(204)
+	return nil
+}
+
+// removeNetwork removes the network key names, when canRemove (nil for any)
+// allows it and no container has an endpoint on it.
+func (s *dockerEngine) removeNetwork(key string, canRemove func(*workerNetwork) bool) error {
 	s.networkMu.Lock()
 	defer s.networkMu.Unlock()
 	s.mu.Lock()
@@ -353,11 +396,7 @@ func (s *dockerEngine) deleteNetwork(w http.ResponseWriter, key string, canRemov
 	s.mu.Lock()
 	delete(s.namedNetworks, n.ID)
 	s.mu.Unlock()
-	if err := syncDir(filepath.Dir(n.dir())); err != nil {
-		return err
-	}
-	w.WriteHeader(204)
-	return nil
+	return syncDir(filepath.Dir(n.dir()))
 }
 func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path string) error {
 	key := strings.TrimPrefix(path, "/")

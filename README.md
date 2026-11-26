@@ -362,7 +362,10 @@ most 64 such containers at a time, HTTP 409 past that), is in its cache scope (n
 the create, every start and a `docker cp` into it stopped decide this again by what the bind resolves to, against the running container's own
 binds, so a bind of a renamed parent of one of its read-only binds, or of a symlink to one, is refused while it would reach it writable; a request
 on its socket that needs this check while the container is not running is refused, HTTP 409), mounts a volume
-the container was given read-only only read-only, and cannot be given a socket in turn. Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
+the container was given read-only only read-only, and cannot be given a socket in turn. What it created there goes
+with the container: its removal stops and removes those containers, then the networks and volumes it created there
+(data included) once nothing uses them, so the next job of the same compose project finds the names free (an engine
+start does the same for anything whose creator is gone). Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
 socket changes them for every job, which is one more reason only a trusted container gets one. A build itself is the
 job's: on that socket another job's build's progress and frontend calls are not there, and the machine's build history
 (`docker buildx history`: every build's args, logs and results) and its content are refused. An untrusted or read-only
