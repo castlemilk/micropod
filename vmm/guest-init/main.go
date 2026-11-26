@@ -135,6 +135,47 @@ func (f fdRW) Write(p []byte) (int, error) {
 	return total, nil
 }
 
+func vsockPeerClosedBoth(fd int) bool {
+	type pollfd struct {
+		Fd      int32
+		Events  int16
+		Revents int16
+	}
+	const (
+		pollIn  = 0x0001
+		pollErr = 0x0008
+		pollHup = 0x0010
+	)
+	p := pollfd{Fd: int32(fd), Events: pollIn}
+	zero := syscall.Timespec{Sec: 0, Nsec: 0}
+	_, _, errno := syscall.Syscall6(
+		syscall.SYS_PPOLL,
+		uintptr(unsafe.Pointer(&p)),
+		1,
+		uintptr(unsafe.Pointer(&zero)),
+		0,
+		0,
+		0,
+	)
+	if errno == 0 && p.Revents&(pollHup|pollErr) != 0 {
+		return true
+	}
+	// Linux af_vsock does not raise POLLHUP on peer SHUTDOWN_RCV|SHUTDOWN_SEND
+	// until local shutdown too, but zero-byte sendto returns EPIPE immediately
+	// when peer_shutdown has RCV_SHUTDOWN (full close) and 0 on half-close!
+	var dummy byte
+	_, _, sendErr := syscall.Syscall6(
+		syscall.SYS_SENDTO,
+		uintptr(fd),
+		uintptr(unsafe.Pointer(&dummy)),
+		0,
+		uintptr(syscall.MSG_NOSIGNAL|syscall.MSG_DONTWAIT),
+		0,
+		0,
+	)
+	return sendErr == syscall.EPIPE || sendErr == syscall.ECONNRESET
+}
+
 func bridgeVsockToUnix(guestPort uint32, unixPath string) {
 	lfd, err := vsockListen(guestPort)
 	if err != nil {
@@ -168,8 +209,12 @@ func bridgeVsockToUnix(guestPort uint32, unixPath string) {
 			vs := fdRW{fd: vsockFD}
 			done := make(chan struct{})
 			go func() {
-				_, _ = io.Copy(uconn, vs)
-				_ = uconn.CloseWrite()
+				_, err := io.Copy(uconn, vs)
+				if err != nil || vsockPeerClosedBoth(vsockFD) {
+					_ = uconn.Close()
+				} else {
+					_ = uconn.CloseWrite()
+				}
 				close(done)
 			}()
 			_, _ = io.Copy(vs, uconn)
