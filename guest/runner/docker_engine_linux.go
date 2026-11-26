@@ -66,6 +66,10 @@ type dockerRecord struct {
 	CacheProxy map[string]string `json:",omitempty"`
 	// RunAs is a --user containing names, resolved against the image at create.
 	RunAs *runAsUser `json:",omitempty"`
+	// EngineSocket: the host granted this trusted container the machine's
+	// Docker API at create (engineSocketGrant); every start serves it a
+	// socket of its own at its docker.sock bind (openEngineSocket).
+	EngineSocket bool `json:",omitempty"`
 }
 type dockerContainer struct {
 	outputBytes int64
@@ -608,6 +612,10 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 	if err != nil {
 		return nil, err
 	}
+	engineSocket, err := s.engineSocketGrant(ctx, spec)
+	if err != nil {
+		return nil, err
+	}
 	id := engineID()
 	if name == "" {
 		name = "mp-" + id[:12]
@@ -641,7 +649,7 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		return nil, fail(400, err.Error())
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, SecondaryNetworks: endpoints, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec, CPUGrouped: group.name != "", Cache: plan, RunAs: runAs, EngineSocket: engineSocket}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}
@@ -955,11 +963,23 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 		lease.Close()
 		return err
 	}
+	engineSocket, closeEngineSocket, err := s.openEngineSocket(c)
+	if err != nil {
+		s.mu.Unlock()
+		closeSocket()
+		lease.Close()
+		return err
+	}
+	// From here every path that closes the cleanup socket closes both.
+	if closeCleanup := closeSocket; engineSocket != "" {
+		closeSocket = func() { closeEngineSocket(); closeCleanup() }
+	}
 	pol := s.cachePolicy.get()
 	// A plan an older engine made has no tier of its own yet, or an older
 	// table's exclusive kinds.
 	c.Cache.applyCurrentRules(pol)
-	files, mounts, aliasPins, err := s.openMounts(c.Config, volumeRules(pol, c.Config, c.Cache), false, socket, filepath.Join(c.dir(), "shim"))
+	files, mounts, aliasPins, err := s.openMountsWith(c.Config, volumeRules(pol, c.Config, c.Cache), false,
+		mountSockets{cleanup: socket, engine: engineSocket}, filepath.Join(c.dir(), "shim"))
 	if err != nil {
 		s.mu.Unlock()
 		closeSocket()

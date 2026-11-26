@@ -1513,6 +1513,21 @@ func (r cacheVolumeRules) readerMay(scope, kind string) bool {
 // (openUncachedAlias), so its job runs uncached instead of failing;
 // privateRoot is the container's shim directory ("" at create).
 func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, createVolumes bool, cleanupSocket, privateRoot string) ([]*os.File, []*cri.Mount, []cachePin, error) {
+	return s.openMountsWith(spec, rules, createVolumes, mountSockets{cleanup: cleanupSocket}, privateRoot)
+}
+
+// mountSockets are the per-start sockets a container's binds may name: the
+// Testcontainers reaper's session cleanup socket and the delegated engine
+// socket (docker_engine_socket_linux.go). "" when the start has none.
+type mountSockets struct {
+	cleanup, engine string
+}
+
+// openMountsWith is openMounts with every per-start socket. A docker.sock bind
+// on the shared machine is the delegated engine socket, which create granted
+// (engineSocketGrant) and which is never a path into the workspace.
+func (s *dockerEngine) openMountsWith(spec dockerConfig, rules cacheVolumeRules, createVolumes bool, sockets mountSockets, privateRoot string) ([]*os.File, []*cri.Mount, []cachePin, error) {
+	cleanupSocket := sockets.cleanup
 	requests, err := spec.mounts()
 	if err != nil {
 		return nil, nil, nil, err
@@ -1541,6 +1556,17 @@ func (s *dockerEngine) openMounts(spec dockerConfig, rules cacheVolumeRules, cre
 		}
 		if privateRootless() && dockerSocketMount(m) {
 			mounts = append(mounts, &cri.Mount{HostPath: clientSocket(dockerSocket, "docker.sock"), ContainerPath: m.Target, Readonly: m.ReadOnly})
+			continue
+		}
+		if !privateRootless() && dockerSocketMount(m) && !spec.cleanupMount(m) {
+			if createVolumes {
+				continue // engineSocketGrant decided this create
+			}
+			if sockets.engine == "" {
+				err = errors.New("this container was not granted the machine's Docker socket at create")
+				break
+			}
+			mounts = append(mounts, &cri.Mount{HostPath: sockets.engine, ContainerPath: m.Target, Readonly: m.ReadOnly})
 			continue
 		}
 		if spec.cleanupMount(m) {

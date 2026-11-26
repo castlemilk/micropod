@@ -349,7 +349,12 @@ default only with the `io.micropod.cache.trust` label on the machine's own Docke
 `MICROPOD_CACHE_SCOPE` names no scope either. A container created from inside another is never more trusted than its
 creator. Whoever holds the machine's Docker socket is the host: it can name any tier and any scope, and every
 `docker build` shares one BuildKit, whose `RUN --mount=type=cache` contents are keyed only by the id the Dockerfile
-gives, so never hand that socket to untrusted code. When the machine asked for its host config share, a policy file
+gives, so never hand that socket to untrusted code. A trusted container the host creates with
+`-v /var/run/docker.sock:/var/run/docker.sock` (Testcontainers, compose or `docker build` in a CI step, Cuttlefish's
+`dockerSocket: true`) gets the machine's Docker API on a socket of its own: what it creates there is never more trusted
+than it is, and it cannot pass a socket on. An untrusted or read-only container, a container created from inside
+another, or one an untrusted default leaves unlabelled is refused such a bind at create (HTTP 403); the
+Testcontainers reaper still gets only its session's cleanup socket. When the machine asked for its host config share, a policy file
 the guest cannot read fails closed (untrusted by default), and no bind may reach the machine's own directory
 (`~/.micropod/hvf` sits in the home-directory workspace): a bind source inside it is refused, and a bind that covers
 it (`-v $HOME:/h`) shows an empty directory there. `--allow-scopes` holds for scope labels and alias volumes alike.
