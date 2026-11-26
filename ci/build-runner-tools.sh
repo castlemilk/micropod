@@ -30,7 +30,24 @@ install -m 0755 "$stage"/bin/* "$runner/bin/"
 install -m 0755 "$stage"/libexec/cni/* "$runner/cni/"
 install -m 0644 "$root"/ci/runner/*.toml "$root"/ci/runner/*.conflist "$runner/"
 install -m 0755 "$root/ci/runner/start.sh" "$root/ci/runner/published-ports.sh" "$root/ci/runner/rootless.sh" "$runner/"
-(cd "$root/guest/runner" && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o "$runner/bin/job" .)
+commit=$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)
+dirty=false
+if [ "$commit" != unknown ] && [ -n "$(git -C "$root" status --porcelain -- guest ci 2>/dev/null)" ]; then dirty=true; fi
+# The shared Go build cache: no per-task GOCACHE, and -trimpath even when the
+# caller's GOFLAGS replaces the machine-wide setting.
+(cd "$root/guest/runner" && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
+    go build -trimpath -ldflags "-X main.engineCommit=$commit" -o "$runner/bin/job" .)
+for need in bin/buildkitd bin/ctr bin/job buildkitd.toml start.sh; do
+    [ -s "$runner/$need" ] || { echo "guest tool bundle is missing runner/$need" >&2; exit 1; }
+done
+# buildkitd is a linux binary; its Go build info names the BuildKit release.
+buildkit=$(go version -m "$runner/bin/buildkitd" | awk '$1 == "mod" && $2 == "github.com/moby/buildkit" { print $3 }')
+[[ $buildkit =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "cannot read the BuildKit version of runner/bin/buildkitd" >&2; exit 1; }
+# The host reads this to tell what the bundle's engine supports. engineCommit
+# is also the GitCommit of the engine's GET /version.
+printf '{"engineCommit":"%s","engineDirty":%s,"cacheApi":1,"buildkit":"%s","capabilities":["caches","buildkit","grpc-build"]}\n' \
+    "$commit" "$dirty" "$buildkit" >"$runner/manifest.json"
+chmod 0644 "$runner/manifest.json"
 # Replace the generated directory so older tool or config files cannot leak into the bundle.
 mkdir -p "$out/guest"
 rm -rf "$out/guest/runner"

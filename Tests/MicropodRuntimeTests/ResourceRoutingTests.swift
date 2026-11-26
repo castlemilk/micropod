@@ -346,8 +346,6 @@ final class ResourceRoutingTests: XCTestCase {
             ("rmi named", { try await router.delete("alpine:3.20", force: true, runtime: "hvf") }),
             ("tag", { try await router.tag(source: "busybox:1.36", target: "mine:1") }),
             ("prune", { _ = try await router.prune(danglingOnly: true, runtime: "hvf") }),
-            ("save", { try await router.save("busybox:1.36", to: "/tmp/x.tar") }),
-            ("load", { try await router.load(from: "/tmp/x.tar", runtime: "hvf") }),
             ("push", { for try await _ in router.push("busybox:1.36", platform: nil) {} }),
             (
                 "build",
@@ -367,6 +365,71 @@ final class ResourceRoutingTests: XCTestCase {
         XCTAssertEqual(appleOwned, "apple", "Apple's names match however the reference is spelled")
         let pruned = try await router.prune(danglingOnly: true)
         XCTAssertEqual(pruned, "apple pruned images")
+    }
+
+    func testSaveAndLoadGoToTheHVFGuest() async throws {
+        let archive = Data("tar-bytes-of-busybox".utf8)
+        let server = try serving { request in
+            switch (request.method, request.path) {
+            case ("GET", "/images/busybox:1.36/json"), ("GET", "/images/hvfonly:1/json"):
+                return (200, Self.json(["Id": "sha256:ab3f"]))
+            case ("GET", "/images/busybox:1.36/get"): return (200, archive)
+            case ("GET", "/images/get"): return (200, archive + Data("+more".utf8))
+            case ("GET", "/images/missing:1/get"): return (404, Self.json(["message": "image export: not found"]))
+            case ("POST", "/images/load"):
+                return (200, Self.json(["stream": "unpacking docker.io/library/busybox:1.36 (sha256:73aa)...done\n"]))
+            case ("GET", _) where request.path.hasPrefix("/images/"):
+                return (404, Self.json(["message": "No such image"]))
+            default: return (501, Self.json(["message": "unsupported image operation"]))
+            }
+        }
+        let apple = RecordingImages()
+        let router = ImageRouter(apple: apple, registry: try registry(hvf: true))
+        let directory = root.appendingPathComponent("out")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let output = directory.appendingPathComponent("busybox.tar")
+        try Data("stale".utf8).write(to: output)
+
+        try await router.save("busybox:1.36", to: output.path)
+        XCTAssertEqual(try Data(contentsOf: output), archive, "the guest's archive replaces the file")
+        try await router.saveAll(["busybox:1.36", "hvfonly:1"], to: output.path)
+        XCTAssertEqual(try Data(contentsOf: output), archive + Data("+more".utf8))
+        let multi = try XCTUnwrap(server.requests.last { $0.path == "/images/get" })
+        XCTAssertEqual(multi.query["names"] != nil, true, "several images go in one /images/get?names=…")
+        let mixed = await failure {
+            try await router.saveAll(["busybox:1.36", "docker.io/library/alpine:3.20"], to: output.path)
+        }
+        XCTAssertEqual(mixed?.code, "failed_precondition", mixed?.message ?? "")
+        XCTAssertTrue(mixed?.message.contains("several runtimes (apple, hvf)") ?? false, mixed?.message ?? "")
+
+        let missing = await failure { try await router.save("missing:1", to: output.path, runtime: "hvf") }
+        XCTAssertEqual(missing?.code, "not_found", missing?.message ?? "")
+        XCTAssertEqual(try Data(contentsOf: output), archive + Data("+more".utf8), "a failed save keeps the old file")
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: directory.path), ["busybox.tar"],
+            "and leaves no partial archive")
+
+        let input = directory.appendingPathComponent("in.tar")
+        try archive.write(to: input)
+        try await router.load(from: input.path, runtime: "hvf")
+        let load = try XCTUnwrap(server.requests.last { $0.path == "/images/load" })
+        XCTAssertEqual(load.method, "POST")
+        XCTAssertEqual(load.body, archive, "the archive is the request body")
+        XCTAssertEqual(load.headers["content-type"], "application/x-tar")
+        XCTAssertEqual(load.headers["content-length"], String(archive.count))
+        let reported = try await HVFImageStore(machine: HVFMachineClient(layout: layout, environment: [:]))
+            .load(from: input.path)
+        XCTAssertEqual(reported, "unpacking docker.io/library/busybox:1.36 (sha256:73aa)...done")
+
+        try await router.save("docker.io/library/alpine:3.20", to: output.path)
+        try await router.load(from: input.path)
+        let calls = await apple.calls.filter { $0 != "list" }
+        XCTAssertEqual(
+            calls, ["save docker.io/library/alpine:3.20", "load \(input.path)"],
+            "Apple's own images and unnamed loads stay Apple's (its listings answer ownership)")
+
+        let notAFile = await failure { try await router.load(from: directory.path, runtime: "hvf") }
+        XCTAssertEqual(notAFile?.code, "invalid_argument", notAFile?.message ?? "")
     }
 
     func testAnEngineDefaultLeavesBuildAndLoadOnApple() async throws {

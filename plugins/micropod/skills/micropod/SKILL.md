@@ -102,7 +102,18 @@ only under the machine's workspace (the home directory unless
 `micropod machine install --workspace <dir>` says otherwise). Machine
 control: `micropod machine start|stop|restart|status|logs`;
 `micropod machine docker-endpoint` prints a `DOCKER_HOST` for stock Docker
-clients.
+clients. Dependency caches (Go, npm, pnpm, yarn, pip, uv, cargo, corepack)
+attach to every hvf container by default, shared in scope `default`; opt a
+container out or narrow it with the label `io.micropod.cache=off|<tools>`
+(or `micropod run --cache off|go,npm`) and pick a scope with
+`io.micropod.cache.scope` (`--cache-scope`). Machine-wide:
+`micropod machine cache policy [--mode auto|off] [--tools …]
+[--default-scope S|none] [--allow-scopes 'ci-*']`, applied while running.
+`micropod save|load --runtime hvf` move image archives. When `machine status`
+says `docker build: fallback builder only`, `micropod machine builder install`
+adds a `micropod` docker context and the remote buildx builder
+`micropod-buildkit`; build with
+`BUILDX_BUILDER=micropod-buildkit docker --context micropod build …`.
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP

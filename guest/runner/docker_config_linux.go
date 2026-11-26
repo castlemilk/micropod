@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -188,30 +189,86 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 			return spec, errors.New("expected KEY=VALUE in environment")
 		}
 	}
-	if _, _, err := dockerUser(spec.User); err != nil {
+	if err := validateDockerUser(spec.User); err != nil {
 		return spec, err
 	}
 	return spec, nil
 }
 
-func dockerUser(user string) (*cri.Int64Value, *cri.Int64Value, error) {
+// validateDockerUser accepts uid, name, uid:gid, name:group and mixtures.
+// Names are resolved against the image at create (see runAsFor).
+func validateDockerUser(user string) error {
+	if user == "" {
+		return nil
+	}
+	u, g, has := strings.Cut(user, ":")
+	if !validUserToken(u) || has && !validUserToken(g) {
+		return errors.New("invalid user: expected name|uid[:group|gid]")
+	}
+	return nil
+}
+
+// dockerUser maps --user to CRI ids. Numeric parts need no facts; names are
+// resolved through the image's passwd/group in facts.
+func dockerUser(user string, facts *imageFacts) (*cri.Int64Value, *cri.Int64Value, error) {
 	if user == "" {
 		return nil, nil, nil
 	}
 	u, g, has := strings.Cut(user, ":")
-	id := func(s string) (*cri.Int64Value, error) {
-		n, e := strconv.ParseUint(s, 10, 32)
-		if e != nil {
-			return nil, errors.New("numeric uid and gid required")
+	_, uNum := numericID(u)
+	_, gNum := numericID(g)
+	if uNum && (!has || gNum) {
+		uid, _ := numericID(u)
+		if !has {
+			return &cri.Int64Value{Value: int64(uid)}, nil, nil
 		}
-		return &cri.Int64Value{Value: int64(n)}, nil
+		gid, _ := numericID(g)
+		return &cri.Int64Value{Value: int64(uid)}, &cri.Int64Value{Value: int64(gid)}, nil
 	}
-	uid, e := id(u)
-	if e != nil || !has {
-		return uid, nil, e
+	if facts == nil || !facts.OK {
+		return nil, nil, errors.New("user and group names need the image's passwd and group files")
 	}
-	gid, e := id(g)
-	return uid, gid, e
+	uid, gid, _, err := resolveUser(user, facts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &cri.Int64Value{Value: int64(uid)}, &cri.Int64Value{Value: int64(gid)}, nil
+}
+
+// runAsFor resolves a --user containing names once, at create. A purely
+// numeric user needs no record (configure parses it). Without image facts a
+// user name is left to containerd (RunAsUsername); a group name then fails.
+func runAsFor(user string, facts *imageFacts) (*runAsUser, error) {
+	if user == "" {
+		return nil, nil
+	}
+	u, g, has := strings.Cut(user, ":")
+	uid, uNum := numericID(u)
+	gid, gNum := numericID(g)
+	if uNum && (!has || gNum) {
+		return nil, nil
+	}
+	if facts != nil && facts.OK {
+		ruid, rgid, err := dockerUser(user, facts)
+		if err != nil {
+			return nil, err
+		}
+		a, b := uint32(ruid.Value), uint32(rgid.Value)
+		return &runAsUser{UID: &a, GID: &b}, nil
+	}
+	if has && !gNum {
+		return nil, fmt.Errorf("unable to find group %s: image facts unavailable", g)
+	}
+	r := &runAsUser{}
+	if uNum {
+		r.UID = &uid
+	} else {
+		r.Username = u
+	}
+	if has {
+		r.GID = &gid
+	}
+	return r, nil
 }
 
 func (c dockerConfig) mounts() ([]dockerMount, error) {
@@ -281,20 +338,181 @@ func openMount(root, path string) (*os.File, error) {
 	return f, nil
 }
 
-// Both interfaces address the same physical Go and npm stores. The volume
-// directory is a removable Docker reference, while the scheduler owns the bytes.
+// A volume named micropod-ci-scoped-<scope>-<kind> (any table kind) is an
+// alias of the auto-attached store scopes/<scope>/<kind>. The volume
+// directory is a removable Docker reference; the bytes belong to the store.
 func sharedCachePath(name string) (string, bool) {
-	rest, ok := strings.CutPrefix(name, "micropod-ci-scoped-")
+	scope, kind, ok := legacyCacheVolume(name)
 	if !ok {
 		return "", false
 	}
-	for _, kind := range []string{"gomod", "gobuild", "npm"} {
-		scope, ok := strings.CutSuffix(rest, "-"+kind)
-		if ok && scopeName.MatchString(scope) {
-			return filepath.Join(dataRoot, "scopes", scope, kind), true
+	return filepath.Join(cacheRoot, "scopes", scope, kind), true
+}
+
+// openStoreBeneath opens a store path below cacheRoot as an O_PATH bind source
+// without following any symlink a container may have planted.
+func openStoreBeneath(p string) (*os.File, error) {
+	rel, err := filepath.Rel(cacheRoot, p)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, "../") {
+		return nil, errors.New("cache store is outside the cache root")
+	}
+	root, err := os.Open(cacheRoot)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	fd, err := unix.Openat2(int(root.Fd()), rel, &unix.OpenHow{Flags: unix.O_PATH | unix.O_CLOEXEC, Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS})
+	if err != nil {
+		return nil, fmt.Errorf("cache store %s: %w", p, err)
+	}
+	return os.NewFile(uintptr(fd), p), nil
+}
+
+func fdPath(f *os.File) string { return fmt.Sprintf("/proc/%d/fd/%d", os.Getpid(), f.Fd()) }
+
+// cacheAttachment is what one start of a container gets from its plan.
+type cacheAttachment struct {
+	files   []*os.File // pinned bind sources and unit locks; closed when the container exits
+	mounts  []*cri.Mount
+	env     []string
+	units   []string          // locked and stamped units
+	skipped map[string]string // tool -> reason, for this start only
+}
+
+func (a *cacheAttachment) skip(kind, reason string) {
+	if a.skipped == nil {
+		a.skipped = map[string]string{}
+	}
+	a.skipped[kind] = reason
+}
+
+// openCacheMounts replays a plan computed at create: it verifies each store,
+// takes the unit locks and opens every bind source. It never fails a start; a
+// store that cannot be prepared is dropped with its variables for this start.
+func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
+	var a cacheAttachment
+	if !plan.attached() {
+		return a
+	}
+	dropAll := func(reason string, err error) cacheAttachment {
+		log.Printf("cache scope %s: %v", plan.Scope, err)
+		closeMounts(a.files)
+		a = cacheAttachment{}
+		for _, st := range plan.Stores {
+			a.skip(st.Kind, reason)
+		}
+		a.env = plan.env(a.skipped)
+		return a
+	}
+	l, err := openCacheLayout()
+	if err != nil {
+		return dropAll(skipStoreFailed, err)
+	}
+	defer l.Close()
+	scopeDir, err := openScope(l, plan.Scope)
+	if err != nil {
+		return dropAll(skipStoreFailed, err)
+	}
+	a.files = append(a.files, scopeDir)
+	stores := map[string]*os.File{}
+	for _, st := range plan.Stores {
+		lock, err := unitLock(plan.Scope, st.Unit, st.Exclusive)
+		if err != nil {
+			reason := skipStoreFailed
+			if errors.Is(err, unix.EWOULDBLOCK) {
+				reason = skipBusyExclusive
+			}
+			a.skip(st.Kind, reason)
+			continue
+		}
+		dir, err := openStore(l, plan.Scope, scopeDir, st.Kind, st.UID)
+		if err != nil {
+			log.Printf("cache store %s/%s: %v", plan.Scope, st.Unit, err)
+			lock.Close()
+			a.skip(st.Kind, skipStoreFailed)
+			continue
+		}
+		a.files = append(a.files, lock, dir)
+		stores[st.Unit] = dir
+		a.units = append(a.units, st.Unit)
+	}
+	type opened struct {
+		m   cacheMount
+		src *os.File
+	}
+	var binds []opened
+	for i, m := range plan.Mounts {
+		if m.Kind != "" {
+			if _, gone := a.skipped[m.Kind]; gone {
+				continue
+			}
+		}
+		var src *os.File
+		var err error
+		switch {
+		case m.Shim:
+			dir := filepath.Join(shimRoot, strconv.Itoa(i))
+			if err = os.MkdirAll(dir, 0755); err == nil {
+				err = errors.Join(os.Chown(dir, int(plan.UID), int(plan.GID)), os.Chmod(dir, 0755))
+			}
+			if err == nil {
+				src, err = os.Open(dir)
+			}
+			if err != nil {
+				// Without the shim crun creates the parent root-owned; the
+				// bind below it still works.
+				log.Printf("cache shim %s: %v", m.Target, err)
+				continue
+			}
+			a.files = append(a.files, src)
+		case m.Kind == "":
+			src = scopeDir
+		default:
+			base := stores[m.Unit]
+			switch {
+			case base == nil:
+				err = fmt.Errorf("store %s not opened", m.Unit)
+			case m.Sub == "":
+				src = base
+			case m.File:
+				src, err = ensureFileAt(base, m.Sub, 0666)
+			default:
+				src, err = ensureDirAt(base, m.Sub, 0777, true, l.trash)
+			}
+			if err != nil {
+				// A path-mode tool that loses one of its binds loses all of them.
+				log.Printf("cache mount %s: %v", m.Target, err)
+				a.skip(m.Kind, skipStoreFailed)
+				continue
+			}
+			if src != base {
+				a.files = append(a.files, src)
+			}
+		}
+		binds = append(binds, opened{m, src})
+	}
+	scopeUsed := false
+	for _, st := range plan.Stores {
+		if _, gone := a.skipped[st.Kind]; !gone && plan.Tools[st.Kind].Mode == "env" {
+			scopeUsed = true
 		}
 	}
-	return "", false
+	for _, b := range binds {
+		if b.m.Kind == "" && !b.m.Shim && !scopeUsed {
+			continue
+		}
+		if _, gone := a.skipped[b.m.Kind]; gone && b.m.Kind != "" {
+			continue
+		}
+		a.mounts = append(a.mounts, &cri.Mount{HostPath: fdPath(b.src), ContainerPath: b.m.Target})
+	}
+	a.env = plan.env(a.skipped)
+	for _, u := range a.units {
+		if err := touchUsed(plan.Scope, u); err != nil {
+			log.Printf("cache stamp %s/%s: %v", plan.Scope, u, err)
+		}
+	}
+	return a
 }
 
 func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket string) ([]*os.File, []*cri.Mount, error) {
@@ -333,20 +551,20 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 			}
 		}
 		var f *os.File
-		if m.Type == "volume" {
-			if path, shared := sharedCachePath(m.Source); shared {
-				if err = cacheDirectory(path); err != nil {
-					break
-				}
-				root, source = filepath.Dir(path), path
+		if scope, kind, shared := legacyCacheVolume(m.Source); m.Type == "volume" && shared {
+			var store string
+			if store, err = ensureStore(scope, kind, nil); err != nil {
+				break
 			}
+			f, err = openStoreBeneath(store)
+		} else {
+			f, err = openMount(root, source)
 		}
-		f, err = openMount(root, source)
 		if err != nil {
 			break
 		}
 		files = append(files, f)
-		mounts = append(mounts, &cri.Mount{HostPath: fmt.Sprintf("/proc/%d/fd/%d", os.Getpid(), f.Fd()), ContainerPath: m.Target, Readonly: m.ReadOnly})
+		mounts = append(mounts, &cri.Mount{HostPath: fdPath(f), ContainerPath: m.Target, Readonly: m.ReadOnly})
 	}
 	if err != nil {
 		closeMounts(files)
@@ -360,18 +578,36 @@ func closeMounts(files []*os.File) {
 	}
 }
 
-func (s dockerConfig) configure(c *cri.ContainerConfig, mounts []*cri.Mount) error {
+// containerExtras is what the engine adds to a request at start: the cache
+// plan's variables and the --user resolved at create.
+type containerExtras struct {
+	Env   []string
+	RunAs *runAsUser
+}
+
+func (s dockerConfig) configure(c *cri.ContainerConfig, mounts []*cri.Mount, extra containerExtras) error {
 	c.Command, c.Args, c.WorkingDir = s.Entrypoint, s.Cmd, s.WorkingDir
 	c.Mounts = mounts
-	for _, kv := range s.Env {
+	// The plan only sets variables the request left unset, except GOFLAGS,
+	// whose merged value already contains the request's flags.
+	for _, kv := range mergeEnv(s.Env, extra.Env) {
 		k, v, _ := strings.Cut(kv, "=")
 		c.Envs = append(c.Envs, &cri.KeyValue{Key: k, Value: v})
 	}
 	sec := c.Linux.SecurityContext
 	sec.ReadonlyRootfs = s.HostConfig.ReadonlyRootfs
 	var err error
-	sec.RunAsUser, sec.RunAsGroup, err = dockerUser(s.User)
-	if err != nil {
+	if r := extra.RunAs; r != nil {
+		sec.RunAsUser, sec.RunAsGroup = nil, nil
+		if r.UID != nil {
+			sec.RunAsUser = &cri.Int64Value{Value: int64(*r.UID)}
+		} else {
+			sec.RunAsUsername = r.Username
+		}
+		if r.GID != nil {
+			sec.RunAsGroup = &cri.Int64Value{Value: int64(*r.GID)}
+		}
+	} else if sec.RunAsUser, sec.RunAsGroup, err = dockerUser(s.User, nil); err != nil {
 		return err
 	}
 	// Trusted service images initialize files and switch to their packaged service UID.

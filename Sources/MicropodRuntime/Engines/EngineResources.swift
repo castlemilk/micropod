@@ -26,6 +26,26 @@ public protocol EngineImageServing: Sendable {
     func prune(danglingOnly: Bool) async throws -> String
     /// Cheap ownership test for by-reference routing. Never boots anything.
     func owns(_ reference: String) async -> Bool
+    /// The store implements `save` and `load` (a Docker image archive).
+    var savesAndLoads: Bool { get }
+    /// Writes `references` as one Docker image archive (`docker save`) to
+    /// `outputPath`, replacing a file already there.
+    func save(_ references: [String], to outputPath: String) async throws
+    /// Loads a Docker or OCI image archive (`docker load`); returns what
+    /// the engine reported.
+    func load(from inputPath: String) async throws -> String
+}
+
+extension EngineImageServing {
+    public var savesAndLoads: Bool { false }
+
+    public func save(_ references: [String], to outputPath: String) async throws {
+        throw MicropodError.unsupported("this runtime does not support image save")
+    }
+
+    public func load(from inputPath: String) async throws -> String {
+        throw MicropodError.unsupported("this runtime does not support image load")
+    }
 }
 
 // MARK: - Docker Engine API
@@ -165,6 +185,52 @@ enum DockerResources {
         var query = ["repo": repo]
         if let tag { query["tag"] = tag }
         try docker.check(try await docker.request("POST", "/images/\(escapeReference(source))/tag", query: query))
+    }
+
+    /// `GET /images/{ref}/get`, or `/images/get?names=…` for several,
+    /// streamed into a temporary file beside `outputPath` that then
+    /// replaces it: a failed save leaves no partial archive behind.
+    static func saveImages(_ docker: DockerClient, _ references: [String], to outputPath: String) async throws {
+        guard !references.isEmpty else { throw MicropodError.message("invalidArgument: save needs an image") }
+        let destination = URL(fileURLWithPath: NSString(string: outputPath).expandingTildeInPath)
+        let temporary = destination.deletingLastPathComponent()
+            .appendingPathComponent(".\(destination.lastPathComponent).micropod-save-\(UUID().uuidString)")
+        let path: String
+        if references.count == 1 {
+            path = "/images/\(escapeReference(references[0]))/get"
+        } else {
+            var query = URLComponents()
+            query.queryItems = references.map { URLQueryItem(name: "names", value: $0) }
+            path = "/images/get?" + (query.percentEncodedQuery ?? "")
+        }
+        try await docker.download("GET", path, to: temporary)
+        guard rename(temporary.path, destination.path) == 0 else {
+            let failure = Socket.posix("rename to \(destination.path)")
+            unlink(temporary.path)
+            throw failure
+        }
+    }
+
+    /// `POST /images/load` with the archive as the body. The reply is a
+    /// JSON object (or a stream of them) whose `stream`/`error` fields say
+    /// what happened.
+    static func loadImages(_ docker: DockerClient, from inputPath: String) async throws -> String {
+        let source = URL(fileURLWithPath: NSString(string: inputPath).expandingTildeInPath)
+        let response = try docker.check(
+            try await docker.upload(
+                "POST", "/images/load", query: ["quiet": "1"], from: source, contentType: "application/x-tar"))
+        var lines: [String] = []
+        for line in String(decoding: response.body, as: UTF8.self).split(separator: "\n") {
+            guard let object = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any] else {
+                lines.append(String(line))
+                continue
+            }
+            if let error = object["error"] as? String { throw MicropodError.message("internal: docker: \(error)") }
+            if let stream = object["stream"] as? String {
+                lines += stream.split(separator: "\n").map(String.init)
+            }
+        }
+        return lines.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     static func splitTag(_ reference: String) -> (repo: String, tag: String?) {

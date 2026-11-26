@@ -91,7 +91,6 @@ const FUSE_NO_OPEN_SUPPORT: u32 = 1 << 17;
 const FUSE_PARALLEL_DIROPS: u32 = 1 << 18;
 const FUSE_MAX_PAGES: u32 = 1 << 22;
 const FUSE_CACHE_SYMLINKS: u32 = 1 << 23;
-const FUSE_EXPLICIT_INVAL_DATA: u32 = 1 << 25;
 const FUSE_INIT_EXT: u32 = 1 << 30;
 const FUSE_DIRECT_IO_ALLOW_MMAP_FLAGS2: u32 = 1 << (36 - 32);
 const FUSE_DIRECT_IO_MMAP_MINOR: u32 = 39;
@@ -193,12 +192,25 @@ const DIR_FD_RECHECK_MS: u64 = 20;
 // Writable shares may be changed by a host editor while a guest file is open.
 // 20ms metadata validity keeps host-edit visibility ~3.5x faster than OrbStack (~91ms)
 // and ~40x faster than Apple VZ (~1004ms) while preventing mid-scan dentry thrashing.
-fn cache_validity(read_only: bool) -> (u64, u32) {
-    if read_only {
-        (3600, 0)
-    } else {
-        (0, 20_000_000)
-    }
+const RW_VALIDITY: (u64, u32) = (0, 20_000_000);
+
+/// How long anything a read-only share reports stays valid, in the guest and
+/// in this server's read-only caches alike. The guest cannot change such a
+/// share, but the host can: it may atomically replace a file (write a
+/// temporary file, rename it over the old name), and the guest must see the
+/// new file within this long without a remount. A replaced name binds a new
+/// node, so the guest never mixes the old file's cached pages with the new
+/// file's attributes.
+const RO_VALIDITY_MS: u64 = 1000;
+
+/// Entry and attribute validity for a reply built from what the host reported
+/// `age_ms` ago, as (seconds, nanoseconds), or None once it has run out: a
+/// cached read-only reply only carries what is left of the validity of the
+/// host answer it repeats, so caching never extends how long the guest may
+/// see a file the host has since replaced.
+fn validity_left(validity_ms: u64, age_ms: u64) -> Option<(u64, u32)> {
+    let left = validity_ms.checked_sub(age_ms).filter(|&ms| ms > 0)?;
+    Some((left / 1000, ((left % 1000) * 1_000_000) as u32))
 }
 
 /// Compact POSIX stat snapshot populated from `fstatat`/`fstat`/`getattrlistbulk`.
@@ -962,7 +974,8 @@ struct Node {
     parent: u64,
     /// Entry name in `parent` as the host stores it (the root is `.` in itself).
     name: CString,
-    /// Host (dev, ino) this node is bound to (mutable shares).
+    /// Host (dev, ino) this node is bound to (None only for the root, and
+    /// for a node restored from a snapshot until it is observed again).
     identity: Option<(u64, u64)>,
     /// Entry replies the guest has not forgotten yet (FUSE `nlookup`).
     lookups: u64,
@@ -1228,6 +1241,10 @@ fn host_rename(
     }
 }
 
+/// A read-only LOOKUP answer (the node it bound, or the error) and the
+/// `clock_ms` the host gave it at.
+type RoLookup = (Result<u64, i32>, u64);
+
 struct FsCore {
     read_only: bool,
     writable_workspace: bool,
@@ -1265,10 +1282,17 @@ struct FsCore {
     limits: Limits,
     /// Guest owner pinned by a guest `chown`, by host (dev, ino) (see [`GuestAttr`]).
     owners: HashMap<(u64, u64), (u32, u32)>,
-    // Read-only hot caches (eliminates repeat host lstat/open syscalls on oci-tools!)
-    ro_lookup_cache: HashMap<(u64, Vec<u8>), Result<u64, i32>>,
-    ro_attr_cache: HashMap<u64, FuseStat>,
+    // Read-only hot caches (eliminates repeat host lstat/open syscalls on oci-tools!).
+    // Lookups and attributes carry the `clock_ms` the host reported them at
+    // and are served only for `ro_validity_ms` after it.
+    ro_lookup_cache: HashMap<(u64, Vec<u8>), RoLookup>,
+    ro_attr_cache: HashMap<u64, (FuseStat, u64)>,
+    /// A descriptor of the file each node is bound to, for reads without an
+    /// open handle (FUSE_NO_OPEN_SUPPORT). It outlives a node the host
+    /// replaced until the guest forgets the node: a guest file still open
+    /// on it keeps reading the file it opened.
     ro_file_cache: HashMap<u64, Arc<File>>,
+    ro_validity_ms: u64,
     // Reusable scratch buffers (zero heap allocs on hot paths)
     read_buf: Vec<u8>,
     bulk_buf: Vec<u8>,
@@ -1497,6 +1521,7 @@ impl FsCore {
             ro_lookup_cache: HashMap::new(),
             ro_attr_cache: HashMap::new(),
             ro_file_cache: HashMap::new(),
+            ro_validity_ms: RO_VALIDITY_MS,
             read_buf: vec![0u8; 256 * 1024],
             bulk_buf: Vec::new(),
             resp_buf: Vec::with_capacity(4096),
@@ -1550,9 +1575,12 @@ impl FsCore {
         self.dir_fds.remove(&id);
         if self.read_only {
             self.ro_attr_cache.remove(&id);
-            self.ro_file_cache.remove(&id);
             let key = (node.parent, node.name.to_bytes().to_vec());
-            if self.ro_lookup_cache.get(&key) == Some(&Ok(id)) {
+            if self
+                .ro_lookup_cache
+                .get(&key)
+                .is_some_and(|(found, _)| *found == Ok(id))
+            {
                 self.ro_lookup_cache.remove(&key);
             }
         }
@@ -1560,7 +1588,8 @@ impl FsCore {
     }
 
     /// Forget a node and everything below it: later requests for them get
-    /// ESTALE (open handles keep working), and the name can bind afresh.
+    /// ESTALE (open handles, and on read-only shares the node's own
+    /// descriptor, keep working), and the name can bind afresh.
     fn retire(&mut self, id: u64) {
         let mut stack = vec![id];
         while let Some(id) = stack.pop() {
@@ -1585,7 +1614,9 @@ impl FsCore {
     /// FUSE_FORGET: the guest dropped `count` references to node `id`.
     fn forget(&mut self, id: u64, count: u64) {
         let Some(node) = self.nodes.get_mut(&id) else {
-            return; // already retired
+            // Already retired: the guest is done with the file it read through it.
+            self.ro_file_cache.remove(&id);
+            return;
         };
         node.lookups = node.lookups.saturating_sub(count);
         self.drop_unreferenced(id);
@@ -1603,7 +1634,40 @@ impl FsCore {
             }
             let parent = node.parent;
             self.remove_node(id);
+            self.ro_file_cache.remove(&id);
             id = parent;
+        }
+    }
+
+    /// FUSE_INIT starts a new session: the guest mounted the share (again).
+    /// It references no node or handle of an earlier session, whose FORGETs
+    /// and RELEASEs it stopped sending once that session ended, so all of
+    /// them go. Owner pins belong to host files and stay.
+    fn reset_session(&mut self) {
+        let stale: Vec<u64> = self
+            .nodes
+            .keys()
+            .copied()
+            .filter(|&id| id != FUSE_ROOT_ID)
+            .collect();
+        for id in stale {
+            self.remove_node(id);
+        }
+        self.children.clear();
+        self.kin.clear();
+        self.kin_more.clear();
+        self.dir_fds.clear();
+        let handles = (self.open_files.len() + self.open_dirs.len()) as u64;
+        self.open_files.clear();
+        self.open_dirs.clear();
+        self.metrics
+            .open_handles
+            .fetch_sub(handles, Ordering::Relaxed);
+        self.ro_lookup_cache.clear();
+        self.ro_attr_cache.clear();
+        self.ro_file_cache.clear();
+        if let Some(root) = self.nodes.get_mut(&FUSE_ROOT_ID) {
+            root.lookups = 0;
         }
     }
 
@@ -1768,12 +1832,12 @@ impl FsCore {
     /// An editor can atomically replace a pathname. Linux keys its page cache by
     /// FUSE node ID, so the replacement must receive a distinct ID while open
     /// handles to the old inode continue to address their original contents.
+    /// The host may do this on a read-only share too (a policy file renamed
+    /// into place): reusing the old node would show the old file's pages
+    /// under the new file's size.
     fn observe_child(&mut self, parent: u64, name: &CStr, st: &FuseStat) -> u64 {
         let identity = (st.dev, st.ino);
         if let Some(id) = self.child_id(parent, name) {
-            if self.read_only {
-                return id;
-            }
             if let Some(node) = self.nodes.get_mut(&id) {
                 match node.identity {
                     None => {
@@ -1787,8 +1851,7 @@ impl FsCore {
             }
             self.retire(id);
         }
-        let identity = (!self.read_only).then_some(identity);
-        self.insert_child(parent, name.to_owned(), identity)
+        self.insert_child(parent, name.to_owned(), Some(identity))
     }
 
     /// Move the node at (`old_parent`, `old`) to (`new_parent`, `new`) after a
@@ -1887,20 +1950,16 @@ impl FsCore {
     }
 
     fn identity_matches(&self, nodeid: u64, st: &FuseStat) -> bool {
-        self.read_only
-            || self
-                .nodes
-                .get(&nodeid)
-                .and_then(|n| n.identity)
-                .is_none_or(|known| known == (st.dev, st.ino))
+        self.nodes
+            .get(&nodeid)
+            .and_then(|n| n.identity)
+            .is_none_or(|known| known == (st.dev, st.ino))
     }
 
     fn has_identity(&self, nodeid: u64) -> bool {
-        !self.read_only
-            && self
-                .nodes
-                .get(&nodeid)
-                .is_some_and(|n| n.identity.is_some())
+        self.nodes
+            .get(&nodeid)
+            .is_some_and(|n| n.identity.is_some())
     }
 
     /// A descriptor for the directory node `id`, reached from the share root
@@ -2117,10 +2176,14 @@ impl FsCore {
             return fstat_fd(open.file.as_raw_fd());
         }
         let by_path = self.stat_node(nodeid);
-        if matches!(by_path, Err(LINUX_ENOENT | LINUX_ESTALE))
-            && let Some(open) = self.open_files.values().find(|open| open.nodeid == nodeid)
-        {
-            return fstat_fd(open.file.as_raw_fd());
+        if matches!(by_path, Err(LINUX_ENOENT | LINUX_ESTALE)) {
+            if let Some(open) = self.open_files.values().find(|open| open.nodeid == nodeid) {
+                return fstat_fd(open.file.as_raw_fd());
+            }
+            // A read-only node the host replaced, still read through its descriptor.
+            if let Some(file) = self.ro_file_cache.get(&nodeid) {
+                return fstat_fd(file.as_raw_fd());
+            }
         }
         by_path
     }
@@ -2357,8 +2420,8 @@ impl FsCore {
 
     /// Mode, owner and inode number the current caller sees for the host file
     /// `st` describes, reached through node `nodeid` (see [`GuestAttr`]).
-    /// Read-only tool shares stay root-owned: their attributes are cached for
-    /// an hour and must not depend on who looked first.
+    /// Read-only shares stay root-owned: the guest and this server cache their
+    /// attributes for every caller, so they must not depend on who looked first.
     fn guest_attr(&mut self, nodeid: u64, st: &FuseStat) -> GuestAttr {
         let ino = self.guest_ino(st);
         if self.read_only {
@@ -2405,12 +2468,11 @@ impl FsCore {
     fn encode_entry_out_stat(
         nodeid: u64,
         st: &FuseStat,
-        read_only: bool,
+        (valid_secs, valid_nsecs): (u64, u32),
         attr: GuestAttr,
         out: &mut Vec<u8>,
     ) {
-        // fuse_entry_out (128 bytes); read-only tools shares get 3600s dentry/attr caching
-        let (valid_secs, valid_nsecs) = cache_validity(read_only);
+        // fuse_entry_out (128 bytes)
         out.extend_from_slice(&nodeid.to_le_bytes());
         out.extend_from_slice(&1u64.to_le_bytes()); // generation
         out.extend_from_slice(&valid_secs.to_le_bytes()); // entry_valid
@@ -2420,20 +2482,49 @@ impl FsCore {
         Self::encode_attr_stat(st, attr, out);
     }
 
+    /// How long the guest may keep an entry or attributes the host just reported.
+    fn validity(&self) -> (u64, u32) {
+        if self.read_only {
+            validity_left(self.ro_validity_ms, 0).unwrap_or((0, 0))
+        } else {
+            RW_VALIDITY
+        }
+    }
+
     /// Reply with a `fuse_entry_out` for node `id`, which the guest then
     /// references once more.
     fn write_entry(&mut self, unique: u64, id: u64, st: &FuseStat) -> bool {
+        let valid = self.validity();
+        self.write_entry_valid(unique, id, st, valid)
+    }
+
+    fn write_entry_valid(
+        &mut self,
+        unique: u64,
+        id: u64,
+        st: &FuseStat,
+        valid: (u64, u32),
+    ) -> bool {
         self.add_lookup(id);
         let attr = self.guest_attr(id, st);
-        let ro = self.read_only;
         self.begin_ok(unique);
-        Self::encode_entry_out_stat(id, st, ro, attr, &mut self.resp_buf);
+        Self::encode_entry_out_stat(id, st, valid, attr, &mut self.resp_buf);
         self.finish_ok()
     }
 
     /// Reply with a `fuse_attr_out` for node `id`.
     fn write_attr(&mut self, unique: u64, id: u64, st: &FuseStat) -> bool {
-        let (valid_secs, valid_nsecs) = cache_validity(self.read_only);
+        let valid = self.validity();
+        self.write_attr_valid(unique, id, st, valid)
+    }
+
+    fn write_attr_valid(
+        &mut self,
+        unique: u64,
+        id: u64,
+        st: &FuseStat,
+        (valid_secs, valid_nsecs): (u64, u32),
+    ) -> bool {
         let attr = self.guest_attr(id, st);
         self.begin_ok(unique);
         self.resp_buf.extend_from_slice(&valid_secs.to_le_bytes());
@@ -2441,6 +2532,58 @@ impl FsCore {
         self.resp_buf.extend_from_slice(&0u32.to_le_bytes());
         Self::encode_attr_stat(st, attr, &mut self.resp_buf);
         self.finish_ok()
+    }
+
+    /// Remember what the host just reported for the entry `name` of read-only
+    /// directory node `parent`: the node it binds and that node's
+    /// attributes, or the error.
+    fn ro_remember_entry(&mut self, parent: u64, name: &[u8], found: Result<(u64, FuseStat), i32>) {
+        let now = self.clock_ms();
+        if self.ro_lookup_cache.len() >= MAX_RO_CACHE {
+            self.ro_lookup_cache.clear();
+        }
+        self.ro_lookup_cache
+            .insert((parent, name.to_vec()), (found.map(|(id, _)| id), now));
+        if let Ok((id, st)) = found {
+            self.ro_remember_attr(id, st, now);
+        }
+    }
+
+    fn ro_remember_attr(&mut self, id: u64, st: FuseStat, now: u64) {
+        if self.ro_attr_cache.len() >= MAX_RO_CACHE {
+            self.ro_attr_cache.clear();
+        }
+        self.ro_attr_cache.insert(id, (st, now));
+    }
+
+    /// Attributes of read-only node `id` the host reported recently enough,
+    /// with what is left of their validity.
+    fn ro_cached_attr(&mut self, id: u64) -> Option<(FuseStat, (u64, u32))> {
+        let &(st, seen) = self.ro_attr_cache.get(&id)?;
+        let left = validity_left(self.ro_validity_ms, self.clock_ms().saturating_sub(seen));
+        if left.is_none() {
+            self.ro_attr_cache.remove(&id);
+        }
+        Some((st, left?))
+    }
+
+    /// Reply to a LOOKUP of `name` in read-only directory node `parent` from
+    /// what the host answered recently enough, if it did.
+    fn ro_cached_lookup(&mut self, unique: u64, parent: u64, name: &[u8]) -> Option<bool> {
+        let key = (parent, name.to_vec());
+        let &(found, seen) = self.ro_lookup_cache.get(&key)?;
+        let Some(left) = validity_left(self.ro_validity_ms, self.clock_ms().saturating_sub(seen))
+        else {
+            self.ro_lookup_cache.remove(&key);
+            return None;
+        };
+        match found {
+            Ok(id) => {
+                let (st, attr_left) = self.ro_cached_attr(id)?;
+                Some(self.write_entry_valid(unique, id, &st, left.min(attr_left)))
+            }
+            Err(e) => Some(self.write_err(unique, e)),
+        }
     }
 
     #[inline]
@@ -2573,11 +2716,10 @@ impl FsCore {
     /// access through the node) reaches the mounted root.
     fn listed_stat(&self, parent: u64, dir_fd: RawFd, e: &BulkDirEntry) -> FuseStat {
         if mode_is_dir(e.stat.mode) {
-            let rebound = !self.read_only
-                && self
-                    .child_id(parent, &e.name)
-                    .and_then(|id| self.nodes.get(&id)?.identity)
-                    .is_some_and(|known| known != (e.stat.dev, e.stat.ino));
+            let rebound = self
+                .child_id(parent, &e.name)
+                .and_then(|id| self.nodes.get(&id)?.identity)
+                .is_some_and(|known| known != (e.stat.dev, e.stat.ino));
             if (e.mount_point || rebound)
                 && let Ok(st) = fstatat_cstr(dir_fd, &e.name)
             {
@@ -2629,7 +2771,7 @@ impl FsCore {
     ) -> bool {
         if offset == 0 || !l.started || offset < l.base {
             // A directory the host moved out of the share is not listed.
-            if !self.read_only && !self.fd_within_share(dir_fd) {
+            if !self.fd_within_share(dir_fd) {
                 return self.write_err(unique, LINUX_ESTALE);
             }
             l.rewind(dir_fd);
@@ -2649,6 +2791,7 @@ impl FsCore {
         // Entries listed under a node already gone are sent without one.
         let live = self.nodes.contains_key(&dir_nodeid);
         let ro = self.read_only;
+        let valid = self.validity();
         self.begin_ok(unique);
         let body_start = self.resp_buf.len();
         let mut index = offset.max(l.base);
@@ -2688,19 +2831,11 @@ impl FsCore {
                 match id {
                     Some(id) => {
                         if ro {
-                            if self.ro_lookup_cache.len() >= MAX_RO_CACHE {
-                                self.ro_lookup_cache.clear();
-                            }
-                            if self.ro_attr_cache.len() >= MAX_RO_CACHE {
-                                self.ro_attr_cache.clear();
-                            }
-                            self.ro_lookup_cache
-                                .insert((dir_nodeid, name.to_vec()), Ok(id));
-                            self.ro_attr_cache.insert(id, st);
+                            self.ro_remember_entry(dir_nodeid, name, Ok((id, st)));
                         }
                         self.add_lookup(id);
                         let attr = self.guest_attr(id, &st);
-                        Self::encode_entry_out_stat(id, &st, ro, attr, &mut self.resp_buf);
+                        Self::encode_entry_out_stat(id, &st, valid, attr, &mut self.resp_buf);
                     }
                     // Node ID 0: the guest lists the entry without binding it.
                     None => self.resp_buf.extend_from_slice(&[0u8; 128]),
@@ -2748,6 +2883,7 @@ impl FsCore {
                     .get(12..16)
                     .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
                     .unwrap_or(0);
+                self.reset_session();
                 self.direct_io_mmap = false;
                 if self.direct_io_requested {
                     let guest_major = body
@@ -2797,11 +2933,16 @@ impl FsCore {
                     flags |= FUSE_INIT_EXT;
                 }
                 if self.read_only {
-                    // Read-only shares (e.g. oci-tools) are immutable: skip FUSE_OPEN/FLUSH/RELEASE
-                    // completely (Linux sets fc->no_open=1 and FOPEN_KEEP_CACHE automatically) and
-                    // keep guest page cache warm across container execs!
-                    flags |= FUSE_NO_OPEN_SUPPORT | FUSE_EXPLICIT_INVAL_DATA;
-                } else if (in_flags & FUSE_AUTO_INVAL_DATA) != 0 {
+                    // Read-only shares (e.g. oci-tools) skip FUSE_OPEN/FLUSH/RELEASE completely
+                    // (Linux sets fc->no_open=1 and FOPEN_KEEP_CACHE automatically) and keep the
+                    // guest page cache warm across container execs. That cache is per node, and a
+                    // file the host replaces binds a new node (see `observe_child`).
+                    flags |= FUSE_NO_OPEN_SUPPORT;
+                }
+                // Pages cached for a file whose size or mtime changed are dropped when its
+                // attributes are refreshed (and a read-only share's directory listings with
+                // its mtime): free while nothing changes.
+                if (in_flags & FUSE_AUTO_INVAL_DATA) != 0 {
                     flags |= FUSE_AUTO_INVAL_DATA;
                 }
                 self.resp_buf.extend_from_slice(&flags.to_le_bytes());
@@ -2845,39 +2986,20 @@ impl FsCore {
                 };
                 let name = cname.to_bytes();
                 if self.read_only
-                    && let Some(cached) =
-                        self.ro_lookup_cache.get(&(nodeid, name.to_vec())).copied()
+                    && let Some(replied) = self.ro_cached_lookup(unique, nodeid, name)
                 {
-                    return match cached {
-                        Ok(id) => match self.ro_attr_cache.get(&id).copied() {
-                            Some(st) => self.write_entry(unique, id, &st),
-                            None => self.write_err(unique, LINUX_ENOENT),
-                        },
-                        Err(e) => self.write_err(unique, e),
-                    };
+                    return replied;
                 }
                 match self.lookup_entry(nodeid, &cname) {
                     Ok((id, st)) => {
                         if self.read_only {
-                            if self.ro_lookup_cache.len() >= MAX_RO_CACHE {
-                                self.ro_lookup_cache.clear();
-                            }
-                            if self.ro_attr_cache.len() >= MAX_RO_CACHE {
-                                self.ro_attr_cache.clear();
-                            }
-                            self.ro_lookup_cache
-                                .insert((nodeid, cname.to_bytes().to_vec()), Ok(id));
-                            self.ro_attr_cache.insert(id, st);
+                            self.ro_remember_entry(nodeid, cname.to_bytes(), Ok((id, st)));
                         }
                         self.write_entry(unique, id, &st)
                     }
                     Err(le) => {
                         if self.read_only && le != LINUX_ENFILE {
-                            if self.ro_lookup_cache.len() >= MAX_RO_CACHE {
-                                self.ro_lookup_cache.clear();
-                            }
-                            self.ro_lookup_cache
-                                .insert((nodeid, cname.to_bytes().to_vec()), Err(le));
+                            self.ro_remember_entry(nodeid, cname.to_bytes(), Err(le));
                         }
                         self.write_err(unique, le)
                     }
@@ -2885,17 +3007,15 @@ impl FsCore {
             }
             FUSE_GETATTR => {
                 if self.read_only
-                    && let Some(st) = self.ro_attr_cache.get(&nodeid).copied()
+                    && let Some((st, valid)) = self.ro_cached_attr(nodeid)
                 {
-                    return self.write_attr(unique, nodeid, &st);
+                    return self.write_attr_valid(unique, nodeid, &st, valid);
                 }
                 match self.node_stat(nodeid, body) {
                     Ok(st) => {
                         if self.read_only && self.nodes.contains_key(&nodeid) {
-                            if self.ro_attr_cache.len() >= MAX_RO_CACHE {
-                                self.ro_attr_cache.clear();
-                            }
-                            self.ro_attr_cache.insert(nodeid, st);
+                            let now = self.clock_ms();
+                            self.ro_remember_attr(nodeid, st, now);
                         }
                         self.write_attr(unique, nodeid, &st)
                     }
@@ -3030,9 +3150,9 @@ impl FsCore {
                 let fh = self.add_open_file(id, file, &st);
                 self.add_lookup(id);
                 let attr = self.guest_attr(id, &st);
-                let ro = self.read_only;
+                let valid = self.validity();
                 self.begin_ok(unique);
-                Self::encode_entry_out_stat(id, &st, ro, attr, &mut self.resp_buf);
+                Self::encode_entry_out_stat(id, &st, valid, attr, &mut self.resp_buf);
                 self.resp_buf.extend_from_slice(&fh.to_le_bytes());
                 self.resp_buf
                     .extend_from_slice(&self.direct_open_flags(&st).to_le_bytes());
@@ -3443,7 +3563,7 @@ impl FsCore {
             return Err(LINUX_EBADF);
         }
 
-        // Immutable shares negotiate FUSE_NO_OPEN_SUPPORT. Their regular files
+        // Read-only shares negotiate FUSE_NO_OPEN_SUPPORT. Their regular files
         // have no server-side handle, so open the known leaf only for this sync.
         if !self.nodes.contains_key(&nodeid) {
             return Err(LINUX_EBADF);
@@ -3591,21 +3711,17 @@ impl FsCore {
             if self.child_id(parent, &name).is_some() {
                 continue;
             }
-            let identity = if self.read_only {
-                None
-            } else {
-                // On mutable workspace shares (e.g. a fork pointed at a fresh host directory),
-                // only restore nodes that exist under the new root so missing files return
-                // clean ESTALE/ENOENT and new files with the same name bind fresh host inodes.
-                let Ok(pfd) = self.dir_fd(parent) else {
-                    continue;
-                };
-                let Ok(st) = fstatat_cstr(pfd.as_raw_fd(), &name) else {
-                    continue;
-                };
-                Some((st.dev, st.ino))
+            // Only restore nodes that exist under the root now (e.g. a fork pointed at a
+            // fresh host directory, or a file the host replaced since), so missing files
+            // return clean ESTALE/ENOENT and new files with the same name bind fresh host
+            // inodes.
+            let Ok(pfd) = self.dir_fd(parent) else {
+                continue;
             };
-            self.insert_node(id, parent, name, identity);
+            let Ok(st) = fstatat_cstr(pfd.as_raw_fd(), &name) else {
+                continue;
+            };
+            self.insert_node(id, parent, name, Some((st.dev, st.ino)));
             // The restored guest references it; its own count is unknown, and
             // a FORGET carries the guest's whole count, so one is enough.
             self.add_lookup(id);
@@ -6366,6 +6482,190 @@ mod tests {
         assert!(!core(&ro).ro_attr_cache.contains_key(&c));
         let again = lookup_in(&mut ro, ROOT, b"c").unwrap();
         assert_ne!(again, c);
+        let _ = fs::remove_dir_all(base);
+    }
+
+    // ---- host changes on read-only shares ----
+
+    /// A FUSE_INIT body from a 7.31 guest offering `flags`.
+    fn init_body(flags: u32) -> [u8; 64] {
+        let mut init = [0; 64];
+        init[..4].copy_from_slice(&7u32.to_le_bytes());
+        init[4..8].copy_from_slice(&31u32.to_le_bytes());
+        init[12..16].copy_from_slice(&flags.to_le_bytes());
+        init
+    }
+
+    /// Entry and attribute validity of an entry reply, in milliseconds.
+    fn entry_valid_ms(reply: &[u8]) -> (u64, u64) {
+        let field = |secs: usize, nsec: usize| {
+            u64::from_le_bytes(reply[secs..secs + 8].try_into().unwrap()) * 1000
+                + u64::from(u32::from_le_bytes(
+                    reply[nsec..nsec + 4].try_into().unwrap(),
+                )) / 1_000_000
+        };
+        (field(32, 48), field(40, 52))
+    }
+
+    /// Size in an entry reply's attributes.
+    fn entry_size(reply: &[u8]) -> u64 {
+        u64::from_le_bytes(reply[64..72].try_into().unwrap())
+    }
+
+    /// What a read without an open handle (FUSE_NO_OPEN_SUPPORT) returns.
+    fn read_node(fsys: &mut VirtioFs, id: u64) -> Vec<u8> {
+        let mut body = [0u8; 24];
+        body[16..20].copy_from_slice(&4096u32.to_le_bytes());
+        let reply = request(fsys, FUSE_READ, id, &body);
+        assert_eq!(errno(&reply), 0);
+        reply[16..].to_vec()
+    }
+
+    /// Let `ms` milliseconds pass for the share's clock.
+    fn age(fsys: &VirtioFs, ms: u64) {
+        let mut core = core(fsys);
+        core.epoch = core.epoch.checked_sub(Duration::from_millis(ms)).unwrap();
+    }
+
+    #[test]
+    fn read_only_shares_show_a_host_replacement_once_their_validity_runs_out() {
+        let (base, share, _) = scratch("ro-replace");
+        let policy = share.join("policy.json");
+        // How the host writes a policy file: a temporary file renamed over the old one.
+        let replace = |content: &[u8]| {
+            let tmp = share.join(".policy.json.tmp");
+            fs::write(&tmp, content).unwrap();
+            fs::rename(&tmp, &policy).unwrap();
+        };
+        replace(b"v1-initial\n");
+        let metrics = Arc::new(FsMetrics::default());
+        let mut ro = VirtioFs::new("mp-config", share.clone(), true, metrics.clone()).unwrap();
+
+        // No opens, but pages follow attribute changes (no FUSE_EXPLICIT_INVAL_DATA).
+        let reply = request(&mut ro, FUSE_INIT, ROOT, &init_body(FUSE_AUTO_INVAL_DATA));
+        assert_eq!(errno(&reply), 0);
+        let flags = u32::from_le_bytes(reply[28..32].try_into().unwrap());
+        let explicit_inval_data = 1 << 25;
+        assert_eq!(
+            flags & (FUSE_NO_OPEN_SUPPORT | FUSE_AUTO_INVAL_DATA | explicit_inval_data),
+            FUSE_NO_OPEN_SUPPORT | FUSE_AUTO_INVAL_DATA
+        );
+
+        let reply = request(&mut ro, FUSE_LOOKUP, ROOT, &with_name(&[], b"policy.json"));
+        let first = entry_id(&reply).unwrap();
+        assert_eq!(entry_valid_ms(&reply), (RO_VALIDITY_MS, RO_VALIDITY_MS));
+        assert_eq!(read_node(&mut ro, first), b"v1-initial\n");
+        assert_eq!(lookup_in(&mut ro, ROOT, b"later.json"), Err(LINUX_ENOENT));
+
+        replace(b"v2-renamed-over-longer\n");
+        fs::write(share.join("later.json"), b"{}").unwrap();
+        // Until the validity runs out the cached answers stand, and say how
+        // long they still may: never longer than the host answer they repeat.
+        age(&ro, 400);
+        let reply = request(&mut ro, FUSE_LOOKUP, ROOT, &with_name(&[], b"policy.json"));
+        assert_eq!(entry_id(&reply), Ok(first));
+        let (entry_left, attr_left) = entry_valid_ms(&reply);
+        assert!(
+            entry_left > 0 && entry_left <= RO_VALIDITY_MS - 400,
+            "{entry_left}"
+        );
+        assert_eq!(attr_left, entry_left);
+        let attr = request(&mut ro, FUSE_GETATTR, first, &[0; 16]);
+        let attr_secs = u64::from_le_bytes(attr[16..24].try_into().unwrap());
+        assert_eq!(attr_secs, 0, "under a second is left");
+        assert_eq!(lookup_in(&mut ro, ROOT, b"later.json"), Err(LINUX_ENOENT));
+
+        // Then the host's answer: the replacement is a new node with its own size.
+        age(&ro, RO_VALIDITY_MS);
+        let reply = request(&mut ro, FUSE_LOOKUP, ROOT, &with_name(&[], b"policy.json"));
+        let second = entry_id(&reply).unwrap();
+        assert_ne!(second, first);
+        assert_eq!(entry_size(&reply), 23);
+        assert_eq!(entry_valid_ms(&reply), (RO_VALIDITY_MS, RO_VALIDITY_MS));
+        assert_eq!(read_node(&mut ro, second), b"v2-renamed-over-longer\n");
+        assert!(lookup_in(&mut ro, ROOT, b"later.json").is_ok());
+        // The old node still reads, and stats as, the file it was bound to (a
+        // guest file open on it): never the new size over the old bytes.
+        assert_eq!(read_node(&mut ro, first), b"v1-initial\n");
+        let old = request(&mut ro, FUSE_GETATTR, first, &[0; 16]);
+        assert_eq!(errno(&old), 0);
+        assert_eq!(u64::from_le_bytes(old[40..48].try_into().unwrap()), 11);
+
+        // A listing after another replacement binds the newest file and leaves
+        // the node the guest had alone.
+        replace(b"v3-a-third-and-longer-version\n");
+        age(&ro, RO_VALIDITY_MS);
+        let fh = opendir(&mut ro, ROOT);
+        let listed = read_dir(&mut ro, FUSE_READDIRPLUS, ROOT, fh, 0, 4096);
+        let third = listed
+            .iter()
+            .find(|e| e.3 == b"policy.json")
+            .expect("listed")
+            .0;
+        assert!(third != 0 && third != second && third != first);
+        assert_eq!(
+            read_node(&mut ro, third),
+            b"v3-a-third-and-longer-version\n"
+        );
+        assert_eq!(read_node(&mut ro, second), b"v2-renamed-over-longer\n");
+        let reply = request(&mut ro, FUSE_LOOKUP, ROOT, &with_name(&[], b"policy.json"));
+        assert_eq!((entry_id(&reply), entry_size(&reply)), (Ok(third), 30));
+
+        // The guest forgetting a replaced node drops the descriptor it kept.
+        assert!(core(&ro).ro_file_cache.contains_key(&first));
+        forget(&mut ro, first, 2);
+        assert!(!core(&ro).ro_file_cache.contains_key(&first));
+
+        // A remount is a new session: nothing of the old one is kept or served.
+        let reply = request(&mut ro, FUSE_INIT, ROOT, &init_body(FUSE_AUTO_INVAL_DATA));
+        assert_eq!(errno(&reply), 0);
+        {
+            let core = core(&ro);
+            assert_eq!(core.nodes.len(), 1);
+            assert!(core.children.is_empty() && core.kin.is_empty());
+            assert!(core.ro_lookup_cache.is_empty() && core.ro_attr_cache.is_empty());
+            assert!(core.ro_file_cache.is_empty() && core.open_dirs.is_empty());
+        }
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 1);
+        assert_eq!(metrics.open_handles.load(Ordering::Relaxed), 0);
+        let fresh = lookup_in(&mut ro, ROOT, b"policy.json").unwrap();
+        assert!(fresh > third);
+        assert_eq!(
+            read_node(&mut ro, fresh),
+            b"v3-a-third-and-longer-version\n"
+        );
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn a_new_fuse_session_drops_the_nodes_and_handles_of_the_last_one() {
+        let (base, share, _) = scratch("session");
+        fs::write(share.join("f"), b"x").unwrap();
+        let metrics = Arc::new(FsMetrics::default());
+        let mut fsys = VirtioFs::new("workspace", share.clone(), false, metrics.clone()).unwrap();
+        let f = lookup_in(&mut fsys, ROOT, b"f").unwrap();
+        let opened = open(&mut fsys, f, 0);
+        assert_eq!(errno(&opened), 0);
+        let fh = u64::from_le_bytes(opened[16..24].try_into().unwrap());
+        opendir(&mut fsys, ROOT);
+        assert_eq!(metrics.open_handles.load(Ordering::Relaxed), 2);
+
+        let reply = request(&mut fsys, FUSE_INIT, ROOT, &init_body(0));
+        assert_eq!(errno(&reply), 0);
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 1);
+        assert_eq!(metrics.open_handles.load(Ordering::Relaxed), 0);
+        let mut read = [0u8; 24];
+        read[..8].copy_from_slice(&fh.to_le_bytes());
+        read[16..20].copy_from_slice(&8u32.to_le_bytes());
+        assert_eq!(errno(&request(&mut fsys, FUSE_READ, f, &read)), LINUX_EBADF);
+        assert_eq!(
+            errno(&request(&mut fsys, FUSE_GETATTR, f, &[0; 16])),
+            LINUX_ESTALE
+        );
+        let again = lookup_in(&mut fsys, ROOT, b"f").unwrap();
+        assert_ne!(again, f);
+        drop(fsys);
+        assert_eq!(metrics.nodes.load(Ordering::Relaxed), 0);
         let _ = fs::remove_dir_all(base);
     }
 

@@ -5,15 +5,18 @@
 // Stage 1 (in initramfs): mounts /dev/vda ext4, copies itself to /newroot/run/mp-hvf-init,
 // performs real switch_root so crun's pivot_root works cleanly.
 // Stage 2 (on real ext4 root): mounts /proc, /sys, /dev, /run, /tmp, cgroup2,
-// virtiofs shares (oci-tools -> /opt/micropod-oci, workspace -> host path),
-// configures lo, eth0 and eth1 over rtnetlink (netconf_linux.go), starts
-// AF_VSOCK <-> Unix bridges for docker.sock (2375), oci.sock (2376),
-// buildkit.sock (2377), ports.sock (2378), and supervises
-// /opt/micropod-oci/runner/start.sh.
+// virtiofs shares (oci-tools -> /opt/micropod-oci, workspace -> host path,
+// mp-config -> /run/micropod/host-config), configures lo, eth0 and eth1 over
+// rtnetlink (netconf_linux.go), starts AF_VSOCK <-> Unix bridges for
+// docker.sock (2375), oci.sock (2376), buildkit.sock (2377), ports.sock
+// (2378), and supervises /opt/micropod-oci/runner/start.sh.
 //
 // Boot arguments: mp.workspace / mp.workspace_b64 (share mount point),
-// mp.mtu (published link MTU; default: the device's), mp.published_path
-// (macvlan | bridge | default), mp.worker / mp.instance (engine identity).
+// mp.config=1 (mount the host config share, tag mp-config, read-only at
+// /run/micropod/host-config; without it nothing is mounted and the engine uses
+// its built-in policy defaults), mp.mtu (published link MTU; default: the
+// device's), mp.published_path (macvlan | bridge | default), mp.worker /
+// mp.instance (engine identity).
 //
 // Stopping: a host POWEROFF (or SIGTERM to PID 1) stops the engine within the
 // host's SHUTDOWN_BUDGET, remounts ext4 read-only and powers off (PSCI
@@ -37,10 +40,12 @@ import (
 	"unsafe"
 )
 
-// statfs(2) f_flags bits (Linux ST_NOSUID, ST_NODEV).
+// statfs(2) f_flags bits (Linux ST_RDONLY, ST_NOSUID, ST_NODEV, ST_NOEXEC).
 const (
+	stRdonly = 0x1
 	stNosuid = 0x2
 	stNodev  = 0x4
+	stNoexec = 0x8
 )
 
 const (
@@ -295,6 +300,7 @@ func gracefulStop(workspace string, total time.Duration, orderly bool) {
 	if workspace != "" {
 		_ = syscall.Unmount(workspace, syscall.MNT_DETACH)
 	}
+	_ = syscall.Unmount(hostConfigMount, syscall.MNT_DETACH)
 	_ = syscall.Unmount("/opt/micropod-oci", syscall.MNT_DETACH)
 	if err := syscall.Mount("", "/", "", syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
 		fmt.Fprintf(os.Stderr, "[mp-hvf-init] remount / read-only: %v (next boot replays the journal)\n", err)
@@ -332,20 +338,11 @@ func fatalReset(err error) {
 	reportGuestFailure("init-failed", err.Error())
 	armStopDeadline(fatalResetDeadline, false)
 	syscall.Sync()
+	_ = syscall.Unmount(hostConfigMount, syscall.MNT_DETACH)
 	_ = syscall.Mount("", "/", "", syscall.MS_REMOUNT|syscall.MS_RDONLY, "")
 	syscall.Sync()
 	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 	os.Exit(1)
-}
-
-func cmdlineParams(fields []string) map[string]string {
-	out := map[string]string{}
-	for _, f := range fields {
-		if k, v, ok := strings.Cut(f, "="); ok {
-			out[k] = v
-		}
-	}
-	return out
 }
 
 func mustMount(src, dst, fstype string, flags uintptr, data string) {
@@ -354,6 +351,35 @@ func mustMount(src, dst, fstype string, flags uintptr, data string) {
 		if err != syscall.EBUSY {
 			fmt.Fprintf(os.Stderr, "[mp-hvf-init] mount %s -> %s (%s): %v\n", src, dst, fstype, err)
 		}
+	}
+}
+
+// mountHostConfig mounts the host config share read-only at
+// /run/micropod/host-config, before start.sh so the engine's mount namespace
+// has it. The engine falls back to its built-in policy without it, so a
+// failure is reported (console marker included) but the boot goes on.
+func mountHostConfig(params map[string]string) {
+	requested, err := hostConfigRequested(params)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[mp-hvf-init] %v; no host config share\n", err)
+	}
+	if !requested {
+		return
+	}
+	if err := os.MkdirAll(hostConfigMount, 0755); err != nil {
+		reportGuestFailure("config-share", fmt.Sprintf("mkdir %s: %v", hostConfigMount, err))
+		return
+	}
+	flags := uintptr(syscall.MS_RDONLY | syscall.MS_NOSUID | syscall.MS_NODEV | syscall.MS_NOEXEC)
+	if err := syscall.Mount(hostConfigTag, hostConfigMount, "virtiofs", flags, ""); err != nil {
+		reportGuestFailure("config-share",
+			fmt.Sprintf("mount %s at %s: %v; the engine uses its built-in policy", hostConfigTag, hostConfigMount, err))
+		return
+	}
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(hostConfigMount, &st); err == nil {
+		fmt.Printf("[mp-hvf-init] host config: %s ro=%t nosuid=%t nodev=%t noexec=%t\n", hostConfigMount,
+			st.Flags&stRdonly != 0, st.Flags&stNosuid != 0, st.Flags&stNodev != 0, st.Flags&stNoexec != 0)
 	}
 }
 
@@ -455,6 +481,7 @@ func stage2Supervise() {
 				workspace, st.Flags&stNosuid != 0, st.Flags&stNodev != 0)
 		}
 	}
+	mountHostConfig(params)
 
 	// Bring up loopback, eth0 (egress 10.42.0.2/24 via 10.42.0.1) and, with
 	// --published-net, eth1 (published link 10.43.0.2/24, permanent gateway

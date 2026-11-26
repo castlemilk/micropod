@@ -173,10 +173,11 @@ final class HVFMachineTests: XCTestCase {
             [
                 "--kernel", "\(root.path)/Image", "--initrd", "\(root.path)/mp-hvf-init.cpio",
                 "--disk", "\(root.path)/disk.ext4", "--share", "oci-tools:\(root.path)/tools:ro",
+                "--share", "mp-config:\(root.path)/run/guest-config",
                 "--vsock-expose", "\(root.path)/run/docker.sock:2375",
                 "--vsock-expose", "\(root.path)/run/buildkit.sock:2377", "--published-net",
-                "--cpus", "4", "--memory-mib", "4096", "--shutdown-timeout", "10", "--json-summary",
-                "--parent-pid", "4242",
+                "--cpus", "4", "--memory-mib", "4096", "--cmdline-append", "mp.config=1",
+                "--shutdown-timeout", "10", "--json-summary", "--parent-pid", "4242",
             ])
         XCTAssertFalse(args.contains("--cmdline"), "the VMM's own kernel command line is never replaced")
         let defaults = try HVFVMMCommand.arguments(layout: layout, config: HVFMachineConfig(), parentPID: 1)
@@ -192,7 +193,9 @@ final class HVFMachineTests: XCTestCase {
         let joined = args.joined(separator: "|")
         XCTAssertTrue(joined.contains("--workspace|/Users/me/My Projects|"), "the VMM shares and encodes it")
         XCTAssertFalse(joined.contains("workspace:"), "no hand-built workspace share")
-        XCTAssertTrue(joined.contains("--cmdline-append|mp.mtu=1500|--cmdline-append|loglevel=4"))
+        XCTAssertTrue(
+            joined.contains("--cmdline-append|mp.config=1|--cmdline-append|mp.mtu=1500|--cmdline-append|loglevel=4"),
+            "the config share's boot argument comes first, so a configured one can override it")
         XCTAssertTrue(joined.contains("--shutdown-timeout|30|"))
         XCTAssertFalse(args.contains("--published-net"))
         XCTAssertTrue(args.contains("--quiet"))
@@ -1146,6 +1149,544 @@ final class HVFMachineTests: XCTestCase {
         let replaced = await installError(request)
         XCTAssertNil(replaced)
         XCTAssertNil(index.load().entry(for: "keep"), "a new disk holds none of the old containers")
+    }
+}
+
+// MARK: - Cache policy, guest config share, capabilities
+
+extension HVFMachineTests {
+    private var policyLayout: HVFMachineLayout { HVFMachineLayout(root: root) }
+
+    func testMachineConfigDecodesWithAndWithoutACacheSection() throws {
+        let layout = policyLayout
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data(#"{"cpus": 2}"#.utf8).write(to: layout.config)
+        let without = try HVFMachineConfig.load(from: layout.config)
+        XCTAssertNil(without.cache, "absent: no section is invented")
+        XCTAssertEqual(without.effectiveCachePolicy, HVFMachineCachePolicy())
+        try without.save(to: layout.config)
+        let saved = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(contentsOf: layout.config)) as? [String: Any])
+        XCTAssertNil(saved["cache"], "a config without a policy saves without one (no schema bump)")
+        XCTAssertEqual(saved["schema"] as? Int, 1)
+
+        try Data(
+            #"""
+            {"cpus": 2, "cache": {"mode": "off", "defaultScope": "", "futureKnob": {"a": [1, "x"]},
+             "buildkit": {"registerBuildx": true, "laterKey": "kept"}}}
+            """#.utf8
+        ).write(to: layout.config)
+        let with = try HVFMachineConfig.load(from: layout.config)
+        let policy = try XCTUnwrap(with.cache)
+        XCTAssertEqual(policy.mode, .off)
+        XCTAssertEqual(policy.defaultScope, "", "an empty default scope is kept, not defaulted")
+        XCTAssertEqual(policy.allowedScopes, ["*"], "missing keys take their defaults")
+        XCTAssertEqual(policy.tools, HVFMachineCachePolicy.toolKinds)
+        XCTAssertTrue(policy.goTrimpath)
+        XCTAssertTrue(policy.pnpmLegacyEnv)
+        XCTAssertTrue(policy.buildkit.registerBuildx)
+        XCTAssertEqual(policy.extra, ["futureKnob": .object(["a": .array([.number(1), .string("x")])])])
+        XCTAssertEqual(policy.buildkit.extra, ["laterKey": .string("kept")])
+        try with.save(to: layout.config)
+        XCTAssertEqual(try HVFMachineConfig.load(from: layout.config), with, "unknown keys survive a save")
+
+        try Data(#"{"cache": {"mode": "sometimes"}}"#.utf8).write(to: layout.config)
+        XCTAssertThrowsError(try HVFMachineConfig.load(from: layout.config)) {
+            XCTAssertTrue($0.localizedDescription.contains("cache mode must be auto or off"), $0.localizedDescription)
+        }
+        try Data(#"{"cache": {"defaultScope": "Bad Scope"}}"#.utf8).write(to: layout.config)
+        XCTAssertThrowsError(try HVFMachineConfig.load(from: layout.config), "validated with the rest of machine.json")
+    }
+
+    func testCachePolicyValidation() throws {
+        XCTAssertNoThrow(try HVFMachineCachePolicy().validate())
+        for good in ["default", "a", "proj-a_1", String(repeating: "z", count: 63), "0ci"] {
+            XCTAssertTrue(HVFMachineCachePolicy.isValidScope(good), good)
+        }
+        for bad in ["", "-a", "_a", "A", "a.b", "a b", "a/b", String(repeating: "z", count: 64), "é"] {
+            XCTAssertFalse(HVFMachineCachePolicy.isValidScope(bad), bad)
+        }
+        let policy = HVFMachineCachePolicy(defaultScope: "ci-main", allowedScopes: ["ci-*", "projA".lowercased()])
+        XCTAssertNoThrow(try policy.validate())
+        XCTAssertTrue(policy.allows(scope: "ci-main"))
+        XCTAssertTrue(policy.allows(scope: "ci-"), "a prefix pattern matches its own prefix")
+        XCTAssertTrue(policy.allows(scope: "proja"))
+        XCTAssertFalse(policy.allows(scope: "cix"))
+        XCTAssertFalse(policy.allows(scope: "default"))
+        XCTAssertTrue(HVFMachineCachePolicy().allows(scope: "anything"))
+
+        let invalid: [(HVFMachineCachePolicy, String)] = [
+            (HVFMachineCachePolicy(version: 2), "version 2 is not supported"),
+            (HVFMachineCachePolicy(defaultScope: "UPPER"), "default scope 'UPPER'"),
+            (HVFMachineCachePolicy(allowedScopes: ["*", "-x*"]), "allowed scope '-x*'"),
+            (HVFMachineCachePolicy(allowedScopes: ["a*b"]), "allowed scope 'a*b'"),
+            (HVFMachineCachePolicy(allowedScopes: ["**"]), "allowed scope '**'"),
+            (HVFMachineCachePolicy(allowedScopes: ["ci-*"]), "default scope 'default' is not in the allowed scopes"),
+            (HVFMachineCachePolicy(tools: ["go", "maven"]), "unknown tool 'maven'"),
+        ]
+        for (policy, message) in invalid {
+            XCTAssertThrowsError(try policy.validate(), message) {
+                XCTAssertTrue($0.localizedDescription.contains(message), "\(message): \($0.localizedDescription)")
+            }
+        }
+        XCTAssertNoThrow(
+            try HVFMachineCachePolicy(defaultScope: "", allowedScopes: []).validate(),
+            "no default scope and no allowed scope: caches never attach, which is valid")
+        XCTAssertEqual(
+            try HVFMachineCachePolicy.normalizedTools(["npm", "GO", "gomod", " cargo "]),
+            ["gomod", "gobuild", "npm", "cargo"],
+            "groups expand, repeats drop, table order")
+    }
+
+    func testRenderedCachePolicyGolden() throws {
+        XCTAssertEqual(
+            String(decoding: try HVFMachineCachePolicy().render(), as: UTF8.self),
+            """
+            {
+              "allowedScopes" : [
+                "*"
+              ],
+              "buildkit" : {
+                "registerBuildx" : false
+              },
+              "defaultScope" : "default",
+              "goTrimpath" : true,
+              "mode" : "auto",
+              "pnpmLegacyEnv" : true,
+              "tools" : [
+                "gomod",
+                "gobuild",
+                "npm",
+                "pnpm",
+                "yarn",
+                "yarnberry",
+                "pip",
+                "uv",
+                "cargo",
+                "corepack"
+              ],
+              "version" : 1
+            }
+
+            """)
+        let custom = HVFMachineCachePolicy(
+            mode: .off, defaultScope: "", allowedScopes: ["ci-*"], tools: ["npm", "go"], goTrimpath: false,
+            pnpmLegacyEnv: false, extra: ["maxCacheSize": .string("70%")])
+        let rendered = try XCTUnwrap(try JSONSerialization.jsonObject(with: custom.render()) as? [String: Any])
+        XCTAssertEqual(
+            rendered["tools"] as? [String], ["gomod", "gobuild", "npm"], "the guest gets kinds, never groups")
+        XCTAssertEqual(rendered["mode"] as? String, "off")
+        XCTAssertEqual(rendered["defaultScope"] as? String, "")
+        XCTAssertEqual(rendered["allowedScopes"] as? [String], ["ci-*"])
+        XCTAssertEqual(rendered["goTrimpath"] as? Bool, false)
+        XCTAssertEqual(rendered["pnpmLegacyEnv"] as? Bool, false)
+        XCTAssertEqual(rendered["maxCacheSize"] as? String, "70%", "unknown keys reach the guest")
+        XCTAssertEqual(rendered["version"] as? Int, 1)
+        XCTAssertThrowsError(try HVFMachineCachePolicy(defaultScope: "X").render(), "never renders an invalid policy")
+        XCTAssertEqual(custom.summary, "off")
+        XCTAssertEqual(HVFMachineCachePolicy().summary, "auto, scope default")
+        XCTAssertEqual(
+            HVFMachineCachePolicy(defaultScope: "", tools: ["go"]).summary,
+            "auto, no default scope (only containers naming a scope), tools gomod,gobuild")
+    }
+
+    func testTheConfigShareIsWritableOnTheVMMSideAndBootsTheGuestMount() throws {
+        let layout = policyLayout
+        XCTAssertEqual(layout.guestConfigDirectory.path, root.path + "/run/guest-config")
+        XCTAssertEqual(layout.cachePolicyFile.path, root.path + "/run/guest-config/cache-policy.json")
+        let args = try HVFVMMCommand.arguments(layout: layout, config: HVFMachineConfig(), parentPID: 1)
+        let shares = args.indices.filter { args[$0] == "--share" }.map { args[$0 + 1] }
+        XCTAssertEqual(shares, ["oci-tools:\(root.path)/tools:ro", "mp-config:\(root.path)/run/guest-config"])
+        XCTAssertFalse(
+            shares[1].hasSuffix(":ro"),
+            "micropod-vmm caches a :ro share as immutable: the guest would never see a rewritten policy")
+        let appended = args.indices.filter { args[$0] == "--cmdline-append" }.map { args[$0 + 1] }
+        XCTAssertEqual(appended, ["mp.config=1"])
+    }
+
+    func testTheSupervisorRendersThePolicyBeforeEveryLaunch() async throws {
+        let layout = policyLayout
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try HVFMachineConfig(cache: HVFMachineCachePolicy(tools: ["go"])).save(to: layout.config)
+        let launcher = FakeLauncher([.crashAfterReady(signal: SIGKILL), .healthy])
+        let seen = LogRecorder()
+        let file = layout.cachePolicyFile
+        launcher.onLaunch = { seen.append((try? String(contentsOf: file, encoding: .utf8)) ?? "<missing>") }
+        let supervisor = HVFMachineSupervisor(
+            layout: layout, config: HVFMachineConfig(), policy: .fast, launcher: launcher,
+            inspector: FakeInspector(), readiness: { _ in launcher.currentIsReady }, log: { _ in }, pid: 4242)
+        let run = Task { try await supervisor.run() }
+        try await waitForPhase(.running, launches: 1, launcher)
+        let first = try XCTUnwrap(seen.lines.first)
+        XCTAssertEqual(
+            first, String(decoding: try HVFMachineCachePolicy(tools: ["go"]).render(), as: UTF8.self),
+            "rendered from machine.json before the VMM launched, not from the config the supervisor got")
+        var info = stat()
+        XCTAssertEqual(stat(layout.guestConfigDirectory.path, &info), 0)
+        XCTAssertEqual(info.st_mode & 0o777, 0o700)
+
+        // An edit while running, then the relaunch after the crash: both see it.
+        try HVFMachineConfig(cache: HVFMachineCachePolicy(mode: .off)).save(to: layout.config)
+        let rewritten = try HVFMachineSupervisor.rewritePolicy(layout: layout)
+        XCTAssertEqual(rewritten.mode, .off)
+        XCTAssertEqual(try Data(contentsOf: file), try HVFMachineCachePolicy(mode: .off).render())
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: layout.guestConfigDirectory.path)
+        XCTAssertEqual(leftovers, ["cache-policy.json"], "temp+rename leaves nothing else in the share")
+        try await waitForPhase(.running, launches: 2, launcher)
+        XCTAssertEqual(seen.lines.last, String(decoding: try HVFMachineCachePolicy(mode: .off).render(), as: UTF8.self))
+
+        // A broken machine.json falls back to the configuration it booted with.
+        try Data("{".utf8).write(to: layout.config)
+        XCTAssertEqual(
+            try HVFMachineCachePolicy.writeGuestFile(layout: layout, fallback: HVFMachineConfig()).mode, .auto)
+        XCTAssertThrowsError(try HVFMachineSupervisor.rewritePolicy(layout: layout), "the CLI's rewrite reports it")
+        supervisor.requestStop()
+        _ = try await run.value
+    }
+
+    private func waitForPhase(_ phase: HVFMachinePhase, launches: Int, _ launcher: FakeLauncher) async throws {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while !(launcher.launchCount >= launches
+            && (try? HVFMachineState.load(from: policyLayout.state))?.phase == phase)
+        {
+            guard ContinuousClock.now < deadline else { return XCTFail("timed out waiting for \(phase) #\(launches)") }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    private func writeManifest(_ json: String) throws {
+        let url = policyLayout.toolsManifest
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(json.utf8).write(to: url)
+    }
+
+    private func installBuildKit() throws {
+        let fm = FileManager.default
+        let daemon = policyLayout.tools.appendingPathComponent("runner/bin/buildkitd")
+        try fm.createDirectory(at: daemon.deletingLastPathComponent(), withIntermediateDirectories: true)
+        XCTAssertTrue(fm.createFile(atPath: daemon.path, contents: Data("x".utf8)))
+        XCTAssertEqual(chmod(daemon.path, 0o755), 0)
+        XCTAssertTrue(
+            fm.createFile(
+                atPath: policyLayout.tools.appendingPathComponent("runner/buildkitd.toml").path, contents: Data()))
+    }
+
+    func testCapabilitiesReadTheBundleManifest() throws {
+        let layout = policyLayout
+        func capabilities(probe: Int? = nil, engine: String? = nil) -> HVFMachineCapabilities {
+            HVFMachineCapabilities(
+                layout: layout, config: HVFMachineConfig(),
+                engine: engine.flatMap { HVFMachineCapabilities.Engine(version: Data($0.utf8)) }, grpcProbeStatus: probe
+            )
+        }
+        let bare = capabilities()
+        XCTAssertFalse(bare.caches, "a bundle without a manifest has no cache support")
+        XCTAssertFalse(bare.grpcBuild)
+        XCTAssertNil(bare.engineCommit)
+        XCTAssertEqual(bare.dockerBuild, .unavailable)
+
+        try installBuildKit()
+        XCTAssertEqual(capabilities().dockerBuild, .fallback, "BuildKit without /grpc: the fallback builder only")
+        try writeManifest(
+            #"{"engineCommit":"0123456789abcdef","cacheApi":1,"buildkit":"buildkitd v0.34.1","capabilities":["caches","buildkit","grpc-build"]}"#
+        )
+        let stopped = capabilities()
+        XCTAssertTrue(stopped.caches)
+        XCTAssertTrue(stopped.grpcBuild, "stopped: the manifest decides")
+        XCTAssertEqual(stopped.dockerBuild, .ready)
+        XCTAssertEqual(stopped.engineCommit, "0123456789abcdef")
+        XCTAssertEqual(stopped.cacheApi, 1)
+        XCTAssertNil(stopped.engineCommitMatches)
+
+        let old = capabilities(probe: 501)
+        XCTAssertFalse(old.grpcBuild, "running: the live /grpc probe decides, as it does for buildx")
+        XCTAssertEqual(old.dockerBuild, .fallback)
+        XCTAssertEqual(old.grpcProbeStatus, 501)
+        let live = capabilities(
+            probe: 101,
+            engine: #"{"ApiVersion":"1.47","GitCommit":"0123456789abcdef","MicropodCapabilities":["caches"]}"#)
+        XCTAssertEqual(live.dockerBuild, .ready)
+        XCTAssertEqual(live.engine?.gitCommit, "0123456789abcdef")
+        XCTAssertEqual(live.engine?.capabilities, ["caches"])
+        XCTAssertEqual(live.engineCommitMatches, true)
+        XCTAssertEqual(capabilities(engine: #"{"ApiVersion":"1.47","GitCommit":"ffff"}"#).engineCommitMatches, false)
+        XCTAssertNil(
+            capabilities(engine: #"{"ApiVersion":"1.47","GitCommit":"unknown"}"#).engineCommitMatches,
+            "an engine linked without a commit says unknown, which is no answer")
+
+        try writeManifest(#"{"engineCommit":"abc","capabilities":["caches"]}"#)
+        XCTAssertFalse(capabilities().caches, "caches need cacheApi 1 or later")
+        XCTAssertFalse(capabilities().grpcBuild)
+        XCTAssertTrue(
+            capabilities(engine: #"{"ApiVersion":"1.47","MicropodCapabilities":["caches","grpc-build"]}"#).caches,
+            "the running engine's own /version counts")
+        try writeManifest("not json")
+        XCTAssertFalse(capabilities().caches, "an unreadable manifest is no manifest")
+
+        let encoded = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(capabilities(probe: 501))) as? [String: Any])
+        for key in ["caches", "grpcBuild", "grpcProbeStatus", "engineCommit", "dockerBuild", "engineCommitMatches"] {
+            XCTAssertNotNil(encoded[key], "\(key) is always in machine status --json")
+        }
+        XCTAssertEqual(encoded["dockerBuild"] as? String, "fallback")
+        XCTAssertTrue(encoded["engineCommit"] is NSNull)
+        let decoded = try JSONDecoder().decode(
+            HVFMachineCapabilities.self, from: JSONEncoder().encode(capabilities(probe: 501)))
+        XCTAssertEqual(decoded, capabilities(probe: 501))
+    }
+
+    func testTheGRPCProbeAsksForAnH2CUpgrade() async throws {
+        let socket = root.path + "/p.sock"
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let status = LogRecorder()
+        status.append("501")
+        let server = try FakeDockerServer(path: socket) { _ in (Int(status.lines.last!)!, Data()) }
+        defer { server.stop() }
+        let client = DockerClient(endpoint: .unix(socket), apiVersion: "v1.44")
+        let refused = try await client.upgradeStatus("POST", "/grpc", protocol: "h2c", timeout: .seconds(2))
+        XCTAssertEqual(refused, 501)
+        status.append("101")
+        let upgraded = try await client.upgradeStatus("POST", "/grpc", protocol: "h2c", timeout: .seconds(2))
+        XCTAssertEqual(upgraded, 101)
+        let request = try XCTUnwrap(server.requests.last)
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.path, "/grpc")
+        XCTAssertEqual(request.headers["upgrade"], "h2c")
+        XCTAssertEqual(request.headers["connection"], "Upgrade")
+        let head = DockerClient.upgrading(
+            Data(DockerClient.head("POST", "/grpc", query: [:], bodyLength: nil, apiVersion: "v1.44").utf8), to: "h2c")
+        XCTAssertEqual(
+            String(decoding: head, as: UTF8.self),
+            "POST /v1.44/grpc HTTP/1.1\r\nHost: docker\r\nUser-Agent: micropod\r\nConnection: Upgrade\r\n"
+                + "Upgrade: h2c\r\n\r\n")
+    }
+}
+
+// MARK: - Fallback builder
+
+extension HVFMachineTests {
+    func testBuilderInstallCreatesOnlyItsOwnContextAndBuilder() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let layout = HVFMachineLayout(root: root)
+        let buildx = root.appendingPathComponent("buildx")
+        let docker = FakeDockerCLI(layout: layout, buildx: buildx)
+        let environment = ["BUILDX_CONFIG": buildx.path, "DOCKER_CONTEXT": "theirs", "DOCKER_HOST": "unix:///x"]
+        let setup = HVFBuilderSetup(
+            layout: layout, docker: URL(fileURLWithPath: "/usr/bin/docker"), environment: environment, runner: docker)
+
+        XCTAssertThrowsError(try setup.install(), "a bundle without buildkitd has nothing to build with") {
+            XCTAssertTrue($0.localizedDescription.contains("lacks buildkitd"), $0.localizedDescription)
+        }
+        XCTAssertEqual(docker.calls, [], "refused before running docker")
+        let daemon = layout.tools.appendingPathComponent("runner/bin/buildkitd")
+        try FileManager.default.createDirectory(
+            at: daemon.deletingLastPathComponent(), withIntermediateDirectories: true)
+        XCTAssertTrue(FileManager.default.createFile(atPath: daemon.path, contents: Data("x".utf8)))
+        XCTAssertEqual(chmod(daemon.path, 0o755), 0)
+        XCTAssertTrue(
+            FileManager.default.createFile(
+                atPath: layout.tools.appendingPathComponent("runner/buildkitd.toml").path, contents: Data()))
+
+        // The user's own selection for their context, which `buildx use` would overwrite.
+        try FileManager.default.createDirectory(at: buildx, withIntermediateDirectories: true)
+        let theirs = Data(#"{"Key":"default","Name":"their-builder","Global":false}"#.utf8)
+        try theirs.write(to: buildx.appendingPathComponent("current"))
+
+        XCTAssertFalse(try setup.status().installed)
+        docker.calls = []
+        let lines = try setup.install()
+        XCTAssertEqual(
+            docker.calls,
+            [
+                ["context", "inspect", "micropod"],
+                ["buildx", "inspect", "micropod-buildkit"],
+                [
+                    "context", "create", "micropod", "--description", "micropod hvf machine (\(root.path))", "--docker",
+                    "host=\(layout.dockerEndpoint)",
+                ],
+                [
+                    "buildx", "create", "--name", "micropod-buildkit", "--driver", "remote", "--driver-opt",
+                    "default-load=true", layout.buildkitEndpoint,
+                ],
+                ["--context", "micropod", "buildx", "inspect"],
+                ["--context", "micropod", "buildx", "use", "--default", "micropod-buildkit"],
+            ])
+        XCTAssertEqual(lines.count, 3, lines.joined(separator: "\n"))
+        XCTAssertEqual(
+            try Data(contentsOf: buildx.appendingPathComponent("current")), theirs,
+            "the user's current builder is put back after `buildx use`")
+        XCTAssertEqual(docker.environments.last?["DOCKER_CONTEXT"], nil, "the CLI never inherits a context override")
+        XCTAssertEqual(docker.environments.last?["DOCKER_HOST"], nil)
+        XCTAssertEqual(docker.environments.last?["BUILDX_CONFIG"], buildx.path)
+        let status = try setup.status()
+        XCTAssertTrue(status.installed)
+        XCTAssertEqual(status.contextHost, layout.dockerEndpoint)
+        XCTAssertEqual(status.builderEndpoint, layout.buildkitEndpoint)
+
+        // Idempotent: a second install only looks.
+        docker.calls = []
+        _ = try setup.install()
+        XCTAssertEqual(
+            docker.calls,
+            [
+                ["context", "inspect", "micropod"], ["buildx", "inspect", "micropod-buildkit"],
+                ["--context", "micropod", "buildx", "inspect"],
+            ])
+
+        // Remove undoes exactly those two, and keeps the user's selection.
+        docker.calls = []
+        _ = try setup.remove()
+        XCTAssertEqual(
+            docker.calls,
+            [
+                ["buildx", "inspect", "micropod-buildkit"], ["buildx", "rm", "micropod-buildkit"],
+                ["context", "inspect", "micropod"],
+                ["context", "rm", "micropod"],
+            ])
+        XCTAssertEqual(try Data(contentsOf: buildx.appendingPathComponent("current")), theirs)
+        XCTAssertFalse(try setup.status().installed)
+
+        // Same names pointing elsewhere are not ours: install refuses, remove leaves them.
+        docker.context = "unix:///somewhere/else.sock"
+        docker.builder = ("unix:///other/buildkit.sock", "remote")
+        XCTAssertThrowsError(try setup.install()) {
+            XCTAssertTrue($0.localizedDescription.contains("already exists and points at unix:///somewhere/else.sock"))
+        }
+        docker.context = nil
+        docker.calls = []
+        XCTAssertThrowsError(try setup.install()) {
+            XCTAssertTrue($0.localizedDescription.contains("buildx builder 'micropod-buildkit' already exists"))
+        }
+        XCTAssertEqual(
+            docker.calls, [["context", "inspect", "micropod"], ["buildx", "inspect", "micropod-buildkit"]],
+            "a refusal creates nothing, not even the missing context")
+        docker.context = "unix:///somewhere/else.sock"
+        docker.calls = []
+        let kept = try setup.remove()
+        XCTAssertFalse(docker.calls.contains { $0.contains("rm") }, "\(docker.calls)")
+        XCTAssertTrue(kept.allSatisfy { $0.contains("alone") }, kept.joined(separator: "\n"))
+    }
+
+    func testBuilderInspectParsing() {
+        XCTAssertEqual(
+            HVFBuilderSetup.contextHost(
+                fromInspect:
+                    #"[{"Name":"micropod","Endpoints":{"docker":{"Host":"unix:///r/run/docker.sock","SkipTLSVerify":false}}}]"#
+            ),
+            "unix:///r/run/docker.sock")
+        XCTAssertNil(HVFBuilderSetup.contextHost(fromInspect: "[]"))
+        let inspect = """
+            Name:          micropod
+            Driver:        remote
+            Last Activity: 2026-11-26 01:02:03 +0000 UTC
+
+            Nodes:
+            Name:          micropod0
+            Endpoint:      unix:///r/run/buildkit.sock
+            Status:        running
+            """
+        XCTAssertEqual(HVFBuilderSetup.builderEndpoint(fromInspect: inspect).endpoint, "unix:///r/run/buildkit.sock")
+        XCTAssertEqual(HVFBuilderSetup.builderEndpoint(fromInspect: inspect).driver, "remote")
+        XCTAssertEqual(HVFBuilderSetup.field("Name", in: inspect), "micropod", "the builder's name, not the node's")
+        XCTAssertTrue(
+            HVFBuilderSetup.saysMissing(HVFCommandResult(status: 1, stderr: "ERROR: no builder \"micropod\" found")))
+        XCTAssertTrue(
+            HVFBuilderSetup.saysMissing(HVFCommandResult(status: 1, stderr: "context \"micropod\": context not found")))
+        XCTAssertFalse(HVFBuilderSetup.saysMissing(HVFCommandResult(status: 1, stderr: "permission denied")))
+        let path = HVFBuilderSetup.dockerCLI(environment: ["PATH": "/nonexistent:/bin"])
+        XCTAssertNil(path, "no docker in /bin")
+        XCTAssertEqual(
+            HVFBuilderSetup.dockerCLI(environment: ["MICROPOD_DOCKER_CLI": "/bin/sh", "PATH": ""])?.path, "/bin/sh")
+    }
+}
+
+/// The docker CLI as `HVFBuilderSetup` uses it: contexts and builders by
+/// name, and `buildx use` rewriting buildx's `current` file.
+final class FakeDockerCLI: HVFCommandRunning, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [[String]] = []
+    private var envs: [[String: String]] = []
+    private var contextHost: String?
+    private var builderState: (endpoint: String, driver: String)?
+    private var contextDefault: String?
+    let layout: HVFMachineLayout
+    let buildx: URL
+
+    init(layout: HVFMachineLayout, buildx: URL) {
+        self.layout = layout
+        self.buildx = buildx
+    }
+
+    var calls: [[String]] {
+        get { lock.withLock { recorded } }
+        set { lock.withLock { recorded = newValue } }
+    }
+    var environments: [[String: String]] { lock.withLock { envs } }
+    var context: String? {
+        get { lock.withLock { contextHost } }
+        set { lock.withLock { contextHost = newValue } }
+    }
+    var builder: (endpoint: String, driver: String)? {
+        get { lock.withLock { builderState } }
+        set { lock.withLock { builderState = newValue } }
+    }
+
+    func run(_ executable: URL, _ arguments: [String], environment: [String: String]) throws -> HVFCommandResult {
+        lock.withLock {
+            recorded.append(arguments)
+            envs.append(environment)
+        }
+        let missing = HVFCommandResult(status: 1, stderr: "not found")
+        switch arguments {
+        case ["context", "inspect", "micropod"]:
+            guard let host = context else {
+                return HVFCommandResult(status: 1, stderr: "context \"micropod\" does not exist")
+            }
+            return HVFCommandResult(
+                status: 0, stdout: #"[{"Name":"micropod","Endpoints":{"docker":{"Host":"\#(host)"}}}]"#)
+        case _ where arguments.starts(with: ["context", "create", "micropod"]):
+            context = arguments.last.map { String($0.dropFirst("host=".count)) }
+            return HVFCommandResult(status: 0)
+        case ["context", "rm", "micropod"]:
+            context = nil
+            return HVFCommandResult(status: 0)
+        case ["buildx", "inspect", "micropod-buildkit"]:
+            guard let builder else {
+                return HVFCommandResult(status: 1, stderr: "ERROR: no builder \"micropod\" found")
+            }
+            return HVFCommandResult(
+                status: 0,
+                stdout:
+                    "Name: micropod\nDriver: \(builder.driver)\nNodes:\nName: micropod0\nEndpoint: \(builder.endpoint)\n"
+            )
+        case _ where arguments.starts(with: ["buildx", "create"]):
+            builder = (arguments.last ?? "", "remote")
+            return HVFCommandResult(status: 0)
+        case ["buildx", "rm", "micropod-buildkit"]:
+            builder = nil
+            lock.withLock { contextDefault = nil }
+            try Data(#"{"Key":"micropod","Name":"","Global":false}"#.utf8).write(
+                to: buildx.appendingPathComponent("current"))
+            return HVFCommandResult(status: 0)
+        case ["--context", "micropod", "buildx", "inspect"]:
+            guard context != nil else { return missing }
+            if lock.withLock({ contextDefault }) == nil {
+                // buildx resets `current` to a context with no default builder of its own.
+                try FileManager.default.createDirectory(at: buildx, withIntermediateDirectories: true)
+                try Data(#"{"Key":"micropod","Name":"","Global":false}"#.utf8)
+                    .write(to: buildx.appendingPathComponent("current"))
+            }
+            let name = lock.withLock { contextDefault } ?? "micropod"
+            return HVFCommandResult(status: 0, stdout: "Name: \(name)\nDriver: docker\n")
+        case ["--context", "micropod", "buildx", "use", "--default", "micropod-buildkit"]:
+            lock.withLock { contextDefault = "micropod-buildkit" }
+            try FileManager.default.createDirectory(at: buildx, withIntermediateDirectories: true)
+            try Data(#"{"Key":"micropod","Name":"micropod-buildkit","Global":false}"#.utf8)
+                .write(to: buildx.appendingPathComponent("current"))
+            return HVFCommandResult(status: 0)
+        default:
+            return HVFCommandResult(status: 2, stderr: "unexpected: \(arguments)")
+        }
     }
 }
 

@@ -18,10 +18,12 @@ import MicropodCore
 /// | `GET /images/json`, `GET /images/{ref}/json` | 200 / 404 | list, inspect |
 /// | `POST /images/create` (linux/arm64 only) | 200, one status line | pull |
 /// | `DELETE /images/{ref}`, `POST /images/{ref}/tag`, `/images/prune`, push | 501 | unsupported |
-/// | `GET /images/get`, `/images/{ref}/get`, `POST /images/load` | 200; 501 before this tree's guest | unsupported |
+/// | `GET /images/{ref}/get`, `GET /images/get?names=…` | 200 tar (`ctr export`, linux/arm64) | save |
+/// | `POST /images/load` | 200 `{"stream": …}` (`ctr import --local --digests`) | load |
 /// | `GET /system/df`, `POST /build` | 501 (BuildKit has its own socket) | unsupported |
 ///
-/// Save and load stay Apple's even though current tool bundles implement them.
+/// Save and load need a guest that implements them (bundles built from
+/// this tree); an older guest's 501 surfaces as the error.
 public struct HVFVolumeStore: EngineVolumeServing {
     let machine: HVFMachineClient
 
@@ -124,5 +126,20 @@ public struct HVFImageStore: EngineImageServing {
     public func owns(_ reference: String) async -> Bool {
         guard machine.isServing else { return false }
         return await DockerResources.imageExists(docker, reference)
+    }
+
+    public var savesAndLoads: Bool { true }
+
+    /// The images must be on the running machine: a stopped one has none
+    /// to save.
+    public func save(_ references: [String], to outputPath: String) async throws {
+        try requireServing("images (\(references.joined(separator: ", ")))")
+        try await DockerResources.saveImages(docker, references, to: outputPath)
+    }
+
+    /// Boots a stopped machine first, like `pull`.
+    public func load(from inputPath: String) async throws -> String {
+        try await machine.ensureRunning()
+        return try await DockerResources.loadImages(docker, from: inputPath)
     }
 }

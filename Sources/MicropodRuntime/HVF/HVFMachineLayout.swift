@@ -21,6 +21,11 @@ import MicropodCore
 /// <root>/run/state.json      HVFMachineState, written by the supervisor
 /// <root>/run/containers.json HVFContainerIndex: the machine's container ids
 ///                            and names, so routing works while it is stopped
+/// <root>/run/guest-config/   host-owned files for the guest, shared as
+///                            `mp-config` (mounted read-only by guest init at
+///                            /run/micropod/host-config)
+/// <root>/run/guest-config/cache-policy.json
+///                            the cache policy (machine.json `cache`), rendered
 /// <root>/logs/console.log    micropod-vmm stdout/stderr (guest console)
 /// <root>/logs/supervisor.log the detached supervisor's own output
 /// ```
@@ -55,6 +60,12 @@ public struct HVFMachineLayout: Sendable, Equatable {
     public var state: URL { runDirectory.appendingPathComponent("state.json") }
     public var containerIndex: URL { runDirectory.appendingPathComponent("containers.json") }
     var containerIndexLock: URL { runDirectory.appendingPathComponent("containers.lock") }
+    /// Host-owned configuration the guest reads, shared as `mp-config`.
+    public var guestConfigDirectory: URL { runDirectory.appendingPathComponent("guest-config") }
+    /// The rendered `HVFMachineCachePolicy` the guest engine re-reads.
+    public var cachePolicyFile: URL { guestConfigDirectory.appendingPathComponent(HVFMachineCachePolicy.fileName) }
+    /// The tool bundle's build manifest (`ci/build-runner-tools.sh`).
+    public var toolsManifest: URL { tools.appendingPathComponent(HVFToolsManifest.path) }
     public var logsDirectory: URL { root.appendingPathComponent("logs") }
     public var consoleLog: URL { logsDirectory.appendingPathComponent("console.log") }
     public var supervisorLog: URL { logsDirectory.appendingPathComponent("supervisor.log") }
@@ -125,7 +136,7 @@ public struct HVFMachineLayout: Sendable, Equatable {
     /// supervisor may start until it finishes.
     public var installInProgress: Bool { HVFFileLock.isHeld(installLock) }
 
-    func installInProgressError() -> MicropodError {
+    public func installInProgressError() -> MicropodError {
         .message(
             "unavailable: the hvf machine under \(root.path) is being installed; "
                 + "start it once `micropod machine install` finishes")
@@ -188,18 +199,22 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     public var kernelArguments: [String]
     /// Extra micropod-vmm flags, appended verbatim.
     public var extraArguments: [String]
+    /// The dependency-cache policy; nil (absent from the file) means the
+    /// defaults. Edited by `micropod machine cache policy`.
+    public var cache: HVFMachineCachePolicy?
 
     public static var defaultWorkspace: String { HVFMachineLayout.canonicalPath(NSHomeDirectory()) }
 
     enum CodingKeys: String, CodingKey {
         case schema, cpus, memoryMiB, workspace, publishedNet, console, shutdownTimeoutSeconds, kernelArguments
-        case extraArguments
+        case extraArguments, cache
     }
 
     public init(
         schema: Int = HVFMachineConfig.currentSchema, cpus: Int = 4, memoryMiB: Int = 4096,
         workspace: String? = HVFMachineConfig.defaultWorkspace, publishedNet: Bool = true, console: Bool = true,
-        shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = []
+        shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = [],
+        cache: HVFMachineCachePolicy? = nil
     ) {
         self.schema = schema
         self.cpus = cpus
@@ -210,6 +225,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         self.shutdownTimeoutSeconds = shutdownTimeoutSeconds
         self.kernelArguments = kernelArguments
         self.extraArguments = extraArguments
+        self.cache = cache
     }
 
     public init(from decoder: any Decoder) throws {
@@ -227,6 +243,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
             try c.decodeIfPresent(Int.self, forKey: .shutdownTimeoutSeconds) ?? defaults.shutdownTimeoutSeconds
         kernelArguments = try c.decodeIfPresent([String].self, forKey: .kernelArguments) ?? []
         extraArguments = try c.decodeIfPresent([String].self, forKey: .extraArguments) ?? []
+        cache = try c.decodeIfPresent(HVFMachineCachePolicy.self, forKey: .cache)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -240,7 +257,11 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         try c.encode(shutdownTimeoutSeconds, forKey: .shutdownTimeoutSeconds)
         try c.encode(kernelArguments, forKey: .kernelArguments)
         try c.encode(extraArguments, forKey: .extraArguments)
+        try c.encodeIfPresent(cache, forKey: .cache)
     }
+
+    /// `cache`, or the defaults when machine.json has none.
+    public var effectiveCachePolicy: HVFMachineCachePolicy { cache ?? HVFMachineCachePolicy() }
 
     /// The saved config, or the defaults when `url` does not exist.
     public static func load(from url: URL) throws -> HVFMachineConfig {
@@ -294,6 +315,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
             }
             try HVFMachineLayout.validateSpecPath(workspace, what: "workspace")
         }
+        try cache?.validate()
     }
 
     /// How long the supervisor waits after SIGTERM before SIGKILL: past the
@@ -310,6 +332,13 @@ public enum HVFVMMCommand {
     /// Exposed whatever the bundle: without BuildKit in it the guest closes
     /// each connection (see `HVFMachineLayout.missingBuildKitFiles`).
     public static let buildkitGuestPort = 2377
+    /// The virtiofs tag of `HVFMachineLayout.guestConfigDirectory`. Shared
+    /// writable on the VMM side: micropod-vmm treats a `:ro` share as
+    /// immutable and never shows the guest a file the host replaced. Guest
+    /// init mounts it read-only.
+    public static let configShareTag = "mp-config"
+    /// Tells guest init to mount `configShareTag` at /run/micropod/host-config.
+    public static let configBootArgument = "mp.config=1"
 
     /// The full micropod-vmm argv (without the executable) for `config`.
     public static func arguments(layout: HVFMachineLayout, config: HVFMachineConfig, parentPID: Int32) throws
@@ -322,6 +351,7 @@ public enum HVFVMMCommand {
             "--initrd", layout.initrd.path,
             "--disk", layout.disk.path,
             "--share", "oci-tools:\(layout.tools.path):ro",
+            "--share", "\(configShareTag):\(layout.guestConfigDirectory.path)",
         ]
         // The VMM adds the share and the guest boot argument itself.
         if let workspace = config.workspace { args += ["--workspace", workspace] }
@@ -329,6 +359,8 @@ public enum HVFVMMCommand {
         args += ["--vsock-expose", "\(layout.buildkitSocket.path):\(buildkitGuestPort)"]
         if config.publishedNet { args.append("--published-net") }
         args += ["--cpus", String(config.cpus), "--memory-mib", String(config.memoryMiB)]
+        // Before the configured arguments, so one of them can still override it.
+        args += ["--cmdline-append", configBootArgument]
         for argument in config.kernelArguments { args += ["--cmdline-append", argument] }
         if !config.console { args.append("--quiet") }
         args += [
@@ -430,11 +462,11 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
 enum HVFFiles {
     /// Temporary file + fsync + rename, so a reader sees the old or the new
     /// contents and never a torn write.
-    static func writeAtomically(_ data: Data, to url: URL) throws {
+    static func writeAtomically(_ data: Data, to url: URL, mode: mode_t = 0o644) throws {
         let directory = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let temporary = directory.appendingPathComponent(".\(url.lastPathComponent).\(getpid()).\(UUID().uuidString)")
-        let fd = open(temporary.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
+        let fd = open(temporary.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, mode)
         guard fd >= 0 else { throw posixError("create \(temporary.path)") }
         var closed = false
         defer {

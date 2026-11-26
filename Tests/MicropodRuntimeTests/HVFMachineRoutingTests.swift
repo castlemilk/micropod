@@ -336,6 +336,8 @@ final class FakeDockerServer: @unchecked Sendable {
         var path: String
         var query: [String: String]
         var body: Data
+        /// Lower-cased names.
+        var headers: [String: String] = [:]
     }
 
     typealias Route = @Sendable (Request) -> (status: Int, body: Data)
@@ -425,7 +427,13 @@ final class FakeDockerServer: @unchecked Sendable {
         if path.hasPrefix("/v1.") { path = String(path.drop { $0 != "/" }.dropFirst().drop { $0 != "/" }) }
         var query: [String: String] = [:]
         for item in components?.queryItems ?? [] { query[item.name] = item.value ?? "" }
-        let request = Request(method: String(requestLine[0]), path: path, query: query, body: body)
+        var headers: [String: String] = [:]
+        for line in lines.dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            headers[line[..<colon].lowercased()] = line[line.index(after: colon)...].trimmingCharacters(
+                in: .whitespaces)
+        }
+        let request = Request(method: String(requestLine[0]), path: path, query: query, body: body, headers: headers)
         lock.withLock { seen.append(request) }
         // The engine pings before a create or start, like `ensureRunning`.
         let (status, reply) = request.path == "/_ping" ? (200, Data("OK".utf8)) : route(request)

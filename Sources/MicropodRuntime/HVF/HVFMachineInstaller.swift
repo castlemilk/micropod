@@ -24,7 +24,7 @@ public struct HVFInstallRequest: Sendable, Equatable {
 
     public init(
         vmm: URL? = nil, kernel: URL? = nil, initrd: URL? = nil, tools: URL? = nil, diskFrom: URL? = nil,
-        diskImage: String? = nil, diskBytes: UInt64 = 32 << 30, replaceDisk: Bool = false, cpus: Int? = nil,
+        diskImage: String? = nil, diskBytes: UInt64 = 64 << 30, replaceDisk: Bool = false, cpus: Int? = nil,
         memoryMiB: Int? = nil, workspace: String? = nil
     ) {
         self.vmm = vmm

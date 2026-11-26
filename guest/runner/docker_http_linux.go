@@ -20,6 +20,18 @@ import (
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
+// extraRoutes lets feature files add Docker API routes from their own init()
+// without editing dispatch. They are consulted, in registration order, only
+// for requests no built-in route matched, just before the 501 fallback; the
+// first handler that returns handled=true wins. path has the leading slash and
+// any /v1.NN prefix removed. POST and DELETE requests already hold an
+// engineLease for the handler's lifetime (a hijacked connection included).
+var extraRoutes []func(s *dockerEngine, w http.ResponseWriter, r *http.Request, method, path string) (handled bool, err error)
+
+// engineCommit is set at link time by ci/build-runner-tools.sh to the commit
+// recorded in the bundle's runner/manifest.json, and reported as GitCommit.
+var engineCommit = "unknown"
+
 func (s *dockerEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := s.dispatch(w, r); err != nil {
 		code := 500
@@ -45,13 +57,17 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 	case path == "_ping" && (method == "HEAD" || method == "GET"):
 		w.Header().Set("API-Version", dockerAPI)
 		w.Header().Set("Ostype", "linux")
+		if buildkitAvailable() {
+			// Informational for Docker CLI 29: buildx picks its driver by probing /grpc.
+			w.Header().Set("Builder-Version", "2")
+		}
 		w.WriteHeader(200)
 		if method == "GET" {
 			_, _ = io.WriteString(w, "OK")
 		}
 		return nil
 	case path == "version" && method == "GET":
-		writeJSON(w, 200, map[string]any{"Version": "micropod", "ApiVersion": dockerAPI, "MinAPIVersion": "1.44", "Os": "linux", "Arch": "arm64", "Platform": map[string]string{"Name": "Micropod"}})
+		writeJSON(w, 200, map[string]any{"Version": "micropod", "ApiVersion": dockerAPI, "MinAPIVersion": "1.44", "Os": "linux", "Arch": "arm64", "Platform": map[string]string{"Name": "Micropod"}, "GitCommit": engineCommit, "MicropodCapabilities": engineCapabilities(buildkitAvailable())})
 		return nil
 	case path == "micropod/buildkit" && method == "GET":
 		if _, err := os.Stat(buildkitBinary); err != nil {
@@ -116,6 +132,8 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return fail(400, err.Error())
 		}
+		// A build's --iidfile/-q digest names a manifest; create needs the image.
+		spec.Image = s.resolveImageDigest(r.Context(), spec.Image)
 		c, err := s.create(r.Context(), spec, r.URL.Query().Get("name"))
 		if err != nil {
 			return err
@@ -183,6 +201,12 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		}
 		return nil
 	default:
+		for _, route := range extraRoutes {
+			// An error counts as handled: the route recognised the request.
+			if handled, err := route(s, w, r, method, path); handled || err != nil {
+				return err
+			}
+		}
 		return fail(501, "operation is unavailable on the Micropod native engine")
 	}
 }
@@ -470,7 +494,8 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		writeJSON(w, 200, list)
 		return nil
 	case strings.HasSuffix(path, "/json") && r.Method == "GET":
-		i, err := s.node.images.ImageStatus(r.Context(), &cri.ImageStatusRequest{Image: &cri.ImageSpec{Image: strings.TrimSuffix(path, "/json")}, Verbose: true})
+		ref := s.resolveImageDigest(r.Context(), strings.TrimSuffix(path, "/json"))
+		i, err := s.node.images.ImageStatus(r.Context(), &cri.ImageStatusRequest{Image: &cri.ImageSpec{Image: ref}, Verbose: true})
 		if err != nil {
 			return err
 		}

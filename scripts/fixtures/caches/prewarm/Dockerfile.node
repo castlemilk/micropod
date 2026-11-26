@@ -1,0 +1,5 @@
+# T3: an image with a baked npm cache and a corepack-prepared pnpm.
+FROM node:22-alpine
+COPY npm/a /prewarm/npm
+RUN cd /prewarm/npm && npm ci --no-audit --no-fund && \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@9.15.9 --activate

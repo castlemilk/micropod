@@ -57,6 +57,12 @@ func ensureVolume(name string, labels map[string]string) error {
 		}
 		return err
 	}
+	// Explicit: the engine inherited umask 077 before it set 022, and a 0700
+	// volume is unusable by a non-root container user.
+	if err := os.Chmod(volumePath(name), 0755); err != nil {
+		os.Remove(volumePath(name))
+		return err
+	}
 	metadata := struct {
 		CreatedAt string
 		Labels    map[string]string
@@ -73,12 +79,24 @@ func ensureVolume(name string, labels map[string]string) error {
 	}
 	return err
 }
+
+// volumeInUse also counts auto-attached stores: the legacy alias
+// micropod-ci-scoped-<scope>-<kind> is in use while any container's plan binds
+// that scope (the /micropod/cache bind exposes every kind) or that kind.
 func (s *dockerEngine) volumeInUse(name string) bool {
+	scope, kind, alias := legacyCacheVolume(name)
 	for _, c := range s.containers {
 		mounts, _ := c.Config.mounts()
 		for _, m := range mounts {
 			if m.Type == "volume" && m.Source == name {
 				return true
+			}
+		}
+		if p := c.Cache; alias && p.attached() && p.Scope == scope {
+			for _, m := range p.Mounts {
+				if !m.Shim && (m.Kind == "" || m.Kind == kind) {
+					return true
+				}
 			}
 		}
 	}

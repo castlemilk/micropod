@@ -200,15 +200,18 @@ public struct HVFEngine: RuntimeEngine, ContainerServing, LogStreaming, StatsSam
         return try await forgettingMissing(id) { try await docker.inspect(id) }
     }
 
-    /// Refuses what the guest cannot do, and resolves host bind sources:
-    /// the workspace share mounts at the host's canonical path, so
-    /// `/tmp/x` must reach the guest as `/private/tmp/x`.
+    /// Refuses what the guest cannot do, resolves host bind sources (the
+    /// workspace share mounts at the host's canonical path, so `/tmp/x`
+    /// must reach the guest as `/private/tmp/x`), and turns `--cache` and
+    /// `--cache-scope` into the labels the guest engine reads
+    /// (`io.micropod.cache`, `io.micropod.cache.scope`; a label the request
+    /// already sets wins).
     static func admit(_ request: ContainerRunRequest) throws -> ContainerRunRequest {
         if request.interactive || request.tty {
             throw MicropodError.unsupported("runtime 'hvf' does not support interactive stdin or a TTY")
         }
         if request.sandbox != nil { throw MicropodError.unsupported("runtime 'hvf' does not support sandbox options") }
-        var request = request
+        var request = try ContainerCacheOptions.admitted(request, runtime: "hvf")
         request.volumes = request.volumes.map { spec in
             guard spec.hasPrefix("/") else { return spec }
             var parts = spec.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)

@@ -17,32 +17,54 @@ enum MachineCommands {
         Usage:
           micropod machine install [--vmm <micropod-vmm>] [--kernel <Image>] [--initrd <cpio>]
                                    [--tools <dir>] [--cpus N] [--memory-mib N] [--workspace <dir>|""]
-                                   [--disk-from <ext4> | --disk-image <ref>|default [--disk-size 32g]]
+                                   [--disk-from <ext4> | --disk-image <ref>|default [--disk-size 64g]]
                                    [--replace-disk]
                                                   copy the assets into the machine root; the disk is
-                                                  an APFS clone of --disk-from, or a fresh ext4
+                                                  an APFS clone of --disk-from, or a fresh sparse ext4
                                                   unpacked from an OCI image; flags left out keep
                                                   what is installed
           micropod machine start [--timeout S]    boot it (detached supervisor) and wait for Docker
           micropod machine stop                   power the guest off gracefully
           micropod machine restart
           micropod machine status [--json]        phase, pids, restarts, last exit, endpoints and
-                                                  capabilities (BuildKit, engine API range)
+                                                  capabilities (caches, docker build, BuildKit,
+                                                  engine API range)
           micropod machine logs [-f] [-n N] [--supervisor]
                                                   micropod-vmm console (or supervisor) log
           micropod machine docker-endpoint        unix:// socket for DOCKER_HOST
           micropod machine buildkit-endpoint      unix:// BuildKit socket for a remote buildx builder
                                                   (fails when the tool bundle ships no BuildKit)
+          micropod machine cache policy [show] [--mode auto|off] [--default-scope S|none]
+                                   [--allow-scopes a,b*] [--tools go,npm,…|all] [--go-trimpath on|off]
+                                   [--pnpm-legacy-env on|off] [--register-buildx on|off]
+                                                  the dependency-cache policy every container on the
+                                                  machine's Docker socket gets (machine.json `cache`);
+                                                  applied at once while running
+          micropod machine builder install|status|rm
+                                                  the fallback `docker build` path for an engine that
+                                                  cannot build on its Docker socket: docker context
+                                                  `micropod` and remote buildx builder
+                                                  `micropod-buildkit` (then `BUILDX_BUILDER=
+                                                  micropod-buildkit docker --context micropod build
+                                                  …`); never changes the current context or any
+                                                  other builder
           micropod machine serve                  run the supervisor in the foreground
 
         The root is MICROPOD_HVF_ROOT or ~/.micropod/hvf. `micropod run --runtime hvf …`
         starts the machine on demand (enable the engine first: `micropod runtime enable hvf`).
         Docker bind mounts resolve under the workspace, the home directory by default
         (`--workspace ""` turns host bind mounts off).
+
+        Dependency caches (Go, npm, pnpm, yarn, pip, uv, cargo, corepack) attach to every
+        container by default, shared per scope ("default"); per container, the labels
+        io.micropod.cache=auto|off|<tools> and io.micropod.cache.scope=<scope> (or
+        `micropod run --cache … --cache-scope …`) refine the policy. Tools: go (= gomod,gobuild),
+        gomod, gobuild, npm, pnpm, yarn, yarnberry, pip, uv, cargo, corepack.
         """
 
     static let hvfOnly: Set<String> = [
-        "install", "start", "restart", "status", "serve", "docker-endpoint", "buildkit-endpoint", "help",
+        "install", "start", "restart", "status", "serve", "docker-endpoint", "buildkit-endpoint", "help", "cache",
+        "builder",
     ]
 
     /// The hvf machine command in a whole `micropod` argv, if it is one: the
@@ -88,6 +110,7 @@ enum MachineCommands {
                 let parsed = try parseArgs(rest, boolFlags: [], valueFlags: ["--timeout"], commandName: "machine start")
                 try await client.ensureRunning(timeout: .seconds(parsed.intValue("--timeout", default: 180)))
                 print("hvf machine running — DOCKER_HOST=\(client.layout.dockerEndpoint)")
+                await afterStart(client, environment: environment)
             case "stop":
                 let parsed = try parseArgs(rest, boolFlags: [], valueFlags: ["--timeout"], commandName: "machine stop")
                 let stopped = try await client.stop(
@@ -110,6 +133,8 @@ enum MachineCommands {
             case "serve":
                 _ = try parseArgs(rest, boolFlags: [], valueFlags: [], commandName: "machine serve")
                 return try await serve(layout: client.layout, environment: environment)
+            case "cache": try cache(rest, client: client, json: json)
+            case "builder": try builder(rest, layout: client.layout, environment: environment, json: json)
             default:
                 print(helpText)
                 return args.first == "help" ? ExitCode.ok : ExitCode.usage
@@ -149,12 +174,16 @@ enum MachineCommands {
         let request = HVFInstallRequest(
             vmm: url("--vmm"), kernel: url("--kernel"), initrd: url("--initrd"), tools: url("--tools"),
             diskFrom: url("--disk-from"), diskImage: image,
-            diskBytes: try diskBytes(parsed.value("--disk-size") ?? "32g"), replaceDisk: parsed.has("--replace-disk"),
+            diskBytes: try diskBytes(parsed.value("--disk-size") ?? defaultDiskSize),
+            replaceDisk: parsed.has("--replace-disk"),
             cpus: try int("--cpus"), memoryMiB: try int("--memory-mib"),
             workspace: parsed.value("--workspace").map { $0.isEmpty ? "" : NSString(string: $0).expandingTildeInPath })
         try await HVFMachineInstaller.install(request, layout: layout) { print($0) }
         print("hvf machine installed under \(layout.root.path)")
     }
+
+    /// A fresh disk's size: sparse, so only what the guest writes is allocated.
+    static let defaultDiskSize = "64g"
 
     /// "32g", "40960m" → bytes.
     static func diskBytes(_ raw: String) throws -> UInt64 {
@@ -186,19 +215,32 @@ enum MachineCommands {
         var state: HVFMachineState?
         var stateError: String?
         var capabilities: HVFMachineCapabilities
+        /// The effective cache policy (machine.json `cache`, else the defaults).
+        var cachePolicy: HVFMachineCachePolicy
+        /// The `caches:` line.
+        var caches: String
+        /// The `docker build:` line.
+        var dockerBuild: String
     }
 
     static func status(_ client: HVFMachineClient, json: Bool) async throws -> Int32 {
         let status = client.status()
         let capabilities = await client.capabilities()
         let buildkit = capabilities.buildkit ? client.layout.buildkitEndpoint : nil
+        let config = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
+        let policy = config.effectiveCachePolicy
+        let fallbackInstalled =
+            capabilities.dockerBuild == .fallback
+            ? fallbackContextInstalled(client.layout, environment: ProcessInfo.processInfo.environment) : nil
+        let cachesLine = cachesLine(capabilities, policy: policy)
+        let buildLine = dockerBuildLine(capabilities, fallbackInstalled: fallbackInstalled)
         if json {
             let report = StatusReport(
                 root: status.root, endpoint: client.layout.dockerEndpoint, dockerEndpoint: client.layout.dockerEndpoint,
                 buildkitEndpoint: buildkit, installed: status.installed, missing: status.missing,
                 problem: status.problem, phase: status.phase.rawValue, supervisorAlive: status.supervisorAlive,
                 summary: status.summary, state: status.state, stateError: status.stateError,
-                capabilities: capabilities)
+                capabilities: capabilities, cachePolicy: policy, caches: cachesLine, dockerBuild: buildLine)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
@@ -216,6 +258,10 @@ enum MachineCommands {
         if let engine = capabilities.engine {
             print("engine:     \(engine.version) (Docker API \(engine.minAPIVersion)–\(engine.apiVersion))")
         }
+        if status.installed {
+            print("caches:     \(cachesLine)")
+            print("docker build: \(buildLine)")
+        }
         if let state = status.state {
             print("supervisor: pid \(state.supervisorPID)\(status.supervisorAlive ? "" : " (exited)")")
             if let vmm = state.vmmPID, status.supervisorAlive { print("vmm:        pid \(vmm)") }
@@ -227,6 +273,247 @@ enum MachineCommands {
             if let reason = state.lastExitReason { print("last exit:  \(reason)") }
         }
         return ExitCode.ok
+    }
+
+    /// `auto, scope default (engine 1a2b3c4d5e6f)`, or why there are none.
+    static func cachesLine(_ capabilities: HVFMachineCapabilities, policy: HVFMachineCachePolicy) -> String {
+        guard capabilities.caches else { return "unavailable (tool bundle has no cache support)" }
+        let short = { (commit: String) in String(commit.prefix(12)) }
+        var engine = capabilities.engineCommit.map { "engine \(short($0))" } ?? "engine commit unknown"
+        if let live = capabilities.engine?.gitCommit, capabilities.engineCommitMatches == false {
+            engine += "; the running engine reports \(short(live))"
+        }
+        return "\(policy.summary) (\(engine))"
+    }
+
+    /// How stock `docker build` reaches BuildKit.
+    static func dockerBuildLine(_ capabilities: HVFMachineCapabilities, fallbackInstalled: Bool?) -> String {
+        switch capabilities.dockerBuild {
+        case .ready: return "ready (docker socket)"
+        case .unavailable: return "unavailable (bundle lacks buildkitd)"
+        case .fallback:
+            let probe = capabilities.grpcProbeStatus.map { "; the engine answers /grpc with \($0)" } ?? ""
+            return fallbackInstalled == true
+                ? "fallback builder only (`\(HVFBuilderSetup.buildCommand)`\(probe))"
+                : "fallback builder only (run `micropod machine builder install`\(probe))"
+        }
+    }
+
+    /// Whether docker context `micropod` points at this machine; nil
+    /// without a docker CLI. Cheap: it never contacts BuildKit.
+    static func fallbackContextInstalled(_ layout: HVFMachineLayout, environment: [String: String]) -> Bool? {
+        guard
+            let setup = try? HVFBuilderSetup(
+                layout: layout, environment: environment, runner: HVFProcessRunner(timeout: .seconds(10))),
+            let (piece, _) = try? setup.contextState()
+        else { return nil }
+        return piece == .ok
+    }
+
+    /// After `machine start`: an engine that cannot build on its Docker
+    /// socket gets the fallback builder (policy `buildkit.registerBuildx`)
+    /// or a one-line hint. Never fails the start.
+    static func afterStart(_ client: HVFMachineClient, environment: [String: String]) async {
+        let capabilities = await client.capabilities()
+        guard capabilities.buildkit, !capabilities.grpcBuild else { return }
+        let config = (try? HVFMachineConfig.load(from: client.layout.config)) ?? HVFMachineConfig()
+        if config.effectiveCachePolicy.buildkit.registerBuildx {
+            do {
+                let setup = try HVFBuilderSetup(layout: client.layout, environment: environment)
+                for line in try setup.install() { print("builder: \(line)") }
+            } catch {
+                FileHandle.standardError.write(
+                    Data("warning: could not install the fallback builder: \(errorMessage(error))\n".utf8))
+            }
+            return
+        }
+        if fallbackContextInstalled(client.layout, environment: environment) == true { return }
+        print(
+            "hint: this engine cannot serve `docker build` on its socket; "
+                + "`micropod machine builder install` adds a fallback builder (`\(HVFBuilderSetup.buildCommand)`)")
+    }
+
+    // MARK: cache policy
+
+    static let policyValueFlags: Set<String> = [
+        "--mode", "--default-scope", "--allow-scopes", "--tools", "--go-trimpath", "--pnpm-legacy-env",
+        "--register-buildx",
+    ]
+
+    static func cache(_ args: [String], client: HVFMachineClient, json: Bool) throws {
+        guard args.first == "policy" else {
+            throw UsageError(
+                message: "machine cache policy [show] [--mode auto|off] [--default-scope S|none] "
+                    + "[--allow-scopes a,b*] [--tools go,npm,…|all] [--go-trimpath on|off] "
+                    + "[--pnpm-legacy-env on|off] [--register-buildx on|off]")
+        }
+        let parsed = try parseArgs(
+            Array(args.dropFirst()), boolFlags: [], valueFlags: policyValueFlags, commandName: "machine cache policy")
+        guard parsed.positionals.isEmpty || parsed.positionals == ["show"] else {
+            throw UsageError(message: "machine cache policy: unexpected \(parsed.positionals.joined(separator: " "))")
+        }
+        let layout = client.layout
+        let editing = policyValueFlags.contains { parsed.value($0) != nil }
+        guard editing else {
+            let config = try HVFMachineConfig.load(from: layout.config)
+            showPolicy(config.effectiveCachePolicy, layout: layout, json: json, applied: nil)
+            return
+        }
+        guard parsed.positionals.isEmpty else {
+            throw UsageError(message: "machine cache policy: `show` takes no flags")
+        }
+        if layout.installInProgress { throw layout.installInProgressError() }
+        var config = try HVFMachineConfig.load(from: layout.config)
+        let policy = try applyPolicyFlags(parsed, to: config.effectiveCachePolicy)
+        config.cache = policy
+        try FileManager.default.createDirectory(at: layout.root, withIntermediateDirectories: true)
+        try config.save(to: layout.config)
+        // A live supervisor (booting or running) launched its VMM with the
+        // old file: replace it. Otherwise the next launch renders it.
+        var applied = false
+        if client.status().supervisorAlive {
+            try HVFMachineSupervisor.rewritePolicy(layout: layout)
+            applied = true
+        }
+        showPolicy(policy, layout: layout, json: json, applied: applied)
+    }
+
+    /// The policy with the flags in `parsed` applied and validated.
+    static func applyPolicyFlags(_ parsed: ParsedArgs, to original: HVFMachineCachePolicy) throws
+        -> HVFMachineCachePolicy
+    {
+        var policy = original
+        func list(_ raw: String) -> [String] {
+            raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }
+        func toggle(_ flag: String) throws -> Bool? {
+            guard let raw = parsed.value(flag) else { return nil }
+            switch raw.lowercased() {
+            case "on", "true", "yes", "1": return true
+            case "off", "false", "no", "0": return false
+            default: throw UsageError(message: "machine cache policy: \(flag) wants on or off, got '\(raw)'")
+            }
+        }
+        if let raw = parsed.value("--mode") {
+            guard let mode = HVFMachineCachePolicy.Mode(rawValue: raw.lowercased()) else {
+                throw UsageError(message: "machine cache policy: --mode wants auto or off, got '\(raw)'")
+            }
+            policy.mode = mode
+        }
+        if let raw = parsed.value("--allow-scopes") {
+            let scopes = list(raw)
+            for scope in scopes where !HVFMachineCachePolicy.isValidScopePattern(scope) {
+                throw UsageError(
+                    message: "machine cache policy: --allow-scopes entry '\(scope)' must be '*', a scope name "
+                        + "(^[a-z0-9][a-z0-9_-]{0,62}$) or a scope-name prefix ending in '*'")
+            }
+            policy.allowedScopes = scopes
+        }
+        if let raw = parsed.value("--default-scope") {
+            let scope = raw == "none" ? "" : raw
+            guard scope.isEmpty || HVFMachineCachePolicy.isValidScope(scope) else {
+                throw UsageError(
+                    message: "machine cache policy: --default-scope '\(raw)' must match ^[a-z0-9][a-z0-9_-]{0,62}$ "
+                        + "(or be `none`: caches only for containers that name a scope)")
+            }
+            policy.defaultScope = scope
+        }
+        if let raw = parsed.value("--tools") {
+            let names = raw.lowercased() == "all" ? HVFMachineCachePolicy.toolKinds : list(raw)
+            do {
+                policy.tools = try HVFMachineCachePolicy.normalizedTools(names)
+            } catch {
+                throw UsageError(message: "machine cache policy: \(withoutCode(errorMessage(error)))")
+            }
+        }
+        if let value = try toggle("--go-trimpath") { policy.goTrimpath = value }
+        if let value = try toggle("--pnpm-legacy-env") { policy.pnpmLegacyEnv = value }
+        if let value = try toggle("--register-buildx") { policy.buildkit.registerBuildx = value }
+        do {
+            try policy.validate()
+        } catch {
+            throw UsageError(message: "machine cache policy: \(withoutCode(errorMessage(error)))")
+        }
+        return policy
+    }
+
+    /// "invalidArgument: hvf cache policy: …" → "hvf cache policy: …".
+    static func withoutCode(_ message: String) -> String {
+        guard let colon = message.firstIndex(of: ":"),
+            message[..<colon].allSatisfy({ $0.isLetter }), message[message.index(after: colon)...].hasPrefix(" ")
+        else { return message }
+        return String(message[message.index(colon, offsetBy: 2)...])
+    }
+
+    struct PolicyReport: Encodable {
+        var policy: HVFMachineCachePolicy
+        var file: String
+        /// nil for `show`; true when the running machine's file was replaced.
+        var applied: Bool?
+    }
+
+    static func showPolicy(_ policy: HVFMachineCachePolicy, layout: HVFMachineLayout, json: Bool, applied: Bool?) {
+        if json {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+            let report = PolicyReport(policy: policy, file: layout.cachePolicyFile.path, applied: applied)
+            if let data = try? encoder.encode(report) { print(String(decoding: data, as: UTF8.self)) }
+            return
+        }
+        let kinds = (try? HVFMachineCachePolicy.normalizedTools(policy.tools)) ?? policy.tools
+        func onOff(_ value: Bool) -> String { value ? "on" : "off" }
+        print("mode:            \(policy.mode.rawValue)")
+        print(
+            "default scope:   \(policy.defaultScope.isEmpty ? "none (only containers naming a scope)" : policy.defaultScope)"
+        )
+        print(
+            "allowed scopes:  \(policy.allowedScopes.isEmpty ? "none" : policy.allowedScopes.joined(separator: ", "))")
+        print("tools:           \(kinds.joined(separator: ", "))")
+        print("go -trimpath:    \(onOff(policy.goTrimpath))")
+        print("pnpm legacy env: \(onOff(policy.pnpmLegacyEnv)) (npm_config_store_dir for pnpm 9 and 10)")
+        print("register buildx: \(onOff(policy.buildkit.registerBuildx))")
+        if !policy.extra.isEmpty { print("other keys:      \(policy.extra.keys.sorted().joined(separator: ", "))") }
+        switch applied {
+        case true?: print("applied (\(layout.cachePolicyFile.path))")
+        case false?: print("applies at next start")
+        case nil: break
+        }
+    }
+
+    // MARK: builder
+
+    static func builder(_ args: [String], layout: HVFMachineLayout, environment: [String: String], json: Bool) throws {
+        let sub = args.first ?? "status"
+        _ = try parseArgs(Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "machine builder \(sub)")
+        let setup = try HVFBuilderSetup(layout: layout, environment: environment)
+        switch sub {
+        case "install":
+            for line in try setup.install() { print(line) }
+            print("build with `\(HVFBuilderSetup.buildCommand) …`")
+        case "status":
+            let status = try setup.status()
+            if json {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+                print(String(decoding: try encoder.encode(status), as: UTF8.self))
+                return
+            }
+            func describe(_ piece: HVFBuilderSetup.Piece, _ target: String?) -> String {
+                switch piece {
+                case .ok: return "ok (\(target ?? "?"))"
+                case .absent: return "absent"
+                case .mismatch: return "not this machine's (\(target ?? "?"))"
+                }
+            }
+            print("context '\(HVFBuilderSetup.contextName)': \(describe(status.context, status.contextHost))")
+            print("builder '\(HVFBuilderSetup.builderName)': \(describe(status.builder, status.builderEndpoint))")
+            print("default of the context: \(status.contextDefault ? "yes" : "no")")
+            print(status.installed ? "installed" : "not installed (`micropod machine builder install`)")
+        case "rm", "remove", "uninstall":
+            for line in try setup.remove() { print(line) }
+        default:
+            throw UsageError(message: "machine builder install|status|rm")
+        }
     }
 
     // MARK: logs
