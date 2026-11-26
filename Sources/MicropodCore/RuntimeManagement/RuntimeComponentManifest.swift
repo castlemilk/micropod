@@ -236,12 +236,17 @@ public struct RuntimeComponentUpdateSummary: Codable, Sendable, Equatable {
     public let targetVersion: String
     public let runtimeOperation: UUID?
     public let reason: String?
+    /// True when root forced this update over a failed protection check
+    /// (`sudo micropod runtime update --force`); absent otherwise.
+    public let forced: Bool?
+    /// The protection check it overrode: `unprotected: <reason>`.
+    public let forcedOver: String?
     public var isTerminal: Bool {
         ["completed", "helperUpdated", "rolledBack", "refused", "recoveryRequired"].contains(phase)
     }
     public init(
         operation: UUID, phase: String, rollback: Bool, sourceVersion: String, targetVersion: String,
-        runtimeOperation: UUID?, reason: String?
+        runtimeOperation: UUID?, reason: String?, forced: Bool? = nil, forcedOver: String? = nil
     ) {
         self.operation = operation
         self.phase = phase
@@ -250,5 +255,49 @@ public struct RuntimeComponentUpdateSummary: Codable, Sendable, Equatable {
         self.targetVersion = targetVersion
         self.runtimeOperation = runtimeOperation
         self.reason = reason
+        self.forced = forced
+        self.forcedOver = forcedOver
+    }
+}
+
+/// A component update root ran although the helper's protection check
+/// failed (`sudo micropod runtime update --force`). The helper keeps the last
+/// one in `RuntimeHost/component-forced.json` and no update removes it, so a
+/// host that was ever forced says so: status reports it, the version
+/// manifest's `runtime-authority` names it, and the release gate fails on it.
+public struct RuntimeForcedComponentUpdate: Codable, Sendable, Equatable {
+    /// Longest recorded `overridden`, in UTF-8 bytes.
+    public static let maximumReasonBytes = 512
+    public let operation: UUID
+    public let rollback: Bool
+    public let targetVersion: String
+    /// The protection check overridden: `unprotected: <reason>`.
+    public let overridden: String
+    public let forcedAt: Date
+    public init(operation: UUID, rollback: Bool, targetVersion: String, overridden: String, forcedAt: Date) {
+        self.operation = operation
+        self.rollback = rollback
+        self.targetVersion = targetVersion
+        self.overridden = Self.bounded(overridden)
+        self.forcedAt = forcedAt
+    }
+
+    /// `text`, cut at a character boundary to at most ``maximumReasonBytes``.
+    public static func bounded(_ text: String) -> String {
+        guard text.utf8.count > maximumReasonBytes else { return text }
+        var out = ""
+        for character in text {
+            guard out.utf8.count + String(character).utf8.count <= maximumReasonBytes - 3 else { break }
+            out.append(character)
+        }
+        return out + "..."
+    }
+
+    /// One line for people: what was overridden, and when.
+    public var line: String {
+        let when = ISO8601DateFormatter.string(
+            from: forcedAt, timeZone: TimeZone(identifier: "UTC")!, formatOptions: [.withInternetDateTime])
+        return "\(rollback ? "rollback" : "update") \(operation.uuidString) to \(targetVersion) was forced over "
+            + "\"\(overridden)\" at \(when)"
     }
 }

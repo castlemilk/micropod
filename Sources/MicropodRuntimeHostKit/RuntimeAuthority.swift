@@ -75,26 +75,38 @@ public enum RuntimeAuthority {
         public let reason: String?
         /// Unprotected because the legacy SMAppService job is not retired.
         public var legacyActive: Bool = false
+        /// Unprotected because this process does not run the authority
+        /// program. A forced update cannot override this one: it swaps
+        /// `authority/current`, which this helper would never relaunch into.
+        public var elsewhere: Bool = false
         public static let ok = Protection(protected: true, reason: nil)
         public static func unprotected(_ reason: String) -> Protection { .init(protected: false, reason: reason) }
         static func legacy(_ reason: String) -> Protection {
             .init(protected: false, reason: reason, legacyActive: true)
         }
+        public static func notTheAuthority(_ reason: String) -> Protection {
+            .init(protected: false, reason: reason, elsewhere: true)
+        }
+        /// `protected`, or `unprotected: <reason>`, as status reports it.
+        public var described: String { protected ? "protected" : "unprotected: " + (reason ?? "unknown") }
     }
 
     /// `RuntimeHost/protection.json` (root-owned, world-readable): the last
     /// protection check, which the version manifest reports as the
-    /// `runtime-authority` component's state.
+    /// `runtime-authority` component's state, and the last component update
+    /// root forced over a failed check, if any.
     public struct PublishedProtection: Codable, Sendable, Equatable {
         public let protected: Bool
         public let legacyActive: Bool
         public let reason: String?
         public let checkedAt: Date
-        public init(_ protection: Protection, checkedAt: Date) {
+        public let forced: RuntimeForcedComponentUpdate?
+        public init(_ protection: Protection, checkedAt: Date, forced: RuntimeForcedComponentUpdate? = nil) {
             protected = protection.protected
             legacyActive = protection.legacyActive
             reason = protection.reason
             self.checkedAt = checkedAt
+            self.forced = forced
         }
     }
 
@@ -112,7 +124,7 @@ public enum RuntimeAuthority {
         launchctlPrint: () -> String?, legacy: () -> LegacyJob?
     ) -> Protection {
         guard executable.resolvingSymlinksInPath().path == program.path else {
-            return .unprotected("the helper runs from \(executable.path), not the root-only authority program")
+            return .notTheAuthority("the helper runs from \(executable.path), not the root-only authority program")
         }
         for entry in [program, plist] {
             if let reason = unprotectedReason(entry, owner: owner, boundary: boundary) { return .unprotected(reason) }

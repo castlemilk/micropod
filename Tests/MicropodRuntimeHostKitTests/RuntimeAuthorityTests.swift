@@ -147,11 +147,16 @@ final class RuntimeAuthorityTests: XCTestCase {
         let layout = try layout()
         XCTAssertEqual(protection(layout), .ok)
 
-        // Started from anywhere else (the legacy job in /Applications).
-        XCTAssertFalse(
-            protection(layout, executable: URL(fileURLWithPath: "/Applications/x/MicropodRuntimeHost")).protected)
+        // Started from anywhere else (the legacy job in /Applications). Only
+        // this reason is one a forced update can never override.
+        let elsewhere = protection(layout, executable: URL(fileURLWithPath: "/Applications/x/MicropodRuntimeHost"))
+        XCTAssertFalse(elsewhere.protected)
+        XCTAssertTrue(elsewhere.elsewhere)
+        XCTAssertTrue(elsewhere.described.hasPrefix("unprotected: the helper runs from /Applications/x/"))
         // launchd's live job cannot be read, or runs another program.
         XCTAssertFalse(protection(layout, printed: .some(nil)).protected)
+        XCTAssertFalse(protection(layout, printed: .some(nil)).elsewhere)
+        XCTAssertFalse(protection(layout, legacy: .init(loaded: true, disabled: true)).elsewhere)
         XCTAssertFalse(
             protection(
                 layout, printed: layout.printed.replacingOccurrences(of: layout.program.path, with: "/tmp/other")

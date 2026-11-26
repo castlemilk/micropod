@@ -118,7 +118,7 @@ struct MicropodRuntimeHost {
                 while true {
                     try? await Task.sleep(for: .seconds(300))
                     let protection = components.environment.protection()
-                    components.environment.publishProtection(protection)
+                    components.publish(protection)
                     await controller.recordProtection(protection)
                 }
             }
@@ -193,22 +193,28 @@ private final class RuntimeHostServer: @unchecked Sendable {
                 return
             }
             xpc_connection_set_event_handler(peer) { [self] message in
-                guard xpc_get_type(message) == XPC_TYPE_DICTIONARY, xpc_connection_get_euid(peer) >= 500 else { return }
+                // The peer's euid comes from the connection's kernel audit
+                // token, never from the request: an account (>= 500), or root
+                // (0), which the controller lets read status and force a
+                // component update only (docs/runtime-component-update.md).
+                let uid = xpc_connection_get_euid(peer)
+                guard xpc_get_type(message) == XPC_TYPE_DICTIONARY, uid >= 500 || uid == 0 else { return }
                 nonisolated(unsafe) let message = message
                 var size = 0
                 guard let bytes = xpc_dictionary_get_data(message, "request", &size), size > 0, size <= 8192 else {
                     return
                 }
                 let data = Data(bytes: bytes, count: size)
-                let uid = xpc_connection_get_euid(peer)
                 Task {
                     var status: IsolatedRuntimeStatus
                     do {
                         guard let body = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                             Set(body.keys) == ["operation", "action"]
+                                || Set(body.keys) == ["operation", "action", "force"]
                         else { throw MicropodError.message("Unknown runtime request fields") }
                         let request = try JSONDecoder().decode(IsolatedRuntimeRequest.self, from: data)
                         if request.action == .session {
+                            guard uid != 0 else { throw MicropodError.message("Root has no API session") }
                             let identity = try IsolatedRuntimeIdentity.readRootOwned()
                             guard identity.ownerUID == uid,
                                 let birth = try RuntimeProcessBirth.read(xpc_connection_get_pid(peer)), birth.uid == uid

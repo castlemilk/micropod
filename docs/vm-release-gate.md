@@ -405,6 +405,13 @@ bash $H matrix
 bash $H results
 ```
 
+The gate never forces an update (`sudo micropod runtime update --force`,
+docs/runtime-component-update.md): the runner refuses to pass `--force`,
+and every test step fails "no component update on this host was forced over
+the protection check" while root's `component-forced.json`, the component
+journal or any history record says an update was forced. Evidence from a
+forced host is never a PASS.
+
 `~/micropod-gate-vm/out/results.tsv` has one line per step (PASS, FAIL,
 INCOMPLETE, BASELINE) and `out/logs/` the detail of every check, both written
 by the VMs; `logs/matrix.log` is the matrix, written by the host. INCOMPLETE

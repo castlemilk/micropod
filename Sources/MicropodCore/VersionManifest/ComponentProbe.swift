@@ -359,6 +359,8 @@ public enum ComponentProbe {
             let protected: Bool
             let legacyActive: Bool
             let reason: String?
+            /// The last component update root forced over a failed check.
+            let forced: RuntimeForcedComponentUpdate?
         }
         guard let data = try? RuntimeDurableFile.read(protection, maximumBytes: 4096, ownerUID: protectionOwner),
             let published = try? JSONDecoder().decode(Published.self, from: data)
@@ -366,6 +368,9 @@ public enum ComponentProbe {
             notes.append("its protection check is not published")
             return report(.unknown)
         }
+        // A forced update leaves the state alone (consumers know every state
+        // value) and is named in the detail, whatever the check says now.
+        if let forced = published.forced { notes.append("a component \(forced.line)") }
         if published.protected { return report(.running) }
         notes.append("unprotected: " + (published.reason ?? "unknown"))
         if published.legacyActive {

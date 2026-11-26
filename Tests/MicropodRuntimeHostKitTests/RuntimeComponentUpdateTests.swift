@@ -45,6 +45,8 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
     private var _desktop: (String, String)?
     private var _protection = RuntimeAuthority.Protection.ok
     private var _facts: RuntimeInstallFacts?
+    private var _faults: [String] = []
+    private var _published: [RuntimeForcedComponentUpdate?] = []
     var publicKey: String { key.publicKey.rawRepresentation.base64EncodedString() }
 
     static let source = bundle("0.13.9", "9", cdhash: "1", helper: "2", api: "3")
@@ -199,6 +201,14 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
         }
     }
     func setInstallFacts(_ value: RuntimeInstallFacts?) { lock.withLock { _facts = value } }
+    /// What the helper logged at fault level.
+    func fault(_ message: String) { lock.withLock { _faults.append(message) } }
+    var faults: [String] { lock.withLock { _faults } }
+    /// The forced update each published protection check carried.
+    func publishProtection(_ protection: RuntimeAuthority.Protection, forced: RuntimeForcedComponentUpdate?) {
+        lock.withLock { _published.append(forced) }
+    }
+    var publishedForced: [RuntimeForcedComponentUpdate?] { lock.withLock { _published } }
     func checkpoint(_ name: String) throws {
         if lock.withLock({ _stopAt == name }) { throw RuntimeComponentInterruption(checkpoint: name) }
     }
@@ -221,11 +231,12 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         return (RuntimeComponentUpdater(environment: environment), environment)
     }
 
-    private func plan(_ updater: RuntimeComponentUpdater, operation: UUID = UUID(), rollback: Bool = false) throws
-        -> RuntimeComponentUpdateRecord
-    {
+    private func plan(
+        _ updater: RuntimeComponentUpdater, operation: UUID = UUID(), rollback: Bool = false, force: Bool = false
+    ) throws -> RuntimeComponentUpdateRecord {
         try updater.plan(
-            operation: operation, ownerUID: 501, installedSelection: selection, runtime: nil, rollback: rollback)
+            operation: operation, ownerUID: 501, installedSelection: selection, runtime: nil, rollback: rollback,
+            force: force)
     }
 
     private func stage(_ updater: RuntimeComponentUpdater, _ environment: ComponentEnvironmentFixture) throws
@@ -660,6 +671,201 @@ final class RuntimeComponentUpdateTests: XCTestCase {
             operation: UUID(), ownerUID: 501, installedSelection: selection, runtime: moved, rollback: true)
         XCTAssertEqual(rollback.phase, .restoringRuntime)
         XCTAssertEqual(rollback.previousRuntime, previous)
+    }
+
+    // MARK: Forced updates (`sudo micropod runtime update --force`)
+
+    private static let unprotected = "launchd's live authority job could not be read"
+
+    /// Swap, relaunch and confirm a planned record, then finish it.
+    private func finish(
+        _ updater: RuntimeComponentUpdater, _ environment: ComponentEnvironmentFixture,
+        _ record: RuntimeComponentUpdateRecord
+    ) throws -> RuntimeComponentUpdateRecord {
+        XCTAssertEqual(try updater.stageAndSwap(record, installedSelection: selection).phase, .relaunching)
+        try environment.launchInstalled()
+        XCTAssertEqual(updater.launch(), .proceedUnconfirmed)
+        XCTAssertTrue(try updater.confirmTarget())
+        var settled = try XCTUnwrap(updater.read())
+        try updater.finishWithoutRestart(&settled)
+        return settled
+    }
+
+    // Root's force overrides the failed protection check and nothing else:
+    // the update runs exactly as an ordinary one, and the record, root's own
+    // durable mark, the published receipt and a fault-level log all say so.
+    func testAForcedUpdateOverridesOnlyTheProtectionCheckAndSaysSo() throws {
+        let (updater, environment) = try fixture()
+        environment.setProtection(.unprotected(Self.unprotected))
+        XCTAssertThrowsError(try plan(updater), "Without force nothing changes")
+        XCTAssertNil(updater.lastForced())
+
+        let record = try plan(updater, force: true)
+        XCTAssertEqual(record.phase, .staging)
+        XCTAssertEqual(record.forced, true)
+        XCTAssertEqual(record.forcedOver, "unprotected: " + Self.unprotected)
+        let mark = try XCTUnwrap(updater.lastForced(), "Recorded before anything is copied")
+        XCTAssertEqual(mark.operation, record.operation)
+        XCTAssertEqual(mark.overridden, "unprotected: " + Self.unprotected)
+        XCTAssertEqual(mark.targetVersion, "0.13.10")
+        XCTAssertFalse(mark.rollback)
+        XCTAssertEqual(environment.copies, 0)
+        XCTAssertEqual(environment.publishedForced.last ?? nil, mark, "The version manifest's receipt names it")
+        let fault = try XCTUnwrap(environment.faults.first { $0.hasPrefix("FORCED") }, "\(environment.faults)")
+        XCTAssertTrue(fault.contains(Self.unprotected), fault)
+        XCTAssertTrue(fault.contains(record.operation.uuidString), fault)
+
+        let completed = try finish(updater, environment, record)
+        XCTAssertEqual(completed.phase, .completed)
+        XCTAssertEqual(try environment.inspect(environment.installedBundle), ComponentEnvironmentFixture.target)
+        XCTAssertEqual(completed.forced, true, "The receipt keeps it to the end")
+        let summary = try XCTUnwrap(updater.summary())
+        XCTAssertEqual(summary.forced, true)
+        XCTAssertEqual(summary.forcedOver, "unprotected: " + Self.unprotected)
+        XCTAssertEqual(try updater.state().highestVersion, "0.13.10", "The marks rise as for any update")
+        // Root rewriting its marks never drops the mark: it has its own file.
+        try updater.recordInstalled(version: "0.13.10", floor: "0.13.10")
+        XCTAssertEqual(updater.lastForced(), mark)
+        let history = updater.history.appendingPathComponent(record.operation.uuidString + ".json")
+        let kept = try JSONDecoder().decode(
+            RuntimeComponentUpdateRecord.self, from: Data(contentsOf: history))
+        XCTAssertEqual(kept.forcedOver, "unprotected: " + Self.unprotected, "History keeps the forced receipt")
+    }
+
+    // Requirement 6: force on a protected helper overrides nothing, so the
+    // update is an ordinary one and nothing claims otherwise.
+    func testForceOnAProtectedHelperIsAnOrdinaryUpdate() throws {
+        let (updater, environment) = try fixture()
+        let record = try plan(updater, force: true)
+        XCTAssertNil(record.forced)
+        XCTAssertNil(record.forcedOver)
+        XCTAssertEqual(try finish(updater, environment, record).phase, .completed)
+        XCTAssertNil(updater.lastForced())
+        XCTAssertNil(updater.summary()?.forced)
+        XCTAssertFalse(environment.faults.contains { $0.hasPrefix("FORCED") }, "\(environment.faults)")
+        let encoded = try XCTUnwrap(String(data: JSONEncoder().encode(updater.summary()), encoding: .utf8))
+        XCTAssertFalse(encoded.contains("forced"), "An unforced summary encodes exactly as before")
+    }
+
+    // Requirement 3: force never reaches past the release key, the code
+    // signature, the manifest digests, the security floor or the high-water
+    // mark, and refused plans copy nothing.
+    func testForceNeverBypassesSignaturesDigestsTheFloorOrTheHighWaterMark() throws {
+        func unprotected() throws -> (RuntimeComponentUpdater, ComponentEnvironmentFixture) {
+            let made = try fixture()
+            made.1.setProtection(.unprotected(Self.unprotected))
+            return made
+        }
+        // A manifest the release key did not sign.
+        let (forgedKey, forgedKeyEnvironment) = try unprotected()
+        try forgedKeyEnvironment.offer(ComponentEnvironmentFixture.target, signer: Curve25519.Signing.PrivateKey())
+        XCTAssertThrowsError(try plan(forgedKey, force: true)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("release key"), "\($0)")
+        }
+        XCTAssertNil(try forgedKey.read())
+        XCTAssertNil(forgedKey.lastForced(), "A refused plan records nothing as forced")
+
+        // An unsigned setup app: planned as forced, refused at staging.
+        let (unsigned, unsignedEnvironment) = try unprotected()
+        try unsignedEnvironment.offer(ComponentEnvironmentFixture.target, signed: false)
+        let record = try plan(unsigned, force: true)
+        XCTAssertEqual(record.forced, true)
+        XCTAssertThrowsError(try unsigned.stageAndSwap(record, installedSelection: selection)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("notarized"), "\($0)")
+        }
+        XCTAssertEqual(try unsigned.read()?.phase, .refused)
+        XCTAssertEqual(
+            try unsignedEnvironment.inspect(unsignedEnvironment.installedBundle), ComponentEnvironmentFixture.source)
+        XCTAssertNotNil(unsigned.lastForced(), "The forced attempt stays on record")
+
+        // A setup app that does not match its signed manifest.
+        let (mismatch, mismatchEnvironment) = try unprotected()
+        try ComponentEnvironmentFixture.makeBundle(
+            mismatchEnvironment.desktop.appendingPathComponent("Contents/Helpers/Micropod Runtime Setup.app"),
+            ComponentEnvironmentFixture.bundle("0.13.10", "a", cdhash: "f", helper: "c", api: "e"))
+        let mismatched = try plan(mismatch, force: true)
+        XCTAssertThrowsError(try mismatch.stageAndSwap(mismatched, installedSelection: selection)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("does not match its signed manifest"), "\($0)")
+        }
+        XCTAssertEqual(
+            try mismatchEnvironment.inspect(mismatchEnvironment.installedBundle), ComponentEnvironmentFixture.source)
+
+        // The security floor and the high-water mark.
+        let (floored, _) = try unprotected()
+        try floored.recordInstalled(version: "0.14.0", floor: "0.14.0")
+        XCTAssertThrowsError(try plan(floored, force: true)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("security floor"), "\($0)")
+        }
+        let (marked, markedEnvironment) = try unprotected()
+        try marked.recordInstalled(version: "0.14.0", floor: nil)
+        XCTAssertThrowsError(try plan(marked, force: true)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("highest installed"), "\($0)")
+        }
+        XCTAssertEqual(markedEnvironment.copies, 0)
+        XCTAssertNil(marked.lastForced())
+
+        // A rollback below the floor, forced or not.
+        let (rolled, rolledEnvironment) = try fixture()
+        try rolledEnvironment.offer(
+            ComponentEnvironmentFixture.target,
+            manifest: ComponentEnvironmentFixture.manifest(ComponentEnvironmentFixture.target, securityFloor: "0.13.10")
+        )
+        XCTAssertEqual(try complete(rolled, rolledEnvironment).phase, .completed)
+        rolledEnvironment.setProtection(.unprotected(Self.unprotected))
+        XCTAssertThrowsError(try plan(rolled, rollback: true, force: true)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("security floor"), "\($0)")
+        }
+
+        // A release that changes the LaunchDaemon definition still needs
+        // install-authority.
+        let (definition, definitionEnvironment) = try unprotected()
+        try Data(String(repeating: "7", count: 64).utf8).write(
+            to: definitionEnvironment.desktop.appendingPathComponent(
+                "Contents/Helpers/Micropod Runtime Setup.app/definition"))
+        let redefined = try plan(definition, force: true)
+        XCTAssertThrowsError(try definition.stageAndSwap(redefined, installedSelection: selection)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("LaunchDaemon definition"), "\($0)")
+        }
+        XCTAssertEqual(
+            try definitionEnvironment.inspect(definitionEnvironment.installedBundle), ComponentEnvironmentFixture.source
+        )
+    }
+
+    // A helper that does not run the authority program would never relaunch
+    // into the bundle an update swaps, so force cannot help it; the sealed
+    // installed bundle and the running digest are still required as well.
+    func testForceCannotOverrideAHelperRunningOutsideTheAuthority() throws {
+        let (updater, environment) = try fixture()
+        environment.setProtection(
+            .notTheAuthority("the helper runs from /Applications/Micropod Runtime Setup.app, not the authority"))
+        XCTAssertThrowsError(try plan(updater, force: true)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("cannot help"), "\($0)")
+        }
+        XCTAssertNil(try updater.read())
+        XCTAssertNil(updater.lastForced())
+
+        let (running, runningEnvironment) = try fixture()
+        runningEnvironment.setProtection(.unprotected(Self.unprotected))
+        runningEnvironment.running = String(repeating: "9", count: 64)
+        XCTAssertThrowsError(try plan(running, force: true)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("not the helper that is running"), "\($0)")
+        }
+        XCTAssertNil(running.lastForced())
+    }
+
+    // An explicit rollback is a component update too: force lets it past a
+    // failed protection check, records it, and restores the exact bytes.
+    func testAForcedRollbackIsRecordedAndRestoresTheRetainedBytes() throws {
+        let (updater, environment) = try fixture()
+        let before = try environment.installedPayload()
+        XCTAssertEqual(try complete(updater, environment).phase, .completed)
+        environment.setProtection(.unprotected(Self.unprotected))
+        XCTAssertThrowsError(try plan(updater, rollback: true))
+        let rollback = try plan(updater, rollback: true, force: true)
+        XCTAssertEqual(rollback.forced, true)
+        XCTAssertEqual(updater.lastForced()?.rollback, true)
+        XCTAssertEqual(try updater.stageAndSwap(rollback, installedSelection: selection).phase, .relaunching)
+        XCTAssertEqual(try environment.installedPayload(), before)
     }
 }
 

@@ -391,6 +391,52 @@ final class VersionManifestTests: XCTestCase {
         XCTAssertTrue(blocked.detail.contains("run install-authority again"), blocked.detail)
     }
 
+    // A component update root forced over a failed protection check is named
+    // in runtime-authority's detail, whatever the check says now; the state
+    // keeps its usual values.
+    func testTheRuntimeAuthorityNamesAForcedComponentUpdate() throws {
+        let plist = root.appendingPathComponent("LaunchDaemons/authority.plist")
+        let bundle = root.appendingPathComponent("authority/current/Micropod Runtime Setup.app")
+        let program = bundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost").path
+        let published = root.appendingPathComponent("protection.json")
+        try FileManager.default.createDirectory(
+            at: plist.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("plist".utf8).write(to: plist)
+        try writeBundle(
+            bundle, ["CFBundleShortVersionString": "0.14.0", "MicropodSourceRevision": Self.revision],
+            executable: "MicropodRuntimeHost")
+        let operation = UUID()
+        let forced = RuntimeForcedComponentUpdate(
+            operation: operation, rollback: false, targetVersion: "0.14.0",
+            overridden: "unprotected: launchd's live authority job could not be read", forcedAt: Date())
+        func publish(protected: Bool) throws {
+            let receipt: [String: Any] = [
+                "protected": protected, "legacyActive": false,
+                "reason": protected ? NSNull() : "launchd's live authority job could not be read", "checkedAt": 0,
+                "forced": try XCTUnwrap(
+                    JSONSerialization.jsonObject(with: JSONEncoder().encode(forced)) as? [String: Any]),
+            ]
+            try JSONSerialization.data(withJSONObject: receipt).write(to: published)
+        }
+        func probe() -> Micropod_V1_ComponentVersion {
+            ComponentProbe.runtimeAuthority(
+                helpers: [program], dedicated: true, plist: plist, bundle: bundle,
+                legacyBundle: root.appendingPathComponent("Applications/Micropod Runtime Setup.app"),
+                protection: published, protectionOwner: getuid())
+        }
+        try publish(protected: false)
+        let unprotected = probe()
+        XCTAssertEqual(unprotected.state, "unprotected")
+        XCTAssertTrue(
+            unprotected.detail.contains(
+                "a component update \(operation.uuidString) to 0.14.0 was forced over \"unprotected: "),
+            unprotected.detail)
+        try publish(protected: true)
+        let repaired = probe()
+        XCTAssertEqual(repaired.state, "running")
+        XCTAssertTrue(repaired.detail.contains("was forced over"), "A repaired host still names it")
+    }
+
     func testRetainedServiceReportsItsPayloadReleaseNotTheDesktops() throws {
         let payload = root.appendingPathComponent("payloads/0.13.0-abc/Micropod.app")
         try writeBundle(

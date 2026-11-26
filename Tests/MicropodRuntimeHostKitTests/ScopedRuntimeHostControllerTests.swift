@@ -760,15 +760,21 @@ extension ScopedRuntimeHostControllerTests {
     }
 
     /// The old helper swaps in the new one and lets launchd relaunch it; the
-    /// new one settles the swap at launch and starts serving.
-    private func swapAndRelaunch(_ rig: ComponentRig, operation: UUID) async throws -> IsolatedRuntimeHostController {
+    /// new one settles the swap at launch and starts serving. `asRoot` sends
+    /// the request as `sudo micropod runtime update --force` does: forced,
+    /// from a peer whose audit token says euid 0.
+    private func swapAndRelaunch(_ rig: ComponentRig, operation: UUID, asRoot: Bool = false) async throws
+        -> IsolatedRuntimeHostController
+    {
         let recorder = RelaunchRecorder()
         let old = rig.make(recorder)
-        let accepted = try await old.submit(.init(operation: operation, action: .update), ownerUID: getuid())
+        let request = IsolatedRuntimeRequest(operation: operation, action: .update, force: asRoot ? true : nil)
+        let peer: UInt32 = asRoot ? 0 : getuid()
+        let accepted = try await old.submit(request, ownerUID: peer)
         XCTAssertEqual(accepted.componentProtocol, RuntimeComponentManifest.protocolVersion)
         XCTAssertEqual(accepted.componentUpdate?.operation, operation)
         // A lost reply: the same request again is answered, never repeated.
-        let repeated = try await old.submit(.init(operation: operation, action: .update), ownerUID: getuid())
+        let repeated = try await old.submit(request, ownerUID: peer)
         XCTAssertEqual(repeated.componentUpdate?.operation, operation)
         for _ in 0..<400 where recorder.relaunches == 0 { try await Task.sleep(for: .milliseconds(5)) }
         XCTAssertEqual(recorder.relaunches, 1)
@@ -1087,6 +1093,144 @@ extension ScopedRuntimeHostControllerTests {
             XCTAssertTrue(error.localizedDescription.contains("unprotected"), error.localizedDescription)
         }
         XCTAssertEqual(rig.environment.copies, 0)
+    }
+
+    // MARK: Forced updates (`sudo micropod runtime update --force`)
+
+    private static let unprotected = "launchd's live authority job could not be read"
+
+    // Requirement 2: force is honoured only for a root peer. Any other peer
+    // (the owner's CLI, the desktop app) is refused before anything is read,
+    // whatever it asks for and whether or not the helper is protected.
+    func testAForcedRequestFromANonRootPeerIsRefused() async throws {
+        let rig = try await componentRig()
+        let helper = rig.make(nil)
+        for protection in [RuntimeAuthority.Protection.unprotected(Self.unprotected), .ok] {
+            rig.environment.setProtection(protection)
+            for action in [IsolatedRuntimeAction.update, .rollback, .status, .restart] {
+                do {
+                    _ = try await helper.submit(.init(action: action, force: true), ownerUID: getuid())
+                    XCTFail("A non-root peer forced \(action)")
+                } catch {
+                    XCTAssertTrue(error.localizedDescription.contains("Only root"), error.localizedDescription)
+                }
+            }
+            // `force: false` is a request for force too: only absence is not.
+            do {
+                _ = try await helper.submit(.init(action: .update, force: false), ownerUID: getuid())
+                XCTFail("A non-root peer sent force")
+            } catch {}
+        }
+        XCTAssertEqual(rig.environment.copies, 0)
+        XCTAssertNil(try rig.updater.read())
+        XCTAssertNil(rig.updater.lastForced())
+        // Unforced, the owner still gets the ordinary refusal.
+        rig.environment.setProtection(.unprotected(Self.unprotected))
+        do {
+            _ = try await helper.submit(.init(action: .update), ownerUID: getuid())
+            XCTFail("An unprotected helper updated itself")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("unprotected"), error.localizedDescription)
+        }
+    }
+
+    // Requirement 2: the Cuttlefish agent reaches the helper only through
+    // the coordination socket, which has no update of any kind to force.
+    func testTheCoordinationSocketHasNoWayToForceAnUpdate() async throws {
+        let rig = try await componentRig()
+        rig.environment.setProtection(.unprotected(Self.unprotected))
+        let controller = rig.make(nil)
+        let proofs = rig.driver.proofs
+        for call in [
+            RuntimeCoordinationCall(action: "runtime-update", purpose: "force"),
+            RuntimeCoordinationCall(action: "update"), RuntimeCoordinationCall(action: "runtime-force-update"),
+        ] {
+            do {
+                _ = try await controller.coordinateRuntime(call, identity: proofs.identity, peer: proofs.peer)
+                XCTFail("\(call.action) was accepted")
+            } catch {}
+        }
+        XCTAssertEqual(rig.environment.copies, 0)
+        XCTAssertNil(rig.updater.lastForced())
+    }
+
+    // A root peer may read status and force an update, nothing else; an
+    // unforced update is the owner's to ask for.
+    func testARootPeerMayOnlyReadStatusOrForceAnUpdate() async throws {
+        let rig = try await componentRig()
+        let helper = rig.make(nil)
+        let status = try await helper.submit(.init(action: .status), ownerUID: 0)
+        XCTAssertEqual(status.identity?.ownerUID, getuid())
+        for request in [
+            IsolatedRuntimeRequest(action: .update), .init(action: .rollback), .init(action: .start),
+            .init(action: .stop), .init(action: .restart), .init(action: .install), .init(action: .verify),
+            .init(action: .cancel), .init(action: .start, force: true), .init(action: .status, force: true),
+        ] {
+            do {
+                _ = try await helper.submit(request, ownerUID: 0)
+                XCTFail("Root sent \(request.action) (force \(String(describing: request.force)))")
+            } catch {}
+        }
+        XCTAssertEqual(rig.environment.copies, 0)
+        let after = try await helper.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(after.phase, "completed", "Nothing root sent started an operation")
+    }
+
+    // Requirement 6: an unprotected helper with a root peer's force updates
+    // exactly as an ordinary update would (swap, relaunch, the drained
+    // restart), and every report says it was forced, and over what.
+    func testRootForcesAnUpdateOverAFailedProtectionCheckAndItIsRecorded() async throws {
+        let rig = try await componentRig()
+        rig.environment.setProtection(.unprotected(Self.unprotected))
+        let (_, beforeHistory, _) = await rig.driver.snapshot()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation, asRoot: true)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "completed", summary.reason ?? "")
+        XCTAssertEqual(summary.forced, true)
+        XCTAssertEqual(summary.forcedOver, "unprotected: " + Self.unprotected)
+        let (_, history, _) = await rig.driver.snapshot()
+        XCTAssertEqual(
+            Array(history.dropFirst(beforeHistory.count)),
+            ["qualify", "drain", "prepare", "begin", "verify", "complete"], "The runtime follows under the drain")
+
+        let status = try await new.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.componentProtection, "unprotected: " + Self.unprotected, "Force repairs nothing")
+        let forced = try XCTUnwrap(status.forcedComponentUpdate)
+        XCTAssertEqual(forced.operation, operation)
+        XCTAssertEqual(forced.overridden, "unprotected: " + Self.unprotected)
+        XCTAssertTrue(forced.line.contains("was forced over \"unprotected: \(Self.unprotected)\""), forced.line)
+        XCTAssertEqual(try rig.updater.read()?.ownerUID, getuid(), "Root acts for the runtime's recorded owner")
+        XCTAssertEqual(status.ownerUID, getuid())
+        XCTAssertTrue(rig.environment.faults.contains { $0.hasPrefix("FORCED") && $0.contains(Self.unprotected) })
+        let persisted = try String(contentsOf: rig.root.appendingPathComponent("operation.json"), encoding: .utf8)
+        XCTAssertFalse(persisted.contains("forced"), "operation.json stays readable by older helpers")
+
+        // Later ordinary updates never clear the mark.
+        rig.environment.setProtection(.ok)
+        let retry = UUID()
+        _ = try await new.submit(.init(operation: retry, action: .update), ownerUID: getuid())
+        let ordinary = try await componentOutcome(new, retry)
+        XCTAssertNil(ordinary.forced)
+        let later = try await new.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(later.forcedComponentUpdate, forced)
+    }
+
+    // Requirement 6: a root peer's force on a protected helper overrides
+    // nothing: an ordinary update, with no forced record anywhere.
+    func testRootForceOnAProtectedHelperIsAnOrdinaryUpdate() async throws {
+        let rig = try await componentRig()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation, asRoot: true)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "completed", summary.reason ?? "")
+        XCTAssertNil(summary.forced)
+        XCTAssertNil(summary.forcedOver)
+        let status = try await new.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.componentProtection, "protected")
+        XCTAssertNil(status.forcedComponentUpdate)
+        XCTAssertNil(rig.updater.lastForced())
+        XCTAssertFalse(rig.environment.faults.contains { $0.hasPrefix("FORCED") })
     }
 
     // Gamma-128's 167 old-format receipts from the still-running API: the

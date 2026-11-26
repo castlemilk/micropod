@@ -212,7 +212,88 @@ Status reports `componentProtection`: either `protected` or
 `unprotected: <reason>`, and `helperService`, the Mach service the answering
 helper listens on. An unprotected helper still serves the runtime, but
 refuses every component update and rollback until
-`sudo micropod runtime install-authority` repairs it.
+`sudo micropod runtime install-authority` repairs it, or root forces one
+(below).
+
+### Forcing an update over a failed check (root only)
+
+`sudo micropod runtime update --force` (with or without `--rollback`) asks
+the helper to go ahead although its protection check fails. It is for an
+owner who wants a hard update on their own rig. It repairs nothing: status
+still reports `unprotected: <reason>` afterwards, and
+`sudo micropod runtime install-authority` stays the repair.
+
+**Only root.** The request carries `"force": true`, but that is a request,
+not a credential. The helper's XPC server reads the peer's euid from the
+connection's kernel audit token (`xpc_connection_get_euid`,
+`MicropodRuntimeHost/main.swift`), and `IsolatedRuntimeHostController.submit`
+honours force only for euid 0. Every other peer that sends `force`, the
+owner's CLI and the desktop app included, is refused before anything is
+read. The Cuttlefish agent reaches the helper only through the coordination
+socket, which has no update call to force. No environment variable, file or
+plist turns force on. A root peer may read status, and force an update or a
+rollback; nothing else. The update acts for the runtime's owner recorded in
+the root-owned `identity.json`, never a uid from the request.
+
+**What it skips: the refusal for a failed protection check (step 4 of the
+forward update, below), and nothing else.** Under force, every other check
+runs exactly as without it:
+
+- the manifest's EdDSA signature by the release key;
+- the version, root's high-water mark and the signed security floor, for an
+  update and for a rollback;
+- n-1;
+- the sealed copies, the Developer ID, notarization and nested-code
+  signature checks, and every manifest digest;
+- the probe, including the authority definition (a change still needs
+  `install-authority`);
+- the installed bundle being sealed and being the running helper;
+- the launch counter, the watchdog and the automatic rollback;
+- the release-gate fault and kill files, and their rules.
+
+One failed check cannot be forced: a helper that does not run the authority
+program ("the helper runs from …"). An update swaps `authority/current`,
+which that helper would never relaunch into, so force refuses it and names
+`install-authority`.
+
+On a protected helper `--force` overrides nothing. The update is an ordinary
+one and nothing records it as forced; the helper logs that force was not
+needed and the CLI prints `--force overrode nothing`.
+
+**Recorded, loudly.**
+
+- The unified log, at fault level (subsystem
+  `com.skunkworq.micropod.runtime-authority`, category `component-update`),
+  and stderr: `FORCED runtime component update <id> to <version>: root
+  overrode the failed protection check "unprotected: <reason>" …`.
+- The update's record and its history entry: `forced: true` and
+  `forcedOver: "unprotected: <reason>"`. Status's `componentUpdate` carries
+  both.
+- `RuntimeHost/component-forced.json` (root-only): the last forced update.
+  It is written before anything is copied, so an update that cannot be
+  recorded as forced does not run. No update, rollback or older helper
+  removes it; it is its own file so rewriting `component-state.json` cannot
+  drop it.
+- Status's `forcedComponentUpdate`, from that file. `micropod runtime
+  operation` prints `A component update <id> to <version> was forced over
+  "unprotected: <reason>" at <time>`.
+- `RuntimeHost/protection.json` carries it as `forced`, and the version
+  manifest's `runtime-authority` names it in `detail`. Its state values do
+  not change.
+- The CLI prints one line when the request is accepted:
+  `FORCED over "unprotected: <reason>": …`.
+
+**Never release-gate evidence.** `runtime-authority-gate.sh` never passes
+`--force` (its `user_cli` refuses to), and every test step fails "no
+component update on this host was forced over the protection check" while
+any forced receipt is on the host: root's mark, the journal or a history
+record. `finished` also requires status's `forcedComponentUpdate` to be
+absent. A forced rig therefore cannot produce a PASS.
+
+**Older helpers.** A helper built before this change drops every request
+from root unanswered, so `--force` reports that the helper did not answer
+root. Only a helper that has this change can be forced; until one is
+installed, `install-authority` is the way.
 
 **Clients.** Once `/Library/LaunchDaemons/com.skunkworq.micropod.runtime.authority.plist`
 exists, a client calls only the authority's Mach service and never falls
@@ -376,7 +457,8 @@ A forward update checks, in order:
 
    `component-state.json` is read fail-closed: if it is present but
    unreadable, updates and rollbacks are refused.
-4. **Protection.** The live check above.
+4. **Protection.** The live check above. Root's `--force` overrides this
+   step and no other (above).
 5. **n-1.** The target's `appleRuntimes` must include the selection in use.
 6. **Sealed copy** of the offered setup app.
 7. **Code signature:**
@@ -746,6 +828,7 @@ micropod runtime update              # follow the installed app's release
 micropod runtime update --detach     # request it and return
 micropod runtime update --rollback   # restore the retained previous components
 micropod runtime update --bootstrap  # how to install the root-owned authority
+sudo micropod runtime update --force # root only: the same over a failed protection check, recorded as forced
 sudo /var/root/micropod-install/<version>/micropod runtime install-authority --app ./Micropod.app
                                      # once, from a root-only copy (above)
 micropod runtime operation --json    # componentUpdate, componentProtection, helperService
@@ -925,7 +1008,12 @@ micropod runtime operation --json    # componentUpdate, componentProtection, hel
   - completion on other bytes;
   - a FIFO;
   - an unreadable journal;
-  - rollback, and the restore-first plan.
+  - rollback, and the restore-first plan;
+  - force overriding only the protection check, never the release key, the
+    code signature, the manifest digests, the authority definition, the
+    floor or the high-water mark; never a helper outside the authority
+    program; a forced rollback; force on a protected helper recording
+    nothing.
 - **`ScopedRuntimeHostControllerTests`** (signed coordinator fixture):
   - the full update, with `qualify` before the drain;
   - a `notRecorded` drain;
@@ -940,6 +1028,11 @@ micropod runtime operation --json    # componentUpdate, componentProtection, hel
   - a deliberately stopped runtime left stopped;
   - an unreadable journal blocking only `update`;
   - an unprotected helper reports it and refuses updates;
+  - force: refused from every non-root peer, protected or not, and absent
+    from the coordination socket; a root peer may only read status or force;
+    root's force over a failed check completes, recorded in the summary,
+    status, root's mark and a fault log, and later updates keep the mark;
+    root's force on a protected helper records nothing;
   - the stopped-release path, and the rollback after it.
 - **Cuttlefish (#966):** the unqualified drain is `notRecorded` and an abort
   is never refused for the build; phase 1 tolerates a stored stopped

@@ -12,6 +12,7 @@ enum RuntimeCommands {
         runtime install|repair|start|stop|restart  managed runtime operations (approved helper required)
         runtime operation|cancel|recover        progress, cancellation and verified recovery
         runtime update [--rollback]           move the dedicated runtime to the installed app's release
+        runtime update --force                (sudo) the same over a failed protection check, recorded as forced
         runtime install-authority             (sudo, once) install the root-owned runtime helper
         runtime status                        Apple dependency readiness and next action (--json supported)
         runtime use <name>                    make <name> the default for new containers
@@ -50,6 +51,7 @@ enum RuntimeCommands {
             } else {
                 print(response.message)
                 if let error = response.error { print(error) }
+                if let forced = response.forcedComponentUpdate { print("A component " + forced.line) }
             }
         case "status":
             let parsed = try parseArgs(
