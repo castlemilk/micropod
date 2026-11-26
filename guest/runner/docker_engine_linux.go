@@ -996,6 +996,9 @@ func (s *dockerEngine) start(c *dockerContainer, restart bool) (startErr error) 
 	caches.adopt(aliasPins)
 	files = append(files, caches.files...)
 	mounts = append(mounts, caches.mounts...)
+	if m := dockerEnvMount(c.Config); m != nil {
+		mounts = append(mounts, m)
+	}
 	for _, reason := range caches.skipped {
 		s.metrics.cache.skip(reason)
 	}

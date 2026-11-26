@@ -147,11 +147,17 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 		l.Close()
 		return nil, 0, err
 	}
-	var dial net.Dialer
 	// The setup deadline ends when crun starts. Established listeners live
 	// until the container releases its port, including across long SQL sessions.
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, lease: control, cancel: cancel}
+	p.relay(relayCtx, l, target)
+	return p, port, nil
+}
+
+// relay copies every connection l accepts to target until relayCtx ends.
+func (p *publishedPort) relay(relayCtx context.Context, l *net.TCPListener, target string) {
+	var dial net.Dialer
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
@@ -179,7 +185,45 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16, dire
 			}()
 		}
 	}()
-	return p, port, nil
+}
+
+// defaultBridge is the default container network's bridge (10-micropod.conflist).
+const defaultBridge = "mpci0"
+
+// bridgeGateway is the IPv4 address of a bridge in the engine's namespace;
+// "" when it has none (no container has started on it yet).
+func bridgeGateway(name string) string {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return ""
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		if ip, _, err := net.ParseCIDR(addr.String()); err == nil && ip.To4() != nil {
+			return ip.String()
+		}
+	}
+	return ""
+}
+
+// openGatewayRelay makes a published port reachable from inside the machine
+// the way Docker's is: at the container network's gateway on the port the
+// Mac publishes it on (gateway:hostPort), which is what a client in a
+// container (Testcontainers with the engine socket, its Ryuk reaper) dials
+// for a sibling's mapped port. Every container can already reach the
+// published container's own address, so this exposes nothing new.
+func openGatewayRelay(ctx context.Context, gateway string, port uint16, target string) (*publishedPort, error) {
+	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(gateway), Port: int(port)})
+	if err != nil {
+		return nil, err
+	}
+	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	p := &publishedPort{listener: l, cancel: cancel}
+	p.relay(relayCtx, l, target)
+	return p, nil
 }
 func guestIPv4() (string, error) {
 	dev := "eth0"
@@ -270,6 +314,17 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			return nil, err
 		}
 	}
+	// Where a container on this network reaches its siblings' published
+	// ports (openGatewayRelay); the private rootless engine has no shared
+	// bridge to serve it on.
+	gateway := ""
+	if !privateRootless() {
+		if network != nil {
+			gateway = network.gateway().String()
+		} else {
+			gateway = bridgeGateway(defaultBridge)
+		}
+	}
 	actual := portMap{}
 	for key, bindings := range ports {
 		port, _ := tcpPort(key)
@@ -299,6 +354,14 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 				s.metrics.networks.relayPorts.Add(1)
 			default:
 				s.metrics.networks.rootlessPorts.Add(1)
+			}
+			if gateway != "" {
+				// Best effort: the Mac mapping stands without it.
+				if g, err := openGatewayRelay(ctx, gateway, n, net.JoinHostPort(target, strconv.Itoa(int(port)))); err != nil {
+					log.Printf("published port %d of %.12s at gateway %s: %v", n, c.ID, gateway, err)
+				} else {
+					open = append(open, g)
+				}
 			}
 			actual[key] = append(actual[key], portBinding{HostIP: "127.0.0.1", HostPort: strconv.Itoa(int(n))})
 		}

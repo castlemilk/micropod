@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -146,5 +149,77 @@ func TestServeContainerEngineMarksTheContainersOrigin(t *testing.T) {
 	closeFn()
 	if _, err := os.Stat(filepath.Dir(path)); !os.IsNotExist(err) {
 		t.Fatalf("socket directory survives close: %v", err)
+	}
+}
+
+// A published port is reachable at the network gateway on its Mac port, as
+// Docker's are from inside a container; closing the port releases it.
+func TestOpenGatewayRelayReachesTheTarget(t *testing.T) {
+	target, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer target.Close()
+	go func() {
+		for {
+			c, err := target.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer c.Close()
+				buf := make([]byte, 5)
+				n, _ := c.Read(buf)
+				c.Write(append([]byte("echo:"), buf[:n]...))
+			}()
+		}
+	}()
+	probe, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := uint16(probe.Addr().(*net.TCPAddr).Port)
+	probe.Close()
+	p, err := openGatewayRelay(context.Background(), "127.0.0.1", port, target.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := net.DialTimeout("tcp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port))), 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetDeadline(time.Now().Add(5 * time.Second))
+	c.Write([]byte("hello"))
+	got, _ := io.ReadAll(c)
+	c.Close()
+	if string(got) != "echo:hello" {
+		t.Fatalf("relayed %q", got)
+	}
+	if err := p.close(); err != nil {
+		t.Fatal(err)
+	}
+	if c, err := net.DialTimeout("tcp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port))), time.Second); err == nil {
+		c.Close()
+		t.Fatal("gateway port still accepts after close")
+	}
+}
+
+// Every container gets Docker's empty, read-only /.dockerenv unless it mounts
+// something there itself.
+func TestDockerEnvMount(t *testing.T) {
+	old := dockerEnvPath
+	dockerEnvPath = filepath.Join(t.TempDir(), "dockerenv")
+	dockerEnvOnce = sync.Once{}
+	t.Cleanup(func() { dockerEnvPath, dockerEnvOnce = old, sync.Once{} })
+	m := dockerEnvMount(dockerConfig{Image: "alpine"})
+	if m == nil || m.ContainerPath != "/.dockerenv" || !m.Readonly || m.HostPath != dockerEnvPath {
+		t.Fatalf("mount %+v", m)
+	}
+	if st, err := os.Stat(dockerEnvPath); err != nil || st.Size() != 0 {
+		t.Fatalf("dockerenv %v %v", st, err)
+	}
+	own := dockerConfig{Image: "alpine", HostConfig: dockerHost{Binds: []string{"/Users/me/env:/.dockerenv:ro"}}}
+	if m := dockerEnvMount(own); m != nil {
+		t.Fatalf("a container's own /.dockerenv mount is replaced: %+v", m)
 	}
 }

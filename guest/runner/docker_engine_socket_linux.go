@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
+
+	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // The machine's Docker API, delegated to one container.
@@ -28,6 +32,35 @@ import (
 // host did not label trusted, is refused at create instead of being given
 // it. The Testcontainers reaper's own bind (cleanupMount) is unaffected: it
 // still gets the session-scoped cleanup socket.
+
+// dockerEnvPath is the empty file Docker puts at /.dockerenv in every
+// container. Clients read it to learn they run in a container: Testcontainers
+// then dials a sibling's mapped port at the network gateway
+// (openGatewayRelay) instead of localhost.
+var dockerEnvPath = filepath.Join(filepath.Dir(engineGate), "dockerenv")
+
+var dockerEnvOnce sync.Once
+
+// dockerEnvMount is the read-only /.dockerenv bind, unless the container
+// mounts something there itself; nil when the file cannot be made.
+func dockerEnvMount(spec dockerConfig) *cri.Mount {
+	if mounts, err := spec.mounts(); err == nil {
+		for _, m := range mounts {
+			if filepath.Clean(m.Target) == "/.dockerenv" {
+				return nil
+			}
+		}
+	}
+	dockerEnvOnce.Do(func() {
+		if err := os.WriteFile(dockerEnvPath, nil, 0o444); err != nil && !os.IsExist(err) {
+			log.Printf("/.dockerenv for containers: %v", err)
+		}
+	})
+	if st, err := os.Stat(dockerEnvPath); err != nil || !st.Mode().IsRegular() {
+		return nil
+	}
+	return &cri.Mount{HostPath: dockerEnvPath, ContainerPath: "/.dockerenv", Readonly: true}
+}
 
 // engineSocketGrant reports whether spec asks for the delegated engine
 // socket, and refuses a create that asks without the right to it. In the
