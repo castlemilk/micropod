@@ -1521,13 +1521,13 @@ func (s *dockerEngine) removeLocked(c *dockerContainer) (err error) {
 	if c.ownsFamily() {
 		// What its socket created goes with it (docker_family_linux.go). A
 		// removal on exit does not wait for it; every answer that c is
-		// removed (remove, a wait for removal) does (awaitFamily).
+		// removed (remove, a wait for removal) does (awaitFamily), for the
+		// first reaping only: what that leaves is retried in the background.
 		c.reaped = make(chan struct{})
 		go func() {
-			defer close(c.reaped)
-			if err := s.reapFamily(context.Background(), c.ID); err != nil {
-				log.Printf("remove what the Docker socket of %.12s created: %v", c.ID, err)
-			}
+			err := s.reapFamily(context.Background(), c.ID)
+			close(c.reaped)
+			s.retryReap(context.Background(), c.ID, err)
 		}()
 	}
 	c.signal()

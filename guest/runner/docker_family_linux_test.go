@@ -250,6 +250,75 @@ func TestAVolumesDataIsDeletedWithoutTheEngineLock(t *testing.T) {
 	}
 }
 
+// A child that cannot be reaped in time does not use up the others' time,
+// and what a reaping leaves is reaped again later, not only at the next
+// engine start: here a host's docker cp of each of two stopped children
+// holds its lifecycle for longer than one child's deadline.
+func TestAReapingThatLeavesPartOfAFamilyLeavesTheRestTheirTimeAndTriesAgain(t *testing.T) {
+	s, owner, child, _, _ := familyFixture(t)
+	second := &dockerContainer{dockerRecord: dockerRecord{ID: strings.Repeat("e", 64), Name: "job-a-redis", Phase: "exited", CreatedBy: owner.ID,
+		Config: dockerConfig{Image: "alpine"}}, changed: make(chan struct{})}
+	if err := os.MkdirAll(second.dir(), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		os.RemoveAll(second.dir())
+		os.RemoveAll(filepath.Join(engineRoot, "retired", second.ID))
+	})
+	s.mu.Lock()
+	s.containers[second.ID] = second
+	s.mu.Unlock()
+	oldTimeout, oldDelay := reapChildTimeout, reapRetryDelay
+	reapChildTimeout, reapRetryDelay = time.Second, time.Second
+	t.Cleanup(func() { reapChildTimeout, reapRetryDelay = oldTimeout, oldDelay })
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var releases []func()
+	for _, c := range []*dockerContainer{child, second} {
+		release, err := s.lockContainerLifecycle(ctx, c)
+		if err != nil || release == nil {
+			t.Fatalf("hold %s's lifecycle: %v", c.Name, err)
+		}
+		var once sync.Once
+		releases = append(releases, func() { once.Do(release) })
+		t.Cleanup(releases[len(releases)-1])
+	}
+	// Both transfers end while the child reaped second still has time.
+	time.AfterFunc(1500*time.Millisecond, func() {
+		for _, release := range releases {
+			release()
+		}
+	})
+	left := func() (n int) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for _, c := range []*dockerContainer{child, second} {
+			if s.containers[c.ID] != nil {
+				n++
+			}
+		}
+		return n
+	}
+	// remove answers when the first reaping is over.
+	if err := s.remove(ctx, owner, true); err != nil {
+		t.Fatal(err)
+	}
+	if n := left(); n != 1 {
+		t.Fatalf("the first reaping left %d of the two children, want 1: the one reaped first timed out, the other had its own time", n)
+	}
+	for left() != 0 {
+		select {
+		case <-ctx.Done():
+			t.Fatal("what the first reaping left was never reaped again")
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	if s.hasNetworkNamed("app_default") || hasVolume("app_pgdata") {
+		t.Error("the family's network or volume outlived it")
+	}
+}
+
 // An engine start reaps a family whose owner it does not find, removed by an
 // engine that stopped before it reaped, and leaves every other alone.
 func TestEngineStartReapsAFamilyWithoutItsOwner(t *testing.T) {
