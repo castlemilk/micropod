@@ -654,13 +654,7 @@ impl MuxInner {
                         SHUTDOWN_SEND
                     };
                     pushed |= self.send_rx(
-                        VsockHdr::host_ctrl(
-                            hp,
-                            gp,
-                            VIRTIO_VSOCK_OP_SHUTDOWN,
-                            shut_flags,
-                            fwd_now,
-                        ),
+                        VsockHdr::host_ctrl(hp, gp, VIRTIO_VSOCK_OP_SHUTDOWN, shut_flags, fwd_now),
                         &[],
                     );
                 }

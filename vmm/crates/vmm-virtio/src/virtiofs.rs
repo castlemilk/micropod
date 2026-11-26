@@ -242,7 +242,10 @@ fn encode_notify_inval_inode(ino: u64, off: i64, len: i64) -> Vec<u8> {
 }
 
 fn encode_notify_inval_entry(parent: u64, name: &[u8], flags: u32) -> Option<Vec<u8>> {
-    let total = 16usize.checked_add(16)?.checked_add(name.len())?.checked_add(1)?;
+    let total = 16usize
+        .checked_add(16)?
+        .checked_add(name.len())?
+        .checked_add(1)?;
     if name.is_empty() || total > NOTIFY_BUF_SIZE as usize {
         return None;
     }
@@ -1457,7 +1460,8 @@ impl FsNotifyState {
     }
 
     fn flush(&mut self) {
-        let (Some(vq), Some(mem), Some(irq)) = (self.vq.as_mut(), self.mem.as_ref(), self.irq.as_ref())
+        let (Some(vq), Some(mem), Some(irq)) =
+            (self.vq.as_mut(), self.mem.as_ref(), self.irq.as_ref())
         else {
             return;
         };
@@ -1563,21 +1567,21 @@ impl VirtioFs {
         } else {
             false
         };
-        let mut device = Self::with_options(tag, root, read_only, metrics, request_queues, offer_notify)?;
+        let mut device =
+            Self::with_options(tag, root, read_only, metrics, request_queues, offer_notify)?;
         if tag == "workspace" && !read_only {
-            device.offer_event_idx = match std::env::var_os("MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX")
-                .as_deref()
-            {
-                None => true,
-                Some(value) if value == "0" => false,
-                Some(value) if value == "1" => true,
-                Some(_) => {
-                    return Err(std::io::Error::new(
-                        ErrorKind::InvalidInput,
-                        "MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX must be 0 or 1",
-                    ));
-                }
-            };
+            device.offer_event_idx =
+                match std::env::var_os("MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX").as_deref() {
+                    None => true,
+                    Some(value) if value == "0" => false,
+                    Some(value) if value == "1" => true,
+                    Some(_) => {
+                        return Err(std::io::Error::new(
+                            ErrorKind::InvalidInput,
+                            "MICROPOD_VIRTIOFS_WORKSPACE_EVENT_IDX must be 0 or 1",
+                        ));
+                    }
+                };
         }
         Ok(device)
     }
@@ -1692,7 +1696,12 @@ impl VirtioFs {
 }
 
 impl FsCore {
-    fn new(tag: &str, root: &Path, read_only: bool, metrics: Arc<FsMetrics>) -> std::io::Result<Self> {
+    fn new(
+        tag: &str,
+        root: &Path,
+        read_only: bool,
+        metrics: Arc<FsMetrics>,
+    ) -> std::io::Result<Self> {
         let canon = fs::canonicalize(root)?;
         let croot = CString::new(canon.as_os_str().as_bytes())
             .map_err(|_| std::io::Error::from(ErrorKind::InvalidInput))?;
@@ -1725,7 +1734,8 @@ impl FsCore {
             notify_enabled: false,
             no_opendir: false,
             direct_io_requested: writable_workspace
-                && std::env::var_os("MICROPOD_VIRTIOFS_LIVE_READ").is_some_and(|value| value == "1"),
+                && std::env::var_os("MICROPOD_VIRTIOFS_LIVE_READ")
+                    .is_some_and(|value| value == "1"),
             direct_io_mmap: false,
             kq_watcher: None,
             root_fd: Arc::new(root_fd),
@@ -3299,8 +3309,7 @@ impl FsCore {
                     flags |= FUSE_AUTO_INVAL_DATA;
                 }
                 // The watchers also invalidate cached directory listings.
-                self.no_opendir =
-                    self.notify_enabled && (in_flags & FUSE_NO_OPENDIR_SUPPORT) != 0;
+                self.no_opendir = self.notify_enabled && (in_flags & FUSE_NO_OPENDIR_SUPPORT) != 0;
                 if self.no_opendir {
                     flags |= FUSE_NO_OPENDIR_SUPPORT;
                 }
@@ -3761,7 +3770,14 @@ impl FsCore {
                 let fh = u64::from_le_bytes(body[0..8].try_into().unwrap());
                 let offset = u64::from_le_bytes(body[8..16].try_into().unwrap()) as usize;
                 let max_size = u32::from_le_bytes(body[16..20].try_into().unwrap()) as usize;
-                self.read_directory(unique, opcode == FUSE_READDIRPLUS, nodeid, fh, offset, max_size)
+                self.read_directory(
+                    unique,
+                    opcode == FUSE_READDIRPLUS,
+                    nodeid,
+                    fh,
+                    offset,
+                    max_size,
+                )
             }
             FUSE_RELEASEDIR => {
                 if body.len() >= 8 {
@@ -4535,11 +4551,11 @@ impl FsShared {
         let mut pushed = 0u64;
         let mut epoch_resets = 0u64;
         for msg in msgs {
-            if msg.len() >= 8
-                && i32::from_le_bytes(msg[4..8].try_into().unwrap()) == FUSE_NOTIFY_INC_EPOCH
-            {
-                epoch_resets += 1;
-            } else if notify.pending.len() >= MAX_PENDING_NOTIFIES {
+            // An explicit epoch bump counts as a reset, and so does a push into
+            // a full queue: push replaces the queue with one epoch bump.
+            let inc_epoch = msg.len() >= 8
+                && i32::from_le_bytes(msg[4..8].try_into().unwrap()) == FUSE_NOTIFY_INC_EPOCH;
+            if inc_epoch || notify.pending.len() >= MAX_PENDING_NOTIFIES {
                 epoch_resets += 1;
             }
             notify.push(msg);
@@ -4571,7 +4587,9 @@ impl FsShared {
         };
 
         let shared_kq = self.clone();
-        let kq = Arc::new(KqueueVnodeWatcher::start(move |ev| shared_kq.handle_vnode_event(ev))?);
+        let kq = Arc::new(KqueueVnodeWatcher::start(move |ev| {
+            shared_kq.handle_vnode_event(ev)
+        })?);
         let shared_fse = self.clone();
         let fsevents = FseEventsWatcher::start(&root_path, move |batch| {
             shared_fse.handle_fsevents_batch(batch);
@@ -4626,8 +4644,7 @@ impl FsShared {
             }
             let mut out = Vec::new();
             #[cfg(target_vendor = "apple")]
-            let deleted_or_renamed =
-                ev.fflags & (libc::NOTE_DELETE | libc::NOTE_RENAME) != 0;
+            let deleted_or_renamed = ev.fflags & (libc::NOTE_DELETE | libc::NOTE_RENAME) != 0;
             #[cfg(not(target_vendor = "apple"))]
             let deleted_or_renamed = false;
 
@@ -4711,7 +4728,10 @@ impl FsShared {
                     continue;
                 }
                 let rel = &path[root_len + 1..];
-                let parts: Vec<&[u8]> = rel.split(|&b| b == b'/').filter(|p| !p.is_empty()).collect();
+                let parts: Vec<&[u8]> = rel
+                    .split(|&b| b == b'/')
+                    .filter(|p| !p.is_empty())
+                    .collect();
                 if parts.is_empty() {
                     out.push(encode_notify_inval_inode(FUSE_ROOT_ID, 0, 0));
                     continue;
@@ -5167,7 +5187,10 @@ impl VirtioBackend for VirtioFs {
         {
             let mut notify = self.shared.notify.lock().unwrap();
             notify.pending.clear();
-            notify.vq = notify_idx.and_then(|idx| queues.get(idx)).filter(|q| q.ready).cloned();
+            notify.vq = notify_idx
+                .and_then(|idx| queues.get(idx))
+                .filter(|q| q.ready)
+                .cloned();
             // Invalidate pre-snapshot dentries before re-enabling long cache lifetimes.
             notify.epoch_needed = notify_idx.is_some();
         }
@@ -5818,15 +5841,9 @@ mod tests {
                 std::mem::size_of_val(&backing[..]),
             )
         });
-        let fsys = VirtioFs::with_options(
-            "workspace",
-            share.clone(),
-            false,
-            Arc::default(),
-            1,
-            true,
-        )
-        .unwrap();
+        let fsys =
+            VirtioFs::with_options("workspace", share.clone(), false, Arc::default(), 1, true)
+                .unwrap();
         let shared = fsys.shared.clone();
         let mut dev = VirtioMmioDevice::new(32, mem.clone(), Box::new(fsys));
 
@@ -5894,7 +5911,10 @@ mod tests {
                 if matched {
                     return;
                 }
-                assert!(Instant::now() < deadline, "timed out waiting for {expected}");
+                assert!(
+                    Instant::now() < deadline,
+                    "timed out waiting for {expected}"
+                );
                 std::thread::sleep(Duration::from_millis(1));
             }
         };
@@ -5921,7 +5941,11 @@ mod tests {
             rd[16..20].copy_from_slice(&4096u32.to_le_bytes());
             assert!(c.handle_fuse_into(&request_bytes(FUSE_READDIRPLUS, FUSE_ROOT_ID, &rd)));
             assert_eq!(errno(&c.resp_buf), 0);
-            assert!(c.resp_buf.windows(b"held.txt".len()).any(|w| w == b"held.txt"));
+            assert!(
+                c.resp_buf
+                    .windows(b"held.txt".len())
+                    .any(|w| w == b"held.txt")
+            );
             // Missing file returns a cached negative dentry (nodeid == 0, entry_valid == 60).
             assert!(c.handle_fuse_into(&request_bytes(
                 FUSE_LOOKUP,
@@ -5929,14 +5953,16 @@ mod tests {
                 b"does-not-exist\0"
             )));
             assert_eq!(errno(&c.resp_buf), 0);
-            assert_eq!(u64::from_le_bytes(c.resp_buf[16..24].try_into().unwrap()), 0);
-            assert_eq!(u64::from_le_bytes(c.resp_buf[32..40].try_into().unwrap()), 60);
+            assert_eq!(
+                u64::from_le_bytes(c.resp_buf[16..24].try_into().unwrap()),
+                0
+            );
+            assert_eq!(
+                u64::from_le_bytes(c.resp_buf[32..40].try_into().unwrap()),
+                60
+            );
 
-            assert!(c.handle_fuse_into(&request_bytes(
-                FUSE_LOOKUP,
-                FUSE_ROOT_ID,
-                b"held.txt\0"
-            )));
+            assert!(c.handle_fuse_into(&request_bytes(FUSE_LOOKUP, FUSE_ROOT_ID, b"held.txt\0")));
             assert_eq!(errno(&c.resp_buf), 0);
             let entry_valid = u64::from_le_bytes(c.resp_buf[32..40].try_into().unwrap());
             assert_eq!(entry_valid, 60);
@@ -6005,8 +6031,8 @@ mod tests {
                 std::mem::size_of_val(&backing[..]),
             )
         });
-        let fsys = VirtioFs::with_options("workspace", share, false, Arc::default(), 1, true)
-            .unwrap();
+        let fsys =
+            VirtioFs::with_options("workspace", share, false, Arc::default(), 1, true).unwrap();
         let shared = fsys.shared.clone();
         // An empty root deterministically rejects FSEvents initialization.
         let root_path = std::mem::take(&mut shared.core.lock().unwrap().root_path);
@@ -6016,7 +6042,9 @@ mod tests {
         let avail = 256u64;
         let used = 512u64;
         let response = 1024u64;
-        mem.write_slice(desc, 8).unwrap().copy_from_slice(&response.to_le_bytes());
+        mem.write_slice(desc, 8)
+            .unwrap()
+            .copy_from_slice(&response.to_le_bytes());
         mem.write_u32(desc + 8, 512).unwrap();
         mem.write_u16(desc + 12, crate::VIRTQ_DESC_F_WRITE).unwrap();
         mem.write_u16_release(avail + 2, 1).unwrap();
@@ -6032,7 +6060,10 @@ mod tests {
         }
 
         let assert_fallback = || {
-            assert_eq!(shared.state.0.lock().unwrap().notify_vq_idx, Some(NOTIFY_VQ_IDX));
+            assert_eq!(
+                shared.state.0.lock().unwrap().notify_vq_idx,
+                Some(NOTIFY_VQ_IDX)
+            );
             assert!(shared.watchers.lock().unwrap().is_none());
             let mut core = shared.core.lock().unwrap();
             assert!(core.notify_negotiated);
@@ -6045,13 +6076,17 @@ mod tests {
             core.direct_io_requested = false;
             assert!(core.handle_fuse_into(&request_bytes(FUSE_INIT, ROOT, &init)));
             assert_eq!(
-                u32::from_le_bytes(core.resp_buf[28..32].try_into().unwrap()) & FUSE_NO_OPENDIR_SUPPORT,
+                u32::from_le_bytes(core.resp_buf[28..32].try_into().unwrap())
+                    & FUSE_NO_OPENDIR_SUPPORT,
                 0
             );
             assert!(core.handle_fuse_into(&request_bytes(FUSE_LOOKUP, ROOT, b"file\0")));
             assert_eq!(errno(&core.resp_buf), 0);
             let nodeid = u64::from_le_bytes(core.resp_buf[16..24].try_into().unwrap());
-            assert_eq!(u64::from_le_bytes(core.resp_buf[32..40].try_into().unwrap()), 0);
+            assert_eq!(
+                u64::from_le_bytes(core.resp_buf[32..40].try_into().unwrap()),
+                0
+            );
             assert_eq!(
                 u32::from_le_bytes(core.resp_buf[48..52].try_into().unwrap()),
                 20_000_000
@@ -6064,14 +6099,22 @@ mod tests {
                 let fh = u64::from_le_bytes(core.resp_buf[16..24].try_into().unwrap());
                 let flags = u32::from_le_bytes(core.resp_buf[24..28].try_into().unwrap());
                 assert_eq!(flags & FOPEN_KEEP_CACHE, 0);
-                assert!(core.handle_fuse_into(&request_bytes(FUSE_RELEASE, nodeid, &fh.to_le_bytes())));
+                assert!(core.handle_fuse_into(&request_bytes(
+                    FUSE_RELEASE,
+                    nodeid,
+                    &fh.to_le_bytes()
+                )));
             }
             assert!(core.handle_fuse_into(&request_bytes(FUSE_OPENDIR, ROOT, &[0; 8])));
             assert_eq!(errno(&core.resp_buf), 0);
             let flags = u32::from_le_bytes(core.resp_buf[24..28].try_into().unwrap());
             assert_eq!(flags & (FOPEN_KEEP_CACHE | FOPEN_CACHE_DIR), 0);
             let fh = u64::from_le_bytes(core.resp_buf[16..24].try_into().unwrap());
-            assert!(core.handle_fuse_into(&request_bytes(FUSE_RELEASEDIR, ROOT, &fh.to_le_bytes())));
+            assert!(core.handle_fuse_into(&request_bytes(
+                FUSE_RELEASEDIR,
+                ROOT,
+                &fh.to_le_bytes()
+            )));
         };
         assert_fallback();
 
@@ -6164,7 +6207,10 @@ mod tests {
         core(&restored).restore_blob(&state[..state.len() - SNAPSHOT_DIRECT_IO_MMAP_TAG.len()]);
         assert!(!core(&restored).direct_io_mmap);
         core(&restored).restore_blob(&state);
-        let legacy_end = state.windows(4).position(|b| b == SNAPSHOT_OWNERS_TAG).unwrap();
+        let legacy_end = state
+            .windows(4)
+            .position(|b| b == SNAPSHOT_OWNERS_TAG)
+            .unwrap();
         core(&restored).restore_blob(&state[..legacy_end]);
         assert!(!core(&restored).direct_io_mmap);
         for (tag, read_only) in [("workspace", true), ("other", false)] {

@@ -81,8 +81,7 @@ impl KqueueVnodeWatcher {
             data: 0,
             udata: std::ptr::null_mut(),
         };
-        if unsafe { libc::kevent(kq, &wake_reg, 1, std::ptr::null_mut(), 0, std::ptr::null()) }
-            < 0
+        if unsafe { libc::kevent(kq, &wake_reg, 1, std::ptr::null_mut(), 0, std::ptr::null()) } < 0
         {
             let err = std::io::Error::last_os_error();
             unsafe { libc::close(kq) };
@@ -184,8 +183,7 @@ impl KqueueVnodeWatcher {
             data: 0,
             udata: std::ptr::null_mut(),
         };
-        if unsafe { libc::kevent(self.kq, &reg, 1, std::ptr::null_mut(), 0, std::ptr::null()) }
-            == 0
+        if unsafe { libc::kevent(self.kq, &reg, 1, std::ptr::null_mut(), 0, std::ptr::null()) } == 0
         {
             map.insert(
                 fd,
@@ -355,9 +353,12 @@ mod darwin_fsevents {
 
     extern "C" fn noop_barrier(_ctx: *mut c_void) {}
 
+    /// Receives one FSEvents batch of (path, flags) pairs.
+    type BatchCallback = Box<dyn Fn(&[(&[u8], u32)]) + Send + Sync>;
+
     struct CallbackBox {
         stopped: AtomicBool,
-        cb: Box<dyn Fn(&[(&[u8], u32)]) + Send + Sync>,
+        cb: BatchCallback,
     }
 
     extern "C" fn stream_trampoline(
@@ -368,7 +369,10 @@ mod darwin_fsevents {
         event_flags: *const u32,
         _event_ids: *const u64,
     ) {
-        if client_info.is_null() || num_events == 0 || event_paths.is_null() || event_flags.is_null()
+        if client_info.is_null()
+            || num_events == 0
+            || event_paths.is_null()
+            || event_flags.is_null()
         {
             return;
         }
