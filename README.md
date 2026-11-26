@@ -356,8 +356,8 @@ container sees and acts on only itself and the containers, networks and volumes 
 networks and the ones it is attached to); every other job's are not there (404), and the engine's own routes
 (`/micropod/*`: caches, metrics, traces) are refused (403). What it creates there is never more trusted than it is, is
 in its cache scope (naming another is refused, HTTP 403), may bind only paths inside the container's own binds
-(read-only where those are; anything else, the rest of the workspace included, is refused, HTTP 403) and cannot be given
-a socket in turn. Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
+(read-only where those are; anything else, the rest of the workspace included, is refused, HTTP 403), mounts a volume
+the container was given read-only only read-only, and cannot be given a socket in turn. Images and the BuildKit cache stay the machine's: a pull, build, load, tag or `rmi` through that
 socket changes them for every job, which is one more reason only a trusted container gets one. An untrusted or read-only
 container, a container created from inside another, or one an untrusted default leaves unlabelled is refused such a bind
 at create (HTTP 403); the Testcontainers reaper still gets only its session's cleanup socket, and one created through a

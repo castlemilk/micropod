@@ -18,8 +18,12 @@ type volumeInfo struct {
 	createdBy string
 }
 
-func volumePath(name string) string { return filepath.Join(engineRoot, "volumes", name) }
-func volumeMeta(name string) string { return filepath.Join(engineRoot, "volume-meta", name+".json") }
+// volumeStore holds the volumes/ and volume-meta/ directories; a variable only
+// so tests can point it at a temporary directory.
+var volumeStore = engineRoot
+
+func volumePath(name string) string { return filepath.Join(volumeStore, "volumes", name) }
+func volumeMeta(name string) string { return filepath.Join(volumeStore, "volume-meta", name+".json") }
 func inspectVolume(name string) (volumeInfo, error) {
 	v := volumeInfo{Name: name, Driver: "local", Scope: "local", Mountpoint: volumePath(name), Labels: map[string]string{}}
 	i, err := os.Stat(volumePath(name))

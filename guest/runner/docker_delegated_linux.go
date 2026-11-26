@@ -83,6 +83,12 @@ func (s *dockerEngine) seesVolumeLocked(viewer string, v volumeInfo) bool {
 	return slices.ContainsFunc(mounts, func(m dockerMount) bool { return m.Type == "volume" && m.Source == v.Name })
 }
 
+// mountsVolumeWritable reports whether c mounts the named volume writable.
+func (c *dockerContainer) mountsVolumeWritable(name string) bool {
+	mounts, _ := c.Config.mounts()
+	return slices.ContainsFunc(mounts, func(m dockerMount) bool { return m.Type == "volume" && m.Source == name && !m.ReadOnly })
+}
+
 // lookupFor is lookup among the containers the request's viewer may see, so
 // a name or ID prefix never resolves to, or is ambiguous with, another job's.
 func (s *dockerEngine) lookupFor(ctx context.Context, key string) (*dockerContainer, error) {
@@ -178,9 +184,10 @@ func delegatedRoute(method, raw string) bool {
 
 // delegatedCreateLocked holds a create through viewer's socket to what the
 // owner may hand its children: networks it sees, volumes it sees (a new one
-// becomes its own) and binds inside its own (delegatedBinds, whose roots it
-// returns and which it may make read-only in spec). Call with s.mu held,
-// after selectNetwork resolved the networks.
+// becomes its own; one it sees only because it mounts it is read-only unless
+// it mounts it writable) and binds inside its own (delegatedBinds, whose
+// roots it returns and which it may make read-only in spec). Call with s.mu
+// held, after selectNetwork resolved the networks.
 func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, network string, endpoints []dockerSecondaryEndpoint) (map[string]string, error) {
 	owner := s.containers[viewer]
 	if owner == nil {
@@ -207,6 +214,9 @@ func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, 
 		switch {
 		case err == nil && !s.seesVolumeLocked(viewer, v):
 			return nil, fail(http.StatusForbidden, "the volume "+m.Source+" was not created on this Docker socket")
+		case err == nil && !m.ReadOnly && v.createdBy != viewer && !owner.mountsVolumeWritable(v.Name):
+			// The host gave the owner this volume read-only: so is its child's.
+			spec.makeReadOnly(m.Target)
 		case errors.Is(err, os.ErrNotExist):
 			if err := ensureVolumeBy(m.Source, nil, viewer); err != nil {
 				return nil, err

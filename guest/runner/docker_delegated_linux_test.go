@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -251,5 +253,52 @@ func TestDelegatedReaperReapsOnlyItsFamily(t *testing.T) {
 	api.ServeHTTP(rec, httptest.NewRequest("GET", "/containers/json?all=1", nil))
 	if strings.Contains(rec.Body.String(), foreign.ID) {
 		t.Fatalf("listed another family's container: %s", rec.Body)
+	}
+}
+
+// useVolumeStore points the engine's volumes at a temporary directory.
+func useVolumeStore(t *testing.T) {
+	t.Helper()
+	old := volumeStore
+	volumeStore = t.TempDir()
+	t.Cleanup(func() { volumeStore = old })
+	for _, d := range []string{"volumes", "volume-meta"} {
+		if err := os.Mkdir(filepath.Join(volumeStore, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// A child of a delegated socket mounts a volume the host gave its owner
+// read-only read-only too; one the owner mounts writable, or created there,
+// stays writable.
+func TestDelegatedChildKeepsTheOwnersReadOnlyVolume(t *testing.T) {
+	useVolumeStore(t)
+	s, owner, _, _, _ := delegatedFixture(t)
+	owner.Config.HostConfig.Binds = []string{"shared-fixtures:/fixtures:ro", "job-cache:/cache", "twice:/a:ro", "twice:/b"}
+	for _, v := range []string{"shared-fixtures", "job-cache", "twice"} {
+		if err := ensureVolume(v, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ensureVolumeBy("tc-data", nil, owner.ID); err != nil {
+		t.Fatal(err)
+	}
+	spec := dockerConfig{Image: "alpine", HostConfig: dockerHost{
+		Binds:  []string{"shared-fixtures:/data", "job-cache:/c", "twice:/t", "tc-data:/d", "fresh:/f", "shared-fixtures:/r:ro"},
+		Mounts: []dockerMount{{Type: "volume", Source: "shared-fixtures", Target: "/m"}},
+	}}
+	s.mu.Lock()
+	_, err := s.delegatedCreateLocked(owner.ID, &spec, "", nil)
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"shared-fixtures:/data:ro", "job-cache:/c", "twice:/t", "tc-data:/d", "fresh:/f", "shared-fixtures:/r:ro"}
+	if !slices.Equal(spec.HostConfig.Binds, want) || !spec.HostConfig.Mounts[0].ReadOnly {
+		t.Fatalf("binds %v mounts %+v: a volume the owner has read-only must be read-only in its child", spec.HostConfig.Binds, spec.HostConfig.Mounts)
+	}
+	if v, err := inspectVolume("fresh"); err != nil || v.createdBy != owner.ID {
+		t.Fatalf("a volume a child creates is its owner's: %+v %v", v, err)
 	}
 }
