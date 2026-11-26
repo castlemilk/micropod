@@ -100,6 +100,32 @@ func TestCacheProxyGuardReadsMountedAndImageConfigFiles(t *testing.T) {
 		t.Fatal("a bind of the home directory")
 	}
 
+	// A named volume's files count too: a project kept in one (its .npmrc at
+	// the working directory or above), never a cache alias volume.
+	vols := t.TempDir()
+	oldVols := configVolumesDir
+	configVolumesDir = vols
+	t.Cleanup(func() { configVolumesDir = oldVols })
+	for _, d := range []string{"proj/sub", "micropod-ci-scoped-default-npm"} {
+		if err := os.MkdirAll(filepath.Join(vols, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(vols, strings.Split(d, "/")[0], ".npmrc"), []byte("registry=https://npm.corp/\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inVolume := dockerConfig{HostConfig: dockerHost{Binds: []string{"proj:/app"}}}
+	if !s.mountedConfigSets(inVolume, npmrcCandidates(env, facts.Passwd, "", "/app/sub"), npmrcSetsRegistry) {
+		t.Fatal("the project's .npmrc in a named volume was not read")
+	}
+	if s.mountedConfigSets(inVolume, npmrcCandidates(env, facts.Passwd, "", "/elsewhere"), npmrcSetsRegistry) {
+		t.Fatal("a working directory outside the volume")
+	}
+	alias := dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-npm:/app"}}}
+	if s.mountedConfigSets(alias, []string{"/app/.npmrc"}, npmrcSetsRegistry) {
+		t.Fatal("a cache alias volume was read as a project")
+	}
+
 	up := cacheRequest{origin: cacheOrigin{hostFacing: true}, proxyUp: func(string) bool { return true }}
 	withGo := up
 	withGo.projectGoProxy = true

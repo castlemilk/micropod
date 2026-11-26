@@ -736,8 +736,14 @@ func (s *dockerEngine) cacheDecision(ctx context.Context, spec dockerConfig, ima
 		user = facts.User
 	}
 	if pol.NpmRegistry != "" && !off {
+		wd := spec.WorkingDir
+		if wd == "" {
+			wd = facts.WorkingDir
+		}
+		// The working directory and every one above it, as the project's
+		// own .npmrc, wherever a bind or a volume puts them.
 		req.projectNpmRegistry = s.projectNpmRegistry(spec, facts.WorkingDir) ||
-			s.mountedConfigSets(spec, npmrcCandidates(env, facts.Passwd, user, ""), npmrcSetsRegistry)
+			s.mountedConfigSets(spec, npmrcCandidates(env, facts.Passwd, user, wd), npmrcSetsRegistry)
 	}
 	if pol.GoProxy != "" && !off {
 		req.projectGoProxy = s.mountedConfigSets(spec, goEnvCandidates(env, facts.Passwd, user), goEnvSetsProxy)
@@ -800,6 +806,10 @@ func (s *dockerEngine) projectNpmRegistry(spec dockerConfig, imageWorkDir string
 	return false
 }
 
+// configVolumesDir is where mountedConfigSets finds named volumes (volumePath);
+// a variable only so tests can point it at a temporary directory.
+var configVolumesDir = filepath.Join(engineRoot, "volumes")
+
 // mountedConfigSets reports whether one of the files at the container paths
 // comes from a bind or a named volume of the request (the mount with the
 // longest target that covers the path decides) and match accepts what it
@@ -839,8 +849,7 @@ func (s *dockerEngine) mountedConfigSets(spec dockerConfig, paths []string, matc
 			if _, _, shared := legacyCacheVolume(cover.Source); shared {
 				continue
 			}
-			root := filepath.Join(engineRoot, "volumes")
-			f, err = openMount(root, filepath.Join(root, cover.Source, rel))
+			f, err = openMount(configVolumesDir, filepath.Join(configVolumesDir, cover.Source, rel))
 		default:
 			continue
 		}
