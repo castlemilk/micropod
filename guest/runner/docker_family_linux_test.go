@@ -23,6 +23,14 @@ func familyFixture(t *testing.T) (s *dockerEngine, owner, child, other, otherChi
 	useVolumeStore(t)
 	s, owner, child, other, otherChild = delegatedFixture(t)
 	owner.EngineSocket, other.EngineSocket = true, true
+	// The fixture's networks have no links or firewall rules: a stand-in
+	// iptables finds no rule to remove, so removing them needs neither the
+	// machine's firewall nor NET_ADMIN (a container on a machine has neither).
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "iptables"), []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	for _, d := range []string{"containers", "retired", "networks"} {
 		if err := os.MkdirAll(filepath.Join(engineRoot, d), 0700); err != nil {
 			t.Fatal(err)
