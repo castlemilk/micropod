@@ -603,8 +603,21 @@ PY
     # persistent cache disk when the machine has one (guest init mounted it).
     want_disk=none
     [ -f "$ROOT_DIR/caches.ext4" ] && want_disk=mounted
+    # cacheDisk is guest init's outcome plus what the guest's mountinfo shows;
+    # a mounted disk must be both, with shared caches on (no unavailable).
     check engine "the engine's shared caches are on the persistent cache disk when the machine has caches.ext4 (GET /micropod/caches cacheDisk)" \
-        "$(curl -s -m 5 --unix-socket "$SOCK" 'http://d/micropod/caches?stats=0' | python3 -c "import json, sys; d = json.load(sys.stdin); print((d.get('cacheDisk') or 'none') + ('' if not d.get('unavailable') else ' unavailable'))" 2>/dev/null)" "$want_disk"
+        "$(curl -s -m 5 --unix-socket "$SOCK" 'http://d/micropod/caches?stats=0' | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+disk = d.get('cacheDisk') or {}
+state = disk.get('state') or 'none'
+if state == 'mounted' and not disk.get('mounted'):
+    state = 'mounted-but-not-in-mountinfo'
+print(state + ('' if not d.get('unavailable') else ' unavailable'))" 2>/dev/null)" "$want_disk"
+    if [ "$want_disk" = mounted ]; then
+        check engine "machine status reports the cache disk mounted" \
+            "$("$M" --json machine status 2>/dev/null | python3 -c "import json, sys; d = json.load(sys.stdin)['cacheDisk']; print(d.get('mounted'), d.get('sharedCaches'))" 2>/dev/null)" "True on"
+    fi
     echo "    kernel $(sed -n 's/^kernel=//p' "$OUT/environment.txt"); engine /version: $VERSION_JSON"
 fi
 

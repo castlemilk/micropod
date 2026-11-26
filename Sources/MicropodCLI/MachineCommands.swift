@@ -247,6 +247,11 @@ enum MachineCommands {
         var caches: String
         /// The `docker build:` line.
         var dockerBuild: String
+        /// Host loopback ports open to the guest now and at the next start.
+        var hostPorts: HVFHostPortStatus
+        /// The guest's account of its cache disk and whether shared caches
+        /// are on this boot (`unknown` while the machine is not running).
+        var cacheDisk: HVFCacheDiskObservation
     }
 
     static func status(_ client: HVFMachineClient, json: Bool) async throws -> Int32 {
@@ -260,13 +265,16 @@ enum MachineCommands {
             ? fallbackContextInstalled(client.layout, environment: ProcessInfo.processInfo.environment) : nil
         let cachesLine = cachesLine(capabilities, policy: policy)
         let buildLine = dockerBuildLine(capabilities, fallbackInstalled: fallbackInstalled)
+        let hostPorts = HVFHostPortStatus(config: config, state: status.state, supervisorAlive: status.supervisorAlive)
+        let cacheDisk = await client.cacheDiskObservation()
         if json {
             let report = StatusReport(
                 root: status.root, endpoint: client.layout.dockerEndpoint, dockerEndpoint: client.layout.dockerEndpoint,
                 buildkitEndpoint: buildkit, installed: status.installed, missing: status.missing,
                 problem: status.problem, phase: status.phase.rawValue, supervisorAlive: status.supervisorAlive,
                 summary: status.summary, state: status.state, stateError: status.stateError,
-                capabilities: capabilities, cachePolicy: policy, caches: cachesLine, dockerBuild: buildLine)
+                capabilities: capabilities, cachePolicy: policy, caches: cachesLine, dockerBuild: buildLine,
+                hostPorts: hostPorts, cacheDisk: cacheDisk)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
@@ -286,7 +294,10 @@ enum MachineCommands {
         }
         if status.installed {
             print("caches:     \(cachesLine)")
+            print("cache disk: \(cacheDisk.summary)")
             print("docker build: \(buildLine)")
+            print("host ports: \(hostPorts.summary)")
+            for refusal in hostPorts.refused { print("            \(refusal.message)") }
         }
         if let state = status.state {
             print("supervisor: pid \(state.supervisorPID)\(status.supervisorAlive ? "" : " (exited)")")

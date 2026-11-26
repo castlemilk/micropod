@@ -223,38 +223,50 @@ final class MachineCommandsTests: XCTestCase {
 
     /// A cache disk that did not mount turns shared caches off for the boot;
     /// `cache status`, `cache ls` and `cache explain` say so instead of showing
-    /// an empty inventory or a raw reason.
+    /// an empty inventory or a raw reason. The guest reports the disk as one
+    /// object (guest init's outcome plus what its mountinfo shows); an engine
+    /// that sent guest init's word alone still decodes.
     func testCacheInventoryShowsSharedCachesOffWithoutTheCacheDisk() throws {
-        let off = try JSONDecoder().decode(
-            HVFCacheInspection.self,
-            from: Data(
-                """
-                {"root":"/var/lib/micropod/caches","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{},
-                 "units":[],"cacheDisk":"unavailable",
-                 "unavailable":"guest init found the cache disk missing or unmountable"}
-                """.utf8))
-        XCTAssertEqual(off.cacheDisk, "unavailable")
-        XCTAssertEqual(off.sharedCachesOffReason, "guest init found the cache disk missing or unmountable")
-        XCTAssertEqual(
-            CacheCommands.cacheDiskLine(off),
-            "UNAVAILABLE — shared caches are off this boot, every container runs uncached: "
-                + "guest init found the cache disk missing or unmountable")
+        func inventory(_ cacheDisk: String, unavailable: String? = nil) throws -> HVFCacheInspection {
+            let off = unavailable.map { #","unavailable":"\#($0)""# } ?? ""
+            let json =
+                #"{"root":"/var/lib/micropod/caches","mountPoint":"/micropod/cache","policyDigest":"d","#
+                + #""scopes":{},"units":[],"cacheDisk":\#(cacheDisk)\#(off)}"#
+            return try JSONDecoder().decode(HVFCacheInspection.self, from: Data(json.utf8))
+        }
+        let why = "guest init found the cache disk missing or unmountable"
+        let offLine = "UNAVAILABLE — shared caches are off this boot, every container runs uncached: \(why)"
 
-        let mounted = try JSONDecoder().decode(
-            HVFCacheInspection.self,
-            from: Data(
-                """
-                {"root":"/var/lib/micropod/caches","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{},
-                 "cacheDisk":"mounted"}
-                """.utf8))
+        let off = try inventory(#"{"state":"unavailable","device":"/dev/vdb","mounted":false}"#, unavailable: why)
+        XCTAssertEqual(off.cacheDisk, HVFCacheDiskState(state: "unavailable", device: "/dev/vdb", mounted: false))
+        XCTAssertEqual(off.sharedCachesOffReason, why)
+        XCTAssertEqual(CacheCommands.cacheDiskLine(off), offLine)
+        let legacyOff = try inventory(#""unavailable""#, unavailable: why)
+        XCTAssertEqual(legacyOff.cacheDisk, HVFCacheDiskState(state: "unavailable", mounted: false))
+        XCTAssertEqual(CacheCommands.cacheDiskLine(legacyOff), offLine)
+
+        let mounted = try inventory(
+            #"{"state":"mounted","device":"/dev/vdb","mounted":true,"sizeBytes":10737418240,"freeBytes":5368709120}"#)
         XCTAssertNil(mounted.sharedCachesOffReason)
-        XCTAssertEqual(CacheCommands.cacheDiskLine(mounted), "mounted (caches.ext4)")
+        XCTAssertEqual(
+            CacheCommands.cacheDiskLine(mounted), "mounted (caches.ext4 on /dev/vdb, 5.0 GiB free of 10.0 GiB)")
+        XCTAssertEqual(CacheCommands.cacheDiskLine(try inventory(#""mounted""#)), "mounted (caches.ext4)")
 
-        let none = try JSONDecoder().decode(
+        // Attached, yet mountinfo does not show it: never presented as mounted.
+        let unmounted = try inventory(#"{"state":"none","device":"/dev/vdb","mounted":false}"#)
+        XCTAssertTrue(CacheCommands.cacheDiskLine(unmounted)?.hasPrefix("NOT MOUNTED — /dev/vdb") ?? false)
+        let unknown = try inventory(
+            #"{"state":"mounted","device":"/dev/vdb","mounted":false,"mountInfoError":"permission denied"}"#)
+        XCTAssertEqual(
+            CacheCommands.cacheDiskLine(unknown), "unknown — the guest cannot read its mountinfo: permission denied")
+
+        let none = try inventory(#"{"state":"none","mounted":false}"#)
+        XCTAssertEqual(CacheCommands.cacheDiskLine(none), "none (the stores live on the OS disk)")
+        let older = try JSONDecoder().decode(
             HVFCacheInspection.self,
             from: Data(#"{"root":"/r","mountPoint":"/micropod/cache","policyDigest":"d","scopes":{}}"#.utf8))
-        XCTAssertNil(none.cacheDisk)
-        XCTAssertNil(CacheCommands.cacheDiskLine(none))
+        XCTAssertNil(older.cacheDisk)
+        XCTAssertNil(CacheCommands.cacheDiskLine(older))
 
         let hint = CacheCommands.skipHint("cache-disk-unavailable")
         XCTAssertNotEqual(hint, "cache-disk-unavailable")

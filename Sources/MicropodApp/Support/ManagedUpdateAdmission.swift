@@ -26,13 +26,136 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
 
     /// Sentinel runtime instance UUID recorded in continuity receipts for rootless
     /// HVF/Sandbox updates (no root-owned Apple `container` authority exists).
-    static let rootlessRuntimeInstance = UUID(uuidString: "00000000-0000-4000-8000-000000000000")!
+    nonisolated static let rootlessRuntimeInstance = UUID(uuidString: "00000000-0000-4000-8000-000000000000")!
 
-    /// Rootless HVF/Sandbox installations do not require the legacy root-owned
-    /// Apple `container` authority to take signed Sparkle desktop updates.
+    /// What this host shows about the root-managed (isolated) Apple runtime,
+    /// whose workloads the managed admission witnesses across an update.
+    enum RootManagedRuntimeEvidence: Equatable, Sendable {
+        /// Positive evidence that none is installed or running.
+        case absent
+        case present(String)
+        /// Absence could not be established; it counts as present.
+        case indeterminate(String)
+    }
+
+    /// Whether the root-managed runtime is installed: its published identity
+    /// or the authority's LaunchDaemon exists. Absent means `lstat` reported
+    /// ENOENT, not merely that the path could not be read.
+    nonisolated static func rootManagedRuntimeInstallation(
+        identity: URL = IsolatedRuntimePolicy.identityURL, authority: URL = IsolatedRuntimePolicy.authorityPlist
+    ) -> RootManagedRuntimeEvidence {
+        for (name, url) in [("runtime identity", identity), ("runtime authority LaunchDaemon", authority)] {
+            var info = stat()
+            if lstat(url.path, &info) == 0 { return .present("the \(name) \(url.path) exists") }
+            let failure = errno
+            guard failure == ENOENT || failure == ENOTDIR else {
+                return .indeterminate("cannot inspect \(url.path): \(String(cString: strerror(failure)))")
+            }
+        }
+        return .absent
+    }
+
+    /// The installation check, plus no root `MicropodRuntimeHost` running
+    /// (an installation in progress has a helper before it has an identity).
+    nonisolated static func rootManagedRuntimeEvidence(
+        identity: URL = IsolatedRuntimePolicy.identityURL, authority: URL = IsolatedRuntimePolicy.authorityPlist,
+        helperIsRunning: () throws -> Bool = rootHelperIsRunning
+    ) -> RootManagedRuntimeEvidence {
+        let installation = rootManagedRuntimeInstallation(identity: identity, authority: authority)
+        guard installation == .absent else { return installation }
+        do {
+            return try helperIsRunning() ? .present("a root MicropodRuntimeHost is running") : .absent
+        } catch {
+            return .indeterminate("cannot inspect running helpers: \(error.localizedDescription)")
+        }
+    }
+
+    /// An unreadable process table lists nothing, which would read as "no
+    /// helper": the scan must first find this process.
+    nonisolated static func rootHelperIsRunning() throws -> Bool {
+        guard let own = UpdateServiceWitness.processPath(getpid()),
+            UpdateServiceWitness.processIDs(executable: own).contains(getpid())
+        else { throw MicropodError.message("the process table could not be read") }
+        return try RuntimeSetupInstallation.helperIsRunning()
+    }
+
+    /// A signed desktop update may skip the managed runtime's service witness
+    /// and probe only where there is no such runtime: positive evidence that
+    /// none is installed or running, a default runtime of HVF or the sandbox
+    /// (a user-writable setting, so never sufficient alone), and a bundle that
+    /// declares the workload protocol this code implements.
+    nonisolated static func requireRootlessAdmission(
+        defaultRuntime: String, declaresWorkloadProtocol: Bool, evidence: RootManagedRuntimeEvidence
+    ) throws {
+        guard declaresWorkloadProtocol else {
+            throw MicropodError.message("This app bundle does not declare the workload protocol its updater implements")
+        }
+        guard ["hvf", "sandbox"].contains(defaultRuntime) else {
+            throw MicropodError.message("A rootless update needs the hvf or sandbox runtime, not \(defaultRuntime)")
+        }
+        switch evidence {
+        case .absent: return
+        case .present(let reason), .indeterminate(let reason):
+            throw MicropodError.message(
+                "A rootless update needs evidence that no root-managed runtime is installed or running: \(reason)")
+        }
+    }
+
+    /// What an abort, a rejected download or a finished update re-checks
+    /// before the desktop reopens: a managed receipt's witnessed services, or
+    /// that a rootless receipt names none (it has no runtime to witness or
+    /// probe). Nothing is installed on these paths.
+    ///
+    /// A rootless receipt is the receipt's own claim, so it is checked
+    /// against the host too: with a root-managed runtime installed (the
+    /// cheap lstat check), a receipt rewritten to the rootless sentinel is
+    /// refused rather than let skip the service witness.
+    nonisolated static func verifyRetained(
+        _ receipt: UpdateContinuityReceipt,
+        installation: @autoclosure () -> RootManagedRuntimeEvidence = rootManagedRuntimeInstallation()
+    ) throws {
+        guard receipt.runtimeInstance == rootlessRuntimeInstance else { return try receipt.verifyServices() }
+        guard receipt.services.isEmpty, receipt.apiConfigurationSHA256.isEmpty else {
+            throw MicropodError.message("A rootless update receipt cannot name managed services")
+        }
+        switch installation() {
+        case .absent: return
+        case .present(let reason), .indeterminate(let reason):
+            throw MicropodError.message(
+                "A rootless update receipt on a host with a root-managed runtime needs its service witness: \(reason)")
+        }
+    }
+
+    /// What installing, or settling an installation, re-checks. A rootless
+    /// receipt's admission rested on the absence of a root-managed runtime
+    /// and on the workload protocol, so both must still hold.
+    nonisolated static func verifyContinuity(
+        _ receipt: UpdateContinuityReceipt,
+        declaresWorkloadProtocol: @autoclosure () -> Bool = UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol,
+        evidence: @autoclosure () -> RootManagedRuntimeEvidence = rootManagedRuntimeEvidence()
+    ) throws {
+        guard receipt.runtimeInstance == rootlessRuntimeInstance else { return try receipt.verifyServices() }
+        guard receipt.services.isEmpty, receipt.apiConfigurationSHA256.isEmpty else {
+            throw MicropodError.message("A rootless update receipt cannot name managed services")
+        }
+        guard declaresWorkloadProtocol() else {
+            throw MicropodError.message("The replacement does not support the retained workload protocol")
+        }
+        switch evidence() {
+        case .absent: return
+        case .present(let reason), .indeterminate(let reason):
+            throw MicropodError.message(
+                "A root-managed runtime may own workloads that this rootless update did not witness: \(reason)")
+        }
+    }
+
+    /// Cheap (no process scan): views read it through the restart guard.
+    /// `acquire` checks the whole evidence before admitting anything.
     var usesRootlessAdmission: Bool {
-        !AppDependencies.shared.client.usesIsolatedTransport
-            && ["hvf", "sandbox"].contains(EngineRegistry.shared.defaultName)
+        (try? Self.requireRootlessAdmission(
+            defaultRuntime: EngineRegistry.shared.defaultName,
+            declaresWorkloadProtocol: UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol,
+            evidence: Self.rootManagedRuntimeInstallation())) != nil
     }
 
     var isAvailable: Bool {
@@ -51,6 +174,12 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
                 )
             }
             if usesRootlessAdmission {
+                // Bind the admission to the whole evidence now, including the
+                // running helpers the cheap availability check skips.
+                try Self.requireRootlessAdmission(
+                    defaultRuntime: EngineRegistry.shared.defaultName,
+                    declaresWorkloadProtocol: UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol,
+                    evidence: Self.rootManagedRuntimeEvidence())
                 guard !Task.isCancelled, let owner = try RuntimeProcessBirth.read(getpid()) else {
                     throw MicropodError.message("Could not verify desktop process identity for rootless update")
                 }
@@ -65,6 +194,7 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
                     runtimeInstance: Self.rootlessRuntimeInstance,
                     apiConfigurationSHA256: "",
                     services: [])
+                try Self.verifyContinuity(receipt)
                 try store.prepare(receipt)
                 return Hold(receipt: receipt, store: store)
             }
@@ -150,7 +280,7 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
                 guard try ManagedUpdateAdmission.currentExecutableDigest() == receipt.sourceExecutableSHA256
                 else { return false }
             }
-            try receipt.verifyServices()
+            try Self.verifyRetained(receipt)
             DesktopActivity.shared.reopen()
             return true
         }
@@ -168,9 +298,12 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
             receipt.owner == currentOwner || originalExited
         else { return false }
         try RuntimeCodeIdentity.verifyExecutable(Bundle.main.bundleURL, identifier: "com.skunkworq.micropod")
-        try receipt.verifyServices()
-        _ = try await probe()
-        try receipt.verifyServices()
+        try verifyRetained(receipt)
+        // A rootless update has no dedicated runtime to probe.
+        if receipt.runtimeInstance != rootlessRuntimeInstance {
+            _ = try await probe()
+            try verifyRetained(receipt)
+        }
         guard try ManagedUpdateAdmission.currentExecutableDigest() == receipt.sourceExecutableSHA256 else {
             return false
         }
@@ -190,7 +323,7 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
             try receipt.owner.hasExited(),
             try ManagedUpdateAdmission.currentExecutableDigest() == receipt.sourceExecutableSHA256
         {
-            try receipt.verifyServices()
+            try Self.verifyRetained(receipt)
             _ = try store.transition(
                 operation: receipt.operation, generation: receipt.generation,
                 from: .prepared, to: .aborted, detail: "Verified restart before the installer received permission")
@@ -204,15 +337,17 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
             try receipt.owner.hasExited()
         else { throw MicropodError.message("The interrupted update needs verified recovery; its receipt was retained") }
         try RuntimeCodeIdentity.verifyExecutable(Bundle.main.bundleURL, identifier: "com.skunkworq.micropod")
+        guard UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol else {
+            throw MicropodError.message("The replacement does not support the retained workload protocol")
+        }
         if receipt.runtimeInstance == Self.rootlessRuntimeInstance {
+            // Still no root-managed runtime whose workloads went unwitnessed.
+            try Self.verifyContinuity(receipt)
             _ = try store.transition(
                 operation: receipt.operation, generation: receipt.generation,
                 from: receipt.phase, to: .succeeded, detail: "Signed rootless replacement verified")
             DesktopActivity.shared.reopen()
             return
-        }
-        guard UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol else {
-            throw MicropodError.message("The replacement does not support the retained workload protocol")
         }
         try receipt.verifyServices()
         let health = try await Self.probe()
@@ -239,7 +374,7 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
                 try RuntimeProcessBirth.read(getpid()) == receipt.owner,
                 DesktopActivity.shared.isClosed
             else { return false }
-            try receipt.verifyServices()
+            try ManagedUpdateAdmission.verifyContinuity(receipt)
             _ = try store.transition(
                 operation: receipt.operation, generation: receipt.generation,
                 from: .prepared, to: .downloading)
@@ -250,7 +385,7 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
                 guard try RuntimeProcessBirth.read(getpid()) == receipt.owner,
                     try ManagedUpdateAdmission.currentExecutableDigest() == receipt.sourceExecutableSHA256
                 else { return }
-                try receipt.verifyServices()
+                try ManagedUpdateAdmission.verifyRetained(receipt)
                 _ = try store.transition(
                     operation: receipt.operation, generation: receipt.generation,
                     from: .prepared, to: .aborted, detail: "Cancelled before handing permission to Sparkle")
@@ -267,7 +402,7 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
                 current.generation == receipt.generation, current.phase == .aborted,
                 try ManagedUpdateAdmission.currentExecutableDigest() == receipt.sourceExecutableSHA256
             else { return false }
-            try current.verifyServices()
+            try ManagedUpdateAdmission.verifyRetained(current)
             return true
         }
     }

@@ -165,6 +165,11 @@ public actor HVFMachineSupervisor {
     private nonisolated let stopRequestedEarly = Mutex(false)
 
     private var state: HVFMachineState
+    /// The payload this supervisor boots, resolved once when it starts and
+    /// kept for every relaunch: staging, or `current` moving under a live
+    /// machine, changes nothing until a new supervisor starts (an activation
+    /// restarts it).
+    private var payload: HVFMachinePayload?
     /// Bumped per launch; events from an earlier launch are ignored.
     private var generation = 0
     private var process: (any HVFVMMProcess)?
@@ -232,8 +237,16 @@ public actor HVFMachineSupervisor {
             throw layout.installInProgressError()
         }
         try FileManager.default.createDirectory(at: layout.logsDirectory, withIntermediateDirectories: true)
-        try await reapOrphans()
+        let payload = layout.resolvePayload()
+        self.payload = payload
+        let manifest = payload.manifest()
+        // Published from the start, so a prune never removes it, even between launches.
+        state.loadedPayloadPath = payload.canonicalPath
+        state.loadedPayloadVersion = manifest?.version
+        state.loadedPayloadRevision = manifest?.revision
+        try await reapOrphans(payload: payload)
         log("supervising \(layout.root.path) (pid \(pid), \(config.cpus) vCPU, \(config.memoryMiB) MiB)")
+        log("payload \(payload.id) at \(payload.directory.path), kept for every relaunch")
         if stopRequestedEarly.withLock({ $0 }) {
             log("stop requested before the first launch")
             return finishStopped(reason: "stopped before launch")
@@ -361,26 +374,26 @@ public actor HVFMachineSupervisor {
         removeSocket()
         let process: any HVFVMMProcess
         do {
+            guard let payload else { throw MicropodError.message("internal: hvf: launch before the payload resolved") }
             // The guest reads it from boot on: render it before every launch,
             // from machine.json as it is now (`machine cache policy` may have
             // changed it since this supervisor started).
             let policy = try HVFMachineCachePolicy.writeGuestFile(layout: layout, fallback: config)
             log("cache policy: \(policy.summary) (\(layout.cachePolicyFile.path))")
-            let arguments = try HVFVMMCommand.arguments(layout: layout, config: config, parentPID: pid)
-            process = try launcher.launch(executable: layout.vmm, arguments: arguments)
+            let command = try Self.launchCommand(layout: layout, payload: payload, config: config, parentPID: pid)
+            let hostPorts = HVFHostPortAllowlist(config: config)
+            log("host ports open to the guest: \(hostPorts.description)")
+            for refusal in hostPorts.refused { log(refusal.message) }
+            process = try launcher.launch(executable: command.executable, arguments: command.arguments)
+            state.allowHostPorts = hostPorts.ports
         } catch {
             continuation.yield(.exited(generation: g, HVFVMMExit(launchError: error.localizedDescription)))
             return
         }
         self.process = process
-        let activeRoot = layout.activePayloadRoot
-        let payloadManifest = HVFPayloadManifest.load(from: activeRoot)
         state.phase = .starting
         state.vmmPID = process.pid
         state.vmmStartSeconds = inspector.facts(process.pid)?.startSeconds
-        state.loadedPayloadPath = HVFMachineLayout.canonicalPath(activeRoot.path)
-        state.loadedPayloadVersion = payloadManifest?.version
-        state.loadedPayloadRevision = payloadManifest?.revision
         state.startedAt = Date()
         state.readyAt = nil
         persist()
@@ -412,6 +425,16 @@ public actor HVFMachineSupervisor {
                 }
             }
         }
+    }
+
+    /// The executable and argv of one launch: every asset from `payload`.
+    static func launchCommand(
+        layout: HVFMachineLayout, payload: HVFMachinePayload, config: HVFMachineConfig, parentPID: Int32
+    ) throws -> (executable: URL, arguments: [String]) {
+        (
+            payload.vmm,
+            try HVFVMMCommand.arguments(layout: layout, payload: payload, config: config, parentPID: parentPID)
+        )
     }
 
     /// SIGTERM now, SIGKILL if the process outlives `stopTimeout`.
@@ -456,7 +479,7 @@ public actor HVFMachineSupervisor {
     /// A micropod-vmm a dead supervisor left running holds the disk; two
     /// VMMs on one ext4 image would corrupt it. Only processes proven to be
     /// this root's VMM binary on this root's disk are signalled.
-    private func reapOrphans() async throws {
+    private func reapOrphans(payload: HVFMachinePayload) async throws {
         let recorded: HVFMachineState?
         do {
             recorded = try HVFMachineState.load(from: layout.state)
@@ -466,9 +489,19 @@ public actor HVFMachineSupervisor {
         }
         var candidates: [HVFProcessFacts] = []
         if let vmm = recorded?.vmmPID, let facts = inspector.facts(vmm) { candidates.append(facts) }
-        for other in inspector.processes(executable: HVFMachineLayout.canonicalPath(layout.vmm.path))
-        where !candidates.contains(where: { $0.pid == other }) {
-            if let facts = inspector.facts(other) { candidates.append(facts) }
+        // The binary this supervisor boots, and the one the last one booted
+        // (another version directory after an activation).
+        var binaries = [HVFMachineLayout.canonicalPath(payload.vmm.path)]
+        if let previous = recorded?.loadedPayloadPath {
+            let binary = HVFMachineLayout.canonicalPath(
+                URL(fileURLWithPath: previous).appendingPathComponent("micropod-vmm").path)
+            if !binaries.contains(binary) { binaries.append(binary) }
+        }
+        for binary in binaries {
+            for other in inspector.processes(executable: binary) where !candidates.contains(where: { $0.pid == other })
+            {
+                if let facts = inspector.facts(other) { candidates.append(facts) }
+            }
         }
         for orphan in Self.orphans(among: candidates, layout: layout, supervisorPID: pid) {
             log("reaping orphaned micropod-vmm pid \(orphan) left by a previous supervisor")

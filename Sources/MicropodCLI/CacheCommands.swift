@@ -170,14 +170,10 @@ enum CacheCommands {
     }
 
     /// The persistent cache disk's state, or nil when the guest reports none
-    /// (no cache disk, or a guest that predates it). A disk that should be
-    /// there but is not turns shared caches off for the boot.
+    /// (a guest that predates it). A disk that should be there but is not
+    /// turns shared caches off for the boot.
     static func cacheDiskLine(_ inspection: HVFCacheInspection) -> String? {
-        if let why = inspection.sharedCachesOffReason {
-            return "UNAVAILABLE — shared caches are off this boot, every container runs uncached: \(why)"
-        }
-        guard let disk = inspection.cacheDisk, !disk.isEmpty else { return nil }
-        return disk == "mounted" ? "mounted (caches.ext4)" : disk
+        HVFCacheDiskState.summary(inspection.cacheDisk, sharedCachesOff: inspection.sharedCachesOffReason)
     }
 
     /// What the crash fence did at the engine's start, or nil when it found no
@@ -330,9 +326,11 @@ enum CacheCommands {
         }
     }
 
-    private static func handlePrune(
-        _ args: [String], client: HVFMachineClient, environment: [String: String], json: Bool
-    ) async throws {
+    /// `cache prune`'s request. The command prunes unless `--dry-run` is
+    /// given, and says which on the wire every time (`dryRun` is always
+    /// sent), so it never depends on what the receiving end assumes when
+    /// the field is missing — the API routes assume a dry run.
+    static func pruneRequest(_ args: [String]) throws -> HVFCachePruneRequest {
         let parsed = try parseArgs(
             args, boolFlags: ["--dry-run"],
             valueFlags: ["--scope", "--tool", "--older-than", "--max-bytes", "--partial"],
@@ -358,6 +356,13 @@ enum CacheCommands {
             default: throw UsageError(message: "cache prune: --partial wants on or off, got '\(raw)'")
             }
         }
+        return req
+    }
+
+    private static func handlePrune(
+        _ args: [String], client: HVFMachineClient, environment: [String: String], json: Bool
+    ) async throws {
+        let req = try pruneRequest(args)
         let active = resolveClient(client, environment: environment)
         let res = try await active.cachePrune(req)
         if json {

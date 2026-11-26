@@ -14,7 +14,15 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
 
 1. Merge your work to `master` (pre-push hook runs build+test locally;
    the `CI` workflow re-runs lint + build + test on GitHub).
-2. Pick the next semver and tag the merge commit:
+2. Build the HVF runtime for that commit: dispatch the **HVF runtime**
+   workflow (`.github/workflows/hvf-runtime.yml`) on it with the kernel's
+   https URL and SHA-256, and note the run ID and archive digest its summary
+   prints. Set them as the `MICROPOD_HVF_RUN_ID` and
+   `MICROPOD_HVF_PAYLOAD_SHA256` repository variables (or pass them as the
+   dispatch's `hvf_run_id` and `hvf_payload_sha256`). A release without the
+   pin fails at "Fetch qualified native runtime": every package carries
+   `micropod-vmm`, `vmlinux-hvf`, `mp-hvf-init.cpio` and `micropod-oci-tools`.
+3. Pick the next semver and tag the merge commit:
 
    ```sh
    git checkout master && git pull --ff-only
@@ -22,8 +30,8 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
    git push origin v0.13.0
    ```
 
-3. Watch the run: `gh run watch` (or Actions → Release). ~5 min.
-4. Verify:
+4. Watch the run: `gh run watch` (or Actions → Release). ~5 min.
+5. Verify:
 
    ```sh
    gh release view v0.13.0 --json assets --jq '.assets[].name'
@@ -34,7 +42,7 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
    # expect: "accepted — source=Notarized Developer ID"
    ```
 
-5. Qualify the signed payload, review its frozen manifest and publish its
+6. Qualify the signed payload, review its frozen manifest and publish its
    approved feed policy. The updater floor and workload protocol live in
    `release/updater-policy.json`; see the
    [qualified publication policy](qualified-release-publication.md).
@@ -45,7 +53,19 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
 
 1. Imports the Developer ID certificate into a throwaway keychain.
 2. Stores a `micropod-notary` notarytool profile (App Store Connect API key).
-3. `scripts/package_app.sh` — release build + `.app` assembly + `.tgz`.
+3. Fetches the pinned HVF runtime (`scripts/fetch_hvf_distribution.sh`: the
+   run must be a successful push or dispatch of this commit, and the archive
+   must have the pinned digest), then `scripts/package_app.sh` — release
+   build + `.app` assembly + `.tgz`, which fails unless
+   `scripts/verify_release_payload.sh` passes on both. The verifier checks
+   the VMM (arm64, signed, hypervisor entitlement; Developer ID and
+   hardened runtime once signed), the kernel's ARM64 Image header, the
+   initramfs, and the guest tools (crun, containerd, the shim, `runner/bin/job`
+   and `buildkitd`, built from this commit in a clean tree). It runs again on
+   the signed app and DMG and on the repacked tarball. `task package` locally
+   needs `MICROPOD_HVF_DISTRIBUTION` or `MICROPOD_VMM_DIR`;
+   `MICROPOD_PACKAGE_WITHOUT_HVF=1` builds a development package without the
+   runtime, and CI refuses it.
 4. `scripts/make_dmg.sh --sign … --notarize --key-profile micropod-notary`:
    - inside-out signing: every Mach-O in `Contents/MacOS`, then the bundle,
      with `--options runtime` (hardened runtime) + `--timestamp`

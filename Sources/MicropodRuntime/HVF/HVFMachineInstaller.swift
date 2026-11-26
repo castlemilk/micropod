@@ -92,6 +92,14 @@ public enum HVFMachineInstaller {
         }
         defer { starting.release() }
         try refuseWhileRunning(layout)
+        // A payload stage, activation, rollback or prune changes the boot
+        // assets too: one of the two runs at a time.
+        guard let updating = try HVFFileLock.acquire(layout.updateLock, wait: .milliseconds(250)) else {
+            throw MicropodError.message(
+                "failedPrecondition: an HVF payload update (stage, apply, rollback or prune) is running on "
+                    + "\(layout.root.path); retry when it finishes")
+        }
+        defer { updating.release() }
         removeLeftovers(in: layout)
 
         var config = try HVFMachineConfig.load(from: layout.config)
@@ -133,6 +141,15 @@ public enum HVFMachineInstaller {
         let tools = source(
             request.tools, target: layout.tools, directory: package?.resources, name: "micropod-oci-tools")
         let diskFrom = resolved(request.diskFrom)
+        // Versioned payloads are immutable: new boot assets go through a
+        // stage and a probed activation, never into versions/<id>.
+        let payload = layout.resolvePayload()
+        if payload.isVersioned, [vmm, kernel, initrd, tools].contains(where: { $0 != nil }) {
+            throw MicropodError.message(
+                "failedPrecondition: \(layout.root.path) boots the versioned payload \(payload.id), which is "
+                    + "immutable; stage new boot assets with `micropod update hvf stage --from <dir>` and activate "
+                    + "them with `micropod update hvf apply` (nothing was changed)")
+        }
         var unresolved: [String] = []
         for file in files {
             if let source = file.source {

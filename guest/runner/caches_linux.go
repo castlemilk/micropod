@@ -131,14 +131,16 @@ func cacheTrustOf(spec dockerConfig) (trust string, readOnly bool, err error) {
 // the stores, so it stays valid when the OS disk is replaced. Without a
 // mounted cache disk that should be there, shared caches are off for the
 // boot: nothing may create stores below the mount point on the OS disk, where
-// the next boot's mount would hide them and their marks.
-var cacheDiskState = os.Getenv("MICROPOD_CACHE_DISK")
+// the next boot's mount would hide them and their marks. GET /micropod/caches
+// reports it, with what mountinfo shows, as cacheDisk (observeCacheDisk) and
+// the reason caches are off as unavailable.
+var cacheDiskInit = os.Getenv("MICROPOD_CACHE_DISK")
 
 // cacheDiskUnavailable says why no shared store may be used this boot, or "".
 // A disk reported mounted must really be mounted at cacheRoot (another device
 // than its parent directory's).
 func cacheDiskUnavailable() string {
-	switch strings.TrimSpace(cacheDiskState) {
+	switch strings.TrimSpace(cacheDiskInit) {
 	case "":
 		return ""
 	case "mounted":
@@ -153,7 +155,7 @@ func cacheDiskUnavailable() string {
 	case "unavailable":
 		return "guest init found the cache disk missing or unmountable"
 	default:
-		return fmt.Sprintf("unknown cache disk state %q", cacheDiskState)
+		return fmt.Sprintf("unknown cache disk state %q", cacheDiskInit)
 	}
 }
 

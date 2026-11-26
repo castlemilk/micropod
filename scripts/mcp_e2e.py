@@ -43,6 +43,9 @@ def rpc(binary, state_dir, cli_path, requests):
     # No API daemon: container tools ask it about sandbox/docker containers,
     # and a real daemon's containers would leak into the mock's answers.
     env["MICROPOD_API_PORT"] = "1"
+    # And never the developer's real ~/.micropod/api.sock, which the MCP
+    # server prefers to TCP whenever it exists.
+    env["MICROPOD_API_SOCK"] = "off"
     env["MICROPOD_APP_CONTROL_SOCKET"] = os.path.join(state_dir, "app-control.sock")
     payload = "".join(json.dumps(r) + "\n" for r in requests)
     proc = subprocess.run(
@@ -91,7 +94,9 @@ def main():
                 "k8s_status", "k8s_enable", "k8s_disable", "k8s_up", "k8s_down",
                 "k8s_kubeconfig", "k8s_load_image", "k8s_images",
                 "list_machines", "machine_stats", "machine_logs", "metrics_history",
-                "sandbox_run", "sandbox_checkpoints", "sandbox_checkpoint_create", "sandbox_checkpoint_delete"}
+                "sandbox_run", "sandbox_checkpoints", "sandbox_checkpoint_create", "sandbox_checkpoint_delete",
+                "cache_status", "cache_explain", "cache_dedupe", "cache_prune", "cache_policy", "cache_policy_set",
+                "runtime_mode", "rig_health", "update_hvf_status", "update_hvf_rollback", "sandbox_status"}
     check(f"all {len(expected)} tools advertised", set(names) == expected, f"got {sorted(names)}")
 
     def call(tool_id, tool, **arguments):

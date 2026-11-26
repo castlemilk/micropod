@@ -966,7 +966,7 @@ struct HVFWorkerTests {
                  "units":[],"cacheDisk":"unavailable",
                  "unavailable":"guest init found the cache disk missing or unmountable"}
                 """.utf8))
-        #expect(off.cacheDisk == "unavailable")
+        #expect(off.cacheDisk == HVFCacheDiskState(state: "unavailable", mounted: false))
         #expect(off.sharedCachesOffReason == "guest init found the cache disk missing or unmountable")
         let fromInventory = CIWorker.evaluateHealth(
             vmm: .vz, hypervisor: nil, kernel: nil, nativeOCI: nil, cacheInventory: off)

@@ -129,10 +129,12 @@ type cacheInspection struct {
 	// boot stopped cleanly (or is this one), as "scope/unit".
 	DiscardedAtStart []string `json:"discardedAtStart"`
 	KeptAtStart      []string `json:"keptAtStart"`
-	// CacheDisk is guest init's report on the persistent cache disk
-	// ("mounted", "unavailable", "" without one); Unavailable says why no
-	// store is used this boot (then Units is empty).
-	CacheDisk   string `json:"cacheDisk,omitempty"`
+	// CacheDisk is the persistent cache disk this boot: guest init's outcome
+	// and what mountinfo shows (observeCacheDisk). Always present.
+	CacheDisk cacheDiskState `json:"cacheDisk"`
+	// Unavailable says why no shared store is used this boot (the cache
+	// disk should be mounted but is not; then Units is empty). Absent while
+	// shared caches work.
 	Unavailable string `json:"unavailable,omitempty"`
 }
 
@@ -405,7 +407,7 @@ func (s *dockerEngine) inspectCaches(includeStats bool) cacheInspection {
 		Metrics:          s.metrics.cache.snapshot(),
 		DiscardedAtStart: discarded,
 		KeptAtStart:      kept,
-		CacheDisk:        cacheDiskState,
+		CacheDisk:        observeCacheDisk(),
 		Unavailable:      why,
 	}
 }
@@ -535,8 +537,13 @@ type cachePruneResult struct {
 	Actions      []cachePruneAction `json:"actions"`
 }
 
+// handleCachePrune serves POST /micropod/caches/prune and DELETE
+// /micropod/caches. It evicts only when the caller says so: a request that
+// names no dryRun (an empty body, or JSON without the key, and no dry_run
+// query) is a dry run, so a caller that forgets the field never wipes units.
 func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) error {
 	var req cachePruneRequest
+	explicit := false
 	if r.Body != nil && r.ContentLength != 0 {
 		b, err := readBody(w, r)
 		if err != nil {
@@ -546,9 +553,22 @@ func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) 
 			if err := json.Unmarshal(b, &req); err != nil {
 				return fail(400, "invalid cache prune request JSON")
 			}
+			var named struct {
+				DryRun *bool `json:"dryRun"`
+			}
+			if err := json.Unmarshal(b, &named); err == nil && named.DryRun != nil {
+				explicit = true
+			}
 		}
 	}
 	q := r.URL.Query()
+	if q.Has("dry_run") {
+		explicit = true
+		req.DryRun = truth(q.Get("dry_run"))
+	}
+	if !explicit {
+		req.DryRun = true
+	}
 	if v := q.Get("scope"); v != "" && req.Scope == "" {
 		req.Scope = v
 	}
@@ -568,9 +588,6 @@ func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) 
 			return fail(400, "invalid max_bytes")
 		}
 		req.MaxBytes = n
-	}
-	if truth(q.Get("dry_run")) {
-		req.DryRun = true
 	}
 	if v := q.Get("partial"); v != "" && req.PartialGoBuild == nil {
 		b := truth(v)

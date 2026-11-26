@@ -1926,6 +1926,7 @@ final class FakeLauncher: HVFVMMLaunching, @unchecked Sendable {
     private let scripts: [FakeVMM.Script]
     private var launched: [FakeVMM] = []
     private var argv: [[String]] = []
+    private var launchedExecutables: [URL] = []
     private var hook: (@Sendable () -> Void)?
 
     init(_ scripts: [FakeVMM.Script]) { self.scripts = scripts }
@@ -1940,6 +1941,7 @@ final class FakeLauncher: HVFVMMLaunching, @unchecked Sendable {
         let process = try lock.withLock { () throws -> FakeVMM in
             let index = argv.count
             argv.append(arguments)
+            launchedExecutables.append(executable)
             let script = index < scripts.count ? scripts[index] : .healthy
             if case .unlaunchable = script {
                 launched.append(FakeVMM(pid: Int32(9000 + index), script: .crashImmediately(code: 127)))
@@ -1954,6 +1956,7 @@ final class FakeLauncher: HVFVMMLaunching, @unchecked Sendable {
 
     var launchCount: Int { lock.withLock { argv.count } }
     var arguments: [[String]] { lock.withLock { argv } }
+    var executables: [URL] { lock.withLock { launchedExecutables } }
     var processes: [FakeVMM] { lock.withLock { launched } }
     var currentIsReady: Bool { lock.withLock { launched.last }?.ready ?? false }
 }

@@ -68,10 +68,10 @@ public struct HVFCacheInspection: Codable, Sendable, Equatable {
     /// Marked units the engine kept at its start because their boot stopped
     /// cleanly (or is still running).
     public var keptAtStart: [String]? = nil
-    /// Guest init's report on the persistent cache disk (caches.ext4):
-    /// "mounted", "unavailable" (attached but missing or unmountable), or
-    /// absent when the machine has none (the stores live on the OS disk).
-    public var cacheDisk: String? = nil
+    /// The persistent cache disk (caches.ext4) as the guest sees it: guest
+    /// init's outcome and what its mountinfo shows. Absent from guests that
+    /// predate it; an engine that sent guest init's word alone decodes too.
+    public var cacheDisk: HVFCacheDiskState? = nil
     /// Why the guest has no shared caches this boot (the cache disk should be
     /// mounted but is not): every container then runs uncached. Absent while
     /// shared caches work.
@@ -104,12 +104,14 @@ public struct HVFCachePruneRequest: Encodable, Sendable, Equatable {
     public var partialGoBuild: Bool?
     public var safetyCutoffSecs: Int64?
     public var maxUnits: Int?
+    /// Required, never defaulted: a caller that forgets it must not evict.
+    /// Always encoded, so the guest never falls back to its own default.
     public var dryRun: Bool
     public var reason: String?
 
     public init(
         scope: String? = nil, tool: String? = nil, olderThanSecs: Int64? = nil, maxBytes: UInt64? = nil,
-        partialGoBuild: Bool? = nil, safetyCutoffSecs: Int64? = nil, maxUnits: Int? = nil, dryRun: Bool = false,
+        partialGoBuild: Bool? = nil, safetyCutoffSecs: Int64? = nil, maxUnits: Int? = nil, dryRun: Bool,
         reason: String? = nil
     ) {
         self.scope = scope
@@ -224,12 +226,18 @@ extension HVFMachineClient {
     }
 
     /// Inspect a container's `MicropodCache` attach/skip decision plan.
+    /// A Docker container id or name, as one request path segment.
+    public static let containerReference = "^[A-Za-z0-9][A-Za-z0-9_.-]{0,254}$"
+
     public func explainContainerCache(_ container: String, timeout: Duration = .seconds(5)) async throws
         -> HVFContainerCacheExplain
     {
+        // One path segment: '/', '?' or '#' would name another guest route.
+        guard container.range(of: Self.containerReference, options: .regularExpression) != nil else {
+            throw MicropodError.message("invalidArgument: '\(container)' is not a container id or name")
+        }
         try ensureSocketReachable()
-        let encoded = container.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? container
-        let resp = try await docker.request("GET", "/containers/\(encoded)/json", timeout: timeout)
+        let resp = try await docker.request("GET", "/containers/\(container)/json", timeout: timeout)
         guard resp.status == 200 else {
             throw MicropodError.message(
                 "container '\(container)' not found or inspect failed (HTTP \(resp.status))")

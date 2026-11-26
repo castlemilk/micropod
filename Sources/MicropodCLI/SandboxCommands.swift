@@ -14,8 +14,10 @@ enum SandboxCommands {
         Usage:
           micropod sandbox run [flags] [image|--from ckpt] [-- cmd…]
           micropod sandbox status [--json]           show standalone sandbox assets (zero com.apple.container)
-          micropod sandbox setup [--kernel PATH] [--vminit REF]
-                                                     bootstrap ~/.micropod/sandbox standalone
+          micropod sandbox setup [--kernel PATH] [--vminit REPO[:TAG]@sha256:DIGEST]
+                                                     bootstrap ~/.micropod/sandbox standalone; the
+                                                     vminit sandboxes boot (MICROPOD_SANDBOX_VMINIT,
+                                                     else the built-in pin) unless --vminit names one
           micropod sandbox checkpoint create <name> [flags] [image|--from ckpt] -- cmd…
           micropod sandbox checkpoint ls | rm <name…>
           micropod sandbox prune                     drop cached base disks + stale runs
@@ -290,7 +292,9 @@ enum SandboxCommands {
         let parsed = try parseArgs(
             cleaned, boolFlags: [], valueFlags: ["--kernel", "--vminit"], commandName: "sandbox setup")
         let kernel = parsed.value("--kernel").map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
-        let vminit = parsed.value("--vminit") ?? SandboxVM.defaultVMInitReference
+        // Without --vminit, nil: setup prepares the vminit runs will boot
+        // (MICROPOD_SANDBOX_VMINIT when set), not always the built-in pin.
+        let vminit = parsed.value("--vminit")
         let st = try await SandboxVM.setupStandalone(
             kernelSource: kernel,
             vminitReference: vminit,

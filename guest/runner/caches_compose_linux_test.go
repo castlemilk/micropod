@@ -431,10 +431,10 @@ func TestCacheDiskAbsentTurnsSharedCachesOff(t *testing.T) {
 	if err := os.WriteFile(dirtyMarker("default", "gomod"), []byte("boot-old\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	old := cacheDiskState
-	t.Cleanup(func() { cacheDiskState = old })
+	old := cacheDiskInit
+	t.Cleanup(func() { cacheDiskInit = old })
 	for _, state := range []string{"unavailable", "mounted"} { // "mounted", yet cacheRoot is no mount point
-		cacheDiskState = state
+		cacheDiskInit = state
 		if cacheDiskUnavailable() == "" {
 			t.Fatalf("%s: shared caches available", state)
 		}
@@ -459,7 +459,7 @@ func TestCacheDiskAbsentTurnsSharedCachesOff(t *testing.T) {
 		if _, err := eng.pruneCaches(context.Background(), cachePruneRequest{Reason: "test"}, 0); err == nil {
 			t.Fatalf("%s: a prune ran", state)
 		}
-		if snap := eng.inspectCaches(false); snap.Unavailable == "" || len(snap.Units) != 0 || snap.CacheDisk != state {
+		if snap := eng.inspectCaches(false); snap.Unavailable == "" || len(snap.Units) != 0 || snap.CacheDisk.State != state || snap.CacheDisk.Mounted {
 			t.Fatalf("%s: inventory %+v", state, snap)
 		}
 		if exists(filepath.Join(cacheRoot, "scopes/other")) || exists(filepath.Join(cacheRoot, ".meta/default/gomod.lock")) {
@@ -487,9 +487,9 @@ func fdTarget(t *testing.T, f *os.File) string {
 // still may not mount one read-write.
 func TestCacheDiskAbsentAliasVolumeRunsUncached(t *testing.T) {
 	useFence(t, "boot-a")
-	old := cacheDiskState
-	t.Cleanup(func() { cacheDiskState = old })
-	cacheDiskState = "unavailable"
+	old := cacheDiskInit
+	t.Cleanup(func() { cacheDiskInit = old })
+	cacheDiskInit = "unavailable"
 	eng := &dockerEngine{}
 	spec := dockerConfig{HostConfig: dockerHost{Binds: []string{
 		"micropod-ci-scoped-team-gomod:/go/pkg/mod",
@@ -713,9 +713,9 @@ func TestCacheDiskMountedAtTheCacheRoot(t *testing.T) {
 		t.Skipf("tmpfs: %v", err)
 	}
 	defer unix.Unmount(cacheRoot, unix.MNT_DETACH)
-	old := cacheDiskState
-	t.Cleanup(func() { cacheDiskState = old })
-	cacheDiskState = "mounted"
+	old := cacheDiskInit
+	t.Cleanup(func() { cacheDiskInit = old })
+	cacheDiskInit = "mounted"
 	if why := cacheDiskUnavailable(); why != "" {
 		t.Fatalf("mounted: %s", why)
 	}

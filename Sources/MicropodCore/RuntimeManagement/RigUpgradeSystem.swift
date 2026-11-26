@@ -298,10 +298,23 @@ public struct RigHealthProbe: RigHealthProbing {
         return report
     }
 
+    /// Statuses a runtime passes through on its way to `running` (an hvf
+    /// machine started on demand, a guest still booting): waited out.
+    static let transientRuntimeStatuses: Set<String> = ["starting", "not-ready"]
+
     public func smoke(_ expectation: RigHealthExpectation, image: String) async throws {
         let port = expectation.connectPort
-        guard (try await ping(port)).status == "running" else {
-            throw MicropodError.message("The Apple runtime is not running")
+        // An upgrade that restarted the API (or swapped the hvf payload)
+        // may find the default runtime still coming up: wait for it.
+        let deadline = ContinuousClock.now + .seconds(180)
+        var status = try await ping(port).status
+        while Self.transientRuntimeStatuses.contains(status), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .seconds(1))
+            status = try await ping(port).status
+        }
+        guard status == "running" else {
+            throw MicropodError.message(
+                "The default runtime is not running (status \(status.isEmpty ? "unknown" : status))")
         }
         var run = Micropod_V1_RunContainerRequest()
         run.image = image

@@ -11,6 +11,11 @@ import MicropodCore
 /// <root>/Image               arm64 Linux kernel
 /// <root>/mp-hvf-init.cpio    guest init initramfs
 /// <root>/tools/              guest tool bundle, shared read-only as `oci-tools`
+///                            (the four above: the legacy flat payload)
+/// <root>/versions/<id>/      immutable payloads with the same four assets
+///                            (`HVFPayloadStore`); `current`, `staged`,
+///                            `known-good`, `previous` and `trial` name them
+/// <root>/update.lock         held by every payload stage/activate/rollback/prune
 /// <root>/disk.ext4           writable machine disk
 /// <root>/machine.json        HVFMachineConfig
 /// <root>/run/docker.sock     the guest Docker Engine API
@@ -49,20 +54,48 @@ public struct HVFMachineLayout: Sendable, Equatable {
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/hvf")
     }
 
+    /// Immutable payload directories (`HVFPayloadStore`).
     public var versionsDirectory: URL { root.appendingPathComponent("versions") }
+    /// The payload a newly started supervisor boots. Only an activation that
+    /// passed the health probes, or a rollback, moves it; staging never does.
     public var currentLink: URL { root.appendingPathComponent("current") }
+    /// What `current` named before the last activation or rollback.
     public var previousLink: URL { root.appendingPathComponent("previous") }
+    /// The newest staged payload, waiting for an activation.
+    public var stagedLink: URL { root.appendingPathComponent("staged") }
+    /// The last payload that booted and passed the health probes: what a
+    /// rollback returns to. Never pruned.
+    public var knownGoodLink: URL { root.appendingPathComponent("known-good") }
+    /// The payload an activation is booting to probe it. Honoured only while
+    /// `updateLock` is held, so one left by a killed activator boots nothing.
+    public var trialLink: URL { root.appendingPathComponent("trial") }
+    /// Held (flock) across every stage, activation, rollback and prune.
+    public var updateLock: URL { root.appendingPathComponent("update.lock") }
+    /// Why the last activation of the staged payload failed.
+    public var activationFailureRecord: URL { root.appendingPathComponent("activation-failure.json") }
 
-    /// Immutable versioned payload directory when `<root>/current` points to a
-    /// valid staged release; otherwise the legacy flat `<root>` directory.
-    public var activePayloadRoot: URL {
-        HVFPayloadStore.resolveLinkTarget(currentLink) ?? root
+    /// The payload a supervisor started now would boot, resolved once: the
+    /// trial of a live activation, else `current`, else the legacy flat
+    /// layout (the root itself). Every asset of one launch comes from the one
+    /// directory this returns, so a launch can never mix two versions.
+    public func resolvePayload() -> HVFMachinePayload {
+        if HVFFileLock.isHeld(updateLock), let trial = HVFPayloadStore.resolveVersion(trialLink, in: self) {
+            return HVFMachinePayload(directory: trial, isVersioned: true)
+        }
+        if let current = HVFPayloadStore.resolveVersion(currentLink, in: self) {
+            return HVFMachinePayload(directory: current, isVersioned: true)
+        }
+        return HVFMachinePayload(directory: root, isVersioned: false)
     }
 
-    public var vmm: URL { activePayloadRoot.appendingPathComponent("micropod-vmm") }
-    public var kernel: URL { activePayloadRoot.appendingPathComponent("Image") }
-    public var initrd: URL { activePayloadRoot.appendingPathComponent("mp-hvf-init.cpio") }
-    public var tools: URL { activePayloadRoot.appendingPathComponent("tools") }
+    /// The directory `resolvePayload()` names.
+    public var activePayloadRoot: URL { resolvePayload().directory }
+
+    // One asset each: a caller that needs several resolves the payload once.
+    public var vmm: URL { resolvePayload().vmm }
+    public var kernel: URL { resolvePayload().kernel }
+    public var initrd: URL { resolvePayload().initrd }
+    public var tools: URL { resolvePayload().tools }
     public var disk: URL { root.appendingPathComponent("disk.ext4") }
     /// Optional persistent second VirtioBlk disk (`/dev/vdb` -> `/var/lib/micropod/caches`)
     /// so dependency and BuildKit caches survive `disk.ext4` OS replacements.
@@ -132,16 +165,19 @@ public struct HVFMachineLayout: Sendable, Equatable {
 
     /// The installed pieces the machine cannot boot without, by layout name.
     public func missingAssets(fileManager: FileManager = .default) -> [String] {
+        let payload = resolvePayload()
         var missing: [String] = []
-        for (name, url) in [("micropod-vmm", vmm), ("Image", kernel), ("mp-hvf-init.cpio", initrd)]
+        for (name, url) in [
+            ("micropod-vmm", payload.vmm), ("Image", payload.kernel), ("mp-hvf-init.cpio", payload.initrd),
+        ]
         where !Self.isRegularFile(url) {
             missing.append(name)
         }
         if !Self.isRegularFile(disk) { missing.append("disk.ext4") }
         var isDirectory: ObjCBool = false
-        if !fileManager.fileExists(atPath: tools.path, isDirectory: &isDirectory) || !isDirectory.boolValue {
+        if !fileManager.fileExists(atPath: payload.tools.path, isDirectory: &isDirectory) || !isDirectory.boolValue {
             missing.append("tools/")
-        } else if !fileManager.fileExists(atPath: tools.appendingPathComponent("runner/start.sh").path) {
+        } else if !fileManager.fileExists(atPath: payload.tools.appendingPathComponent("runner/start.sh").path) {
             missing.append("tools/runner/start.sh")
         }
         return missing
@@ -156,6 +192,15 @@ public struct HVFMachineLayout: Sendable, Equatable {
             try validatePaths()
         } catch {
             return error.localizedDescription
+        }
+        // A machine.json that does not load or validate (a control port in
+        // allowHostPorts, a goProxy that is not a URL) keeps the supervisor
+        // from starting: say so, never show the defaults as the config.
+        do {
+            _ = try HVFMachineConfig.load(from: config)
+        } catch {
+            let message = error.localizedDescription
+            return message.contains(config.path) ? message : "\(config.path): \(message)"
         }
         return nil
     }
@@ -195,7 +240,7 @@ public struct HVFMachineLayout: Sendable, Equatable {
 
     /// `realpath(3)`, or the standardized path when it does not resolve:
     /// the kernel reports `/private/tmp/...` for a root spelled `/tmp/...`.
-    static func canonicalPath(_ path: String) -> String {
+    public static func canonicalPath(_ path: String) -> String {
         guard let resolved = realpath(path, nil) else { return URL(fileURLWithPath: path).standardizedFileURL.path }
         defer { free(resolved) }
         return String(cString: resolved)
@@ -228,24 +273,33 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
     /// Extra micropod-vmm flags, appended verbatim.
     public var extraArguments: [String]
     /// Host loopback TCP ports reachable from inside the guest via `10.42.0.1:<port>`
-    /// (`host.micropod.internal:<port>`). Passed as `--allow-host-port` to `micropod-vmm`.
+    /// (`host.micropod.internal:<port>`). Passed as `--allow-host-port` to `micropod-vmm`;
+    /// every container in the machine reaches them as a local client. Micropod's
+    /// control ports are refused (`HVFHostPortAllowlist.controlPorts`).
     public var allowHostPorts: [UInt16]
+    /// The rig dependency proxy's host port: opened to the guest when, and
+    /// only when, the cache policy's `goProxy` or `npmRegistry` names it at
+    /// the gateway. 0 lets no policy URL open a port.
+    public var depproxyPort: UInt16
     /// The dependency-cache policy; nil (absent from the file) means the
     /// defaults. Edited by `micropod machine cache policy`.
     public var cache: HVFMachineCachePolicy?
 
     public static var defaultWorkspace: String { HVFMachineLayout.canonicalPath(NSHomeDirectory()) }
+    /// Cuttlefish's depproxy listens on host loopback 7677.
+    public static let defaultDepproxyPort: UInt16 = 7677
 
     enum CodingKeys: String, CodingKey {
         case schema, cpus, memoryMiB, workspace, publishedNet, console, shutdownTimeoutSeconds, kernelArguments
-        case extraArguments, allowHostPorts, cache
+        case extraArguments, allowHostPorts, depproxyPort, cache
     }
 
     public init(
         schema: Int = HVFMachineConfig.currentSchema, cpus: Int = 4, memoryMiB: Int = 4096,
         workspace: String? = HVFMachineConfig.defaultWorkspace, publishedNet: Bool = true, console: Bool = true,
         shutdownTimeoutSeconds: Int = 10, kernelArguments: [String] = [], extraArguments: [String] = [],
-        allowHostPorts: [UInt16] = [], cache: HVFMachineCachePolicy? = nil
+        allowHostPorts: [UInt16] = [], depproxyPort: UInt16 = HVFMachineConfig.defaultDepproxyPort,
+        cache: HVFMachineCachePolicy? = nil
     ) {
         self.schema = schema
         self.cpus = cpus
@@ -257,6 +311,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         self.kernelArguments = kernelArguments
         self.extraArguments = extraArguments
         self.allowHostPorts = allowHostPorts
+        self.depproxyPort = depproxyPort
         self.cache = cache
     }
 
@@ -276,6 +331,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         kernelArguments = try c.decodeIfPresent([String].self, forKey: .kernelArguments) ?? []
         extraArguments = try c.decodeIfPresent([String].self, forKey: .extraArguments) ?? []
         allowHostPorts = try c.decodeIfPresent([UInt16].self, forKey: .allowHostPorts) ?? []
+        depproxyPort = try c.decodeIfPresent(UInt16.self, forKey: .depproxyPort) ?? defaults.depproxyPort
         cache = try c.decodeIfPresent(HVFMachineCachePolicy.self, forKey: .cache)
     }
 
@@ -291,6 +347,7 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
         try c.encode(kernelArguments, forKey: .kernelArguments)
         try c.encode(extraArguments, forKey: .extraArguments)
         if !allowHostPorts.isEmpty { try c.encode(allowHostPorts, forKey: .allowHostPorts) }
+        if depproxyPort != Self.defaultDepproxyPort { try c.encode(depproxyPort, forKey: .depproxyPort) }
         try c.encodeIfPresent(cache, forKey: .cache)
     }
 
@@ -349,6 +406,34 @@ public struct HVFMachineConfig: Codable, Sendable, Equatable {
             }
             try HVFMachineLayout.validateSpecPath(workspace, what: "workspace")
         }
+        let control = HVFHostPortAllowlist.controlPorts()
+        for port in allowHostPorts {
+            guard port >= HVFHostPortAllowlist.minimumPolicyPort else {
+                throw MicropodError.message(
+                    "invalidArgument: hvf allowHostPorts entries must be \(HVFHostPortAllowlist.minimumPolicyPort)"
+                        + "...65535, got \(port): ports below it are privileged host services (sshd, CUPS, SMB)")
+            }
+            guard !control.contains(port) else {
+                throw MicropodError.message(
+                    "invalidArgument: hvf allowHostPorts must not include \(port): it is a Micropod control port, "
+                        + "and every container in the machine would reach it as a local client")
+            }
+        }
+        // The VMM opens host ports only through allowHostPorts and the
+        // policy: an extra argument would bypass the control-port denylist
+        // and never show in `machine status`.
+        if let flag = extraArguments.first(where: { $0 == "--allow-host-port" || $0.hasPrefix("--allow-host-port=") }) {
+            throw MicropodError.message(
+                "invalidArgument: hvf extraArguments must not contain \(flag): list host ports in allowHostPorts, "
+                    + "which refuses Micropod's control ports")
+        }
+        if depproxyPort != 0 {
+            guard depproxyPort >= HVFHostPortAllowlist.minimumPolicyPort, !control.contains(depproxyPort) else {
+                throw MicropodError.message(
+                    "invalidArgument: hvf depproxyPort must be 0 or \(HVFHostPortAllowlist.minimumPolicyPort)...65535 "
+                        + "and not a Micropod control port, got \(depproxyPort)")
+            }
+        }
         try cache?.validate()
     }
 
@@ -379,15 +464,17 @@ public enum HVFVMMCommand {
     /// disk below the mount point.
     public static let cacheDiskBootArgument = "mp.cache_disk=1"
 
-    /// The full micropod-vmm argv (without the executable) for `config`.
-    public static func arguments(layout: HVFMachineLayout, config: HVFMachineConfig, parentPID: Int32) throws
-        -> [String]
-    {
+    /// The full micropod-vmm argv (without the executable) for `config`,
+    /// booting `payload` (default: `layout.resolvePayload()`, resolved once).
+    public static func arguments(
+        layout: HVFMachineLayout, payload: HVFMachinePayload? = nil, config: HVFMachineConfig, parentPID: Int32
+    ) throws -> [String] {
         try config.validate()
         try layout.validatePaths()
+        let payload = payload ?? layout.resolvePayload()
         var args = [
-            "--kernel", layout.kernel.path,
-            "--initrd", layout.initrd.path,
+            "--kernel", payload.kernel.path,
+            "--initrd", payload.initrd.path,
             "--disk", layout.disk.path,
         ]
         let cacheDisk = HVFMachineLayout.isRegularFile(layout.cacheDisk)
@@ -395,7 +482,7 @@ public enum HVFVMMCommand {
             args += ["--cache-disk", layout.cacheDisk.path]
         }
         args += [
-            "--share", "oci-tools:\(layout.tools.path):ro",
+            "--share", "oci-tools:\(payload.tools.path):ro",
             "--share", "\(configShareTag):\(layout.guestConfigDirectory.path)",
         ]
         // The VMM adds the share and the guest boot argument itself.
@@ -419,23 +506,14 @@ public enum HVFVMMCommand {
         return args + config.extraArguments
     }
 
-    /// Combines explicit `config.allowHostPorts` with any host-gateway port
-    /// referenced by the cache policy's `goProxy` / `npmRegistry` (e.g.
-    /// `http://10.42.0.1:7677/go|direct`), deduplicated in sorted order.
-    public static func effectiveAllowHostPorts(_ config: HVFMachineConfig) -> [UInt16] {
-        var ports = Set(config.allowHostPorts.filter { $0 > 0 })
-        let gatewayHosts: Set<String> = ["10.42.0.1", "10.43.0.1", "host.micropod.internal", "host.docker.internal"]
-        let rawValues = [config.cache?.goProxy, config.cache?.npmRegistry].compactMap { $0 }
-        for raw in rawValues {
-            for token in raw.split(whereSeparator: { $0 == "," || $0 == "|" }) {
-                let s = token.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard let url = URL(string: s), let host = url.host?.lowercased(),
-                    gatewayHosts.contains(host), let port = url.port, port > 0, port <= Int(UInt16.max)
-                else { continue }
-                ports.insert(UInt16(port))
-            }
-        }
-        return ports.sorted()
+    /// The `--allow-host-port` list, sorted: `config.allowHostPorts`, plus
+    /// `config.depproxyPort` while the cache policy names it at the gateway
+    /// (`http://10.42.0.1:7677/go|direct`). No other policy URL opens a
+    /// port, and no control port is ever opened; see `HVFHostPortAllowlist`.
+    public static func effectiveAllowHostPorts(
+        _ config: HVFMachineConfig, controlPorts: Set<UInt16> = HVFHostPortAllowlist.controlPorts()
+    ) -> [UInt16] {
+        HVFHostPortAllowlist(config: config, controlPorts: controlPorts).ports
     }
 }
 
@@ -473,6 +551,9 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
     public var loadedPayloadPath: String?
     public var loadedPayloadVersion: String?
     public var loadedPayloadRevision: String?
+    /// The host ports (`--allow-host-port`) the current (or last) VMM was
+    /// launched with; nil from a supervisor that predates the record.
+    public var allowHostPorts: [UInt16]?
     public var updatedAt: Date
 
     public init(
@@ -480,8 +561,9 @@ public struct HVFMachineState: Codable, Sendable, Equatable {
         vmmStartSeconds: Int64? = nil, startedAt: Date? = nil, readyAt: Date? = nil, restartCount: Int = 0,
         lastExitReason: String? = nil, lastExitCode: Int32? = nil, lastExitMeaning: String? = nil,
         loadedPayloadPath: String? = nil, loadedPayloadVersion: String? = nil, loadedPayloadRevision: String? = nil,
-        updatedAt: Date = Date()
+        allowHostPorts: [UInt16]? = nil, updatedAt: Date = Date()
     ) {
+        self.allowHostPorts = allowHostPorts
         self.lastExitCode = lastExitCode
         self.lastExitMeaning = lastExitMeaning
         self.loadedPayloadPath = loadedPayloadPath

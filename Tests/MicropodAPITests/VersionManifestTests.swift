@@ -66,11 +66,21 @@ final class VersionManifestTests: XCTestCase {
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
         let services = await RuntimeBackendResolver.resolveApple(
             client: client, environment: ["MICROPOD_RUNTIME": "cli"])
+        // Apple's runtime is the default here whatever this Mac's
+        // ~/.micropod/runtimes.json says: with hvf as the default, Ping and
+        // GetSystem describe the hvf machine instead (HVFReadinessAPITests).
+        let engines = EngineRegistry(
+            environment: [
+                "MICROPOD_RUNTIMES_CONFIG": root.appendingPathComponent("runtimes.json").path,
+                "MICROPOD_HVF_ROOT": root.appendingPathComponent("hvf").path,
+                "DOCKER_HOST": "unix:///nonexistent.sock",
+            ],
+            sandbox: SandboxEngine(root: root.appendingPathComponent("sandbox")))
         return APIHandlers(
             client: client, system: SystemService(client: client), images: ImageService(client: client),
             networks: NetworkService(client: client), compose: ComposeService(client: client),
             runtime: RuntimeHolder(initial: services, resolve: { services }, managedSelectionPresent: { false }),
-            versionEnvironment: environment)
+            versionEnvironment: environment, engineRegistry: engines)
     }
 
     private func call<M: Message>(_ api: APIHandlers, _ method: String, as type: M.Type) async throws -> M {

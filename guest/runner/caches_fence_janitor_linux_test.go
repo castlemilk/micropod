@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -875,7 +876,9 @@ func TestCachePruneRequestWaitIsBounded(t *testing.T) {
 	if err != nil || maint == nil {
 		t.Fatalf("maintenance lock: %v %v", maint, err)
 	}
-	_, err = cacheRoutes(eng, httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/v1.47/micropod/caches/prune", nil), "POST", "micropod/caches/prune")
+	// An explicit apply: a request without dryRun is only a dry run.
+	apply := httptest.NewRequest(http.MethodPost, "/v1.47/micropod/caches/prune", strings.NewReader(`{"dryRun":false}`))
+	_, err = cacheRoutes(eng, httptest.NewRecorder(), apply, "POST", "micropod/caches/prune")
 	var ae apiError
 	if !errors.As(err, &ae) || ae.code != http.StatusServiceUnavailable {
 		maint.Close()
