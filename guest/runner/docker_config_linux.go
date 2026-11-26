@@ -702,20 +702,55 @@ type cachePin struct {
 	lock        *os.File
 }
 
-// pinUnit locks a unit for a writer and marks it dirty. A shared pin waits
-// briefly for a mark clearer's LOCK_EX (held for a stat and an unlink) rather
-// than leave the tool out of this start.
-func pinUnit(scope, unit string, exclusive bool) (cachePin, error) {
-	lock, err := unitLock(scope, unit, exclusive)
-	for i := 0; !exclusive && errors.Is(err, unix.EWOULDBLOCK) && i < 50; i++ {
-		time.Sleep(2 * time.Millisecond)
-		lock, err = unitLock(scope, unit, exclusive)
+const (
+	// A shared pin waits for a mark clearer's LOCK_EX (held for a stat and
+	// an unlink), a janitor trim batch (at most janitorBatchHold) or an
+	// inventory probe rather than leave the tool out of this start.
+	sharedPinWait = 100 * time.Millisecond
+	// An exclusive pin (yarn v1) waits only long enough for a probe or a
+	// clearer, which hold a unit's lock for microseconds: a container that
+	// holds the store keeps it until it exits, and the tool is then skipped
+	// as busy-exclusive.
+	exclusivePinWait = 20 * time.Millisecond
+)
+
+// lockUnitWaiting takes a unit's lock (unitLock), retrying a busy one every
+// millisecond for up to wait. It never holds anything while it waits.
+func lockUnitWaiting(scope, unit string, exclusive bool, wait time.Duration) (*os.File, error) {
+	deadline := time.Now().Add(wait)
+	for {
+		lock, err := unitLock(scope, unit, exclusive)
+		if !errors.Is(err, unix.EWOULDBLOCK) || !time.Now().Before(deadline) {
+			return lock, err
+		}
+		time.Sleep(time.Millisecond)
 	}
+}
+
+// pinUnit locks a unit for a writer and marks it dirty.
+func pinUnit(scope, unit string, exclusive bool) (cachePin, error) {
+	wait := sharedPinWait
+	if exclusive {
+		wait = exclusivePinWait
+	}
+	lock, err := lockUnitWaiting(scope, unit, exclusive, wait)
 	if err != nil {
 		return cachePin{}, err
 	}
 	if err := cacheDirty.attach(scope, unit); err != nil {
 		lock.Close()
+		return cachePin{}, err
+	}
+	return cachePin{scope, unit, lock}, nil
+}
+
+// holdUnit locks a unit LOCK_SH for a reader and makes no mark: nothing is
+// written through the hold. The janitor then treats the unit as in use. A
+// clearer cannot tell the reader from a writer and leaves the unit's mark to a
+// later release; the hold's own release (releasePins) queues that clear.
+func holdUnit(scope, unit string) (cachePin, error) {
+	lock, err := lockUnitWaiting(scope, unit, false, sharedPinWait)
+	if err != nil {
 		return cachePin{}, err
 	}
 	return cachePin{scope, unit, lock}, nil
@@ -953,9 +988,10 @@ func openCacheMounts(plan *cachePlan, shimRoot string) cacheAttachment {
 }
 
 // openMounts opens the request's own mounts. For a start (createVolumes false)
-// a writable legacy alias volume of a cache store also pins that kind's unit
-// (lock plus dirty mark); the caller hands the pins to the container's cache
-// attachment, whose release drops them.
+// a legacy alias volume of a cache store also holds that kind's unit: a
+// writable one pins it (lock plus dirty mark), a read-only one takes the lock
+// alone. The caller hands the pins to the container's cache attachment, whose
+// release drops them.
 func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanupSocket string) ([]*os.File, []*cri.Mount, []cachePin, error) {
 	requests, err := spec.mounts()
 	if err != nil {
@@ -982,9 +1018,16 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 			}
 			continue
 		}
-		// Only a start writes through these descriptors; a create opens them
-		// to validate the request and closes them at once.
-		f, mountPins, e := s.openDockerMount(m, createVolumes, !createVolumes)
+		// Only a start uses these descriptors; a create opens them to
+		// validate the request and closes them at once.
+		access := aliasProbe
+		if !createVolumes {
+			access = aliasWrite
+			if m.ReadOnly {
+				access = aliasRead
+			}
+		}
+		f, mountPins, e := s.openDockerMount(m, createVolumes, access)
 		pins = append(pins, mountPins...)
 		if e != nil {
 			err = e
@@ -1010,12 +1053,20 @@ func dockerMountFDPath(file *os.File) string {
 	return fmt.Sprintf("/proc/%d/fd/%d", os.Getpid(), file.Fd())
 }
 
-// openDockerMount opens a request mount's source. With pinWrites set, a
-// writable legacy alias volume of a cache store also pins that kind's unit
-// (lock plus dirty mark), because the whole kind directory, every partition
-// included, is writable through it; the caller releases the pin once nothing
-// can write through the descriptor any more (caches_dirty_linux.go).
-func (s *dockerEngine) openDockerMount(m dockerMount, createVolume, pinWrites bool) (*os.File, []cachePin, error) {
+// aliasAccess is what the holder of a legacy alias volume's descriptor does
+// through it.
+type aliasAccess int
+
+const (
+	aliasProbe aliasAccess = iota // a create validates the request and closes the descriptor at once
+	aliasRead                     // reads only: a read-only volume at start, a docker cp out of a stopped container
+	aliasWrite                    // writes: a writable volume at start, a docker cp into a stopped container
+)
+
+// openDockerMount opens a request mount's source. For a legacy alias volume of
+// a cache store, access says how the descriptor will be used; the caller
+// releases the returned pins once nothing uses the descriptor any more.
+func (s *dockerEngine) openDockerMount(m dockerMount, createVolume bool, access aliasAccess) (*os.File, []cachePin, error) {
 	root, source := s.workspace, m.Source
 	if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
 		root = "/runner/externals"
@@ -1029,28 +1080,62 @@ func (s *dockerEngine) openDockerMount(m dockerMount, createVolume, pinWrites bo
 		root = filepath.Join(engineRoot, "volumes")
 		source = filepath.Join(root, m.Source)
 		if scope, kind, shared := legacyCacheVolume(m.Source); shared {
-			path, err := ensureStore(scope, kind, nil)
-			if err != nil {
-				return nil, nil, err
-			}
-			var pins []cachePin
-			if pinWrites && !m.ReadOnly {
-				pin, err := pinUnit(scope, kind, false)
-				if err != nil {
-					return nil, nil, err
-				}
-				pins = append(pins, pin)
-			}
-			f, err := openStoreBeneath(path)
-			if err != nil {
-				releasePins(pins)
-				return nil, nil, err
-			}
-			return f, pins, nil
+			return openAliasStore(scope, kind, access)
 		}
 	}
 	f, err := openMount(root, source)
 	return f, nil, err
+}
+
+// cacheAliasHeldHook, when set (tests), runs in openAliasStore once the unit is
+// held and before the store is created, verified and opened.
+var cacheAliasHeldHook func(scope, kind string)
+
+// openAliasStore opens the store scopes/<scope>/<kind> a legacy alias volume
+// names. A writer pins the kind-wide unit (lock plus dirty mark), because the
+// whole kind directory, every partition included, is writable through it
+// (caches_dirty_linux.go). A reader holds the lock alone, so the janitor
+// neither evicts nor trims the store under it. Either is taken before the store
+// is created or verified and opened, so a janitor pass cannot move the store
+// between the two.
+func openAliasStore(scope, kind string, access aliasAccess) (*os.File, []cachePin, error) {
+	l, err := openCacheLayout()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer l.Close()
+	scopeDir, err := openScope(l, scope) // also .meta/<scope>, where the lock lives
+	if err != nil {
+		return nil, nil, err
+	}
+	defer scopeDir.Close()
+	var pins []cachePin
+	if access != aliasProbe {
+		hold := holdUnit
+		if access == aliasWrite {
+			hold = func(scope, unit string) (cachePin, error) { return pinUnit(scope, unit, false) }
+		}
+		pin, err := hold(scope, kind)
+		if err != nil {
+			return nil, nil, err
+		}
+		pins = append(pins, pin)
+		if cacheAliasHeldHook != nil {
+			cacheAliasHeldHook(scope, kind)
+		}
+	}
+	dir, err := openStore(l, scope, scopeDir, kind, nil)
+	if err != nil {
+		releasePins(pins)
+		return nil, nil, err
+	}
+	dir.Close()
+	f, err := openStoreBeneath(filepath.Join(cacheRoot, "scopes", scope, kind))
+	if err != nil {
+		releasePins(pins)
+		return nil, nil, err
+	}
+	return f, pins, nil
 }
 
 func closeMounts(files []*os.File) {

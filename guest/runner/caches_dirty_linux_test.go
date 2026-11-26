@@ -257,7 +257,7 @@ func TestCacheDirtyClearKeepsANewerMark(t *testing.T) {
 	b := openCacheMounts(&plan, "") // attaches, writes, exits before the clearer looks
 	b.release()
 	closeMounts(b.files)
-	if removed, err := clearMarkIfRetired("default", "gomod", opened); err != nil || removed {
+	if removed, err := clearMarkIfRetired("default", "gomod", opened, clearerLockWait); err != nil || removed {
 		t.Fatal(removed, err)
 	}
 	if !marked("default", "gomod") {
@@ -322,16 +322,19 @@ func TestCacheDirtyAliasVolumeCoversTheKind(t *testing.T) {
 	if len(listDirtyMarks()) != 0 {
 		t.Fatalf("marks left: %v", listDirtyMarks())
 	}
-	// A read-only alias mount takes no pin.
-	_, _, pins, err = s.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/cache/gomod:ro"}}}, false, "")
-	if err != nil || len(pins) != 0 {
+	// A read-only alias mount holds its kind's lock and makes no mark.
+	files, _, pins, err = s.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/cache/gomod:ro"}}}, false, "")
+	if err != nil || len(pins) != 1 || pins[0].unit != "gomod" || marked("default", "gomod") {
 		t.Fatalf("read-only alias pins %v %v", pins, err)
 	}
+	releasePins(pins)
+	closeMounts(files)
 }
 
 // docker cp into a stopped container's legacy alias volume writes into the
 // store without any container running: the transfer pins the kind like a
-// start does, and its end queues the clear. A read never pins.
+// start does, and its end queues the clear. A read holds the kind's lock and
+// never marks it.
 func TestCacheDirtyArchiveWriteIntoAliasVolumePinsTheKind(t *testing.T) {
 	needRoot(t)
 	useCacheRoot(t)
@@ -351,6 +354,9 @@ func TestCacheDirtyArchiveWriteIntoAliasVolumePinsTheKind(t *testing.T) {
 	}
 	if marked("default", "gomod") {
 		t.Fatal("an archive read marked the store dirty")
+	}
+	if _, err := unitLock("default", "gomod", true); !errors.Is(err, unix.EWOULDBLOCK) {
+		t.Fatalf("the read does not hold the unit: %v", err)
 	}
 	closeView()
 	_, closeView, err = s.openArchive(t.Context(), c, "/go/pkg/mod/cache", true)
@@ -373,7 +379,8 @@ func TestCacheDirtyArchiveWriteIntoAliasVolumePinsTheKind(t *testing.T) {
 }
 
 // A shared pin waits out a clearer's brief LOCK_EX instead of dropping the
-// tool; an exclusive pin (yarn v1) still reports busy at once.
+// tool; an exclusive pin (yarn v1) still reports busy once its short wait
+// (exclusivePinWait) is over.
 func TestCachePinWaitsForAClearer(t *testing.T) {
 	needRoot(t)
 	useCacheRoot(t)

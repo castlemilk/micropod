@@ -132,14 +132,15 @@ type cacheInspection struct {
 }
 
 // lockCacheMaintenance takes the cache maintenance lock, waiting for its
-// holder. Startup recovery (discardDirtyCaches) and every prune or janitor
-// pass hold it for their whole run, so they never overlap, in this process or
-// another. It is the only flock anyone waits for and is always taken before
-// any unit lock; its holder only ever tries unit locks LOCK_NB, so it never
-// waits for anything a waiter holds. Writers, mark clearers and inventory
-// reads never take it. A nil file without an error means there is no cache
-// layout yet: nothing to recover or prune.
-func lockCacheMaintenance() (*os.File, error) {
+// holder until ctx ends (then it returns ctx's error). Startup recovery
+// (discardDirtyCaches) and every prune or janitor pass hold it for their whole
+// run, so they never overlap, in this process or another. It is the only flock
+// anyone waits for without a bound and is always taken before any unit lock;
+// its holder only ever tries unit locks LOCK_NB, so it never waits for anything
+// a waiter holds. Writers, mark clearers and inventory reads never take it. A
+// nil file without an error means there is no cache layout yet: nothing to
+// recover or prune.
+func lockCacheMaintenance(ctx context.Context) (*os.File, error) {
 	f, err := os.OpenFile(filepath.Join(cacheRoot, ".meta", "maintenance.lock"), os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -147,8 +148,15 @@ func lockCacheMaintenance() (*os.File, error) {
 		return nil, err
 	}
 	for {
-		if err = unix.Flock(int(f.Fd()), unix.LOCK_EX); !errors.Is(err, unix.EINTR) {
+		err = unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+		if !errors.Is(err, unix.EWOULDBLOCK) && !errors.Is(err, unix.EINTR) {
 			break
+		}
+		select {
+		case <-ctx.Done():
+			f.Close()
+			return nil, ctx.Err()
+		case <-time.After(cacheMaintenancePoll):
 		}
 	}
 	if err != nil {
@@ -157,6 +165,15 @@ func lockCacheMaintenance() (*os.File, error) {
 	}
 	return f, nil
 }
+
+// cacheMaintenancePoll is how often a waiter retries the maintenance lock.
+const cacheMaintenancePoll = 20 * time.Millisecond
+
+// cachePruneMaintenanceWait bounds how long POST /micropod/caches/prune (and
+// DELETE /micropod/caches) waits for a janitor or another prune pass to finish
+// before it answers 503, well inside the host client's 30 s timeout, so the
+// requester never gives up on a prune that then runs.
+var cachePruneMaintenanceWait = 10 * time.Second
 
 // lockCacheUnits takes LOCK_EX|LOCK_NB on each of units (a cacheUnitGuards
 // list) in order. On the first one that is busy it drops the ones it took and
@@ -177,8 +194,10 @@ func lockCacheUnits(scope string, units []string) ([]*os.File, error) {
 // isUnitInUse reports whether anyone holds the lock of the unit or of one of
 // its guards (cacheUnitGuards: a legacy alias volume's kind-wide lock covers
 // every partition of the kind). Containers hold their units LOCK_SH (yarn v1
-// LOCK_EX) across both Docker and CI scheduler processes, so a LOCK_EX|LOCK_NB
-// probe that fails with EWOULDBLOCK detects any live writer or reader.
+// LOCK_EX) across both Docker and CI scheduler processes, and a read-only alias
+// volume or a docker cp out of one holds its kind-wide unit LOCK_SH, so a
+// LOCK_EX|LOCK_NB probe that fails with EWOULDBLOCK detects any live writer or
+// reader.
 func isUnitInUse(scope, unit string) bool {
 	for _, u := range cacheUnitGuards(scope, unit) {
 		if unitLockHeld(scope, u) {
@@ -189,7 +208,10 @@ func isUnitInUse(scope, unit string) bool {
 }
 
 // unitLockHeld probes one existing lock file with LOCK_EX|LOCK_NB and drops
-// the lock at once; it never creates a lock file.
+// the lock at once; it never creates a lock file. flock has no test operation,
+// so for those microseconds the probe holds the lock: an exclusive pin and a
+// mark clearer, which otherwise try once, wait such a holder out (pinUnit,
+// clearMarkIfRetired).
 func unitLockHeld(scope, unit string) bool {
 	lockPath := filepath.Join(cacheRoot, ".meta", scope, unit+".lock")
 	f, err := os.OpenFile(lockPath, os.O_RDWR|syscall.O_NOFOLLOW, 0600)
@@ -548,7 +570,7 @@ func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) 
 			return fail(400, fmt.Sprintf("unknown cache tool %q", req.Tool))
 		}
 	}
-	res, err := s.pruneCaches(req)
+	res, err := s.pruneCaches(r.Context(), req, cachePruneMaintenanceWait)
 	if err != nil {
 		return err
 	}
@@ -564,11 +586,12 @@ func (s *dockerEngine) handleCachePrune(w http.ResponseWriter, r *http.Request) 
 // at most janitorBatchHold, each under LOCK_EX|LOCK_NB of the unit and its
 // guards with the dirty marks checked again, and the janitor lets go for
 // janitorBatchYield between batches. A container start waiting for the unit
-// (a shared pin retries for 100 ms; a writable alias volume fails its start
-// without its pin) gets it between batches, and the trim then stops at the
+// (a shared pin retries for 100 ms; an alias volume fails its start without
+// its hold) gets it between batches, and the trim then stops at the
 // first batch it cannot lock or finds marked: it never removes a file while a
-// writer holds the store or the fence has it marked.
-func evictPartialGoBuild(scope string, guards []string, dir string, targetFree uint64, safetyCutoff time.Time, dryRun bool) (freedBytes, freedFiles uint64) {
+// writer holds the store or the fence has it marked. It also stops before a
+// batch once ctx has ended (the requester went away or the engine stops).
+func evictPartialGoBuild(ctx context.Context, scope string, guards []string, dir string, targetFree uint64, safetyCutoff time.Time, dryRun bool) (freedBytes, freedFiles uint64) {
 	type shardFile struct {
 		path  string
 		mtime int64
@@ -628,7 +651,7 @@ func evictPartialGoBuild(scope string, guards []string, dir string, targetFree u
 		return freedBytes, freedFiles
 	}
 	next := 0
-	for next < len(candidates) && !done() {
+	for next < len(candidates) && !done() && ctx.Err() == nil {
 		locks, err := lockCacheUnits(scope, guards)
 		if err != nil {
 			break // a writer holds the store now
@@ -671,8 +694,9 @@ func realDir(p string) bool {
 // evictWholeUnit moves a cache unit into .trash and deletes its .used stamp.
 // The caller holds LOCK_EX|LOCK_NB of the unit and its guards and has found
 // none of them marked dirty. It returns the name under .trash, which the
-// caller removes after dropping the locks (nothing can reach it any more), so
-// a start waiting for the unit gets a fresh store at once.
+// caller removes after dropping the unit locks and the maintenance lock
+// (nothing can reach it any more), so a start waiting for the unit gets a
+// fresh store at once.
 func evictWholeUnit(scope, kind string, uid *uint32, unit string) (string, error) {
 	l, err := openCacheLayout()
 	if err != nil {
@@ -718,7 +742,12 @@ func evictWholeUnit(scope, kind string, uid *uint32, unit string) (string, error
 	return trashed, nil
 }
 
-func (s *dockerEngine) pruneCaches(req cachePruneRequest) (cachePruneResult, error) {
+// pruneCaches runs one prune pass. It waits for the maintenance lock until ctx
+// ends, and for at most maintWait when that is positive (then it answers 503).
+// Once it has the lock it stops before the next unit, or the next trim batch,
+// as soon as ctx ends: a requester that gave up never has a store evicted on
+// its behalf afterwards.
+func (s *dockerEngine) pruneCaches(ctx context.Context, req cachePruneRequest, maintWait time.Duration) (cachePruneResult, error) {
 	now := time.Now()
 	reason := req.Reason
 	if reason == "" {
@@ -744,13 +773,33 @@ func (s *dockerEngine) pruneCaches(req cachePruneRequest) (cachePruneResult, err
 	// One prune or janitor pass at a time, and never while the crash fence's
 	// startup recovery runs; taken before any unit lock (lock order in
 	// caches_dirty_linux.go).
-	maint, err := lockCacheMaintenance()
+	lockCtx := ctx
+	if maintWait > 0 {
+		var cancel context.CancelFunc
+		lockCtx, cancel = context.WithTimeout(ctx, maintWait)
+		defer cancel()
+	}
+	maint, err := lockCacheMaintenance(lockCtx)
 	if err != nil {
+		if ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
+			return cachePruneResult{}, fail(http.StatusServiceUnavailable, "a cache janitor or prune pass is running; try again shortly")
+		}
 		return cachePruneResult{}, err
 	}
-	if maint != nil {
-		defer maint.Close()
-	}
+	// Evicted stores are out of every scope once renamed into .trash, so they
+	// are emptied after the maintenance lock is released: a waiting prune
+	// does not also wait for a multi-gigabyte removal.
+	var trashed []string
+	defer func() {
+		if maint != nil {
+			maint.Close()
+		}
+		for _, name := range trashed {
+			if err := os.RemoveAll(filepath.Join(cacheRoot, ".trash", name)); err != nil {
+				log.Printf("cache prune: empty trash %s: %v", name, err)
+			}
+		}
+	}()
 
 	snap := s.inspectCaches(true)
 	res := cachePruneResult{
@@ -797,7 +846,7 @@ func (s *dockerEngine) pruneCaches(req cachePruneRequest) (cachePruneResult, err
 	var touchedUnits int
 
 	for _, u := range eligible {
-		if touchedUnits >= maxUnits {
+		if touchedUnits >= maxUnits || ctx.Err() != nil {
 			break
 		}
 		needAge := ageMode && u.LastUsedUnix > 0 && u.LastUsedUnix < ageCutoff
@@ -829,8 +878,22 @@ func (s *dockerEngine) pruneCaches(req cachePruneRequest) (cachePruneResult, err
 		// unit's own mark or a guard's): it is the fence's to clear after a
 		// sync or to discard after a crash. A mark is only made by a holder of
 		// one of these locks, so none can appear while they are held here.
-		if _, dirty := markedGuard(u.Scope, guards); dirty {
+		if marks := markedGuards(u.Scope, guards); len(marks) > 0 {
 			closeMounts(locks)
+			// These locks were free, so every writer of a mark is gone. One
+			// killed before its release, or a scheduler job whose single
+			// clear attempt failed, left its mark with nobody queued to
+			// clear it, and the unit would stay skipped-dirty all boot. Queue
+			// this boot's marks for the fence's syncer, which clears a mark
+			// only after a sync and only while no writer holds the unit. A
+			// mark from an earlier boot is the next start's recovery's.
+			if !req.DryRun {
+				for _, m := range marks {
+					if markOfThisBoot(u.Scope, m) {
+						cacheDirty.release(u.Scope, m)
+					}
+				}
+			}
 			res.SkippedDirty++
 			res.Actions = append(res.Actions, cachePruneAction{
 				Scope:  u.Scope,
@@ -853,7 +916,7 @@ func (s *dockerEngine) pruneCaches(req cachePruneRequest) (cachePruneResult, err
 				targetFree = remainingBytes - req.MaxBytes
 			}
 			closeMounts(locks)
-			fb, ff := evictPartialGoBuild(u.Scope, guards, filepath.Join(cacheRoot, u.Path), targetFree, safetyCutoff, req.DryRun)
+			fb, ff := evictPartialGoBuild(ctx, u.Scope, guards, filepath.Join(cacheRoot, u.Path), targetFree, safetyCutoff, req.DryRun)
 			if ff > 0 {
 				touchedUnits++
 				res.FreedBytes += fb
@@ -899,14 +962,13 @@ func (s *dockerEngine) pruneCaches(req cachePruneRequest) (cachePruneResult, err
 			continue
 		}
 
-		trashed, evictErr := evictWholeUnit(u.Scope, u.Kind, u.UID, u.Unit)
+		trash, evictErr := evictWholeUnit(u.Scope, u.Kind, u.UID, u.Unit)
 		closeMounts(locks)
-		if trashed != "" {
-			// Out of every scope now: removed without holding the unit, so
-			// a start waiting for it creates a fresh store at once.
-			if err := os.RemoveAll(filepath.Join(cacheRoot, ".trash", trashed)); err != nil {
-				log.Printf("cache prune %s/%s: empty trash: %v", u.Scope, u.Unit, err)
-			}
+		if trash != "" {
+			// Out of every scope now: removed once this pass has released
+			// the unit and the maintenance lock, so a start waiting for the
+			// unit creates a fresh store at once.
+			trashed = append(trashed, trash)
 		}
 		if evictErr != nil {
 			log.Printf("cache prune %s/%s: %v", u.Scope, u.Unit, evictErr)
@@ -949,7 +1011,7 @@ var cachePruneHook func(scope, unit string)
 // (caches_dirty_linux.go), which runs after recovery has moved its discards
 // there.
 
-func (s *dockerEngine) runCacheJanitorPass() {
+func (s *dockerEngine) runCacheJanitorPass(ctx context.Context) {
 	pol := s.cachePolicy.get()
 	if pol.MaxBytes == 0 && pol.MaxAgeDays == 0 && pol.MinFreeBytes == 0 {
 		return
@@ -978,14 +1040,17 @@ func (s *dockerEngine) runCacheJanitorPass() {
 		return
 	}
 	partial := true
-	res, err := s.pruneCaches(cachePruneRequest{
+	res, err := s.pruneCaches(ctx, cachePruneRequest{
 		MaxBytes:       targetMax,
 		OlderThanSecs:  int64(pol.MaxAgeDays) * 86400,
 		PartialGoBuild: &partial,
 		MaxUnits:       janitorMaxUnitsPerSweep,
 		Reason:         "janitor",
-	})
+	}, 0)
 	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
 		log.Printf("cache janitor sweep failed: %v", err)
 		return
 	}
@@ -1002,7 +1067,7 @@ func (s *dockerEngine) runCacheJanitor(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.runCacheJanitorPass()
+			s.runCacheJanitorPass(ctx)
 		}
 	}
 }

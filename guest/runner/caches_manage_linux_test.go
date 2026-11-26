@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -181,11 +182,11 @@ func TestCacheUsageDedupeAndLockSafePartialEviction(t *testing.T) {
 	// 3. Dry-run budget prune must skip pinned proj-a/npm and partially evict coldObjA (preserving hotObjA!)
 	partial := true
 	target := snap.Totals.TotalBytes - uint64(len(payload))/2
-	dry, err := eng.pruneCaches(cachePruneRequest{
+	dry, err := eng.pruneCaches(context.Background(), cachePruneRequest{
 		MaxBytes:       target,
 		PartialGoBuild: &partial,
 		DryRun:         true,
-	})
+	}, 0)
 	if err != nil {
 		t.Fatalf("dry prune: %v", err)
 	}
@@ -197,11 +198,11 @@ func TestCacheUsageDedupeAndLockSafePartialEviction(t *testing.T) {
 	}
 
 	// 4. Real budget prune must skip pinned proj-a/npm, delete coldObjA, preserve hotObjA, and record eviction telemetry!
-	realRes, err := eng.pruneCaches(cachePruneRequest{
+	realRes, err := eng.pruneCaches(context.Background(), cachePruneRequest{
 		MaxBytes:       target,
 		PartialGoBuild: &partial,
 		Reason:         "test-budget",
-	})
+	}, 0)
 	if err != nil {
 		t.Fatalf("real prune: %v", err)
 	}

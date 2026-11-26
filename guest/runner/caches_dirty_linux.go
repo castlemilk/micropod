@@ -49,19 +49,28 @@ import (
 //
 // Every writable path into a store is covered: env-mode tools see the scope
 // read-only with a writable bind of each unit they attached (openCacheMounts),
-// path-mode binds are per unit, and a legacy alias volume pins its kind.
+// path-mode binds are per unit, and a writable legacy alias volume pins its
+// kind. A read-only alias volume (or a docker cp out of one) holds the kind's
+// lock LOCK_SH without a mark, so the janitor leaves the store alone; to a
+// clearer such a reader looks like a writer, which only keeps a mark longer.
 //
 // The janitor (caches_manage_linux.go) composes with this fence through the
 // same files. Lock order: the cache maintenance lock (.meta/maintenance.lock,
-// LOCK_EX, the only flock anyone waits for) is taken by startup recovery and by
-// every prune or janitor pass, never by a writer, clearer or inventory read;
-// then unit locks, always LOCK_NB, the unit's own first and then its guards
-// (cacheUnitGuards), all released on the first one that is busy. Nobody waits
-// for a flock while holding another, so no wait-for cycle can form. Under its
-// unit locks the janitor checks the marks of the unit and its guards and skips
-// a marked unit; a mark is only ever made under a lock it then holds, so none
-// appears while it works. Recovery waits for a janitor pass in flight instead
-// of meeting its locks, so it only ever leaves a unit marked for a real writer.
+// LOCK_EX, the only flock anyone waits for without a bound) is taken by startup
+// recovery and by every prune or janitor pass, never by a writer, clearer or
+// inventory read; then unit locks, always LOCK_NB, the unit's own first and
+// then its guards (cacheUnitGuards), all released on the first one that is
+// busy. A pin or a clearer may retry one busy unit lock for a bounded time
+// (pinUnit, clearMarkIfRetired) and never holds the maintenance lock, and the
+// holders it waits out (a probe, a clearer, a janitor batch) wait for nothing
+// while they hold the lock. So no wait-for cycle can form. Under its unit locks
+// the janitor checks the marks of the unit and its guards and skips a marked
+// unit; a mark is only ever made under a lock it then holds, so none appears
+// while it works. Those locks being free means the marks' writers are gone, so
+// it queues this boot's marks for the syncer: a writer killed before its
+// release left one that nobody else would clear. Recovery waits for a janitor
+// pass in flight instead of meeting its locks, so it only ever leaves a unit
+// marked for a real writer.
 
 var (
 	bootIDPath    = "/proc/sys/kernel/random/boot_id"
@@ -176,7 +185,7 @@ func (t *cacheDirtyTracker) syncOnce() error {
 	}
 	cleared := 0
 	for _, c := range cands {
-		switch removed, err := clearMarkIfRetired(c.scope, c.unit, c.mark); {
+		switch removed, err := clearMarkIfRetired(c.scope, c.unit, c.mark, clearerLockWait); {
 		case removed:
 			cleared++
 		case errors.Is(err, errUnitHeld):
@@ -211,11 +220,18 @@ func (t *cacheDirtyTracker) requeue(snap map[string]int) {
 
 var errUnitHeld = errors.New("a writer still holds the unit")
 
+// clearerLockWait is how long a mark clearer waits out a busy unit lock. An
+// inventory probe or the janitor's mark check holds a unit's LOCK_EX for
+// microseconds; a writer holds its lock until its container exits. Without the
+// wait a standalone scheduler job, which tries its clear once and exits, could
+// meet a probe and leave its mark for the rest of the boot.
+const clearerLockWait = 20 * time.Millisecond
+
 // clearMarkIfRetired removes the unit's mark if no writer holds the unit and
-// the mark is still the file opened before the caller's sync. It reports
-// whether it removed the mark.
-func clearMarkIfRetired(scope, unit string, opened *os.File) (bool, error) {
-	lock, err := unitLock(scope, unit, true)
+// the mark is still the file opened before the caller's sync. A busy lock is
+// retried for up to wait. It reports whether it removed the mark.
+func clearMarkIfRetired(scope, unit string, opened *os.File, wait time.Duration) (bool, error) {
+	lock, err := lockUnitWaiting(scope, unit, true, wait)
 	if errors.Is(err, unix.EWOULDBLOCK) {
 		return false, errUnitHeld
 	} else if err != nil {
@@ -292,7 +308,9 @@ func (t *cacheDirtyTracker) shutdown() {
 		return
 	}
 	for i, m := range marks {
-		if _, err := clearMarkIfRetired(m[0], m[1], opened[i]); err != nil && !errors.Is(err, errUnitHeld) {
+		// No wait: the units running containers hold are common here and
+		// stay marked anyway (guest init's clean-stop record covers them).
+		if _, err := clearMarkIfRetired(m[0], m[1], opened[i], 0); err != nil && !errors.Is(err, errUnitHeld) {
 			log.Printf("cache %s/%s: clear dirty mark: %v", m[0], m[1], err)
 		}
 	}
@@ -367,6 +385,26 @@ func markedGuard(scope string, units []string) (string, bool) {
 	return "", false
 }
 
+// markedGuards returns every one of units that has a dirty mark.
+func markedGuards(scope string, units []string) []string {
+	var out []string
+	for _, u := range units {
+		if _, err := os.Lstat(dirtyMarker(scope, u)); err == nil {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// markOfThisBoot reports whether the unit's mark names this boot. Only such a
+// mark may be cleared after a sync once its writers are gone; one from an
+// earlier boot is left for the next start's recovery to keep or discard.
+func markOfThisBoot(scope, unit string) bool {
+	boot := currentBootID()
+	b, err := os.ReadFile(dirtyMarker(scope, unit))
+	return err == nil && boot != "" && strings.TrimSpace(string(b)) == boot
+}
+
 // cacheDiscarded lists the units this boot moved to .trash and cacheKept the
 // marked units it kept (marked in this boot or a cleanly stopped one), for
 // GET /micropod/caches and the engine metrics. Recovery appends to them under
@@ -393,7 +431,7 @@ func cacheRecoveryReport() (discarded, kept []string) {
 // its locks, with the used stamps of what it held (the inventory and the
 // janitor's LRU then no longer list a store that is gone).
 func discardDirtyCaches() {
-	if maint, err := lockCacheMaintenance(); err != nil {
+	if maint, err := lockCacheMaintenance(context.Background()); err != nil {
 		log.Printf("cache recovery: maintenance lock: %v", err)
 	} else if maint != nil {
 		defer maint.Close()

@@ -2,6 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,7 +27,7 @@ func useFence(t *testing.T, boot string) (setBoot, setCleanStop func(string)) {
 	needRoot(t)
 	useCacheRoot(t)
 	setBoot, setCleanStop = useBoot(t, boot)
-	oldDirty, oldHook := cacheDirty, cachePruneHook
+	oldDirty, oldHook, oldAliasHook := cacheDirty, cachePruneHook, cacheAliasHeldHook
 	cacheDirty = newCacheDirtyTracker()
 	resetRecovery := func() {
 		cacheRecoveryMu.Lock()
@@ -32,7 +36,7 @@ func useFence(t *testing.T, boot string) (setBoot, setCleanStop func(string)) {
 	}
 	resetRecovery()
 	t.Cleanup(func() {
-		cacheDirty, cachePruneHook = oldDirty, oldHook
+		cacheDirty, cachePruneHook, cacheAliasHeldHook = oldDirty, oldHook, oldAliasHook
 		resetRecovery()
 	})
 	return setBoot, setCleanStop
@@ -106,7 +110,7 @@ func TestCacheJanitorLeavesHeldAndDirtyUnitsToTheFence(t *testing.T) {
 	requests := []cachePruneRequest{{Reason: "test-wipe"}, {MaxBytes: 1, PartialGoBuild: &partial, Reason: "test-trim"}}
 
 	for _, req := range requests {
-		res, err := eng.pruneCaches(req)
+		res, err := eng.pruneCaches(context.Background(), req, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -132,7 +136,7 @@ func TestCacheJanitorLeavesHeldAndDirtyUnitsToTheFence(t *testing.T) {
 	a.release()
 	closeMounts(a.files)
 	for _, req := range requests {
-		res, err := eng.pruneCaches(req)
+		res, err := eng.pruneCaches(context.Background(), req, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -165,7 +169,7 @@ func TestCacheJanitorLeavesHeldAndDirtyUnitsToTheFence(t *testing.T) {
 	if marked("default", "gomod") || marked("default", "gobuild") {
 		t.Fatal("marks survive the sync")
 	}
-	res, err := eng.pruneCaches(requests[1])
+	res, err := eng.pruneCaches(context.Background(), requests[1], 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +206,7 @@ func TestCacheJanitorHonoursAliasVolumePins(t *testing.T) {
 	}
 	prune := func() cachePruneResult {
 		t.Helper()
-		res, err := eng.pruneCaches(cachePruneRequest{Tool: "pip", Reason: "test"})
+		res, err := eng.pruneCaches(context.Background(), cachePruneRequest{Tool: "pip", Reason: "test"}, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -254,7 +258,7 @@ func TestCacheJanitorTrimDoesNotFollowShardSymlinks(t *testing.T) {
 	cold := filepath.Join(dir, "00", "00cold-d")
 	writeAged(t, cold, 4096, 2*time.Hour)
 	partial := true
-	res, err := (&dockerEngine{}).pruneCaches(cachePruneRequest{MaxBytes: 1, PartialGoBuild: &partial, Reason: "test"})
+	res, err := (&dockerEngine{}).pruneCaches(context.Background(), cachePruneRequest{MaxBytes: 1, PartialGoBuild: &partial, Reason: "test"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +298,7 @@ func TestCacheJanitorConcurrentWithWriters(t *testing.T) {
 			if i%2 == 1 {
 				req = cachePruneRequest{MaxBytes: 1, PartialGoBuild: &partial, SafetyCutoffSecs: 60, Reason: "stress-trim"}
 			}
-			res, err := eng.pruneCaches(req)
+			res, err := eng.pruneCaches(context.Background(), req, 0)
 			if err != nil {
 				t.Errorf("prune: %v", err)
 				return
@@ -371,7 +375,7 @@ func TestCacheJanitorConcurrentWithWriters(t *testing.T) {
 	if m := listDirtyMarks(); len(m) != 0 {
 		t.Fatalf("marks left after every writer exited and a sync: %v", m)
 	}
-	res, err := eng.pruneCaches(cachePruneRequest{Reason: "final"})
+	res, err := eng.pruneCaches(context.Background(), cachePruneRequest{Reason: "final"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +432,7 @@ func TestCacheCrashDiscardWhileJanitorPassInFlight(t *testing.T) {
 	}
 	pass := make(chan cachePruneResult, 1)
 	go func() {
-		res, err := eng.pruneCaches(cachePruneRequest{Scope: "default", Reason: "test"})
+		res, err := eng.pruneCaches(context.Background(), cachePruneRequest{Scope: "default", Reason: "test"}, 0)
 		if err != nil {
 			t.Error(err)
 		}
@@ -500,13 +504,13 @@ func TestCachePruneWaitsForRecovery(t *testing.T) {
 	if err := touchUsed("default", "npm"); err != nil {
 		t.Fatal(err)
 	}
-	maint, err := lockCacheMaintenance()
+	maint, err := lockCacheMaintenance(context.Background())
 	if err != nil || maint == nil {
 		t.Fatalf("maintenance lock: %v %v", maint, err)
 	}
 	done := make(chan cachePruneResult, 1)
 	go func() {
-		res, err := (&dockerEngine{}).pruneCaches(cachePruneRequest{Reason: "test"})
+		res, err := (&dockerEngine{}).pruneCaches(context.Background(), cachePruneRequest{Reason: "test"}, 0)
 		if err != nil {
 			t.Error(err)
 		}
@@ -594,5 +598,317 @@ func TestCacheFenceWithSharedL0(t *testing.T) {
 	}
 	if exists(filepath.Join(cacheRoot, "scopes/global/gomod")) || exists(filepath.Join(cacheRoot, ".meta/global/gomod.used")) {
 		t.Fatal("the discarded L0 unit or its stamp survived")
+	}
+}
+
+func pendingClears() []string {
+	cacheDirty.mu.Lock()
+	defer cacheDirty.mu.Unlock()
+	var out []string
+	for k := range cacheDirty.pending {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return out
+}
+
+// A read-only legacy alias volume, and a docker cp out of a stopped
+// container's alias volume, hold the kind-wide unit while the descriptor is in
+// use: the janitor skips the store as in use instead of emptying it under the
+// reader. A reader makes no mark, so once it lets go the store is evicted.
+func TestCacheJanitorHonoursReadOnlyAliasVolumes(t *testing.T) {
+	useFence(t, "boot-a")
+	eng := &dockerEngine{workspace: t.TempDir()}
+	dir, err := ensureStore("default", "gomod", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := touchUsed("default", "gomod"); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(dir, "cache", "download", "x.mod")
+	writeAged(t, entry, 16, 0)
+	wipe := func() string {
+		t.Helper()
+		res, err := eng.pruneCaches(context.Background(), cachePruneRequest{Scope: "default", Reason: "test"}, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return pruneActions(res)["default/gomod"]
+	}
+
+	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-gomod:/go/pkg/mod:ro"}}}, false, "")
+	if err != nil || len(pins) != 1 || pins[0].unit != "gomod" {
+		t.Fatalf("read-only alias pins %+v: %v", pins, err)
+	}
+	if act := wipe(); act != "skipped-in-use" || !exists(entry) {
+		t.Fatalf("a wipe gave %q under a read-only alias reader (entry left: %v)", act, exists(entry))
+	}
+	if got := unitUsage(t, eng.inspectCaches(false), "default", "gomod"); !got.InUse || got.Dirty {
+		t.Fatalf("under a read-only alias reader: %+v", got)
+	}
+	releasePins(pins)
+	closeMounts(files)
+
+	c := &dockerContainer{dockerRecord: dockerRecord{Phase: "exited"}}
+	c.Config.HostConfig.Binds = []string{"micropod-ci-scoped-default-gomod:/go/pkg/mod"}
+	_, closeView, err := eng.openArchive(t.Context(), c, "/go/pkg/mod/cache", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if act := wipe(); act != "skipped-in-use" || !exists(entry) {
+		closeView()
+		t.Fatalf("a wipe gave %q during a docker cp out of the alias volume", act)
+	}
+	closeView()
+	if marked("default", "gomod") {
+		t.Fatal("a reader marked the store dirty")
+	}
+	if act := wipe(); act != "evicted" || exists(entry) {
+		t.Fatalf("a wipe gave %q once the readers let go", act)
+	}
+}
+
+// A legacy alias volume holds its unit before its store is created, verified
+// and opened. A janitor wipe at that moment skips the unit as in use and the
+// start gets the store. (The store used to be checked first and pinned after,
+// so a wipe in between moved it away and the start failed with ENOENT.) The
+// hold works in a scope that has no .meta directory yet.
+func TestCacheAliasVolumeIsHeldBeforeItsStoreOpens(t *testing.T) {
+	useFence(t, "boot-a")
+	eng := &dockerEngine{}
+	if _, err := ensureStore("proj", "gomod", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := touchUsed("proj", "gomod"); err != nil {
+		t.Fatal(err)
+	}
+	for _, bind := range []string{"micropod-ci-scoped-proj-gomod:/go/pkg/mod", "micropod-ci-scoped-proj-gomod:/go/pkg/mod:ro"} {
+		var acts map[string]string
+		cacheAliasHeldHook = func(scope, kind string) {
+			res, err := eng.pruneCaches(context.Background(), cachePruneRequest{Scope: "proj", Reason: "test"}, 0)
+			if err != nil {
+				t.Error(err)
+			}
+			acts = pruneActions(res)
+		}
+		files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{bind}}}, false, "")
+		cacheAliasHeldHook = nil
+		if err != nil {
+			t.Fatalf("%s: the start failed: %v", bind, err)
+		}
+		if acts["proj/gomod"] != "skipped-in-use" {
+			t.Fatalf("%s: a wipe between the hold and the open gave %v", bind, acts)
+		}
+		var st unix.Stat_t
+		if len(files) != 1 || unix.Fstat(int(files[0].Fd()), &st) != nil {
+			t.Fatalf("%s: no usable bind source", bind)
+		}
+		releasePins(pins)
+		closeMounts(files)
+	}
+	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-fresh-npm:/root/.npm"}}}, false, "")
+	if err != nil || len(pins) != 1 || !marked("fresh", "npm") || !exists(filepath.Join(cacheRoot, "scopes/fresh/npm")) {
+		t.Fatalf("alias volume of a fresh scope: pins %+v: %v", pins, err)
+	}
+	releasePins(pins)
+	closeMounts(files)
+}
+
+// An inventory probe (unitLockHeld) holds a unit's LOCK_EX for a moment. An
+// exclusive pin (yarn v1) and a mark clearer wait that out instead of taking
+// the unit for busy, which skipped yarn for a start, or left a standalone
+// scheduler job's mark (it tries its clear once, then exits) for the boot. A
+// real holder still makes the exclusive pin busy.
+func TestCachePinAndClearerWaitOutAProbe(t *testing.T) {
+	useFence(t, "boot-a")
+	uid := uint32(0)
+	if _, err := ensureStore("default", "yarn", &uid); err != nil {
+		t.Fatal(err)
+	}
+	probe := func() {
+		t.Helper()
+		f, err := unitLock("default", "yarn.u0", true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		go func() { time.Sleep(time.Millisecond); f.Close() }()
+	}
+	probe()
+	pin, err := pinUnit("default", "yarn.u0", true)
+	if err != nil {
+		t.Fatalf("an exclusive pin gave up on a probe: %v", err)
+	}
+	pin.lock.Close() // the writer exits
+	opened, err := os.Open(dirtyMarker("default", "yarn.u0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opened.Close()
+	probe()
+	if removed, err := clearMarkIfRetired("default", "yarn.u0", opened, clearerLockWait); err != nil || !removed {
+		t.Fatalf("a clearer gave up on a probe: removed=%v %v", removed, err)
+	}
+	holder, err := pinUnit("default", "yarn.u0", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer holder.lock.Close()
+	start := time.Now()
+	if _, err := pinUnit("default", "yarn.u0", true); !errors.Is(err, unix.EWOULDBLOCK) {
+		t.Fatalf("an exclusive pin of a held store: %v", err)
+	}
+	if waited := time.Since(start); waited > time.Second {
+		t.Fatalf("a busy exclusive pin waited %v", waited)
+	}
+}
+
+// A writer killed before its release (a scheduler job's process, an alias
+// volume's engine) leaves its mark with no lock held and nothing queued to
+// clear it. A prune that finds such a mark under the unit's locks knows no
+// writer is left: it skips the unit this time and queues this boot's mark for
+// the fence's syncer, so the next pass acts. A mark from an earlier boot (one
+// recovery could not discard) stays for the next start's recovery.
+func TestCacheJanitorQueuesOrphanedMarks(t *testing.T) {
+	useFence(t, "boot-a")
+	eng := &dockerEngine{}
+	plan := goPlan(t, "default")
+	a := openCacheMounts(&plan, "")
+	if len(a.skipped) != 0 {
+		closeMounts(a.files)
+		t.Fatalf("skipped %v", a.skipped)
+	}
+	a.touchAll()
+	closeMounts(a.files) // killed: the kernel drops the locks, nothing is released
+	uid := uint32(1000)
+	if _, err := ensureStore("default", "pip", &uid); err != nil {
+		t.Fatal(err)
+	}
+	if err := touchUsed("default", "pip.u1000"); err != nil {
+		t.Fatal(err)
+	}
+	files, _, pins, err := eng.openMounts(dockerConfig{HostConfig: dockerHost{Binds: []string{"micropod-ci-scoped-default-pip:/cache/pip"}}}, false, "")
+	if err != nil || len(pins) != 1 {
+		t.Fatalf("alias pins %+v: %v", pins, err)
+	}
+	closeMounts(files) // the alias writer is killed too
+	for _, p := range pins {
+		p.lock.Close()
+	}
+	if _, err := ensureStore("default", "npm", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := touchUsed("default", "npm"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dirtyMarker("default", "npm"), []byte("boot-old\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if q := pendingClears(); len(q) != 0 {
+		t.Fatalf("queued before any prune: %v", q)
+	}
+	wipe := func() map[string]string {
+		t.Helper()
+		res, err := eng.pruneCaches(context.Background(), cachePruneRequest{Scope: "default", Reason: "test"}, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return pruneActions(res)
+	}
+	dry, err := eng.pruneCaches(context.Background(), cachePruneRequest{Scope: "default", DryRun: true}, 0)
+	if err != nil || dry.SkippedDirty != 4 || len(pendingClears()) != 0 {
+		t.Fatalf("a dry run: %+v, queued %v: %v", dry, pendingClears(), err)
+	}
+	acts := wipe()
+	for _, u := range []string{"gomod", "gobuild", "pip.u1000", "npm"} {
+		if acts["default/"+u] != "skipped-dirty" {
+			t.Fatalf("first pass: %v", acts)
+		}
+	}
+	if q := pendingClears(); !slices.Equal(q, []string{"default/gobuild", "default/gomod", "default/pip"}) {
+		t.Fatalf("queued %v", q)
+	}
+	if err := cacheDirty.syncOnce(); err != nil {
+		t.Fatal(err)
+	}
+	if marked("default", "gomod") || marked("default", "gobuild") || marked("default", "pip") || !marked("default", "npm") {
+		t.Fatalf("marks after the sync: %v", listDirtyMarks())
+	}
+	acts = wipe()
+	for u, want := range map[string]string{"gomod": "evicted", "gobuild": "evicted", "pip.u1000": "evicted", "npm": "skipped-dirty"} {
+		if acts["default/"+u] != want {
+			t.Fatalf("second pass: %v", acts)
+		}
+	}
+}
+
+// POST /micropod/caches/prune waits for a janitor pass at most
+// cachePruneMaintenanceWait, then answers 503 and changes nothing. A prune
+// whose requester went away while it waited does nothing once the lock frees,
+// and one whose requester leaves during the pass stops before the next unit.
+func TestCachePruneRequestWaitIsBounded(t *testing.T) {
+	useFence(t, "boot-a")
+	old := cachePruneMaintenanceWait
+	cachePruneMaintenanceWait = 50 * time.Millisecond
+	t.Cleanup(func() { cachePruneMaintenanceWait = old })
+	eng := &dockerEngine{}
+	stores := []string{"npm", "uv"}
+	for _, kind := range stores {
+		if _, err := ensureStore("default", kind, nil); err != nil {
+			t.Fatal(err)
+		}
+		if err := touchUsed("default", kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	left := func() int {
+		n := 0
+		for _, kind := range stores {
+			if exists(filepath.Join(cacheRoot, "scopes/default", kind)) {
+				n++
+			}
+		}
+		return n
+	}
+	maint, err := lockCacheMaintenance(context.Background())
+	if err != nil || maint == nil {
+		t.Fatalf("maintenance lock: %v %v", maint, err)
+	}
+	_, err = cacheRoutes(eng, httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/v1.47/micropod/caches/prune", nil), "POST", "micropod/caches/prune")
+	var ae apiError
+	if !errors.As(err, &ae) || ae.code != http.StatusServiceUnavailable {
+		maint.Close()
+		t.Fatalf("a prune behind a janitor pass: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := eng.pruneCaches(ctx, cachePruneRequest{Reason: "test"}, 0)
+		done <- err
+	}()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			maint.Close()
+			t.Fatalf("a prune whose requester left: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		maint.Close()
+		t.Fatal("a prune kept waiting after its requester left")
+	}
+	maint.Close()
+	time.Sleep(50 * time.Millisecond)
+	if left() != len(stores) {
+		t.Fatal("a store was evicted for a requester that had gone")
+	}
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+	cachePruneHook = func(scope, unit string) { cancel() }
+	res, err := eng.pruneCaches(ctx, cachePruneRequest{Reason: "test"}, 0)
+	cachePruneHook = nil
+	if err != nil || res.EvictedUnits != 1 || left() != 1 {
+		t.Fatalf("a requester left during the pass: %+v, %d stores left: %v", res, left(), err)
 	}
 }

@@ -308,9 +308,14 @@ func (s *dockerEngine) pinArchive(ctx context.Context, c *dockerContainer, absol
 		}
 		var pins []cachePin
 		if mount.Target != "" {
-			// A write into a legacy alias volume of a cache store pins that
-			// kind's unit for the transfer, as a container start does.
-			view.root, pins, err = s.openDockerMount(mount, false, write)
+			// A transfer through a legacy alias volume of a cache store holds
+			// that kind's unit, as a container start does: a write pins it
+			// (lock plus dirty mark), a read takes the lock alone.
+			access := aliasRead
+			if write {
+				access = aliasWrite
+			}
+			view.root, pins, err = s.openDockerMount(mount, false, access)
 		} else if c.retainsRootFS() {
 			view.root, err = s.openStoppedArchiveRoot(ctx, c)
 		} else if c.Config.HostConfig.ReadonlyRootfs && !c.Config.HostConfig.AutoRemove {
