@@ -228,6 +228,38 @@ func (s *dockerEngine) delegatedCreateLocked(viewer string, spec *dockerConfig, 
 	return roots, nil
 }
 
+// hostJoinLocked holds a container on the host's socket (family, its own: ""
+// for one being created) away from the networks and volumes a container's
+// socket created (CreatedBy) for another family. They share the machine's
+// name space, so a job could otherwise create the names another job's
+// compose project will use (app_default, app_pgdata), and that job's
+// containers would join its network, within its children's reach and past
+// the gateway relay's rule, or keep their data in a volume its children may
+// mount. Call with s.mu held.
+func (s *dockerEngine) hostJoinLocked(family string, networks []string, spec *dockerConfig) error {
+	for _, id := range networks {
+		if n := s.namedNetworks[id]; n != nil && n.CreatedBy != "" && n.CreatedBy != family {
+			return fail(http.StatusConflict, "the network "+n.Name+" was created through a container's Docker socket; only what that container created there may join it")
+		}
+	}
+	if spec == nil {
+		return nil
+	}
+	mounts, err := spec.mounts()
+	if err != nil {
+		return fail(400, err.Error())
+	}
+	for _, m := range mounts {
+		if _, _, alias := legacyCacheVolume(m.Source); m.Type != "volume" || alias {
+			continue
+		}
+		if v, err := inspectVolume(m.Source); err == nil && v.createdBy != "" && v.createdBy != family {
+			return fail(http.StatusConflict, "the volume "+m.Source+" was created through a container's Docker socket; only what that container created there may mount it")
+		}
+	}
+	return nil
+}
+
 func endpointNetworks(endpoints []dockerSecondaryEndpoint) []string {
 	ids := make([]string, 0, len(endpoints))
 	for _, e := range endpoints {

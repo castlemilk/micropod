@@ -647,6 +647,10 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 		if bindRoots, err = s.delegatedCreateLocked(viewer, &spec, network, endpoints); err != nil {
 			return nil, err
 		}
+	} else if viewer == "" {
+		if err := s.hostJoinLocked("", append([]string{network}, endpointNetworks(endpoints)...), &spec); err != nil {
+			return nil, err
+		}
 	}
 	if _, err := s.requestedJobParent(spec, network); err != nil {
 		return nil, err

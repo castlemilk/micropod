@@ -60,6 +60,17 @@ func (s *dockerEngine) mutateDockerNetwork(w http.ResponseWriter, r *http.Reques
 		if !visible {
 			return fail(http.StatusNotFound, "no such network: "+key)
 		}
+	} else if connect {
+		s.mu.Lock()
+		n, _ := s.findNetwork(key, false)
+		err := error(nil)
+		if n != nil {
+			err = s.hostJoinLocked(c.family(), []string{n.ID}, nil)
+		}
+		s.mu.Unlock()
+		if err != nil {
+			return err
+		}
 	}
 	release, err := s.lockContainerLifecycle(r.Context(), c)
 	if err != nil {

@@ -302,3 +302,53 @@ func TestDelegatedChildKeepsTheOwnersReadOnlyVolume(t *testing.T) {
 		t.Fatalf("a volume a child creates is its owner's: %+v %v", v, err)
 	}
 }
+
+// A network or volume a container's socket created is its job's: a container
+// the host's socket creates (another job's compose project, which names its
+// objects predictably) neither joins nor mounts it, and the host's socket
+// does not create a volume over it. The owner's own family still may.
+func TestHostSocketDoesNotAdoptADelegatedSocketsObjects(t *testing.T) {
+	useVolumeStore(t)
+	s, owner, child, _, _ := delegatedFixture(t)
+	imageID := healthConfigDigest([]byte("{}"))
+	s.node = node{images: dockerHealthTestImages{id: imageID}, imageStore: dockerHealthTestImageStore{}}
+	s.healthImages = dockerImageHealthCache{byID: map[string]dockerImageHealth{imageID: {}}}
+	squat := &workerNetwork{Name: "app_default", ID: strings.Repeat("1", 64), Driver: "bridge", Subnet: netip.MustParsePrefix("10.90.1.0/24"), CreatedBy: owner.ID,
+		Labels: map[string]string{"com.docker.compose.project": "app", "com.docker.compose.network": "default"}}
+	hostNet := &workerNetwork{Name: "host-net", ID: strings.Repeat("2", 64), Driver: "bridge", Subnet: netip.MustParsePrefix("10.90.2.0/24")}
+	s.namedNetworks[squat.ID], s.namedNetworks[hostNet.ID] = squat, hostNet
+	if err := ensureVolumeBy("app_pgdata", nil, owner.ID); err != nil {
+		t.Fatal(err)
+	}
+	host := withCacheOrigin(context.Background(), cacheOrigin{hostFacing: true})
+	for _, spec := range []dockerConfig{
+		{Image: "postgres", HostConfig: dockerHost{NetworkMode: "app_default"}},
+		{Image: "postgres", HostConfig: dockerHost{NetworkMode: "host-net"}, Endpoints: map[string]dockerEndpointOptions{"app_default": {}}},
+		{Image: "postgres", HostConfig: dockerHost{Binds: []string{"app_pgdata:/var/lib/postgresql/data"}}},
+		{Image: "postgres", HostConfig: dockerHost{Mounts: []dockerMount{{Type: "volume", Source: "app_pgdata", Target: "/data", ReadOnly: true}}}},
+	} {
+		spec.Labels = map[string]string{"io.micropod.cache": "off"}
+		_, err := s.create(host, spec, "")
+		var api apiError
+		if !errors.As(err, &api) || api.code != http.StatusConflict || !strings.Contains(api.message, "container's Docker socket") {
+			t.Errorf("host create %v %v: %v, want 409", spec.HostConfig, spec.Endpoints, err)
+		}
+	}
+	rec := httptest.NewRecorder()
+	err := s.volumes(rec, httptest.NewRequest("POST", "/volumes/create", strings.NewReader(`{"Name":"app_pgdata"}`)).WithContext(host), "/create")
+	var api apiError
+	if !errors.As(err, &api) || api.code != http.StatusConflict {
+		t.Errorf("host volume create over a delegated volume: %v %d", err, rec.Code)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.hostJoinLocked(child.family(), []string{squat.ID}, nil); err != nil {
+		t.Errorf("the owner's own child may join its network: %v", err)
+	}
+	if err := s.hostJoinLocked(owner.family(), []string{squat.ID, hostNet.ID}, &dockerConfig{HostConfig: dockerHost{Binds: []string{"app_pgdata:/d", "other:/o"}}}); err != nil {
+		t.Errorf("the owner may join and mount what it created: %v", err)
+	}
+	if err := s.hostJoinLocked(strings.Repeat("9", 64), []string{squat.ID}, nil); err == nil {
+		t.Error("another family joined the owner's network on the host's socket")
+	}
+}

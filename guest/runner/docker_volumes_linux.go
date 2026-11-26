@@ -157,7 +157,9 @@ func (s *dockerEngine) volumes(w http.ResponseWriter, r *http.Request, path stri
 		if err == nil {
 			v, err = inspectVolume(opts.Name)
 		}
-		if err == nil && !s.seesVolumeLocked(viewer, v) {
+		if err == nil && (!s.seesVolumeLocked(viewer, v) || viewer == "" && v.createdBy != "") {
+			// The host's socket does not adopt a volume a container's socket
+			// created (hostJoinLocked).
 			err = fail(http.StatusConflict, "a volume named "+opts.Name+" already exists")
 		}
 		s.mu.Unlock()
